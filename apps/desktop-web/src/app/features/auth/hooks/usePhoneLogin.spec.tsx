@@ -5,8 +5,9 @@ const rt = vi.hoisted(() => ({
     isAuthenticated: true,
     loginGuest: vi.fn(),
     sendPhoneCode: vi.fn(),
-    confirmPhoneCode: vi.fn(),
-    applySessionToken: vi.fn(),
+    confirmPhoneLogin: vi.fn(),
+    retryPhoneLogin: vi.fn(),
+    cancelPhoneLogin: vi.fn(),
     error: vi.fn(),
     waitUntilSlotVerified: vi.fn(),
 }));
@@ -22,21 +23,27 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         data: {
             useRuntimeRepositories: () => ({
-                auth: { sendPhoneCode: rt.sendPhoneCode, confirmPhoneCode: rt.confirmPhoneCode },
+                auth: { sendPhoneCode: rt.sendPhoneCode },
             }),
         },
         session: {
             getIdentityContext: () => ({ isAuthenticated: rt.isAuthenticated }),
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: rt.loginGuest }),
-            applySessionToken: rt.applySessionToken,
+            confirmPhoneLogin: rt.confirmPhoneLogin,
+            retryPhoneLogin: rt.retryPhoneLogin,
+            cancelPhoneLogin: rt.cancelPhoneLogin,
+            PHONE_LOGIN_NOTHING_PENDING: 'PHONE_LOGIN_NOTHING_PENDING',
+            PHONE_LOGIN_NO_TOKEN: 'PHONE_LOGIN_NO_TOKEN',
+            PHONE_LOGIN_SWITCH_FAILED: 'PHONE_LOGIN_SWITCH_FAILED',
         },
     },
 }));
 
 import { PHONE_CODE_LENGTH, PHONE_RESEND_COOLDOWN_MS, usePhoneLogin } from './usePhoneLogin';
 
-const TOKEN = { Token: { identityToken: 'id' }, $auth: { id: 'auth-1' } };
+/** A phone login failure the runtime throws, by its code. */
+const loginFailure = (code: string) => Object.assign(new Error(code), { code });
 const CODE = '123456';
 
 const setup = () => {
@@ -62,10 +69,9 @@ describe('usePhoneLogin', () => {
         rt.isAuthenticated = true;
         rt.loginGuest.mockReset().mockResolvedValue(undefined);
         rt.sendPhoneCode.mockReset().mockResolvedValue({ sent: true, expiredAt: Date.now() + 180_000 });
-        rt.confirmPhoneCode
-            .mockReset()
-            .mockResolvedValue({ step: 'confirm', mode: 'login', loggedIn: true, isNew: false, $token: TOKEN });
-        rt.applySessionToken.mockReset().mockResolvedValue(undefined);
+        rt.confirmPhoneLogin.mockReset().mockResolvedValue({ isNew: false });
+        rt.retryPhoneLogin.mockReset().mockResolvedValue({ isNew: false });
+        rt.cancelPhoneLogin.mockReset();
         rt.error.mockReset();
         rt.waitUntilSlotVerified.mockReset().mockResolvedValue(true);
         ui.language = 'en';
@@ -170,26 +176,19 @@ describe('usePhoneLogin', () => {
         expect(result.current.codeSent).toBe(false);
     });
 
-    it('confirms once the last digit is in, applies the token and reports the account', async () => {
+    it('signs in once the last digit is in, through the runtime, and reports the account', async () => {
         const { result, onSignedIn } = setup();
         await sendCode(result);
 
         await typeCode(result);
 
-        expect(rt.confirmPhoneCode).toHaveBeenCalledTimes(1);
-        expect(rt.confirmPhoneCode).toHaveBeenCalledWith('+821012345678', CODE, { mode: 'login', countryCode: 'KR' });
-        expect(rt.applySessionToken).toHaveBeenCalledWith(TOKEN);
+        expect(rt.confirmPhoneLogin).toHaveBeenCalledTimes(1);
+        expect(rt.confirmPhoneLogin).toHaveBeenCalledWith('+821012345678', CODE, { countryCode: 'KR' });
         expect(onSignedIn).toHaveBeenCalledWith({ isNew: false });
     });
 
     it('says when the number made a new account', async () => {
-        rt.confirmPhoneCode.mockResolvedValue({
-            step: 'confirm',
-            mode: 'login',
-            loggedIn: true,
-            isNew: true,
-            $token: TOKEN,
-        });
+        rt.confirmPhoneLogin.mockResolvedValue({ isNew: true });
         const { result, onSignedIn } = setup();
         await sendCode(result);
 
@@ -204,7 +203,7 @@ describe('usePhoneLogin', () => {
 
         await typeCode(result, CODE.slice(0, PHONE_CODE_LENGTH - 1));
 
-        expect(rt.confirmPhoneCode).not.toHaveBeenCalled();
+        expect(rt.confirmPhoneLogin).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -213,7 +212,7 @@ describe('usePhoneLogin', () => {
         ['400 INVALID - expired', 'codeExpired'],
         ['500 ERROR', 'verifyFailed'],
     ])('maps a confirm refused with %s to %s', async (message, expected) => {
-        rt.confirmPhoneCode.mockRejectedValue(new Error(message));
+        rt.confirmPhoneLogin.mockRejectedValue(new Error(message));
         const { result, onSignedIn } = setup();
         await sendCode(result);
 
@@ -224,7 +223,7 @@ describe('usePhoneLogin', () => {
     });
 
     it('submits the same code again after it is edited, once a check failed', async () => {
-        rt.confirmPhoneCode.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        rt.confirmPhoneLogin.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
         const { result } = setup();
         await sendCode(result);
         await typeCode(result);
@@ -233,29 +232,22 @@ describe('usePhoneLogin', () => {
         await typeCode(result, CODE.slice(0, PHONE_CODE_LENGTH - 1));
         await typeCode(result);
 
-        expect(rt.confirmPhoneCode).toHaveBeenCalledTimes(2);
+        expect(rt.confirmPhoneLogin).toHaveBeenCalledTimes(2);
     });
 
-    it('refuses a login confirm whose token carries no session', async () => {
-        rt.confirmPhoneCode.mockResolvedValue({
-            step: 'confirm',
-            mode: 'login',
-            loggedIn: true,
-            isNew: false,
-            $token: {},
-        });
+    it('refuses a login confirm that came back without a session token', async () => {
+        rt.confirmPhoneLogin.mockRejectedValue(loginFailure('PHONE_LOGIN_NO_TOKEN'));
         const { result, onSignedIn } = setup();
         await sendCode(result);
 
         await typeCode(result);
 
-        expect(rt.applySessionToken).not.toHaveBeenCalled();
         expect(onSignedIn).not.toHaveBeenCalled();
         expect(result.current.codeError).toBe('verifyFailed');
     });
 
-    it('retries a failed session switch with the token it got, without checking the code again', async () => {
-        rt.applySessionToken.mockRejectedValueOnce(new Error('socket did not re-verify'));
+    it('retries a failed session switch through the runtime, without checking the code again', async () => {
+        rt.confirmPhoneLogin.mockRejectedValueOnce(loginFailure('PHONE_LOGIN_SWITCH_FAILED'));
         const { result, onSignedIn } = setup();
         await sendCode(result);
         await typeCode(result);
@@ -265,9 +257,44 @@ describe('usePhoneLogin', () => {
 
         await act(async () => result.current.retrySwitch());
 
-        expect(rt.confirmPhoneCode).toHaveBeenCalledTimes(1);
-        expect(rt.applySessionToken).toHaveBeenCalledTimes(2);
+        expect(rt.confirmPhoneLogin).toHaveBeenCalledTimes(1);
+        expect(rt.retryPhoneLogin).toHaveBeenCalledTimes(1);
         expect(onSignedIn).toHaveBeenCalledWith({ isNew: false });
+    });
+
+    it('stays on the retry when the retried switch fails again', async () => {
+        rt.confirmPhoneLogin.mockRejectedValueOnce(loginFailure('PHONE_LOGIN_SWITCH_FAILED'));
+        rt.retryPhoneLogin.mockRejectedValueOnce(loginFailure('PHONE_LOGIN_SWITCH_FAILED'));
+        const { result, onSignedIn } = setup();
+        await sendCode(result);
+        await typeCode(result);
+
+        await act(async () => result.current.retrySwitch());
+
+        expect(result.current.isRetry).toBe(true);
+        expect(result.current.codeError).toBe('sessionSwitchFailed');
+        expect(onSignedIn).not.toHaveBeenCalled();
+    });
+
+    it('goes back to the code when the runtime has nothing left to finish, so a resend is the way on', async () => {
+        rt.confirmPhoneLogin.mockRejectedValueOnce(loginFailure('PHONE_LOGIN_SWITCH_FAILED'));
+        rt.retryPhoneLogin.mockRejectedValueOnce(loginFailure('PHONE_LOGIN_NOTHING_PENDING'));
+        const { result } = setup();
+        await sendCode(result);
+        await typeCode(result);
+
+        await act(async () => result.current.retrySwitch());
+
+        expect(result.current.isRetry).toBe(false);
+        expect(result.current.codeError).toBe('verifyFailed');
+    });
+
+    it('cancels the login the runtime keeps waiting when the page closes', () => {
+        const { unmount } = setup();
+
+        unmount();
+
+        expect(rt.cancelPhoneLogin).toHaveBeenCalledTimes(1);
     });
 
     it('drops the outstanding code when the number changes', async () => {
@@ -296,7 +323,7 @@ describe('usePhoneLogin', () => {
     });
 
     it('never logs the number or the code', async () => {
-        rt.confirmPhoneCode.mockRejectedValue(new Error('403 FORBIDDEN'));
+        rt.confirmPhoneLogin.mockRejectedValue(new Error('403 FORBIDDEN'));
         const { result } = setup();
         await sendCode(result);
         await typeCode(result);

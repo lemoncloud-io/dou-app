@@ -7,7 +7,7 @@ import type { AccountLinkMode } from '../../../hooks/useLinkAccount';
 const mockSend = jest.fn();
 const mockVerify = jest.fn();
 const mockConfirm = jest.fn();
-const mockApplySessionToken = jest.fn();
+const mockConfirmPhoneLogin = jest.fn();
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
@@ -15,7 +15,12 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
-            applySessionToken: (...args: unknown[]) => mockApplySessionToken(...args),
+            confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),
+            retryPhoneLogin: jest.fn(),
+            cancelPhoneLogin: jest.fn(),
+            PHONE_LOGIN_NOTHING_PENDING: 'PHONE_LOGIN_NOTHING_PENDING',
+            PHONE_LOGIN_NO_TOKEN: 'PHONE_LOGIN_NO_TOKEN',
+            PHONE_LOGIN_SWITCH_FAILED: 'PHONE_LOGIN_SWITCH_FAILED',
         },
     },
 }));
@@ -96,10 +101,10 @@ describe('PhoneVerifySheet', () => {
         expect(onClose).toHaveBeenCalled();
     });
 
-    it('세션 전환이 실패하면 완료 대신 다시 시도를 노출한다 (소비된 OTP를 재검증하지 않는다)', async () => {
-        const $token = { Token: { identityToken: 'main' }, $auth: { id: 'auth-1' } };
-        mockConfirm.mockResolvedValueOnce({ linked: true, $token });
-        mockApplySessionToken.mockRejectedValueOnce(new Error('relay re-auth not confirmed'));
+    it('shows a retry instead of completing when the session switch failed, without proving the spent code again', async () => {
+        mockConfirmPhoneLogin.mockRejectedValueOnce(
+            Object.assign(new Error('switch failed'), { code: 'PHONE_LOGIN_SWITCH_FAILED' })
+        );
 
         const { onVerified } = renderSheet();
         await requestCode();
@@ -107,19 +112,18 @@ describe('PhoneVerifySheet', () => {
 
         expect(screen.getByText('phoneVerify.retry')).toBeInTheDocument();
         expect(onVerified).not.toHaveBeenCalled();
-        expect(mockConfirm).toHaveBeenCalledTimes(1);
+        expect(mockConfirmPhoneLogin).toHaveBeenCalledTimes(1);
     });
 
-    it('login 모드는 발송에 mode와 초대 코드를 싣고, 6자리에서 곧장 confirm한다', async () => {
-        mockConfirm.mockResolvedValueOnce({ linked: true });
-        mockApplySessionToken.mockResolvedValueOnce(undefined);
+    it('sends with the login mode and signs in through the runtime on the sixth digit', async () => {
+        mockConfirmPhoneLogin.mockResolvedValueOnce({ isNew: false });
 
         const { onVerified } = renderSheet('login');
         await requestCode();
         await pasteOtp();
 
         expect(mockSend).toHaveBeenCalledWith(PHONE_E164, { mode: 'login', code: undefined, countryCode: 'KR' });
-        expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'login', countryCode: 'KR' });
+        expect(mockConfirmPhoneLogin).toHaveBeenCalledWith(PHONE_E164, '123456', { countryCode: 'KR' });
         expect(mockVerify).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
@@ -141,7 +145,7 @@ describe('PhoneVerifySheet', () => {
         });
 
         expect(mockConfirm).toHaveBeenCalledWith(PHONE_E164, '123456', { mode: 'link', countryCode: 'KR' });
-        expect(mockApplySessionToken).not.toHaveBeenCalled();
+        expect(mockConfirmPhoneLogin).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
 

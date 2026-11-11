@@ -134,6 +134,8 @@ class FakeDevice {
 
 let mockServer = new FakeCloudServer();
 let mockDevice = new FakeDevice();
+// The answers the runtime keeps for the screen's handles — the screen never holds one.
+const mockInviteAnswers = new Map<string, ReturnType<FakeCloudServer['loginInvite']>>();
 const mockEnterStack = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -144,18 +146,22 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionIdentity: () => ({ delegatorId: mockDevice.guest }),
+            // The runtime keeps an invite login's answer and hands the screen a handle to enter with.
             useInviteFlow: () => ({
-                runInviteFlow: async ({ code }: { code: string }) => mockServer.loginInvite(code, mockDevice.guest),
+                runInviteFlow: async ({ code }: { code: string }) => {
+                    const handle = `invite-login-${mockInviteAnswers.size + 1}`;
+                    mockInviteAnswers.set(handle, mockServer.loginInvite(code, mockDevice.guest));
+                    return { handle, cloudId: null };
+                },
                 isInviting: false,
             }),
+            forgetInviteLogin: (handle: string) => mockInviteAnswers.delete(handle),
             useSwitchCloudSession: () => ({
-                // The runtime's two entries: with an invite login's answer, that answer is committed as
-                // it is; without one, the cloud is re-issued through `delegate-cloud`.
-                switchCloud: async (
-                    cloudId: string,
-                    options?: { inviteLogin?: { cloudToken?: { id?: string; Token?: { identityToken?: string } } } }
-                ) => {
-                    const answer = options?.inviteLogin?.cloudToken;
+                // The runtime's two entries: with an invite login's handle, the answer it was given for is
+                // committed as it is; without one, the cloud is re-issued through `delegate-cloud`.
+                switchCloud: async (cloudId: string, options?: { inviteLogin?: { handle: string } }) => {
+                    const handle = options?.inviteLogin?.handle;
+                    const answer = handle ? mockInviteAnswers.get(handle) : undefined;
                     const invitee = answer?.Token?.identityToken ? answer.id : undefined;
                     mockDevice.committedUid = invitee ?? mockServer.delegate(cloudId, mockDevice.relayUser);
                     mockDevice.selectedCloudId = cloudId;
@@ -220,6 +226,7 @@ describe('cloud invite acceptance (integration)', () => {
     beforeEach(() => {
         mockServer = new FakeCloudServer();
         mockDevice = new FakeDevice();
+        mockInviteAnswers.clear();
         mockEnterStack.mockClear();
         usePendingInviteChannel.getState().clearPendingChannel();
     });

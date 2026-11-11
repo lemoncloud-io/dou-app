@@ -30,9 +30,18 @@ jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
 jest.mock('@chatic/auth/socket/reauthDelegate', () => ({ createReauthDelegate: () => ({}) }));
 
 const { useSwitchCloudSession } = require('./useSwitchCloudSession');
+const {
+    INVITE_LOGIN_UNKNOWN,
+    keepInviteLogin,
+    readInviteLogin,
+    resetInviteLogins,
+} = require('@chatic/auth/session/inviteLogins');
 
 const inviteAnswer = { id: 'invitee', Token: { identityToken: 'invitee-identity' } };
-const inviteLogin = { cloudToken: inviteAnswer, backend: 'https://cloud.example.com', wss: 'wss://cloud.example.com' };
+const endpoints = { backend: 'https://cloud.example.com', wss: 'wss://cloud.example.com' };
+/** The handle the runtime hands a screen for an invite login's answer, as `switchCloud` takes it. */
+const handleFor = (answer: unknown) => ({ ...keepInviteLogin(answer), ...endpoints });
+let inviteLogin: { handle: string; cloudId: string | null; backend: string; wss: string };
 
 const createWrapper = () => {
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -48,14 +57,16 @@ describe('useSwitchCloudSession', () => {
         mockSwitchCloudSession.mockResolvedValue({ cloudId: 'cloud-1' });
         mockSlotKeys.mockReturnValue([]);
         mockTimeToExpiry.mockReturnValue(60 * 60_000);
+        resetInviteLogins();
+        inviteLogin = handleFor(inviteAnswer);
     });
 
     afterEach(() => resetPerfTraces());
 
-    it('클라우드 전환을 서비스에 위임하고 스냅샷을 돌려준다', async () => {
+    it("delegates the switch to the session service and resolves with nothing — the service's snapshot carries a token", async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
-        await expect(result.current.switchCloud('cloud-1')).resolves.toEqual({ cloudId: 'cloud-1' });
+        await expect(result.current.switchCloud('cloud-1')).resolves.toBeUndefined();
         expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: false });
     });
 
@@ -88,7 +99,7 @@ describe('useSwitchCloudSession', () => {
         expect(mockRenew).not.toHaveBeenCalled();
     });
 
-    it('enters with an invite login answer instead of re-issuing', async () => {
+    it("enters with the answer the invite login's handle stands for, instead of re-issuing", async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await result.current.switchCloud('cloud-1', { inviteLogin });
@@ -120,13 +131,47 @@ describe('useSwitchCloudSession', () => {
         mockReauthenticate.mockRejectedValueOnce(new Error('socket down'));
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
-        await expect(result.current.switchCloud('cloud-1', { inviteLogin })).resolves.toEqual({ cloudId: 'cloud-1' });
+        await expect(result.current.switchCloud('cloud-1', { inviteLogin })).resolves.toBeUndefined();
+    });
+
+    it('forgets the answer once the cloud is entered', async () => {
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await result.current.switchCloud('cloud-1', { inviteLogin });
+
+        expect(readInviteLogin(inviteLogin.handle)).toBeNull();
+    });
+
+    it('keeps the answer for a retry after a switch that failed, and enters with it then', async () => {
+        mockSwitchCloudSession.mockRejectedValueOnce(
+            Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' })
+        );
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await expect(result.current.switchCloud('cloud-1', { inviteLogin })).rejects.toThrow('Network Error');
+        await result.current.switchCloud('cloud-1', { inviteLogin });
+
+        expect(mockSwitchCloudSession).toHaveBeenLastCalledWith('cloud-1', {
+            hasLiveSlot: false,
+            issuedTokens: expect.objectContaining({ cloudToken: inviteAnswer }),
+        });
+    });
+
+    it('refuses a handle the runtime does not hold, rather than enter as the relay user', async () => {
+        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
+
+        await expect(
+            result.current.switchCloud('cloud-1', {
+                inviteLogin: { handle: 'invite-login-404', cloudId: null, ...endpoints },
+            })
+        ).rejects.toMatchObject({ code: INVITE_LOGIN_UNKNOWN });
+        expect(mockSwitchCloudSession).not.toHaveBeenCalled();
     });
 
     it('falls back to an ordinary switch when the invite answer cannot be entered with', async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
-        await result.current.switchCloud('cloud-1', { inviteLogin: { cloudToken: { id: 'invitee', Token: {} } } });
+        await result.current.switchCloud('cloud-1', { inviteLogin: handleFor({ id: 'invitee', Token: {} }) });
 
         expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: false, issuedTokens: undefined });
     });

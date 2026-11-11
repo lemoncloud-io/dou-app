@@ -10,8 +10,8 @@ commands still run `hooks → @chatic/auth → @chatic/session`. Every edge runs
 ## Layout
 
 ```text
-session/                              34 source files, 15 tests
-├── hooks/    32 files · 14 tests  the React surface: app · auth · actions · readers · pairing
+session/                              34 source files, 16 tests
+├── hooks/    32 files · 15 tests  the React surface: app · auth · actions · readers · pairing
 ├── sessionReads.ts                the readers and the getters, through `runtimeEngine().session`
 └── index.ts                       the `session` facade group
 ```
@@ -40,7 +40,20 @@ snapshot without a token — on the phone the session may live in another proces
 has none — so `getGlobalSessionContext()` has no `identityToken`, `delegationToken` or `cloudToken`,
 and an error is its message. The core engine reads this process's stores; what it holds and how it
 keeps each part the same object is [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-session-view).
-`useSessionSelection` derives from `useGlobalSession`. Twenty-one of these 22 are on the package barrel; the one that is not
+`useSessionSelection` derives from `useGlobalSession`.
+
+The commands keep tokens out of the screen the same way. A login answers with the account's fields,
+not its token: `useLogin`, `useLoginRelaySocial` and `useLoginRelayGuestByDevice` resolve with a
+`SessionAccountView`, and so does `createCredentialsByProvider`. A phone login is one step,
+`confirmPhoneLogin(phone, code, { countryCode })` — the code proved and the session switched, answering
+`{ isNew }` — with `retryPhoneLogin()` for a switch that failed after the code was spent and
+`cancelPhoneLogin()` when the screen closes; they throw `PHONE_LOGIN_NO_TOKEN`,
+`PHONE_LOGIN_SWITCH_FAILED` and `PHONE_LOGIN_NOTHING_PENDING`. An invite login (`useInviteFlow`,
+`registerUserWithInviteCode`) answers with an `InviteLogin` handle; `useSwitchCloudSession().switchCloud`
+takes it as `{ inviteLogin }` (with the invite's `backend`/`wss` added), resolves with nothing, and
+refuses a handle the runtime does not hold with `INVITE_LOGIN_UNKNOWN`; a screen that will not enter
+with one calls `forgetInviteLogin`. How long an answer is kept is
+[`@chatic/auth`'s session doc](../../../auth/docs/session/README.md). Twenty-one of these 22 are on the package barrel; the one that is not
 is `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package). The session's
 init and guest keep-alive are no longer hooks: they are runtime-core's session controller, which the
 connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).

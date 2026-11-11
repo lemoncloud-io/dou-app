@@ -24,6 +24,8 @@ import { relayCredentialProbe } from './relayCredentialProbe';
 import { dropSignedOutAppKeys } from './storage/signedOutAppKeys.util';
 import { authPlatform } from '../platform';
 import { isNativeStore, WebStore } from '@chatic/storage';
+import { withoutToken } from './accountView';
+import type { SessionAccountView } from './accountView';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
@@ -380,11 +382,14 @@ export const relaySession: IRelaySession = new RelaySession();
  * These two stay because their callers are apps, and an app should not hold a singleton: the OAuth
  * exchange runs in a redirect page's effect and the logout-callback registry is wired at a log
  * uploader's module init — neither is React, so neither can go through a hook (decision 6).
+ *
+ * `createCredentialsByProvider` signs in with a provider's OAuth code and answers with the account's
+ * fields: the token stays with the session.
  */
-export const createCredentialsByProvider = (
+export const createCredentialsByProvider = async (
     provider = 'google',
     code: string,
     options?: OAuthCodeLoginOptions
-): Promise<UserTokenView> => relaySession.loginByOAuthCode(provider, code, options);
+): Promise<SessionAccountView> => withoutToken(await relaySession.loginByOAuthCode(provider, code, options));
 export const registerSessionLogoutCallback = (callback: () => void): (() => void) =>
     relaySession.registerLogoutCallback(callback);

@@ -1,4 +1,6 @@
 import { authRepositorySource } from './authRepository';
+import { keepInviteLogin } from './inviteLogins';
+import type { InviteLogin } from './inviteLogins';
 
 import type { IAuthRepository } from '@chatic/data';
 
@@ -27,9 +29,17 @@ export const findAlias = (...args: Parameters<IAuthRepository['findAlias']>) => 
 
 export const verifyAlias = (...args: Parameters<IAuthRepository['verifyAlias']>) => auth().verifyAlias(...args);
 
-/** `backend` defaults to the dynamic relay host, matching the pre-move `registerUserWithInviteCode`. */
-export const registerUserWithInviteCode = (code: string, delegatorId: string, backend?: string) =>
-    auth().loginWithInviteCode({ code, delegatorId, backend });
+/**
+ * Logs in to an invited cloud with the invite's code. The answer is the invitee's own cloud token, so it
+ * is kept with the session and the caller gets a handle to enter the cloud with (`switchCloud`'s
+ * `inviteLogin`) and the cloud the answer names — never the token. `backend` defaults to the dynamic
+ * relay host, matching the pre-move `registerUserWithInviteCode`.
+ */
+export const registerUserWithInviteCode = async (
+    code: string,
+    delegatorId: string,
+    backend?: string
+): Promise<InviteLogin> => keepInviteLogin(await auth().loginWithInviteCode({ code, delegatorId, backend }));
 
 export const fetchInviteInfoWithCode = (code: string, backend: string) => auth().fetchInviteInfo({ code, backend });
 

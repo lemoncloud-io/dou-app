@@ -50,8 +50,11 @@ export type {
 
 // --- auth use-cases (non-React) -----------------------------------------------------------------
 export type { LogoutOptions } from '@chatic/auth';
-// The invite login answer `useSwitchCloudSession().switchCloud` can enter a cloud with.
-export type { InviteLoginEntry } from '@chatic/auth';
+// An invite login as a screen holds it — a handle, never the token — which `switchCloud` enters with,
+// `forgetInviteLogin` drops when the screen will not, and `INVITE_LOGIN_UNKNOWN` is the switch's refusal
+// of a handle the runtime does not hold. A login's answer is `SessionAccountView`, the account without its token.
+export type { InviteLogin, SessionAccountView } from '@chatic/auth';
+export { INVITE_LOGIN_UNKNOWN, forgetInviteLogin } from '@chatic/auth';
 // Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
 // `useLoginRelaySocial` · `useSwitchCloudSession`, and the host's session controller), and Decision 6's rule is
 // "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the
@@ -115,10 +118,19 @@ export type { PairingRequestState } from '@chatic/auth';
 // actions drive a socket, and the profile hook assembles from repositories — so the barrel is where
 // that gap closes instead of making an app know the split.
 
-// verify-hash-alias `$token` → session store commit + same-connection relay socket re-auth. Consumed
-// by the phone-verification flow, which apps/web imports.
-export { applySessionToken } from '@chatic/auth';
-export type { ApplySessionTokenOptions } from '@chatic/auth';
+// The phone login as one step — the code proved and this device signed in, the session token never
+// handed to the screen — and the retry of a switch that failed after the code was spent. Consumed by
+// the phone-verification flows of apps/web and desktop-web, which `cancelPhoneLogin` when they close. The
+// three codes are what they throw with.
+export {
+    PHONE_LOGIN_NOTHING_PENDING,
+    PHONE_LOGIN_NO_TOKEN,
+    PHONE_LOGIN_SWITCH_FAILED,
+    cancelPhoneLogin,
+    confirmPhoneLogin,
+    retryPhoneLogin,
+} from '@chatic/auth';
+export type { PhoneLoginResult } from '@chatic/auth';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)
 // before the local store teardown, which is why it and not the `session/auth` primitive is the
 // public name (ADR-0076 Decision 7). The cloud half is reached through `useLogoutCloudSession`, so the raw

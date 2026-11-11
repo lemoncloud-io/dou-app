@@ -9,6 +9,8 @@
 
 // session — the relay and cloud sessions, and the use cases over them.
 export * from './session/authActions';
+export * from './session/accountView';
+export * from './session/inviteLogins';
 export * from './session/authRepository';
 export * from './session/clearSiteSelection';
 export * from './session/cloudSession';
@@ -29,6 +31,7 @@ export * from './pairing/pairingRequestFlow';
 // socket — authentication on the socket slots. `types.ts` holds no values.
 export * from './socket/types';
 export * from './socket/applySessionToken';
+export * from './socket/phoneLogin';
 export * from './socket/authStatus';
 export * from './socket/backgroundCloudTokens';
 export * from './socket/bootstrapSocketConnection';

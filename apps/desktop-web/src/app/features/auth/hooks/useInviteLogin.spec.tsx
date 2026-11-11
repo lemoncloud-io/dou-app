@@ -11,6 +11,7 @@ const {
     getActiveSessionUser,
     fetchInviteCodeInfo,
     cacheWrite,
+    forgetInviteLogin,
 } = vi.hoisted(() => ({
     loginGuest: vi.fn(),
     registerUserWithInviteCode: vi.fn(),
@@ -18,6 +19,7 @@ const {
     getActiveSessionUser: vi.fn(),
     fetchInviteCodeInfo: vi.fn(),
     cacheWrite: vi.fn(),
+    forgetInviteLogin: vi.fn(),
 }));
 
 vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
@@ -32,6 +34,7 @@ vi.mock('@chatic/app-runtime', () => ({
             getIdentityContext,
             getActiveSessionUser,
             registerUserWithInviteCode,
+            forgetInviteLogin,
         },
         data: {
             useRuntimeRepositories: () => ({ cloud: { cacheWrite, cacheRead: vi.fn().mockResolvedValue(null) } }),
@@ -103,7 +106,7 @@ describe('useInviteLogin with an encoded link', () => {
 
     it('exchanges the code against the backend the link names', async () => {
         fetchInviteCodeInfo.mockResolvedValue(null);
-        registerUserWithInviteCode.mockResolvedValue({});
+        registerUserWithInviteCode.mockResolvedValue({ handle: 'invite-login-1', cloudId: null });
         const { result } = renderHook(() => useInviteLogin(), { wrapper });
 
         let failure: unknown;
@@ -121,7 +124,7 @@ describe('useInviteLogin with an encoded link', () => {
 
     it('records the account that joined on the cached cloud and the joined-clouds entry', async () => {
         fetchInviteCodeInfo.mockResolvedValue(null);
-        registerUserWithInviteCode.mockResolvedValue({ cloudId: '1000009' });
+        registerUserWithInviteCode.mockResolvedValue({ handle: 'invite-login-1', cloudId: '1000009' });
         const { result } = renderHook(() => useInviteLogin(), { wrapper });
 
         await act(async () => {
@@ -132,6 +135,18 @@ describe('useInviteLogin with an encoded link', () => {
             expect.objectContaining({ id: '1000009', cloudType: 'invited', acceptedBy: ['account-1'] })
         );
         expect(useJoinedCloudsStore.getState().joinedClouds['1000009']).toMatchObject({ ownerUid: 'account-1' });
+    });
+
+    it('lets the runtime forget the invite answer — the cloud is entered the ordinary way, not with it', async () => {
+        fetchInviteCodeInfo.mockResolvedValue(null);
+        registerUserWithInviteCode.mockResolvedValue({ handle: 'invite-login-1', cloudId: '1000009' });
+        const { result } = renderHook(() => useInviteLogin(), { wrapper });
+
+        await act(async () => {
+            await result.current.login(encodedLink({ c: 'invt:1:abc', a: 'uzjpiaey7a', s: 'dev' }));
+        });
+
+        expect(forgetInviteLogin).toHaveBeenCalledWith('invite-login-1');
     });
 
     it('refuses a relay invite before any guest session is created or the code is sent', async () => {

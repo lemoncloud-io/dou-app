@@ -27,7 +27,7 @@ const toClientChannel = (channel: DomainChannel, myUid: string): ClientChannelVi
  * `observeItem` answers the FIRST time from the cache alone, so a channel the device has never seen —
  * a push into a new room, or the first visit after a cloud switch — answers `null` immediately while
  * `runtime.sync.useChannelSync` is still fetching it. Matches the socket-wait bound used elsewhere (see
- * `usePushNavigate`, `applySessionToken`).
+ * `usePushNavigate`, and the phone login's session switch).
  */
 const CHANNEL_RESOLVE_TIMEOUT_MS = 10_000;
 

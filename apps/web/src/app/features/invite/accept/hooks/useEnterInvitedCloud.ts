@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { MyInviteView, UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { runtime } from '@chatic/app-runtime';
 
 import { retryOnNetworkError } from '../lib/retryOnNetworkError';
@@ -31,16 +31,21 @@ export const useEnterInvitedCloud = () => {
     const enterCloud = useCallback(
         async (
             info?: MyInviteView & { cloudId?: string; $envs?: { backend?: string; wss?: string } },
-            inviteToken?: UserTokenView
+            inviteLogin?: runtime.session.InviteLogin
         ): Promise<void> => {
             const cloudId = info?.cloudId;
-            if (!cloudId) return;
-            if (!inviteToken && cloudId === selectedCloudId) return;
+            if (!cloudId) {
+                // No cloud to enter: the answer will never be entered with.
+                if (inviteLogin) runtime.session.forgetInviteLogin(inviteLogin.handle);
+                return;
+            }
+            if (!inviteLogin && cloudId === selectedCloudId) return;
 
-            const inviteLogin = inviteToken
-                ? { cloudToken: inviteToken, backend: info?.$envs?.backend, wss: info?.$envs?.wss }
+            // Where the cloud lives comes from the invite; the answer itself stays with the runtime.
+            const entry = inviteLogin
+                ? { ...inviteLogin, backend: info?.$envs?.backend, wss: info?.$envs?.wss }
                 : undefined;
-            await retryOnNetworkError(() => switchCloud(cloudId, { inviteLogin }));
+            await retryOnNetworkError(() => switchCloud(cloudId, { inviteLogin: entry }));
         },
         [switchCloud, selectedCloudId]
     );

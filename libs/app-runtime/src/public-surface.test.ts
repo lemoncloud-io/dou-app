@@ -27,18 +27,24 @@ const GROUPS: Record<string, readonly string[]> = {
     // The stores an app keeps state in are chosen in `@chatic/runtime-web` (`resolveStorageStores`), which
     // also builds the runtime; this group hands the React surface the engine it built.
     boot: ['initAppRuntime', 'isNativeApp', 'prepareSecretStorage', 'webTransport'],
-    // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
-    // to a consumer, all three are "session".
+    // Session state · auth. `confirmPhoneLogin`/`logoutSession` live in `@chatic/auth`'s socket/ —
+    // to a consumer, all of them are "session".
     session: [
+        'INVITE_LOGIN_UNKNOWN',
+        'PHONE_LOGIN_NOTHING_PENDING',
+        'PHONE_LOGIN_NO_TOKEN',
+        'PHONE_LOGIN_SWITCH_FAILED',
         'SWITCH_CLOUD_MUTATION_KEY',
         'SWITCH_SITE_MUTATION_KEY',
-        'applySessionToken',
         'authFailureReaction',
+        'cancelPhoneLogin',
         'classifyPairingError',
         'clearSiteSelection',
+        'confirmPhoneLogin',
         'createCredentialsByProvider',
         'deviceDisplayName',
         'fetchInviteInfoWithCode',
+        'forgetInviteLogin',
         'forgetRefusedPairedCloud',
         'getActiveServerContext',
         'getActiveSessionUser',
@@ -56,6 +62,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'patchRelaySessionUser',
         'registerSessionLogoutCallback',
         'registerUserWithInviteCode',
+        'retryPhoneLogin',
         'useCloudCredentialGuard',
         'useDynamicDeviceId',
         'useFindAlias',
