@@ -1,8 +1,9 @@
 // @chatic/runtime-core — the runtime's assembly, and the ports it is assembled from.
 //
 // What the React surface (`@chatic/app-runtime`) reads: the assembly entry, the data graph's
-// accessors, and the non-React halves of the data facade. Apps do not import this package; they reach
-// it through `runtime` from @chatic/app-runtime.
+// accessors, and the non-React halves of the data facade. The adapters (`@chatic/runtime-web`, the
+// native one) read the assembly entry and the bridge contract. Apps do not import this package; they
+// reach it through `runtime` from @chatic/app-runtime.
 
 // assembly
 export { createRuntime } from './createRuntime';
@@ -48,3 +49,23 @@ export type { DeviceTokenDelegate, PushDeviceIds, PushRegistrationOptions } from
 
 // a chat room primed for its first render
 export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';
+
+// the runtime across the bridge: the contract version both halves negotiate, and how errors cross
+export {
+    RUNTIME_CONTRACT_VERSION,
+    RUNTIME_CONTRACTS,
+    answerRuntimeHello,
+    chooseRuntimeContract,
+    readRuntimeOffer,
+    settleRuntimeHello,
+} from './bridge/contract';
+export type { RuntimeHelloHost, RuntimeHelloOutcome, RuntimeSettlement, SessionSnapshotWire } from './bridge/contract';
+export {
+    RUNTIME_ERROR_CODE,
+    RUNTIME_NOT_AVAILABLE_CODE,
+    reviveRuntimeError,
+    runtimeNotAvailableFailure,
+    serializeRuntimeError,
+    toRuntimeFailure,
+} from './bridge/errors';
+export type { RuntimeErrorDetails } from './bridge/errors';

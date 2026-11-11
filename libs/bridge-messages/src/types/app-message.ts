@@ -127,6 +127,12 @@ import type {
     OnSetDebugModePayload,
     OnStartPerfTracePayload,
     OnStopPerfTracePayload,
+    OnRuntimeCallPayload,
+    OnRuntimeEventPayload,
+    OnRuntimeHelloPayload,
+    OnRuntimeSessionChangedPayload,
+    OnRuntimeSubscribePayload,
+    OnRuntimeUnsubscribePayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -291,6 +297,14 @@ export type AppMessageDataMap = {
     // Pushed to a sub WebView page only, by its own host.
     OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
     OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;
+    // 12. Runtime — replies to the main web's runtime requests, and the two pushes of a shell that owns
+    // the session.
+    OnRuntimeHello: OnRuntimeHelloPayload;
+    OnRuntimeCall: OnRuntimeCallPayload;
+    OnRuntimeSubscribe: OnRuntimeSubscribePayload;
+    OnRuntimeUnsubscribe: OnRuntimeUnsubscribePayload;
+    OnRuntimeEvent: OnRuntimeEventPayload;
+    OnRuntimeSessionChanged: OnRuntimeSessionChangedPayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

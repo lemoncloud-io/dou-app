@@ -1,6 +1,6 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.22.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.23.0. What is marked **(2.15.0)**, **(2.16.0)**,
 > **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)** or **(2.22.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 

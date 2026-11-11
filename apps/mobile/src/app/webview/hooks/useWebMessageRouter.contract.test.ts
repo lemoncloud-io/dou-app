@@ -7,6 +7,9 @@ import { AppBridgeHost, InMemoryAdapter, JsonProtocol, WebBridgeClient } from '@
 import { useWebMessageRouter } from './useWebMessageRouter';
 import { useWebViewNavigation } from './useWebViewNavigation';
 
+const NOT_YET_SESSION_OWNER =
+    'The runtime conversation; this shell does not run the runtime yet, so it never offers it in CHATIC_APP_RUNTIME';
+
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
  * answers each with `NOT_FOUND`, which is what the web falls back on. A message belongs here only
@@ -29,6 +32,10 @@ const MOBILE_UNSUPPORTED = {
     GetSubWebViewStorageInfo: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     GetSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     RequestSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    RuntimeHello: NOT_YET_SESSION_OWNER,
+    RuntimeCall: NOT_YET_SESSION_OWNER,
+    RuntimeSubscribe: NOT_YET_SESSION_OWNER,
+    RuntimeUnsubscribe: NOT_YET_SESSION_OWNER,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.

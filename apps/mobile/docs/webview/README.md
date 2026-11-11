@@ -226,8 +226,9 @@ direction has its own contract tests.
 | `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
 | `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
 
-`OnUpdateStatus` is the one push-only message this shell never sends: the desktop updates itself,
-the phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the
+`OnUpdateStatus` is a push-only message this shell never sends: the desktop updates itself, the
+phone through the store. `OnRuntimeEvent` and `OnRuntimeSessionChanged` are not sent yet either: they
+belong to a shell that runs the runtime and owns the session, which this one does not do yet. `OnOpenURL` is not an event despite the name — it is the reply to the
 web's `OpenURL` request.
 
 ### Its contract tests
