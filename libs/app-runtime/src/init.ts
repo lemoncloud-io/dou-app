@@ -1,9 +1,10 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { runtimeStores } from './storage/runtimeStores';
+import { localCachePlatform } from './data/localCachePlatform';
 import { credentialRecovery, transportPlatform } from '@chatic/transport';
 import {
     authPlatform,
@@ -19,6 +20,7 @@ import { syncDataGraph } from '@chatic/sync';
 import type { HttpRoute } from '@chatic/http';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
+import type { LocalCachePorts } from '@chatic/data';
 import type { AuthPlatformPorts } from '@chatic/auth';
 import type { DataRuntimeConfig } from './data/runtime';
 import type { RuntimeStorePorts } from './storage/runtimeStores';
@@ -33,12 +35,11 @@ export interface AppRuntimeConfig {
     /**
      * The stores the runtime keeps state in, chosen by the entry point for its environment — normally
      * straight from `resolveStorageStores()`. `secret` and `plain` back the session's two ports, and are
-     * required: the session has no store of its own to fall back on. `device` and `tab` back the
-     * runtime's own non-session state (the sync cursor watermark, a tab's invited clouds); left out,
-     * they are this page's `localStorage` (tolerant) and `sessionStorage` (raw — the invited clouds are
-     * a cache that must hear a failed write).
+     * required: the session has no store of its own to fall back on. `device` backs the runtime's own
+     * non-session state (the sync cursor watermark), required for the same reason — in a page, this
+     * origin's `localStorage`, tolerant.
      */
-    storage: SessionStoragePorts & Partial<RuntimeStorePorts>;
+    storage: SessionStoragePorts & RuntimeStorePorts;
     /**
      * What the sockets and the link verdict take from the platform: the network signal, the device's
      * self-description and how a socket is opened. Required — the transport has no platform of its own
@@ -51,6 +52,13 @@ export interface AppRuntimeConfig {
      * `webAuthPorts()` from `@chatic/runtime-web`.
      */
     auth: AuthPlatformPorts;
+    /**
+     * Where the cache's rows live: which store each domain goes to, the storages themselves, the search
+     * across clouds and the cache's metrics. Required — the runtime has no cache of its own to fall back
+     * on. A web page passes `webLocalCachePorts(tab)` from `@chatic/runtime-web`, with its raw
+     * tab-lifetime store.
+     */
+    cache: LocalCachePorts;
     /**
      * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
      * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
@@ -99,13 +107,15 @@ export const initAppRuntime = (config: AppRuntimeConfig): void => {
     booted = true;
 
     // The session's stores, before anything below can read or sweep the session.
-    const { secret, plain, device, tab } = config.storage;
+    const { secret, plain, device } = config.storage;
     sessionStores.configure({ secret, plain });
-    runtimeStores.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
+    runtimeStores.configure({ device });
     // The platform the sockets and the link verdict read, before anything below can open one.
     transportPlatform.configure(config.transport);
     // The address, before the sweep below reads its logout flag.
     authPlatform.configure(config.auth);
+    // Where the cache's rows live, before the data graph — built lazily, on first repository access.
+    localCachePlatform.configure(config.cache);
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
     // The plain store is the web storage lemon used to write in each environment.

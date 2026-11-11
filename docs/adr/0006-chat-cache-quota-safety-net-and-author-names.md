@@ -11,7 +11,7 @@ accepted — the decision still stands, but the machinery it describes has moved
 > this ADR observed were never reachable in practice, which is why they went. The
 > `docs/cache-architecture-spec.md` cited below was deleted in the same pass (it described that
 > subsystem as current); its surviving content now lives in
-> [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md) and
+> [runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md) and
 > `libs/data/docs/local/`. **The safety net this ADR decided on is still in force**: the per-channel
 > chat cap lives in `IndexedDBAdapter` (`maxChatsPerChannel`) and is injected as a
 > `CacheAssemblyOptions` field through `configureDataRuntime`.

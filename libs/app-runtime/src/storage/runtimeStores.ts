@@ -1,46 +1,37 @@
-import { TolerantStore, WebStore } from '@chatic/storage';
-
 import type { KeyValueStore } from '@chatic/storage';
 
 /**
- * The two stores the runtime's own non-session state lives in.
+ * The store the runtime's own non-session state lives in.
  *
- * - `device` — survives closing the tab: the sync cursor watermark. Tolerant.
- * - `tab` — dies with the tab: the invited clouds a browser tab entered. Raw, not tolerant: it holds a
- *   cache, and the cache engine must hear that a write did not land rather than report it stored.
+ * - `device` — survives closing the tab: the sync cursor watermark. Tolerant: the watermark is a
+ *   convenience, so a full or blocked storage costs the value, not the boot.
  *
- * The entry point hands them over in `initAppRuntime({ storage })`, from the same
- * `resolveStorageStores` call that built the session's stores. Until then they are this page's two web
- * storages, which is what they were before an entry point could choose — so a test, or a module read
- * before the boot, sees the same storage the booted app does.
- *
- * The watermark is a convenience, so a full or blocked storage costs the value, not the boot.
+ * The entry point hands it over in `initAppRuntime({ storage })`, from the same `resolveStorageStores`
+ * call that built the session's stores. **There is no default**: reading it before then throws, like
+ * the session's own ports — a default would be one platform's storage. (The tab-lifetime store a page
+ * keeps its invited clouds in belongs to the web cache, `webLocalCachePorts(tab)` in
+ * `@chatic/runtime-web`, not to the runtime.)
  */
 export interface RuntimeStorePorts {
     device: KeyValueStore;
-    tab: KeyValueStore;
 }
-
-const defaults = (): RuntimeStorePorts => ({
-    device: new TolerantStore(WebStore.local()),
-    tab: WebStore.session(),
-});
 
 let ports: RuntimeStorePorts | null = null;
 
 export const runtimeStores = {
     device(): KeyValueStore {
-        ports ??= defaults();
+        if (!ports) {
+            throw new Error(
+                "[app-runtime] the runtime's device store was used before it was configured — the entry point " +
+                    'has to pass `storage.device` to initAppRuntime().'
+            );
+        }
         return ports.device;
     },
-    tab(): KeyValueStore {
-        ports ??= defaults();
-        return ports.tab;
+    configure(next: RuntimeStorePorts): void {
+        ports = next;
     },
-    configure(next: Partial<RuntimeStorePorts>): void {
-        ports = { ...(ports ?? defaults()), ...next };
-    },
-    /** Tests only: back to the defaults. */
+    /** Tests only: back to unconfigured. */
     reset(): void {
         ports = null;
     },

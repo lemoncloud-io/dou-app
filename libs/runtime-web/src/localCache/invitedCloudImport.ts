@@ -1,6 +1,6 @@
 import type { CacheModelOf, CacheQueryOf } from '@chatic/bridge-messages';
 import type { CacheStorage } from '@chatic/data';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 type InvitedCloudRow = CacheModelOf<'invitecloud'>;
 

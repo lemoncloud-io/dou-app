@@ -16,7 +16,7 @@ const mockListeners: Array<(changedKeys: readonly string[]) => void> = [];
 let mockOverridden: ConfigSnapshot[] = [];
 let mockSnapshots: Record<string, ConfigSnapshot> = {};
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { info: mockInfo, warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 

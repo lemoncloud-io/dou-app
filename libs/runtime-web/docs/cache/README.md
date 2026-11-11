@@ -1,5 +1,9 @@
 # cache storage routing
 
+> Where `webLocalCachePorts(tab)` (`src/localCache/`) puts each cache domain in a web page. The
+> runtime asks the port once per domain per session and keys its sync cursors on the answers; that
+> assembly side is [app-runtime's data doc](../../../app-runtime/docs/data/README.md).
+
 Three stores exist for a cached row. Inside a native shell there is the app's SQLite, reached over the
 bridge, which survives the OS clearing WebView data. Everywhere else — and sometimes inside the shell
 too — there is the WebView or browser's own IndexedDB. And for one domain in a plain browser tab there
@@ -9,15 +13,15 @@ and nothing else may branch on it.**
 ```ts
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
     if (type === 'invitecloud' && !isNative()) return 'session'; // 0. lives as long as the tab's guest
-    if (!isNativeApp()) return 'web'; // 1. no shell, no other store to reach
+    if (!isInPhoneApp()) return 'web'; // 1. no shell, no other store to reach
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web'; // 2. pinned, with a reason
     if (!isNativeCacheTypeUsable(type)) return 'web'; // 3. the shell cannot be trusted with it
     return 'native'; // 4. the durable one
 };
 ```
 
-[`localFactory.getCacheStorage`](../../src/data/factories/localFactory.ts) materializes that verdict
-as an adapter and does nothing else: `web` builds an IndexedDB adapter (carrying the chat cap, which
+[`webLocalCachePorts`](../../src/localCache/index.ts)' `storage()` materializes that verdict as an
+adapter and does nothing else: `web` builds an IndexedDB adapter (carrying the chat cap, which
 the adapter ignores for other types), `native` builds the bridge adapter, and `session` builds a
 `sessionStorage` adapter wrapped in the one-time import described below. Global cache search follows
 the environment directly — on native it searches SQLite, because that is the source of truth and web
@@ -70,7 +74,8 @@ either.
 Moving that domain's storage at all requires writing a migration bridge **first**. The
 web-to-native one was removed once it had run for weeks and exhausted its active users. The move to
 `sessionStorage` below ships with its own, for the same reason. See
-[README.md](./README.md#invited-clouds) for what else defends the domain.
+[app-runtime's data doc](../../../app-runtime/docs/data/README.md#invited-clouds) for what else defends
+the domain.
 
 The other domains are safe to move because the server refills them. `invite` is one of them because
 its list call always revalidates; `meta` is one because it holds sync cursors, and losing those costs
@@ -85,7 +90,7 @@ IndexedDB outlived it and reached every later tab's list, where only the `accept
 apps/web kept it out, and a row written before that field existed could not be kept out at all.
 
 So the row is stored where its only user is: `sessionStorage`, routed ahead of every other check. The
-test is `isNative()` from `@chatic/bridges`, not `isNativeApp()`, because it is the same predicate the
+test is `isNative()` from `@chatic/bridges`, not `isInPhoneApp()`, because it is the same predicate the
 app entry points use to choose `sessionStorage` for the session itself — the row and the guest share a
 lifetime by construction. Inside a desktop shell the session is in `localStorage`, so the shell's
 invited clouds stay in IndexedDB; inside the mobile shell they stay native. A reload keeps the tab's
@@ -146,13 +151,13 @@ deploy alone — and it is a stopgap with the durability cost above.
 
 ## Verifying a change here
 
-- `invitedCloudSessionImport.test.ts` fixes the import — only this guest's rows, once per tab, a held row wins, a failed read retries next boot.
-- `localFactory.test.ts` fixes the routing table as a full **type × environment** matrix (with a desktop-shell case for `invitecloud`), plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
-- `nativeCacheSupport.test.ts` fixes the gate itself — the floor holds when a shell omits a legacy type, a reported version is honoured, a shortfall routes to web, and the local-authority domain stays native under every report shape.
-- The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and `localFactory.test.ts` asserts the fingerprint differs between environments and is derived from the storages actually built rather than a hand-kept list.
+- `localCache/invitedCloudImport.spec.ts` fixes the import — only this guest's rows, once per tab, a held row wins, a failed read retries next boot.
+- `localCache/routing.spec.ts` fixes the routing table as a full **type × environment** matrix (with a desktop-shell case for `invitecloud`), plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
+- `localCache/nativeCacheSupport.spec.ts` fixes the gate itself — the floor holds when a shell omits a legacy type, a reported version is honoured, a shortfall routes to web, and the local-authority domain stays native under every report shape.
+- The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and app-runtime's `data/factories/localFactory.test.ts` asserts the fingerprint follows the routes the port answered and is derived from the storages actually built rather than a hand-kept list. `localCache/fallbackReport.spec.ts` fixes the one-line fallback report `routed()` makes.
 
 ## Further reading
 
-- [README.md](./README.md) — the factories that consume this verdict, and the invited-cloud defences
+- [app-runtime's data doc](../../../app-runtime/docs/data/README.md) — the assembly that asks for this verdict, and the invited-cloud defences
 - [`libs/db`](../../../db/README.md) — the adapters behind `web`, `native` and `session`
 - [`libs/data`](../../../data/README.md) — the cache partition key, and the sync-cursor data source that reads the fingerprint

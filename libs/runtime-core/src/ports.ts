@@ -1,4 +1,5 @@
 import type { AuthPlatformPorts } from '@chatic/auth';
+import type { LocalCachePorts } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
@@ -27,6 +28,8 @@ export interface RuntimePorts {
     transport: TransportPlatformPorts;
     /** The address the boot reads the logout flag from, and the way home when a session ends. */
     auth: AuthPlatformPorts;
+    /** Where the cache's rows live: each domain's store, the search across clouds, the metrics. */
+    cache: LocalCachePorts;
 }
 
 /** The keys of `T` a caller may leave out. */

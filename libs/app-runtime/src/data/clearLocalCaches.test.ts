@@ -15,7 +15,7 @@ jest.mock('@chatic/session/store', () => ({
 const mockRequestSyncCursorReset = jest.fn();
 jest.mock('./syncCursorWatermark', () => ({ requestSyncCursorReset: () => mockRequestSyncCursorReset() }));
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

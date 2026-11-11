@@ -12,6 +12,8 @@ jest.mock('@chatic/config', () => ({
 }));
 jest.mock('@chatic/bridges', () => ({
     isNative: () => false,
+}));
+jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn() },
 }));
 jest.mock('../session', () => ({

@@ -21,7 +21,7 @@ export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitec
  * Version numbers increase monotonically and are unrelated to the global SQLite schema number or
  * to when a domain was added.
  *
- * See libs/app-runtime/docs/data/cache-contract-versions.md for the full design.
+ * See libs/runtime-web/docs/cache/README.md for the full design.
  */
 export type CacheDomainVersions = Partial<Record<CacheType, number>>;
 

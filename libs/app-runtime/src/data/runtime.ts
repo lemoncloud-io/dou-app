@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { DataRepositories, DataRepositoriesOptions } from '@chatic/data';
 import { DataManager } from './DataManager';

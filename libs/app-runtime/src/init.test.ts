@@ -24,7 +24,7 @@ import type * as AuthTesting from '@chatic/auth/testing/platform';
 // point at the previous run's object.
 const mockWarn = jest.fn();
 const mockInfo = jest.fn();
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { warn: mockWarn, info: mockInfo, error: jest.fn(), debug: jest.fn() },
 }));
 
@@ -41,8 +41,20 @@ const load = async () => {
 /** The session's two ports over fresh memory — the store every case here is indifferent to. */
 const memoryStorage = () => {
     const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
-    return { secret: new MemoryStore(), plain: new MemoryStore() };
+    return { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() };
 };
+
+/** Cache ports that are never reached: boot only hands them over, and builds no storage. */
+const cachePorts = () =>
+    ({
+        route: () => 'web',
+        storage: () => {
+            throw new Error('[test] boot built a cache storage');
+        },
+        routed: () => undefined,
+        globalSearch: () => ({}),
+        metrics: () => ({}),
+    }) as never;
 
 /** A jsdom page's transport ports — what every case here is indifferent to. */
 const transport = () =>
@@ -68,7 +80,7 @@ describe('initAppRuntime', () => {
     it('boots the session store — the same read succeeds afterwards', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(() => getActiveServerContext()).not.toThrow();
     });
@@ -80,7 +92,7 @@ describe('initAppRuntime', () => {
         const ports = transport();
 
         expect(() => transportPlatform.ports()).toThrow(/initAppRuntime/);
-        initAppRuntime({ storage: memoryStorage(), transport: ports, auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: ports, auth: authPorts(), cache: cachePorts() });
 
         expect(transportPlatform.ports()).toBe(ports);
     });
@@ -92,7 +104,7 @@ describe('initAppRuntime', () => {
         const ports = { ...authPorts(), currentSearch };
 
         expect(() => authPlatform.ports()).toThrow(/initAppRuntime/);
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: ports });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: ports, cache: cachePorts() });
 
         expect(authPlatform.ports()).toBe(ports);
         // The sweep is what read it, during boot.
@@ -106,7 +118,13 @@ describe('initAppRuntime', () => {
         const { initAppRuntime } = await import('./init');
 
         const data = { cache: { maxChatsPerChannel: 1000 } };
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), data });
+        initAppRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            data,
+        });
 
         expect(configureDataRuntime).toHaveBeenCalledWith(data);
     });
@@ -126,7 +144,7 @@ describe('initAppRuntime', () => {
         );
         const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         // Boot only installs the accessors; the graph is still built on first use.
         expect(getRepositories).not.toHaveBeenCalled();
@@ -141,23 +159,23 @@ describe('initAppRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
         const { initAppRuntime } = await import('./init');
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         // Passing `{}` through would trip the runtime's own late-registration warning for nothing.
         expect(configureDataRuntime).not.toHaveBeenCalled();
     });
 
     it('turns a pending cache-clear request into the cursor watermark before the data runtime exists', async () => {
-        localStorage.setItem('chatic.syncCursors.resetPending', '1');
+        const storage = memoryStorage();
+        storage.device.set('chatic.syncCursors.resetPending', '1');
         const { initAppRuntime } = await load();
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
         const before = Date.now();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage, transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
-        expect(localStorage.getItem('chatic.syncCursors.resetPending')).toBeNull();
-        localStorage.clear();
+        expect(storage.device.get('chatic.syncCursors.resetPending')).toBeNull();
     });
 
     it("keeps the runtime's own state in the device store the entry point hands over", async () => {
@@ -171,6 +189,7 @@ describe('initAppRuntime', () => {
             storage: { secret: new MemoryStore(), plain: new MemoryStore(), device },
             transport: transport(),
             auth: authPorts(),
+            cache: cachePorts(),
         });
 
         expect(device.get('chatic.syncCursors.resetPending')).toBeNull();
@@ -187,9 +206,10 @@ describe('initAppRuntime', () => {
         const { initAppRuntime } = await load();
 
         initAppRuntime({
-            storage: { secret: new MemoryStore(), plain },
+            storage: { secret: new MemoryStore(), plain, device: new MemoryStore() },
             transport: transport(),
             auth: authPorts(),
+            cache: cachePorts(),
             signedOutKeyPrefixes: ['@chatic/web.log.'],
         });
 
@@ -200,8 +220,8 @@ describe('initAppRuntime', () => {
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockWarn).toHaveBeenCalledWith('WEB_CORE', expect.stringContaining('more than once'));
         // The wiring is assignment, not accumulation: the second call leaves a working runtime.
@@ -211,7 +231,7 @@ describe('initAppRuntime', () => {
     it('does not warn on the first call', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockWarn).not.toHaveBeenCalled();
     });
@@ -223,7 +243,7 @@ describe('initAppRuntime', () => {
     it('records the config boot state', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
             overrides: [],

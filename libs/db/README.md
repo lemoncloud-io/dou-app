@@ -22,11 +22,12 @@ imports past the barrel:
 grep -rn "@chatic/db" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-That single importer is `localFactory` in `libs/app-runtime`. Screens, repositories and data sources
-see a `CacheStorage` and never learn which engine answered.
+That single importer, outside tests, is the web cache ports in `libs/runtime-web` (`src/localCache/`):
+the page's answer to `@chatic/data`'s `LocalCachePorts`. Screens, repositories and data sources see a
+`CacheStorage` and never learn which engine answered.
 
 This lib **does not decide which engine a domain gets.** That is `resolveCacheBackend` in
-`libs/app-runtime/src/data/cacheStorageRouting.ts` — an app policy about the installed shell, not a
+`libs/runtime-web/src/localCache/routing.ts` — a page's policy about the installed shell, not a
 storage concern. An engine that knew the conditions of its own selection would be the wrong shape.
 
 It also does not own the TTL and scope policy it calls. `resolveScopedContext`, `createTtlMeta`,
@@ -38,7 +39,7 @@ imports them as runtime functions.
 1. **The port belongs to the consumer; the implementation belongs here.** All five interfaces live in
    `@chatic/data`. Plugging a different engine in — React Native, a memory store for a test — is an
    `@chatic/db` change and nothing else.
-2. **An engine class is constructed in one place.** `localFactory` calls `new` on everything here;
+2. **An engine class is constructed in one place.** The web cache ports call `new` on everything here;
    every other consumer holds an interface. A screen or a repository that imports a class from this
    barrel has broken the rule, and the grep above is how you see it.
 3. **The dependency runs one way.** `db → data` and `db → bridges`. `@chatic/data` does not know this
@@ -73,7 +74,7 @@ instrumentation (`nativeCacheMetrics`); two `IGlobalCacheSearchSource` implement
 
 **Out** — the port interfaces and the TTL/scope policy (`@chatic/data`, `local/ports/`); stream
 emission, observer keys and merge semantics on top of a storage (`@chatic/data`, `local/data-sources/`);
-which backend a type is routed to (`@chatic/app-runtime`, `resolveCacheBackend`); the SQLite
+which backend a type is routed to (`@chatic/runtime-web`, `resolveCacheBackend`); the SQLite
 implementation on the far side of the bridge (`apps/mobile`); the bridge transport itself
 (`@chatic/bridges`).
 
@@ -87,7 +88,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["LocalDataSource × 9<br/>@chatic/data"]:::ext
-    LF["localFactory<br/>@chatic/app-runtime"]:::ext
+    LF["webLocalCachePorts<br/>@chatic/runtime-web"]:::ext
     Ports["ports/<br/><i>CacheStorage · IIndexedDB · search · metrics · policy</i><br/>@chatic/data"]:::ext
 
     Base["BaseDbAdapter<br/><i>scope · loadMany · clearByChannelId defaults</i>"]:::eng
@@ -173,7 +174,7 @@ Ten production files, nine spec files. Several names are not where the filename 
 - `NativeCacheMetricsSource`, the `ICacheMetricsSource` implementation, is in `nativeCacheMetrics.ts`.
 - **There is no `types.ts`.** Every type this lib implements against comes from `@chatic/data`.
 
-The barrel is wider than its use: of its 19 exports, `localFactory` imports 8 — `ChatQueryExecutor`,
+The barrel is wider than its use: of its 19 exports, the web cache ports import 8 — `ChatQueryExecutor`,
 `IndexedDBAdapter`, `IndexedDBDatabase`, `IndexedDbGlobalSearchSource`, `NativeCacheMetricsSource`,
 `NativeDBAdapter`, `NativeGlobalSearchSource`, `WebStorageAdapter`. The other 11 have no consumer
 outside this lib.
@@ -289,27 +290,27 @@ implementations. A semantic change made to one and not the other fails there.
 ## Usage
 
 **Do not import this lib.** The entry point is a `CacheStorage` handed to you by `@chatic/app-runtime`;
-the classes here are constructor arguments for one factory, not an API.
+the classes here are constructor arguments for one set of ports, not an API.
 
 ```ts
-// libs/app-runtime/src/data/factories/localFactory.ts — the only importer in the repo
+// libs/runtime-web/src/localCache/index.ts — the only importer in the repo, outside tests
 import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter, WebStorageAdapter } from '@chatic/db';
 
-export const getCacheStorage = <TType extends CacheType>(
-    type: TType,
-    contextProvider: DataContextProvider,
-    cache?: CacheAssemblyOptions,
-    backend: CacheBackend = resolveCacheBackend(type)
-): CacheStorage<TType> => {
-    switch (backend) {
-        case 'web':
-            return createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel);
-        case 'session': // invited clouds in a plain browser tab
-            return createSessionStorageAdapter(type, contextProvider);
-        case 'native':
-            return new NativeDBAdapter(webClient, type, contextProvider);
-    }
-};
+export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => ({
+    route: type => resolveCacheBackend(type),
+    storage: (type, route, contextProvider, options) => {
+        switch (route) {
+            case 'native':
+                return new NativeDBAdapter(webClient, type, contextProvider);
+            case 'session': // invited clouds in a plain browser tab
+                return createTabStorageAdapter(type, contextProvider, tab);
+            case 'web':
+            default:
+                return createIndexedDBAdapter(type, contextProvider, options?.maxChatsPerChannel);
+        }
+    },
+    // …routed, globalSearch, metrics
+});
 ```
 
 The `contextProvider` is required, not optional: it is what makes principle 4 work. In production the
@@ -321,16 +322,17 @@ the partition an operation touches is the one it was captured for, not whichever
 
 ```text
 DataManager                                  @chatic/app-runtime
-  └─ createLocalDataSources()                data/factories/localFactory.ts
-       ├─ resolveCacheBackend(type)          'web' | 'native' | 'session' — the routing decision, made elsewhere
-       ├─ getCacheStorage(type, provider)    new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
-       │                                     | new WebStorageAdapter(sessionStorage, …) (invited clouds in a plain tab)
+  └─ createLocalDataSources()                data/factories/localFactory.ts — over localCachePlatform.ports()
+       ├─ route(type)                        once per domain per session — the routing decision, made by the platform
+       ├─ storage(type, route, provider)     webLocalCachePorts, @chatic/runtime-web:
+       │                                     new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
+       │                                     | new WebStorageAdapter(tab, …) (invited clouds in a plain tab)
        │    └─ getSharedDatabase()           one IndexedDBDatabase, shared by every web-backed adapter
-       ├─ getGlobalCacheSearchSource()       IndexedDbGlobalSearchSource | NativeGlobalSearchSource
-       └─ getCacheMetricsSource()            NativeCacheMetricsSource
+       ├─ globalSearch()                     IndexedDbGlobalSearchSource | NativeGlobalSearchSource
+       └─ metrics()                          NativeCacheMetricsSource
 ```
 
-The shared `IndexedDBDatabase` is module state in the **factory**, not in this lib. Moving it here
+The shared `IndexedDBDatabase` is module state in the **web cache ports**, not in this lib. Moving it here
 would break the rule that instance binding happens in one place, and two connections to the same
 database is a real failure, not a style question.
 

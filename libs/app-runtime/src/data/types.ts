@@ -28,21 +28,5 @@ export interface IDataManager {
     getScopedContext(cid: string): DataContext;
 }
 
-/**
- * App-level cache assembly policy, injected when the data runtime is built (`runtime.ts` passes it
- * into the `DataManager` constructor). This is the APP's policy, not the engine's — a default baked
- * into the assembler would silently apply to every client that builds a data runtime.
- *
- * Declared here rather than in `factories/localFactory.ts`, where it used to sit: it is part of
- * `AppRuntimeConfig` (an app writes it in `initAppRuntime`), so its home is the module's contract
- * file, not one assembler inside it. Four files read it, including the package barrel.
- */
-export interface CacheAssemblyOptions {
-    /**
-     * Caps how many chat rows the web cache keeps per channel. Unset = unbounded, which is what
-     * every client did before and still does unless it opts in. Only meaningful where chat is
-     * served from web storage — a plain browser (`apps/web`, `apps/admin`, desktop-web); inside
-     * the native WebView chat always routes to native SQLite.
-     */
-    maxChatsPerChannel?: number;
-}
+/** How the runtime is asked to assemble its caches — declared beside the cache's ports in `@chatic/data`. */
+export type { CacheAssemblyOptions } from '@chatic/data';
