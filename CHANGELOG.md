@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (auth,app-runtime,web,desktop-web) keep session tokens out of the screens' hands
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
 - (runtime-core,app-runtime,session) read the session through the engine, without tokens
 
 ## [2026-11-11] - No version updates
