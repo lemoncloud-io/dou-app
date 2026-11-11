@@ -6,7 +6,7 @@ import { useRuntimeSocketState } from '../../connection/hooks/useRuntimeSocketSt
 import { useSlotVerified } from '../../connection/hooks/useSlotVerified';
 import { RELAY_SLOT } from '@chatic/transport';
 import { isNativeApp } from '../../utils/isNativeApp';
-import { syncInvitedCloudName } from '../invitedCloudDurability';
+import { syncInvitedCloudName } from '@chatic/runtime-core';
 
 /**
  * Syncs the active invited cloud's authoritative name once its socket is verified. Runs once per

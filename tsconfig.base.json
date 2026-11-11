@@ -45,6 +45,7 @@
             "@chatic/perf": ["libs/perf/src/index.ts"],
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/runtime-core": ["libs/runtime-core/src/index.ts"],
+            "@chatic/runtime-core/*": ["libs/runtime-core/src/*"],
             "@chatic/runtime-web": ["libs/runtime-web/src/index.ts"],
             "@chatic/session": ["libs/session/src/index.ts"],
             "@chatic/session/*": ["libs/session/src/*"],

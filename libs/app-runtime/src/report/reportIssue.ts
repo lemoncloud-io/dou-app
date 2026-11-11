@@ -1,6 +1,6 @@
 import { config } from '@chatic/config';
 
-import { getRepositories } from '../data/runtime';
+import { getRepositories } from '@chatic/runtime-core';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
 import { isNative } from '@chatic/bridges';

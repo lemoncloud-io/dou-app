@@ -28,6 +28,9 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../runtime-core/tsconfig.lib.json"
+        },
+        {
             "path": "../db/tsconfig.lib.json"
         },
         {
@@ -44,9 +47,6 @@
         },
         {
             "path": "../perf/tsconfig.lib.json"
-        },
-        {
-            "path": "../bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../sync/tsconfig.lib.json"

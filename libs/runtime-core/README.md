@@ -1,15 +1,26 @@
 # @chatic/runtime-core
 
-**What the runtime takes from the platform it runs on, collected in one place.** The session, the
-sockets, sync and the data layer are meant to run in two places: in the web page for the browser and
-the desktop shell, and in the native process for the mobile app. What differs between those places —
-where the session is stored, how a socket is opened, what "online" means — comes into the runtime as
-a **port**, and this package holds the type that lists them all: `RuntimePorts`.
+**The runtime's assembly, and what it takes from the platform it runs on.** The session, the
+sockets, sync and the data layer run in two places: in the web page for the browser and the desktop
+shell, and in the native process for the mobile app. What differs between those places — where the
+session is stored, how a socket is opened, what "online" means, where the cache's rows live — comes
+into the runtime as a **port**. This package holds the type that lists them all, `RuntimePorts`, and
+`createRuntime(config)`, which wires the core packages together from them: the same assembly on every
+platform.
 
-Today it holds that type and nothing else. The assembly itself — the wiring `initAppRuntime` does in
-[`@chatic/app-runtime`](../app-runtime/README.md#wiring) — moves here as a function that builds the
-runtime from a `RuntimePorts`, and each port arrives as a field when the wiring behind it is turned
-into one.
+```text
+libs/runtime-core/src/
+├── index.ts            the package barrel — what the React surface reads
+├── ports.ts            RuntimePorts, every field required
+├── createRuntime.ts    the assembly: every wiring call, in order
+├── config/             records the effective settings in the logs at boot
+├── storage/            the runtime's own `device` store (the sync cursor watermark)
+└── data/               the repository graph — see docs/data/
+```
+
+Apps do not import this package — the root lint refuses it, as it refuses the core packages. They boot it through `@chatic/app-runtime`'s `initAppRuntime`,
+which is `createRuntime` under the name they know, and read it through `runtime`. The graph's React
+hooks stay there too; [docs/data](./docs/data/README.md) covers the graph itself.
 
 ## Purpose
 
@@ -31,12 +42,16 @@ adapter that forgot it, not a fallback discovered on a device.
    and `RuntimePorts.cache` is `@chatic/data`'s `LocalCachePorts` (where each cache domain lives);
    this package names them, it does not redefine them.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
-["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment, and
+["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment (a test
+   whose fixtures play a page says so with a `@jest-environment jsdom` docblock), and
    it imports neither React nor React Native nor `@chatic/bridges`. One gap: React Native's global
    types (`fetch` among them) still arrive through `@chatic/bridge-messages`, which `@chatic/data`
    imports — globals both runtimes have.
-4. **Only the core packages below it.** It may depend on a package tagged `layer:core-lib` and on
+4. **Only the core packages and the foundation below it.** It may depend on a package tagged
+   `layer:core-lib` or `layer:foundation` (logger, config, perf, http, storage, bridge-messages) and on
    nothing else — an allow-list, so taking a new dependency means tagging it on purpose.
+5. **Process-wide, one per launch.** `createRuntime` wires module singletons and returns nothing; a
+   second call replaces the wiring and says so in the log.
 
 ## Layers
 
@@ -51,18 +66,23 @@ flowchart TD
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
     Libs["session · transport · sync · auth · data<br/><i>layer:core-lib</i>"]
+    Found["logger · config · perf · http · storage · bridge-messages<br/><i>layer:foundation</i>"]
 
     Apps --> Surface
     Apps --> Web
+    Surface --> Core
     Surface --> Libs
     Web --> Core
     Core --> Libs
+    Core --> Found
+    Libs --> Found
 ```
 
 | Tag                   | May not depend on                                                                                         |
 | --------------------- | --------------------------------------------------------------------------------------------------------- |
 | `layer:core-lib`      | runtime-core, an adapter or the React surface, directly or through another package; React or React Native |
-| `layer:runtime-core`  | anything not tagged `layer:core-lib`; React or React Native                                               |
+| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`; React or React Native                         |
+| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                         |
 | `layer:adapter`       | the React surface; React                                                                                  |
 | `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                   |
 | `platform:web`        | React Native                                                                                              |
@@ -86,10 +106,9 @@ adapter from any file rather than its entry point. Each goes when the code it de
 ## The wiring calls
 
 The calls that wire the core packages together — `sessionStores.configure`,
-`syncDataGraph.provide` and the rest — are made in one file, the assembly point, and a workspace lint
-rule reports them anywhere else. The catalogue and the allowed file are in the root config; the rule
-is [`tools/eslint-rules`](../../tools/eslint-rules/README.md)'s `runtime-wiring-call`. The assembly
-point is `libs/app-runtime/src/init.ts` until the assembly moves into this package.
+`syncDataGraph.provide` and the rest — are made in one file, `src/createRuntime.ts`, and a workspace
+lint rule reports them anywhere else. The catalogue and the allowed file are in the root config; the
+rule is [`tools/eslint-rules`](../../tools/eslint-rules/README.md)'s `runtime-wiring-call`.
 
 ## How to verify
 

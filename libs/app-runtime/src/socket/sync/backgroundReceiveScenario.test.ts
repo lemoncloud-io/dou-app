@@ -17,9 +17,9 @@ import { waitFor } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
-import { DataManager } from '../../data/DataManager';
-import { localCachePlatform } from '../../data/localCachePlatform';
-import { runtimeStores } from '../../storage/runtimeStores';
+import { DataManager } from '@chatic/runtime-core/data/DataManager';
+import { localCachePlatform } from '@chatic/runtime-core/data/localCachePlatform';
+import { runtimeStores } from '@chatic/runtime-core/storage/runtimeStores';
 import { IndexedDBAdapter, IndexedDBDatabase } from '@chatic/db';
 import { MemoryStore } from '@chatic/storage';
 import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
@@ -48,7 +48,9 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('@chatic/sync/dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
-jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
+jest.mock('@chatic/runtime-core/data/factories/httpFactory', () => ({
+    createHttpDataSources: () => ({ httpDataSources: {} }),
+}));
 jest.mock('@chatic/session/store', () => ({
     ...jest.requireActual('@chatic/session/store'),
     getGlobalSessionContext: jest.fn(),

@@ -4,7 +4,7 @@
 > · Scope: `libs/session` (`chatic-paired-cloud-names`), `libs/auth` (`PairedCloudStore`), `libs/data`
 > (`CloudRepository.getCloud`'s `cache` option), `libs/app-runtime` (`syncPairedCloudName`,
 > `usePairedCloudNameSync`, `usePairedCloudNames`), `apps/web` (home header, cloud switch sheet)
-> · The behaviour is documented in [libs/app-runtime docs/data](../../libs/app-runtime/docs/data/README.md#paired-clouds-names)
+> · The behaviour is documented in [libs/runtime-core docs/data](../../libs/runtime-core/docs/data/README.md#paired-clouds-names)
 > and [libs/auth docs/pairing](../../libs/auth/docs/pairing/README.md)
 
 ## Context

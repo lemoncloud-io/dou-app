@@ -56,7 +56,7 @@ const mockRefreshList = jest.fn().mockResolvedValue({ fetchedCount: 0 });
 const mockGetScopedRepositories = jest.fn((_cid: string) => ({
     chat: { cacheReadList: mockCacheReadList, refreshList: mockRefreshList },
 }));
-jest.mock('../../../data/runtime', () => ({
+jest.mock('@chatic/runtime-core/data/runtime', () => ({
     getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
 }));
 // The room feed this hook primes through reads the same graph, handed down at boot.

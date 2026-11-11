@@ -4,15 +4,15 @@ import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } 
 
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '../cloudChat';
-import { beginMediaSendTiming } from '../mediaSendTrace';
+import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
+import { beginMediaSendTiming } from '@chatic/runtime-core';
 import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
-jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
 // The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
 const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
-jest.mock('../mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
+jest.mock('@chatic/runtime-core/data/mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
 /** The clouds whose socket is held right now, as `runInCloud` would hold them. */
 const held: string[] = [];

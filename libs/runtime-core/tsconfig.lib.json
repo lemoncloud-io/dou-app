@@ -26,6 +26,27 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
+            "path": "../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
             "path": "../data/tsconfig.lib.json"
         },
         {

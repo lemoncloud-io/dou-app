@@ -147,5 +147,5 @@ those are the ones an app should reach for.
 
 - [`@chatic/auth`](../../../auth/README.md) — the use cases, pairing, and staying authenticated on every socket
 - [docs/connection/](../connection/README.md#how-a-slot-is-derived) — how `useRuntimeSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
-- [docs/data/](../data/README.md) — what `ActiveScope` is injected into
+- [runtime-core docs/data/](../../../runtime-core/docs/data/README.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

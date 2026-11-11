@@ -12,7 +12,7 @@ type ConfigScreenStrings = ReturnType<typeof useConfigScreenStrings>;
 /**
  * Every setting this device is actually running with, and — for the keys this device may write —
  * the control that changes it. The screen half of ADR-0079 decision 16, which shipped its logging half
- * without a viewer (see `libs/app-runtime/src/config/configStateLog.ts`).
+ * without a viewer (see `libs/runtime-core/src/config/configStateLog.ts`).
  *
  * `snapshotAll()` already carries what a row needs: title, description, current value, default,
  * which row won (`origin`), and who may write it here and now (`canWrite`). Editing writes the

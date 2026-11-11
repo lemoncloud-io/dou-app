@@ -1,6 +1,6 @@
 import type { DomainCloud } from '@chatic/data';
 
-import { getIdentityContext, getRelaySessionUser } from '../session';
+import { getIdentityContext, getRelaySessionUser } from '@chatic/session';
 
 /**
  * Who an invited cloud belongs to on this device.

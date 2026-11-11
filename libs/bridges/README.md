@@ -400,7 +400,7 @@ the web as legacy. The sub WebView's host passes the other two options: `subWebV
 the handshake reports as `subWebView`, read when the reply is built, and `maxMessageLength`, past
 which a message is answered `TOO_LARGE` (as an `ERROR`, with its `refId`) without reaching a handler.
 It still counts as the page's first message and releases held pushes. The main hosts set no limit. The negotiation those fields feed is
-[`app-runtime`'s](../app-runtime/docs/data/README.md).
+[`runtime-web`'s](../runtime-web/docs/cache/README.md).
 
 ## Scenarios
 

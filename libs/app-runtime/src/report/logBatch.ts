@@ -1,6 +1,6 @@
 import { toWireLogBatch } from '@chatic/bridges';
 
-import { getRepositories } from '../data/runtime';
+import { getRepositories } from '@chatic/runtime-core';
 
 import type { UploadOutcome } from '@chatic/bridges';
 import type { LogEntry } from '@chatic/bridges';

@@ -77,7 +77,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["apps/*"]:::ext
-    Init["init.ts<br/><i>initAppRuntime — the boot wiring</i>"]:::root
+    Init["@chatic/runtime-core · createRuntime<br/><i>initAppRuntime — the boot wiring</i>"]:::root
     Host["connection/<br/><i>RuntimeConnectionHost + 2 binders</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
@@ -131,13 +131,14 @@ HTTP without closing a cycle.
 This package is the top of a stack of packages, cut out of it one layer at a time (ADR-0253). Each
 imports only the ones below it, and the package graph refuses the reverse:
 
-| Package                                       | Holds                                                                                     | Imports            |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------ |
-| [`@chatic/session`](../session/README.md)     | the session's state: three stores, their signal, the contexts, the scope                  | —                  |
-| [`@chatic/transport`](../transport/README.md) | the socket manager and its slots, the HTTP manager                                        | session            |
-| [`@chatic/sync`](../sync/README.md)           | the sync manager, its plans, the background receive                                       | session, transport |
-| [`@chatic/auth`](../auth/README.md)           | the session use cases, pairing, socket authentication and renewal                         | session, transport |
-| `@chatic/app-runtime`                         | the repository graph's assembly, every hook and component, push, report, boot, the facade | all of the above   |
+| Package                                             | Holds                                                                              | Imports            |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------ |
+| [`@chatic/session`](../session/README.md)           | the session's state: three stores, their signal, the contexts, the scope           | —                  |
+| [`@chatic/transport`](../transport/README.md)       | the socket manager and its slots, the HTTP manager                                 | session            |
+| [`@chatic/sync`](../sync/README.md)                 | the sync manager, its plans, the background receive                                | session, transport |
+| [`@chatic/auth`](../auth/README.md)                 | the session use cases, pairing, socket authentication and renewal                  | session, transport |
+| [`@chatic/runtime-core`](../runtime-core/README.md) | the assembly (`createRuntime`) and the repository graph, over the platform's ports | all of the above   |
+| `@chatic/app-runtime`                               | every hook and component, push, report, boot's facade, the `runtime` facade        | all of the above   |
 
 Sync and auth sit side by side: each one's eslint config refuses the other. What stays here is the
 app layer — every `hooks/` folder, because hooks are React and React stays here, and `utils/`, which is
@@ -145,9 +146,8 @@ one app-layer helper.
 
 The direction is also a tag: the four packages and `@chatic/data` are `layer:core-lib`, this one is
 `layer:react-surface`, and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or
-imports React — and this package importing a platform adapter such as `@chatic/runtime-web`. The tags,
-and the two packages the assembly is moving towards, are in
-[`@chatic/runtime-core`](../runtime-core/README.md#layers).
+imports React — and this package importing a platform adapter such as `@chatic/runtime-web`. The tags
+are in [`@chatic/runtime-core`](../runtime-core/README.md#layers).
 
 The repository graph is assembled in `data/`, above the two packages that read it. So it is **handed
 down at boot** instead of imported: `initAppRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
@@ -194,26 +194,25 @@ device is registered on that connection, and the SDK sends both on the same `con
 libs/app-runtime/src/
 ├── index.ts          public barrel — one export, `runtime`
 ├── facade.ts         the seven groups, assembled from group barrels
-├── init.ts           initAppRuntime — seven boot steps, in order
+├── init.ts           initAppRuntime — `createRuntime` from @chatic/runtime-core, under the name apps know
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
 ├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
-├── data/             26 files — DataManager, 4 factories (one is the state outbox's transport), the platform cache's holder, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
+├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
-├── config/           1 file — records the effective settings in the logs
-├── storage/          2 files — resolveStorageStores (an app's stores, chosen once) and the runtime's device store
+├── storage/          1 file — resolveStorageStores (an app's stores, chosen once)
 └── utils/            1 file — isNativeApp
 ```
 
-94 source files, 63 test files, about 6,400 lines of non-test code.
+81 source files, 49 test files, about 4,900 lines of non-test code — the assembly and the graph moved to `@chatic/runtime-core`.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s
 [`socket/types.ts`](../transport/src/socket/types.ts) — there is no `ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in `@chatic/auth`'s
 [`socket/types.ts`](../auth/src/socket/types.ts); `IDataManager` and `CacheAssemblyOptions` in
-[`data/types.ts`](./src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
+[`data/types.ts`](../runtime-core/src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
 [`types.ts`](../sync/src/types.ts). The `boot` group is a **file**,
 `boot.ts`, not a directory — booting is not an engine, so the logic stays in whichever module owns
 each piece. `config/` and `utils/` have no `index.ts` at all: they are not facade groups
@@ -265,7 +264,8 @@ apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage, transport, auth, cache, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
+  ├─ initAppRuntime({ storage, transport, auth, cache, signedOutKeyPrefixes?, data? })
+  │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required
   │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
@@ -306,13 +306,14 @@ the registry imports nothing at runtime precisely so the two sides never meet. H
 graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
 A wiring with no owner belongs to the composition root.
 
-**Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
+**Every wiring call is in `createRuntime` (`libs/runtime-core/src/createRuntime.ts`), and lint holds
+it there.** Each of the calls above that hands a
 package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
 `configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `authPlatform.configure`,
 `localCachePlatform.configure`, `configureDataRuntime`,
 `authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
 site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
-in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;
+in the assembly would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside that file;
 tests are exempt, since they wire packages on purpose. For the same reason the `boot` group has no
 setter that swaps the session's stores after boot — it would be a wiring call any file could make
 through `runtime.boot`. What an app sets up for itself before the runtime (`configurePerfTraces`, the
@@ -410,7 +411,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 | [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                 |
 | [docs/connection/](./docs/connection/README.md)                | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                 |
 | [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                       |
-| [docs/data/](./docs/data/README.md)                            | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                        |
+| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [runtime-core docs/data/](../runtime-core/docs/data/README.md)           |
 | [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
 | [docs/push/](./docs/push/README.md)                            | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
 

@@ -8,7 +8,7 @@ let isVerified = true;
 let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-b';
 
-jest.mock('../invitedCloudDurability', () => ({
+jest.mock('@chatic/runtime-core/data/invitedCloudDurability', () => ({
     syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
 }));
 jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: () => ({ cloud }) }));

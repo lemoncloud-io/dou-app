@@ -1,3 +1,9 @@
+/**
+ * @jest-environment jsdom
+ *
+ * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
+ * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.
+ */
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DataRepositories } from '@chatic/data';
 
