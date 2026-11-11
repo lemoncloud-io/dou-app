@@ -3,14 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import { logger } from '@chatic/bridges';
-import { getActivePerfTrace } from '@chatic/perf';
 
-import { getSyncManager, fetchRoomFeed } from '@chatic/sync';
+import { getSyncManager } from '@chatic/sync';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
-import { getDataManager } from '@chatic/runtime-core';
+import { primeChatRoom } from '@chatic/runtime-core';
 import { slotKeyOf } from '@chatic/transport';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
@@ -62,19 +60,11 @@ export interface ChatSyncState {
 }
 
 /**
- * Chat plans have a no-op `run`, so registering a chat target loads nothing on its own. Prime the
- * room: align the plan baseline to the durable cache's max chatNo (its cursor) via
- * updateLocalSnapshot, then fetch a first page only when the cache is cold. The plan never
- * backfills past history, so a cold room needs this explicit first page to render anything.
- *
- * Everything here is about `cid`, the cloud the target was registered for: its slot's verification
- * gates it (so it re-runs after that slot's auth or reconnect, whichever slot is active), its runtime
- * takes the baseline, and its partition is the cache read and the page written.
- *
- * A room being opened has a `chat_room_sync` trace in progress, and a cold room's first page is
- * the sync it waits for, so the phases are marked here: slot verified, page requested, page
- * written. The room page ends the trace when that page reaches the screen. A warm room's sync is
- * `useForegroundChatRefresh`'s in the web, which marks the same phases.
+ * Primes the room for its first render — runtime-core's `primeChatRoom`, which aligns the chat plan's
+ * baseline to the cache and fetches a first page only when the cache is cold. This hook decides when:
+ * once `cid`'s slot is verified, and again after that slot's auth or reconnect, whichever slot is
+ * active. A warm room's sync is `useForegroundChatRefresh`'s in the web, which marks the same trace
+ * phases.
  *
  * The outcome is returned, because a cold room's cache reads empty until the first page lands: a
  * screen that took that empty read at its word would show "no messages yet" over a room that has
@@ -92,36 +82,9 @@ const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
-        const settle = (status: 'ready' | 'failed') => {
-            if (!cancelled) setSettled({ scope: `${cid}:${channelId}`, status });
-        };
-        getActivePerfTrace('chat_room_sync', channelId)?.mark('verified');
-
-        void (async () => {
-            const repos = getDataManager().getScopedRepositories(cid);
-            const cached = await repos.chat.cacheReadList({ channelId });
-            if (cancelled) return;
-            const lastNo = (cached?.list ?? []).reduce((max, chat) => (chat.chatNo > max ? chat.chatNo : max), 0);
-
-            // Tell the plan our newest chatNo so the next onConnected/push doesn't catch up from 0.
-            getSyncManager().updateLocalSnapshot(
-                { type: 'chat', id: channelId },
-                { id: channelId, lastNo, minNo: 0, messages: [] },
-                { cid }
-            );
-
-            // Cold cache: only here do we fetch — a warm room reads from cache and streams via push.
-            // A fetch the tap already started for this room is joined rather than sent again.
-            if (lastNo === 0) await fetchRoomFeed(cid, channelId, { cache: 'miss' });
-            settle('ready');
-        })().catch(error => {
-            logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', {
-                error,
-                data: { channelId, cid },
-            });
-            settle('failed');
+        void primeChatRoom(cid, channelId, { cancelled: () => cancelled }).then(outcome => {
+            if (!cancelled && outcome !== 'cancelled') setSettled({ scope: `${cid}:${channelId}`, status: outcome });
         });
-
         return () => {
             cancelled = true;
         };

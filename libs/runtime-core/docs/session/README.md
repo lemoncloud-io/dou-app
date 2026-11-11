@@ -128,9 +128,9 @@ every cloud-signed request 403'd.
 a port because only the platform knows: a page reads `document.visibilityState`
 (`webForegroundPorts()` in `@chatic/runtime-web`), a native runtime its app state. The entry point
 passes it to `initAppRuntime({ foreground })`; like every port it is required, and reading it before
-then throws (`foregroundPlatform.ports()`). It is this package's own type — the session controller is what reads it.
-
-Both credential guards read it for `checkOnVisible`. A phone shell's own return to the foreground is a
+then throws (`foregroundPlatform.ports()`). It is this package's own type, because its readers are all
+here: the session controller, the two credential guards (`checkOnVisible`), and push registration
+([docs/push](../push/README.md)). A phone shell's own return to the foreground is a
 bridge message, not this signal; an app that listens for it (apps/web's `useAppForeground`) calls the
 guards' `check` itself.
 

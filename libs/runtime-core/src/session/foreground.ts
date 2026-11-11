@@ -1,7 +1,7 @@
 /**
  * Whether the app is in front of the user, and a way to hear it change.
  *
- * The session's background work re-tries on this edge: a page that comes back from a hidden tab or a
+ * The session's background work and push registration re-try on this edge: a page that comes back from a hidden tab or a
  * slept laptop, a native app that returns from the background. Either may have missed the network
  * coming back while it was away, and timers in a suspended page fire late or not at all — so the
  * return to the foreground is the moment to ask again.

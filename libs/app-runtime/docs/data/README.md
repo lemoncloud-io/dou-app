@@ -7,13 +7,13 @@ reads it through, and the `data` group of the `runtime` facade that sells both.
 
 ## The hooks
 
-| Hook                               | Returns                                                                  |
-| ---------------------------------- | ------------------------------------------------------------------------ |
-| `useRuntimeRepositories()`         | The repository graph, bound to the current scope                         |
-| `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition   |
-| `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only   |
-| `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike     |
-| `useRegisterDeviceTokenMutation()` | The one REST call the runtime still owns — sold through the `push` group |
+| Hook                               | Returns                                                                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useRuntimeRepositories()`         | The repository graph, bound to the current scope                                                                                            |
+| `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition                                                                      |
+| `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only                                                                      |
+| `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike                                                                        |
+| `useRegisterDeviceTokenMutation()` | Push registration by hand, for apps/web's push debug screen — sold through the `push` group; the runtime's own registration does not use it |
 
 `cloudsKeys` is the only query key left here, because the runtime is one of the things that
 invalidates it — `useLogin` does, right after a login — while the apps invalidate it after their own

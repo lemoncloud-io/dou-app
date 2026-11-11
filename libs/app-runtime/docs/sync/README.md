@@ -37,7 +37,8 @@ named targets. The three wrappers reach it in the same file.
 ### Priming a room
 
 `ChatSyncPlan.run` is a no-op — chat is event-driven — so registering a chat target loads nothing by
-itself. `useChatSync` therefore does two things, and they are both required:
+itself. `useChatSync` therefore primes the room — runtime-core's `primeChatRoom(cid, channelId)`, which
+does two things, and they are both required:
 
 1. Read the durable chat cache, take its highest `chatNo`, and call `updateLocalSnapshot`. The cache _is_ the cursor; there is no separate meta cursor for chat.
 2. Fetch a first page **only when the cache is cold**. The plan never backfills past history, so a cold room renders nothing without it.
@@ -65,7 +66,7 @@ need the sync (a sidebar preview) ignore it.
 ## What not to do
 
 - **Do not register from a component and expect it to survive the route.** Registration belongs to whatever screen owns the data; observation can live wherever it likes.
-- **Do not prime outside `useChatSync`.** The manager stays domain-agnostic; chat prime needs a chat policy and a repository, which is why it lives in the hook.
+- **Do not prime outside `useChatSync`.** The manager stays domain-agnostic; chat prime needs a chat policy and a repository. The prime itself is runtime-core's `primeChatRoom`; the hook decides when it runs and holds its status.
 
 ## Further reading
 

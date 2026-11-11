@@ -35,7 +35,7 @@ badges.
 - Banner assembly and delivery on the device, permission prompts, notification channels, and the
   deep-link plumbing on the native side — [apps/mobile](../../../mobile/README.md).
 - Registering this install's token — [device-token](./device-token.md), and the policy behind it in
-  [app-runtime push](../../../../libs/app-runtime/docs/push/README.md).
+  [runtime-core push](../../../../libs/runtime-core/docs/push/README.md).
 - The cross-cloud unread dot a background push marks — [home](../feature/home/README.md).
 - Per-device push mute, which is an account setting — [mypage](../feature/mypage/README.md).
 

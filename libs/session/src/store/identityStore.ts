@@ -13,7 +13,7 @@ const DEVICE_ID_KEY = 'chatic-device-id';
  * state.
  *
  * The registered push token is NOT stored here. It is registration state, not session identity, and
- * it lives in `push/registrationRecord` keyed by account + device + platform (ADR-0077) — this store
+ * it lives in runtime-core's `push/registrationRecord` keyed by account + device + platform — this store
  * is not keyed that way and would hand the next account the previous one's token.
  *
  * Renamed off `IdentityCore` — web-core's `session/core` residue, outside the `I*` convention

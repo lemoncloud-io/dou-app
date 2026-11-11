@@ -150,8 +150,8 @@ handlers resolve or reject — turning an event pair back into the `Promise` the
 
 ## Device token registration
 
-Summarised here; the file-level detail is [device-token.md](./device-token.md). Registration policy (auth gating, once-per-install dedup, retry) lives in `@chatic/app-runtime`'s
-`runtime.push`. `useDeviceTokenRegistration.ts` supplies only the three pieces only this shell can:
+Summarised here; the file-level detail is [device-token.md](./device-token.md). Registration policy (auth gating, once-per-install dedup, retry) lives in `@chatic/runtime-core`'s
+`PushRegistration`, which the app starts through `runtime.push`. `useDeviceTokenRegistration.ts` supplies only the three pieces only this shell can:
 the FCM token fetch (`appBridge.fetchFcmToken()`), the platform read off
 `window.CHATIC_APP_PLATFORM`, and a native-side mirror of the registration record
 (`appBridge.fetchPreference` / `savePreferenceConfirmed`) so a WebView storage clear cannot look like

@@ -45,3 +45,11 @@ export { RelayCredentialGuard } from './session/relayCredentialGuard';
 export type { SessionStalenessPolicy } from './session/relayCredentialGuard';
 export { CloudCredentialGuard } from './session/cloudCredentialGuard';
 export type { CloudCredentialPolicy } from './session/cloudCredentialGuard';
+
+// push registration, which an app starts with its shell's delegate
+export { PushRegistration } from './push/pushRegistration';
+export type { DeviceTokenDelegate, PushDeviceIds, PushRegistrationOptions } from './push/pushRegistration';
+
+// a chat room primed for its first render
+export { primeChatRoom } from './sync/primeChatRoom';
+export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';

@@ -64,7 +64,7 @@ jest.mock('@chatic/sync/dataGraph', () => ({
     syncDataGraph: { get: () => ({ getScopedRepositories: mockGetScopedRepositories }) },
 }));
 
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/logger', () => ({ ...jest.requireActual('@chatic/logger'), logger: { warn: jest.fn() } }));
 
 beforeEach(() => {
     // A fetch is remembered for a moment after it finishes; one test's must not answer the next's.
