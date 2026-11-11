@@ -4,9 +4,11 @@
 > · Scope: `libs/auth/src/session/cloudTokens.ts` (`CloudIdentityChangedError`, the check and the
 > refusal memo in `exchange`); `libs/auth/src/pairing/pairedCloudSessions.ts` (`enter` forgets the
 > recorded uid first); `libs/app-runtime/src/session/hooks/pairing/usePairedCloudCheck.ts` (a guest
-> that signs in ends its paired clouds)
-> · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md)
-> and [libs/auth docs/pairing](../../libs/auth/docs/pairing/README.md)
+> that signs in ends its paired clouds); `libs/session/src/store/cloudStore.ts` and `expiry.ts`
+> (`getCachedCloudTokens` measures an entry by its identity token)
+> · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md),
+> [libs/auth docs/pairing](../../libs/auth/docs/pairing/README.md) and
+> [libs/session](../../libs/session/README.md)
 
 ## Context
 
@@ -27,6 +29,14 @@ they opened a push for the cloud, the app re-issued the token, and the server an
 (1000013 instead of 1000002). The app committed it. The invitee's rooms disappeared, photos could not
 be sent, and the identity map recorded the new uid over the old one, which removed the last trace on
 the device of the right user. The device kept entering as the new user after the list was fixed.
+
+The re-issue should not have happened at all. A cloud token is an identity token valid for 30 days,
+and today's cloud servers send it with no AWS credential. The cache read that decides whether a
+stored token can still be used (`getCachedCloudTokens`) judged entries by that credential, so it read
+every entry as lapsed the moment it was written. Any entry into a cloud with no live socket therefore
+threw the stored token away and called `delegate-cloud`. Measured on dev, before the fix: an invitee's
+stored invite token with 30 days left was dropped and re-issued on the first entry with no socket.
+After the fix the same entry is served from the store with no `delegate-cloud` call.
 
 The app already remembers, per cloud, which uid the account has there (the identity map). Nothing
 compared a fresh token against it.
@@ -53,6 +63,10 @@ compared a fresh token against it.
    refused over, a repeat is answered without a round trip. The server's answer does not change until
    something on the device moves that uid, and every renewal tick would otherwise call
    `delegate-cloud` and `exchange-token` again.
+6. **A stored cloud token is used while its identity token is valid.** `getCachedCloudTokens` measures
+   an entry by the identity token's `exp`, not by an AWS credential, and serves an entry whose `exp`
+   cannot be read. A token that is truly spent is still re-issued through `delegate-cloud`, which is
+   the only way to get a new one, and decision 1 guards that re-issue.
 
 ## Alternatives
 
@@ -64,9 +78,11 @@ compared a fresh token against it.
 - **Check before the exchange, by decoding the delegation's target.** This would also stop the server
   from creating the empty user. Rejected for now: the device records the cloud uid, not the relay
   guest behind it, so there is nothing to compare the target with. Only the cloud uid can be compared.
-- **Never re-issue an invited cloud; keep its first token alive with the cloud socket's refresh.**
-  This would avoid the bad answer instead of refusing it. It changes how every cloud renews, and
-  renewal is re-issue by design (`docs/socket/`). Left for later; the guard is needed either way.
+- **Never re-issue a cloud on expiry; renew only through the cloud socket's refresh.** This was
+  started and dropped. When a stored token is truly spent, `delegate-cloud` is the only way to get a
+  new one, so a refresh-only rule would strand the user instead. Today's cloud servers send no
+  credential, so the credential guard never fires for them anyway. The re-issues that hurt came from
+  the cache misreading a valid token as lapsed (decision 6), not from renewal.
 - **Take the new user and tell the invitee.** This keeps the cloud reachable, but as a user with
   nothing in it, and it destroys the recorded uid. Support needs that uid to restore the right user.
 

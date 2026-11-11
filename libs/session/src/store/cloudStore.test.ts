@@ -30,6 +30,16 @@ jest.mock('./ports', () => {
 
 const inMs = (ms: number) => new Date(Date.now() + ms).toISOString();
 
+/** An identity token whose `exp` is `expiresInMs` from now — the clock the cache reads. */
+const identityJwt = (label: string, expiresInMs: number) => {
+    const payload = Buffer.from(JSON.stringify({ label, exp: Math.floor((Date.now() + expiresInMs) / 1000) }))
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    return `header.${payload}.signature`;
+};
+
 const tokens = (identityToken: string, expiresInMs = 60 * 60_000) =>
     ({
         delegationToken: { cloudId: 'x', delegationToken: 'd', backend: 'https://b', wss: 'wss://w' },
@@ -43,12 +53,43 @@ beforeEach(() => {
 
 describe('cloudStore — the token cache, peeked vs. served', () => {
     it('peekCachedCloudTokens returns an entry the margin-checked read would drop, and drops nothing', () => {
-        // 30s left: inside the 60s margin, so `getCachedCloudTokens` refuses to serve it.
-        cloudStore.setCachedCloudTokens('cloud-1', tokens('nearly-out', 30_000));
+        // 30s left on the identity token: inside the 60s margin, so `getCachedCloudTokens` refuses it.
+        const nearlyOut = identityJwt('nearly-out', 30_000);
+        cloudStore.setCachedCloudTokens('cloud-1', tokens(nearlyOut, 30_000));
 
-        expect(cloudStore.peekCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe('nearly-out');
+        expect(cloudStore.peekCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe(nearlyOut);
         expect(cloudStore.getCachedCloudTokens('cloud-1')).toBeNull();
         // The served read deleted it; the peek before it did not.
+        expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
+    });
+
+    it('serves an entry with no credential while its identity token has time left — the shape cloud servers send', () => {
+        const fresh = identityJwt('fresh', 30 * 24 * 3_600_000);
+        cloudStore.setCachedCloudTokens('cloud-1', {
+            delegationToken: { cloudId: 'cloud-1', delegationToken: '', backend: 'https://b', wss: 'wss://w' },
+            cloudToken: { Token: { identityToken: fresh } },
+        } as never);
+
+        expect(cloudStore.getCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe(fresh);
+    });
+
+    it('serves an entry whose credential lapsed while its identity token is still good — the credential is not the clock', () => {
+        const fresh = identityJwt('fresh', 24 * 3_600_000);
+        cloudStore.setCachedCloudTokens('cloud-1', tokens(fresh, -60_000));
+
+        expect(cloudStore.getCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe(fresh);
+    });
+
+    it('serves an entry whose identity token cannot be read — there is no clock to refuse it by', () => {
+        cloudStore.setCachedCloudTokens('cloud-1', tokens('not-a-jwt', -60_000));
+
+        expect(cloudStore.getCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe('not-a-jwt');
+    });
+
+    it('drops an entry whose identity token has run out', () => {
+        cloudStore.setCachedCloudTokens('cloud-1', tokens(identityJwt('spent', -60_000)));
+
+        expect(cloudStore.getCachedCloudTokens('cloud-1')).toBeNull();
         expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
     });
 
