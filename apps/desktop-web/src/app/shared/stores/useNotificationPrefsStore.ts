@@ -51,7 +51,11 @@ interface NotificationPrefsState {
     setSnooze: (untilMs: number | null) => void;
     setQuietHours: (quietHours: QuietHours | null) => void;
     setMentionBreaksQuietHours: (enabled: boolean) => void;
-    /** Remember `mode` for the place, adding the channel ids it was applied to. */
+    /**
+     * Remember `mode` for the place with the channel ids it was applied to. Choosing the same level
+     * again adds to the known set; choosing another one replaces it, so every channel the new level
+     * has not reached yet takes it.
+     */
     setPlaceNotify: (key: string, mode: ChannelNotifyMode, known: string[]) => void;
     /** Add channel ids to a place's known set (after they inherited its level). */
     addPlaceKnown: (key: string, channelIds: string[]) => void;
@@ -130,7 +134,13 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
                 set(state => ({
                     placeNotify: {
                         ...state.placeNotify,
-                        [key]: { mode, known: [...new Set([...(state.placeNotify[key]?.known ?? []), ...known])] },
+                        [key]: {
+                            mode,
+                            known:
+                                state.placeNotify[key]?.mode === mode
+                                    ? [...new Set([...state.placeNotify[key].known, ...known])]
+                                    : [...new Set(known)],
+                        },
                     },
                 })),
             addPlaceKnown: (key, channelIds) =>

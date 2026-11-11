@@ -148,7 +148,7 @@ export const PlaceSettingsPage = () => {
 
                     <NotifyLevelSection
                         title={t('place.settings.notify.title')}
-                        hint={t('place.settings.notify.hint')}
+                        hint={t(notify.isHere ? 'place.settings.notify.hint' : 'place.settings.notify.elsewhere')}
                         mode={notify.mode}
                         onSelect={notify.setMode}
                         exceptions={notify.exceptions}

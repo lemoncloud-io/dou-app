@@ -650,6 +650,8 @@ export const ko: EnTranslation = {
     'place.settings.open': '플레이스 설정',
     'place.settings.notify.title': '이 플레이스 알림',
     'place.settings.notify.hint': '이 플레이스의 모든 채널에 적용돼요.',
+    'place.settings.notify.elsewhere':
+        '지금은 다른 플레이스에 있어요. 여기서 고른 알림은 이 플레이스를 열 때 채널에 적용돼요.',
     'place.settings.notify.exceptions': '채널별로 다르게 설정한 채널 {{count}}개',
     'place.settings.notify.failed': '일부 채널에 알림 설정을 저장하지 못했어요.',
     'place.manage.title': '채널 관리',
@@ -716,7 +718,8 @@ export const ko: EnTranslation = {
     'cloud.hub.placesHint': '하나를 열어서 관리해요.',
     'cloud.hub.notifications': '알림',
     'cloud.hub.notify.title': '이 클라우드 알림',
-    'cloud.hub.notify.hint': '이 클라우드의 모든 플레이스에 적용돼요.',
+    'cloud.hub.notify.hint':
+        '이 클라우드의 모든 플레이스에 적용돼요. 지금 있는 플레이스는 바로, 다른 플레이스는 열 때 적용돼요.',
     'cloud.hub.notify.switchHint': '이 클라우드로 전환하면 알림을 한 번에 설정할 수 있어요.',
     'cloud.hub.nameLabel': '클라우드 이름',
     'cloud.hub.save': '저장',

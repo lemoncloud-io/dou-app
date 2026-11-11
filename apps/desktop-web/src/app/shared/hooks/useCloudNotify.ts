@@ -13,7 +13,8 @@ const NO_FILED_PLACES: ReadonlyMap<string, readonly string[]> = new Map();
 
 /**
  * A cloud's notification level: the place level (see `usePlaceNotifyApply`) applied to every place
- * of the cloud, places with no channel yet included, so their first channels inherit it. Only the
+ * of the cloud, places with no channel yet included. The place the session is in is written at
+ * once, every other place when the session enters it. Only the
  * active cloud can be set: its channels are what the session can list, and another cloud's would
  * need that cloud's session, so `isActive` is false there and the caller offers a switch instead.
  *
@@ -65,14 +66,14 @@ export const useCloudNotify = (cloudId: string | undefined) => {
         (next: ChannelNotifyMode) => {
             if (!isActive) return;
             const batch = placeIds.map(placeId =>
-                apply(placeNotifyKey(selectedCloudId, placeId), byPlace.get(placeId) ?? [], next, { announce: false })
+                apply(placeId, byPlace.get(placeId) ?? [], next, { announce: false })
             );
             void Promise.all(batch).then(results => {
                 const refused = results.find(result => result !== undefined);
                 if (refused) toastFailure(t('place.settings.notify.failed'), refused.reason);
             });
         },
-        [isActive, placeIds, apply, selectedCloudId, byPlace, t]
+        [isActive, placeIds, apply, byPlace, t]
     );
 
     return { isActive, mode, setMode };

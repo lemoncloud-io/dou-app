@@ -16,41 +16,40 @@ const NO_FILED_PLACES: ReadonlyMap<string, readonly string[]> = new Map();
  * place's `known` list: a channel in it was already given the level, and a different level on it
  * now is the person's own exception, which is never overwritten.
  *
- * It reads the active cloud's channel cache, the same rows the sidebar lists, so a channel inherits
- * once the app has seen it. A message that arrives in a channel this device has never listed can
- * still be pushed at the server's default level.
+ * It reads the active cloud's channel cache, the same rows the sidebar lists, and writes only the
+ * place the session is in: the server refuses a join write for any other place. A level chosen for
+ * another place is therefore written when the session enters it. A message that arrives in a
+ * channel this device has not written yet can still be pushed at the level the server has.
  */
 export const usePlaceNotifyInheritance = () => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
-    const { selectedCloudId } = runtime.session.useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const apply = usePlaceNotifyApply();
     const applyRef = useRef(apply);
     applyRef.current = apply;
 
     useEffect(() => {
-        if (!myUid) return;
+        if (!myUid || !selectedSiteId) return;
         let cancelled = false;
         const unsubscribe = channelRepository.observeList({ sid: '' }, result => {
             if (cancelled) return;
             const rows: DomainChannel[] = result?.list ?? [];
             const { placeNotify } = useNotificationPrefsStore.getState();
-            channelsByPlace(rows, NO_FILED_PLACES).forEach((channels, placeId) => {
-                const key = placeNotifyKey(selectedCloudId, placeId);
-                const pref = placeNotify[key];
-                if (!pref) return;
-                const known = new Set(pref.known);
-                const fresh = placeNotifyTargets(channels).filter(channel => !known.has(channel.id ?? ''));
-                // Nobody asked for this write, so a refusal is not announced: the channel keeps its
-                // level on this device, and the person sees the server's on the channel itself.
-                if (fresh.length > 0) {
-                    void applyRef.current(key, fresh, pref.mode, { remember: false, announce: false });
-                }
-            });
+            const channels = channelsByPlace(rows, NO_FILED_PLACES).get(selectedSiteId) ?? [];
+            const pref = placeNotify[placeNotifyKey(selectedCloudId, selectedSiteId)];
+            if (!pref) return;
+            const known = new Set(pref.known);
+            const fresh = placeNotifyTargets(channels).filter(channel => !known.has(channel.id ?? ''));
+            // Nobody asked for this write, so a refusal is not announced: the channel keeps its
+            // level on this device, and the person sees the server's on the channel itself.
+            if (fresh.length > 0) {
+                void applyRef.current(selectedSiteId, fresh, pref.mode, { remember: false, announce: false });
+            }
         });
         return () => {
             cancelled = true;
             unsubscribe();
         };
-    }, [channelRepository, selectedCloudId, myUid]);
+    }, [channelRepository, selectedCloudId, selectedSiteId, myUid]);
 };

@@ -39,6 +39,12 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const live = vi.hoisted(() => ({ placeId: 'p1' as string | null }));
+vi.mock('./switchesSettled', () => ({
+    switchesSettled: () => Promise.resolve(),
+    liveSelection: () => ({ cloudId: 'c1', placeId: live.placeId }),
+}));
+
 import '../../../i18n';
 
 import { useNotificationPrefsStore } from '../stores';
@@ -54,6 +60,7 @@ const written = () => updateJoin.mock.calls.map(([payload]) => payload);
 describe('usePlaceNotify', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        live.placeId = 'p1';
         updateJoin.mockResolvedValue({});
         useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {}, placeNotify: {} });
         listed.channels = [group('G1'), group('G2'), dm, self];
@@ -119,13 +126,45 @@ describe('usePlaceNotify', () => {
         expect(written().map(payload => (payload as { channelId: string }).channelId)).toEqual(['G2', 'D1']);
     });
 
-    it('keeps channels it did not see this time as known', async () => {
-        useNotificationPrefsStore.setState({ placeNotify: { 'c1:p1': { mode: 'all', known: ['OLD'] } } });
+    it('keeps channels it did not see this time as known when the level is chosen again', async () => {
+        useNotificationPrefsStore.setState({ placeNotify: { 'c1:p1': { mode: 'none', known: ['OLD'] } } });
         const { result } = renderHook(() => usePlaceNotify('p1'));
 
         await act(async () => result.current.setMode('none'));
 
         expect(useNotificationPrefsStore.getState().placeNotify['c1:p1'].known).toEqual(['OLD', 'G1', 'G2', 'D1']);
+    });
+
+    it('starts the known list over when another level is chosen', async () => {
+        useNotificationPrefsStore.setState({ placeNotify: { 'c1:p1': { mode: 'all', known: ['OLD'] } } });
+        const { result } = renderHook(() => usePlaceNotify('p1'));
+
+        await act(async () => result.current.setMode('none'));
+
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p1'].known).toEqual(['G1', 'G2', 'D1']);
+    });
+
+    it('only remembers the level of a place the session is not in, which the server would refuse', async () => {
+        useNotificationPrefsStore.setState({ channelNotify: { G1: 'all' } });
+        const { result } = renderHook(() => usePlaceNotify('p2'));
+
+        await act(async () => result.current.setMode('none'));
+
+        expect(written()).toEqual([]);
+        expect(useNotificationPrefsStore.getState().channelNotify.G1).toBe('all');
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p2']).toEqual({ mode: 'none', known: [] });
+        expect(result.current.isHere).toBe(false);
+        expect(result.current.exceptions).toBe(0);
+    });
+
+    it('writes nothing when a place switch lands the session somewhere else first', async () => {
+        live.placeId = 'p9';
+        const { result } = renderHook(() => usePlaceNotify('p1'));
+
+        await act(async () => result.current.setMode('none'));
+
+        expect(written()).toEqual([]);
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p1']).toEqual({ mode: 'none', known: [] });
     });
 
     it('counts the channels set differently from the place', () => {

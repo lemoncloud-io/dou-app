@@ -42,6 +42,12 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const live = vi.hoisted(() => ({ placeId: 'p1' as string | null }));
+vi.mock('./switchesSettled', () => ({
+    switchesSettled: () => Promise.resolve(),
+    liveSelection: () => ({ cloudId: 'c1', placeId: live.placeId }),
+}));
+
 import '../../../i18n';
 
 import { useNotificationPrefsStore } from '../stores';
@@ -59,22 +65,24 @@ const mount = (cloudId: string) =>
 describe('useCloudNotify', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        live.placeId = 'p1';
         updateJoin.mockResolvedValue({});
         useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {}, placeNotify: {} });
         cache.rows = [channel('A1', 'p1'), channel('A2', 'p1'), channel('B1', 'p2')];
     });
 
-    it('applies the level to every place of the active cloud, empty places included', async () => {
+    it('writes the place the session is in and remembers the level for every other place', async () => {
         const { result } = mount('c1');
 
         await act(async () => result.current.setMode('none'));
 
+        // The server takes join writes only for the place the session is in (p1).
         const written = updateJoin.mock.calls.map(([payload]) => (payload as { channelId: string }).channelId);
-        expect(written).toEqual(['A1', 'A2', 'B1']);
+        expect(written).toEqual(['A1', 'A2']);
         const { placeNotify } = useNotificationPrefsStore.getState();
-        expect(placeNotify['c1:p1'].mode).toBe('none');
-        expect(placeNotify['c1:p2'].mode).toBe('none');
-        // No channel there yet, but its first one will inherit the level.
+        expect(placeNotify['c1:p1']).toEqual({ mode: 'none', known: ['A1', 'A2'] });
+        // Written when the session enters them, empty places included.
+        expect(placeNotify['c1:p2']).toEqual({ mode: 'none', known: [] });
         expect(placeNotify['c1:p3']).toEqual({ mode: 'none', known: [] });
         expect(result.current.mode).toBe('none');
     });

@@ -42,6 +42,12 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const live = vi.hoisted(() => ({ placeId: 'p1' as string | null }));
+vi.mock('./switchesSettled', () => ({
+    switchesSettled: () => Promise.resolve(),
+    liveSelection: () => ({ cloudId: 'c1', placeId: live.placeId }),
+}));
+
 import '../../../i18n';
 
 import { useNotificationPrefsStore } from '../stores';
@@ -61,6 +67,7 @@ const mount = () =>
 describe('usePlaceNotifyInheritance', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        live.placeId = 'p1';
         updateJoin.mockResolvedValue({});
         useNotificationPrefsStore.setState({
             channelNotify: { G1: 'none' },
@@ -69,10 +76,11 @@ describe('usePlaceNotifyInheritance', () => {
         });
     });
 
-    it("gives a channel first seen in the place the place's level, once", () => {
+    it("gives a channel first seen in the place the place's level, once", async () => {
         mount();
 
         emit([channel('G1', 'p1'), channel('G2', 'p1')]);
+        await act(async () => undefined);
 
         expect(writtenIds()).toEqual(['G2']);
         expect(useNotificationPrefsStore.getState().channelNotify.G2).toBe('none');
@@ -80,6 +88,17 @@ describe('usePlaceNotifyInheritance', () => {
 
         // The next emit (a message, a read) finds it known and writes nothing more.
         emit([channel('G1', 'p1'), channel('G2', 'p1')]);
+        await act(async () => undefined);
+        expect(writtenIds()).toEqual(['G2']);
+    });
+
+    it('writes a channel once when two emits arrive before a switch settles', async () => {
+        mount();
+
+        emit([channel('G1', 'p1'), channel('G2', 'p1')]);
+        emit([channel('G1', 'p1'), channel('G2', 'p1')]);
+        await act(async () => undefined);
+
         expect(writtenIds()).toEqual(['G2']);
     });
 
@@ -91,6 +110,16 @@ describe('usePlaceNotifyInheritance', () => {
 
         expect(updateJoin).not.toHaveBeenCalled();
         expect(useNotificationPrefsStore.getState().channelNotify.G1).toBe('all');
+    });
+
+    it('waits to write another place until the session is in it', () => {
+        useNotificationPrefsStore.setState({ placeNotify: { 'c1:p2': { mode: 'none', known: [] } } });
+        mount();
+
+        emit([channel('X1', 'p2')]);
+
+        expect(updateJoin).not.toHaveBeenCalled();
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p2'].known).toEqual([]);
     });
 
     it('leaves places with no chosen level alone', () => {

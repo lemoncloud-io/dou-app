@@ -645,6 +645,8 @@ export const en = {
     'place.settings.open': 'Place settings',
     'place.settings.notify.title': "This place's notifications",
     'place.settings.notify.hint': 'Applies to every channel in this place.',
+    'place.settings.notify.elsewhere':
+        "You're in another place. A level chosen here reaches this place's channels when you open it.",
     'place.settings.notify.exceptions': 'Channels set differently: {{count}}',
     'place.settings.notify.failed': "Couldn't save the notification level for some channels.",
     'place.manage.title': 'Manage channels',
@@ -711,7 +713,8 @@ export const en = {
     'cloud.hub.placesHint': 'Open one to manage it.',
     'cloud.hub.notifications': 'Notifications',
     'cloud.hub.notify.title': "This cloud's notifications",
-    'cloud.hub.notify.hint': 'Applies to every place in this cloud.',
+    'cloud.hub.notify.hint':
+        'Applies to every place in this cloud: the one you are in now, the others when you open them.',
     'cloud.hub.notify.switchHint': 'Switch to this cloud to set its notifications.',
     'cloud.hub.nameLabel': 'Cloud name',
     'cloud.hub.save': 'Save',

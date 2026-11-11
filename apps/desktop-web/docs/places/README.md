@@ -41,8 +41,10 @@ route, and without its own copies the buttons would open nothing until the perso
 
 The section above Manage channels sets one level (all messages, mentions only, off) for every channel
 of the place, writing each channel's own setting, and counts the channels set differently with a
-link to the channel manager. How the level is written, how a new channel inherits it, and what it
-cannot reach are in [`../chat/notifications.md`](../chat/notifications.md#place-and-cloud-levels).
+link to the channel manager. Opened for a place the session is not in, it only remembers the level
+and says it reaches the channels when the place is opened. How the level is written, how a new
+channel inherits it, and what it cannot reach are in
+[`../chat/notifications.md`](../chat/notifications.md#place-and-cloud-levels).
 
 ## Managing channels
 

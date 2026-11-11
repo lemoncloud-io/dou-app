@@ -102,8 +102,9 @@ error on screen.
    return the old one. Success and failure are each a toast.
 2. **Places.** An entry to the cloud's places page.
 3. **Notifications.** "This cloud's notifications" sets one level for every place of the cloud, the
-   same write as a place level ([notifications](../chat/notifications.md#place-and-cloud-levels)).
-   Only the cloud the session is in offers it; any other cloud shows a line saying to switch first.
+   same choice as a place level ([notifications](../chat/notifications.md#place-and-cloud-levels)):
+   the place the session is in is written at once, every other place when it is next opened. Only
+   the cloud the session is in offers it; any other cloud shows a line saying to switch first.
 4. **Release.** A destructive action in its own section, behind a confirmation that names the cloud
    and says everything in it goes away for everyone and cannot be undone.
 

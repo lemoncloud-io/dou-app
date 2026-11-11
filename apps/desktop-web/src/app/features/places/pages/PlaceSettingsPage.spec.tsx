@@ -47,7 +47,12 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({
 }));
 
 // The place's notification level reads the channel list and writes joins; its hook has its own spec.
-const placeNotify = vi.hoisted(() => ({ mode: null as string | null, exceptions: 0, setMode: vi.fn() }));
+const placeNotify = vi.hoisted(() => ({
+    mode: null as string | null,
+    exceptions: 0,
+    isHere: true,
+    setMode: vi.fn(),
+}));
 vi.mock('../../../shared/hooks/usePlaceNotify', () => ({ usePlaceNotify: () => placeNotify }));
 
 // The dialogs bring their own runtime wiring; here only whether this route mounts them matters.
@@ -90,6 +95,7 @@ describe('PlaceSettingsPage', () => {
         sessionSel.siteId = 'p1';
         placeNotify.mode = null;
         placeNotify.exceptions = 0;
+        placeNotify.isHere = true;
         useEditPlaceProfileDialogStore.getState().close();
     });
 
@@ -170,6 +176,14 @@ describe('PlaceSettingsPage', () => {
         renderAt('p1');
 
         expect(screen.queryByText(/Channels set differently/)).toBeNull();
+    });
+
+    it('says a level chosen for another place reaches it when it is opened', () => {
+        placeNotify.isHere = false;
+        renderAt('p1');
+
+        expect(screen.getByText(/You're in another place/)).toBeTruthy();
+        expect(screen.queryByText('Applies to every channel in this place.')).toBeNull();
     });
 
     it('opens the channel manager from its entry', () => {
