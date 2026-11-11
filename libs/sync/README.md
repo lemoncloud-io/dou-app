@@ -379,6 +379,7 @@ that finished before it began; it sends its own.
 - **Do not put domain knowledge into `SyncManager`.** Chat prime lives in the chat hook precisely because it needs a chat policy and a repository; the manager stays domain-agnostic so a new domain is a plan, not a branch.
 - **Do not remove the grace window** to make a test deterministic. Advance timers past it instead — the window is the fix for a measured write storm.
 - **Do not import `@chatic/bridges`.** The eslint config refuses it, type-only imports included; `logger` comes from `@chatic/logger`. Deciding what to fetch after a reconnect is not a WebView concern, and this package has to be able to run in a runtime that has no bridge.
+- **Do not read a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in `tsconfig.lib.json`) and the root lint refuses the page's globals: sync runs in the native process too.
 
 ## Notes for implementers and tests
 

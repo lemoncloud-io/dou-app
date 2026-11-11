@@ -75,6 +75,10 @@ hooks that share them depend on this package anyway.
     only runs when the secret store is the shell's vault, and outside a page `WebStore` answers with a
     memory store, so it does nothing there.
 
+8. **Nothing here reads a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in
+   `tsconfig.lib.json`) and the root lint refuses the page's globals, because it runs in the native
+   process too; what the platform answers comes through rule 7's ports and the transport's.
+
 ## Documents
 
 | Doc                                                | Covers                                                                                                                                       |

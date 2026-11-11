@@ -16,13 +16,13 @@ picked files for as long as a retry could still need them.
 
 What differs between shells enters as two ports, so every shell runs the same orchestration:
 
-| Port                | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                     |
-| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `put`               | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds  |
-| `beforeSweep`       | none                         | catch up with transfers the app finished while the page was away    |
-| `putShellFile`      | none                         | the transfer module, sending a file the shell keeps from its folder |
-| `prepareVideo`      | none                         | `PrepareVideo`: the shell converts a video and makes its poster     |
-| `waitForConnection` | none                         | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
+| Port                | Browser and desktop                 | Mobile app (`apps/web` inside the native shell)                     |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| `put`               | `xhrPut` from `@chatic/runtime-web` | the native transfer module, falling back to `xhrPut` in old builds  |
+| `beforeSweep`       | none                                | catch up with transfers the app finished while the page was away    |
+| `putShellFile`      | none                                | the transfer module, sending a file the shell keeps from its folder |
+| `prepareVideo`      | none                                | `PrepareVideo`: the shell converts a video and makes its poster     |
+| `waitForConnection` | none                                | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
 
 `waitForConnection` runs inside the cloud's hold, before the sequence's first request. A send can
 start the moment the page comes back to the front — an OS picker answers as the person returns, and

@@ -1,5 +1,6 @@
 import { isNative, logger, webClient } from '@chatic/bridges';
-import { xhrPut, type PutPort, type ShellFilePutPort } from '@chatic/data';
+import { type PutPort, type ShellFilePutPort } from '@chatic/data';
+import { xhrPut } from '@chatic/runtime-web';
 
 import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../runtime/upload';
 

@@ -25,7 +25,7 @@ and the first request would otherwise fail. It returns `{ sendImages, retry, can
 
 | Shell   | PUT                                                                                                           |
 | ------- | ------------------------------------------------------------------------------------------------------------- |
-| browser | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                                                   |
+| browser | `xhrPut` (`@chatic/runtime-web`) — the page's own `XMLHttpRequest`                                            |
 | app     | `nativePut` — temp file, `StartFileTransfer`, count `running` bytes, wait for the terminal state, acknowledge |
 
 **Only a photo crosses the bridge.** A page file that is a video or a document goes up by `xhrPut`
@@ -773,8 +773,9 @@ the grid: with the panel still open, the pick shows above the composer too. On a
 in the app the recent row should be there from the first frame, in skeleton tiles, with the three
 entries under it not moving when the photos come.
 
-The send itself and `xhrPut` are tested where they live — see the runtime doc and
-[libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).
+The send itself and `xhrPut` are tested where they live — see the runtime doc,
+[libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md) and
+[libs/runtime-web](../../../../../libs/runtime-web/README.md).
 
 To see the cache work, send a photo in a room, reload, and open the room again: the tiles' `src` are
 `blob:` addresses, `ChaticImageCacheDB` holds one `meta` row per image, and a `PerformanceObserver` on

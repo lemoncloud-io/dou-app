@@ -60,6 +60,10 @@ every file, `store/configure.ts` and type-only imports included. Who is signed i
 concern: the package has to be able to run in a runtime that has no bridge, and a logger, should one
 be needed here, comes from `@chatic/logger`.
 
+**Nothing in this package reads a page either.** It compiles without the DOM's types (`lib: ["es2022"]`
+in `tsconfig.lib.json`) and the root lint refuses the page's globals: the session runs in the native
+process too, and the media behind its ports are handed in.
+
 **`credentialFreshness` sits in `store/`, not with the use cases in app-runtime.** It answers "how long is left on this
 server's credential" by reading the stores and nothing else, and the HTTP transport and the socket
 auth status both ask it. Both sit below the use cases in app-runtime, so the reader lives here,

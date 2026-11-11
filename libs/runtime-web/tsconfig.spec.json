@@ -11,6 +11,9 @@
     "references": [
         {
             "path": "../runtime-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
         }
     ]
 }

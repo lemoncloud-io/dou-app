@@ -1,4 +1,4 @@
-import type { PutPort, PutResult } from './types';
+import type { PutPort, PutResult } from '@chatic/data';
 
 /**
  * Headers the browser owns. The ticket lists them because they are signed, but `XMLHttpRequest`
