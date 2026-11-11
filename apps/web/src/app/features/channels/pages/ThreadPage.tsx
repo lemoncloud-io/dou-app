@@ -184,8 +184,14 @@ export const ThreadPage = () => {
     // ADR-0067's rule is one rule for every surface; a second surface does not get a second
     // reading of it.
     const chatParams = useMemo(
-        () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
-        [stableChannelId, myJoin?.joinedNo]
+        () => ({
+            channelId: stableChannelId,
+            limit: 100,
+            joinedNo: myJoin?.joinedNo,
+            // Only the record of this thread's room — see the room page.
+            channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
+        }),
+        [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
     );
     const {
         rawChats,

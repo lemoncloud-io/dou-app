@@ -200,7 +200,10 @@ fired and forgotten: the automatic triggers ignore the returned promise either w
 to keep its indicator up until the place rail has been re-asked too.
 
 **Chat feed.** The chat plan has no poll — only live push and reconnect catch-up — so a missed push
-does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` complements
+does not heal on its own while the chat plan is all a room has. Two hooks close that. While a room is
+open, `app/features/channels/hooks/useChannelHeadRefresh.ts` fetches the newest page when the channel
+record's `chatNo` runs ahead of the room's cache ([data-layer.md](../feature/channels/data-layer.md#an-open-room-follows-the-channel-record-not-only-its-push)).
+On entry and foreground return, `app/features/channels/hooks/useForegroundChatRefresh.ts` complements
 `usePrimeChat` (which fetches only a _cold_ room): it re-aligns the plan baseline and refetches the
 latest page, but only for a _warm_ room, on entry (gated on `isVerified`, to protect a cold start)
 and again on every foreground return (not gated — a socket that resumed in a stuck "verified but

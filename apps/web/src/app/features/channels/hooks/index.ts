@@ -14,6 +14,7 @@ export * from './useJoinMutations';
 export * from './useChats';
 export * from './useMessageJump';
 export * from './useForegroundChatRefresh';
+export * from './useChannelHeadRefresh';
 export * from './useChatMutations';
 export * from './useReactions';
 export * from './useUserMutations';

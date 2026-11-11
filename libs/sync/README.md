@@ -139,8 +139,8 @@ before it calls a plan's callback and ignores what the callback returns, so a wr
 cannot be handed back to the plan for another try. `plans.ts` routes every one of those writes
 through one helper that catches the rejection and logs it (`logger.error('SYNC', …)`) instead of
 leaving an unhandled promise. Only a new chat message has a way back, through paths that already
-exist: the next `chat.feed` refetch, and on desktop the room's freshness check, which refetches the
-newest page when the channel record's newest `chatNo` runs ahead of the cache. A failed edit or delete
+exist: the next `chat.feed` refetch, and the open room's freshness check (desktop and web), which
+refetches the newest page when the channel record's newest `chatNo` runs ahead of the cache. A failed edit or delete
 of an older message, and a failed channel, place, profile or join write, stay stale until the server
 changes that record again. There is no retry queue.
 
