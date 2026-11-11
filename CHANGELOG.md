@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Bug Fixes
+
+- (web/channels) catch an open room up to the channel record, not only its push
+
+## [2026-11-11] - No version updates
+
 ### Refactor
 
 - (session,transport,sync,auth,data,runtime-web) the core packages read no page (ADR-0304)
