@@ -36,3 +36,4 @@ export {
 } from './billing';
 export { useCurrentSubscription } from './useCurrentSubscription';
 export { useNow } from './useNow';
+export { useGoBack } from './useGoBack';

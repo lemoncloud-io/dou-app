@@ -28,12 +28,11 @@ and nothing about how the shell copies or keeps the items.
 | --------- | ------------------------------------------------------------------- | ---------------------------------------- |
 | `loading` | The shell is still answering — Android may still be copying a video | A preparing spinner, for up to 10 min    |
 | `ready`   | The items, the refusals and any text                                | The composer                             |
-| `empty`   | No id, an app without share intake, or a share it no longer holds   | Home, with a notice when an id was given |
+| `empty`   | No id, or a share the app no longer holds                           | Home, with a notice when an id was given |
 | `error`   | A timeout or the bridge dropping                                    | A retry                                  |
 
-`NOT_FOUND`, `GONE` and `INVALID` all read as `empty`: the web ships before the app, so an app without
-the handler is normal, and a share already released is simply over. Only a transient failure offers a
-retry.
+`GONE` and `INVALID` read as `empty`: a share already released is simply over, and an id the app never
+made has nothing behind it. Only a transient failure offers a retry.
 
 ### Items are shell files until the send
 

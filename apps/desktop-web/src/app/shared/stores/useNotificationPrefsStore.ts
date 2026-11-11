@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /** Per-channel notification mode (mirrors the server's JoinNotify values). */
 export type ChannelNotifyMode = 'all' | 'mention' | 'none';
@@ -115,6 +116,6 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
                     };
                 }),
         }),
-        { name: 'chatic-notification-prefs' }
+        { name: 'chatic-notification-prefs', storage: persistStorageOver(deviceStore) }
     )
 );

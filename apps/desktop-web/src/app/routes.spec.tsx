@@ -54,8 +54,10 @@ vi.mock('./features/pairing/pages/PairingCodePage', () => ({ PairingCodePage: ()
 vi.mock('./features/pairing/pages/PairingApprovePage', () => ({ PairingApprovePage: () => <p>approve page</p> }));
 vi.mock('./features/pairing/pages/DevicesPage', () => ({ DevicesPage: () => <p>devices page</p> }));
 
-const login = vi.fn();
-vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ login }) }));
+const preview = vi.fn();
+const enter = vi.fn();
+vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ preview, enter }) }));
+vi.mock('./features/auth/hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 
 import '../i18n';
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
@@ -77,9 +79,11 @@ const WAIT = { timeout: 5000 };
 const submitCode = async (code: string) => {
     fireEvent.change(await screen.findByRole('textbox', {}, WAIT), { target: { value: code } });
     await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     });
 };
+
+const previewOf = (code: string) => ({ preview: { code, info: null, createdGuest: true } });
 
 // Signed out, a bad code used to land the person on Home: the guest login flipped the router
 // to its signed-in branch, whose `/auth/*` redirect unmounted the page and its error with it.
@@ -97,7 +101,12 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 
     it('keeps the invite page and shows why a code was rejected after the guest sign-in', async () => {
-        login.mockImplementation(signInThen({ kind: 'server', message: '400 INVALID - code is invalid (not-found)' }));
+        preview.mockImplementation(
+            signInThen({
+                error: { kind: 'server', message: '400 INVALID - code is invalid (not-found)' },
+                createdGuest: true,
+            })
+        );
         await act(async () => {
             render(<AppRouter />);
         });
@@ -111,12 +120,17 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 
     it('goes Home once the code is accepted', async () => {
-        login.mockImplementation(signInThen(null));
+        preview.mockImplementation(signInThen(previewOf('invt:good')));
+        enter.mockResolvedValue(null);
         await act(async () => {
             render(<AppRouter />);
         });
 
         await submitCode('invt:good');
+        // The guest the preview registered flipped the router to its signed-in branch; the page stays for the join.
+        await act(async () => {
+            fireEvent.click(await screen.findByRole('button', { name: 'Join' }, WAIT));
+        });
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
         expect(window.location.pathname).toBe('/');

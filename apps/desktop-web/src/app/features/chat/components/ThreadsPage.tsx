@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { MessagesSquare } from 'lucide-react';
@@ -18,11 +18,13 @@ import {
     type MyThread,
 } from '../../../shared';
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
+import { useIntersecting } from '../hooks/useIntersecting';
+import { useCardReactionEvents } from '../hooks/useCardReactionEvents';
 import { useThreadCard } from '../hooks/useThreadCard';
 import { ThreadCardMessages } from './ThreadCardMessages';
 import { ThreadCardReply } from './ThreadCardReply';
 
-const CARD_LINK =
+export const CARD_LINK =
     'focus-ring tactile shrink-0 rounded-md px-2 py-1 text-micro font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
 
 interface ThreadsPageProps {
@@ -92,19 +94,6 @@ const ReplyLine = ({ message, onRetry, onDiscard }: ReplyLineProps) => {
     );
 };
 
-/** Whether `ref` intersects the viewport grown by `rootMargin`. */
-const useIntersecting = (ref: RefObject<Element | null>, rootMargin: string): boolean => {
-    const [intersecting, setIntersecting] = useState(false);
-    useEffect(() => {
-        const node = ref.current;
-        if (!node) return;
-        const observer = new IntersectionObserver(([entry]) => setIntersecting(entry.isIntersecting), { rootMargin });
-        observer.observe(node);
-        return () => observer.disconnect();
-    }, [ref, rootMargin]);
-    return intersecting;
-};
-
 const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadCardProps) => {
     const { t } = useTranslation();
     const markSeen = useMyThreadsStore(s => s.markSeen);
@@ -127,6 +116,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
         joinedNo,
         enabled: read,
     });
+    const reactionEvents = useCardReactionEvents(thread.cid, thread.channelId, read);
     // Seen only once the card shows the thread: a card still loading, or one that failed to read, has not.
     const shown = state.status === 'ready';
     useEffect(() => {
@@ -172,6 +162,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 messages={[state.root]}
                                 onRetry={message => settle(retryMessage(message))}
                                 onDiscard={message => settle(discardMessage(message))}
+                                reactionEvents={reactionEvents}
                             />
                         ) : (
                             <ReplyLine message={state.root} />
@@ -195,6 +186,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 messages={state.replies}
                                 onRetry={message => settle(retryMessage(message))}
                                 onDiscard={message => settle(discardMessage(message))}
+                                reactionEvents={reactionEvents}
                             />
                         ) : (
                             state.replies.map(reply => (

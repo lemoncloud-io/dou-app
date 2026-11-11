@@ -31,6 +31,7 @@ export const en = {
         loadTitle: 'Unable to load DoU',
         loadMessage: 'Check your connection and try again.',
         retry: 'Try again',
+        subClose: 'Close',
     },
     notification: {
         channel: {

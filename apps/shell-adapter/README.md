@@ -93,6 +93,14 @@ Cancel answers the web as a cancelled sign-in (`result: null`).
 Outside this repository each client must list its shell's origin as an authorised JavaScript origin:
 `http://localhost:5007` on the dev client, `http://localhost:5017` on the prod one.
 
+The web is also ready for the shell's relay sign-in (the core package's `oauth-relay` preset), which
+this config does not use yet. That preset sends the popup to the organisation's OAuth relay, as the
+desktop app does, and the handler hands its answer to the web as it is: a relay code
+(`{ provider, platform, code }`) instead of an ID token. The web's login screen exchanges the code
+with `verify-oauth-code`, signed with the guest session the shell's web already holds, so the guest is
+linked to the account the way a native sign-in links it; the account hub's Link Google sends the code
+to `auth.link-account`.
+
 A person signs in, in the browser the agent drives — the session lives in that browser profile's
 storage for the shell's origin and survives relaunches. An agent never picks an account or types a
 password.

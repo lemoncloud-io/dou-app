@@ -6,7 +6,10 @@ jest.mock('react-native-config', () => ({
 
 // Same workaround as deeplinkUtils.test.ts: the barrel reaches web-only modules the CommonJS
 // transform cannot parse, so the specifier points at the decoder module itself.
-jest.mock('@chatic/shared', () => jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'),
+    ...jest.requireActual('../../../../../../libs/shared/src/utils/subWebViewLink'),
+}));
 
 const id = '3f2b8c1e-9a4d-4c7b-8e21-5d6f7a8b9c0d';
 

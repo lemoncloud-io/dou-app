@@ -19,6 +19,7 @@ import {
     useChannelSort,
     useHomeChannels,
     useJoinSyncRegistration,
+    useLastActivities,
     useLastChats,
     useMyProfile,
 } from '../../../hooks';
@@ -76,6 +77,7 @@ export const PlaceChannelManagePage = () => {
     // Last-message previews from ONE combined observation (ADR-0057) — the same source as the home
     // list, replacing the per-row cache-window subscription this page used to make per rendered row.
     const lastChats = useLastChats(channels, myJoins);
+    const lastActivities = useLastActivities(channels, myJoins);
     // Whether I own this room — my own join's role, the rule every room surface reads.
     const amRoomOwner = (channel: DomainChannel) => isRoomOwner(channel, channel.$join, uid);
 
@@ -100,12 +102,12 @@ export const PlaceChannelManagePage = () => {
         () =>
             sortChannels({
                 channels,
-                lastChatByChannel: lastChats,
+                lastChatByChannel: lastActivities,
                 unreadByChannel,
                 sortMethod: (placeScope && sortMethodMap[placeScope]) || DEFAULT_CHANNEL_SORT,
                 pinnedChannelIds,
             }),
-        [channels, lastChats, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
+        [channels, lastActivities, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
     );
 
     // Self-chat can be neither deleted nor left, so it is not selectable (Figma: the MY row has no
@@ -321,6 +323,7 @@ export const PlaceChannelManagePage = () => {
                                 joinNick={myJoins.get(channel.id)?.nick}
                                 dmPeer={dmPeers.get(channel.id)}
                                 lastChat={lastChats.get(channel.id)}
+                                lastActivity={lastActivities.get(channel.id)}
                                 unread={unreadByChannel[channel.id] ?? 0}
                                 selectable={isSelectable(channel)}
                                 checked={selectedIds.has(channel.id)}
@@ -385,6 +388,8 @@ interface ManageChannelRowProps {
     dmPeer?: DmPeer;
     /** This row's last-message preview, from the page-level useLastChats (ADR-0057). */
     lastChat?: DomainChat;
+    /** The room's latest activity, a thread reply included — the time printed and the order, not the line. */
+    lastActivity?: DomainChat;
     unread: number;
     selectable: boolean;
     checked: boolean;
@@ -402,6 +407,7 @@ const ManageChannelRow = ({
     joinNick,
     dmPeer,
     lastChat,
+    lastActivity,
     unread,
     selectable,
     checked,
@@ -428,8 +434,9 @@ const ManageChannelRow = ({
     // picks the placeholder glyph (group rooms get the two-person one). See resolveChannelAvatar.
     const { src: avatarSrc, glyph } = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
 
-    const time = lastChat?.createdAt
-        ? new Date(lastChat.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
+    const activity = lastActivity ?? lastChat;
+    const time = activity?.createdAt
+        ? new Date(activity.createdAt).toLocaleTimeString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', {
               hour: '2-digit',
               minute: '2-digit',
           })

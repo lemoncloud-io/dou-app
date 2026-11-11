@@ -1,9 +1,11 @@
-import { type JSX } from 'react';
+import { type JSX, useContext, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, SummaryTile } from '../../components';
+import { AccountTitleContext } from '../../components/PageHeader';
+import { useShellBack } from '../../components/PublicShell';
 import {
     useCurrentSubscription,
     useInvoices,
@@ -17,25 +19,30 @@ import { toIsoDate } from '../../lib/calendar';
 import { useSupports, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import { type CompleteScene, chargedToday, completeSceneOf, dayBefore, formatShortDate, statusUrl } from './flow';
-import { AppStoreLink, CheckoutSteps, FactRows, LoadError, NoteBox, ResultHeader } from './parts';
+import {
+    AppStoreLink,
+    CheckoutSteps,
+    FactRows,
+    LoadError,
+    NoteBox,
+    ResultActions,
+    ResultHeader,
+    primaryLink,
+    secondaryLink,
+} from './parts';
 
 import type { Account, Plan, Subscription } from '../../types';
 
-const primaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90';
-const secondaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted';
-
 /**
- * W-06 — the end of a checkout: a trial started, a first payment made, an upgrade made (`?attempt=`),
- * or a downgrade scheduled (`?change=downgrade`, which has no attempt — nothing is charged). An attempt
- * that has not gone through is sent back to W-09, which knows how to show it.
+ * W-06 — the end of a checkout: a trial started, a first payment made, or an upgrade made
+ * (`?attempt=`). An attempt that has not gone through is sent back to W-09, which knows how to show it.
+ * A downgrade scheduled (`?change=downgrade`, no attempt — nothing is charged) is `DowngradeScheduled`,
+ * which the route frames as an account page.
  */
 export const CheckoutCompletePage = (): JSX.Element => {
     const [params] = useSearchParams();
     const attemptId = params.get('attempt');
     if (attemptId) return <AttemptComplete attemptId={attemptId} />;
-    if (params.get('change') === 'downgrade') return <DowngradeScheduled />;
     return <Navigate to={ROUTES.subscription.root} replace />;
 };
 
@@ -81,7 +88,10 @@ const useAccountName = (account: Account): string => {
 const AppSetupBox = ({ plan }: { plan: Plan }): JSX.Element => {
     const { t } = useTranslation();
     return (
-        <NoteBox className="border border-border bg-white" title={t('subscription.checkout.complete.appSetup.title')}>
+        <NoteBox
+            className="items-start text-left md:border md:border-line md:bg-white md:p-5"
+            title={t('subscription.checkout.complete.appSetup.title')}
+        >
             <ol className="list-inside list-decimal">
                 <li>{t('subscription.checkout.complete.appSetup.open')}</li>
                 <li>
@@ -114,7 +124,11 @@ const Started = ({
     const planName = t('subscription.common.planName', { sort: plan.sort });
     const money = (amount: Plan['monthly']) => formatMoney(amount, i18n.language);
     const nextAmount = subscription.nextAmount ?? plan.monthly;
-    // What was charged comes from the invoice; without one the tile says so rather than guess.
+    // What was charged comes from the invoice; without one the tile says so rather than guess. Where
+    // the port has no invoices at all (the server keeps none yet, and neither the attempt nor the
+    // subscription carries the amount), there is nothing to read, so the tile is left out rather than
+    // showing "—" after every checkout.
+    const hasInvoices = useSupports()('listInvoices');
     const paid = chargedToday(invoices.data, 'first', plan.id, today)?.amount;
 
     if (invoices.isLoading) return <PageLoader />;
@@ -132,7 +146,7 @@ const Started = ({
             />
             {scene === 'trialStarted' ? (
                 <FactRows
-                    className="rounded-2xl bg-muted px-6 py-5"
+                    className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
                     rows={[
                         {
                             key: 'trial',
@@ -156,8 +170,8 @@ const Started = ({
                     ]}
                 />
             ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <SummaryTile label={t(key('paidLabel'))} value={paid ? money(paid) : '—'} />
+                <div className={`grid grid-cols-1 gap-3 ${hasInvoices ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                    {hasInvoices && <SummaryTile label={t(key('paidLabel'))} value={paid ? money(paid) : '—'} />}
                     <SummaryTile
                         label={t(key('nextLabel'))}
                         value={subscription.nextBillingAt ? formatDate(subscription.nextBillingAt) : '—'}
@@ -166,18 +180,19 @@ const Started = ({
                 </div>
             )}
             <AppSetupBox plan={plan} />
-            <div className="flex flex-wrap justify-center gap-3">
+            <ResultActions>
                 <Link to={ROUTES.subscription.root} className={secondaryLink}>
                     {t(key('toManage'))}
                 </Link>
                 <AppStoreLink>{t(key('setUpInApp'))}</AppStoreLink>
-            </div>
+            </ResultActions>
         </section>
     );
 };
 
 const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Plan }): JSX.Element => {
     const { t, i18n } = useTranslation();
+    useShellBack();
     const invoices = useInvoices();
     const today = toIsoDate(useToday());
     const key = (name: string) => `subscription.checkout.complete.${name}`;
@@ -199,11 +214,16 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                               price: formatMoney(charge.amount, i18n.language),
                               count: plan.maxClouds,
                           })
-                        : t(key('upgradedBodyFree'), { count: plan.maxClouds })
+                        : // No invoice means nothing was charged only where invoices exist. Without them
+                          // nothing is known either way — and the server upgrades a paid period only, so
+                          // "nothing was charged during your trial" would be wrong there.
+                          receipts
+                          ? t(key('upgradedBodyFree'), { count: plan.maxClouds })
+                          : t(key('upgradedBody'), { count: plan.maxClouds })
                 }
             />
             <FactRows
-                className="rounded-2xl bg-muted px-6 py-5"
+                className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
                 rows={[
                     {
                         key: 'next',
@@ -232,21 +252,31 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                         : []),
                 ]}
             />
-            <div className="flex flex-wrap justify-center gap-3">
+            <ResultActions>
                 <Link to={ROUTES.subscription.detail(subscription.id)} className={secondaryLink}>
                     {t(key('toSubscription'))}
                 </Link>
                 <AppStoreLink>{t(key('addInApp'))}</AppStoreLink>
-            </div>
+            </ResultActions>
         </section>
     );
 };
 
-const DowngradeScheduled = (): JSX.Element => {
+/**
+ * The scheduled-downgrade confirmation, inside the account frame: on a phone the bar names the page
+ * "Change plan" like the screen that led here.
+ */
+export const DowngradeScheduled = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const { subscription, plan, isLoading } = useCurrentSubscription();
     const plans = usePlans();
     const subscriptions = useSubscriptions();
+    const setBarTitle = useContext(AccountTitleContext);
+    const barTitle = t('subscription.entry.plans.changeTitle');
+    useEffect(() => {
+        setBarTitle(barTitle);
+        return () => setBarTitle(undefined);
+    }, [barTitle, setBarTitle]);
     const key = (name: string) => `subscription.checkout.complete.${name}`;
 
     if (isLoading || plans.isLoading) return <PageLoader />;
@@ -257,7 +287,7 @@ const DowngradeScheduled = (): JSX.Element => {
     if (!subscription || !plan || !change || !target) return <Navigate to={ROUTES.subscription.root} replace />;
 
     return (
-        <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-6">
+        <section className="mx-auto flex max-w-[600px] flex-col gap-6 pt-6 md:pt-14">
             <ResultHeader
                 tone="success"
                 title={t(key('downgradeTitle'), { plan: t(`subscription.checkout.planRo.${target.sort}`) })}
@@ -266,22 +296,29 @@ const DowngradeScheduled = (): JSX.Element => {
                     plan: t(`subscription.checkout.planEul.${plan.sort}`),
                 })}
             />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <SummaryTile label={t(key('effectiveLabel'))} value={formatDate(change.effectiveAt)} />
-                <SummaryTile
-                    label={t(key('thatDayLabel'))}
-                    value={formatMoney(subscription.nextAmount ?? target.monthly, i18n.language)}
-                />
-                <SummaryTile label={t(key('currentLabel'))} value={t(key('currentValue'))} />
-            </div>
-            <NoteBox title={t(key('chooseClouds.title'))}>
+            <FactRows
+                className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
+                rows={[
+                    { key: 'effective', label: t(key('effectiveLabel')), value: formatDate(change.effectiveAt) },
+                    {
+                        key: 'thatDay',
+                        label: t(key('thatDayLabel')),
+                        value: formatMoney(subscription.nextAmount ?? target.monthly, i18n.language),
+                    },
+                    { key: 'current', label: t(key('currentLabel')), value: t(key('currentValue')) },
+                ]}
+            />
+            <NoteBox
+                className="items-start text-left md:border md:border-line md:bg-white md:p-5"
+                title={t(key('chooseClouds.title'))}
+            >
                 {t(key('chooseClouds.body'), { count: target.maxClouds })}
             </NoteBox>
-            <div>
+            <ResultActions>
                 <Link to={ROUTES.subscription.detail(subscription.id)} className={primaryLink}>
                     {t(key('toSubscription'))}
                 </Link>
-            </div>
+            </ResultActions>
         </section>
     );
 };

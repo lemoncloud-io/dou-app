@@ -92,8 +92,8 @@ android {
         applicationId "io.chatic.dou"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 89
-        versionName "0.30.0"
+        versionCode 93
+        versionName "0.31.2"
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 
@@ -186,6 +186,15 @@ dependencies {
     // The photo library removes a picked photo's GPS tags without re-encoding it. Already on the
     // runtime classpath through react-native-image-picker; declared because this app now calls it.
     implementation "androidx.exifinterface:exifinterface:1.3.3"
+
+    // Converts a video the shell cannot send as it is (HEVC, a QuickTime .mov, AMR audio) to an
+    // H.264/AAC mp4 before it is uploaded. The one video dependency: see
+    // apps/mobile/docs/native/attachment-picker.md. media3-muxer, -exoplayer and the rest arrive
+    // through the transformer.
+    def media3Version = "1.11.1"
+    implementation("androidx.media3:media3-transformer:$media3Version")
+    implementation("androidx.media3:media3-effect:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
 
     // JVM unit tests for the pure-Kotlin transfer core (io.chatic.dou.transfer.core).
     testImplementation "junit:junit:4.13.2"

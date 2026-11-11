@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
 import { useBackgroundCloudTokens } from './useBackgroundCloudTokens';
 
 const mockSync = jest.fn();
 const mockDispose = jest.fn();
-jest.mock('../../socket/auth/backgroundCloudTokens', () => ({
+jest.mock('@chatic/auth/socket/backgroundCloudTokens', () => ({
     BackgroundCloudTokens: jest.fn().mockImplementation(() => ({ sync: mockSync, dispose: mockDispose })),
 }));
 const mockSelection = jest.fn((): string[] => ['cloud-a']);
@@ -13,10 +13,10 @@ jest.mock('../utils/backgroundSlots', () => ({
     currentBackgroundSelection: () => mockSelection(),
     liveBackgroundReadiness: {},
 }));
-jest.mock('../../session/auth/cloudTokens', () => ({ issueCloudTokens: jest.fn() }));
+jest.mock('@chatic/auth/session/cloudTokens', () => ({ issueCloudTokens: jest.fn() }));
 let mockSlotListener: (() => void) | null = null;
 const mockUnsubscribeSlots = jest.fn();
-jest.mock('../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({
         subscribeSlotClients: (listener: () => void) => {
             mockSlotListener = listener;
@@ -26,7 +26,7 @@ jest.mock('../../socket/runtime', () => ({
 }));
 // A stable snapshot: `useSyncExternalStore` re-renders forever on a fresh object per read.
 const mockSlotContext = {};
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getSocketSlotContext: () => mockSlotContext,
     sessionSignal: { subscribe: jest.fn(() => () => undefined) },
 }));

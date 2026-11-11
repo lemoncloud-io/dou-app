@@ -4,11 +4,11 @@ const mockInitialize = jest.fn();
 const mockMarkSessionInitialized = jest.fn();
 const mockIsInitialized = { current: false };
 
-jest.mock('../../auth/relaySession', () => ({
+jest.mock('@chatic/auth/session/relaySession', () => ({
     relaySession: { initialize: (...args: unknown[]) => mockInitialize(...args) },
 }));
 
-jest.mock('../../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     markSessionInitialized: (...args: unknown[]) => mockMarkSessionInitialized(...args),
 }));
 

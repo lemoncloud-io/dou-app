@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { deviceStore } from '../../../storage';
 
 /**
  * Seen-flag key, one per account. A single device-wide flag survived logout, so
@@ -9,24 +10,17 @@ const onboardedKey = (userId: string) => `chatic.desktop.onboarded:${userId}`;
 /**
  * The seen flag lives in localStorage, not in the store below: the renderer
  * reloads itself to recover a socket wedged after sleep, and an in-memory flag
- * let every such reload reopen tips the person had already closed. Storage
- * access is guarded because it throws outright in a locked-down profile — there
- * the tips reappear, which is the harmless end of the trade.
+ * let every such reload reopen tips the person had already closed. The device
+ * store reads a locked-down profile's storage as empty and drops the write —
+ * there the tips reappear, which is the harmless end of the trade.
  */
 export const hasSeenOnboarding = (userId: string): boolean => {
-    try {
-        return localStorage.getItem(onboardedKey(userId)) === '1';
-    } catch {
-        return false;
-    }
+    return deviceStore.get(onboardedKey(userId)) === '1';
 };
 
 export const markOnboardingSeen = (userId: string): void => {
-    try {
-        localStorage.setItem(onboardedKey(userId), '1');
-    } catch {
-        /* ignore — the in-session flag below still keeps it closed until reload */
-    }
+    // A dropped write is fine: the in-session flag below still keeps it closed until reload.
+    deviceStore.set(onboardedKey(userId), '1');
 };
 
 interface OnboardingState {

@@ -80,6 +80,27 @@ describe('MyPage — devices entry', () => {
     });
 });
 
+describe('MyPage — subscription entry', () => {
+    it('opens the subscription list for an account', () => {
+        render(<MyPage />);
+
+        fireEvent.click(screen.getByText('mypage.subscription.hubEntry'));
+        expect(navigate).toHaveBeenCalledWith('/subscription');
+    });
+
+    it('is there for a guest browser, which the website signs in itself, and not for a guest app', () => {
+        mockGuest = true;
+        mockNative = false;
+        const { unmount } = render(<MyPage />);
+        expect(screen.queryByText('mypage.subscription.hubEntry')).not.toBeNull();
+        unmount();
+
+        mockNative = true;
+        render(<MyPage />);
+        expect(screen.queryByText('mypage.subscription.hubEntry')).toBeNull();
+    });
+});
+
 describe('MyPage — secondary device', () => {
     it('says this app is signed in through another device', () => {
         mockPaired = true;

@@ -1,0 +1,837 @@
+import { addDays, addMonths, dayNumber } from '../../lib/calendar';
+import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../../lib/billingCountry';
+import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
+import { planCatalogIn } from '../../lib/catalog';
+import { changeKindOf } from '../../lib/changeKindOf';
+import { isLive } from '../../lib/sceneOf';
+import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../../lib/port/errors';
+import { MOCK_POLICY, planOf } from './policy';
+import { ROUTES } from '../../../../routes/paths';
+import { buildScenario, isScenario, mockReceiptUrl } from './scenarios';
+import {
+    type ConsentChoice,
+    FAIL_FLAGS,
+    type FailFlag,
+    type MockAttempt,
+    type MockEmailCode,
+    type MockState,
+} from './state';
+import { type StateStore, memoryStateStore } from './storage';
+
+import type { Clock, SubscriptionPort } from '../../lib/port';
+import type { PaymentWindowHost, PaymentWindowPresenter } from '../../lib/port/standInWindow';
+import type {
+    BillingEmail,
+    CardToken,
+    ChangePreview,
+    EmailCodeTicket,
+    Money,
+    Payer,
+    PaymentAttempt,
+    PaymentMethod,
+    PaymentProvider,
+    Plan,
+    PlanId,
+    RegistrationOutcome,
+    RegistrationResult,
+    Subscription,
+} from '../../types';
+
+/** The tests' handle on the fake server. */
+export interface MockController extends PaymentWindowHost {
+    /** Reads the query first (see `createMockPort`), so it may commit — never call it during render. */
+    getState(): MockState;
+    setFail(fail: FailFlag | null): void;
+}
+
+export interface MockSetup {
+    port: SubscriptionPort;
+    controller: MockController;
+    clock: Clock;
+}
+
+export interface MockOptions {
+    /** Where the state lives; a test hands the same store to a second fake to stand for a reload. */
+    store?: StateStore;
+    /** The query string the scenario is read from. */
+    readSearch?: () => string;
+    /** Latency of every call. */
+    delayMs?: number;
+    /** How long a payment attempt stays `processing`. */
+    settleMs?: number;
+    /** Wall clock, for settling attempts and timing out sign-ins. */
+    nowMs?: () => number;
+    nonce?: () => string;
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The query parameters the mock reads; any other query leaves it alone. */
+const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards'];
+
+const APPLIED_SEARCHES_KEPT = 50;
+
+const clone = <T>(value: T): T => (value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T));
+
+const fail = (code: SubscriptionPortError['code'], message?: string, detail?: SubscriptionPortErrorDetail): never => {
+    throw new SubscriptionPortError(code, message, detail);
+};
+
+const isFailFlag = (value: string | null): value is FailFlag =>
+    !!value && (FAIL_FLAGS as readonly string[]).includes(value);
+
+const isCompletePayer = (payer: Payer | undefined): boolean =>
+    !!payer && !!payer.name.trim() && !!payer.phone.trim() && !!payer.email.trim();
+
+const publicAttempt = ({ settleAt: _s, settlesAs: _a, planId: _p, ...attempt }: MockAttempt): PaymentAttempt => attempt;
+
+// A rough proration for the mock: the price difference for the days left in the current period,
+// rounded down to ten won. The real figure is the payment provider's.
+const prorate = (from: Money, to: Money, today: string, nextBillingAt: string | undefined): Money => {
+    const diff = to.amount - from.amount;
+    if (!nextBillingAt) return { amount: diff, currency: to.currency };
+    const periodStart = addMonths(nextBillingAt, -1);
+    const period = Math.max(1, dayNumber(nextBillingAt) - dayNumber(periodStart));
+    const left = Math.max(0, dayNumber(nextBillingAt) - dayNumber(today));
+    return { amount: Math.floor((diff * left) / period / 10) * 10, currency: to.currency };
+};
+
+const CARD_BRANDS = ['국민', '삼성', '롯데', '하나'];
+
+/**
+ * The tests' in-memory subscription server, behind the real port interface. Nothing the app runs
+ * imports it (`testing/boundary.test.ts`).
+ *
+ * It holds one account's state, picked by `?mock=<scenario>` in the query a test hands it, and every
+ * method changes that state the way the server would — cancelling schedules an end, a successful
+ * upgrade changes the plan — so a flow can be walked end to end. It decides nothing about what a screen
+ * shows: that is `lib/`'s.
+ *
+ * The query is read at the start of every call, and each one is applied once: a second fake on the
+ * same store keeps the state it had, a one-shot `&fail=` is spent once, and a different `?mock=` starts
+ * that scenario over.
+ */
+export const createMockPort = (options: MockOptions = {}): MockSetup => {
+    const store = options.store ?? memoryStateStore();
+    const readSearch = options.readSearch ?? (() => '');
+    const delayMs = options.delayMs ?? 0;
+    const settleMs = options.settleMs ?? 1500;
+    const nowMs = options.nowMs ?? (() => Date.now());
+    const nonce = options.nonce ?? (() => Math.random().toString(36).slice(2, 10));
+
+    let paymentWindow: PaymentWindowPresenter | null = null;
+
+    const stored = store.load();
+    let state: MockState = stored && stored.version === 4 ? stored : buildScenario('visitor');
+
+    const commit = (next: MockState) => {
+        state = next;
+        store.save(state);
+    };
+
+    const syncFromUrl = () => {
+        const search = readSearch();
+        const params = new URLSearchParams(search);
+        // A query with none of the mock's own parameters says nothing to it.
+        if (!MOCK_PARAMS.some(name => params.has(name))) return;
+        // Applied once per page session. A sign-in returning to `next` comes back to the very query
+        // that started it; applying a one-shot `fail=session-ended` there again would end the new
+        // session as well, round and round.
+        if (state.appliedSearches.includes(search)) return;
+        const scenario = params.get('mock');
+        const cards = params.get('cards');
+        let next = clone(state);
+        if (isScenario(scenario)) {
+            const noCards = cards === '0';
+            if (scenario !== state.scenario || noCards !== state.noCards) {
+                next = buildScenario(scenario, { noCards });
+            }
+        }
+        const today = params.get('now');
+        if (today && ISO_DATE.test(today)) next.today = today;
+        if (params.has('fail')) next.fail = isFailFlag(params.get('fail')) ? (params.get('fail') as FailFlag) : null;
+        next.appliedSearches = [...state.appliedSearches, search].slice(-APPLIED_SEARCHES_KEPT);
+        commit(next);
+    };
+
+    const nextId = (s: MockState, prefix: string) => `${prefix}-${++s.seq}`;
+
+    const liveSubscription = (s: MockState): Subscription | undefined => s.subscriptions.find(isLive);
+
+    const findSubscription = (s: MockState, id: string): Subscription =>
+        s.subscriptions.find(sub => sub.id === id) ?? fail('notFound', `no subscription ${id}`);
+
+    /** Whether a first subscription now starts with the trial: the account's own answer, as the server gives it. */
+    const trialEligible = (s: MockState): boolean => s.account.trialEligible ?? !s.account.trialUsed;
+
+    /** The card `provider` charges: each provider keeps a default of its own. */
+    const defaultCard = (s: MockState, provider: PaymentProvider): PaymentMethod | undefined =>
+        s.paymentMethods.find(pm => pm.provider === provider && pm.isDefault);
+
+    /** A subscription's plan, priced in the currency its provider charges. */
+    const planFor = (sub: Subscription, planId: PlanId = sub.planId): Plan =>
+        planOf(planId, currencyOfProvider(sub.provider));
+
+    const ticketOf = (emailId: string, sent: MockEmailCode): EmailCodeTicket => ({
+        emailId,
+        expiresAt: new Date(sent.expiresAt).toISOString(),
+        resendAt: new Date(sent.sentAt + MOCK_POLICY.emailResendSeconds * 1000).toISOString(),
+        resendsLeft: sent.resendsLeft,
+        attemptsLeft: sent.attemptsLeft,
+    });
+
+    // Sends a code to an address, applying the resend rules: not again within the interval, and once
+    // the codes run out, a lock before the address can start over.
+    const sendCode = (s: MockState, emailId: string): EmailCodeTicket => {
+        const now = nowMs();
+        const previous = s.emailCodes[emailId];
+        const lockedUntil = previous?.lockedUntil;
+        if (lockedUntil && now < lockedUntil) {
+            fail('resendLimit', undefined, { retryAt: new Date(lockedUntil).toISOString() });
+        }
+        const lockedOut = (until: number) => {
+            s.emailCodes[emailId] = { ...(previous as MockEmailCode), lockedUntil: until };
+            commit(clone(s));
+            fail('resendLimit', undefined, { retryAt: new Date(until).toISOString() });
+        };
+        if (previous && s.fail === 'resend-limit') {
+            s.fail = null;
+            lockedOut(now + MOCK_POLICY.emailLockMinutes * 60_000);
+        }
+        // A lock that has passed starts the address over with a full set of codes.
+        const fresh = !previous || (lockedUntil !== undefined && now >= lockedUntil);
+        if (!fresh) {
+            if (now < previous.sentAt + MOCK_POLICY.emailResendSeconds * 1000) {
+                fail('conflict', 'too soon to resend', {
+                    retryAt: new Date(previous.sentAt + MOCK_POLICY.emailResendSeconds * 1000).toISOString(),
+                });
+            }
+            if (previous.resendsLeft <= 0) lockedOut(now + MOCK_POLICY.emailLockMinutes * 60_000);
+        }
+        const sent: MockEmailCode = {
+            sentAt: now,
+            expiresAt: now + MOCK_POLICY.emailCodeMinutes * 60_000,
+            attemptsLeft: MOCK_POLICY.emailCodeAttempts,
+            resendsLeft: fresh ? MOCK_POLICY.emailResends - 1 : previous.resendsLeft - 1,
+        };
+        s.emailCodes[emailId] = sent;
+        return ticketOf(emailId, sent);
+    };
+
+    // Applies what a processing attempt does once it settles. Called before every operation, so a
+    // list read after the attempt's time is up already shows its result.
+    const settleDue = (s: MockState) => {
+        for (const attempt of s.attempts) {
+            if (attempt.status !== 'processing' || nowMs() < attempt.settleAt) continue;
+            if (attempt.settlesAs === 'failed') {
+                attempt.status = 'failed';
+                attempt.failure = 'declined';
+                if (attempt.purpose === 'retry' && attempt.subscriptionId) {
+                    const sub = findSubscription(s, attempt.subscriptionId);
+                    s.invoices.unshift({
+                        id: nextId(s, 'inv'),
+                        issuedAt: s.today,
+                        kind: 'retry',
+                        planId: sub.planId,
+                        amount: planFor(sub).monthly,
+                        status: 'failed',
+                    });
+                }
+                continue;
+            }
+            attempt.status = 'succeeded';
+            if (attempt.purpose === 'start' && attempt.planId) settleStart(s, attempt);
+            if (attempt.purpose === 'upgrade' && attempt.planId && attempt.subscriptionId) settleUpgrade(s, attempt);
+            if (attempt.purpose === 'retry' && attempt.subscriptionId) settleRetry(s, attempt);
+        }
+    };
+
+    const settleStart = (s: MockState, attempt: MockAttempt) => {
+        const provider = attempt.provider ?? 'portone';
+        const plan = planOf(attempt.planId as PlanId, currencyOfProvider(provider));
+        const withTrial = !!attempt.withTrial;
+        const trialEndsAt = addDays(s.today, MOCK_POLICY.trialDays);
+        const lastExpired = s.subscriptions
+            .filter(sub => sub.status === 'expired' && sub.expiredAt)
+            .sort((a, b) => dayNumber(b.expiredAt as string) - dayNumber(a.expiredAt as string))[0];
+        const restored =
+            !!lastExpired &&
+            dayNumber(s.today) - dayNumber(lastExpired.expiredAt as string) <= MOCK_POLICY.restoreWindowDays;
+        const firstCharge = withTrial ? trialEndsAt : s.today;
+        const sub: Subscription = {
+            id: nextId(s, 'sub'),
+            planId: plan.id,
+            status: withTrial ? 'trial' : 'active',
+            startedAt: s.today,
+            billingDay: Number(firstCharge.slice(8, 10)),
+            provider,
+            trialEndsAt: withTrial ? trialEndsAt : undefined,
+            nextBillingAt: withTrial ? trialEndsAt : addMonths(s.today, 1),
+            nextAmount: plan.monthly,
+            restored: restored || undefined,
+            defaultPaymentMethodId: defaultCard(s, provider)?.id,
+        };
+        s.subscriptions.unshift(sub);
+        if (!withTrial) {
+            const id = nextId(s, 'inv');
+            s.invoices.unshift({
+                id,
+                issuedAt: s.today,
+                kind: 'first',
+                planId: plan.id,
+                amount: plan.monthly,
+                status: 'paid',
+                receiptUrl: mockReceiptUrl(id),
+            });
+        }
+        s.account = { ...s.account, trialUsed: true, trialEligible: false, billingSource: 'web' };
+        attempt.subscriptionId = sub.id;
+    };
+
+    const settleUpgrade = (s: MockState, attempt: MockAttempt) => {
+        const sub = findSubscription(s, attempt.subscriptionId as string);
+        const from = planFor(sub);
+        const to = planFor(sub, attempt.planId as PlanId);
+        // A trial upgrade changes the plan and charges nothing today, as its preview said.
+        const amount =
+            sub.status === 'trial'
+                ? { amount: 0, currency: to.monthly.currency }
+                : prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt);
+        sub.planId = to.id;
+        sub.nextAmount = to.monthly;
+        delete sub.pendingChange;
+        if (amount.amount > 0) {
+            const id = nextId(s, 'inv');
+            s.invoices.unshift({
+                id,
+                issuedAt: s.today,
+                kind: 'upgrade',
+                planId: to.id,
+                amount,
+                status: 'paid',
+                receiptUrl: mockReceiptUrl(id),
+            });
+        }
+    };
+
+    const settleRetry = (s: MockState, attempt: MockAttempt) => {
+        const sub = findSubscription(s, attempt.subscriptionId as string);
+        const failedAt = sub.failedAt ?? s.today;
+        sub.status = 'active';
+        sub.nextBillingAt = addMonths(failedAt, 1, sub.billingDay);
+        sub.nextAmount = planFor(sub).monthly;
+        delete sub.failedAt;
+        delete sub.restrictAt;
+        delete sub.failureReason;
+        delete sub.retryAt;
+        const id = nextId(s, 'inv');
+        s.invoices.unshift({
+            id,
+            issuedAt: s.today,
+            kind: 'retry',
+            planId: sub.planId,
+            amount: planFor(sub).monthly,
+            status: 'paid',
+            receiptUrl: mockReceiptUrl(id),
+        });
+    };
+
+    const startAttempt = (
+        s: MockState,
+        attempt: Omit<MockAttempt, 'id' | 'status' | 'settleAt' | 'settlesAs'>
+    ): PaymentAttempt => {
+        const created: MockAttempt = {
+            ...attempt,
+            id: nextId(s, 'att'),
+            status: 'processing',
+            settleAt: nowMs() + settleMs,
+            settlesAs: s.fail === 'card-declined' ? 'failed' : 'succeeded',
+        };
+        s.attempts.push(created);
+        return publicAttempt(created);
+    };
+
+    const previewChangeFor = (s: MockState, planId: PlanId): ChangePreview => {
+        const sub = liveSubscription(s) ?? fail('conflict', 'no subscription to change');
+        // An ending subscription has no next period to change; it is resumed first.
+        if (sub.status === 'cancelScheduled') fail('conflict', 'subscription is ending');
+        const from = planFor(sub);
+        const to = planFor(sub, planId);
+        if (from.id === to.id) fail('conflict', 'already on this plan');
+        const kind = to.sort > from.sort ? 'upgrade' : 'downgrade';
+        const preview: ChangePreview =
+            kind === 'upgrade'
+                ? {
+                      kind,
+                      from,
+                      to,
+                      amountToday: prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt),
+                      effectiveAt: s.today,
+                      nextAmount: to.monthly,
+                  }
+                : { kind, from, to, effectiveAt: sub.nextBillingAt ?? s.today, nextAmount: to.monthly };
+        if (sub.status === 'pastDue' || sub.status === 'restricted') preview.blocked = 'pastDue';
+        else if (changeKindOf(from, to, s.account) === 'blocked') preview.blocked = 'notAdjacent';
+        else if (sub.status === 'trial' && kind === 'upgrade') preview.blocked = 'trialUpgrade';
+        else if (sub.pendingChange && sub.pendingChange.effectiveAt === s.today) preview.blocked = 'sameDayAsChange';
+        return preview;
+    };
+
+    /**
+     * Runs one port call: latency, the URL, attempts that came due, the fail flag, the session check,
+     * then the operation on a copy of the state — committed only if the operation does not throw.
+     */
+    const call = async <T>(op: (s: MockState) => T, { auth = true }: { auth?: boolean } = {}): Promise<T> => {
+        if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
+        syncFromUrl();
+        const s = clone(state);
+        settleDue(s);
+        if (s.fail === 'network') {
+            s.fail = null;
+            commit(s);
+            fail('network', 'mock: injected network failure');
+        }
+        if (auth && s.fail === 'session-ended') {
+            s.fail = null;
+            s.signedIn = false;
+            commit(s);
+            fail('unauthenticated', 'mock: injected session end');
+        }
+        if (auth && !s.signedIn) fail('unauthenticated');
+        const result = op(s);
+        commit(s);
+        return clone(result);
+    };
+
+    const port: SubscriptionPort = {
+        // Reading the session is how a page finds out it has none, so it never fails with the flags
+        // meant for the calls after it.
+        getSession: async () => {
+            if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
+            syncFromUrl();
+            return state.signedIn ? clone(state.account) : null;
+        },
+
+        startSignIn: ({ provider, next }) =>
+            call(
+                s => {
+                    const pending = { nonce: nonce(), provider, next, startedAt: nowMs() };
+                    s.pendingSignIn = pending;
+                    // The provider answers at once, with the scenario's choice: straight back to the
+                    // callback, as a provider's consent page would send the browser.
+                    const query = new URLSearchParams({
+                        provider,
+                        nonce: pending.nonce,
+                        result: consentDefaultOf(s),
+                    });
+                    return { redirectUrl: `${ROUTES.subscription.loginCallback}?${query}` };
+                },
+                { auth: false }
+            ),
+
+        completeSignIn: callback =>
+            call(
+                s => {
+                    const pending = s.pendingSignIn;
+                    delete s.pendingSignIn;
+                    // The record is spent either way, so the outcome is committed even when it fails.
+                    commit(clone(s));
+                    const tooLate =
+                        !!pending && nowMs() - pending.startedAt > MOCK_POLICY.signInAttemptMinutes * 60_000;
+                    // A failed round trip still hands back where it was going, so trying again keeps it.
+                    const detail = pending?.next ? { next: pending.next } : undefined;
+                    if (!pending || callback.get('nonce') !== pending.nonce || tooLate) {
+                        fail('signInExpired', undefined, detail);
+                    }
+                    const provider = (pending as NonNullable<typeof pending>).provider;
+                    const result = callback.get('result');
+                    if (result === 'canceled') fail('signInCanceled', undefined, detail);
+                    if (result !== 'continue' && result !== 'noAccount') fail('signInExpired', undefined, detail);
+                    if (result === 'noAccount') {
+                        return {
+                            noLinkedAccount: true as const,
+                            provider,
+                            hint: provider === 'google' ? s.signIn.hint : undefined,
+                        };
+                    }
+                    s.signedIn = true;
+                    s.account = { ...s.account, provider };
+                    return { account: s.account, next: pending?.next };
+                },
+                { auth: false }
+            ),
+
+        signOut: () =>
+            call(
+                s => {
+                    s.signedIn = false;
+                },
+                { auth: false }
+            ),
+
+        // Without a currency asked for, the plans come priced the way the subscription in force is charged.
+        listPlans: input =>
+            call(
+                s => {
+                    const live = s.signedIn ? liveSubscription(s) : undefined;
+                    return planCatalogIn(input?.currency ?? (live ? currencyOfProvider(live.provider) : 'KRW'));
+                },
+                { auth: false }
+            ),
+
+        listSubscriptions: () => call(s => s.subscriptions),
+
+        getSubscription: id => call(s => findSubscription(s, id)),
+
+        previewCheckout: (planId, input) =>
+            call(s => {
+                const plan = planOf(planId, input?.currency ?? 'KRW');
+                const withTrial = plan.trialDays > 0 && trialEligible(s);
+                const trialEndsAt = addDays(s.today, plan.trialDays);
+                return {
+                    plan,
+                    account: s.account,
+                    withTrial,
+                    amountToday: withTrial ? { amount: 0, currency: plan.monthly.currency } : plan.monthly,
+                    trialEndsAt: withTrial ? trialEndsAt : undefined,
+                    firstChargeAt: withTrial ? trialEndsAt : s.today,
+                };
+            }),
+
+        // The provider's window. When a presenter is registered (the stand-in dialog), it asks the
+        // reader for the outcome, with the one the fail flag implies preselected; without one (tests)
+        // that outcome is taken as is. A declined card fails the window itself only when adding a card
+        // is all it is for: ahead of a charge the card registers and the charge that follows is what
+        // fails, the way the designs split the two.
+        startPaymentMethodRegistration: async ({ purpose, planId, country, payer }) => {
+            // A checkout's card goes to the provider of its billing country; any other card to the
+            // provider of the account's subscription, ended or not, as the server does.
+            const providerFor = (s: MockState): PaymentProvider =>
+                purpose === 'start'
+                    ? providerOfCountry(country ?? KOREA)
+                    : ((liveSubscription(s) ?? s.subscriptions[0])?.provider ??
+                      (country ? providerOfCountry(country) : 'portone'));
+            const suggested = await call((s): RegistrationOutcome => {
+                // The won provider's card company refuses a card without its holder, as the real window does.
+                if (payerRequiredFor(providerFor(s)) && !isCompletePayer(payer)) {
+                    fail('invalid', 'mock: payer name, phone and email are required');
+                }
+                if (s.fail === 'attempt-limit' || s.failedCardAttempts >= MOCK_POLICY.maxCardAttempts) {
+                    fail('limit', 'mock: card registration attempts used up');
+                }
+                if (s.fail === 'closed') return 'closed';
+                if (s.fail === 'card-declined' && purpose === 'addCard') return 'failed';
+                return 'registered';
+            });
+            const outcome = paymentWindow ? await paymentWindow({ purpose, planId, suggested }) : suggested;
+            return call((s): RegistrationResult => {
+                if (outcome === 'failed') s.failedCardAttempts += 1;
+                if (outcome !== 'registered') return { outcome };
+                const provider = providerFor(s);
+                const makeDefault = purpose !== 'addCard' || !defaultCard(s, provider);
+                if (makeDefault) {
+                    s.paymentMethods.filter(pm => pm.provider === provider).forEach(pm => (pm.isDefault = false));
+                }
+                const card: PaymentMethod = {
+                    id: nextId(s, 'pm'),
+                    provider,
+                    brand: CARD_BRANDS[s.seq % CARD_BRANDS.length],
+                    last4: String(1000 + (s.seq % 9000)).slice(-4),
+                    expMonth: 12,
+                    expYear: Number(s.today.slice(0, 4)) + 4,
+                    isDefault: makeDefault,
+                    expiringSoon: false,
+                };
+                s.paymentMethods.push(card);
+                if (makeDefault) {
+                    s.subscriptions
+                        .filter(sub => isLive(sub) && sub.provider === provider)
+                        .forEach(sub => (sub.defaultPaymentMethodId = card.id));
+                }
+                return { outcome, card: card.id as CardToken };
+            });
+        },
+
+        // The stand-in window is a dialog on the page and never leaves it, so nothing comes back from one.
+        completePaymentMethodRegistration: () =>
+            Promise.reject(new SubscriptionPortError('conflict', 'mock: no payment window left the page')),
+
+        startCheckout: ({ planId, country, emailId, payer }) =>
+            call(s => {
+                // A second submit while the first is still processing gets the same attempt back,
+                // as a server would, rather than a second subscription when both settle.
+                const pending = s.attempts.find(a => a.purpose === 'start' && a.status === 'processing');
+                if (pending) return publicAttempt(pending);
+                const provider = providerOfCountry(country);
+                if (payerRequiredFor(provider) && !isCompletePayer(payer)) {
+                    fail('invalid', 'payer name, phone and email are required');
+                }
+                if (liveSubscription(s)) fail('conflict', 'already subscribed');
+                if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
+                if (!defaultCard(s, provider)) fail('conflict', 'no payment method');
+                // A checkout without a billing email (the billing-email screens are hidden) is charged
+                // with the payer's own address, which is all the card company asks for.
+                if (emailId !== undefined) {
+                    const email = s.billing.emails.find(e => e.id === emailId);
+                    if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
+                }
+                s.billing.country = country;
+                const withTrial = planOf(planId).trialDays > 0 && trialEligible(s);
+                return startAttempt(s, { purpose: 'start', planId, provider, withTrial });
+            }),
+
+        getPaymentAttempt: id =>
+            call(s => {
+                const attempt = s.attempts.find(a => a.id === id) ?? fail('notFound', `no attempt ${id}`);
+                return publicAttempt(attempt);
+            }),
+
+        previewChange: planId => call(s => previewChangeFor(s, planId)),
+
+        changePlan: planId =>
+            call(s => {
+                const preview = previewChangeFor(s, planId);
+                if (preview.blocked) fail('conflict', `change blocked: ${preview.blocked}`);
+                const sub = liveSubscription(s) as Subscription;
+                if (preview.kind === 'upgrade') {
+                    return startAttempt(s, { purpose: 'upgrade', planId, subscriptionId: sub.id });
+                }
+                sub.pendingChange = { planId, effectiveAt: preview.effectiveAt };
+                sub.nextAmount = preview.nextAmount;
+                return { scheduled: true as const, effectiveAt: preview.effectiveAt };
+            }),
+
+        cancelScheduledChange: subscriptionId =>
+            call(s => {
+                const sub = findSubscription(s, subscriptionId);
+                if (!sub.pendingChange) fail('conflict', 'no scheduled change');
+                // On the day it applies the charge may already be under way.
+                if (sub.pendingChange?.effectiveAt === s.today) fail('conflict', 'change applies today');
+                delete sub.pendingChange;
+                sub.nextAmount = planFor(sub).monthly;
+                return sub;
+            }),
+
+        cancelSubscription: subscriptionId =>
+            call(s => {
+                const sub = findSubscription(s, subscriptionId);
+                if (sub.status !== 'trial' && sub.status !== 'active') fail('conflict', `cannot cancel ${sub.status}`);
+                sub.endsAt = sub.status === 'trial' ? sub.trialEndsAt : sub.nextBillingAt;
+                sub.status = 'cancelScheduled';
+                delete sub.pendingChange;
+                delete sub.nextBillingAt;
+                delete sub.nextAmount;
+                return sub;
+            }),
+
+        resumeSubscription: subscriptionId =>
+            call(s => {
+                const sub = findSubscription(s, subscriptionId);
+                if (sub.status !== 'cancelScheduled') fail('conflict', 'not scheduled to end');
+                if (!defaultCard(s, sub.provider)) fail('conflict', 'no payment method to renew with');
+                const stillTrial = !!sub.trialEndsAt && dayNumber(sub.trialEndsAt) > dayNumber(s.today);
+                sub.status = stillTrial ? 'trial' : 'active';
+                sub.nextBillingAt = sub.endsAt;
+                sub.nextAmount = planFor(sub).monthly;
+                delete sub.endsAt;
+                return sub;
+            }),
+
+        listPaymentMethods: () => call(s => s.paymentMethods),
+
+        setDefaultPaymentMethod: id =>
+            call(s => {
+                const card = s.paymentMethods.find(pm => pm.id === id) ?? fail('notFound', `no card ${id}`);
+                // The default changes within the card's provider; the other provider's default stays.
+                s.paymentMethods
+                    .filter(pm => pm.provider === card.provider)
+                    .forEach(pm => (pm.isDefault = pm.id === id));
+                s.subscriptions
+                    .filter(sub => isLive(sub) && sub.provider === card.provider)
+                    .forEach(sub => (sub.defaultPaymentMethodId = id));
+                return s.paymentMethods;
+            }),
+
+        removePaymentMethod: id =>
+            call(s => {
+                const pm = s.paymentMethods.find(m => m.id === id) ?? fail('notFound', `no card ${id}`);
+                const check = canRemovePaymentMethod(pm, s.paymentMethods, liveSubscription(s));
+                if (check !== 'ok') fail('conflict', `cannot remove: ${check}`);
+                s.paymentMethods = s.paymentMethods.filter(m => m.id !== id);
+                return s.paymentMethods;
+            }),
+
+        retryPayment: subscriptionId =>
+            call(s => {
+                const sub = findSubscription(s, subscriptionId);
+                const pending = s.attempts.find(
+                    a => a.purpose === 'retry' && a.subscriptionId === subscriptionId && a.status === 'processing'
+                );
+                if (pending) return publicAttempt(pending);
+                if (sub.status !== 'pastDue' && sub.status !== 'restricted') fail('conflict', 'nothing to retry');
+                if (!defaultCard(s, sub.provider)) fail('conflict', 'no payment method');
+                return startAttempt(s, { purpose: 'retry', subscriptionId });
+            }),
+
+        listInvoices: () => call(s => [...s.invoices].sort((a, b) => dayNumber(b.issuedAt) - dayNumber(a.issuedAt))),
+
+        getBillingInfo: () => call(s => s.billing),
+
+        requestEmailCode: address =>
+            call(s => {
+                const domain = address.split('@')[1]?.toLowerCase() ?? '';
+                if ((MOCK_POLICY.disposableEmailDomains as readonly string[]).includes(domain)) {
+                    fail('disposableEmail');
+                }
+                const existing = s.billing.emails.find(e => e.address.toLowerCase() === address.toLowerCase());
+                if (existing?.status === 'verified') fail('conflict', 'already verified');
+                // An address still waiting keeps its live code — asking again within its lifetime hands back
+                // the same ticket rather than a "too soon"; once the code is dead it gets a fresh one.
+                if (existing) {
+                    const live = s.emailCodes[existing.id];
+                    // Only a code that can still be used: one spent on wrong entries is not handed back.
+                    if (live && nowMs() < live.expiresAt && !live.lockedUntil && live.attemptsLeft > 0) {
+                        return ticketOf(existing.id, live);
+                    }
+                    return sendCode(s, existing.id);
+                }
+                if (s.billing.emails.length >= MOCK_POLICY.maxBillingEmails) fail('limit', 'billing email limit');
+                const id = nextId(s, 'em');
+                s.billing.emails.push({
+                    id,
+                    address,
+                    primary: false,
+                    status: 'pending',
+                    receives: ['receipt', 'notice'],
+                });
+                return sendCode(s, id);
+            }),
+
+        resendEmailCode: emailId =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                if (email.status === 'verified') fail('conflict', 'already verified');
+                return sendCode(s, emailId);
+            }),
+
+        verifyEmailCode: (emailId, code) =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                // A second check of an address already verified (a retry, another tab) is not an error.
+                if (email.status === 'verified') return email;
+                // An address a scenario seeds as waiting has no send on record: count it as sent just now.
+                if (!s.emailCodes[emailId] && email.status === 'pending') sendCode(s, emailId);
+                const sent = s.emailCodes[emailId] ?? fail('codeExpired', 'no code sent');
+                if (s.fail === 'code-expired') {
+                    s.fail = null;
+                    commit(clone(s));
+                    fail('codeExpired');
+                }
+                if (nowMs() > sent.expiresAt) fail('codeExpired');
+                if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
+                if (code !== MOCK_POLICY.emailCode) {
+                    // The wrong entry counts even though the call fails.
+                    sent.attemptsLeft -= 1;
+                    commit(clone(s));
+                    if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
+                    fail('invalidCode', undefined, { attemptsLeft: sent.attemptsLeft });
+                }
+                delete s.emailCodes[emailId];
+                email.status = 'verified';
+                if (!s.billing.emails.some(e => e.primary)) email.primary = true;
+                return email;
+            }),
+
+        adoptSignInEmail: () =>
+            call(s => {
+                const address = s.account.email;
+                if (s.account.provider !== 'google' || !address) fail('conflict', 'no Google sign-in address');
+                const known = s.billing.emails.find(e => e.address.toLowerCase() === (address as string).toLowerCase());
+                if (known?.status === 'verified') return known;
+                if (known) {
+                    known.status = 'verified';
+                    delete s.emailCodes[known.id];
+                    if (!s.billing.emails.some(e => e.primary)) known.primary = true;
+                    return known;
+                }
+                if (s.billing.emails.length >= MOCK_POLICY.maxBillingEmails) fail('limit', 'billing email limit');
+                const email: BillingEmail = {
+                    id: nextId(s, 'em'),
+                    address: address as string,
+                    primary: !s.billing.emails.some(e => e.primary),
+                    status: 'verified',
+                    receives: ['receipt', 'notice'],
+                };
+                s.billing.emails.push(email);
+                return email;
+            }),
+
+        replaceEmail: (emailId, newEmailId) =>
+            call(s => {
+                const old = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                const next =
+                    s.billing.emails.find(e => e.id === newEmailId) ?? fail('notFound', `no email ${newEmailId}`);
+                if (old.id === next.id) fail('conflict', 'the same address');
+                if (next.status !== 'verified') fail('conflict', 'only a verified address can take over');
+                // The primary mark moves with the old address; a new address that already was primary keeps it.
+                next.primary = next.primary || old.primary;
+                next.receives = [...old.receives];
+                s.billing.emails = s.billing.emails.filter(e => e.id !== old.id);
+                return s.billing;
+            }),
+
+        setPrimaryEmail: emailId =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                if (email.status !== 'verified') fail('conflict', 'only a verified email can be primary');
+                s.billing.emails.forEach(e => (e.primary = e.id === emailId));
+                return s.billing;
+            }),
+
+        setEmailReceives: (emailId, receives) =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                email.receives = [...receives];
+                return s.billing;
+            }),
+
+        removeEmail: emailId =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                if (email.primary) fail('conflict', 'the primary email cannot be removed');
+                s.billing.emails = s.billing.emails.filter(e => e.id !== emailId);
+                return s.billing;
+            }),
+    };
+
+    const controller: MockController = {
+        getState: () => {
+            syncFromUrl();
+            return state;
+        },
+        setFail: flag => commit({ ...state, fail: flag }),
+        setPaymentWindow: presenter => {
+            paymentWindow = presenter;
+        },
+    };
+
+    // Local noon of the fake's today: the same calendar day in every time zone a reader is in. Read
+    // during render, so it does not read the query; that was applied when the fake was created.
+    const clock: Clock = { now: () => new Date(`${state.today}T12:00:00`) };
+
+    // The first URL is applied now, before anything renders, so the first screen already reads the
+    // scenario's today.
+    syncFromUrl();
+
+    return { port, controller, clock };
+};
+
+/**
+ * How the fake provider answers a sign-in: the scenario's own answer, unless a sign-in fail flag asks
+ * for the canceled or timed-out round trip instead.
+ */
+export const consentDefaultOf = (state: MockState): ConsentChoice => {
+    if (state.fail === 'signin-canceled') return 'canceled';
+    if (state.fail === 'signin-expired') return 'expired';
+    return state.signIn.defaultChoice;
+};

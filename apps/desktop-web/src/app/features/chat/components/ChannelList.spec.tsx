@@ -558,7 +558,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         menu.useRealActions = false;
         act(() => {
             pinned.ids = [];
-            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+            useNotificationPrefsStore.setState({ channelNotify: {} });
         });
     });
 
@@ -806,9 +806,10 @@ describe('ChannelList notify level and mention marks', () => {
             { wrapper }
         );
     const row = (name: RegExp) => within(screen.getByRole('button', { name }));
-    const mention = (chatNo: number, readAt?: number, placeId = 'place-1') => ({
+    const mention = (chatNo: number, readAt?: number, placeId = 'place-1', cloudId = 'cloud-1') => ({
         [`C1:${chatNo}`]: {
             id: `C1:${chatNo}`,
+            cloudId,
             channelId: 'C1',
             placeId,
             chatNo,
@@ -823,7 +824,7 @@ describe('ChannelList notify level and mention marks', () => {
         cleanup();
         menu.cursors = {};
         act(() => {
-            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+            useNotificationPrefsStore.setState({ channelNotify: {} });
             useMentionsStore.setState({ items: {} });
         });
     });
@@ -852,6 +853,7 @@ describe('ChannelList notify level and mention marks', () => {
 
     const unread = {
         id: 'C1',
+        cid: 'cloud-1',
         sid: 'place-1',
         name: 'general',
         unreadCount: 3,
@@ -869,6 +871,14 @@ describe('ChannelList notify level and mention marks', () => {
     // Channel ids are numbered per place: another place's channel can have this one's id.
     it('does not say so for a mention from the channel of the same id in another place', () => {
         act(() => useMentionsStore.setState({ items: mention(6, undefined, 'place-2') }));
+        renderRows([unread]);
+
+        expect(row(/general/).queryByText('Mentioned you')).toBeNull();
+    });
+
+    // Every cloud numbers its places and channels from the same start.
+    it('does not say so for a mention from the same place and channel ids in another cloud', () => {
+        act(() => useMentionsStore.setState({ items: mention(6, undefined, 'place-1', 'cloud-2') }));
         renderRows([unread]);
 
         expect(row(/general/).queryByText('Mentioned you')).toBeNull();

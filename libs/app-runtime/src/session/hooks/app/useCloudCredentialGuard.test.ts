@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { act, renderHook } from '@testing-library/react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
@@ -12,25 +14,25 @@ const mockGetCommittedCloudId = jest.fn();
 const mockGetSlotKeys = jest.fn();
 const mockIsSlotVerified = jest.fn();
 
-jest.mock('../../auth/credentialFreshness', () => ({
+jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...args: unknown[]) => mockTimeToExpiry(...args) },
 }));
-jest.mock('../../../socket/auth/renewCloudSession', () => ({
+jest.mock('@chatic/auth/socket/renewCloudSession', () => ({
     renewCloudSession: (...args: unknown[]) => mockRenew(...args),
 }));
-jest.mock('../../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({
         getSlotKeys: (...args: unknown[]) => mockGetSlotKeys(...args),
         isSlotVerified: (...args: unknown[]) => mockIsSlotVerified(...args),
     }),
 }));
-jest.mock('../../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
 }));
 // The renewers reach these at module load; nothing here exercises them.
-jest.mock('../../auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
-jest.mock('../../auth/relaySession', () => ({ relaySession: { clearAndRedirect: jest.fn() } }));
-jest.mock('../../store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
+jest.mock('@chatic/auth/session/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
+jest.mock('@chatic/auth/session/relaySession', () => ({ relaySession: { clearAndRedirect: jest.fn() } }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({
     logger: {
         debug: jest.fn(),
@@ -65,6 +67,9 @@ beforeEach(() => {
 afterEach(() => {
     jest.useRealTimers();
 });
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('useCloudCredentialGuard — 판정', () => {
     it('여유가 충분하면 갱신하지 않는다', async () => {

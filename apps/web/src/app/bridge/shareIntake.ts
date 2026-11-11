@@ -1,5 +1,5 @@
 import { isNative, logger, webClient } from '@chatic/bridges';
-import type { RefusedAttachment } from '@chatic/app-messages';
+import type { RefusedAttachment } from '@chatic/bridge-messages';
 import type { ShellFileRef } from '@chatic/data';
 
 import { toShellFile } from './attachmentPicker';
@@ -25,11 +25,10 @@ const FETCH_TIMEOUT_MS = 10 * 60_000;
 const codeOf = (error: unknown): string | undefined => (error as { code?: string })?.code;
 
 /**
- * Codes that mean there is nothing to show, as opposed to a failure worth retrying: an app without
- * the handler (`NOT_FOUND` — the web ships first), a share already released or wiped (`GONE`), and an
- * id the app would never have made (`INVALID`, a hand-typed URL).
+ * Codes that mean there is nothing to show, as opposed to a failure worth retrying: a share already
+ * released or wiped (`GONE`), and an id the app would never have made (`INVALID`, a hand-typed URL).
  */
-const NOTHING_TO_SHARE = new Set(['NOT_FOUND', 'GONE', 'INVALID']);
+const NOTHING_TO_SHARE = new Set(['GONE', 'INVALID']);
 
 /**
  * The share behind `/share?id=`, or `null` when there is nothing to share. Rejects only on a transient

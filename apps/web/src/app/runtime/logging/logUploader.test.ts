@@ -38,7 +38,6 @@ jest.mock('./logUploadStore', () => ({
     }),
 }));
 
-let unsupported = false;
 let appQueue: LogEntry[] = [];
 const mockCharge = jest.fn(async (entries: LogEntry[]) => {
     appQueue.push(...entries.filter(entry => entry.level !== 'debug'));
@@ -48,7 +47,6 @@ const mockClearNative = jest.fn(async () => {
     appQueue = [];
 });
 jest.mock('./nativeUploadSource', () => ({
-    isNativeUploadQueueUnsupported: () => unsupported,
     chargeNativeLogQueue: (entries: LogEntry[]) => mockCharge(entries),
     clearNativeLogQueue: () => mockClearNative(),
     createNativeUploadSource: () => ({
@@ -82,7 +80,6 @@ beforeEach(() => {
     mockIsNative = false;
     collectionEnabled = true;
     uploadHeld = false;
-    unsupported = false;
     stored = [];
     appQueue = [];
     jest.spyOn(console, 'warn').mockImplementation();
@@ -136,6 +133,27 @@ describe('startLogUploader — 하이브리드', () => {
         expect(stored).toEqual([]);
     });
 
+    it('keeps an app below the version floor on the page queue, not the app store', async () => {
+        window.CHATIC_APP_PLATFORM = 'android';
+        window.CHATIC_APP_CURRENT_VERSION = '0.28.1';
+        try {
+            appQueue.push({ id: 'from-app', level: 'info', tag: 'APP', message: 'native-origin', timestamp: 1 });
+            handle = startLogUploader();
+            logger.info('TEST', 'below-floor');
+
+            await handle.flush();
+
+            const sent = sentBatches()
+                .flat()
+                .map(e => e.message);
+            expect(sent).toContain('below-floor');
+            expect(sent).not.toContain('native-origin');
+        } finally {
+            window.CHATIC_APP_PLATFORM = undefined;
+            window.CHATIC_APP_CURRENT_VERSION = undefined;
+        }
+    });
+
     it('앱 저장소에서 꺼내 전송한다', async () => {
         appQueue.push({ id: 'from-app', level: 'info', tag: 'APP', message: 'native-origin', timestamp: 1 });
         handle = startLogUploader();
@@ -160,38 +178,6 @@ describe('startLogUploader — 하이브리드', () => {
         await handle.flush();
 
         expect(mockUpload).not.toHaveBeenCalled();
-    });
-});
-
-describe('startLogUploader — 앱이 저장소를 못 줄 때 (구버전 앱)', () => {
-    beforeEach(() => {
-        mockIsNative = true;
-        unsupported = true;
-    });
-
-    it('웹이 대신 쌓고 직접 보낸다 — 앱보다 먼저 배포되는 쪽이 웹이다', async () => {
-        // The messages on this path (FetchLogUploadQueue, etc.) ship together with the app, but the
-        // web goes out first. Without a fallback, every hybrid user's logs would fail to reach the
-        // server until the app catches up — this isn't an edge case, it's the default state.
-        handle = startLogUploader();
-        logger.info('TEST', 'kept by web');
-
-        await handle.flush();
-
-        expect(sentBatches()[0].map(e => e.message)).toContain('kept by web');
-    });
-
-    it('부팅 창의 엔트리도 살아남는다 — NOT_FOUND는 첫 사이클에야 배운다', async () => {
-        // Turning off buffering from the start just because it's hybrid would leave entries emitted
-        // before the app responds nowhere at all — and that window is exactly the part that explains
-        // the rest of the session.
-        handle = startLogUploader();
-        logger.info('TEST', 'boot window');
-
-        await handle.flush();
-
-        expect(stored.map(e => e.message)).not.toContain('boot window');
-        expect(sentBatches()[0].map(e => e.message)).toContain('boot window');
     });
 });
 

@@ -11,6 +11,10 @@
  * half: the screen compares entries, it does not account for disk.
  */
 
+import { runtime } from '@chatic/app-runtime';
+import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
+import { asDomStorage, WebStore } from '@chatic/storage';
+
 /** Which part of the app a localStorage key belongs to. */
 export type WebKeyGroup = 'session' | 'config' | 'logs' | 'other';
 
@@ -44,6 +48,11 @@ export interface WebStorageEnv {
     indexedDB?: Pick<IDBFactory, 'deleteDatabase'> & { databases?: () => Promise<IDBDatabaseInfo[]> };
     caches?: Pick<CacheStorage, 'keys' | 'delete'>;
     estimate?: () => Promise<StorageEstimate>;
+    /**
+     * Empties the device vault, where an app or desktop shell that keeps one holds the session's
+     * tokens. Absent where there is no vault: the tokens are then in the two storages above.
+     */
+    clearVault?: () => Promise<boolean>;
 }
 
 export interface WebDatabasesClearResult {
@@ -70,33 +79,26 @@ const CONFIG_PREFIX = '@chatic/config.';
  * and they are no copy of server data, the same reason the shell's log queue is never cleared.
  */
 const LOG_PREFIX = '@chatic/web.log.';
-/** i18next's language key sits under the SDK's `@` prefix but is a UI choice, not a credential. */
-const LANGUAGE_SUFFIX = '.i18nextLng';
 /**
- * The session's own keys: lemon-web-core's token bundle (`@<project>.*`), and the relay and cloud
- * tokens, the per-cloud token cache and the selection the runtime keeps beside it. A stale entry in
- * any of these decides which cloud and account the app resumes as.
+ * The language key older builds wrote under the old SDK's `@` prefix. Nothing writes it now; it is still
+ * grouped apart so a device that has one does not show it as a credential.
  */
-const SESSION_PREFIXES = ['chatic-relay-', 'chatic-selected-'] as const;
-// Cloud keys by name: `chatic-cloud-promo-dismissed-at` shares the prefix and is a UI dismissal.
-const SESSION_KEYS = new Set([
-    'chatic-cloud-token',
-    'chatic-cloud-delegation-token',
-    'chatic-cloud-token-cache',
-    'chatic-cloud-identities',
-    'chatic-recent-clouds',
-    'chatic-delegator-id',
-    'chatic-oauth-provider',
-]);
-
+const LANGUAGE_SUFFIX = '.i18nextLng';
 /** The IndexedDB cache the browser build uses; listed by name where `databases()` is missing. */
 const KNOWN_INDEXED_DB = 'ChaticWebCacheDB';
 
+/**
+ * The session's keys are the session's to name — the relay and cloud tokens, the per-cloud token
+ * cache, the selection and the identities beside them — so this asks it instead of keeping a copy of
+ * the list that would drift. A stale entry in any of these decides which cloud and account the app
+ * resumes as. The rest of the `@` namespace is the credential bundle older builds' lemon-web-core left
+ * (`@<project>.*`), once the config lane, the log pipeline and the language key are taken out.
+ */
 export const classifyWebKey = (key: string): WebKeyGroup => {
     if (key.startsWith(CONFIG_PREFIX)) return 'config';
     if (key.startsWith(LOG_PREFIX)) return 'logs';
     if (key.startsWith('@')) return key.endsWith(LANGUAGE_SUFFIX) ? 'other' : 'session';
-    if (SESSION_KEYS.has(key) || SESSION_PREFIXES.some(prefix => key.startsWith(prefix))) return 'session';
+    if (runtime.session.isSessionKey(key)) return 'session';
     return 'other';
 };
 
@@ -222,11 +224,16 @@ export const clearWebStores = (env: WebStorageEnv): WebStoresClearResult => {
 
 /** The live browser, for the screen. Kept out of the functions above so they stay testable. */
 export const browserWebStorageEnv = (): WebStorageEnv => ({
-    localStorage: window.localStorage,
-    sessionStorage: window.sessionStorage,
+    // The debug screen walks the two web storages whole — that is its job — but still through the
+    // storage lib's web stores, like every other reader in this app.
+    localStorage: asDomStorage(WebStore.local()),
+    sessionStorage: asDomStorage(WebStore.session()),
     indexedDB: typeof indexedDB !== 'undefined' ? indexedDB : undefined,
     caches: typeof caches !== 'undefined' ? caches : undefined,
     estimate: navigator.storage?.estimate ? () => navigator.storage.estimate() : undefined,
+    clearVault: shellKeepsStorageMedium('nativeSecure')
+        ? () => new BridgeStorageChannel(webClient, 'nativeSecure').clear()
+        : undefined,
 });
 
 /** `1234` → `1.2 KB`. Decimal units: the numbers are approximate lengths, not disk blocks. */

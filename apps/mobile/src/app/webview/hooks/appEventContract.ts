@@ -10,12 +10,12 @@ import * as ts from 'typescript';
  * Why a compiler and not `satisfies`: jest transpiles each file on its own (`isolatedModules`), so a
  * type annotation in a test is never checked, and CI does not type check this project. Handing what
  * the shell actually pushed to the TypeScript compiler, as a literal assigned to the vocabulary's
- * own type, is the one check that reads `@chatic/app-messages` itself rather than a copy of it.
+ * own type, is the one check that reads `@chatic/bridge-messages` itself rather than a copy of it.
  */
 
 const WORKSPACE = join(__dirname, '../../../../../..');
 const PROBE = join(WORKSPACE, '__app_event_probe__.ts');
-const VOCABULARY = join(WORKSPACE, 'libs/app-messages/src');
+const VOCABULARY = join(WORKSPACE, 'libs/bridge-messages/src');
 
 const OPTIONS: ts.CompilerOptions = {
     strict: true,
@@ -26,7 +26,7 @@ const OPTIONS: ts.CompilerOptions = {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     lib: ['lib.es2022.d.ts'],
     types: [],
-    paths: { '@chatic/app-messages': [join(WORKSPACE, 'libs/app-messages/src/index.ts')] },
+    paths: { '@chatic/bridge-messages': [join(WORKSPACE, 'libs/bridge-messages/src/index.ts')] },
 };
 
 // The vocabulary and its imports parse once per test file; only the probe changes between checks.
@@ -79,7 +79,7 @@ const literalsOf = (source: string): string[] => {
 
 /** Every message type `AppMessageDataMap` declares — replies and pushes alike. */
 export const appMessageTypes = (): string[] =>
-    literalsOf(`import type { AppMessageDataMap } from '@chatic/app-messages';
+    literalsOf(`import type { AppMessageDataMap } from '@chatic/bridge-messages';
 export type Probe = keyof AppMessageDataMap;`);
 
 /**
@@ -88,7 +88,7 @@ export type Probe = keyof AppMessageDataMap;`);
  * inventory catches it from the call site instead.
  */
 export const appInitiatedTypes = (): string[] =>
-    literalsOf(`import type { AppMessageDataMap, WEB_MESSAGE_RESPONSE_TYPE } from '@chatic/app-messages';
+    literalsOf(`import type { AppMessageDataMap, WEB_MESSAGE_RESPONSE_TYPE } from '@chatic/bridge-messages';
 export type Probe = Exclude<keyof AppMessageDataMap, (typeof WEB_MESSAGE_RESPONSE_TYPE)[keyof typeof WEB_MESSAGE_RESPONSE_TYPE]>;`);
 
 // The message as the web receives it: the bridge sends JSON, so a string enum member (react-native-iap's
@@ -115,7 +115,7 @@ export const pushedEventErrors = (messages: readonly unknown[]): string[] => {
     });
     // Two header lines, then one line per message.
     const { probe, diagnostics } = compile(
-        [`import type { AppMessageData } from '@chatic/app-messages';`, WIRE, ...lines].join('\n')
+        [`import type { AppMessageData } from '@chatic/bridge-messages';`, WIRE, ...lines].join('\n')
     );
     for (const diagnostic of diagnostics) {
         const index = probe.getLineAndCharacterOfPosition(diagnostic.start ?? 0).line - 2;

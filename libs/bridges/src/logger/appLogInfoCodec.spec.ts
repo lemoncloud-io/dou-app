@@ -2,7 +2,7 @@ import { LOG_CONTEXT_FIELDS } from '@chatic/logger';
 
 import { toAppLogInfo, toLogEntry } from './appLogInfoCodec';
 
-import type { AppLogInfo } from '@chatic/app-messages';
+import type { AppLogInfo } from '@chatic/bridge-messages';
 import type { LogContext, LogEntry } from '@chatic/logger';
 
 /**

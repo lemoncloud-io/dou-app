@@ -1,4 +1,4 @@
-import type { CacheChatView } from '@chatic/app-messages';
+import type { CacheChatView } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 import { ChatDataSource } from './ChatDataSource';
 
@@ -39,13 +39,20 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
-        expect(result).toEqual([{ channelId: 'ch-1', lastNo: 5, item: expect.objectContaining({ id: 'm3' }) }]);
+        expect(result).toEqual([
+            {
+                channelId: 'ch-1',
+                lastNo: 5,
+                item: expect.objectContaining({ id: 'm3' }),
+                activityItem: expect.objectContaining({ id: 'm3' }),
+            },
+        ]);
 
         const calls = (sqlite.execute as jest.Mock).mock.calls;
         expect(calls).toHaveLength(3);
         // Committed probe: the previewable check (SQL) and "1 latest row" must all be in the query.
         expect(String(calls[0][0])).toContain('chat_no > 0');
-        // A thread reply is previewable, so the probe must not filter replies out.
+        // The first pair of probes is the activity row, so it must let a thread reply through.
         expect(String(calls[0][0])).not.toContain('parentId');
         expect(String(calls[0][0])).toContain(`<> 'system'`);
         expect(String(calls[0][0])).toContain(`<> 'reaction'`);
@@ -55,6 +62,27 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         expect(String(calls[1][0])).toContain('chat_no = 0');
         expect(String(calls[2][0])).toContain('MAX(chat_no)');
         expect(calls[2][1]).toEqual(['c1', 'u1', 'ch-1']);
+    });
+
+    it('answers a room whose newest message is a thread reply with the activity row and an older preview row', async () => {
+        const sqlite = createSqliteMock();
+        const dataSource = new ChatDataSource(sqlite, TABLE);
+
+        (sqlite.execute as jest.Mock)
+            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'reply', chatNo: 6, parentId: '3' } as any))] }) // activity, committed
+            .mockResolvedValueOnce({ rows: [] }) // activity, pending
+            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'top', chatNo: 3 }))] }) // preview, committed
+            .mockResolvedValueOnce({ rows: [] }) // preview, pending
+            .mockResolvedValueOnce({ rows: [{ last_no: 6 }] }); // max
+
+        const [row] = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
+
+        expect(row.activityItem).toEqual(expect.objectContaining({ id: 'reply' }));
+        expect(row.item).toEqual(expect.objectContaining({ id: 'top' }));
+        const calls = (sqlite.execute as jest.Mock).mock.calls;
+        expect(calls).toHaveLength(5);
+        // The preview probes are the ones that leave thread replies out.
+        expect(String(calls[2][0])).toContain(`'$.parentId'`);
     });
 
     it('미전송 행이 있으면 커밋 행보다 우선한다 — 방금 보낸 메시지는 ack 전에도 프리뷰다', async () => {
@@ -90,7 +118,7 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
-        expect(result).toEqual([{ channelId: 'ch-1', lastNo: 0, item: null }]);
+        expect(result).toEqual([{ channelId: 'ch-1', lastNo: 0, item: null, activityItem: null }]);
     });
 
     it('중복/빈 channelId는 접고, 빈 목록이면 쿼리 없이 빈 배열을 답한다', async () => {

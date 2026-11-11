@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();

@@ -48,7 +48,7 @@ flowchart TD
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
     Feat["features/ × 14<br/><i>pages · components · hooks</i>"]:::feat
     Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
-    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · app-messages"]:::ext
+    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · bridge-messages"]:::ext
 
     Root --> Feat
     Root --> Shared
@@ -221,8 +221,9 @@ a different shape.
 
 ### Barrels and the test transform
 
-Four `app/` barrels do not load under Jest: `app/hooks`, `app/bridge`, `app/ui/components`,
-`app/ui/layouts`. Each pulls in a module (elsewhere in the tree) that reads `import.meta.env`, which
+Three `app/` barrels do not load under Jest: `app/hooks`, `app/ui/components`, `app/ui/layouts`.
+(`app/bridge` loads: tests such as `config/shellKvAdapter.test.ts` import it.) Each pulls in a
+module (elsewhere in the tree) that reads `import.meta.env`, which
 `tsconfig.spec.json`'s `commonjs` target cannot compile. `app/utils/index.ts` sidesteps this by
 deliberately excluding `webVitals`/`buildEnv`/`phoneNumber` from its own barrel — that is the pattern
 to copy for a new cross-cutting file that itself reads `import.meta.env`.
@@ -230,7 +231,9 @@ to copy for a new cross-cutting file that itself reads `import.meta.env`.
 A spec that needs something from one of the four broken barrels imports the concrete path instead,
 with a comment naming what it avoided. Before adding another such comment, check whether the cause
 already has a fix — the `@chatic/assets` alias is mapped to a stub in `jest.config.js` for exactly
-this reason, so a barrel that only touched that package no longer needs to route around it. A stale
+this reason, so a barrel that only touched that package no longer needs to route around it. So is
+`app/utils/buildEnv` (answering as a production build), since push navigation in `app/bridge`
+reaches it; a test that needs a development build mocks the module itself, which wins over the stub. A stale
 bypass comment for an already-fixed cause is worse than the bypass: it hides that the barrel now
 works.
 

@@ -2,11 +2,12 @@ import { StrictMode } from 'react';
 import { render } from '@testing-library/react';
 
 import { SocketBinder } from './SocketBinder';
-import { bootstrapSocketConnection } from '../socket';
-import { getSocketManager } from '../socket/runtime';
-import type { SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import type { SlotKey, SocketBindingConfig } from '@chatic/transport/socket/types';
+import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
-import { RELAY_SLOT, slotKeyOf } from '../socket/utils/slotKey';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 import { logger } from '@chatic/bridges';
 
@@ -14,26 +15,26 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
 // The binder reaches the sync engine so it exists before slots bind; the assertion here is only that
 // a slot boots, so the engine itself is stubbed.
-jest.mock('../socket/sync/runtime', () => ({
+jest.mock('@chatic/sync/runtime', () => ({
     getSyncManager: jest.fn(),
 }));
 
-jest.mock('../socket', () => ({
+jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
     bootstrapSocketConnection: jest.fn(),
 }));
 
 const mockHasLiveJoinedSession = jest.fn((_cid: string) => false);
-jest.mock('../socket/backgroundClouds', () => ({
+jest.mock('@chatic/transport/socket/backgroundClouds', () => ({
     hasLiveJoinedSession: (cid: string) => mockHasLiveJoinedSession(cid),
 }));
 const mockNotifySocketLogout = jest.fn();
-jest.mock('../socket/auth/logoutSession', () => ({
+jest.mock('@chatic/auth/socket/logoutSession', () => ({
     notifySocketLogout: (...args: unknown[]) => mockNotifySocketLogout(...args),
 }));
 

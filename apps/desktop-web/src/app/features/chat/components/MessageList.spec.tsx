@@ -511,8 +511,8 @@ describe('MessageList', () => {
         expect(container.querySelector('[data-row-actions]')).toBeNull();
     });
 
-    it('hangs the first toolbar under the author line in a thread, not over it', () => {
-        const toolbarTops = (threadReplyCount?: number) => {
+    it('keeps every toolbar over the header, in a thread too, and folds quick reactions in a narrow column', () => {
+        const inspect = (threadReplyCount?: number) => {
             const { container, unmount } = render(
                 <MessageList
                     messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
@@ -523,15 +523,29 @@ describe('MessageList', () => {
                 />,
                 { wrapper }
             );
+            // Over the header is -top-10; a toolbar hung lower sits on the first line of text, where a
+            // reader dragging to select it runs under the toolbar.
             const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
-                node.className.includes('-top-1.5') ? 'under-header' : 'above'
+                node.className.includes('-top-10') ? 'over-header' : 'lower'
             );
+            // The column is the container the narrow rule measures, so a 360px thread panel folds the
+            // quick reactions away and the toolbar stays short enough to leave the author name visible.
+            const column = container.querySelector('[role="log"]');
+            const quick = [...container.querySelectorAll('button[aria-label^="React with"]')];
+            const result = {
+                tops,
+                columnIsContainer: !!column?.className.includes('[container-type:inline-size]'),
+                quickFold:
+                    quick.length > 0 &&
+                    quick.every(button => button.className.includes('[@container(max-width:480px)]:hidden')),
+            };
             unmount();
-            return tops;
+            return result;
         };
 
-        expect(toolbarTops(1)).toEqual(['under-header', 'above']);
-        expect(toolbarTops()).toEqual(['above', 'above']);
+        const expected = { tops: ['over-header', 'over-header'], columnIsContainer: true, quickFold: true };
+        expect(inspect(1)).toEqual(expected);
+        expect(inspect()).toEqual(expected);
     });
 
     it('renders a reaction chip without throwing', () => {
@@ -987,5 +1001,60 @@ describe('MessageList webhook sender', () => {
 
         expect(screen.getByRole('button', { name: 'Ada' })).toBeDefined();
         expect(screen.queryByText('App')).toBeNull();
+    });
+});
+
+describe('a channel badged only for thread replies', () => {
+    const replies = (newCount: number) =>
+        new Map<string, ThreadMeta>([
+            ['1', { count: 2, lastReplyAt: 1_700_000_100_000, repliers: [{ id: 'ada' }], newCount }],
+        ]);
+    // Which elements the list scrolled into view on its first fill.
+    const scrolledTo = () =>
+        vi.mocked(Element.prototype.scrollIntoView).mock.contexts.map(el => (el as HTMLElement).dataset.chatNo);
+
+    beforeEach(() => vi.mocked(Element.prototype.scrollIntoView).mockClear());
+
+    const renderFeed = (baselineReadNo: number, newCount: number) =>
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'parent'), message(2, 'bo', 'later')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                baselineReadNo={baselineReadNo}
+                threadMeta={replies(newCount)}
+                onOpenThread={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+    it('says how many replies are new on the root', () => {
+        renderFeed(2, 1);
+
+        expect(screen.getByText('1 new reply')).toBeDefined();
+        expect(screen.getByRole('button', { name: 'Open thread · 2 replies · 1 new reply' })).toBeDefined();
+    });
+
+    // The feed has nothing new of its own, so without this it would open at the bottom and the
+    // badge that brought the reader here would clear over nothing.
+    it('lands on the root with new replies', () => {
+        renderFeed(2, 1);
+
+        expect(scrolledTo()).toContain('1');
+    });
+
+    it('lands on the unread divider instead when the feed has new messages too', () => {
+        renderFeed(1, 1);
+
+        expect(screen.getByText(/new messages/i)).toBeDefined();
+        expect(scrolledTo()).not.toContain('1');
+    });
+
+    it('shows the last reply time and lands at the bottom once nothing is new', () => {
+        renderFeed(2, 0);
+
+        expect(screen.queryByText(/new repl/)).toBeNull();
+        expect(scrolledTo()).not.toContain('1');
     });
 });

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCustomMutation } from '@chatic/shared';
-import { relaySession } from '../../auth/relaySession';
+import { relaySession } from '@chatic/auth';
 import { cloudsKeys } from '../../../data/hooks/queryKeys';
 import type { LoginUserBody, UserTokenView } from '@lemoncloud/chatic-backend-api';
 

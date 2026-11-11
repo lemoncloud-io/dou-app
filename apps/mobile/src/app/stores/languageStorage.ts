@@ -1,4 +1,4 @@
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 import { provider } from '../services';
 import { DEFAULT_LANGUAGE_PREFERENCE, isLanguagePreference } from './languagePreference';
 import type { LanguagePreference } from './languagePreference';

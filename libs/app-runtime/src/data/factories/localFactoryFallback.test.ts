@@ -14,6 +14,8 @@ import type { DataContextProvider } from '@chatic/data';
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
     webClient: { request: jest.fn().mockResolvedValue(undefined), post: jest.fn() },
+    // The shell probe the router asks about invited clouds; read off the same handle `load` sets.
+    isNative: () => !!(window as any).ReactNativeWebView,
 }));
 
 describe('createLocalDataSources — 네이티브 셸이 담을 수 없는 도메인의 웹 폴백', () => {

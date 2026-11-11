@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const session = vi.hoisted(() => ({
     isAuthenticated: false,
     loginGuest: vi.fn(),
-    startWebTransportInit: vi.fn(),
     createCredentialsByProvider: vi.fn(),
     toast: vi.fn(),
     warn: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock('@chatic/bridges', () => ({
 }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: session.startWebTransportInit },
         data: {
             useRuntimeRepositories: () => ({
                 auth: {
@@ -47,7 +45,9 @@ vi.mock('@chatic/config', () => ({
 }));
 
 import i18n from '../../../../i18n';
-import { setStorageAdapter } from '@chatic/shared';
+import { WebStore } from '@chatic/storage';
+
+import { configureAppStores } from '../../../storage';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart, takeSignInNotice } from '../utils';
 import { selectAttemptBusy, useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
@@ -63,7 +63,8 @@ describe('useSocialLogin.start', () => {
 
     beforeEach(() => {
         // The shell's persistent backing, as main.tsx wires it.
-        setStorageAdapter(localStorage);
+        // As in the desktop shell, where the session's plain store is localStorage.
+        configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
         open.mockReset();
         session.isAuthenticated = false;
@@ -73,7 +74,6 @@ describe('useSocialLogin.start', () => {
             .mockReset()
             .mockResolvedValue({ step: 'confirm', linked: true, provider: 'google', hint: 'a***@gmail.com' });
         session.patchRelaySessionUser.mockReset();
-        session.startWebTransportInit.mockReset().mockResolvedValue(undefined);
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.createCredentialsByProvider.mockReset().mockRejectedValue(new Error('relay rejected'));
         session.toast.mockReset();
@@ -243,6 +243,32 @@ describe('useSocialLogin.start', () => {
         });
     });
 
+    describe('Apple sign-in', () => {
+        it('opens the relay apple authorize page and exchanges the apple code that comes back', async () => {
+            session.createCredentialsByProvider.mockResolvedValue(undefined);
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.start('apple'));
+            expect(open).toHaveBeenCalledWith(expect.stringContaining('/oauth/apple/authorize?redirect='), '_blank');
+            const { nonce } = JSON.parse(localStorage.getItem('chatic-oauth-login-start') ?? '{}') as { nonce: string };
+
+            await act(() => result.current.completeFromHandoff({ provider: 'apple', code: 'c', nonce }));
+
+            expect(session.createCredentialsByProvider).toHaveBeenCalledWith('apple', 'c', {
+                linkCurrentSession: true,
+            });
+        });
+
+        it('exchanges nothing when a Google link comes back for an Apple start', async () => {
+            saveOAuthLoginStart({ provider: 'apple', intent: 'login', startedAt: Date.now(), nonce: 'n1' });
+            const { result } = renderHook(() => useSocialLogin());
+
+            await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
+
+            expect(session.createCredentialsByProvider).not.toHaveBeenCalled();
+        });
+    });
+
     describe('a link that comes back', () => {
         const startRecord = () =>
             saveOAuthLoginStart({ provider: 'google', intent: 'login', startedAt: Date.now(), nonce: 'n1' });
@@ -328,6 +354,35 @@ describe('useSocialLogin.start', () => {
             expect(takeOAuthLoginStart()).toMatchObject({ provider: 'google', intent: 'link', account: 'u-1' });
         });
 
+        describe('Link Apple', () => {
+            it('verifies and confirms an Apple code, and says Apple is linked', async () => {
+                signedIn();
+                session.confirmSocialAccount.mockResolvedValue({ step: 'confirm', linked: true, provider: 'apple' });
+                const { result } = renderHook(() => useSocialLogin());
+                await act(async () => void result.current.startLink('apple'));
+                expect(open).toHaveBeenCalledWith(
+                    expect.stringContaining('/oauth/apple/authorize?redirect='),
+                    '_blank'
+                );
+                const nonce = new URL(
+                    new URL(String(open.mock.calls[0][0])).searchParams.get('redirect') ?? ''
+                ).searchParams.get('nonce');
+
+                await act(async () => {
+                    await result.current.completeFromHandoff({
+                        provider: 'apple',
+                        code: 'c',
+                        nonce: nonce ?? undefined,
+                    });
+                });
+
+                expect(session.confirmSocialAccount).toHaveBeenCalledWith({ provider: 'apple', code: 'c' });
+                const [[{ description }]] = session.toast.mock.calls as [[{ description: string }]];
+                expect(description).toContain('Apple');
+                expect(description).not.toContain('Google');
+            });
+        });
+
         it('does not start for a guest session', () => {
             session.isAuthenticated = true;
             session.user = { userRole: 'guest' };
@@ -356,7 +411,9 @@ describe('useSocialLogin.start', () => {
                     social: expect.objectContaining({ provider: 'google', hint: 'a***@gmail.com' }),
                 },
             });
-            expect(session.toast).toHaveBeenCalledWith({ description: i18n.t('account.signIn.link.done') });
+            expect(session.toast).toHaveBeenCalledWith({
+                description: i18n.t('account.signIn.link.done', { provider: 'Google' }),
+            });
         });
 
         it.each([

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { deeplinkService, logger, notificationService } from '../../services';
+import { deeplinkService, logger, notificationService, subWebViewService } from '../../services';
 // A leaf module: deeplinkUtils reaches react-native-config, which a unit test cannot load.
 import { isChannelRoomPath } from '../../services/deeplinks/isChannelRoomPath';
 import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
@@ -9,7 +9,7 @@ import type { NativeRouteState, PushNavigationData } from '../../services/deepli
 // the ref. That is the coupling navigationRef.ts was split out to avoid.
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { HandedOverPerfTrace } from '@chatic/app-messages';
+import type { HandedOverPerfTrace } from '@chatic/bridge-messages';
 import { startPerfTrace } from '@chatic/perf';
 
 export interface UseDeepLinkNavigationResult {
@@ -57,8 +57,16 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         // A queued native route's retry timer, so unmount cancels it.
         let nativeRetryTimer: ReturnType<typeof setTimeout> | undefined;
 
+        // A link or a tapped push takes the user somewhere the sub WebView would cover, so it closes
+        // first; the web hears why before it hears where to go.
+        const closeSubWebView = () => {
+            const view = subWebViewService.current();
+            if (view) subWebViewService.close(view.viewId, 'system');
+        };
+
         // Emit a WEBVIEW_URL-relative path to the web. Shared by every inbound navigation source.
         const emitNavigate = (path: string, perfTrace?: HandedOverPerfTrace) => {
+            closeSubWebView();
             logger.info('DEEPLINK', `[useDeepLinkNavigation] OnNavigate → ${path}`);
             bridge.pushEvent<'OnNavigate'>({
                 type: 'OnNavigate',
@@ -100,6 +108,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
                 nativeRetryTimer = setTimeout(() => applyNativeRoute(state, attempt + 1), NATIVE_ROUTE_RETRY_MS);
                 return;
             }
+            closeSubWebView();
             try {
                 navigationRef.reset(state as Parameters<typeof navigationRef.reset>[0]);
             } catch (err) {

@@ -1,5 +1,827 @@
 # Changelog
 
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (transport,runtime-web,app-runtime) open the transport's platform as ports
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (storage) call the key-value backings stores, not media
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (session,app-runtime,landing) the session has no default medium (ADR-0302)
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (runtime-core,runtime-web,app-runtime) add runtime packages held by lint (ADR-0301)
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (storage,admin,landing,block-kit-builder) reach web storage only via media in every app
+
+## [2026-11-10] - No version updates
+
+### Bug Fixes
+
+- (lint) apply the root config's repo-path blocks under per-project lint
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (session,transport,sync,auth,data) take logger from @chatic/logger, not the bridge
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (http,transport,auth,app-runtime) sign relay requests in-house, drop lemon (ADR-0298)
+- (desktop-web,theme,storage,app-runtime) reach web storage only via media in desktop-web
+
+## [2026-11-10] - root@0.152.0, @chatic/web@0.87.0
+
+### Features
+
+- (web) open a cloud's mini apps through the hub in the Lab
+- (web) add a mini app card to the Lab
+- (mobile) open any https page in a sub webview with trust tiers
+
+### Bug Fixes
+
+- (web) tell the owner why a hub address cannot be a mini app
+- (web) give the Korean mini app hint its singular key
+
+### Refactor
+
+- derive the external title once and share the card chevron
+
+## [2026-11-10] - root@0.151.1, @chatic/desktop-web@0.55.1
+
+### Bug Fixes
+
+- (desktop-web) keep a cloud's mini app state from leaking across a switch
+
+## [2026-11-10] - root@0.151.0, @chatic/desktop-web@0.55.0
+
+### Features
+
+- (desktop-web) open a cloud's mini apps through the hub
+- (desktop-web) let a cloud owner keep several named mini apps
+- (desktop-web) add a mini app section to settings
+- (desktop) open any https page in a modal sub view with trust tiers
+- (shared) add sub webview trust tiers and mini app launch params
+
+### Bug Fixes
+
+- (desktop-web) let the consent store take a missing account id
+- (desktop) answer the sub view boot request with its one reply
+- (desktop-web) keep mini app consent per account as well as host
+- (desktop) cap how many URLs a sub view hands to the OS browser
+- (desktop-web) name me by either place profile row in mini app params
+- (desktop) answer every device chooser in a sub view with none
+
+### Documentation
+
+- (adr) record mini app consent as per account and host
+
+### Refactor
+
+- (shared) keep the hub hosts in one private list
+
+## [2026-11-10] - root@0.150.4, @chatic/desktop-web@0.54.3
+
+### Bug Fixes
+
+- (desktop-web) let the cloud rail enter a suspended cloud
+
+## [2026-11-10] - root@0.150.3, @chatic/desktop-web@0.54.2
+
+### Bug Fixes
+
+- (desktop-web) adopt legacy cloud records and follow guest links
+- (desktop-web) list only the signed-in account's invited clouds
+
+## [2026-11-09] - No version updates
+
+### Refactor
+
+- (admin,testbed) retire apps/testbed and rename apps/admin-v2 to apps/admin
+
+### Chores
+
+- (nx,scripts) drop config for deleted libs and a stale trace-report fixture
+
+## [2026-11-09] - No version updates
+
+### Refactor
+
+- (web,app-runtime,storage,auth,config,shared) reach web storage only via media (ADR-0296)
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (data,sync,web,desktop-web) handle revision notices; the chat cache only moves forward
+
+### Bug Fixes
+
+- (data) read revision notices without loading the socket client
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (session,auth,data,app-runtime,web) name a paired cloud by its real name (ADR-0295)
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (storage,auth,mobile,desktop) keep the session tokens in the shells' device vault (ADR-0293)
+
+### Refactor
+
+- (storage,session,auth) split session storage into secret and plain ports over storage media
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (web,libs) hold phone apps to a version floor and drop the fallbacks below it
+
+### Documentation
+
+- (adr) renumber the version floor decision to ADR-0292
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (web/channels) edit a message in the composer, not in its bubble (ADR-0292)
+
+## [2026-11-09] - root@0.150.2, @chatic/web@0.86.5
+
+### Features
+
+- (web,desktop-web) name the reaction in the reactor sheet and the chip hint
+
+### Documentation
+
+- (web) record the measured android long-press timing, not a guess
+
+## [2026-11-09] - No version updates
+
+### Features
+
+- (web,desktop-web) name an emoji on hover and long press in the pickers (ADR-0291)
+
+## [2026-11-09] - No version updates
+
+### Bug Fixes
+
+- (mobile,app-runtime,web) keep converting a video through a short trip off the screen
+
+## [2026-11-05] - root@0.150.1, @chatic/desktop-web@0.54.1
+
+### Bug Fixes
+
+- (desktop-web) move the place rail unread dot off the open tile logo
+
+### Other
+
+- test: (desktop-web) fix the quote in the unread dot test name
+
+## [2026-11-05] - root@0.150.0, @chatic/desktop-web@0.54.0
+
+### Features
+
+- (desktop-web) show the open place's logo on the nav rail Home tile
+
+## [2026-11-05] - No version updates
+
+### Chores
+
+- (chatic-apps-sdk) release 0.2.0
+
+## [2026-11-05] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) show no title bar unless the manifest asks for one (ADR-0290)
+
+## [2026-11-05] - No version updates
+
+### Documentation
+
+- (chatic-apps-sdk) keep the assistant rules in AGENTS.md only, not twice
+
+## [2026-11-05] - No version updates
+
+### Documentation
+
+- (chatic-apps-sdk) add a developer guide and rules for an ai assistant, shipped in the package
+
+## [2026-11-05] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk,bridge-messages) let a sub webview page ask the os for the camera and microphone first (ADR-0289)
+
+### Documentation
+
+- (mobile,bridge-messages) put the camera and microphone on the page author, not the review (ADR-0289)
+
+## [2026-11-05] - root@0.149.1, @chatic/desktop-web@0.53.1
+
+### Bug Fixes
+
+- (desktop-web) pick the route fallback skeleton by route
+
+## [2026-11-05] - root@0.149.0, @chatic/desktop-web@0.53.0
+
+### Features
+
+- (desktop-web) link Apple to an account from the account hub
+- (desktop-web) offer guests Apple sign-in on profile and account hub
+- (desktop-web) sign in with Apple from the welcome page
+
+### Refactor
+
+- (desktop-web) type sign-in providers to the wired set
+
+## [2026-11-05] - root@0.148.0, @chatic/desktop-web@0.52.0
+
+### Features
+
+- (desktop-web) mark new thread replies on the root and land on it
+
+## [2026-11-05] - No version updates
+
+### Features
+
+- (web,mobile,landing,shared) link sub webview pages by app id, in the app only (ADR-0287)
+
+## [2026-11-05] - No version updates
+
+### Features
+
+- (web-ui-kit,web) redraw the bottom nav as a glass pill that hugs its tabs (ADR-0286)
+
+### Other
+
+- test: (web-e2e,web-ui-kit) read the unselected MY tab from its button, not the screen text
+
+## [2026-11-05] - root@0.147.5, @chatic/web@0.86.4
+
+### Bug Fixes
+
+- (web) drop the deleted sample pages from the lab and the debug screen
+- (web) open the dou-raise page from the lab at its own address
+
+## [2026-11-04] - root@0.147.4, @chatic/desktop-web@0.51.4
+
+### Bug Fixes
+
+- (desktop-web) center the date pill on its rule
+
+## [2026-11-04] - root@0.147.3, @chatic/desktop-web@0.51.3
+
+### Bug Fixes
+
+- (desktop-web) unstack date pills and close the feed with today
+
+## [2026-11-04] - root@0.147.2, @chatic/desktop-web@0.51.2
+
+### Bug Fixes
+
+- (desktop-web) show reactions on Threads and Saved page cards
+
+## [2026-11-04] - No version updates
+
+### Bug Fixes
+
+- (web,data,mobile) print the last top-level message, time rooms by latest activity (ADR-0285)
+
+## [2026-11-04] - root@0.147.1, @chatic/desktop-web@0.51.1
+
+### Bug Fixes
+
+- (desktop-web) lay read markers over the row corner, not on a line
+
+## [2026-11-04] - root@0.147.0, @chatic/desktop-web@0.51.0
+
+### Features
+
+- (desktop-web) show who read each reply in the thread panel
+
+## [2026-11-04] - root@0.146.0, @chatic/desktop-web@0.50.0
+
+### Features
+
+- (desktop-web) show read markers in the thread panel too
+- (desktop-web) show members' faces on the message they last read
+
+### Bug Fixes
+
+- (desktop-web) draw read markers under the message body
+- (desktop-web) leave an author's face off their own message
+- (desktop-web) keep a late joiner's face off earlier messages
+
+### Documentation
+
+- (adr) record the read position markers decision
+
+### Refactor
+
+- (desktop-web) expose member read cursors for read markers
+
+## [2026-11-04] - root@0.145.0, @chatic/desktop-web@0.49.0
+
+### Features
+
+- (desktop-web) draw a received HTML page in a permission-less frame
+- (data,web) take an HTML page as an attachment, from desktop only
+
+## [2026-11-04] - root@0.144.1, @chatic/desktop-web@0.48.1
+
+### Refactor
+
+- (desktop-web) drop the appearance card from the settings page
+
+## [2026-11-04] - root@0.144.0, @chatic/desktop-web@0.48.0
+
+### Features
+
+- (desktop-web) open appearance settings in a popup from the menu
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) keep a sub WebView page's data on the device, per origin (ADR-0282)
+
+## [2026-11-03] - root@0.143.4, @chatic/web@0.86.3
+
+### Other
+
+- test: (web) stop the login entry guard matching ROUTES.mypage.loginEmail
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web,config) add a dev-only email login screen behind feature.auth.emailLogin
+
+## [2026-11-03] - No version updates
+
+### Bug Fixes
+
+- (ui-kit) rest the snackbar at one height on every screen and drop it sooner
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (chatic-apps-sdk,mobile) add the library sub WebView pages talk to the app with (ADR-0281)
+
+## [2026-11-03] - root@0.143.3, @chatic/landing@0.17.1
+
+### Bug Fixes
+
+- (landing) leave W-06's paid amount out where the port keeps no invoices, not show a dash
+- (web/subscription) name a website-billed plan from its provider's list, not its raw product id
+
+## [2026-11-03] - root@0.143.2, @chatic/web@0.86.2
+
+### Other
+
+- test: (web) stub utils/buildEnv under jest so the bridge barrel loads again
+
+## [2026-11-03] - root@0.143.1, @chatic/web@0.86.1
+
+### Bug Fixes
+
+- (web) lift the snackbar above the chat composer and docked footers
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (mobile,web,landing,shared) open sub WebView pages from app links (ADR-0279)
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) gate sub WebView pages on a manifest (ADR-0278)
+
+## [2026-11-03] - No version updates
+
+### Bug Fixes
+
+- (web,web-e2e) answer a guest's membership and owned-cloud reads without the relay
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web/mypage) show MY's subscription row to a browser guest
+- (web/mypage) list Raise DoU in the Lab for everyone, with the experiments in one card
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) specify the sub WebView page protocol (ADR-0277)
+
+## [2026-11-03] - root@0.143.0, @chatic/landing@0.17.0
+
+### Features
+
+- (landing) run sandbox payments on the payment server's mock provider, dev hosts only (ADR-0263)
+- (http,data) take an optional sandbox query on the six payer-scoped subscription calls
+- (landing) let the server's trialEligible decide the free trial (ADR-0255)
+- (landing) hold back the free trial, charging a first subscription at once (ADR-0255)
+- (landing) bill outside Korea in dollars through a card field in our own dialog (ADR-0255)
+- (landing) keep cards and prices per payment provider, amounts in minor units
+
+### Bug Fixes
+
+- (landing) join a settled payment back to its subscription so W-06 stops spinning
+- (landing) let W-08's order summary span the phone width again, not shrink to its content
+- (landing) keep W-08's entries when going back from W-05, not an empty form
+
+### Documentation
+
+- (adr) renumber the landing billing-country ADR to 0262, not 0255
+
+### Refactor
+
+- (landing) drop the in-page mock from the app, keep the fake server for tests (ADR-0264)
+
+### Other
+
+- test: (web-e2e) keep the signed-in member a member through the place switch
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web,web-e2e) hand a browser tab's subscription to the website, not "app only" (ADR-0276)
+
+## [2026-11-03] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,db,web) keep a browser tab's invited clouds in session storage (ADR-0275)
+
+## [2026-11-03] - root@0.142.0, @chatic/web@0.86.0
+
+### Features
+
+- (web) name the sample1 Lab row Enhance DoU
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web,bridge-messages) sign in from a relay code the shell hands back, the way desktop does
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,config) list the sub WebView pages in the Lab behind debug mode, as "In-app"
+
+## [2026-11-02] - No version updates
+
+### Bug Fixes
+
+- (data) send an office file the OS mistypes, not refuse it
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) give a sub WebView page a key per origin (ADR-0271)
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,web-ui-kit) record voice messages in a sheet opened from the attach panel
+- (mobile) record voice messages in the shell and keep audio files
+- (web,data,web-ui-kit) send, record and play audio on the phone
+- (bridge-messages,bridges) add the shell's voice-message recorder messages
+
+### Documentation
+
+- (adr) the phone sends, records and plays audio, and the shell records it (ADR-0268)
+
+### Other
+
+- build: (mobile) record the Podfile checksum for the Microphone permission handler
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (admin-v2,http,data,app-runtime) let the users screen list and register on either stage
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) let a sub WebView page open the share sheet (ADR-0265)
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,config) list the sub WebView test pages in the Lab, in dev builds only
+- (web,mobile) open and inspect a sub WebView page from a dev build
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (admin-v2) give each stage its own endpoint keys, not a rewritten path (ADR-0268)
+
+## [2026-11-02] - root@0.141.4, @chatic/desktop-web@0.47.4
+
+### Bug Fixes
+
+- (desktop-web) delete the message from an image's Delete file
+- (desktop-web) fill the image More button only while its menu is open
+
+## [2026-11-02] - root@0.141.3, @chatic/desktop-web@0.47.3
+
+### Bug Fixes
+
+- (desktop-web) match the image hover bar to the design
+
+## [2026-11-02] - No version updates
+
+### Refactor
+
+- (bridge-messages) rename @chatic/app-messages to @chatic/bridge-messages
+
+## [2026-11-02] - root@0.141.2, @chatic/desktop-web@0.47.2
+
+### Bug Fixes
+
+- (desktop-web) open the thread a list row previews, not just its room
+
+## [2026-11-02] - root@0.141.1, @chatic/desktop-web@0.47.1
+
+### Bug Fixes
+
+- (desktop-web) open the read list on click, not hover
+
+## [2026-11-02] - root@0.141.0, @chatic/desktop-web@0.47.0
+
+### Features
+
+- (desktop-web) list who read a message when hovering its read count
+- (desktop-web) work out who read each message, not only how many
+
+### Bug Fixes
+
+- (desktop-web) keep the read list steady across pointer and keyboard
+
+### Documentation
+
+- (adr) desktop works out who read a message from join rows
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) give sub WebView pages a host of their own (ADR-0265)
+
+## [2026-11-02] - root@0.140.2, @chatic/desktop-web@0.46.2
+
+### Bug Fixes
+
+- (desktop-web) scroll settings inside the page, not the whole window
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) show reviewed pages in a sub WebView with no bridge (ADR-0265)
+
+## [2026-11-02] - root@0.140.1, @chatic/desktop-web@0.46.1
+
+### Bug Fixes
+
+- (desktop-web) scope the notifications inbox by cloud, not by place id alone (ADR-0266)
+
+## [2026-11-02] - root@0.140.0, @chatic/desktop-web@0.46.0
+
+### Features
+
+- (desktop-web) play voice files in their card, not a full viewer
+
+## [2026-11-02] - root@0.139.0, @chatic/desktop-web@0.45.0
+
+### Features
+
+- (desktop-web) let users pick their own shell colours
+- (desktop-web) render shell palettes from the derive rule
+- (desktop-web) derive shell palette tokens from three colours
+
+## [2026-11-02] - root@0.138.1, @chatic/desktop-web@0.44.1
+
+### Bug Fixes
+
+- (desktop-web) keep the sidebar search field visible on tinted lists
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (auth,app-runtime) move the session use cases, pairing and socket auth into @chatic/auth
+
+## [2026-10-30] - No version updates
+
+### Features
+
+- (desktop-web,data,web) send voice files from desktop as file cards
+
+## [2026-10-30] - root@0.138.0, @chatic/desktop-web@0.44.0
+
+### Features
+
+- (desktop-web) add shell theme palettes to Settings
+- (desktop-web) show seen and not-seen counts under each author block
+
+## [2026-10-30] - root@0.137.1, @chatic/desktop-web@0.43.3
+
+### Bug Fixes
+
+- (desktop-web) tint the whole saved message around its tag
+
+## [2026-10-30] - root@0.137.0, @chatic/landing@0.16.0
+
+### Features
+
+- (landing) align the home header, hero and pricing with the new spec
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (sync,app-runtime) move the sync manager, plans and background receive into @chatic/sync
+
+### Other
+
+- test: (app-runtime) load the sync data graph without a dynamic import in init.test
+
+## [2026-10-30] - root@0.136.2, @chatic/desktop-web@0.43.2
+
+### Bug Fixes
+
+- (desktop-web) keep the thread toolbar off the first line of text
+- (desktop-web) offer room members as @ suggestions in thread cards
+
+## [2026-10-30] - root@0.136.1, @chatic/desktop-web@0.43.1
+
+### Bug Fixes
+
+- (desktop-web) show my place photo on the rail avatar at sign-in
+
+## [2026-10-30] - root@0.136.0, @chatic/desktop-web@0.43.0
+
+### Features
+
+- (desktop-web) tag saved messages and draw Saved like Threads
+- (desktop-web) tag saved messages in the row, not only in the menu
+- (desktop-web) draw saved messages live on the Saved page, by thread
+
+## [2026-10-30] - root@0.135.2, @chatic/web@0.85.3
+
+### Bug Fixes
+
+- (web) offer invited clouds as pairing approval targets, not owned clouds only
+
+## [2026-10-30] - root@0.135.1, @chatic/web@0.85.2
+
+### Bug Fixes
+
+- (web) ask for the camera before opening it in the app, and point a refusal at settings
+
+## [2026-10-30] - root@0.135.0, @chatic/landing@0.15.0
+
+### Features
+
+- (landing) redesign alert dialogs and the plan-change completion screens
+- (landing) redesign the store-subscriber notice to the new spec
+
+## [2026-10-30] - root@0.134.0, @chatic/desktop-web@0.42.0
+
+### Features
+
+- (desktop-web) group join notices and add text size and density settings
+- (desktop-web) group adjacent join notices into one line
+- (desktop-web) add text size and message density preferences
+
+## [2026-10-30] - root@0.133.0, @chatic/desktop-web@0.41.0
+
+### Features
+
+- (desktop-web) invite-link-first onboarding with a preview step
+- (desktop-web) preview an invite before joining it
+- (desktop-web) walk the invite page through paste, preview and join
+- (desktop-web) show invite progress dots and slide between steps
+- (desktop-web) lead Welcome with the invite link, document the join
+
+### Bug Fixes
+
+- (desktop-web) block a previewed invite whose expiry time has passed
+- (desktop-web) keep the reconnecting banner off the held invite page
+- (desktop-web) block a previewed invite past its grace window
+
+### Documentation
+
+- (desktop-web) note a quit during the invite preview keeps the guest
+
+### Other
+
+- test: (desktop-web) drive the invite router spec through preview and join
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (transport,app-runtime) move the socket manager and http into @chatic/transport
+
+## [2026-10-30] - root@0.132.0, @chatic/landing@0.14.0
+
+### Features
+
+- (landing) redesign payment methods, billing history and billing info to the new specs
+
+## [2026-10-30] - root@0.131.0, @chatic/landing@0.13.0
+
+### Features
+
+- (landing) redesign plan change and cancellation to the new specs
+- (landing) redesign the payment status and completion screens to the new specs
+- (landing) redesign checkout details and the email step to the new specs
+- (landing) redesign the sign-in screens and the purchase-flow header
+
+## [2026-10-30] - root@0.130.1, @chatic/web@0.85.1
+
+### Refactor
+
+- (session,app-runtime) move the session store and scope into @chatic/session
+
+### Other
+
+- test: (web) wait for the leave dialog to close, not only for the toast
+
+## [2026-10-30] - root@0.130.0, @chatic/web@0.85.0
+
+### Features
+
+- (web) scan the pairing qr live in the page instead of from a photo
+
+## [2026-10-30] - No version updates
+
+### Features
+
+- (config) turn device pairing on in every stage
+
+## [2026-10-30] - root@0.129.0, @chatic/web@0.84.0
+
+### Features
+
+- (web) show the open room's raw channel and messages in the debug panel
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (app-runtime) hold the layers the package will split along (ADR-0253)
+
+## [2026-10-30] - root@0.128.0, @chatic/landing@0.12.0
+
+### Features
+
+- (landing) redesign subscription shells, plans, list and detail to the new specs
+
 ## [2026-10-30] - root@0.127.1, @chatic/web@0.83.1
 
 ### Bug Fixes

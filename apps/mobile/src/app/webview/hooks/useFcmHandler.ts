@@ -3,7 +3,7 @@ import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
 import { BadgeSyncBridge, PushMarksBridge } from '../../bridge';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 /**
  * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.

@@ -1,335 +1,100 @@
-# session — the hub every other layer reads from
+# session — the React surface over `@chatic/session` and `@chatic/auth`
 
-The session is what the rest of this package is derived from: which tokens exist, which cloud and
-site are selected, who the user is. Four folders own one thing each, and the direction of every edge
-is fixed — `hooks → auth → store` and `scope → store`, never back.
-
-Nothing in this folder authenticates a socket or renews a credential. That is
-[docs/auth/](../auth/README.md); this folder holds the state it reads and writes.
+The session's state lives in [`@chatic/session`](../../../session/README.md), and the use cases that
+write it, device pairing and the socket authentication live in [`@chatic/auth`](../../../auth/README.md).
+This folder holds what React reads them through: the hooks under `session/hooks/`, and the `session`
+facade group in `session/index.ts`. Every edge runs one way — `hooks → @chatic/auth → @chatic/session`
+— never back.
 
 ## Layout
 
 ```text
-session/                              67 source files, 36 tests
-├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
-├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
-├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
-├── pairing/   6 files ·  6 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
-├── hooks/    35 files · 14 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
+session/                              35 source files, 15 tests
+├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 6 pairing
 └── index.ts                       the `session` facade group
 ```
 
-`store/index.ts` deliberately re-exports only `contextStore`, `contexts`, `signal` and `types`.
-`stores.ts` (the three raw stores), `jsonSlot.ts`, `expiry.ts` and `configure.ts` are not on it — a
-consumer reads a derived context; only the use cases inside this hub touch a raw store, and they do
-it by concrete path. There is no `auth/index.ts` at all.
-
-## Responsibilities
-
-**The store decides nothing.** It persists, it derives, and it announces. It does not know that a
-socket exists, that a repository exists, or that its sibling folders exist —
-[`eslint.config.mjs`](../../eslint.config.mjs) rejects an import of `**/socket/**`, `**/data/**`,
-`**/http/**`, `../auth`, `../hooks`, `../scope` or `@chatic/config` from anywhere under
-`src/session/store/**`. Opening any of those would make the store a participant in the flow it is
-supposed to merely record.
-
-**[`store/configure.ts`](../../src/session/store/configure.ts) is the one exempt file**, and it
-exists to keep the exemption to one file: it reads `@chatic/config` at boot and hands `relayStore`
-two endpoint **resolvers**. Functions, not values — a deeplink override (`?_backend=`) can be
-captured after module load and still be picked up, because every access re-resolves. Until
-`initAppRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
-naming that function. A loud failure beats a request going out to an empty host.
-
-**`auth/` runs the use cases, and it does not reach the network directly.** Login, token exchange,
-site selection and teardown all go through `getRepositories().auth` (ADR-0036). No file here holds a
-gateway. It is not React, so it uses the synchronous `getRepositories()` accessor rather than the
-`useRuntimeRepositories` hook.
-
-**`scope/` owns the answer to "which cloud/site/user are we operating as"** and implements
-`@chatic/data`'s `DataContextProvider`. It never judges — the judgement (`isForeignContext`) is a
-pure function owned by [`libs/data`](../../../data/README.md), because most of its call sites are
-inside `data`, which is a leaf and cannot import this package.
-
 ## The shared contract
 
-### Three stores, and what they persist
-
-Each store is a class taking `(storage, signal)` in its constructor — so a test can build one over a
-fake storage — and each is exported only as a singleton alongside its `I*Store` interface. The
-implementation classes are not exported.
-
-| Store           | Interface        | Keys                                                                                                                                                                                                                           |
-| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                         |
-| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` |
-| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                     |
-
-The keys stay in the file of the store that reads and writes them rather than moving to a shared
-`constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.
-
-`IIdentityStore` has exactly three members — `getDelegatorId`, `setDelegatorId`, `setDeviceId`.
-**There is no `getDeviceId`**: the device id is read back through the derived identity context, not
-off the store.
-
-`cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
-token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the
-cache with no expiry margin (the served read, `getCachedCloudTokens`, deletes what it refuses to
-serve, and a socket still signing with that token must not lose it); `dropCachedCloudTokens(cid)`
-forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. The identity map —
-`getCloudIdentity` · `setCloudIdentity` · `getCloudIdentities` · `clearCloudIdentities` — records
-which uid this account has in each cloud and outlives the tokens. It is what a reader of another
-cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
-`getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
-successful switch and decides which clouds keep a background socket session when there are more of
-them than the cap ([docs/socket/](../socket/README.md#background-slots)). The reclaim records —
-`getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
-cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
-`delegate-cloud` once per account rather than on every trigger
-([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)).
-
-**Leaving the committed cloud is not the end of the account**, so `clearSession` clears the committed
-session and the selection and keeps the rest: the token cache (the other clouds' background sessions
-sign from it, and the cloud just left usually becomes one of them), the identities, the recent order
-and the reclaim records. Only `relaySession.clearAndRedirect` clears them.
-
-[`jsonSlot.ts`](../../src/session/store/jsonSlot.ts) is what each token slot is built on. It
-memoizes by raw string, so re-reading an unchanged token reuses the parse — building the relay
-context used to parse the same token three times.
-
-### One signal, four kinds
-
-```ts
-export type SessionSignalKind = 'relay:token' | 'cloud:token' | 'selection' | 'identity';
-```
-
-`relay:token` and `cloud:token` are separate because the two refresh loops are: a relay refresh
-arriving while a cloud session is active must not re-derive cloud-scoped consumers.
-
-**Every write emits its kind.** This is the table
-[`store/writeSignals.test.ts`](../../src/session/store/writeSignals.test.ts) locks:
-
-| Write                                                                                  | Emits                                        |
-| -------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `relayStore.saveRelayToken` · `clearToken`                                             | `relay:token`                                |
-| `cloudStore.saveDelegationToken` · `saveCloudToken`                                    | `cloud:token`                                |
-| `relayStore.saveSelectedSiteId` · `clearSelectedSite`                                  | `selection`                                  |
-| `cloudStore.saveSelectedCloudId` · `saveSelectedSiteId` · `clearSelectedSite`          | `selection`                                  |
-| `cloudStore.clearSession`                                                              | `cloud:token` + `selection`, in one batch    |
-| `identityStore.setDelegatorId` · `setDeviceId`                                         | `identity`                                   |
-| `setSessionAuthenticated` · `setSessionIdentityState` · `markSessionInitialized`       | `identity`                                   |
-| `rebuildSessionIdentity`                                                               | `identity`, **only when the identity moved** |
-| `clearRelaySession`                                                                    | `relay:token` + `identity`, in one batch     |
-| `cloudStore.setCachedCloudTokens` · `dropCachedCloudTokens` · `clearCachedCloudTokens` | **nothing**                                  |
-| `cloudStore.setCloudIdentity` · `clearCloudIdentities`                                 | **nothing**                                  |
-| `cloudStore.recordCloudUse` · `clearRecentClouds`                                      | **nothing**                                  |
-| `cloudStore.setReclaimedFor` · `clearReclaimedClouds`                                  | **nothing**                                  |
-
-The last four rows are the legitimate exceptions and their names say so: the per-cloud token cache,
-the identity map, the recent order and the reclaim records change no observable session state. The
-reclaim records are read only by the reclaim, inside the run that writes them. A uid moves only with a
-new account, which announces itself through the relay token, and the recent order is written inside
-a switch's commit batch, which already announces `cloud:token` + `selection`. The background socket
-slots do derive from the token cache; they are told through their own store
-(`backgroundClouds.invalidate`), not a session signal. `rebuildSessionIdentity` is the one gated writer — it compares
-five fields (`userId`, `delegatorId`, `isInitialized`, `isAuthenticated`, `error`) and stays silent
-when none moved, because it is called after every token writeback.
-
-**A use case is one fan-out.** `sessionSignal.batch(fn)` collects the emits inside `fn` and flushes
-once after it returns; it nests, and only the outermost batch flushes. Before this existed, one cloud
-switch fired eight payload-less broadcasts and seven inconsistent intermediate states were
-observable.
-
-**Invalidators are eager, listeners are deferred**, and the split matters. A listener is external
-fan-out — a React re-render — and collapsing those is what a batch is for. An invalidator drops the
-derived-context cache, and code _inside_ the batch reads that cache, so deferring it would make
-`switchTo` return a snapshot of the cloud it just left.
-
-### Derived contexts, and the three caches behind them
-
-[`contextStore.ts`](../../src/session/store/contextStore.ts) assembles the three shapes a consumer
-actually reads — `getGlobalSessionContext()`, `getSessionAuthSnapshot()`, `getSocketSlotContext()` —
-and keeps one cache per shape. A single `sessionSignal.registerInvalidator` drops all three. Identity
-state is seeded on first read rather than at module load, so importing the store does no work.
-
-[`contexts.ts`](../../src/session/store/contexts.ts) is the read-only face of that:
-`getIdentityContext`, `getActiveServerContext`, `getCloudSessionSnapshot`, `getSocketSlotContext`,
-`getGlobalSessionContext`, and `getCommittedCloudId()` — which is nothing but
-`cloudStore.getDelegationToken()?.cloudId ?? null`, the source of the `committed` scope view.
-
-`getUidInCloud(cloudId)` answers a question the identity context cannot: which uid this account has
-in a given cloud, committed or not. The relay's is the relay token's; a cloud's is the uid of the
-token its socket signs with (`getCloudTokenOf`), falling back to the recorded cloud identity once
-that token is gone. `IdentityContext.userId` answers for the active token only, and every cloud gives
-the account a different uid. The sync registry and the scoped repository graphs read it, and apps
-read it as `session.getUidInCloud` / `session.useUidInCloud(cid)` wherever they build an id or match
-"is this me" for a named cloud — a join id `<channel>@<uid>` built from the session uid is wrong for
-every cloud but the committed one.
-
-### The scope: three views that are supposed to disagree
-
-[`ActiveScope`](../../src/session/scope/ActiveScope.ts) takes three readers in its constructor and
-exposes three getters. There is exactly one instance, built by `DataManager`.
-
-| View        | Source                                          | Behaviour                                                   |
-| ----------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| `selected`  | `deriveSelectedContext()` — read from the store | Flips at the _start_ of a switch, before any token exchange |
-| `bound`     | `SocketManager.getBoundCid()`                   | Observed. This class never assigns it                       |
-| `committed` | the delegation token's `cloudId`                | Frozen through the optimistic window                        |
-
-Their disagreement is optimistic switching: the cache partition must follow the target immediately so
-observers re-subscribe, while the socket is still attached to the cloud it is leaving. Collapsing
-them brings back cross-cloud cache poisoning.
-
-`getContext()` composes `selected` with `socketCid` **per call, never cached**, so a socket rebind
-takes effect on the very next repository read. When nothing is bound it **omits** `socketCid` rather
-than setting it to `null` — `isForeignContext` reads an absent `socketCid` as "no one to disagree
-with". `setContext()` is a deliberate no-op: honouring a pushed value is what produced the render lag
-this class replaced, where a descendant hook subscribed under a cid the provider had not caught up
-to yet and never received the post-commit write.
-
-`deriveSelectedContext()` returns `{ cid, uid }` and **no `sid`** (ADR-0085). A site is something a
-caller names as an argument; seeding it from the ambient session is what let a write race a site
-switch — tagged for one site, sent under another's session.
-
-### The use cases
-
-Each is a class with a single exported singleton; the class itself stays private.
-
-| Singleton              | Methods                                                                                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `relaySession`         | `initialize` · `persistDeviceId` · `loginGuestByDevice` · `loginUser` · `loginByOAuthCode` · `loginBySocialToken` · `loginByToken` · `clearAndRedirect` · `registerLogoutCallback` |
-| `cloudSession`         | `switchTo` · `clearStores` · `applySelectedSite`                                                                                                                                   |
-| `sessionAuthAdapter`   | `getAuthRegistration(cid)` · `signAuth(cid, target?)` · `commitRefreshedToken(cid, view)` — the relay's cid is `RELAY_CLOUD_ID`                                                    |
-| `credentialFreshness`  | `timeToExpiry(cid, now?)` · `isStale(cid, now?)`                                                                                                                                   |
-| `logoutStorageSweeper` | `sweep()`                                                                                                                                                                          |
-
-`loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
-it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin-v2 reaches with no session. With
-`linkCurrentSession` it sends `{ provider, code }` to `POST {relay}/users/0/verify-oauth-code?token=1`,
-signed with the session already on the device: the backend records that user (a Guest Session) as the
-new session's link, the same record the native social login leaves, and that link is what later lets
-the account into a cloud the guest was invited to. That endpoint answers 403 when there is no session,
-so only a caller that is sure one exists passes the option — desktop does, because it registers the
-device before it opens the browser. Admin-v2 calls without a session and stays on the default.
-
-Two more are plain functions because they are shared by two callers with different policies:
-`issueCloudTokens(cloudId, { allowCache })` and `reissueCloudTokens(cloudId)` in
-[`cloudTokens.ts`](../../src/session/auth/cloudTokens.ts). **The cache flag is the whole point.**
-Entering a cloud may replay a cached exchange; renewing in place must not, because the cached copy is
-the one that is expiring. For the same reason a cloud writeback refreshes the cache too — a cache
-left behind the live token makes the _next_ entry restore a credential that was already replaced.
-An exchange runs **once per cloud at a time**: a call that finds one in flight for the same cloud
-joins it, so a switch, the background-slot preparer and a renewal can never leave the cache and what
-the cloud's socket registered with holding different tokens.
-`reissueCloudTokens` decides at write time whether the result also lands in the session store: it
-does when `cloudId` is the committed cloud at that moment, and stays in the cache otherwise. A
-committed renewal merges into the stored view, except when it names another user: over an invite
-entry (an empty delegation JWT), or when the stored token's uid differs from the re-issued one's. It
-then replaces the view and drops the selected place
-([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)). Each exchange also remembers,
-in memory, which relay user it was asked as (`lastIssuedForOf`), for the owned-cloud reclaim. Both
-record the cloud's uid through [`cloudIdentity.ts`](../../src/session/auth/cloudIdentity.ts), a
-module of its own so the writeback path can record it without reaching the data runtime.
-
-`relaySession.clearAndRedirect()` clears both relay and cloud stores, the per-cloud token cache, the
-cloud identity map, the recent-cloud order and the reclaim records, and redirects to `/?logout=1`.
-It performs no server-side logout; notifying the sockets is
-[`logoutSession`](../auth/README.md)'s job, one layer up. `logoutStorageSweeper.sweep()` is the other
-half of that flag: on the next document load it wipes the `@`-prefixed storage namespace, preserving
-only the i18n key and `@chatic/config.*`, then drops `chatic-oauth-provider` from both storages.
-Without it, tokens belonging to the account that just signed out survive the redirect.
-
-[`authActions.ts`](../../src/session/auth/authActions.ts) is an adapter, not a naming layer: three
-apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the
-repository takes an object. Keeping that translation in one place is its entire reason to exist.
-
-[`clearSiteSelection.ts`](../../src/session/auth/clearSiteSelection.ts) empties the active cloud's place
-selection and does nothing else — no `auth.switch`, no switch token, the socket session stays put. It is
-on the barrel for one case: the user has just left the last place of a cloud, so there is no place to
-switch to, and keeping the old id would leave the app on a place they are no longer in (apps/web's
-`useSwitchPlace` calls it). Moving between places stays `useSiteSwitch`'s job.
+The three stores, the signal, the derived contexts and the scope's three views are documented with
+their code, in [libs/session/README.md](../../../session/README.md#the-shared-contract); the use cases,
+in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 
 ### The React surface
 
-| Folder                   | Count | Names                                                                                                                                                             |
-| ------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                        |
-| `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                        |
-| `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
-| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                |
-| `hooks/pairing/`         | 5     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [Device pairing](#device-pairing)        |
+| Folder                   | Count | Names                                                                                                                                                                                    |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                                               |
+| `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                                               |
+| `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo`                        |
+| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                       |
+| `hooks/pairing/`         | 6     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairedCloudNames` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks) |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
-derives from `useGlobalSession`. Twenty of these 23 are on the package barrel; the three that are not
+derives from `useGlobalSession`. Twenty-one of these 24 are on the package barrel; the three that are not
 are `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package) and
 `useRelaySessionInit` / `useRelaySessionKeepAlive`, which belong to the host rather than to an app.
 `useRuntimeProfile` is on the barrel but reached by concrete path, because
 `hooks/session/index.ts` publishes only the other four readers.
 
-The two guards in `hooks/app/` take an app-supplied policy and are documented with the renewal they
-drive — [docs/auth/](../auth/README.md#the-two-guards).
+The two guards in `hooks/app/` take an app-supplied policy; they are below.
 
 [`hooks/mutationKeys.ts`](../../src/session/hooks/mutationKeys.ts) holds `SWITCH_SITE_MUTATION_KEY`
 and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch in flight globally —
 `apps/web` uses them to stop periodic background sync while one is running.
 
-### Device pairing
+### The two guards
 
-A device that is not signed in (a browser tab, or a phone) shows an 8-digit code, and a signed-in app
-approves it. `session/pairing/` holds the requesting side and the facts both sides need; the REST calls
-themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests.
+An app mounts these; they are not automatic.
 
-Four files carry most of it, and their names are close, so this is what each one is:
+**[`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) is
+relay-only, and adding a `kind` option to it would be wrong** — relay and cloud recover by different
+means, and the cloud counterpart exists. Two properties are not configurable because they are the
+reason the hook exists: the probe never refreshes (it reads the session's relay token and nothing else; there is no HTTP
+refresh to fire, and a second refresh engine would leave the socket's signing material stale), and
+renewal always goes through `requestRelaySessionRefresh`.
 
-| File                     | What it is                                                                                                                                                                                                                         | Holds state   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `pairedSession.ts`       | **The checks.** Is this device signed in through someone else's approval — a secondary device (`isPairedSession`)? Is the relay session a guest (`isRelayGuest`)? Is this guest inside a cloud of its own (`isInOwnCloudSession`)? | no            |
-| `pairedClouds.ts`        | **The list.** `PairedCloudStore`: the ids of the clouds this guest entered through a pairing (`chatic-paired-cloud-ids`)                                                                                                           | the list only |
-| `pairedCloudSessions.ts` | **What acts on the list.** `PairedCloudSessions`: enter a paired cloud, re-issue it, re-check it, end it                                                                                                                           | uses the list |
-| `pairingClient.ts`       | **The device's label.** What a requester tells the approver about itself (`Chrome · macOS`, `iPhone`), and how a device-list row is named (`deviceDisplayName`). Not a network client                                              | no            |
+The policy covers `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`,
+`checkOnRelayVerified`, `missingSessionCountsAsFailure`, `consecutiveFailureLimit`, `onTeardown` and
+`forceRefresh`. Only **definitive** failures count toward the teardown streak: a refresh that could
+not even reach the socket is not one.
 
-The rest: `pairingRequestFlow.ts` is the code screen's request-and-poll loop, `pairingErrors.ts` names
-the approval side's failures.
+`forceRefresh` closes a specific hole. The boot handshake's `auth.update` emits no token — the SDK
+emits one only from `refresh` and `switch` — so the first writeback is a whole refresh cycle away,
+and until it lands, relay-signed HTTP is signed with the credential from before the device went to
+sleep. The expiry probe (`relayCredentialProbe`) answers only "past expiry", not "about to expire",
+so the guard also measures how much is left: it fires only when
+`credentialFreshness.timeToExpiry('relay')` is under one refresh cycle. Firing on every edge
+unconditionally was the earlier behaviour and it refreshed credentials minted seconds earlier,
+colliding with the re-authentication at login. A 60-second cooldown throttles it, and a preemptive
+failure never counts toward teardown — a credential that is still valid is not evidence the session
+died.
 
-- **`usePairingRequest`** drives the code screen through `PairingRequestFlow`, a class with no
-  React in it: request a code, poll `claim` every `interval` seconds, then sign in. A relay approval's
-  session goes through `applySessionToken` — the same path a phone login takes — and a cloud approval
-  enters that cloud as a guest through `pairedCloudSessions.enter` (below).
-    - **One claim at a time, and an approval is never dropped.** The session rides only the first
-      `approved` answer; the server answers `claimed` afterwards. So the next claim waits for the last to
-      settle, a stop and start (strict mode's remount) resumes the same loop instead of opening a second
-      one, and stopping only stops scheduling — a claim already on the wire is handled to the end.
-    - A network failure keeps polling until the code expires; a 4xx ends it. A 503 on the request means
-      the drawn code was taken, and one more request is enough.
-- **`pairedClouds`** (a `PairedCloudStore` over `chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
-  entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
-  the switch sheet. It is a plain store with no other dependency, so `isPairedSession` and the relay
-  logout can read and clear it without pulling the socket runtime in.
-- **`PairedCloudSessions`** (`pairedCloudSessions.ts`, one instance `pairedCloudSessions`) is the life of
-  a paired cloud, with its collaborators — the list, the identity map, the token exchange, the socket
-  re-registration, the place alignment, the credential teardown — passed to its constructor:
-    - `enter(cloudId, switchCloud)` — lets an exchange for the cloud already on the wire finish,
-      re-issues the cloud's tokens, adds the cloud, then switches. The cloud joins the list before the
-      switch: from the re-issue on, the tab holds the approver's tokens for it, so a switch that fails
-      must still leave it where the check watches it. The re-issue comes first because a
-      switch replays the tokens it already holds for the cloud: a tab holding older tokens of its own
-      there (an invite) would have entered as itself and turned into the approver at the next re-issue,
-      mid-session and without a word.
-    - `reissue(cloudId)` — re-issues through the relay's delegation and carries the session along as a
-      renewal does: the socket serving the cloud re-registers, the committed cloud is aligned back to the
-      selected place. Unlike `renewCloudSession` it throws, because a paired cloud needs the 403.
-    - `check(cloudId)` / `checkAll()` — `reissue`; a refusal over an ended pairing gets the
-      terminal-expiry teardown (cached tokens dropped, the session stores cleared if it is the committed
-      cloud) and `end`; anything else waits for the next round.
-    - `end(cloudId)` — **the one invariant**: off the list, and the uid recorded for the cloud (the
-      approver's) forgotten, so the identity map stops partitioning that cloud's cache under the approver.
-    - `forgetRefused(cloudId, error)` — `end` for a paired cloud the relay refused over an ended pairing.
-- **`isInOwnCloudSession`** — is this guest signed in to a cloud on its own (the committed cloud is
-  neither the relay nor a paired cloud)? A device asks for a pairing only while signed out, so the code
-  screens ask such a guest to sign out of the cloud first.
-- **`isPairedSession`** — is this a secondary device? A relay pairing's `$auth` carries `purpose` and
-  `pairingId`, which no other login writes; a guest holding paired clouds counts too. A secondary device
-  signs out with its approver, so it neither approves others nor lists approvals.
+**[`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts) does not
+poll.** It derives a deadline from each credential's own `Expiration` minus a margin and sleeps until
+the earliest of them, waking at most every 5 minutes because a suspended tab serves long timers late.
+The margin is `SDK_REFRESH_CYCLE_MS`, and that is diagnosis rather than tuning: a healthy cloud
+socket re-mints every cycle, so being under the margin at all _is_ the evidence the socket is not
+keeping up.
+
+It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
+can arrive after the tokens) and every cloud the manager has a slot for — every background cloud
+included — each through its own renewer, so one cloud's failed exchange never delays another's. A
+background slot lives through many refresh cycles, and while its socket is down nothing else
+re-mints its credential, so for those clouds this guard is what catches a lapse.
+
+The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
+it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
+dropped link, a long stay in one place — nobody even _measured_ the credential, and once it lapsed
+every cloud-signed request 403'd. Re-entering a cloud hid it, because a switch re-issues, so it only
+showed up in sessions that sat still.
+
+### The pairing hooks
+
+`usePairingRequest` drives the code screen's request-and-poll loop, and `useIsPairedSession` /
+`usePairedCloudIds` / `usePairedCloudNames` read the pairing checks and the paired clouds' names; what they read is
+[`@chatic/auth`'s pairing doc](../../../auth/docs/pairing/README.md). Two hooks carry policy of their own:
+
 - **`usePairingAwareLogout(onLogout)`** — signing out of an approving app ends the sign-ins it approved:
   it reads `GET /pairings`, and when approvals still stand it holds a confirm (`pending`), revokes each
   of them on `confirm` (failures ignored) and then calls the app's own logout. A browser, a secondary
@@ -344,20 +109,6 @@ the approval side's failures.
   initialised: at boot the relay transport is not up, and a check would fail before the network. The cloud socket's own token refresh is **not** turned off for paired
   clouds, so between two rounds such a session can still renew itself — the ten-minute check is what
   bounds it.
-- **`forgetRefusedPairedCloud`** is `pairedCloudSessions.forgetRefused`, published for the switch sheet.
-- **`isRefusedForEndedPairing`** — the relay refused a cloud with a 403 naming the pairing or its approver
-  (`pairing revoked`, `approver session revoked`, …). Any other 403 — stale relay signing credentials
-  notably — must not sign a device out. The relay keeps an ended grant tied to the auth session that
-  claimed it and refuses that session's delegation into the cloud even where the session has a
-  membership of its own (an invite); only a new auth session clears it, which is why an app signs the
-  device out when it meets one.
-- **`classifyPairingError`** names the approval side's failures (`notFound` · `expired` · `codeRefused`
-  · `targetRefused` · `alreadyHandled`) so both apps word them the same way.
-- **`deviceDisplayName`** names a row of my device list. Phones and the desktop app save no name of their
-  own, so the server keeps the user agent there; it becomes `iPhone` / `Android`, the OS, or
-  `<browser> · <OS>` instead of a raw `Mozilla/5.0 (…)` line.
-- **`pairingClientOf`** is what the request tells the approver about this device: the socket's own
-  platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
 
 ## Usage
 
@@ -372,29 +123,9 @@ const { userId, isAuthenticated } = runtime.session.useSessionIdentity();
 const { cloud, identity } = getGlobalSessionContext();
 ```
 
-### Adding a store write
-
-1. Put it on the `I*Store` interface first. The interface is the contract; the class is an implementation detail that is never exported.
-2. Emit the `SessionSignalKind` the write moves, in the store method itself. A writer that does not emit is invisible to every reader.
-3. If it is a pure cache write that changes nothing observable, emit nothing — and say so in the method name, the way `setCachedCloudTokens` does.
-4. Add the row to [`writeSignals.test.ts`](../../src/session/store/writeSignals.test.ts). That file is the table above; if the two disagree, the table is wrong.
-5. If a use case performs several writes, wrap it in `sessionSignal.batch()` so subscribers see one change.
-
 ### What not to do
 
-- **Do not import a sibling folder from `store/**`.\*\* Lint will stop you, and the reason is not style: a store that can call a use case can be re-entered mid-write.
-- **Do not read `@chatic/config` from `session/**`.** Take the value as an injected function. Beyond the layering, `import.meta`breaks ts-jest under`module: commonjs`, and this hub's tests run there.
-- **Do not collapse the three scope views**, and do not add `sid` back into `deriveSelectedContext`. Both have a specific failure attached (cache poisoning; a write tagged for the wrong site).
-- **Do not push a context into the scope.** `setContext` is a no-op on purpose. If a caller needs a different partition for one call, it passes `contextOverride` to the repository method.
-- **Do not add a second source for local session state.** Anything derivable belongs in `contextStore`; a parallel `localStorage` entry diverges and then two answers exist.
-
-## Notes for implementers and tests
-
-- Each store takes its storage in the constructor, so a test builds one over a fake `StorageLike` rather than mocking a module. That is what `writeSignals.test.ts` and `contextStore.test.ts` do.
-- `sessionSignal` is a process singleton. A test that asserts fan-out counts must unsubscribe, because listeners survive between cases.
-- `msUntilExpiration` lives in `store/expiry.ts`, not in `auth/utils/`, because the store needs it too and the lint rule bans `store → auth`. Its `null` means "unmeasurable", which is explicitly **not** stale.
-- The identity context is seeded lazily. A test that asserts the initial state must read it once before asserting no signal fired.
-- `relayStore.getBackend()` throws until `configureSessionStore()` has run, so any test touching relay endpoints has to call it (or inject resolvers) first.
+- **Do not write a store from outside a use case.** The stores are on `@chatic/session`'s barrel so `@chatic/auth`'s use cases can write them; a hook or a screen that does is a second writer.
 
 ## Naming history (2026-09)
 
@@ -409,12 +140,12 @@ Old names still appear in source comments and in sibling modules' docs.
 | `RuntimeBinding` / `useRuntimeBinding`     | `RuntimeSocketSlots` / `useRuntimeSocketSlots`   |
 
 The last two rows are the same change: the global names `logoutSession` and `logoutCloudSession` now
-belong exclusively to the [socket-notifying versions](../auth/README.md#ending-a-session), because
+belong exclusively to the [socket-notifying versions](../../../auth/docs/socket/README.md#ending-a-session), because
 those are the ones an app should reach for.
 
 ## Further reading
 
-- [docs/auth/](../auth/README.md) — what consumes `sessionAuthAdapter` and `credentialFreshness`, and the policy that ends a session
-- [docs/socket/](../socket/README.md) — how `useRuntimeSocketSlots` turns this state into two socket slots
+- [`@chatic/auth`](../../../auth/README.md) — the use cases, pairing, and staying authenticated on every socket
+- [docs/connection/](../connection/README.md#how-a-slot-is-derived) — how `useRuntimeSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
 - [docs/data/](../data/README.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

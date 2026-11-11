@@ -28,6 +28,8 @@ import {
 import { useJoinDialogStore } from '../../auth';
 import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
 import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
+// The store file, not the settings barrel: the barrel carries the Settings page into this chunk.
+import { useAppearanceDialogStore } from '../../settings/stores/useAppearanceDialogStore';
 import {
     isRelayGuest,
     useAccountName,
@@ -38,12 +40,13 @@ import {
 
 /**
  * The signed-in user's avatar and menu, pinned to the bottom of the nav rail: profile, account,
- * joining with an invite, settings, the debug overlay when it is on, and logging out.
+ * joining with an invite, the appearance popup, settings, the debug overlay when it is on, and logging out.
  */
 export const AccountMenu = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
+    const openAppearance = useAppearanceDialogStore(s => s.setOpen);
     const { userId, delegatorId } = runtime.session.useSessionIdentity();
     const { photo } = runtime.session.useRuntimeProfile();
     const accountName = useAccountName();
@@ -105,6 +108,9 @@ export const AccountMenu = () => {
                         <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => openAppearance(true)}>
+                        {t('rail.menu.appearance')}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     {/* A tool, not an account action: its own group, away from Log out. */}
                     {(import.meta.env.DEV || debugEnabled) && (

@@ -1,7 +1,7 @@
 /**
  * The vocabulary every other module in this lib speaks.
  *
- * `Stage` and `Platform` are declared here rather than imported from `@chatic/app-messages` on
+ * `Stage` and `Platform` are declared here rather than imported from `@chatic/bridge-messages` on
  * purpose. Importing that lib would chain this one to the whole bridge contract — hundreds of
  * message types that mobile and every test would then carry — to gain two unions. The cost of the
  * copy is a single normalization point in each app's env adapter, and a test on the app side

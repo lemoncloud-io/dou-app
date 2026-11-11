@@ -102,6 +102,37 @@ While older replies are still out, the "N replies" divider says "N replies loade
 because the number is what the window holds, not the thread's size. It goes back to "N replies" once
 the window reaches the root.
 
+## New replies in the feed
+
+A reply takes a number in the channel's message sequence, so it raises the channel's unread count
+and its sidebar dot, but the main feed never shows it (`isFeedVisible`). Left at that, opening the
+channel cleared the dot over a feed with nothing new in it, and no "new messages" divider either,
+since the divider only sits above a message the feed draws.
+
+So the root's footer says it instead. Under the root, "N new replies" ("새 답글 N개") with an unread
+dot takes the place of the last-reply time. A reply counts as new when it is above the read cursor the
+channel opened with (the same cursor the divider uses), is not mine, is not deleted, and is above the
+newest message that was loaded while the thread's panel was open (`useNewReplyRule`). Opening a thread
+is what clears its mark; the channel's own read cursor moves on open, as before, so the mark is held
+for the visit and forgotten when the channel changes. With no read cursor known, nothing is marked.
+That is the rule the divider follows, so a fresh channel does not flash every reply as new.
+
+A channel opened with a request to land at the bottom (a notification click) still lands there.
+Otherwise the feed opens on the divider when it has one. When it has none and a root has new replies,
+it opens on the oldest such root, centred; otherwise at the bottom. Opening the thread itself is left to the
+reader. More than one thread may have news, the channel may have news of its own, and the panel takes
+width from the feed, so the feed only shows where the news is.
+
+This mark is not the Threads page's unread dot ([my-threads.md](./my-threads.md)), and the two are
+kept apart on purpose. That one holds only the threads I take part in, survives a reload, and a card
+on the Threads page marks it seen. This one covers every thread in the room, lasts one visit, and is
+measured from the channel's own read cursor. So a thread read on the Threads page can still be marked
+here until the channel is next opened, by which time the cursor has moved past it. Making one follow
+the other would tie a per-visit rule to a per-device store, for a mismatch that ends on the next visit.
+
+The count covers the replies in the loaded window. A new reply to a root above the window cannot show
+until that root is loaded.
+
 ## What this does not do
 
 - It does not ask the server for a thread. A thread buried under thousands of messages costs a batch

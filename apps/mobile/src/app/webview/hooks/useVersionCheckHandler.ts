@@ -5,7 +5,7 @@ import Config from 'react-native-config';
 
 import { onVersionCheckComplete } from '../../hooks';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/app-messages';
+import type { OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/bridge-messages';
 import { toEnvStage } from '../../utils';
 
 /**

@@ -18,6 +18,7 @@
 		A1D0C0DE5EED0000000000B1 /* DownloadFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D0C0DE5EED0000000000F1 /* DownloadFiles.swift */; };
 		B2E0A7C15D3F4A9E8C6B1D01 /* UploadSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0A7C15D3F4A9E8C6B1D02 /* UploadSources.swift */; };
 		B2E0A7C15D3F4A9E8C6B1D03 /* AttachmentPickerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0A7C15D3F4A9E8C6B1D04 /* AttachmentPickerCore.swift */; };
+		C4A9D1E27B3F4A6C8D5E0F11 /* AudioRecorderCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A9D1E27B3F4A6C8D5E0F12 /* AudioRecorderCore.swift */; };
 		C75137B43126CCC5FA31156F /* PhotoLibraryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B5BEECE2611915AA70DFC82 /* PhotoLibraryCore.swift */; };
 		D9351215330C67867100EA0F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		E5FB1AD81B5AE6E98D9F6464 /* TransferText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC543E0C41AB9FC82850DBA /* TransferText.swift */; };
@@ -81,6 +82,7 @@
 		A1D0C0DE5EED0000000000F1 /* DownloadFiles.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadFiles.swift; sourceTree = "<group>"; };
 		B2E0A7C15D3F4A9E8C6B1D02 /* UploadSources.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UploadSources.swift; sourceTree = "<group>"; };
 		B2E0A7C15D3F4A9E8C6B1D04 /* AttachmentPickerCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AttachmentPickerCore.swift; sourceTree = "<group>"; };
+		C4A9D1E27B3F4A6C8D5E0F12 /* AudioRecorderCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioRecorderCore.swift; sourceTree = "<group>"; };
 		D0B0E069303A51F9DA9521CF /* ShareIntakeCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareIntakeCore.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1ADAF0DE5B6C92A2CF01257 /* Pods-Chatic.release dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release dev.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release dev.xcconfig"; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 				5966F507958B540DF7914A45 /* PhotoLibraryCore */,
 				B2E0A7C15D3F4A9E8C6B1D05 /* AttachmentPickerCore */,
 				F30E78DD7D5670915D72DF54 /* ShareIntakeCore */,
+				C4A9D1E27B3F4A6C8D5E0F13 /* AudioRecorderCore */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -281,6 +284,15 @@
 			);
 			name = AttachmentPickerCore;
 			path = Bridges/AttachmentPicker/Core;
+			sourceTree = "<group>";
+		};
+		C4A9D1E27B3F4A6C8D5E0F13 /* AudioRecorderCore */ = {
+			isa = PBXGroup;
+			children = (
+				C4A9D1E27B3F4A6C8D5E0F12 /* AudioRecorderCore.swift */,
+			);
+			name = AudioRecorderCore;
+			path = Bridges/AudioRecorder/Core;
 			sourceTree = "<group>";
 		};
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
@@ -619,6 +631,7 @@
 				B2E0A7C15D3F4A9E8C6B1D01 /* UploadSources.swift in Sources */,
 				B2E0A7C15D3F4A9E8C6B1D03 /* AttachmentPickerCore.swift in Sources */,
 				79258BFE7A7381EC2F8895B3 /* ShareIntakeCore.swift in Sources */,
+				C4A9D1E27B3F4A6C8D5E0F11 /* AudioRecorderCore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -724,7 +737,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				ENVFILE = .env.prod;
@@ -736,7 +749,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.30.0;
+				MARKETING_VERSION = 0.31.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -764,7 +777,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticProd.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENVFILE = .env.prod;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -775,7 +788,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.30.0;
+				MARKETING_VERSION = 0.31.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1433,7 +1446,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENABLE_BITCODE = NO;
 				ENVFILE = .env.dev;
@@ -1445,7 +1458,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.30.0;
+				MARKETING_VERSION = 0.31.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1560,7 +1573,7 @@
 				CODE_SIGN_ENTITLEMENTS = ChaticDev.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 89;
+				CURRENT_PROJECT_VERSION = 93;
 				DEVELOPMENT_TEAM = CH8U9VM6SR;
 				ENVFILE = .env.dev;
 				INFOPLIST_FILE = Chatic/Info.plist;
@@ -1571,7 +1584,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.30.0;
+				MARKETING_VERSION = 0.31.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

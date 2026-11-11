@@ -3,12 +3,15 @@ import type { DomainListResult, DomainUser } from '../../domain';
 import { createDomainListResult } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { UserHttpDomainGateway } from '../gateways';
+import type { AdminEndpointOptions } from './SubscriptionHttpDataSource';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
 export interface IUserHttpDataSource {
+    /** `opts.endpoint` lists another stage's relay — the admin console's stage switch. */
     listRelayUsers(
         params: Record<string, unknown> | undefined,
-        context: DataContext
+        context: DataContext,
+        opts?: AdminEndpointOptions
     ): Promise<DomainListResult<DomainUser>>;
     /** No-retry profile probe — errors bubble, same as the gateway (caller decides fallback). */
     tryFetchProfile(): Promise<UserProfile$>;
@@ -23,9 +26,10 @@ export class UserHttpDataSource implements IUserHttpDataSource {
 
     async listRelayUsers(
         params: Record<string, unknown> | undefined,
-        context: DataContext
+        context: DataContext,
+        opts?: AdminEndpointOptions
     ): Promise<DomainListResult<DomainUser>> {
-        const result = await this.gateway.list(params);
+        const result = await this.gateway.list(params, opts);
         const list = result.list.map(view => toDomainUserFromHttp(view, context));
         return createDomainListResult(list, { total: result.total ?? list.length, source: 'remote' });
     }

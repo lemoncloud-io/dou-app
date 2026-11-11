@@ -1,5 +1,5 @@
 import { Camera, Globe, Loader2, Smartphone } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -8,13 +8,24 @@ import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
+import { AlertDialog } from '@chatic/web-ui-kit';
 
-import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
+import { appBridge } from '../../../bridge';
+
+import {
+    useCloudName,
+    useCloudSessionCatalog,
+    useDevicePairingEnabled,
+    useInvitedClouds,
+    useIsAccountGuest,
+} from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { QrScannerSheet } from '../components/QrScannerSheet';
 import { useNow, usePairingApproval } from '../hooks';
+import { canScanLive, type LiveQrOpenFailure } from '../lib/liveQrScanner';
 import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
-import { pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
+import { pairingClouds, pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
 import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
 
 /**
@@ -46,15 +57,22 @@ const PairingApproveScreen = () => {
     const navigate = useNavigateWithTransition();
     const { code, setCode, state, error, approve, deny, retry, reset } = usePairingApproval();
     const isRelayGuest = useIsAccountGuest();
-    const { clouds } = useCloudSessionCatalog();
+    const { clouds: ownedClouds } = useCloudSessionCatalog();
+    const { invitedClouds } = useInvitedClouds();
+    const cloudName = useCloudName();
+    // Named the way the devices screen and the sign-out confirm name them, so the scope reads the same.
+    const clouds = pairingClouds(ownedClouds, invitedClouds).map(cloud => ({
+        ...cloud,
+        name: cloudName(cloud.id),
+    }));
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const [scanNote, setScanNote] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
+    const [liveScan, setLiveScan] = useState(false);
+    const [cameraRefused, setCameraRefused] = useState(false);
 
-    const { options, defaultKey } = useMemo(
-        () => pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId }),
-        [isRelayGuest, clouds, selectedCloudId]
-    );
+    // The selection is seeded once from `defaultKey`, so rebuilding the options each render is harmless.
+    const { options, defaultKey } = pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId });
 
     useEffect(() => {
         if (state.step === 'approved') {
@@ -66,8 +84,30 @@ const PairingApproveScreen = () => {
         }
     }, [state.step, t, toast, navigate]);
 
-    const scan = async () => {
+    // A live scan first; a page that cannot open a camera stream falls back to taking a photo.
+    const scan = () => {
         setScanNote(null);
+        if (canScanLive()) setLiveScan(true);
+        else void scanPhoto();
+    };
+
+    const onLiveCode = (scanned: string) => {
+        setLiveScan(false);
+        setCode(scanned);
+    };
+
+    const onLiveUnavailable = (reason: LiveQrOpenFailure) => {
+        setLiveScan(false);
+        // A refusal is the person's answer, so the photo camera is not put in front of them next; any
+        // other failure (no stream, a camera in use) still has the photo bridge to try. Only Settings can
+        // undo a refusal, so the way there is offered at once; the note stays for after it is closed.
+        if (reason === 'denied') {
+            setScanNote(t('pairing.approve.scanDenied'));
+            setCameraRefused(true);
+        } else void scanPhoto();
+    };
+
+    const scanPhoto = async () => {
         setScanning(true);
         try {
             const result = await scanPairingQr();
@@ -102,7 +142,7 @@ const PairingApproveScreen = () => {
                         />
                         <button
                             type="button"
-                            onClick={() => void scan()}
+                            onClick={scan}
                             disabled={scanning || state.step === 'checking'}
                             data-testid="pairing-approve-scan"
                             className="flex items-center justify-center gap-2 rounded-2xl border border-input-border py-3 text-[15px] font-medium text-foreground disabled:opacity-50"
@@ -132,6 +172,26 @@ const PairingApproveScreen = () => {
                         {t('pairing.code.retry')}
                     </button>
                 )}
+
+                {liveScan && (
+                    <QrScannerSheet
+                        onCode={onLiveCode}
+                        onClose={() => setLiveScan(false)}
+                        onUnavailable={onLiveUnavailable}
+                    />
+                )}
+                <AlertDialog
+                    open={cameraRefused}
+                    onOpenChange={setCameraRefused}
+                    title={t('pairing.approve.cameraRefused.title')}
+                    description={t('pairing.approve.cameraRefused.description')}
+                    cancelLabel={t('common.cancel')}
+                    confirmLabel={t('pairing.approve.cameraRefused.settings')}
+                    onConfirm={() => {
+                        setCameraRefused(false);
+                        appBridge.openSettings();
+                    }}
+                />
 
                 {check && (
                     <ConfirmStep
@@ -173,6 +233,10 @@ const ConfirmStep = ({
     const isPhone = check.client.platform === 'ios' || check.client.platform === 'android';
     const isDebug = check.purpose === 'debug';
     const choice = options.find(option => option.key === selected) ?? null;
+    const relayOptions = options.filter(option => option.target.type === 'relay');
+    const cloudOptions = options.filter(option => option.target.type === 'cloud');
+    // A relay approval carries the owned clouds and not the invited ones, so say so where it matters.
+    const hasInvited = cloudOptions.some(option => option.cloudKind === 'invited');
 
     return (
         <div className="flex flex-col gap-5" data-testid="pairing-approve-confirm">
@@ -213,30 +277,51 @@ const ConfirmStep = ({
                     {t('pairing.approve.noTarget')}
                 </p>
             ) : (
-                <div className="flex flex-col gap-2" role="radiogroup">
-                    {options.map(option => (
-                        <label
-                            key={option.key}
-                            className={cn(
-                                'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3',
-                                selected === option.key ? 'border-primary' : 'border-input-border'
-                            )}
+                <div className="flex flex-col gap-6" role="radiogroup">
+                    {relayOptions.length > 0 && (
+                        <TargetSection
+                            id="pairing-section-account"
+                            title={t('pairing.scope.accountSection')}
+                            hint={t('pairing.scope.accountSectionHint')}
                         >
-                            <input
-                                type="radio"
-                                name="pairing-target"
-                                checked={selected === option.key}
-                                onChange={() => setSelected(option.key)}
-                                data-testid={`pairing-target-${option.key}`}
-                                className="mt-1"
-                            />
-                            <span className="text-[14px] leading-[1.5] text-foreground">
-                                {option.target.type === 'relay'
-                                    ? t('pairing.scope.relayOption')
-                                    : t('pairing.scope.cloudOption', { cloud: option.cloudName })}
-                            </span>
-                        </label>
-                    ))}
+                            {relayOptions.map(option => (
+                                <TargetOption
+                                    key={option.key}
+                                    option={option}
+                                    selected={selected === option.key}
+                                    onSelect={setSelected}
+                                    title={t('pairing.scope.relayTitle')}
+                                    description={t('pairing.scope.relayDescription')}
+                                    note={hasInvited ? t('pairing.scope.relayInvitedNote') : undefined}
+                                />
+                            ))}
+                        </TargetSection>
+                    )}
+                    {cloudOptions.length > 0 && (
+                        <TargetSection
+                            id="pairing-section-cloud"
+                            title={t('pairing.scope.cloudSection')}
+                            hint={t('pairing.scope.cloudSectionHint')}
+                        >
+                            {cloudOptions.map(option => (
+                                <TargetOption
+                                    key={option.key}
+                                    option={option}
+                                    selected={selected === option.key}
+                                    onSelect={setSelected}
+                                    title={option.cloudName ?? option.key}
+                                    badge={t('pairing.scope.cloudBadge')}
+                                    description={
+                                        option.cloudKind === 'invited'
+                                            ? t('pairing.scope.cloudInvited')
+                                            : option.cloudKind === 'owned'
+                                              ? t('pairing.scope.cloudOwned')
+                                              : undefined
+                                    }
+                                />
+                            ))}
+                        </TargetSection>
+                    )}
                 </div>
             )}
 
@@ -270,3 +355,74 @@ const ConfirmStep = ({
         </div>
     );
 };
+
+/** One kind of approval: a heading, what that kind means, and its options. */
+const TargetSection = ({
+    id,
+    title,
+    hint,
+    children,
+}: {
+    id: string;
+    title: string;
+    hint: string;
+    children: ReactNode;
+}) => (
+    <section className="flex flex-col gap-2" role="group" aria-labelledby={id} data-testid={id}>
+        <h2 id={id} className="text-[15px] font-semibold text-foreground">
+            {title}
+        </h2>
+        <p className="text-[13px] leading-[1.5] text-description">{hint}</p>
+        <div className="mt-1 flex flex-col gap-2">{children}</div>
+    </section>
+);
+
+const TargetOption = ({
+    option,
+    selected,
+    onSelect,
+    title,
+    badge,
+    description,
+    note,
+}: {
+    option: PairingTargetOption;
+    selected: boolean;
+    onSelect: (key: string) => void;
+    title: string;
+    badge?: string;
+    description?: string;
+    note?: string;
+}) => (
+    <label
+        className={cn(
+            'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3',
+            selected ? 'border-primary' : 'border-input-border'
+        )}
+    >
+        <input
+            type="radio"
+            name="pairing-target"
+            checked={selected}
+            onChange={() => onSelect(option.key)}
+            data-testid={`pairing-target-${option.key}`}
+            className="mt-1"
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-[15px] font-medium text-foreground">{title}</span>
+                {badge && (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
+                        {badge}
+                    </span>
+                )}
+            </span>
+            {description && <span className="text-[13px] leading-[1.5] text-description">{description}</span>}
+            {note && (
+                <span className="text-[13px] leading-[1.5] text-foreground" data-testid="pairing-target-note">
+                    {note}
+                </span>
+            )}
+        </span>
+    </label>
+);

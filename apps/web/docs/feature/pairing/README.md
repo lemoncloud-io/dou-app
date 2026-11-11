@@ -2,8 +2,7 @@
 
 `apps/web/src/app/features/pairing` is device pairing on the web: a browser (or a phone that is not
 signed in) shows an eight-digit code and its QR, and a signed-in app approves it. Every entry sits
-behind `feature.auth.devicePairing`, which is on in LOCAL and DEV only until the design and wording are
-settled.
+behind `feature.auth.devicePairing`, which is on in every stage; turning it off hides every entry again.
 
 The flow itself is `@chatic/app-runtime`'s (`runtime.session.usePairingRequest`, documented in its
 session docs); this feature is the screens around it.
@@ -16,15 +15,18 @@ features/pairing/
 │   ├── PairingCodePage.tsx     the requesting device's code screen — /mypage/login/pair
 │   ├── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
 │   └── PairingDevicesPage.tsx  my devices and the sign-ins I approved — /mypage/devices
+├── components/
+│   └── QrScannerSheet.tsx      the full-screen live scanner the approve screen opens
 ├── hooks/                      useNow (a countdown's clock) ·
 │                               usePairingApproval (look up → approve or decline) ·
 │                               usePairingDevices (the two lists and their removals)
 └── lib/
     ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
-    ├── pairingTargets.ts       what an approval can let the requester into, and the default
-    ├── scanPairingQr.ts        the camera bridge → a code, or why there is none
+    ├── pairingTargets.ts       approvable clouds (owned + invited), the options, the default
+    ├── liveQrScanner.ts        the camera stream in the page → a code (LiveQrScanner)
+    ├── scanPairingQr.ts        the camera bridge's photo → a code, or why there is none
     ├── deviceRows.ts           kind labels; standing approvals, newest first, unclaimed flagged
-    └── pairingQr.ts            photo (base64) → the eight-digit code, or null
+    └── pairingQr.ts            pixels (a photo or a frame) → the eight-digit code, or null
 ```
 
 The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
@@ -98,9 +100,27 @@ server's.
 2. **Who asks.** A large card: the requester's name, phone or browser by `client.platform`, the time
    left, and "approve only if this is the browser you just opened". A developer tool (`purpose:
 'debug'`) adds a warning and a checkbox, and approval stays off until it is ticked.
-3. **What it may use.** "My whole account" (relay), then each cloud in the cloud catalog. The active slot starts selected. With nothing to offer the screen says so and shows no
-   approve button. The button repeats the scope ("Approve only Lemon"), the same words the device
-   management screen uses later.
+3. **What it may use.** Two sections, one per kind of approval, each headed by what that kind gives
+   the browser:
+    - **Sign in as my account** — "My whole account" (relay): DoU Home, the clouds the account
+      created, and the account settings. The invited clouds are **not** part of it — the relay's
+      answer is the account's session, and an invited cloud's membership belongs to the device user
+      that accepted the invite, which the account session does not carry. When the account holds an
+      invited cloud, the option says so and points at the section below.
+    - **Use one cloud only** — each cloud the account can switch to, marked "Cloud" and, under its
+      name, whether the account created it or was invited to it. The owned clouds come from the relay
+      catalog, then the invited ones, which live only in this device's cloud cache
+      (`useInvitedClouds`) because the catalog lists owned clouds alone. The relay checks a cloud
+      approval the way it checks the approver's own switch, so an invited cloud the app can enter can
+      be approved too. The browser stays a relay guest with no account settings, and more clouds are
+      added one approval at a time from its "Add a cloud with another device".
+
+    One approval carries one target, so a single radio group spans both sections. The active slot
+    starts selected, an invited cloud included. With nothing to offer the screen says so and shows no
+    approve button. The button repeats the scope ("Approve only the Lemon cloud"), the same words the
+    device management screen and the sign-out confirm use later — all three name a cloud through
+    `useCloudName` (below).
+
 4. **The answer.** Approve or decline, a toast, and back. Errors come from
    `runtime.session.classifyPairingError` (404 not found, `400 … pairing expired`, 403 on the code or on
    the target, 409 already handled), each with its own sentence.
@@ -124,8 +144,8 @@ is sent back; everyone else gets the first section, and an approving app the sec
   says "No devices connected" rather than leaving an empty card; a cloud may hold none for this
   account until one of its devices saves itself there.
 - **Approved sign-ins** — inside the app, on an account that is not a secondary device — the devices
-  that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" / "only
-  Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
+  that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" /
+  "only Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
   claimed is a lost session and is flagged for removal; a cloud approval never carries a session, so it
   never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but
   an open screen may last until its tokens expire. The header links to the approval screen. With
@@ -140,19 +160,58 @@ cloud approval is among them), revokes them all on confirm and then opens `/auth
 nothing approved, in a browser, on a secondary device, or when the list cannot be read, the logout
 happens at once.
 
-## Reading a pairing QR from a photo
+## Naming a cloud
 
-The mobile app has no live QR scanner, and adding one would mean a new native dependency and camera
-settings in the WebView. The approval screen takes a photo through the existing camera bridge instead
-and reads the code from it in the page:
+The approval screen, the approved sign-ins and the sign-out confirm all name a cloud through
+`useCloudName` (`src/app/hooks`): the cached name, then the relay catalog's, then the id. The cache
+comes first because an invited cloud is not in the catalog at all, and because an owned cloud's cached
+name is the fresh one right after a rename. Naming is not narrowed to the clouds this session can
+switch to — an approval made earlier can point at an invited cloud this session no longer lists, and it
+still reads as that cloud's name.
+
+## Reading a pairing QR
+
+"Scan QR" opens a live scanner first and falls back to a photo.
+
+### Live, in the page
+
+`QrScannerSheet` covers the screen with the back camera and a guide square; `LiveQrScanner` behind it
+opens the stream with `getUserMedia` (`facingMode: environment`, about 1280×720, no audio), and every
+150 ms draws the current frame on a canvas at 640 px on its longest edge and reads it. The first frame
+holding a pairing code fills the input and closes the sheet; a QR holding anything else shows "not a
+DoU QR" for two seconds while scanning goes on.
+
+- **It needs no newer app.** The camera stream is the WebView's own: Android's
+  (react-native-webview) answers the page's camera request with the app's `CAMERA` permission, asking
+  for it when it is not granted yet, and iOS's WKWebView asks the person once per page. Both app
+  builds already declare the camera permission, so the scanner works on shells that predate it —
+  unlike the photo path below, whose base64 answer needs a newer one.
+- **Frames alternate between the image and its inverse.** A code on a dark-mode screen only reads
+  inverted; decoding both on every frame would double the main-thread cost, so each frame tries one.
+  jsqr 1.4's own `onlyInvert` throws (it never builds the inverted image), so `readQrText` inverts the
+  pixels itself.
+- **When the camera cannot be opened.** No `getUserMedia` (`canScanLive()` is false) goes straight to
+  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: no
+  photo camera is put up next. Only Settings can undo it, so a prompt offers the way there at once
+  ("Open Settings" → `OpenSettings`), and a note saying to allow the camera or type the digits stays
+  after the prompt is closed. Anything else — no camera, one in use, a stream whose `play()` is
+  refused — falls back to the photo. A refused `play()` is never read as a refusal of the camera: the
+  iOS WebView keeps `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was
+  already granted.
+- **It lets go of the camera** on a code, on close, on unmount and when the page is hidden (iOS
+  suspends the camera in the background, and returning to a frozen picture reads as broken).
+
+### From a photo
+
+The fallback takes a photo through the existing camera bridge and reads the code from it in the page:
 
 1. `appBridge.openCamera({ mediaType: 'photo', includeBase64: true, maxWidth: 1024, quality: 0.7 })`.
    Always send `maxWidth` and `quality` with `includeBase64`: an original-size photo is several MB of
    base64 crossing the bridge, and 1024 px is plenty for a QR code.
-2. `decodePairingQr(asset.base64, { mimeType: asset.type })` draws the photo on a canvas — scaled to 1024 px on its longest edge, so a photo sent without
-   `maxWidth` still costs a bounded buffer — finds a QR
-   code with `jsqr` (trying the inverted image too, for a code shown on a dark screen) and keeps its
-   text only if it is exactly eight digits.
+2. `decodePairingQr(asset.base64, { mimeType: asset.type })` draws the photo on a canvas — scaled to
+   1024 px on its longest edge, so a photo sent without `maxWidth` still costs a bounded buffer — finds
+   a QR code with `jsqr` (trying the inverted image too, for a code shown on a dark screen) and keeps
+   its text only if it is exactly eight digits.
 
 The contract of the reader:
 

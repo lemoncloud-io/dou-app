@@ -9,6 +9,7 @@ let mockPaired = false;
 let mockEnabled = true;
 let mockGuest = false;
 let mockClouds: Array<{ id: string; name: string }> = [];
+let mockInvited: Array<{ id: string; name: string }> = [];
 let mockSelected = 'default';
 const approval = {
     code: '',
@@ -21,6 +22,8 @@ const approval = {
     reset: jest.fn(),
 };
 const scanPairingQr = jest.fn();
+const openSettings = jest.fn();
+let mockLive = false;
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
@@ -42,6 +45,8 @@ jest.mock('../../../hooks', () => ({
     useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
     useCloudSessionCatalog: () => ({ clouds: mockClouds }),
+    useInvitedClouds: () => ({ invitedClouds: mockInvited }),
+    useCloudName: () => (id?: string) => [...mockClouds, ...mockInvited].find(c => c.id === id)?.name || id || '',
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../hooks', () => ({
@@ -49,6 +54,19 @@ jest.mock('../hooks', () => ({
     usePairingApproval: () => approval,
 }));
 jest.mock('../lib/scanPairingQr', () => ({ scanPairingQr: () => scanPairingQr() }));
+jest.mock('../../../bridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
+jest.mock('../lib/liveQrScanner', () => ({ canScanLive: () => mockLive }));
+// The sheet's own behaviour is tested beside it; here it only has to report back.
+jest.mock('../components/QrScannerSheet', () => ({
+    QrScannerSheet: (p: { onCode: (c: string) => void; onClose: () => void; onUnavailable: (r: string) => void }) => (
+        <div data-testid="live-scanner">
+            <button onClick={() => p.onCode('07344168')}>live-code</button>
+            <button onClick={p.onClose}>live-close</button>
+            <button onClick={() => p.onUnavailable('denied')}>live-denied</button>
+            <button onClick={() => p.onUnavailable('failed')}>live-failed</button>
+        </div>
+    ),
+}));
 
 const CHECK = {
     pairingId: 'p-1',
@@ -65,7 +83,9 @@ beforeEach(() => {
     mockEnabled = true;
     mockGuest = false;
     mockClouds = [];
+    mockInvited = [];
     mockSelected = 'default';
+    mockLive = false;
     Object.assign(approval, { code: '', state: { step: 'input' }, error: null });
 });
 
@@ -82,7 +102,80 @@ describe('PairingApprovePage', () => {
         expect(screen.getByTestId('redirect').textContent).toBe('/mypage');
     });
 
-    it('fills the input from a scanned QR', async () => {
+    describe('with a camera stream', () => {
+        beforeEach(() => (mockLive = true));
+
+        it('scans live and fills the input with the code it reads', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-code'));
+
+            expect(approval.setCode).toHaveBeenCalledWith('07344168');
+            expect(screen.queryByTestId('live-scanner')).toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+
+        it('closes without a word or a photo when the person closes it', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-close'));
+
+            expect(screen.queryByTestId('live-scanner')).toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+            expect(screen.queryByText(/pairing.approve.scan(Denied|OldApp|NotOurs|NoQr)/)).toBeNull();
+        });
+
+        it('falls back to a photo when the camera stream cannot be opened', async () => {
+            scanPairingQr.mockResolvedValue({ kind: 'code', code: '07344168' });
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-failed'));
+            await Promise.resolve();
+
+            expect(scanPairingQr).toHaveBeenCalled();
+            expect(approval.setCode).toHaveBeenCalledWith('07344168');
+        });
+
+        it('takes a refused camera as the answer: a note, no photo camera', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-denied'));
+
+            expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+
+        it('offers Settings for a refused camera, the only place it can be allowed again', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-denied'));
+            expect(screen.getByText('pairing.approve.cameraRefused.title')).not.toBeNull();
+            fireEvent.click(screen.getByRole('button', { name: 'pairing.approve.cameraRefused.settings' }));
+
+            expect(openSettings).toHaveBeenCalledTimes(1);
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
+            // The note outlives the prompt, for whoever closes it and types the digits instead.
+            expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
+        });
+
+        it('does not offer Settings when the camera failed for another reason', async () => {
+            scanPairingQr.mockResolvedValue({ kind: 'cancel' });
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-failed'));
+            await Promise.resolve();
+
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
+        });
+    });
+
+    it('fills the input from a photographed QR where no camera stream exists', async () => {
         scanPairingQr.mockResolvedValue({ kind: 'code', code: '07344168' });
         render(<PairingApprovePage />);
 
@@ -144,6 +237,46 @@ describe('PairingApprovePage', () => {
         expect(screen.getByTestId('pairing-approve-submit').textContent).toBe(
             'pairing.scope.cloudApprove:{"cloud":"Lemon"}'
         );
+    });
+
+    it('offers an invited cloud and starts on it while the app is in it', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        mockInvited = [{ id: '1000009', name: 'Lime' }];
+        mockSelected = '1000009';
+        render(<PairingApprovePage />);
+
+        expect((screen.getByTestId('pairing-target-1000009') as HTMLInputElement).checked).toBe(true);
+        fireEvent.click(screen.getByTestId('pairing-approve-submit'));
+        expect(approval.approve).toHaveBeenCalledWith({ type: 'cloud', cloudId: '1000009' });
+    });
+
+    it('splits the account from the clouds, and marks each cloud as a cloud, owned or invited', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        mockInvited = [{ id: '1000009', name: 'Lime' }];
+        render(<PairingApprovePage />);
+
+        const account = screen.getByTestId('pairing-section-account');
+        const cloud = screen.getByTestId('pairing-section-cloud');
+        expect(account.contains(screen.getByTestId('pairing-target-relay'))).toBe(true);
+        expect(cloud.contains(screen.getByTestId('pairing-target-1000002'))).toBe(true);
+        expect(cloud.contains(screen.getByTestId('pairing-target-1000009'))).toBe(true);
+
+        const lemon = screen.getByTestId('pairing-target-1000002').closest('label');
+        const lime = screen.getByTestId('pairing-target-1000009').closest('label');
+        expect(lemon?.textContent).toBe('Lemonpairing.scope.cloudBadgepairing.scope.cloudOwned');
+        expect(lime?.textContent).toBe('Limepairing.scope.cloudBadgepairing.scope.cloudInvited');
+        // The account option says invited clouds are not part of it, since there is one to name.
+        expect(account.textContent).toContain('pairing.scope.relayInvitedNote');
+    });
+
+    it('drops the invited-cloud note when the account has no invited cloud', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        render(<PairingApprovePage />);
+
+        expect(screen.queryByTestId('pairing-target-note')).toBeNull();
     });
 
     it('keeps approval off for a developer tool until it is confirmed', () => {

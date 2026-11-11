@@ -5,6 +5,11 @@ typed message, and a handler hook answers it through a service.
 
 > To inspect webview console output and errors at the code level (Safari Web Inspector /
 > `chrome://inspect`), see [webview-debugging.md](./webview-debugging.md).
+>
+> The second WebView the shell shows over this one, for a page on another origin, is in
+> [sub-webview.md](./sub-webview.md). It shares none of what follows: its own host, a subset of the
+> vocabulary, none of this injection. What a page in it and the shell say to each other is
+> [sub-webview-protocol.md](./sub-webview-protocol.md).
 
 ## Key files
 
@@ -13,8 +18,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
 | `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
 | `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 28 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
-| `src/app/webview/hooks/*Handler.ts`                          | 29 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 32 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 33 domain handlers, one per capability group                                                                 |
 | `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
 | `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
@@ -125,19 +130,27 @@ web falls back to its file input on ([../native/photo-library.md](../native/phot
 same holds for `PickAttachments`, `PrepareVideo` and `ReadAttachment` (the native `AttachmentPicker` module,
 [../native/attachment-picker.md](../native/attachment-picker.md)), and for `OpenFile` and `SaveFile`,
 each registered only when the installed `MediaExport` module has that method
-([../native/media-export.md](../native/media-export.md)). A handler that exists but fails would take
+([../native/media-export.md](../native/media-export.md)), and for `StartAudioRecording` and
+`StopAudioRecording` (the native `AudioRecorder` module,
+[../native/audio-recording.md](../native/audio-recording.md)) — the web draws its microphone only
+when the handshake lists them. A handler that exists but fails would take
 that fallback away.
+
+`StorageGet`, `StorageSave` and `StorageClear` (the device vault,
+[../storage/device-vault.md](../storage/device-vault.md)) are registered always, and on this host
+only: the sub WebView's host never answers them, and this one already drops messages from an
+untrusted origin.
 
 ## The bridge contract
 
-`useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/app-messages`.
+`useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/bridge-messages`.
 It mounts the router and `useWebViewNavigation` (which registers `SetCanGoBack`) on a real
 `AppBridgeHost`, with every domain hook stubbed and every native module reported present, and reads
 what got registered — `WebAppReady` and `Ping` included, since the host registers those itself.
 Then:
 
 - **Every request in `WEB_MESSAGE_RESPONSE_TYPE` is decided.** Each has a handler or a line in
-  `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/app-messages` fails the
+  `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/bridge-messages` fails the
   suite until this shell makes that call.
 - **Nothing stale survives.** A handler for a request no longer in the map fails it, and so does an
   unsupported line for a request that has since gained a handler or left the map. The list's
@@ -154,7 +167,9 @@ Then:
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
-through the router.
+through the router. The one other caller is the sub WebView's own host
+(`subWebView/createSubBridgeHost.ts`), a different host whose handshake its own test pins to the
+sub WebView subset — see [sub-webview.md](./sub-webview.md).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
@@ -199,15 +214,17 @@ sends it, and the web reads it through `webClient.onEvent`. Nothing answers an e
 the web side notices one that never comes or arrives in the wrong shape — which is why this
 direction has its own contract tests.
 
-| Event                                   | Pushed by                   | When                                                                                                                                   |
-| --------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history; otherwise the press goes to the OS |
-| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                           |
-| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                  |
-| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                              |
-| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                              |
-| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                  |
-| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                  |
+| Event                                   | Pushed by                   | When                                                                                                                                                      |
+| --------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history, and no sub WebView shows; otherwise the press goes on |
+| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                                              |
+| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                                     |
+| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                                                 |
+| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                                                 |
+| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                     |
+| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
+| `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
+| `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
 
 `OnUpdateStatus` is the one push-only message this shell never sends: the desktop updates itself,
 the phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the
@@ -216,7 +233,7 @@ web's `OpenURL` request.
 ### Its contract tests
 
 `appEvents.contract.test.ts` is the inventory. `MOBILE_APP_EVENTS` decides every push-only message
-in `@chatic/app-messages` — every type `AppMessageDataMap` declares that no request in
+in `@chatic/bridge-messages` — every type `AppMessageDataMap` declares that no request in
 `WEB_MESSAGE_RESPONSE_TYPE` is answered with — as either pushed (by which file, triggered by which
 test) or never pushed, with a reason. The suite fails when:
 
@@ -293,6 +310,18 @@ instead of surfacing as an opaque "Script error.":
   [../system/theme.md](../system/theme.md)
 - `CHATIC_APP_CONFIG_BAG` — `@chatic/config`'s shell-lane KV bag, so `config.init()` can hydrate
   synchronously before the web's first paint
+- `CHATIC_APP_STORAGE_MEDIA` — the storage media this shell keeps (`['nativeSecure']`). The web
+  decides from this list alone whether to ask for the device vault, so it is set before the page runs;
+  a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
+  the post-load injection, so the list is in both
+
+**A throw skips everything after it in the block, so no snippet may throw on a page that has not
+started yet.** Android can run the before-content injection before the document has a root
+element. The safe-area snippet used to throw there, and the snippets after it were lost: the web
+then booted without the config bag (and showed onboarding to someone who had finished it) and
+without the storage-media list (so it booted on the tab, then reloaded once the shell answered).
+The safe-area snippet now returns early instead, since the post-load injection and the inset effect
+set the variables again, and the storage-media assignment comes first in the block.
 
 All string values are `JSON.stringify`-interpolated rather than quoted directly: an unescaped quote
 or backslash from native data (a localized app name, an odd Android device-model string) would
@@ -318,6 +347,23 @@ such as `saveToPhotos`, stays the service's decision. A request with no options 
 the service's defaults, as it did before the options were read. Earlier builds dropped the options
 entirely, so `includeBase64` never reached the picker and the page got only a `uri` it cannot read —
 the web has to expect an asset without `base64` from an app that has not updated.
+
+The page can also open the camera itself, with no bridge message: the pairing QR scanner reads a live
+`getUserMedia` stream. That rests on three things the shell already has, and removing any of them
+breaks it without a compile error — the `CAMERA` permission in `AndroidManifest.xml` (react-native-
+webview's Android client grants the page's camera request only when the app holds it, and asks for it
+when it does not), `NSCameraUsageDescription` in `Info.plist`, and `allowsInlineMediaPlayback` (without
+it iOS hands the `<video>` to its full-screen player). `mediaCapturePermissionGrantType` is left at its
+default, so iOS asks the person once per page load.
+
+The microphone is declared too (`RECORD_AUDIO`, `NSMicrophoneUsageDescription`), for voice messages,
+but the page never captures audio itself: the shell records with the OS recorder and hands back a file
+([native/audio-recording.md](../native/audio-recording.md)), and the permission is asked for by
+`PermissionService` (`MICROPHONE`) at the first recording — on iOS that needs the `Microphone` handler in the
+Podfile's `setup_permissions`, without which react-native-permissions answers `unavailable`. The same
+defaults mean a page that did ask for audio through `getUserMedia` would get the OS prompt under DoU's
+name on iOS, and on Android a grant with no prompt once the app holds `RECORD_AUDIO` — the main web
+does not ask, and the sub WebView's terms are in [sub-webview.md](./sub-webview.md).
 
 ## Device contacts
 
@@ -345,7 +391,7 @@ on the wire.
 
 ## Change checklist
 
-- Is a new WebView message type reflected in `@chatic/app-messages`, and does this shell either
+- Is a new WebView message type reflected in `@chatic/bridge-messages`, and does this shell either
   answer it (a handler wired into the router) or list it in `MOBILE_UNSUPPORTED` with its reason?
   The contract suite fails until it does — and the desktop one does the same for that shell.
 - Does a handler only call a service, without carrying its own domain logic?

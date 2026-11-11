@@ -27,6 +27,13 @@ module.exports = {
                     foreground: 'hsl(var(--card-foreground))',
                 },
                 navy: '#102346',
+                // Neutrals of the subscription design: headings, secondary copy, hairlines, and the two
+                // pale fills (page footer / panels, and the note box).
+                ink: '#12131a',
+                mute: '#80828a',
+                line: '#ededf0',
+                surface: '#f4f5f5',
+                note: '#f6f6f7',
                 'main-green': '#B0EA10',
                 subtitle: '#53555B',
                 'desc-alt': '#3A3C40',

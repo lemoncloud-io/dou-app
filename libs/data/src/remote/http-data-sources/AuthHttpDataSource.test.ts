@@ -40,7 +40,15 @@ describe('AuthHttpDataSource', () => {
 
         await dataSource.registerUserV2({} as never, true, context);
 
-        expect(gateway.registerUserV2).toHaveBeenCalledWith({}, true);
+        expect(gateway.registerUserV2).toHaveBeenCalledWith({}, true, undefined);
+    });
+
+    it('registerUserV2 — passes an endpoint override through to the gateway', async () => {
+        gateway.registerUserV2.mockResolvedValue({ id: 'u3' } as any);
+
+        await dataSource.registerUserV2({} as never, false, context, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(gateway.registerUserV2).toHaveBeenCalledWith({}, false, { endpoint: 'https://other.test/dou-d1' });
     });
 
     it('findAlias / verifyAlias — no domain mapping, passthrough', async () => {

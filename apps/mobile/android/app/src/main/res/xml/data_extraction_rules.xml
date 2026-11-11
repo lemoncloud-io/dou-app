@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+ cloud backup and device-to-device transfer. Cloud backup is already off
+    (allowBackup="false" in the manifest); the rules below matter for a transfer to a new phone, which
+    allowBackup does not stop from Android 12.
+
+    The device vault (react-native-keychain) never moves: its ciphertext is useless without this
+    phone's Keystore key, which stays behind, so a copy would only arrive as an item the new phone
+    cannot decrypt. Its install flag stays behind with it, so the new phone starts the vault fresh.
+
+    - datastore/RN_KEYCHAIN.preferences_pb: where react-native-keychain keeps its encrypted items.
+    - RN_KEYCHAIN.xml: the SharedPreferences file it migrates from (older versions wrote there).
+    - mmkv/secure-storage(.crc): the MMKV instance holding only the vault's install flag.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore/RN_KEYCHAIN.preferences_pb" />
+        <exclude domain="sharedpref" path="RN_KEYCHAIN.xml" />
+        <exclude domain="file" path="mmkv/secure-storage" />
+        <exclude domain="file" path="mmkv/secure-storage.crc" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/RN_KEYCHAIN.preferences_pb" />
+        <exclude domain="sharedpref" path="RN_KEYCHAIN.xml" />
+        <exclude domain="file" path="mmkv/secure-storage" />
+        <exclude domain="file" path="mmkv/secure-storage.crc" />
+    </device-transfer>
+</data-extraction-rules>

@@ -9,7 +9,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { MenuCard } from '@chatic/web-ui-kit';
 
-import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
+import { useCloudName, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
@@ -43,8 +43,7 @@ const PairingDevicesScreen = () => {
     const showApprovals = isNative() && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
-    const { clouds } = useCloudSessionCatalog();
-    const cloudName = (cloudId?: string) => clouds.find(cloud => cloud.id === cloudId)?.name || cloudId || '';
+    const cloudName = useCloudName();
 
     const devices = useMyDevices();
     const unlink = useUnlinkDevice();

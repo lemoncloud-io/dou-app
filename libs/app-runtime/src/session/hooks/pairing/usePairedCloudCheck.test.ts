@@ -5,14 +5,14 @@ import { usePairedCloudCheck } from './usePairedCloudCheck';
 const checkAll = jest.fn();
 let paired: string[] = [];
 
-jest.mock('../../pairing/pairedCloudSessions', () => ({
+jest.mock('@chatic/auth/pairing/pairedCloudSessions', () => ({
     PAIRED_CLOUD_CHECK_INTERVAL_MS: 600_000,
     pairedCloudSessions: { checkAll: () => checkAll() },
 }));
 const clear = jest.fn();
 let relayGuest = true;
-jest.mock('../../pairing/pairedClouds', () => ({ pairedClouds: { list: () => paired, clear: () => clear() } }));
-jest.mock('../../pairing/pairedSession', () => ({ isRelayGuest: () => relayGuest }));
+jest.mock('@chatic/auth/pairing/pairedClouds', () => ({ pairedClouds: { list: () => paired, clear: () => clear() } }));
+jest.mock('@chatic/auth/pairing/pairedSession', () => ({ isRelayGuest: () => relayGuest }));
 let initialized = true;
 jest.mock('../session/readers/useSessionAuth', () => ({ useSessionAuth: () => ({ isInitialized: initialized }) }));
 

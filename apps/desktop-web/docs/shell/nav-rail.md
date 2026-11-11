@@ -41,10 +41,16 @@ it shows the mobile-app pointer instead
 
 ## The tiles
 
-A tile is a 44px icon box with its label under it. The open one has a tinted fill (`bg-primary/[0.24]`),
-a heavier icon stroke and a bold label. It carries `aria-current="page"`. A destination with something
+A tile is a 44px icon box with its label under it. The open one has a filled tile in the theme's
+`--rail-active` (lime, or near-black on a coloured rail of about lime's lightness such as Lemon's;
+dark mode keeps a lime tint, `bg-primary/[0.24]`), a heavier icon stroke and a bold label. It carries `aria-current="page"`. A destination with something
 unread gets a red dot (`bg-badge-unread`), and its accessible name says so (`nav.unread`), because a dot
 alone is not read out.
+
+The Home tile draws the open place's logo in place of the house glyph, so a user with several places
+sees which one the rail is in. A place without a logo, and the Home cloud (no places), keep the glyph.
+Its label and accessible name stay "Home". The same logo on the place rail would hide that tile's lime
+fill, so a place tile with a logo marks the open place with a ring instead.
 
 ## Width
 
@@ -58,6 +64,11 @@ Both rails are `width.rail` (80px, `tailwind.config.js`). `AppShellSkeleton` dra
 and `usePanelWidth` counts them in its budget (`RAIL_WIDTH`). Change all three together, or the boot
 skeleton jumps and the panels can squeeze the conversation under its floor.
 
+`AppShellSkeleton` is only for the home route, the one route that renders this shell. `RouteFallback`
+picks the placeholder for a suspended route or boot: the shell skeleton on `/`, `PageSkeleton` (a
+`PageShell`-shaped header and cards) on every other signed-in route, the plain loader signed out.
+Settings, Profile and Account have no rails, so the shell skeleton there promised a layout that never arrived.
+
 Below `NARROW_SHELL_WIDTH` the sidebar becomes a drawer that opens beside the docked rails. Below
 `COMPACT_SHELL_WIDTH` the nav rail joins the cloud and place rail inside the drawer, as described in
 [trailing-panels.md](./trailing-panels.md#the-sidebar-drawer).
@@ -65,8 +76,14 @@ Below `NARROW_SHELL_WIDTH` the sidebar becomes a drawer that opens beside the do
 ## Account menu
 
 The avatar at the bottom of the rail (`AccountMenu`) opens profile, account, join with invite (guests,
-and accounts linked to the device guest), settings, the debug overlay when debug mode is on, and log
+and accounts linked to the device guest), appearance (a popup with the display and theme controls, see
+[settings](../settings/README.md#appearance-popup)), settings, the debug overlay when debug mode is on, and log
 out. Logging out of a guest is a delete, so it asks first and offers to connect an account instead.
+
+The avatar draws my photo for the current place when I set one, else the account photo. A fresh
+sign-in has no row of mine in the profile cache (the place-wide delta carries other members), so
+`useSiteProfiles` reads it once with `profile.get-mine` as soon as the socket is verified; the photo
+therefore shows on the home screen without opening the profile page first.
 
 The hidden debug-mode gesture (seven taps on the divider between the cloud switcher and the place tiles) stays with the place
 tiles. Only the menu moved.

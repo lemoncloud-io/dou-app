@@ -1,4 +1,4 @@
-import type { TestRecord } from '@chatic/app-messages';
+import type { TestRecord } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 
 export class TestRecordDataSource {

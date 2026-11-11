@@ -66,6 +66,9 @@ export const useSocialLinks = () => {
                 // `result.provider` instead, but here the row the user tapped is the intent, and this
                 // way the field the packet requires is guaranteed to exist whatever shape the bridge
                 // returns. The server normalizes it to lowercase alpha either way.
+                // A relay code from the virtual shell rides the same way: `link-account` takes
+                // `{ provider, code }` as well as a provider token — desktop's Link Google sends exactly
+                // that, and the code holds for both steps.
                 const tokens = { ...(result as Record<string, unknown>), provider } as SocialAccountTokens;
 
                 // Ask before committing: this is the only answer that names WHY a link is refused.

@@ -105,7 +105,7 @@ Push-device registration does not go through `data`: `libs/app-runtime` calls th
 
 ## The admin console surface
 
-`apps/admin-v2`'s reads hang off `SubscriptionHttpDataSource` (ADR-0101). Two things differ from the
+`apps/admin`'s reads hang off `SubscriptionHttpDataSource` (ADR-0101). Two things differ from the
 normal path.
 
 **① `fetchAdminClouds` rides the subscription bundle rather than the cloud one** — even though clouds
@@ -128,7 +128,9 @@ export interface AdminOverrideOptions extends AdminEndpointOptions {
 ```
 
 **Only the admin calls accept it.** The app's own calls must never leave the relay they were
-authenticated against, so this is opt-in per call rather than a mode on the client.
+authenticated against, so this is opt-in per call rather than a mode on the client. Besides the
+membership, refund and cloud admin calls, the admin console's user screen passes it to
+`listRelayUsers` and `registerUserV2` — its only callers — to work on either stage.
 
 ## The two `UserView` types are not assignable to each other
 

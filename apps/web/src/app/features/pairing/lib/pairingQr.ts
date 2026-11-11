@@ -13,10 +13,35 @@ export type QrPixelLoader = (base64: string, mimeType?: string) => Promise<QrPix
 /** A pairing QR carries the eight-digit code and nothing else — no link, no separator. */
 const PAIRING_CODE = /^\d{8}$/;
 
-/** The text in the first QR code found in the pixels, or `null` when there is none. */
-export const readQrText = ({ data, width, height }: QrPixels): string | null => {
-    // A photo of a screen in dark mode shows the code light on dark, so the inverted image is tried too.
-    return jsQR(data, width, height, { inversionAttempts: 'attemptBoth' })?.data ?? null;
+/** Which of the image and its inverse `readQrText` looks in. */
+export type QrInversion = 'attemptBoth' | 'dontInvert' | 'onlyInvert';
+
+const invertedCopy = (data: Uint8ClampedArray): Uint8ClampedArray => {
+    const out = new Uint8ClampedArray(data.length);
+    for (let i = 0; i < data.length; i += 4) {
+        out[i] = 255 - data[i];
+        out[i + 1] = 255 - data[i + 1];
+        out[i + 2] = 255 - data[i + 2];
+        out[i + 3] = data[i + 3];
+    }
+    return out;
+};
+
+/**
+ * The text in the first QR code found in the pixels, or `null` when there is none. A photo of a screen
+ * in dark mode shows the code light on dark, so by default the inverted image is tried too; a live
+ * scanner, reading many frames, alternates between the two instead of paying for both on each.
+ */
+export const readQrText = (
+    { data, width, height }: QrPixels,
+    inversion: QrInversion = 'attemptBoth'
+): string | null => {
+    // jsqr 1.4's own `onlyInvert` never builds the inverted image and throws, so the inverse is made
+    // here and read as given. The options object is always passed in full: jsqr copies what it is
+    // handed into its shared defaults, so a call without one would inherit the previous call's mode.
+    const pixels = inversion === 'onlyInvert' ? invertedCopy(data) : data;
+    const inversionAttempts = inversion === 'attemptBoth' ? 'attemptBoth' : 'dontInvert';
+    return jsQR(pixels, width, height, { inversionAttempts })?.data ?? null;
 };
 
 /**

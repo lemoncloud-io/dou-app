@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 import { logger, provider } from '../../services';
 

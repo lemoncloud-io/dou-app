@@ -9,14 +9,20 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
 
-import { useMyThreadsStore, useNotificationsPanelStore } from '../../../shared';
+import { useMyThreadsStore, useNotificationsPanelStore, useSavedItemsStore } from '../../../shared';
 import { myThreadKey, type MyThread } from '../../../shared/utils/myThreads';
 import { ThreadsPage } from './ThreadsPage';
 
 const cacheReadList = vi.fn();
 const cacheRead = vi.fn();
 const getChat = vi.fn();
-const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat } }));
+// The card watches the same window for its reaction events; `observed` is what that window holds.
+let observed: DomainChat[] = [];
+const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainChat[] } | null) => void) => {
+    callback({ list: observed });
+    return () => undefined;
+});
+const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat, observeList } }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -38,6 +44,14 @@ const discardMessage = vi.fn();
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
     useChatMutations: () => ({ sendMessage, retryMessage, discardMessage }),
 }));
+const channelMembers = vi.fn((_channelId: string | null, _ownerId?: string) => ({
+    members: [{ id: 'ada', name: 'Ada', isOwner: false }],
+    isLoading: false,
+}));
+vi.mock('../../channels', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    useChannelMembers: (channelId: string | null, ownerId?: string) => channelMembers(channelId, ownerId),
+}));
 const composerKeys: string[] = [];
 // The editor is Lexical in its own chunk; a stand-in that sends what was typed is enough here.
 vi.mock('./LazyComposer', () => ({
@@ -45,20 +59,33 @@ vi.mock('./LazyComposer', () => ({
         onSend,
         placeholder,
         channelId,
+        mentionables,
     }: {
-        onSend: (content: string, files: File[]) => void;
+        onSend: (content: string, files: File[], mention?: { userIds?: string[] }) => void;
         placeholder: string;
         channelId: string;
+        mentionables?: { id: string; name: string }[];
     }) => (
-        <button
-            type="button"
-            ref={node => {
-                if (node) composerKeys.push(channelId);
-            }}
-            onClick={() => onSend('my inline reply', [])}
-        >
-            {`send: ${placeholder}`}
-        </button>
+        <>
+            <button
+                type="button"
+                ref={node => {
+                    if (node) composerKeys.push(channelId);
+                }}
+                onClick={() => onSend('my inline reply', [])}
+            >
+                {`send: ${placeholder}`}
+            </button>
+            {mentionables?.map(person => (
+                <button
+                    key={person.id}
+                    type="button"
+                    onClick={() => onSend(`@${person.name} look`, [], { userIds: [person.id] })}
+                >
+                    {`send with @${person.name}`}
+                </button>
+            ))}
+        </>
     ),
 }));
 
@@ -138,6 +165,9 @@ beforeEach(() => {
     cacheRead.mockReset().mockResolvedValue(null);
     getChat.mockReset().mockResolvedValue(null);
     getCloudRepositories.mockClear();
+    observed = [];
+    observeList.mockClear();
+    useSavedItemsStore.setState({ items: {} });
 });
 
 describe('ThreadsPage cards', () => {
@@ -169,6 +199,78 @@ describe('ThreadsPage cards', () => {
 
         fireEvent.click(within(card).getByRole('button', { name: /1 earlier reply/i }));
         expect(onOpen).toHaveBeenCalledWith('C1', undefined, 'P1', '5');
+    });
+
+    it('shows the reactions on a reply in the card', async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({
+            list: [
+                chat(5),
+                chat(6, { parentId: '5' }),
+                chat(7, {
+                    parentId: '5',
+                    ownerId: 'ada',
+                    subType: 'reaction',
+                    reaction$: { chatId: 'C1:6', emoji: '🆗', action: 'on' },
+                } as Partial<DomainChat>),
+            ],
+        });
+        observed = (await cacheReadList()).list;
+        renderPage();
+
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 6')).toBeTruthy());
+        // The chip, not the toolbar's quick-reaction button: only the chip is labelled "<emoji> · <reactors>".
+        expect(within(card).getByLabelText(/^🆗 ·/)).toBeTruthy();
+    });
+
+    it('shows a reaction made after the card was read, without reading the card again', async () => {
+        seed(thread('5'));
+        const list = [chat(5), chat(6, { parentId: '5' })];
+        cacheReadList.mockResolvedValue({ list });
+        let emit: ((result: { list: DomainChat[] }) => void) | undefined;
+        observeList.mockImplementationOnce((_query, callback) => {
+            emit = callback;
+            return () => undefined;
+        });
+        renderPage();
+
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 6')).toBeTruthy());
+        const reads = cacheReadList.mock.calls.length;
+        act(() =>
+            emit?.({
+                list: [
+                    ...list,
+                    chat(7, {
+                        parentId: '5',
+                        ownerId: 'ada',
+                        subType: 'reaction',
+                        reaction$: { chatId: 'C1:6', emoji: '🆗', action: 'on' },
+                    } as Partial<DomainChat>),
+                ],
+            })
+        );
+
+        expect(within(card).getByLabelText(/^🆗 ·/)).toBeTruthy();
+        expect(cacheReadList.mock.calls.length).toBe(reads);
+    });
+
+    it('puts a saved tag in front of a saved message, and only that one', async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({ list: [chat(5), chat(6, { parentId: '5' }), chat(7, { parentId: '5' })] });
+        useSavedItemsStore.setState({
+            items: {
+                'C1:6': { id: 'C1:6', channelId: 'C1', chatNo: 6, content: 'message 6', ownerName: 'A', savedAt: 1 },
+            },
+        });
+        renderPage();
+
+        const card = screen.getAllByRole('article')[0];
+        await waitFor(() => expect(within(card).getByText('message 7')).toBeTruthy());
+        const tags = within(card).getAllByText('Saved');
+        expect(tags).toHaveLength(1);
+        expect(tags[0].closest('[data-chat-no]')?.getAttribute('data-chat-no')).toBe('6');
     });
 
     it('shows the latest replies under a root fetched when the cache lacks it', async () => {
@@ -367,6 +469,7 @@ describe('ThreadsPage inline reply', () => {
         retryMessage.mockReset().mockResolvedValue({});
         discardMessage.mockReset().mockResolvedValue(undefined);
         composerKeys.length = 0;
+        channelMembers.mockClear();
     });
 
     it('opens an inline reply box only on demand, and sends to the thread with its full root id', async () => {
@@ -401,6 +504,60 @@ describe('ThreadsPage inline reply', () => {
         const listed = useMyThreadsStore.getState().threads[myThreadKey('K1', 'C1', '5')];
         expect(listed.seenReplyNo).toBe(listed.lastReplyNo);
         expect(listed.lastReplyPreview).toBe('my inline reply');
+    });
+
+    it("measures a card's toolbar against the card's own column, so its quick reactions fold in a narrow card", async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        const quick = within(card).getAllByRole('button', { name: /^React with/ });
+        for (const button of quick) {
+            expect(button.className).toContain('[@container(max-width:480px)]:hidden');
+            expect(button.closest('[class*="[container-type:inline-size]"]')).not.toBeNull();
+        }
+    });
+
+    it('offers the room members as @ suggestions in an inline reply', async () => {
+        seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
+        // A public room always offers the everyone row; the member's own row is what shows the roster arrived.
+        expect(within(card).getByText('send with @Ada')).toBeTruthy();
+        // The card's own room, not whichever room the sidebar has selected.
+        expect(channelMembers).toHaveBeenCalledWith('C1', C1.ownerId);
+    });
+
+    it('sends the picked mention with an inline reply, and none without a pick', async () => {
+        seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
+        fireEvent.click(within(card).getByText('send with @Ada'));
+        expect(sendMessage).toHaveBeenLastCalledWith('K1', {
+            channelId: 'C1',
+            content: '@Ada look',
+            parentId: 'C1:5',
+            mention: { userIds: ['ada'] },
+        });
+
+        fireEvent.click(within(card).getByText('send: Reply in thread'));
+        expect(sendMessage).toHaveBeenLastCalledWith('K1', {
+            channelId: 'C1',
+            content: 'my inline reply',
+            parentId: 'C1:5',
+        });
+        // No `mention` key at all without a pick, not even an undefined one.
+        expect(sendMessage.mock.lastCall?.[1]).not.toHaveProperty('mention');
     });
 
     it('shows an inline reply that failed with the room row retry and delete', async () => {

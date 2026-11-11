@@ -14,10 +14,8 @@ const RECORD_PREFERENCE_KEY = 'pushRegistration' as const;
  * storage — a cache clear would otherwise read as "never registered" and re-register every device it
  * touched. Native `pushRegistration` is that durable copy.
  *
- * Both halves are best-effort. `SavePreference` is refused by an app build whose bridge allowlist
- * predates this key (`PREF_KEY_NOT_WRITABLE`), and the web bundle ships ahead of the app, so that is
- * the normal state right after release — the runtime keeps its web-storage copy and behaves exactly
- * as it did before the mirror existed. Reads are not allowlisted, so they simply come back empty.
+ * Both halves are best-effort: a failed write leaves the runtime on its web-storage copy, and a failed
+ * read comes back empty.
  */
 const nativeRecordMirror: runtime.push.DeviceTokenDelegate['nativeRecordMirror'] = {
     read: () =>

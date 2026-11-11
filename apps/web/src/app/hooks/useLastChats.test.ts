@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainLastChat } from '@chatic/data';
 
-import { useLastChats } from './useLastChats';
+import { useLastActivities, useLastChats } from './useLastChats';
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -17,10 +17,14 @@ const observeLastList = jest.fn();
 const refreshList = jest.fn();
 
 const channel = (id: string, chatNo = 0): DomainChannel => ({ id, chatNo }) as unknown as DomainChannel;
-const row = (channelId: string, lastNo: number, chatNo?: number): DomainLastChat => ({
+const row = (channelId: string, lastNo: number, chatNo?: number, activityNo?: number): DomainLastChat => ({
     channelId,
     lastNo,
     chat: chatNo === undefined ? null : ({ id: `m-${chatNo}`, channelId, chatNo } as never),
+    activity:
+        (activityNo ?? chatNo) === undefined
+            ? null
+            : ({ id: `m-${activityNo ?? chatNo}`, channelId, chatNo: activityNo ?? chatNo } as never),
 });
 
 /** The last subscription's callback — emit() replays an observation result arriving. */
@@ -49,6 +53,16 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         expect(result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 3 }));
         // A channel with no row to preview is left out of the map — consumers read undefined as "no preview".
         expect(result.current.get('ch-b')).toBeUndefined();
+    });
+
+    it('reads the line from the top-level message and the activity from the newer thread reply', () => {
+        const lines = renderHook(() => useLastChats([channel('ch-a')]));
+        emitRows([row('ch-a', 6, 3, 6)]);
+        expect(lines.result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 3 }));
+
+        const activities = renderHook(() => useLastActivities([channel('ch-a')]));
+        emitRows([row('ch-a', 6, 3, 6)]);
+        expect(activities.result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 6 }));
     });
 
     it('순서만 바뀐 같은 집합은 재구독하지 않는다', () => {

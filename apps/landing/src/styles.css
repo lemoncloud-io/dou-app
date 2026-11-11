@@ -144,6 +144,29 @@ body,
     animation-delay: 500ms;
 }
 
+/* The subscription checkbox: a white square that fills lime and takes a check when ticked. */
+.checkbox-lime {
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid #d9dbe0;
+    background: #fff center / 16px no-repeat;
+}
+
+.checkbox-lime:checked {
+    border-color: #b0ea10;
+    background-color: #b0ea10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23102346' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+}
+
+.checkbox-lime:focus-visible {
+    outline: 2px solid rgb(16 35 70 / 0.4);
+    outline-offset: 2px;
+}
+
 /* Glassmorphism card for feature section */
 .glass-card {
     background: rgba(255, 255, 255, 0.7);

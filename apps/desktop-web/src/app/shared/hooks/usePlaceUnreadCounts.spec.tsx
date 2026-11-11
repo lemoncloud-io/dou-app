@@ -229,6 +229,7 @@ describe('usePlaceUnreadCounts mentions', () => {
     const captureMention = () =>
         useMentionsStore.getState().add({
             id: 'g:1',
+            cloudId: 'cloud-1',
             channelId: 'g',
             placeId: 'place-a',
             chatNo: 1,

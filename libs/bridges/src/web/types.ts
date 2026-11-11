@@ -4,7 +4,7 @@ import type {
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IMessageQueue, RequestMessage } from '../common';
 import type { BridgeAdapter } from './adapters/types';
 

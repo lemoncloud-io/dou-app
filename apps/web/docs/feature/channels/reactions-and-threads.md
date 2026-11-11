@@ -130,9 +130,38 @@ is that the hand learns where it is. Recents are a device-local LRU of 16 in `us
 read by both the quick row and the picker's recents tab, and persisted under a key shared with
 desktop.
 
+**Holding an emoji in `EmojiPickerSheet` names it** — the touch stand-in for desktop's hover hint. After
+the shared long-press threshold a bubble shows the emoji and its name above the finger, and the release
+that follows does **not** pick it, so holding is a safe way to ask "what is this?". Each grid button also
+carries the name as its `aria-label`.
+
+- **A scroll is not a hold.** Drift past `MOVE_CANCEL_PX` (the same threshold the message bubble uses,
+  in `longPress.ts`) cancels the hold. Android's WebView also sends `pointercancel` once the grid starts
+  scrolling (measured ~70 ms into a slow drag), but a touch that captured the pointer may send neither
+  `pointerleave` nor `pointercancel` until the finger lifts, so drift is the guard that does not
+  depend on the engine.
+- **The OS long press is a trigger too.** It arrives as `contextmenu`, which shows the name at once
+  instead of opening a menu. On the Android emulator it came ~500 ms after pointer-down, just after the
+  450 ms timer, but its timeout is a system accessibility setting, so it can come first.
+- **Only a pointer click is swallowed.** A keyboard or switch-control activation (`detail === 0`) always
+  picks, even when a hold ended without a click and left the flag set.
+- **Closing the sheet clears the hold**, so it does not come back on reopen.
+
+The names are the Unicode CLDR short names (the ones iOS and Android use for emoji search), in the
+app's language, from the `emoji` i18n namespace — `public/locales/{ko,en}/emoji.json`, keyed by the
+emoji with U+FE0F removed (`emojiNameKey`). Those files are **generated**, not written: run
+`yarn generate:emoji-names` after changing the curation in `utils/emoji.ts`, and `emoji.test.ts` fails
+until every curated emoji has a name in both languages. The data's licences are in the root
+`THIRD_PARTY_NOTICES.md`, and ADR-0291 records why the names come from CLDR. The namespace is fetched
+on first use without suspending, so the grid never blanks while it loads; until it arrives a hold
+shows nothing and a release picks as usual.
+
 `ReactionDetailSheet` opens on the tab of the chip that was held, reads the **live** fold, and falls
 back to the first remaining tab if the one being viewed disappears because someone withdrew their
-reaction.
+reaction. Under the tab row it names the open tab's emoji, from the same `emoji` namespace the picker
+uses, and each named tab's accessible label is its name and count (the chip hides its glyph from
+assistive tech). A reaction from outside the curation has no name, so the line is left out rather
+than showing a blank.
 
 ## Threads
 
@@ -259,7 +288,9 @@ profile map.
   when the reader scrolls back to the bottom, sends a reply, or the jump gives up (the thread then
   opens at its newest reply, as it does without a jump), and a move to another thread on the same
   mounted page starts clean. A gap divider filled from up in the list holds it the same way (see
-  above). The jump does not page before the first cache read: with no rows there
+  above), and so does an open message edit — opening it grows the composer and closing it shrinks it,
+  and following either would carry the list off the message being changed. Closing the edit hands the
+  follow back only to a reader already at the bottom. The jump does not page before the first cache read: with no rows there
   is no cursor, and a page that goes nowhere would still spend its budget.
 - **Widenings in one commit keep the wider one.** The root's widening and the jump's (toward a reply
   below it) can be asked for in the same commit, against the same window. `loadUntil` keeps the
@@ -285,7 +316,7 @@ see [chat-room.md](./chat-room.md).
 
 ## Notes for implementers and tests
 
-- A reaction event is invisible in the feed but still consumes a `chatNo`, so a burst of them can
+- A reaction event (and likewise a revision notice) is invisible in the feed but still consumes a `chatNo`, so a burst of them can
   fill the newest rows of a window. Surfaces that read "the last real message" widen their window
   instead of filtering after the fact — that is the home list's concern, see
   [../home/README.md](../home/README.md).

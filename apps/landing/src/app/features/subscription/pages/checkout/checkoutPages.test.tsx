@@ -2,26 +2,27 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
-import { createMockPort } from '../../lib/mock';
+import { createMockPort } from '../../testing/mock';
 import { clearPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { memoryStateStore } from '../../testing/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
+import type { MockController } from '../../testing/mock';
 
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
 
 // Attempts settle on the next call, so a flow runs to its end without waiting out the mock's delay.
-const mockSetup = (search: string): PortSetup => {
+const mockSetup = (search: string): PortSetup & { controller: MockController } => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
         settleMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller, controller };
 };
 
 /** A setup whose account already has a verified primary billing address, as after W-24. */
@@ -178,7 +179,7 @@ describe('W-24 email step', () => {
 
     it('moves the primary mark onto the address taken here when it sat on one that bounced', async () => {
         const setup = mockSetup('?mock=new');
-        setup.mock?.getState().billing.emails.push({
+        setup.controller.getState().billing.emails.push({
             id: 'em-old',
             address: 'old@lemon.example',
             primary: true,
@@ -191,8 +192,7 @@ describe('W-24 email step', () => {
 
         expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
         expect(screen.getByText('minji.kim@gmail.com', { selector: 'span.truncate' })).toBeTruthy();
-        // The dev panel follows the mock's state, so a direct read re-renders it.
-        const { emails } = await act(() => setup.port.getBillingInfo());
+        const { emails } = await setup.port.getBillingInfo();
         expect(emails.find(email => email.primary)?.address).toBe('minji.kim@gmail.com');
     });
 
@@ -201,7 +201,7 @@ describe('W-24 email step', () => {
         renderAt(EMAIL_STEP, setup);
         await screen.findByText('✓ Google account email');
 
-        act(() => setup.mock?.setFail('network'));
+        act(() => setup.controller.setFail('network'));
         fireEvent.click(nextToDetails());
 
         expect(await screen.findByRole('alert')).toBeTruthy();
@@ -231,7 +231,12 @@ const consentAll = async () => fireEvent.click(await screen.findByLabelText('Agr
 
 const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
 
+const pickCountry = async (code: string) =>
+    fireEvent.change(await screen.findByLabelText('Billing country'), { target: { value: code } });
+
+/** Korea is billed in won, which asks for the payer. */
 const fillPayer = async () => {
+    await pickCountry('KR');
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: PAYER.name } });
     fireEvent.change(screen.getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
 };
@@ -255,23 +260,68 @@ describe('W-08 checkout', () => {
         expect(screen.getByText('✓ Verified')).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Get a code' })).toBeNull();
         const next = screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement;
-        expect(next.disabled).toBe(true);
+
+        // Nothing is chosen for the reader: no country, no payer to ask for, no amount yet.
+        expect((screen.getByLabelText('Billing country') as HTMLSelectElement).value).toBe('');
+        expect(screen.queryByLabelText('Name')).toBeNull();
+        expect(screen.getByText('Choose a country to see what you pay.')).toBeTruthy();
+        // Pressing on without one says what is missing.
+        fireEvent.click(next);
+        expect((await screen.findByRole('alert')).textContent).toBe('Choose your billing country first.');
+        expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
 
         await consentAll();
-        expect(next.disabled).toBe(true);
         await fillPayer();
+        expect(screen.getByText('You pay in Korean won (₩).')).toBeTruthy();
+        expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
         expect(next.disabled).toBe(false);
-
-        fireEvent.change(screen.getByLabelText('Billing country'), { target: { value: 'US' } });
-        expect(screen.getByText('Paying from outside Korea is coming soon')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Mobile phone'), { target: { value: '' } });
         expect(next.disabled).toBe(true);
+        fireEvent.change(screen.getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
 
-        fireEvent.change(screen.getByLabelText('Billing country'), { target: { value: 'KR' } });
         fireEvent.click(next);
         await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
             checkout: { country: 'KR', emailId: primary.id, payer: PAYER },
         });
+    });
+
+    it('bills any other country in dollars, without a payer', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new-trial-used'));
+
+        await pickCountry('US');
+        expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
+        expect(screen.queryByLabelText('Name')).toBeNull();
+        // Monthly and due today, the trial being used — and no VAT claimed for a dollar price.
+        expect(await screen.findAllByText('$6.00')).toHaveLength(2);
+        expect(screen.queryByText(/\$6\.00 \(VAT/)).toBeNull();
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+
+        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toMatchObject({
+            checkout: { country: 'US' },
+        });
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null').checkout.payer).toBeUndefined();
+    });
+
+    it('opens filled in again when the reader comes back from W-05', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
+        await fillPayer();
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+        await screen.findByRole('heading', { name: 'Add a payment method' });
+
+        fireEvent.click(screen.getByRole('link', { name: 'Back' }));
+
+        expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
+        expect((screen.getByLabelText('Billing country') as HTMLSelectElement).value).toBe('KR');
+        expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(PAYER.name);
+        expect((screen.getByLabelText('Mobile phone') as HTMLInputElement).value).toBe(PAYER.phone);
+        expect((screen.getByLabelText('Agree to all') as HTMLInputElement).checked).toBe(true);
+        expect(
+            (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
+        ).toBe(false);
     });
 
     it('changes the billing email through the popup and shows the new address', async () => {
@@ -326,6 +376,7 @@ describe('checkout with the card and billing-email screens hidden', () => {
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
         expect(screen.queryByText('Billing email')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+        await pickCountry('KR');
         expect(screen.getByText("Receipts and notices go to your account's email address.")).toBeTruthy();
     });
 
@@ -354,8 +405,8 @@ describe('checkout with the card and billing-email screens hidden', () => {
     it('says an account with no address cannot subscribe, instead of asking for one', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new-apple'), hidden);
 
-        expect(await screen.findByText('Your account has no email address')).toBeTruthy();
         await fillPayer();
+        expect(await screen.findByText('Your account has no email address')).toBeTruthy();
         await consentAll();
         expect(
             (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
@@ -393,6 +444,39 @@ describe('W-05 card, W-09 and W-06', () => {
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
         expect(screen.getByText('2026.12.01')).toBeTruthy();
+        // The amount is read from the invoice the charge left.
+        expect(screen.getByText('Amount paid')).toBeTruthy();
+        expect(screen.getByText('₩8,600')).toBeTruthy();
+    });
+
+    it('leaves the amount out where the port keeps no invoices, instead of a dash', async () => {
+        const setup = await withBillingEmail('?mock=new-trial-used');
+        renderAt('/subscription/checkout?plan=pro-tier-01', {
+            ...setup,
+            supports: method => method !== 'listInvoices',
+        });
+        await toPayment();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
+
+        expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
+        expect(screen.getByText('2026.12.01')).toBeTruthy();
+        expect(screen.queryByText('Amount paid')).toBeNull();
+        expect(screen.queryByText('—')).toBeNull();
+    });
+
+    it('charges a first payment in dollars for a country outside Korea', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new-trial-used'));
+        await pickCountry('US');
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+        await screen.findByRole('heading', { name: 'Add a payment method' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Pay $6.00' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
+
+        expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
     });
 
     it('shows a declined card with the way back to the payment window', async () => {
@@ -515,6 +599,19 @@ describe('W-14 plan change', () => {
 
         expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
         expect(screen.getByText('₩25,800', { exact: false })).toBeTruthy();
+        // The upgrade confirmation keeps the bar's back button; the first subscription's has none.
+        expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    });
+
+    it('says neither "charged" nor "nothing charged" for an upgrade where the port keeps no invoices', async () => {
+        const setup = mockSetup('?mock=active');
+        renderAt('/subscription/change?plan=pro-tier-03', { ...setup, supports: method => method !== 'listInvoices' });
+
+        fireEvent.click(await screen.findByRole('button', { name: /^Pay ₩[\d,]+ and upgrade$/ }));
+
+        expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
+        expect(screen.getByText('You can now create up to 3 clouds.')).toBeTruthy();
+        expect(screen.queryByText(/was charged|Nothing was charged/)).toBeNull();
     });
 
     it('shows a failed upgrade with the card it tried', async () => {
@@ -555,6 +652,8 @@ describe('W-14 plan change', () => {
         expect(await screen.findByText('Change to DoU Cloud 1 scheduled')).toBeTruthy();
         expect(where()).toBe('/subscription/checkout/complete?change=downgrade');
         expect(screen.getByText('You keep DoU Cloud 2 until 2026.11.19.')).toBeTruthy();
+        // A scheduled downgrade is an account page: the sidebar is there, the purchase flow's back button is not.
+        expect(screen.getAllByRole('link', { name: 'Payment methods' }).length).toBeGreaterThan(0);
     });
 
     it('blocks a change while a payment is overdue and points at the payment methods', async () => {

@@ -15,6 +15,8 @@ import {
     usePreviewCheckout,
     useSubscription,
 } from '../../hooks';
+import { currencyOfCountry } from '../../lib/billingCountry';
+import { defaultCardOf } from '../../lib/paymentMethods';
 import { isPortError } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { formatDate, formatMoney } from '../../utils';
@@ -29,14 +31,9 @@ import {
     statusSceneOf,
     withCheckoutDetails,
 } from './flow';
-import { LoadError, NoteBox, ResultHeader } from './parts';
+import { LoadError, NoteBox, ResultActions, ResultCard, ResultHeader, primaryLink, secondaryLink } from './parts';
 
 import type { Money, PaymentMethod, Plan, Subscription } from '../../types';
-
-const primaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90';
-const secondaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted';
 
 /**
  * W-09 — a payment attempt (`?attempt=`) followed until it settles. The attempt's purpose picks the
@@ -96,10 +93,19 @@ const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     );
 };
 
+/**
+ * The currency of the checkout this screen follows: its billing country's, which W-08 handed on in the
+ * navigation state. A screen reached without it (a reload) names amounts in won.
+ */
+const useCheckoutCurrency = () => {
+    const details = checkoutDetailsOf(useLocation().state);
+    return details && currencyOfCountry(details.country);
+};
+
 const RegistrationOutcome = ({ outcome }: { outcome: string }): JSX.Element => {
     const plans = usePlans();
     const plan = useQueryPlan();
-    const preview = usePreviewCheckout(plan?.id);
+    const preview = usePreviewCheckout(plan?.id, useCheckoutCurrency());
     const scene = registrationSceneOf(outcome, preview.data?.withTrial);
 
     if (!scene) return <Navigate to={ROUTES.subscription.root} replace />;
@@ -115,7 +121,7 @@ const RegistrationOutcome = ({ outcome }: { outcome: string }): JSX.Element => {
  */
 const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscriptionId: string | undefined) => {
     const plans = usePlans();
-    const checkout = usePreviewCheckout(variant === 'payment' ? plan?.id : undefined);
+    const checkout = usePreviewCheckout(variant === 'payment' ? plan?.id : undefined, useCheckoutCurrency());
     const change = usePreviewChange(variant === 'upgrade' ? plan?.id : undefined);
     const subscription = useSubscription(subscriptionId);
     const methods = usePaymentMethods();
@@ -131,7 +137,11 @@ const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscrip
         amount,
         subscription: subscription.data,
         subscriptionPlan,
-        card: methods.data?.find(method => method.isDefault),
+        // The card is the default of the provider the subscription is charged by; before there is a
+        // subscription to ask, whichever default there is.
+        card: subscription.data
+            ? methods.data && defaultCardOf(methods.data, subscription.data.provider)
+            : methods.data?.find(method => method.isDefault),
     };
 };
 
@@ -173,17 +183,17 @@ const StatusScreen = ({
                 ? t(key('processing.bodyUpgrade'), { plan: t(`subscription.checkout.planRo.${plan.sort}`) })
                 : t(key('processing.body'));
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8" aria-busy="true">
+            <ResultCard busy>
                 <ResultHeader tone={variant === 'card' ? 'checking' : 'progress'} title={title} body={body} />
                 <NoteBox title={t(key('processing.waitTitle'))}>{t(key('processing.waitBody'))}</NoteBox>
-            </section>
+            </ResultCard>
         );
     }
 
     if (scene.kind === 'retried') {
         const sub = facts.subscription;
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+            <ResultCard>
                 <ResultHeader
                     tone="success"
                     title={t(key('retried.title'))}
@@ -205,27 +215,27 @@ const StatusScreen = ({
                         {t(key('toSubscription'))}
                     </Link>
                 </div>
-            </section>
+            </ResultCard>
         );
     }
 
     if (scene.kind === 'canceled') {
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+            <ResultCard>
                 <ResultHeader
                     tone="neutral"
                     title={t(key(`canceled.title.${variant}`))}
                     body={t(key(`canceled.body.${variant}`))}
                 />
-                <div className="flex flex-wrap gap-3">
+                <ResultActions>
                     {retry(t(key(`canceled.retry.${variant}`)), primaryLink)}
                     {(variant === 'card' || variant === 'payment') && (
                         <Link to={ROUTES.subscription.plans} className={secondaryLink}>
                             {t(key('canceled.choosePlan'))}
                         </Link>
                     )}
-                </div>
-            </section>
+                </ResultActions>
+            </ResultCard>
         );
     }
 
@@ -277,7 +287,7 @@ const FailedScene = ({
     ) : null;
 
     return (
-        <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+        <ResultCard>
             <ResultHeader
                 tone="danger"
                 title={t(key(`title.${variant}`))}
@@ -287,7 +297,7 @@ const FailedScene = ({
                 <p>{reason}</p>
                 {variant === 'upgrade' && card && <p>{t(key('chargedCard'), { card })}</p>}
             </NoteBox>
-            <div className="flex flex-wrap gap-3">
+            <ResultActions>
                 {variant === 'retry' ? (
                     management ? (
                         retry(t(key('manageCards')), primaryLink)
@@ -298,12 +308,12 @@ const FailedScene = ({
                     )
                 ) : (
                     <>
-                        {retry(t('subscription.common.actions.retry'), primaryLink)}
                         {variant === 'upgrade' ? manageCards : retry(t(key(`otherCard.${variant}`)), secondaryLink)}
+                        {retry(t('subscription.common.actions.retry'), primaryLink)}
                     </>
                 )}
-            </div>
+            </ResultActions>
             {variant === 'retry' && subscription && <Banner tone="neutral">{t(key('retryStillDue'))}</Banner>}
-        </section>
+        </ResultCard>
     );
 };

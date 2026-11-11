@@ -1,4 +1,4 @@
-import type { OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload } from '@chatic/bridge-messages';
 
 import { createNativeDownloads, toDownloadResult, type DownloadBridge } from './nativeGet';
 
@@ -164,10 +164,10 @@ describe('createNativeDownloads', () => {
         await expect(download.result).resolves.toEqual({ kind: 'failed', reason: 'network' });
     });
 
-    it('reads NOT_FOUND on start as an app that cannot download', async () => {
+    it('reads NOT_FOUND on start as a refused start', async () => {
         const { downloads } = setup({ StartFileTransfer: notFound() });
 
-        await expect(downloads.start({ url }).result).resolves.toEqual({ kind: 'unsupported' });
+        await expect(downloads.start({ url }).result).resolves.toEqual({ kind: 'failed', reason: 'other' });
     });
 
     it('cancels a start that was never answered, since the shell may have begun it', async () => {

@@ -1,9 +1,4 @@
-import {
-    clearNativeLogQueue,
-    createNativeUploadSource,
-    isNativeUploadQueueUnsupported,
-    resetNativeUploadQueueSupport,
-} from './nativeUploadSource';
+import { clearNativeLogQueue, createNativeUploadSource, resetNativeUploadQueueSize } from './nativeUploadSource';
 
 import type { LogEntry } from '@chatic/bridges';
 
@@ -28,11 +23,9 @@ const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
     ...over,
 });
 
-const notFound = () => Object.assign(new Error('no handler'), { code: 'NOT_FOUND' });
-
 beforeEach(() => {
     jest.clearAllMocks();
-    resetNativeUploadQueueSupport();
+    resetNativeUploadQueueSize();
     jest.spyOn(console, 'warn').mockImplementation();
 });
 
@@ -40,48 +33,15 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-describe('nativeUploadSource — NOT_FOUND learn-once (구버전 앱)', () => {
-    it('NOT_FOUND를 한 번 받으면 이후로는 브리지를 두드리지 않는다', async () => {
-        mockFetchLogUploadQueue.mockRejectedValue(notFound());
-        const source = createNativeUploadSource();
-
-        await source.peek(50);
-        await source.peek(50);
-        await source.peek(50);
-
-        // Only the first rejection is a real round trip — the learned fallback blocks the rest.
-        expect(mockFetchLogUploadQueue).toHaveBeenCalledTimes(1);
-        expect(isNativeUploadQueueUnsupported()).toBe(true);
-    });
-
-    it('조회에서 배운 것이 ack에도 적용된다 — 앱은 하나이므로 답도 하나다', async () => {
-        mockFetchLogUploadQueue.mockRejectedValue(notFound());
-        const source = createNativeUploadSource();
-
-        await source.peek(50);
-        await source.ack([entry()]);
-
-        expect(mockAckLogUploadQueue).not.toHaveBeenCalled();
-    });
-
-    it('타임아웃은 학습하지 않는다 — 일시적 실패를 영구 판정으로 바꾸면 세션 내내 앱 큐가 고립된다', async () => {
+describe('nativeUploadSource — failures', () => {
+    it('asks again after a failed read — a failure is never a verdict on the app', async () => {
         mockFetchLogUploadQueue.mockRejectedValue(Object.assign(new Error('timed out'), { code: 'TIMEOUT' }));
         const source = createNativeUploadSource();
 
-        await source.peek(50);
+        await expect(source.peek(50)).resolves.toEqual([]);
         await source.peek(50);
 
         expect(mockFetchLogUploadQueue).toHaveBeenCalledTimes(2);
-        expect(isNativeUploadQueueUnsupported()).toBe(false);
-    });
-
-    it('코드 없는 에러도 학습하지 않는다', async () => {
-        mockFetchLogUploadQueue.mockRejectedValue(new Error('boom'));
-        const source = createNativeUploadSource();
-
-        await source.peek(50);
-
-        expect(isNativeUploadQueueUnsupported()).toBe(false);
     });
 });
 
@@ -151,10 +111,9 @@ describe('nativeUploadSource — opt-out', () => {
         expect(mockClearLogUploadQueue).toHaveBeenCalledTimes(1);
     });
 
-    it('구버전 앱에서는 조용히 넘어간다', async () => {
-        mockClearLogUploadQueue.mockRejectedValue(notFound());
+    it('passes over a failed clear quietly', async () => {
+        mockClearLogUploadQueue.mockRejectedValue(new Error('bridge down'));
 
         await expect(clearNativeLogQueue()).resolves.toBeUndefined();
-        expect(isNativeUploadQueueUnsupported()).toBe(true);
     });
 });

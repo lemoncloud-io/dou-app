@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/data';
 
 import { compareByChatNo } from '../../../utils';
 
@@ -96,7 +96,7 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
         // the same as anywhere else. The footer's job is to say how many rows are
         // behind it, so counting and showing have to agree; skipping them here would
         // put a "2 replies" footer above a thread containing three.
-        if (message.subType === 'reaction') continue;
+        if (isEventChat(message)) continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
         const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, lastReplyNo: 0, repliers: [], entries: [] };
@@ -138,6 +138,7 @@ export const buildThread = (messages: DomainChat[], rootId: string): ThreadView 
     const rootKeys = new Set<string>([rootId]);
     if (root?.id) rootKeys.add(root.id);
     if (root?.chatNo != null) rootKeys.add(String(root.chatNo));
-    const replies = messages.filter(m => m !== root && !!m.parentId && rootKeys.has(m.parentId));
+    // Event rows are not replies — the thread folds reactions from the raw window, as the room does.
+    const replies = messages.filter(m => m !== root && !!m.parentId && rootKeys.has(m.parentId) && !isEventChat(m));
     return { root, replies: replies.sort(compareByChatNo) };
 };

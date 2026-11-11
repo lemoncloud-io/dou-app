@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
@@ -11,9 +12,11 @@ import {
     Menu,
     type MenuItemConstructorOptions,
     nativeImage,
+    nativeTheme,
     Notification,
     powerMonitor,
     protocol,
+    safeStorage,
     screen,
     session,
     shell,
@@ -21,7 +24,7 @@ import {
 } from 'electron';
 import { resolveAppLanguage } from './appLanguage';
 import { bringToFront } from './bringToFront';
-import { registerHandlers } from './bridgeHandlers';
+import { DESKTOP_MAIN_HOST_OPTIONS, registerHandlers } from './bridgeHandlers';
 import { menuLabels } from './menuLabels';
 import {
     applyCustomUi,
@@ -40,8 +43,11 @@ import { grantsPermission } from './permissions';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { startUpdater } from './updater';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
+import { SECURE_STORAGE_FILE, SecureStorage } from './secureStorage';
 import { fromTrustedFrame } from './ipcSenderGate';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
+import { DesktopSubWebViewService, forwardSubWebViewClosed } from './subWebView/DesktopSubWebViewService';
+import { attachDesktopSubWebView } from './subWebView/desktopSubWebViewWindow';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
 // the package.json name ("@chatic/desktop") — the very name the packaged
@@ -186,6 +192,19 @@ let trayWindow: BrowserWindow | null = null;
 
 // The bridge host of the live window, for menu items built before any window exists.
 let mainHost: AppBridgeHost | null = null;
+
+// The sub view the web opens over the main window — one at a time, app-wide, so a window re-created
+// on a macOS re-activate takes over the same record instead of starting a second.
+const subWebViewService = new DesktopSubWebViewService(error => console.error('[sub-webview] listener threw', error));
+
+// The device vault (`nativeSecure`). Constructed here, after the dev channel moved userData, and read
+// in whenReady before the first window — safeStorage is usable only once the app is ready.
+const secureStorage = new SecureStorage({
+    safeStorage,
+    fs: { readFile: path => readFile(path), writeFile, rename, rm },
+    filePath: join(app.getPath('userData'), SECURE_STORAGE_FILE),
+    platform: process.platform,
+});
 
 /**
  * UI deeplinks the renderer understands (see the web's `parseUiDeeplink`). The menu
@@ -744,12 +763,32 @@ const createWindow = (): BrowserWindow => {
 
     const host = new AppBridgeHost({
         sendToWeb: (message: string) => win.webContents.send(TO_WEB_CHANNEL, message),
+        ...DESKTOP_MAIN_HOST_OPTIONS,
     });
     mainHost = host;
     registerHandlers(host, {
         showNotification: params => showOsNotification(host, win, params),
         awaitFcmToken,
         setBadgeCount: (count, overlayIconDataUrl) => setBadgeCount(win, count, overlayIconDataUrl),
+        secureStorage,
+        subWebView: subWebViewService,
+    });
+
+    // The sub view: shown over this window, its closes told to this window's web. Unbound when the
+    // window goes, so a re-created window does not leave a second listener on a destroyed one.
+    const stopForwardingSubWebView = forwardSubWebViewClosed(subWebViewService, host);
+    const detachSubWebView = attachDesktopSubWebView(win, subWebViewService, {
+        preloadPath: join(__dirname, '../preload/subWebView.js'),
+        appVersion: app.getVersion(),
+        language: () => resolveAppLanguage(process.env.VITE_DESKTOP_LANGUAGE || app.getLocale()),
+        dark: () => nativeTheme.shouldUseDarkColors,
+        logPageError: report => console.warn('[sub-webview] page error', report),
+        logWarn: (message, detail) => console.warn(`[sub-webview] ${message}`, detail),
+    });
+    win.once('closed', () => {
+        // The forwarder goes first: the window's host is gone, and nothing more may reach it.
+        stopForwardingSubWebView();
+        detachSubWebView();
     });
 
     // Auto-update the shell (web updates remotely per ADR-0001). Ask-first UX: the
@@ -1086,6 +1125,10 @@ if (!singleInstanceLock) {
         if (customUiBootSource.source === 'override') serveCustomUi(customUiBootSource.root);
         else if (customUiBootSource.source === 'restore') restoreCustomUi();
         if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
+
+        // Read the device vault into memory before the page can ask for it. Not awaited: a
+        // StorageGet that arrives first waits on this same read.
+        void secureStorage.start();
 
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();

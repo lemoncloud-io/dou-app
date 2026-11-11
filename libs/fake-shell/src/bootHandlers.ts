@@ -11,16 +11,20 @@ export type ShellPlatform = 'ios' | 'android';
 export const dispatchTarget = (platform: ShellPlatform): 'window' | 'document' =>
     platform === 'ios' ? 'window' : 'document';
 
-/** The app version a fake shell reports: up to date, so no update prompt covers a scenario. */
-export const FAKE_SHELL_APP_VERSION = '0.28.1';
+/**
+ * The app version a fake shell reports: current, so no update prompt covers a scenario and the web's
+ * version floor lets it in. Keep it at or above `APP_VERSION_FLOOR` in apps/web.
+ */
+export const FAKE_SHELL_APP_VERSION = '0.31.2';
 
 /**
  * Answers every app build gives at boot, so a fake shell starts as an app that is up to date and has
  * nothing pending. A caller overrides what it is about.
  *
- * What is left out answers `NOT_FOUND`, which the web reads as an app built before that message —
- * the photo grid (`ListPhotos`), file transfers, push tokens, the per-channel chat preview. Each has a
- * fallback in the web for exactly that app, and a caller that needs the message adds its handler.
+ * What is left out answers `NOT_FOUND` — the photo grid (`ListPhotos`), file transfers, push tokens, the
+ * per-channel chat preview. Every app at the web's version floor handles these, so the web has no
+ * fallback for them any more: a scenario that reaches one adds its handler, and one that does not
+ * simply never opens that screen.
  */
 export const bootHandlers = (platform: ShellPlatform): ShellHandlerTable => ({
     // Posted and never read back: the real handlers answer nothing.

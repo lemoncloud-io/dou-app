@@ -4,7 +4,7 @@ import { useSessionSelection } from '../../session';
 import { useRuntimeRepositories } from './useRuntimeRepositories';
 import { useRuntimeSocketState } from '../../connection/hooks/useRuntimeSocketState';
 import { useSlotVerified } from '../../connection/hooks/useSlotVerified';
-import { RELAY_SLOT } from '../../socket/utils/slotKey';
+import { RELAY_SLOT } from '@chatic/transport';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { syncInvitedCloudName } from '../invitedCloudDurability';
 

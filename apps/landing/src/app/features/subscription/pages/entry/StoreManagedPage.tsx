@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader } from '../../components';
-import { Badge, Button, Card } from '../../components/ui';
+import { Badge, Button } from '../../components/ui';
 import { usePlans, useSession } from '../../hooks';
 import { formatDate } from '../../utils';
 
@@ -36,44 +36,43 @@ export const StoreManagedPage = (): JSX.Element => {
     ];
 
     return (
-        <div className="flex justify-center pt-6">
-            <Card className="flex w-full max-w-[500px] flex-col gap-5 p-6 sm:p-10">
-                <Badge tone="navy" className="self-start">
+        <div className="flex justify-center md:pt-6">
+            {/* The bordered card is the desktop frame; on a phone the content sits on the bare page. */}
+            <section className="flex w-full max-w-[500px] flex-col gap-[18px] md:rounded-2xl md:border md:border-line md:p-10">
+                <Badge tone="navy" className="self-start py-[3px] pl-2.5 pr-3 font-semibold">
                     {t('subscription.entry.storeManaged.badge', { store })}
                 </Badge>
-                <header className="flex flex-col gap-3">
-                    <h1 className="text-2xl font-bold text-navy">{t('subscription.entry.storeManaged.title')}</h1>
-                    <p className="text-[15px] leading-relaxed text-subtitle">
-                        {t('subscription.entry.storeManaged.body', { store })}
-                    </p>
-                </header>
+                <h1 className="text-xl font-bold leading-[1.5] text-ink md:text-2xl">
+                    {t('subscription.entry.storeManaged.title')}
+                </h1>
+                <p className="text-sm font-medium leading-[1.5] text-mute">
+                    {t('subscription.entry.storeManaged.body', { store })}
+                </p>
 
-                <dl className="flex flex-col gap-3 rounded-xl bg-muted px-5 py-4 text-sm">
+                <dl className="flex flex-col gap-2.5 rounded-2xl bg-note px-5 py-[18px] text-sm tracking-[-0.01em]">
                     {rows.map(row => (
-                        <div key={row.label} className="flex items-center justify-between">
-                            <dt className="text-subtitle">{t(`subscription.entry.storeManaged.${row.label}`)}</dt>
-                            <dd className="font-semibold text-navy">{row.value}</dd>
+                        <div key={row.label} className="flex items-center justify-between gap-4">
+                            <dt className="font-medium text-mute">
+                                {t(`subscription.entry.storeManaged.${row.label}`)}
+                            </dt>
+                            <dd className="text-right font-semibold text-ink">{row.value}</dd>
                         </div>
                     ))}
                 </dl>
 
-                <div className="rounded-xl border border-border px-5 py-4">
-                    <p className="text-sm font-semibold text-navy">
-                        {t('subscription.entry.storeManaged.howToTitle', { store })}
-                    </p>
-                    <p className="mt-1.5 text-[13px] text-desc-alt">
-                        {t(`subscription.entry.storeManaged.howTo.${source}`)}
-                    </p>
+                <div className="flex flex-col gap-1.5 rounded-2xl border border-line px-[18px] py-3.5 text-[13px] leading-[1.5]">
+                    <p className="font-bold text-ink">{t('subscription.entry.storeManaged.howToTitle', { store })}</p>
+                    <p className="font-medium text-[#666b78]">{t(`subscription.entry.storeManaged.howTo.${source}`)}</p>
                 </div>
 
-                <Button size="lg" className="rounded-full" onClick={() => navigate(ROUTES.root)}>
+                <Button size="lg" className="w-full" onClick={() => navigate(ROUTES.root)}>
                     {t('subscription.entry.storeManaged.confirm')}
                 </Button>
 
-                <p className="text-xs leading-relaxed text-subtitle">
+                <p className="text-xs font-medium leading-[1.5] text-[#999ca3]">
                     {t('subscription.entry.storeManaged.moveToWeb')}
                 </p>
-            </Card>
+            </section>
         </div>
     );
 };

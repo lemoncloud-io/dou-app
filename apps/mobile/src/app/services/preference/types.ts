@@ -1,4 +1,4 @@
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 
 export interface IPreferenceService {
     /**

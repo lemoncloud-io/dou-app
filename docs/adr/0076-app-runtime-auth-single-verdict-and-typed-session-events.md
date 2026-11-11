@@ -1,7 +1,7 @@
 # ADR-0076: Auth state has one verdict — typed session signals · credential renewer · ADR-0070 §0 completed
 
 > Status: **Live** · Written: 2026-09-07 · Implementation complete: 2026-09-07 (§Execution log)
-> Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin-v2` · `apps/testbed` · `apps/desktop-web`)
+> Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin` · `apps/testbed` · `apps/desktop-web`)
 > Related: [ADR-0070](./0070-app-runtime-session-hub.md) (session hub — this document applies its §0
 > principle to the remainder and updates the wording of Decisions 2 and 7) ·
 > [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) ·
@@ -41,8 +41,8 @@ Answering one question requires reading seven different values from seven differ
 
 The rule for combining these seven is rewritten **in two places** —
 [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
-[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
-[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts). Both
+[`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts). Both
 ask the same question — "can this slot's socket auth be used right now" — and each justifies itself
 with 20-40 lines of comments that never reference each other. Neither the debug overlay nor the logs
 can reuse this verdict, so reproducing an incident means a human has to line up all seven by hand.
@@ -77,7 +77,7 @@ connection state only, not to auth state.**
 contextStore · 4 in use cases). Subscribers only hear "something changed" and re-derive everything.
 
 The notifications a single cloud switch (at the time, `switchCloudSession` in `services.ts` — now
-[`cloudSession.ts`](../../libs/app-runtime/src/session/auth/cloudSession.ts)) fires on its success
+[`cloudSession.ts`](../../libs/auth/src/session/cloudSession.ts)) fires on its success
 path:
 
 ```
@@ -91,7 +91,7 @@ observers as-is.** (Numbers 5 and 8 are the same function — `setSelectedCloudI
 `cloudStore.saveSelectedCloudId`. Pure duplication.)
 
 `rebuildSessionIdentity` knows about this problem and has hand-installed an
-[equality gate](../../libs/app-runtime/src/session/store/contextStore.ts). But the other four entry
+[equality gate](../../libs/session/src/store/contextStore.ts). But the other four entry
 points that use the same state (`setSessionAuthenticated` · `clearRelaySession` ·
 `setSessionIdentityState` · `markSessionInitialized`) notify unconditionally. One state, five entry
 points, two notification policies. And `sessionContextStore.setIdentityState` **does not notify at
@@ -163,7 +163,7 @@ SDK bridge) · `rebuildSessionIdentity` · `clearRelaySession` · `setSessionIde
 
 > **Measurement correction (during phase 2 execution): 31 → 32.** `setSessionAuthenticated` was
 > counted as app-referenced, but that "reference" was nothing but a single **comment line** in
-> `apps/admin-v2`'s OAuthResponsePage. Identifier-frequency-based detection can't screen out
+> `apps/admin`'s OAuthResponsePage. Identifier-frequency-based detection can't screen out
 > comments, and the same trap hid `useRegisterDeviceToken` too (phase 0) — a limitation the 2026-09
 > sweep admitted on its own. What was actually removed is 32. **The measured trajectory of public
 > value exports is `111 → 78 → 77 → 67`** — 111 on develop, phase 2 removed 32 to reach 78 (the same
@@ -179,15 +179,15 @@ _"when two barrels emit the same name, the call site has no way to know which on
 the entry point singular is itself the fix for this defect."_ `web-core` is gone. But **the same
 collision is still there, inside the merged package.**
 
-| Name                                   | Weak version (store only)                         | Strong version (socket notification + store)                                                        | What the root barrel exports |
-| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `logoutCloudSession`                   | `session/auth/services.ts` (deleted)              | [`socket/auth/logoutCloudSession.ts`](../../libs/app-runtime/src/socket/auth/logoutCloudSession.ts) | **weak version**             |
-| `logoutRelaySession` / `logoutSession` | `session/auth/services.ts` (`logoutRelaySession`) | `socket/auth/logoutSession.ts` (`logoutSession`)                                                    | **weak version**             |
+| Name                                   | Weak version (store only)                         | Strong version (socket notification + store)                                            | What the root barrel exports |
+| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| `logoutCloudSession`                   | `session/auth/services.ts` (deleted)              | [`socket/auth/logoutCloudSession.ts`](../../libs/auth/src/socket/logoutCloudSession.ts) | **weak version**             |
+| `logoutRelaySession` / `logoutSession` | `session/auth/services.ts` (`logoutRelaySession`) | `socket/auth/logoutSession.ts` (`logoutSession`)                                        | **weak version**             |
 
 The hooks (`useLogoutCloudSession` · `useSessionLogout`) use the strong version, so the screen path
 is fine. But with public-surface.md declaring the strong version "internal", **the root barrel
 publicly exports the weak version under the same name**, and
-[`apps/admin-v2`'s `useRelaySessionGuard`](../../apps/admin-v2/src/app/hooks/useRelaySessionGuard.ts)
+[`apps/admin`'s `useRelaySessionGuard`](../../apps/admin/src/app/hooks/useRelaySessionGuard.ts)
 actually calls the weak version on teardown — that logout skips both slots' `auth.logout`.
 
 ## Decision
@@ -265,8 +265,8 @@ export const getAuthStatus = (kind: SocketKind, deps?: AuthSignalDeps): AuthStat
 
 Taking `*Deps` as optional and resolving defaults lazily is the shape already used in the same
 folder by
-[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
-[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts).
+[`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts).
 This projection also needs to know both the store and the `SocketManager`, so it cannot be assembled
 at module load time — but deferring that to the function argument means no lazy singleton
 (`get*`/`reset*`) is needed. Tests pass `deps` directly.
@@ -304,7 +304,7 @@ wiring the extra subscriptions becomes worth paying.
 
 Payload-less global broadcasts are replaced with typed signals, with a **batch boundary** provided.
 This reuses the vocabulary already used by
-[`session/store/signal.ts`](../../libs/app-runtime/src/session/store/signal.ts) ("session signal"),
+[`session/store/signal.ts`](../../libs/session/src/store/signal.ts) ("session signal"),
 so no new concept term is introduced.
 
 ```ts
@@ -381,7 +381,7 @@ Two implementations live here: `RelayCredentialRenewer` and `CloudCredentialRene
 > window, the session survives. The window is a verdict deferral, not a retry loop (no scheduling,
 > no kick), and repeated reports are folded into one verdict by Decision 4's `Coalescer`. The
 > contract is locked by
-> [`renewers.test.ts`](../../libs/app-runtime/src/socket/auth/renewers.test.ts).
+> [`renewers.test.ts`](../../libs/auth/src/socket/renewers.test.ts).
 >
 > **Amended by [ADR-0204](./0204-a-verified-socket-outranks-a-browser-that-says-it-is-offline.md):**
 > for `deriveConnectivity` and the renewal guards, a verified socket on any slot now overrules
@@ -455,7 +455,7 @@ expressed as `backoff: 'exponential'`. Its values (initial 30 seconds · 5-minut
 ### 5. Reorganize `session/auth/services.ts` into classes
 
 The suffix isn't the repo's zero-occurrence `*Service`, but **the bare concept noun**, as
-[`ActiveScope`](../../libs/app-runtime/src/session/scope/ActiveScope.ts) does. `*Manager` isn't used
+[`ActiveScope`](../../libs/session/src/scope/ActiveScope.ts) does. `*Manager` isn't used
 either — ADR-0070 fixed that name to mean "there are four engines", and adding two more would blur
 that boundary.
 
@@ -473,7 +473,7 @@ that boundary.
 | pure functions                                        | `session/auth/utils/tokenMerge.ts`   | `mergeRefreshedRelayToken` · `mergeRefreshedCloudToken`                         |
 
 The grounds for `SessionAuthAdapter`'s suffix are
-[`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/app-runtime/src/http/factory.ts)
+[`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/transport/src/http/factory.ts)
 — the same package already uses this name for a class that fits session state to a port.
 `*Impl` has 0 occurrences in the repo.
 
@@ -503,7 +503,7 @@ change.
 
 `patchRelaySessionUser` / `getRelaySessionUser` are kept on the public surface as an exception — they
 are the read/write pair for the account profile, a
-[question the local cache can't answer](../../libs/app-runtime/src/session/store/contextStore.ts),
+[question the local cache can't answer](../../libs/session/src/store/contextStore.ts),
 documented as such, and `apps/web` actually uses them (ADR-0062).
 
 ### 7. Remove the name collision — what is published is the strong version
@@ -514,7 +514,7 @@ repo's `clear*` family (`clearSession` · `clearToken` · `clearIdentity` · `cl
 root barrel's public `logoutSession` · `logoutCloudSession` are assigned only to the `socket/auth`
 version that includes the socket notification.
 
-`apps/admin-v2`'s `useRelaySessionGuard` teardown is moved to the strong version — **the one place
+`apps/admin`'s `useRelaySessionGuard` teardown is moved to the strong version — **the one place
 in this ADR where app code changes.**
 
 ### 8. Rename the first of the three scope views to `selected` (a vocabulary update to ADR-0070 Decision 7)

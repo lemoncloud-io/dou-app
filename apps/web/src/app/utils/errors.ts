@@ -40,7 +40,7 @@ const describeEvent = (event: Event): string => {
  * (`408 REQUEST TIMEOUT - …`, `503 SOCKET NOT CONNECTED - …`) and how a server message that does
  * begin with its status reads (`403 FORBIDDEN - …`).
  *
- * The runtime keeps the same parser (`libs/app-runtime/src/socket/utils/socketErrorCode.ts`), and so
+ * The runtime keeps the same parser (`libs/transport/src/socket/utils/socketErrorCode.ts`), and so
  * does desktop-web (`socketErrorStatus`); a change to one belongs in the others.
  *
  * This exists so callers branch on the code and never on the wording: server messages are not a

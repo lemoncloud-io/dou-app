@@ -129,13 +129,7 @@ export const PushScreen = () => {
                     <div className="mt-3 flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() =>
-                                void run(
-                                    strings.operations.deleteToken,
-                                    () => appBridge.deleteFcmToken(),
-                                    'DeleteFcmToken'
-                                )
-                            }
+                            onClick={() => void run(strings.operations.deleteToken, () => appBridge.deleteFcmToken())}
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             {strings.actions.deleteToken}
@@ -143,10 +137,8 @@ export const PushScreen = () => {
                         <button
                             type="button"
                             onClick={() =>
-                                void run(
-                                    strings.operations.requestPermission,
-                                    () => appBridge.requestPermission('NOTIFICATIONS'),
-                                    'RequestPermission'
+                                void run(strings.operations.requestPermission, () =>
+                                    appBridge.requestPermission('NOTIFICATIONS')
                                 )
                             }
                             className="rounded-md border border-border px-2 py-1 text-xs"
@@ -156,15 +148,12 @@ export const PushScreen = () => {
                         <button
                             type="button"
                             onClick={() =>
-                                void run(
-                                    strings.operations.localNotification,
-                                    () =>
-                                        appBridge.showNotification({
-                                            title: strings.notification.title,
-                                            body: strings.notification.body,
-                                            deeplink: buildAppDeeplink(PUSH_TAP_PATH),
-                                        }),
-                                    'ShowNotification'
+                                void run(strings.operations.localNotification, () =>
+                                    appBridge.showNotification({
+                                        title: strings.notification.title,
+                                        body: strings.notification.body,
+                                        deeplink: buildAppDeeplink(PUSH_TAP_PATH),
+                                    })
                                 )
                             }
                             className="rounded-md border border-border px-2 py-1 text-xs"
@@ -173,13 +162,7 @@ export const PushScreen = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() =>
-                                void run(
-                                    strings.operations.fetchBadge,
-                                    () => appBridge.fetchBadgeCount(),
-                                    'FetchBadgeCount'
-                                )
-                            }
+                            onClick={() => void run(strings.operations.fetchBadge, () => appBridge.fetchBadgeCount())}
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             {strings.actions.fetchBadge}

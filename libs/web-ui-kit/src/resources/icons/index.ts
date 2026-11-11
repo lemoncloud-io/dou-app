@@ -115,10 +115,12 @@ export { IconDangerCircle, type IconDangerCircleProps } from './IconDangerCircle
 export { IconBoltSolid, type IconBoltSolidProps } from './IconBoltSolid';
 export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';
 // Chat attach-menu glyphs (Solar "Bold" set, exported from the attach sheet `3749:27536`): photos ·
-// camera · files. Each is 32px in the design and coloured by its tile, so they fill `currentColor`.
+// camera · files, and the voice entry drawn to match them. Each is 32px in the design and coloured by
+// its tile, so they fill `currentColor`.
 export { IconGalleryWideSolid, type IconGalleryWideSolidProps } from './IconGalleryWideSolid';
 export { IconCameraSolid, type IconCameraSolidProps } from './IconCameraSolid';
 export { IconFileSolid, type IconFileSolidProps } from './IconFileSolid';
+export { IconMicrophoneSolid, type IconMicrophoneSolidProps } from './IconMicrophoneSolid';
 export { IconFileCheck, type IconFileCheckProps } from './IconFileCheck';
 export { IconGalleryWide, type IconGalleryWideProps } from './IconGalleryWide';
 // Chat attachment glyphs drawn for the message feed: the play mark a video tile carries, and the
@@ -134,3 +136,6 @@ export {
     IconFileText,
     type FileKindIconProps,
 } from './FileKindIcons';
+// Bottom nav glyphs (Figma 5780:17209): each tab has a line icon and a filled one for its selected
+// state. They fill or stroke `currentColor`; the tab bar colours them with `text-nav-ink`.
+export { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid, type NavIconProps } from './NavIcons';

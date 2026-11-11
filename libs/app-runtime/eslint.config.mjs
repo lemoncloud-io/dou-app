@@ -1,53 +1,74 @@
 import nx from '@nx/eslint-plugin';
 
-import baseConfig from '../../eslint.config.mjs';
+import baseConfig, { webStorageBanAfterReact } from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
     ...nx.configs['flat/react'],
+    // The preset above sets the rules the root's web-storage ban uses, which would switch the ban
+    // off here; this puts it back beside the preset's own lists. The root config says why.
+    webStorageBanAfterReact,
     {
         files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
         // Override or add rules here
         rules: {},
     },
     // ---------------------------------------------------------------------------------------------
-    // ADR-0070 결정 1 규칙 1 — 스토어의 수동성.
+    // `@chatic/session`, `@chatic/transport`, `@chatic/sync` and `@chatic/auth` are open to this
+    // package, through their barrels.
     //
-    // `session/store/**` stores and notifies. It must not reach sideways into the socket, data or
-    // HTTP layers, nor into its sibling folders (auth · hooks · scope) — the direction runs the other
-    // way, and opening the reverse would make the store a participant in the flows it is supposed to
-    // merely record. `scope` is in the ban list even though the ADR text names only five folders:
-    // scope subscribes to the store, so the reverse edge would be a cycle by the same reasoning.
-    //
-    // `configure.ts` is the one exemption: it is the deliberate env seam that injects the relay
-    // endpoint resolvers, which is what keeps `relayStore` itself free of the dependency.
+    // The root config closes them to everything else; these two blocks set the same rule
+    // again for this package's files, keeping the root's `@chatic/data/*` ban. Production code takes
+    // the barrels only. Tests may also name a file as `@chatic/<package>/<path>`. The reason is the
+    // mock: a test that mocks a module must name that file, or the package's internal imports keep
+    // the real one. A test then imports the same file's other symbols by the same path, and a shared
+    // test fixture a package keeps outside its barrel (`@chatic/transport/testing/platform`) the same way.
     // ---------------------------------------------------------------------------------------------
     {
-        files: ['src/session/store/**/*.ts'],
-        ignores: ['src/session/store/configure.ts'],
+        files: ['src/**/*.ts', 'src/**/*.tsx'],
+        ignores: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],
         rules: {
-            'no-restricted-imports': [
+            '@typescript-eslint/no-restricted-imports': [
                 'error',
                 {
                     patterns: [
                         {
-                            group: [
-                                '**/socket/**',
-                                '**/data/**',
-                                '**/http/**',
-                                '../auth',
-                                '../auth/*',
-                                '../hooks',
-                                '../hooks/*',
-                                '../scope',
-                                '../scope/*',
-                            ],
-                            message: 'session/store는 수동적이다 — 저장과 통지만 한다 (ADR-0070 결정 1 규칙 1).',
+                            group: ['@chatic/data/*'],
+                            message:
+                                'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                         {
-                            group: ['@chatic/config'],
+                            group: ['@chatic/session/*'],
+                            message: 'Import @chatic/session through its barrel. Deep paths are for test mocks only.',
+                        },
+                        {
+                            group: ['@chatic/transport/*'],
+                            message: 'Import @chatic/transport through its barrel. Deep paths are for test mocks only.',
+                        },
+                        {
+                            group: ['@chatic/sync/*'],
+                            message: 'Import @chatic/sync through its barrel. Deep paths are for test mocks only.',
+                        },
+                        {
+                            group: ['@chatic/auth/*'],
+                            message: 'Import @chatic/auth through its barrel. Deep paths are for test mocks only.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@chatic/data/*'],
                             message:
-                                'env·설정 직접 import 금지 — 부팅이 주입한 값을 받아라. 주입 지점은 session/store/configure.ts (ADR-0070 결정 1 규칙 2 · ADR-0079).',
+                                'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                     ],
                 },
@@ -59,7 +80,7 @@ export default [
     //
     // 여기 있던 `no-restricted-imports` 규칙은 사라졌다. 지킬 심볼이 없기 때문이다: refresh
     // 엔드포인트를 치는 코드가 이 패키지에 하나도 남지 않았고, 그 사실 자체를
-    // `src/http/refreshAbsence.test.ts`가 지킨다.
+    // `src/refreshAbsence.test.ts`가 지킨다.
     //
     // 부재 검사가 더 강하다. 옛 규칙은 경로 문자열(`**/session/auth/api`)에 묶여 있어서 심볼이
     // `http/auth/refresh`로 옮겨가자 아무것도 매치하지 않은 채 **조용히** 죽었다 — 위반 파일이

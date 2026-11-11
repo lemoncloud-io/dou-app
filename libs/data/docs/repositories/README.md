@@ -154,14 +154,16 @@ classDiagram
     }
     class IndexedDBAdapter
     class NativeDBAdapter
+    class WebStorageAdapter
 
     CacheStorage <|.. BaseDbAdapter
     BaseDbAdapter <|-- IndexedDBAdapter
     BaseDbAdapter <|-- NativeDBAdapter
+    BaseDbAdapter <|-- WebStorageAdapter
 ```
 
 `CacheStorage` and `ScopedCacheStorage` belong to this lib — interfaces `ports/` declares, plus the
-slot that builds one adapter per partition (`createScopedCacheStorage`). The three adapters below it
+slot that builds one adapter per partition (`createScopedCacheStorage`). The adapters below it
 are owned by `@chatic/db`, and which domain gets which adapter is decided by `libs/app-runtime`.
 
 ## Repository wiring
@@ -322,4 +324,4 @@ whatever rows remain.
 
 ## Further reading
 
-- [socket sync usage](../../../app-runtime/docs/sync/README.md) — the path by which a join row's removal becomes a purge signal (owned by app-runtime).
+- [libs/sync](../../../sync/README.md) — the path by which a join row's removal becomes a purge signal (owned by `@chatic/sync`).

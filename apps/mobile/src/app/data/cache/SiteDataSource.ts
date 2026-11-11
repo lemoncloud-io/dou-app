@@ -1,4 +1,4 @@
-import type { CacheSiteView, SiteQueryOptions } from '@chatic/app-messages';
+import type { CacheSiteView, SiteQueryOptions } from '@chatic/bridge-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';

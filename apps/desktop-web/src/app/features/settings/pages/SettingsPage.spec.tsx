@@ -24,9 +24,6 @@ vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
 }));
 
-vi.mock('@chatic/theme', () => ({
-    useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
-}));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     VersionInfo: () => null,

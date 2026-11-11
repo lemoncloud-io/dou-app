@@ -6,6 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useSelectedChannelStore, useSocketFrameLogStore, VersionInfo } from '../../../shared';
+import { deviceStore } from '../../../storage';
 
 /**
  * Dev-only socket + cache health page, written to be read at a glance:
@@ -130,7 +131,7 @@ const computeGaps = (input: number[]): GapReport => {
 
 const readBaseline = (): Baseline | null => {
     try {
-        const raw = localStorage.getItem(BASELINE_KEY);
+        const raw = deviceStore.get(BASELINE_KEY);
         return raw ? (JSON.parse(raw) as Baseline) : null;
     } catch {
         return null;
@@ -421,7 +422,7 @@ export const DebugSyncPage = () => {
             channelId: selectedChannelId,
             capturedAt: Date.now(),
         };
-        localStorage.setItem(BASELINE_KEY, JSON.stringify(b));
+        deviceStore.set(BASELINE_KEY, JSON.stringify(b));
         navigate(0);
     }, [rows, selectedChannelId, navigate]);
 
@@ -494,7 +495,7 @@ export const DebugSyncPage = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                    localStorage.removeItem(BASELINE_KEY);
+                                    deviceStore.remove(BASELINE_KEY);
                                     navigate(0);
                                 }}
                             >

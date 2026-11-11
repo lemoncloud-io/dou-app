@@ -113,7 +113,7 @@ been set in production, so there is nothing existing to migrate. With ADR-0052 h
 ### 1. The app reports per-domain contract versions
 
 Add an optional field to the handshake payload
-([system.ts](../../libs/app-messages/src/types/model/system.ts)'s `OnWebAppReadyPayload`):
+([system.ts](../../libs/bridge-messages/src/types/model/system.ts)'s `OnWebAppReadyPayload`):
 
 ```ts
 // libs/app-messages — only the type is shared. Each side declares its own value.

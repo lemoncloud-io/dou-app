@@ -130,4 +130,19 @@ describe('AuthRepository — HTTP account/alias/invite surface (ADR-0070 late st
         await expect(repository.findAlias({ type: 'email', alias: 'a@b.com' })).resolves.toEqual({ hasUser: true });
         expect(http.findAlias).toHaveBeenCalledWith({ type: 'email', alias: 'a@b.com' });
     });
+
+    it('passes a register endpoint override through with the request context', async () => {
+        const http = createAuthHttpDataSource();
+        http.registerUserV2.mockResolvedValue({ id: 'u2' });
+        const repository = new AuthRepository({} as any, contextProvider as any, http as any);
+
+        await repository.registerUserV2({} as any, true, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(http.registerUserV2).toHaveBeenCalledWith(
+            {},
+            true,
+            { cid: 'cloud-a', uid: 'me' },
+            { endpoint: 'https://other.test/dou-d1' }
+        );
+    });
 });

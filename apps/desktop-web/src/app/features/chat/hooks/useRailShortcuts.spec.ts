@@ -121,8 +121,15 @@ describe('useRailShortcuts', () => {
         expect(onSelectCloud).not.toHaveBeenCalled();
     });
 
-    it('does not enter a cloud only a subscription can reopen', () => {
-        const withLapsed: RailCloud[] = [...clouds, { id: 'lapsed', kind: 'owned', status: 'suspended' }];
+    it('enters a suspended cloud', () => {
+        const withHeld: RailCloud[] = [...clouds, { id: 'held', kind: 'owned', status: 'suspended' }];
+        const { onSelectCloud } = renderShortcuts({ clouds: withHeld });
+        press('4', { metaKey: true });
+        expect(onSelectCloud).toHaveBeenCalledWith('held');
+    });
+
+    it('does not enter a released cloud', () => {
+        const withLapsed: RailCloud[] = [...clouds, { id: 'lapsed', kind: 'owned', status: 'expired' }];
         const { onSelectCloud } = renderShortcuts({ clouds: withLapsed });
         press('4', { metaKey: true });
         expect(onSelectCloud).not.toHaveBeenCalled();

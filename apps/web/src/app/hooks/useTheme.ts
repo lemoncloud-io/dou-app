@@ -4,6 +4,7 @@ import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
 import { appBridge } from '../bridge';
+import { deviceStore } from '../storage';
 import type { Theme } from '../stores/preferenceKeys';
 
 // ---------------------------------------------------------------------------
@@ -63,17 +64,14 @@ const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
  *
  * The `vite-ui-theme` write is a SEPARATE mirror: this key is not private to this app — five apps'
  * pre-paint scripts and `@chatic/theme`'s `ThemeProvider` all read/write it directly so a shared
- * machine keeps one preference (see `legacyPreferenceMigration.ts`'s `syncThemeFromSharedKey` for
+ * machine keeps one preference (see `themeSharedKeySync.ts`'s `syncThemeFromSharedKey` for
  * the read-back half). `@chatic/config`'s own mirror only ever touches its own namespaced key.
  */
 export const setTheme = (theme: Theme): void => {
     config.set('ui.theme', theme, { lane: 'shell' });
     void syncThemeToNativeStore(theme);
-    try {
-        localStorage.setItem('vite-ui-theme', theme);
-    } catch {
-        // Best-effort — the @chatic/config write above already landed.
-    }
+    // Best-effort: the device store swallows a failed write — the @chatic/config write above landed.
+    deviceStore.set('vite-ui-theme', theme);
 };
 
 /**

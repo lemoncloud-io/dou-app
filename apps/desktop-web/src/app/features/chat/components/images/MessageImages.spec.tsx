@@ -10,7 +10,24 @@ import { MessageImages } from './MessageImages';
 
 import '../../../../../i18n';
 
-vi.mock('../../../channels', () => ({ ConfirmDialog: () => null }));
+vi.mock('../../../channels', () => ({
+    ConfirmDialog: ({
+        title,
+        confirmLabel,
+        onConfirm,
+    }: {
+        title: string;
+        confirmLabel: string;
+        onConfirm: () => void;
+    }) => (
+        <div>
+            <p>{title}</p>
+            <button type="button" onClick={onConfirm}>
+                {confirmLabel}
+            </button>
+        </div>
+    ),
+}));
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
@@ -42,7 +59,7 @@ describe('MessageImages', () => {
         expect(sources()).toContain('https://s/o2');
     });
 
-    it('offers no "delete file" on a sent message — there is no server delete for an upload', async () => {
+    it('offers no "delete file" on a sent message when nothing can delete the message', async () => {
         render(
             <MessageImages
                 message={sent([{ id: 'u1', status: 'stored', orgUrl: 'https://s/o1' }] as DomainChat['upload$$'])}
@@ -52,7 +69,31 @@ describe('MessageImages', () => {
             { wrapper }
         );
 
-        expect(screen.getByRole('button', { name: /copy/i })).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+        const more = screen.getByRole('button', { name: 'More actions' });
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+        fireEvent.keyDown(more, { key: 'Enter' });
+        expect(await screen.findByRole('menuitem', { name: /copy/i })).toBeTruthy();
+        expect(screen.queryByRole('menuitem', { name: /delete/i })).toBeNull();
+    });
+
+    it('deletes the whole message from "delete file" on a sent upload', async () => {
+        const onDeleteMessage = vi.fn();
+        render(
+            <MessageImages
+                message={sent([{ id: 'u1', status: 'stored', orgUrl: 'https://s/o1' }] as DomainChat['upload$$'])}
+                canDelete
+                onDeleteMessage={onDeleteMessage}
+                author={author}
+            />,
+            { wrapper }
+        );
+
+        const more = screen.getByRole('button', { name: 'More actions' });
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+        fireEvent.keyDown(more, { key: 'Enter' });
+        fireEvent.click(await screen.findByRole('menuitem', { name: /delete/i }));
+        expect(await screen.findByText('Delete this message?')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Delete file' }));
+        expect(onDeleteMessage).toHaveBeenCalledTimes(1);
     });
 });

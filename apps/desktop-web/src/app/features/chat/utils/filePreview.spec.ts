@@ -4,7 +4,29 @@ import { describe, expect, it } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 
 import type { ChatFile } from './chatImages';
-import { TEXT_PREVIEW_MAX_BYTES, canPreview, readTextPreview } from './filePreview';
+import {
+    HTML_PREVIEW_MAX_BYTES,
+    TEXT_PREVIEW_MAX_BYTES,
+    canPreview,
+    formatPlaybackTime,
+    htmlPreviewDocument,
+    readTextPreview,
+} from './filePreview';
+
+describe('formatPlaybackTime', () => {
+    it('reads m:ss, and h:mm:ss from an hour, rounded down', () => {
+        expect(formatPlaybackTime(2.9)).toBe('0:02');
+        expect(formatPlaybackTime(125)).toBe('2:05');
+        expect(formatPlaybackTime(3725)).toBe('1:02:05');
+    });
+
+    // The browser reports NaN before the header arrives, and Infinity for a stream.
+    it('reads a length it does not know as 0:00', () => {
+        expect(formatPlaybackTime(Number.NaN)).toBe('0:00');
+        expect(formatPlaybackTime(Number.POSITIVE_INFINITY)).toBe('0:00');
+        expect(formatPlaybackTime(-1)).toBe('0:00');
+    });
+});
 
 const bytes = (parts: (string | Uint8Array)[]): Blob => new NodeBlob(parts) as unknown as Blob;
 
@@ -16,6 +38,14 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'report.pdf' }))).toBe('pdf');
         expect(canPreview(sent({ name: 'notes.txt', contentType: 'text/plain' }))).toBe('text');
         expect(canPreview(sent({ name: 'NOTES.TXT' }))).toBe('text');
+    });
+
+    // A voice file plays in the page; macOS types an M4A `audio/x-m4a`.
+    it('plays a sent voice file, by its type or its name', () => {
+        expect(canPreview(sent({ name: 'song.mp3', contentType: 'audio/mpeg' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'memo.m4a', contentType: 'audio/x-m4a' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'take.wav' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'voice.ogg', contentType: 'audio/ogg' }))).toBe('audio');
     });
 
     // Nothing in the browser draws these without sending the file to someone else.
@@ -73,5 +103,72 @@ describe('readTextPreview', () => {
         expect(preview.truncated).toBe(true);
         expect(preview.text.length).toBe(Math.floor(TEXT_PREVIEW_MAX_BYTES / 3));
         expect(preview.text).not.toContain('�');
+    });
+});
+
+describe('HTML preview', () => {
+    it('opens a sent HTML page, by its type or its name', () => {
+        expect(canPreview(sent({ name: 'report.html', contentType: 'text/html' }))).toBe('html');
+        expect(canPreview(sent({ name: 'old.htm' }))).toBe('html');
+        expect(canPreview(sent({ name: 'report.html', contentType: 'text/html', isUploading: true }))).toBeNull();
+    });
+
+    const policyOf = (doc: string): string =>
+        /<meta http-equiv="Content-Security-Policy" content="([^"]*)">/.exec(doc)?.[1] ?? '';
+
+    it('puts a policy ahead of the page that loads nothing from the network and runs no script', () => {
+        const policy = policyOf(htmlPreviewDocument('<p>hi</p>'));
+        expect(policy).toContain("default-src 'none'");
+        expect(policy).not.toMatch(/script-src|https?:|\*/);
+        expect(policy).toContain('img-src data:');
+    });
+
+    const parsed = (doc: string): Document => new DOMParser().parseFromString(doc, 'text/html');
+    const policyInHead = (doc: string): boolean =>
+        parsed(doc).head.firstElementChild?.getAttribute('http-equiv') === 'Content-Security-Policy';
+
+    // Anything ahead of the doctype would drop the page into quirks mode and change its layout.
+    it('keeps the doctype first and the policy first in the head', () => {
+        const doc = htmlPreviewDocument(
+            '\uFEFF  <!DOCTYPE html>\n<html lang="ko"><head><title>x</title></head></html>'
+        );
+        expect(doc.startsWith('<!DOCTYPE html>')).toBe(true);
+        expect(policyInHead(doc)).toBe(true);
+        expect(parsed(doc).documentElement.lang).toBe('ko');
+    });
+
+    it('keeps the doctype of a page saved with a comment ahead of it', () => {
+        const doc = htmlPreviewDocument('<!-- saved from url=(0014)about:internet -->\n<!DOCTYPE html><html></html>');
+        expect(doc.startsWith('<!DOCTYPE html>')).toBe(true);
+        expect(policyInHead(doc)).toBe(true);
+    });
+
+    // A policy outside the head is ignored, so a page that starts its body early must not get one there.
+    it.each([['<!-->'], ['<!--->'], ['<!-- a --!>']])(
+        'puts the policy in the head of a page whose comment %s closes early',
+        opener => {
+            const doc = htmlPreviewDocument(
+                `${opener}<img src="https://example.com/p.png"><!-- --><!doctype html><p>x</p>`
+            );
+            expect(policyInHead(doc)).toBe(true);
+            const page = parsed(doc);
+            expect(page.head.contains(page.querySelector('img'))).toBe(false);
+        }
+    );
+
+    it('gives links without a target of their own one the frame refuses, ahead of any base of the page', () => {
+        const doc = htmlPreviewDocument('<base href="https://example.com/" target="_self"><a href="/x">x</a>');
+        expect(doc.indexOf('<base target="_blank">')).toBeLessThan(doc.indexOf('<base href='));
+    });
+
+    it('lets an HTML page be read up to its own larger allowance', async () => {
+        expect(HTML_PREVIEW_MAX_BYTES).toBeGreaterThan(TEXT_PREVIEW_MAX_BYTES);
+        const page = await readTextPreview(
+            bytes(['<p>', 'x'.repeat(2 * 1024 * 1024), '</p>']),
+            undefined,
+            HTML_PREVIEW_MAX_BYTES
+        );
+        expect(page.truncated).toBe(false);
+        expect(page.text.endsWith('</p>')).toBe(true);
     });
 });

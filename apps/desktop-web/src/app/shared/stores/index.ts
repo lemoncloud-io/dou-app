@@ -1,6 +1,7 @@
 export * from './useSelectedChannelStore';
 export * from './useReadCursorStore';
 export * from './useNotificationPrefsStore';
+export * from './useAppearancePrefsStore';
 export * from './useComposerDraftStore';
 export * from './useJoinedCloudsStore';
 export * from './useSiteProfilesStore';

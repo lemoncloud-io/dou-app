@@ -10,7 +10,7 @@
             "path": "./apps/web"
         },
         {
-            "path": "./libs/app-messages"
+            "path": "./libs/bridge-messages"
         },
         {
             "path": "./libs/device-utils"
@@ -49,13 +49,10 @@
             "path": "./apps/desktop-web"
         },
         {
-            "path": "./apps/testbed"
-        },
-        {
             "path": "./libs/logger"
         },
         {
-            "path": "./apps/admin-v2"
+            "path": "./apps/admin"
         },
         {
             "path": "./libs/auth-sign"
@@ -79,6 +76,18 @@
             "path": "./libs/perf"
         },
         {
+            "path": "./libs/session"
+        },
+        {
+            "path": "./libs/transport"
+        },
+        {
+            "path": "./libs/sync"
+        },
+        {
+            "path": "./libs/auth"
+        },
+        {
             "path": "./apps/web-e2e"
         },
         {
@@ -89,6 +98,18 @@
         },
         {
             "path": "./apps/shell-adapter"
+        },
+        {
+            "path": "./libs/storage"
+        },
+        {
+            "path": "./libs/runtime-core"
+        },
+        {
+            "path": "./libs/runtime-web"
+        },
+        {
+            "path": "./tools/eslint-rules"
         }
     ]
 }

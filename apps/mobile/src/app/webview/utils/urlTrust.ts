@@ -1,15 +1,5 @@
 import { CUSTOM_SCHEMES, DEEP_LINK_DOMAINS } from '../../services/deeplinks/deeplinkUtils';
-
-// Parsed by hand rather than with `URL`: React Native's `URL.origin` is a regex over the raw string
-// that keeps userinfo, query and fragment, and Jest runs Node's WHATWG `URL` instead, so a check
-// built on it would behave differently on device than in its tests. The userinfo group is dropped
-// so `https://app.chatic.io@evil.example` reads as `evil.example`, which is where it actually goes.
-const ORIGIN_PATTERN = /^(https?):\/\/(?:[^/?#@]*@)?([^/?#]+)/i;
-
-const originOf = (url: string | undefined): string | null => {
-    const match = url ? ORIGIN_PATTERN.exec(url) : null;
-    return match ? `${match[1].toLowerCase()}://${match[2].toLowerCase()}` : null;
-};
+import { originOf } from '../../utils/url';
 
 /**
  * Whether a page at `pageUrl` may drive the native bridge: it must be served by the origin the

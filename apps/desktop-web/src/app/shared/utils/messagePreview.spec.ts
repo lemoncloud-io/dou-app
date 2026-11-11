@@ -10,6 +10,14 @@ describe('messagePreview', () => {
         expect(messagePreview({ content: '**hi** there', uploadIds: ['u1'] })).toBe('hi there');
     });
 
+    // A deleted message is quoted as deleted: a server that records deletes empties the body (a blank
+    // line), and an older one keeps it (the words the author took back).
+    it('reads as deleted for a deleted message, with or without its body', () => {
+        expect(messagePreview({ content: '', hidden: true })).toBe('Message deleted');
+        expect(messagePreview({ content: 'kept', hidden: true })).toBe('Message deleted');
+        expect(messagePreview({ content: '', uploadIds: ['u1'], hidden: true })).toBe('Message deleted');
+    });
+
     // An image message has no text; its OS banner read "Raine:" with nothing after it.
     it('names a single photo', () => {
         expect(messagePreview({ content: '', uploadIds: ['u1'] })).toBe('Photo');
@@ -47,6 +55,12 @@ describe('messagePreview', () => {
 
 describe('outgoingMessagePreview', () => {
     const file = (type: string) => new File(['x'], 'f', { type });
+
+    it('names a voice file the way the sent message will', () => {
+        expect(outgoingMessagePreview('', [file('audio/mpeg')])).toBe(
+            messagePreview({ content: '', upload$$: [{ stereo: 'audio' }] as never })
+        );
+    });
 
     it('is the text when the reply has any', () => {
         expect(outgoingMessagePreview('**hi**', [file('image/png')])).toBe('hi');

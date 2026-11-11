@@ -1,5 +1,8 @@
 import { createContext, useEffect, useState } from 'react';
 import { isNative, webClient } from '@chatic/bridges';
+import { TolerantStore, WebStore } from '@chatic/storage';
+
+import type { KeyValueStore } from '@chatic/storage';
 
 export type Theme = 'dark' | 'light' | 'system';
 
@@ -7,6 +10,12 @@ type ThemeProviderProps = {
     children: React.ReactNode;
     defaultTheme?: Theme;
     storageKey?: string;
+    /**
+     * Where the choice is kept — the app's store for state that outlives the window. Left out, this
+     * origin's `localStorage`, tolerant of a full or blocked one: the key is shared across apps on the
+     * same origin (`vite-ui-theme`), which their pre-paint scripts read from there.
+     */
+    storage?: Pick<KeyValueStore, 'get' | 'set'>;
 };
 
 type ThemeProviderState = {
@@ -25,13 +34,17 @@ const prefersDark = () => window.matchMedia(DARK_SCHEME_QUERY).matches;
 
 export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
+let fallbackStorage: KeyValueStore | null = null;
+const defaultStorage = (): KeyValueStore => (fallbackStorage ??= new TolerantStore(WebStore.local()));
+
 export function ThemeProvider({
     children,
     defaultTheme = 'light',
     storageKey = 'vite-ui-theme',
+    storage = defaultStorage(),
     ...props
 }: ThemeProviderProps) {
-    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+    const [theme, setTheme] = useState<Theme>(() => (storage.get(storageKey) as Theme) || defaultTheme);
     const [systemIsDark, setSystemIsDark] = useState(prefersDark);
     const isOnMobileApp = isNative();
 
@@ -69,7 +82,7 @@ export function ThemeProvider({
     const value = {
         theme,
         setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme);
+            storage.set(storageKey, theme);
             setTheme(theme);
         },
     };

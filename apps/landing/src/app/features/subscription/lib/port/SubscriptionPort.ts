@@ -8,6 +8,7 @@ import type {
     ChangePlanResult,
     ChangePreview,
     CheckoutPreview,
+    Currency,
     EmailCodeTicket,
     Invoice,
     PaymentAttempt,
@@ -24,9 +25,9 @@ import type {
 /**
  * Everything the subscription screens ask of a server, in one interface.
  *
- * Pages and hooks talk to this and nothing else — no `fetch`, no HTTP client. Today the only
- * implementation is the in-memory mock (`lib/mock`); the real one will be a second implementation of
- * the same interface, and swapping it in is meant to touch `lib/port/` and nothing under `pages/`.
+ * Pages and hooks talk to this and nothing else — no `fetch`, no HTTP client. The app has two
+ * implementations, the server (`lib/port/http/`) and the catalog where the account surface is shut
+ * (`lib/catalogPort.ts`); the tests add a third, an in-memory fake server (`testing/mock/`).
  *
  * Every method rejects with a `SubscriptionPortError` (see `errors.ts`) and nothing else.
  */
@@ -39,20 +40,29 @@ export interface SubscriptionPort {
     completeSignIn(callback: URLSearchParams): Promise<SignInResult>;
     signOut(): Promise<void>;
 
-    // Plans and subscriptions.
-    listPlans(): Promise<Plan[]>;
+    // Plans and subscriptions. `currency` asks for the plans priced in it; without one they come in the
+    // currency the subscription in force is charged in, or in won when there is none.
+    listPlans(input?: { currency?: Currency }): Promise<Plan[]>;
     listSubscriptions(): Promise<Subscription[]>;
     getSubscription(id: string): Promise<Subscription>;
 
-    // Checkout. `startPaymentMethodRegistration` stands where the payment provider's own window
-    // opens; the pages see its outcome, and carry the card it registered on to `startCheckout`
-    // without reading it. Registering a card for anything but a checkout (`addCard`, `retry`) puts it
-    // on the subscription there and then.
-    previewCheckout(planId: PlanId): Promise<CheckoutPreview>;
+    // Checkout. `startPaymentMethodRegistration` stands where the payment provider's card entry opens;
+    // the pages see its outcome, and carry the card it registered on to `startCheckout` without reading
+    // it. Registering a card for anything but a checkout (`addCard`, `retry`) puts it on the
+    // subscription there and then.
+    //
+    // Which provider registers and charges the card is the port's to decide, from the billing country
+    // for a checkout (`KR` is billed in won, any other country in dollars) and from the subscription
+    // for anything after; the pages never name one. The payer is given only where the country needs one
+    // (`payerRequiredIn`) — a provider that requires a payer it was not given is refused as `invalid`.
+    /** `currency` prices the preview — the billing country's at checkout; won when omitted. */
+    previewCheckout(planId: PlanId, input?: { currency?: Currency }): Promise<CheckoutPreview>;
     startPaymentMethodRegistration(input: {
         purpose: AttemptPurpose;
         planId?: PlanId;
-        payer: Payer;
+        /** The checkout's billing country; a card added later goes with the subscription's provider. */
+        country?: string;
+        payer?: Payer;
     }): Promise<RegistrationResult>;
     /**
      * Where a payment window that left the page comes back to — a phone's, which the provider opens by
@@ -62,14 +72,15 @@ export interface SubscriptionPort {
     completePaymentMethodRegistration(input: {
         callback: URLSearchParams;
         purpose: AttemptPurpose;
-        payer: Payer;
+        payer?: Payer;
     }): Promise<RegistrationResult>;
     startCheckout(input: {
         planId: PlanId;
         country: string;
         /** The verified billing email, where billing emails are managed; the payer's address is what is charged to. */
         emailId?: string;
-        payer: Payer;
+        /** Where the billing country needs one. */
+        payer?: Payer;
         /** The card `startPaymentMethodRegistration` registered for this checkout. */
         card?: CardToken;
     }): Promise<PaymentAttempt>;

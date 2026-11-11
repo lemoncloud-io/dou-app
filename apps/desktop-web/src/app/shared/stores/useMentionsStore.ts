@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { isMentionKind, type InboxKind, type InboxSort, type InboxTab } from '../utils/inboxKinds';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /**
  * A message that @-mentioned me, snapshotted at capture time. Snapshot (not a
@@ -9,8 +10,13 @@ import { isMentionKind, type InboxKind, type InboxSort, type InboxTab } from '..
  * list must still render it. Mirrors SavedItem, plus a read marker.
  */
 export interface MentionItem {
-    /** The message's id — also the dedupe key (a mention is captured once). */
+    /** The dedupe key (a mention is captured once): `inboxItemId` of the cloud and the message's id. */
     id: string;
+    /**
+     * The cloud the message belongs to. Every cloud numbers its places and channels from the same
+     * start, so a place id or a channel id alone also names one in each other cloud.
+     */
+    cloudId: string;
     channelId: string;
     chatNo?: number;
     content: string;
@@ -52,6 +58,19 @@ export const MENTION_PREVIEW_CHARS = 240;
 export const truncateMentionPreview = (content: string): string =>
     content.length > MENTION_PREVIEW_CHARS ? content.slice(0, MENTION_PREVIEW_CHARS) : content;
 
+/**
+ * The inbox key of a message: its id under its cloud. Message ids are the cloud's own, so two clouds
+ * can hand over the same one, and the second would read as already captured and be dropped.
+ */
+export const inboxItemId = (cloudId: string, id: string): string => `${cloudId}:${id}`;
+
+/** A channel as the inbox names it: its id, the place it is in, and the cloud of both. */
+export interface InboxChannelRef {
+    cloudId: string;
+    id: string;
+    placeId?: string;
+}
+
 interface MentionsState {
     items: Record<string, MentionItem>;
     add: (item: Omit<MentionItem, 'readAt'>) => void;
@@ -64,11 +83,11 @@ interface MentionsState {
      * Stamp every unread item of a channel at or below `chatNo` read — the
      * inbox follows the same read-cursor boundary as the row and the dock, so
      * reading in the channel (or on another device, via the synced cursor)
-     * clears the inbox without opening each item. The place disambiguates
-     * same-id channels of other places; items captured before placeId existed
-     * match any place.
+     * clears the inbox without opening each item. The cloud and the place
+     * disambiguate same-id channels of other clouds and places; an item with
+     * no place matches any place of its cloud.
      */
-    markChannelRead: (channelId: string, chatNo: number, placeId?: string) => void;
+    markChannelRead: (channel: InboxChannelRef, chatNo: number) => void;
     removeMany: (ids: readonly string[]) => void;
 }
 
@@ -76,11 +95,12 @@ interface MentionsState {
  * Whether a channel holds a mention I have not got to: one not opened from the inbox, and past
  * `readNo`, what I have read in the channel. Drives the `@` on the channel's row.
  *
- * The channel is named with its place: channel ids are numbered per place, and this inbox holds
- * every place's mentions, so the id alone would also match another place's channel.
+ * The channel is named with its cloud and place: channel ids are numbered per place, and this inbox
+ * holds every cloud's and place's mentions, so the id alone would also match another one's channel.
  */
-const isUnreadMentionIn = (item: MentionItem, channel: { id: string; placeId?: string }, readNo: number): boolean =>
+const isUnreadMentionIn = (item: MentionItem, channel: InboxChannelRef, readNo: number): boolean =>
     isMentionKind(item) &&
+    item.cloudId === channel.cloudId &&
     item.channelId === channel.id &&
     item.placeId === channel.placeId &&
     !item.readAt &&
@@ -88,9 +108,19 @@ const isUnreadMentionIn = (item: MentionItem, channel: { id: string; placeId?: s
 
 export const hasUnreadMentionIn = (
     items: Record<string, MentionItem>,
-    channel: { id: string; placeId?: string },
+    channel: InboxChannelRef,
     readNo: number
 ): boolean => Object.values(items).some(item => isUnreadMentionIn(item, channel, readNo));
+
+/** The persisted inbox with only the items that name their cloud (the v0 → v1 migration). */
+export const keepCloudItems = (persisted: unknown): { items: Record<string, MentionItem> } => {
+    const items = (persisted as { items?: Record<string, Partial<MentionItem>> } | null)?.items ?? {};
+    return {
+        items: Object.fromEntries(
+            Object.entries(items).filter((entry): entry is [string, MentionItem] => !!entry[1]?.cloudId)
+        ),
+    };
+};
 
 /**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so
@@ -138,7 +168,7 @@ export const useMentionsStore = create<MentionsState>()(
                     for (const id of present) next[id] = { ...state.items[id], readAt: undefined };
                     return { items: next };
                 }),
-            markChannelRead: (channelId, chatNo, placeId) =>
+            markChannelRead: ({ cloudId, id: channelId, placeId }, chatNo) =>
                 set(state => {
                     if (!channelId || !chatNo) return state;
                     let touched = false;
@@ -146,7 +176,13 @@ export const useMentionsStore = create<MentionsState>()(
                     const next: Record<string, MentionItem> = {};
                     for (const [id, item] of Object.entries(state.items)) {
                         const samePlace = placeId == null || item.placeId == null || item.placeId === placeId;
-                        if (!item.readAt && item.channelId === channelId && samePlace && (item.chatNo ?? 0) <= chatNo) {
+                        if (
+                            !item.readAt &&
+                            item.cloudId === cloudId &&
+                            item.channelId === channelId &&
+                            samePlace &&
+                            (item.chatNo ?? 0) <= chatNo
+                        ) {
                             next[id] = { ...item, readAt: now };
                             touched = true;
                         } else {
@@ -162,7 +198,10 @@ export const useMentionsStore = create<MentionsState>()(
                     return { items: next };
                 }),
         }),
-        { name: 'chatic-mentions' }
+        // v0 items carry no cloud. Their place ids repeat in every cloud, so there is no telling which
+        // cloud's Notifications they belong to, and listing them anywhere puts one cloud's history
+        // in another's. They go; everything captured from v1 on names its cloud.
+        { name: 'chatic-mentions', storage: persistStorageOver(deviceStore), version: 1, migrate: keepCloudItems }
     )
 );
 

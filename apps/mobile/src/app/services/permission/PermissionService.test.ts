@@ -19,7 +19,13 @@ jest.mock('react-native-permissions', () => ({
         IOS: { CONTACTS: 'ios.contacts', CAMERA: 'ios.camera', PHOTO_LIBRARY: 'ios.photo', MICROPHONE: 'ios.mic' },
         ANDROID: { READ_CONTACTS: 'and.contacts', CAMERA: 'and.camera', READ_MEDIA_IMAGES: 'and.images' },
     },
-    RESULTS: { GRANTED: 'granted', LIMITED: 'limited', DENIED: 'denied', BLOCKED: 'blocked' },
+    RESULTS: {
+        GRANTED: 'granted',
+        LIMITED: 'limited',
+        DENIED: 'denied',
+        BLOCKED: 'blocked',
+        UNAVAILABLE: 'unavailable',
+    },
 }));
 
 const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
@@ -56,7 +62,33 @@ describe('PermissionService check', () => {
 
         await expect(service.check('PHOTO_LIBRARY')).resolves.toBe(false);
     });
+});
 
+describe('PermissionService status', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it.each([
+        ['granted', 'GRANTED'],
+        ['limited', 'GRANTED'],
+        ['denied', 'DENIED'],
+        ['blocked', 'BLOCKED'],
+        ['unavailable', 'UNAVAILABLE'],
+    ])('reads %s as %s without asking', async (result, status) => {
+        (check as jest.Mock).mockResolvedValue(result);
+        const service = new PermissionService(logger);
+
+        await expect(service.status('CAMERA')).resolves.toBe(status);
+        expect(request).not.toHaveBeenCalled();
+    });
+
+    it('reads a failed check as askable', async () => {
+        (check as jest.Mock).mockRejectedValue(new Error('boom'));
+        const service = new PermissionService(logger);
+
+        await expect(service.status('MICROPHONE')).resolves.toBe('DENIED');
+    });
 });
 
 describe('PermissionService request', () => {

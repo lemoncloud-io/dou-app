@@ -1,3 +1,24 @@
+// The session's own key list, as the session declares it. Spelled out rather than imported: apps reach
+// the session only through the runtime, and this is the answer that runtime gives.
+jest.mock('@chatic/app-runtime', () => {
+    const sessionKeys = new Set([
+        'chatic-relay-token',
+        'chatic-cloud-delegation-token',
+        'chatic-cloud-token',
+        'chatic-cloud-token-cache',
+        'chatic-relay-selected-site-id',
+        'chatic-selected-cloud-id',
+        'chatic-selected-place-id',
+        'chatic-cloud-identities',
+        'chatic-recent-clouds',
+        'chatic-reclaimed-clouds',
+        'chatic-delegator-id',
+        'chatic-device-id',
+        'chatic-paired-cloud-ids',
+    ]);
+    return { runtime: { session: { isSessionKey: (key: string) => sessionKeys.has(key) } } };
+});
+
 import {
     classifyWebKey,
     clearWebDatabases,
@@ -64,6 +85,10 @@ describe('classifyWebKey', () => {
         ['@chatic/config.ui.theme', 'config'],
         ['@chatic_dev.i18nextLng', 'other'],
         ['chatic-pinned-channels', 'other'],
+        ['chatic-paired-cloud-ids', 'session'],
+        ['chatic-oauth-provider', 'other'],
+        // A desktop UI store under a session-like prefix: it is not the session's, so it is not grouped as one.
+        ['chatic-selected-channel', 'other'],
         ['anything-else', 'other'],
     ])('puts %s in %s', (key, group) => {
         expect(classifyWebKey(key)).toBe(group);

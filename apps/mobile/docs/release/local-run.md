@@ -27,7 +27,7 @@ out of scope. Simulator and emulator only.
 ## The shared contract
 
 **The env files mean the same thing everywhere.** `.env` is local, `.env.dev` is the dev build,
-`.env.prod` is the prod build — the rule `apps/web`, `apps/desktop` and `apps/admin-v2` already
+`.env.prod` is the prod build — the rule `apps/web`, `apps/desktop` and `apps/admin` already
 follow. `apps/mobile/.env.example` is the local template:
 
 ```bash
@@ -122,7 +122,7 @@ local run uses. A second path exists: `babel-plugin-transform-inline-environment
 code reads it:
 
 ```bash
-grep -rn "process\.env\.VITE_" apps/mobile/src libs/app-messages libs/bridges libs/device-utils libs/logger libs/shared
+grep -rn "process\.env\.VITE_" apps/mobile/src libs/bridge-messages libs/bridges libs/device-utils libs/logger libs/shared
 ```
 
 returns nothing across every lib mobile depends on, so changing `.env`'s meaning does not touch this

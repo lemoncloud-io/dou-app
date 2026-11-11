@@ -1,6 +1,13 @@
 import Config from 'react-native-config';
 
-import { decodeInviteLink, isEncodedInviteUrl, readInviteLink } from '@chatic/shared';
+import {
+    decodeInviteLink,
+    isEncodedInviteUrl,
+    isSubWebViewAppLinkAttempt,
+    readInviteLink,
+    readSubWebViewAppLink,
+    subWebViewLinkPath,
+} from '@chatic/shared';
 
 import type { ILogService } from '../log';
 
@@ -557,6 +564,26 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
     }
 
     logDamagedInviteLink(fullUrl, logger);
+
+    // A page link that does not read (`/apps/Quiz`, `/apps/`, a path after the id) is a broken page
+    // link, not a route: the invalid-link screen says so, where passing it through would land on home
+    // with no word. The custom scheme is read as its https form, so the landing site's launch
+    // (`chatic://apps/<id>?…`) is held to the same shape.
+    const httpsForm = normalizeSchemeForParsing(fullUrl);
+    const pageLink = readSubWebViewAppLink(httpsForm);
+    if (isSubWebViewAppLinkAttempt(httpsForm) && !pageLink) {
+        const error = 'Invalid sub WebView page link';
+        logger?.warn('DEEPLINK', '[deeplinkUtils] resolveDeepLink invalid page link, dropping', { fullUrl });
+        return { kind: 'invalid', error };
+    }
+
+    // A sub WebView page's link is not a route: the web resolves the app it names and opens its page
+    // over whatever it shows. Handed on as the link's own path, ahead of the native-target check: its
+    // query belongs to the page, so a `target` in it is the page's, not the shell's routing marker.
+    // Which page an app id opens is the web's to know, not the shell's.
+    if (pageLink) {
+        return { kind: 'web', path: subWebViewLinkPath(pageLink) };
+    }
 
     try {
         const urlObj = parseUrlSafe(fullUrl);

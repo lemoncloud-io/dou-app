@@ -1,10 +1,10 @@
-import type { MediaExportPermissionDetails, OnShareFilePayload } from '@chatic/app-messages';
+import type { MediaExportPermissionDetails, OnShareFilePayload } from '@chatic/bridge-messages';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
 
 export type MediaExportAction = 'save' | 'share';
 
-/** What is being saved or shared. A video differs only in how an older app refuses it. */
+/** What is being saved or shared. A video differs only in how its toasts are worded. */
 export type ExportMediaKind = 'image' | 'video';
 
 /** How a save or share ended, which is all the button needs to pick a toast. */
@@ -17,10 +17,6 @@ export type MediaExportOutcome =
     | { kind: 'unsupported-type' }
     | { kind: 'network' }
     | { kind: 'failed' }
-    /** The installed app does not know the messages after all. */
-    | { kind: 'update-required' }
-    /** The installed app knows the messages but was built before videos: it refused this one. */
-    | { kind: 'video-update-required' }
     /** Stopped on purpose — the viewer closed during a share. Silent. */
     | { kind: 'cancelled' }
     /** The shell never answered within the long wait. Silent: the button just comes back. */
@@ -33,10 +29,6 @@ export interface MediaExportDeps {
     share(uri: string, title?: string): Promise<{ data?: OnShareFilePayload } | undefined>;
     /** Reads the message again and returns this upload's fresh original address, if any. */
     freshUrl(): Promise<string | undefined>;
-    /** The shell answered `NOT_FOUND`: hide save and share for the session. */
-    withdraw(): void;
-    /** An app built before videos refused one with `UNSUPPORTED_TYPE`: hide video export for the session. */
-    withdrawVideos(): void;
     /** Reports what is a bug rather than a condition — the shell refusing a file it handed out. */
     log?(message: string, data?: Record<string, unknown>): void;
 }
@@ -59,8 +51,6 @@ const detailsOf = (error: unknown) =>
 /** What a download result means when it did not bring a file. */
 const fromDownload = (result: Exclude<DownloadResult, { kind: 'file' }>): MediaExportOutcome => {
     switch (result.kind) {
-        case 'unsupported':
-            return { kind: 'update-required' };
         case 'cancelled':
             return { kind: 'cancelled' };
         case 'stalled':
@@ -73,17 +63,12 @@ const fromDownload = (result: Exclude<DownloadResult, { kind: 'file' }>): MediaE
 };
 
 /** What a failed save or share means. `SOURCE` is handled by the caller — it is worth one more download. */
-const fromExportError = (error: unknown, kind: ExportMediaKind): MediaExportOutcome => {
+const fromExportError = (error: unknown): MediaExportOutcome => {
     switch (codeOf(error)) {
-        case 'NOT_FOUND':
-            return { kind: 'update-required' };
         case 'PERMISSION_DENIED':
             return { kind: 'permission', canAskAgain: detailsOf(error)?.canAskAgain ?? false };
         case 'UNSUPPORTED_TYPE':
-            // Videos widened two existing messages, so an app built before them still lists both in
-            // its handshake and answers a video this way. The shell keeps this code for "this format"
-            // alone, which is what lets it stand for "too old for videos" here.
-            return kind === 'video' ? { kind: 'video-update-required' } : { kind: 'unsupported-type' };
+            return { kind: 'unsupported-type' };
         case 'TIMEOUT':
             return { kind: 'timed-out' };
         default:
@@ -106,7 +91,6 @@ const fromExportError = (error: unknown, kind: ExportMediaKind): MediaExportOutc
  */
 export const exportMedia = async (input: MediaExportInput, deps: MediaExportDeps): Promise<MediaExportOutcome> => {
     const { action, name, signal, onProgress } = input;
-    const kind = input.kind ?? 'image';
     let url = input.url;
     let refreshed = false;
     let redownloaded = false;
@@ -132,11 +116,7 @@ export const exportMedia = async (input: MediaExportInput, deps: MediaExportDeps
             }
             return { kind: 'failed' };
         }
-        if (result.kind !== 'file') {
-            const outcome = fromDownload(result);
-            if (outcome.kind === 'update-required') deps.withdraw();
-            return outcome;
-        }
+        if (result.kind !== 'file') return fromDownload(result);
 
         const { uri } = result.file;
         try {
@@ -155,10 +135,7 @@ export const exportMedia = async (input: MediaExportInput, deps: MediaExportDeps
             }
             // The file came from the shell's own download, so the shell refusing it is a bug here or there.
             if (codeOf(error) === 'INVALID') deps.log?.('media export: the shell refused its own file', { action });
-            const outcome = fromExportError(error, kind);
-            if (outcome.kind === 'update-required') deps.withdraw();
-            if (outcome.kind === 'video-update-required') deps.withdrawVideos();
-            return outcome;
+            return fromExportError(error);
         } finally {
             void deps.acknowledge([download.transferId]);
         }
@@ -188,18 +165,16 @@ export interface SaveAllProgress {
 /** The dependencies for one item — its own fresh-address lookup, mainly. */
 export type MediaExportDepsFor<T extends SaveAllItem> = (item: T) => MediaExportDeps;
 
-/** Answers that would come back the same for every remaining item, so the run stops at them. */
-const stopsTheRun = (outcome: MediaExportOutcome) =>
-    outcome.kind === 'permission' || outcome.kind === 'update-required';
+/** An answer that would come back the same for every remaining item, so the run stops at it. */
+const stopsTheRun = (outcome: MediaExportOutcome) => outcome.kind === 'permission';
 
 /**
  * Saves a message's photos and videos one after another, in the order given — never side by side, so
  * the first save's permission prompt appears once and the shell is not handed a burst of downloads.
  * Each item runs the whole flow above, its retries and its acknowledgement included.
  *
- * A refused permission or an app that does not know the message stops the run: every remaining item
- * would get the same answer. An app too old for videos refusing one skips the remaining videos and
- * keeps saving photos. Any other failure skips that item and goes on. An aborted `signal` — the
+ * A refused permission stops the run: every remaining item would get the same answer. Any other
+ * failure skips that item and goes on. An aborted `signal` — the
  * viewer closed — lets the current item finish and starts no other.
  */
 export const saveAllMedia = async <T extends SaveAllItem>(
@@ -210,10 +185,8 @@ export const saveAllMedia = async <T extends SaveAllItem>(
 ): Promise<SaveAllResult[]> => {
     const results: SaveAllResult[] = [];
     const total = items.length;
-    let videosRefused = false;
     for (const [at, item] of items.entries()) {
         if (signal?.aborted) break;
-        if (videosRefused && item.kind === 'video') continue;
         const current = at + 1;
         onProgress?.({ current, total, fraction: at / total });
         const outcome = await exportMedia(
@@ -231,7 +204,6 @@ export const saveAllMedia = async <T extends SaveAllItem>(
         );
         results.push({ kind: item.kind, outcome });
         if (stopsTheRun(outcome)) break;
-        if (outcome.kind === 'video-update-required') videosRefused = true;
     }
     return results;
 };
@@ -265,10 +237,6 @@ export const toastFor = (outcome: MediaExportOutcome, kind: ExportMediaKind = 'i
                 titleKey: video ? 'chat.attach.export.failedVideo' : 'chat.attach.export.failed',
                 variant: 'destructive',
             };
-        case 'update-required':
-            return { titleKey: 'chat.attach.export.updateRequired', variant: 'default' };
-        case 'video-update-required':
-            return { titleKey: 'chat.attach.export.videoUpdateRequired', variant: 'default' };
         default:
             // A share reports nothing on success: the sheet itself was the feedback.
             return null;
@@ -277,8 +245,7 @@ export const toastFor = (outcome: MediaExportOutcome, kind: ExportMediaKind = 'i
 
 /**
  * The one toast that ends a "save all". A run that stopped speaks for the reason it stopped, even
- * after some were saved. A run in which an older app refused a video says how many photos it saved
- * and that videos need an update. Otherwise it says how many were saved — and how many failed, when
+ * after some were saved. Otherwise it says how many were saved — and how many failed, when
  * some did — or, when none was, speaks for the last failure that has something to say. A run of
  * photos only keeps the photo wording; one with a video in it counts items.
  */
@@ -286,11 +253,6 @@ export const toastForSaveAll = (results: readonly SaveAllResult[]): MediaExportT
     const last = results.at(-1);
     if (last && stopsTheRun(last.outcome)) return toastFor(last.outcome, last.kind);
     const saved = results.filter(result => result.outcome.kind === 'saved').length;
-    if (results.some(result => result.outcome.kind === 'video-update-required')) {
-        return saved > 0
-            ? { titleKey: 'chat.attach.export.savedPhotosVideosNeedUpdate', values: { n: saved }, variant: 'default' }
-            : toastFor({ kind: 'video-update-required' });
-    }
     const photosOnly = results.every(result => result.kind === 'image');
     const failed = results.length - saved;
     if (saved > 0 && failed === 0) {

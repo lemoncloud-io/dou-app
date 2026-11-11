@@ -14,6 +14,7 @@ export * from './useBlurLastMessage';
 export * from './useCachedCloudNames';
 export * from './useChannelSort';
 export * from './useCloudCatalog';
+export * from './useCloudName';
 export * from './useChannelUnreads';
 export * from './useChatSyncRegistration';
 export * from './useCloudScope';

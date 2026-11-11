@@ -3,15 +3,22 @@ import { initReactI18next } from 'react-i18next';
 import i18n from 'i18next';
 
 import { en } from './locales/en';
+import { emojiNames as emojiEn } from './locales/emoji/en';
+import { emojiNames as emojiKo } from './locales/emoji/ko';
 import { ko } from './locales/ko';
+import { deviceStore } from './app/storage';
 
 // Inline resources, one module per locale. The full desktop app will adopt the
 // shared remote-backed i18n (see apps/web/src/i18n) in a later phase; until then
 // `locales/en.ts` is the source of truth for the key set and every other bundle
 // is typed against it.
+//
+// `emoji` is a separate namespace of CLDR emoji names, keyed by the emoji itself. It is
+// generated rather than written (scripts/generate-emoji-names.js), so it stays out of the
+// hand-kept `translation` bundle and its typing.
 const resources = {
-    en: { translation: en },
-    ko: { translation: ko },
+    en: { translation: en, emoji: emojiEn },
+    ko: { translation: ko, emoji: emojiKo },
 } as const;
 
 /** Locales with a complete bundle, in the order the picker lists them. */
@@ -33,12 +40,9 @@ const isSupported = (value: string | null | undefined): value is SupportedLangua
  * of them because English was the only bundle that existed.
  */
 const initialLanguage = (): SupportedLanguage => {
-    try {
-        const stored = localStorage.getItem(STORED_LANGUAGE_KEY);
-        if (isSupported(stored)) return stored;
-    } catch {
-        // Private mode or blocked storage: fall through to the system language.
-    }
+    // The device store reads a blocked storage as absent, which falls through to the system language.
+    const stored = deviceStore.get(STORED_LANGUAGE_KEY);
+    if (isSupported(stored)) return stored;
     const system = typeof navigator === 'undefined' ? '' : navigator.language;
     const base = system.split('-')[0];
     return isSupported(base) ? base : 'en';
@@ -47,11 +51,8 @@ const initialLanguage = (): SupportedLanguage => {
 /** Switch locale and remember it, so the next launch opens the same way. */
 export const setLanguage = (language: SupportedLanguage) => {
     void i18n.changeLanguage(language);
-    try {
-        localStorage.setItem(STORED_LANGUAGE_KEY, language);
-    } catch {
-        // The choice still applies to this session.
-    }
+    // A write the device store drops still leaves the choice applied to this session.
+    deviceStore.set(STORED_LANGUAGE_KEY, language);
 };
 
 // `lang` tells a screen reader which voice to read with, and a static

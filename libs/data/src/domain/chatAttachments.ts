@@ -8,7 +8,11 @@ import type { DomainChat } from './models';
  * file before its upload starts, instead of learning it from a 400, 413 or 415.
  */
 
-/** The kinds of upload the server stores. `audio` exists in the contract but is not accepted. */
+/**
+ * The kinds of upload the server stores. The client declares only a content type and the server derives
+ * the kind from it; the audio formats are listed with `file` here so they are judged — and limited — as
+ * documents. `audio` itself is never a kind this module hands out.
+ */
 export type ChatUploadKind = 'image' | 'video' | 'file';
 
 interface Format {
@@ -42,11 +46,21 @@ const FORMATS: readonly Format[] = [
     { type: 'application/x-hwp', extensions: ['hwp'], kind: 'file' },
     { type: 'application/hwp+zip', extensions: ['hwpx'], kind: 'file' },
     { type: 'text/plain', extensions: ['txt'], kind: 'file' },
+    // Sent from desktop only (each app's `ChatAttachmentFilter`). Listed ahead of the server: until it takes
+    // the type, an HTML upload is refused with a 415 and the message shows the failed file.
+    { type: 'text/html', extensions: ['html', 'htm'], kind: 'file' },
     { type: CHAT_ATTACHMENT_ZIP_TYPE, extensions: ['zip'], kind: 'file' },
+    { type: 'audio/mp4', extensions: ['m4a'], kind: 'file' },
+    { type: 'audio/mpeg', extensions: ['mp3'], kind: 'file' },
+    { type: 'audio/wav', extensions: ['wav'], kind: 'file' },
+    { type: 'audio/ogg', extensions: ['ogg'], kind: 'file' },
 ];
 
 // HWP and HWPX have no registered MIME type, and Hancom's own tools label them in several ways. A ZIP
-// has one, but Chromium on Windows reports the registry's name for it instead.
+// has one, but Chromium on Windows reports the registry's name for it instead. Audio types predate their
+// registration: macOS names an M4A `audio/x-m4a`, Windows a WAV `audio/wav` or `audio/x-wav`. The server
+// keeps no aliases of its own, so each goes up under the canonical type. AAC and WebM are not among the
+// server's audio formats, and Chromium types a WebM from disk `video/webm` anyway.
 const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwp': 'application/x-hwp',
     'application/vnd.hancom.hwp': 'application/x-hwp',
@@ -54,11 +68,18 @@ const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwpx': 'application/hwp+zip',
     'application/x-zip-compressed': CHAT_ATTACHMENT_ZIP_TYPE,
     'application/x-zip': CHAT_ATTACHMENT_ZIP_TYPE,
+    'audio/x-m4a': 'audio/mp4',
+    'audio/m4a': 'audio/mp4',
+    'audio/mp3': 'audio/mpeg',
+    'audio/x-wav': 'audio/wav',
+    'audio/wave': 'audio/wav',
+    'audio/vnd.wave': 'audio/wav',
 };
 
 /**
  * Which of the server's formats an app sends, for one that sends fewer than the server takes. Given
- * the format a file would go as.
+ * the format a file would go as. The phone app leaves out HTML, which only desktop sends; a picker
+ * that offers one kind only (photos) passes its own.
  */
 export type ChatAttachmentFilter = (format: { type: string; kind: ChatUploadKind }) => boolean;
 
@@ -126,22 +147,38 @@ const extensionOf = (name: string): string | null => {
 // `x.png` is refused rather than sent as a PNG.
 const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
 
+// DOCX, XLSX, PPTX and HWPX: ZIP containers whose type the browser takes from whichever app owns the
+// extension on that machine. Without Office, or with another suite holding the extension, a real Word
+// file arrives as a ZIP or under that suite's own name for it — a type the server does not know.
+const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/hwp+zip',
+]);
+
 /**
  * What a picked file will be sent as, or `null` when the server would refuse it.
  *
  * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
- * file its system does not know (HWP, often) over with an empty type. A video or document must end in
- * its format's extension, because the receiver saves it under that name — another format's extension
- * is refused, anything else gets the right one added. That refusal is also what keeps an office file
- * (a ZIP container, and sometimes typed as one) from going up as an archive. An image name is left
- * alone; the server does not check it.
+ * file its system does not know (HWP, often) over with an empty type. The one other case is an office
+ * container's extension under a ZIP type or a type the server does not know: the extension names the
+ * document, and it goes up as that document, never as an archive. A video or document must end in its
+ * format's extension, because the receiver saves it under that name — another format's extension is
+ * refused, anything else gets the right one added. An image name is left alone; the server does not
+ * check it.
  */
 export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAttachmentFormat | null => {
     const declared = ALIASES[file.type] ?? file.type;
     const extension = extensionOf(file.name);
-    const format = UNTYPED.has(declared)
-        ? FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension))
-        : FORMATS.find(candidate => candidate.type === declared);
+    const named = FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension));
+    const typed = FORMATS.find(candidate => candidate.type === declared);
+    const readsName =
+        UNTYPED.has(declared) ||
+        (named !== undefined &&
+            OFFICE_CONTAINERS.has(named.type) &&
+            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE));
+    const format = readsName ? named : typed;
     if (!format) return null;
     const { type, kind } = format;
     if (kind === 'image') return { type, kind, name: file.name };
@@ -154,14 +191,26 @@ export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAtt
 };
 
 /**
+ * The kind the server will store a picked file under, or `null` when it would refuse the file. It is
+ * the format's own kind, except for audio: judged as a document here, it is stored as `audio`, and a
+ * message read before the server has it should say what it will say after.
+ */
+export const chatAttachmentStoredKind = (file: Pick<File, 'name' | 'type'>): ChatUploadKind | 'audio' | null => {
+    const format = chatAttachmentFormat(file);
+    if (!format) return null;
+    return format.type.startsWith('audio/') ? 'audio' : format.kind;
+};
+
+/**
  * What one slot of a message's `upload$$` holds. A server upload says so in its `stereo`; a slot still
- * being sent, by the type it kept. A pending slot with none, and an upload with no `stereo`, is an
- * image: every one was, before other kinds could be sent. `audio` is passed through for the caller.
+ * being sent, by the type it kept (`chatAttachmentStoredKind`). A pending slot with none, and an upload
+ * with no `stereo`, is an image: every one was, before other kinds could be sent. `audio` is passed
+ * through for the caller.
  */
 export const uploadSlotKind = (slot: NonNullable<DomainChat['upload$$']>[number]): ChatUploadKind | 'audio' => {
     if (isPendingUploadSlot(slot)) {
         if (!slot.localContentType) return 'image';
-        return chatAttachmentFormat({ name: slot.localName ?? '', type: slot.localContentType })?.kind ?? 'file';
+        return chatAttachmentStoredKind({ name: slot.localName ?? '', type: slot.localContentType }) ?? 'file';
     }
     return slot.stereo || 'image';
 };

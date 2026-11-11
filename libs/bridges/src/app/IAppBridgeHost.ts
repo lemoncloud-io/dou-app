@@ -4,7 +4,7 @@ import type {
     WebMessageData,
     WebMessageHandlerResponse,
     WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * A host interface that, in the App (Native) environment, receives and handles requests from the Web (React, etc.).

@@ -187,8 +187,7 @@ fast but took long to become current.
 ### How it runs
 
 It begins with `chat_room_open`, in `roomOpenTrace.begin` — or natively, for a tap, and is handed over
-as `OnNavigate.perfTrace.syncId` (an app build that predates it sends none, and the web starts it at
-the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
+as `OnNavigate.perfTrace.syncId` (a hand-over without it has the web start it at the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
 [`@chatic/perf`](../../../../libs/perf/README.md)), because the sync that marks its phases runs in
 `libs/app-runtime`, which cannot reach the web.
 
@@ -259,8 +258,10 @@ background, rather than when its timer resumes. Its attributes are at the same c
 - Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useChatMutations src/app/features/channels/hooks/useRoomOpenTrace
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
   from `apps/web`;
-  `npx jest src/socket/sync/roomFeed src/socket/sync/hooks/useSyncTarget src/socket/auth/socketVerifyTrace src/socket/SocketManager src/data/mediaSendTrace src/data/hooks/useSendImages`
+  `npx jest src/socket/sync/hooks/useSyncTarget src/data/mediaSendTrace src/data/hooks/useSendImages`
   from `libs/app-runtime`, plus `src/data/factories/outboxFactory` there for `state_outbox`;
+  `npx jest src/roomFeed` from `libs/sync`;
+  `npx jest src/socket/socketVerifyTrace src/socket/SocketManager` from `libs/transport`;
   `npx jest src/repositories/ChatRepository src/outbox/stateOutbox` from `libs/data`;
   `npx jest src/activeTraces src/pageHides` from `libs/perf`; and `npx jest src/app/services/perf` from
   `apps/mobile` (`first_screen`).

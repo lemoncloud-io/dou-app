@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { isNative, logger, webClient } from '@chatic/bridges';
-import type { AppIconOption } from '@chatic/app-messages';
+import type { AppIconOption } from '@chatic/bridge-messages';
 
 /**
  * Encapsulates native app-icon support: fetching the current icon and the

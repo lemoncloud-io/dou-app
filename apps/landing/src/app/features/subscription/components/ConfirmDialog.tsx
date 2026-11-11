@@ -43,15 +43,20 @@ export const ConfirmDialog = ({
             footer={
                 onConfirm ? (
                     <>
-                        <Button variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+                        <Button size="lg" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
                             {cancelLabel ?? t('subscription.common.actions.cancel')}
                         </Button>
-                        <Button variant={confirmVariant} disabled={pending || confirmDisabled} onClick={onConfirm}>
+                        <Button
+                            size="lg"
+                            variant={confirmVariant}
+                            disabled={pending || confirmDisabled}
+                            onClick={onConfirm}
+                        >
                             {confirmLabel ?? t('subscription.common.actions.confirm')}
                         </Button>
                     </>
                 ) : (
-                    <Button onClick={() => onOpenChange(false)}>
+                    <Button size="lg" onClick={() => onOpenChange(false)}>
                         {confirmLabel ?? t('subscription.common.actions.confirm')}
                     </Button>
                 )

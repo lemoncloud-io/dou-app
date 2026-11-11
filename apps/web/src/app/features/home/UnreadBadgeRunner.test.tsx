@@ -16,7 +16,7 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
 jest.mock('../../runtime/logging/nativeBadgeReader', () => ({
-    nativeBadgeReader: { read: jest.fn().mockResolvedValue(null), reset: jest.fn() },
+    nativeBadgeReader: { read: jest.fn().mockResolvedValue(null) },
 }));
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));
 jest.mock('../../runtime/logging/divergenceReporter', () => ({ divergenceReporter: { badge: jest.fn() } }));

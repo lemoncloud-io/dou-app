@@ -3,11 +3,11 @@ import { runtime } from '@chatic/app-runtime';
 import { useAppForeground } from '../bridge';
 
 /**
- * Re-mints stale relay HTTP signing credentials (lemon-web-core's AWS credential cache) once the
+ * Re-mints the stale relay HTTP signing credential (the relay token's AWS credential) once the
  * relay socket is up.
  *
  * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
- * (ADR-0070 3-step checklist 7) — admin-v2 had invented the same thing independently. What stays
+ * (ADR-0070 3-step checklist 7) — admin had invented the same thing independently. What stays
  * here is apps/web's POLICY, and the two triggers are the whole point:
  *
  * **Rising edge of relay verification, not an interval.** `requestRelaySessionRefresh` only reaches the
@@ -20,7 +20,7 @@ import { useAppForeground } from '../bridge';
  * credential may have lapsed while the WebView slept. That trigger is a bridge concept the hub
  * cannot know about, which is why the hub hands back `check`.
  *
- * **Never logs out**, unlike admin-v2's guard: a failed refresh just retries on the next edge. The
+ * **Never logs out**, unlike admin's guard: a failed refresh just retries on the next edge. The
  * one path that CAN end the session on its own is the socket's terminal `expired`
  * (`credentialRenewers.relay.onTerminalExpiry` — it logs out only after the expiry survives a
  * confirmation window with the browser online), and it is deliberately not this hook's business.

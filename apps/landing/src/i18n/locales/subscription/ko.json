@@ -39,6 +39,7 @@
                 "confirm": "확인",
                 "cancel": "취소",
                 "close": "닫기",
+                "back": "뒤로",
                 "retry": "다시 시도"
             },
             "loading": "불러오는 중…",
@@ -57,8 +58,8 @@
             "plan": {
                 "clouds_one": "클라우드 {{count}}개",
                 "clouds_other": "클라우드 {{count}}개",
-                "perMonth": "<price>월 {{price}}</price>",
-                "vatNote": "VAT 포함 · 1개월"
+                "perMonth": "<price>{{price}}/월</price>",
+                "vatNote": "(VAT 포함)"
             },
             "email": {
                 "placeholder": "name@example.com",
@@ -112,6 +113,22 @@
                 "note": "카드사가 카드를 등록할 때 요구하는 정보입니다. 저장하지 않으며, 나중에 카드를 추가할 때 다시 입력합니다.",
                 "nameInvalid": "이름을 입력해 주세요. 한글은 10자, 영문은 30자까지 입력할 수 있습니다.",
                 "phoneInvalid": "01012345678 같은 휴대폰 번호를 입력해 주세요."
+            },
+            "cardEntry": {
+                "title": "카드 등록",
+                "description": "카드 정보는 결제 대행사의 보안 입력란에 입력합니다. DoU는 카드 번호를 저장하지 않습니다.",
+                "terms": {
+                    "trial": "체험이 끝나는 {{date}}부터 매달 {{day}}일에 {{price}}씩 이 카드로 자동 결제됩니다.",
+                    "paid": "오늘부터 매달 {{day}}일에 {{price}}씩 이 카드로 자동 결제됩니다.",
+                    "card": "이 카드가 결제 카드로 지정되면 매달 결제일에 구독 요금이 이 카드로 자동 결제됩니다.",
+                    "cancel": "구독 관리에서 언제든 해지하실 수 있으며, 해지하시면 다음 결제일부터 청구되지 않습니다."
+                },
+                "consent": "위 내용에 따라 이 카드로 정기 결제하는 데 동의합니다.",
+                "submit": "카드 등록",
+                "unavailable": {
+                    "title": "카드 입력란을 불러오지 못했습니다",
+                    "body": "잠시 뒤 다시 시도해 주세요."
+                }
             }
         },
         "entry": {
@@ -176,7 +193,8 @@
                     "session-ended": "로그인이 만료되었습니다. 다시 로그인하시면 보시던 화면으로 돌아갑니다."
                 },
                 "completing": "로그인하고 있습니다",
-                "completingBody": "잠시만 기다려 주세요."
+                "completingBody": "잠시만 기다려 주세요.",
+                "or": "또는"
             },
             "noAccount": {
                 "title": "연동된 DoU 계정을 찾지 못했습니다",
@@ -221,7 +239,8 @@
                 "signIn": "로그인",
                 "details": "결제 정보",
                 "payment": "결제수단",
-                "done": "완료"
+                "done": "완료",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1로",
@@ -257,7 +276,8 @@
                 "firstChargeShort": "첫 결제",
                 "today": "{{date}} (오늘)",
                 "dateAndPrice": "{{date}} · {{price}}",
-                "chargeToday": "오늘 결제"
+                "chargeToday": "오늘 결제",
+                "unpriced": "국가를 고르시면 결제 금액이 보입니다."
             },
             "emailStep": {
                 "title": "이메일 인증",
@@ -285,7 +305,7 @@
                 "next": "다음 · 결제수단 등록"
             },
             "billing": {
-                "title": "청구 정보",
+                "title": "① 청구 국가",
                 "country": "청구 국가",
                 "email": "청구 메일",
                 "change": "변경",
@@ -295,14 +315,19 @@
                     "JP": "일본",
                     "OTHER": "그 밖의 국가"
                 },
-                "countryNote": "청구 국가에 따라 결제 경로가 정해집니다. 구독하신 뒤에는 바꾸실 수 없습니다.",
-                "comingSoonTitle": "해외 결제는 곧 지원할 예정입니다",
-                "comingSoonBody": "지금은 청구 국가가 대한민국일 때만 구독하실 수 있습니다.",
+                "countryNote": "청구 국가에 따라 결제 통화가 정해집니다. 대한민국은 원화로, 그 밖의 국가는 미국 달러로 결제합니다. 구독하신 뒤에는 바꾸실 수 없습니다.",
                 "noAccountEmail": {
                     "title": "계정에 메일 주소가 없습니다",
                     "body": "카드사는 카드를 등록할 때 메일 주소를 요구하는데, 이 계정에는 사용할 주소가 없습니다. 메일 주소가 있는 계정으로 로그인해 구독해 주세요."
                 },
-                "noticeEmail": "영수증과 안내는 계정의 메일 주소로 보내 드립니다."
+                "noticeEmail": "영수증과 안내는 계정의 메일 주소로 보내 드립니다.",
+                "countryPlaceholder": "국가를 골라 주세요",
+                "countryMissing": "청구 국가를 먼저 골라 주세요.",
+                "currency": {
+                    "KRW": "원화(₩)로 결제합니다.",
+                    "USD": "미국 달러($)로 결제합니다."
+                },
+                "payerTitle": "② 결제자 정보"
             },
             "consent": {
                 "all": "전체 동의",
@@ -319,9 +344,12 @@
                 "subtitleTrial": "카드를 등록하시면 무료 체험이 시작됩니다. 오늘은 결제되지 않습니다.",
                 "subtitlePaid": "카드를 등록하시면 바로 {{price}}이 결제되고 구독이 시작됩니다.",
                 "card": "카드",
-                "cardNote": "카드 정보는 결제사 결제창에서 입력합니다. DoU는 카드 번호를 저장하지 않습니다.",
-                "windowTitle": "국내 카드 결제창 (결제사 제공 화면)",
-                "windowSteps": "카드사 선택 · 카드 번호 · 유효기간 · 비밀번호 앞 2자리 · 본인 확인",
+                "cardNote": "카드 정보는 결제 대행사의 보안 화면에서 입력합니다. DoU는 카드 번호를 저장하지 않습니다.",
+                "windowTitle": "카드 등록 (결제 대행사 제공 화면)",
+                "windowSteps": {
+                    "KRW": "카드사 선택 · 카드 번호 · 유효기간 · 비밀번호 앞 2자리 · 본인 확인",
+                    "USD": "카드 번호 · 유효기간 · 보안 확인"
+                },
                 "ctaTrial": "카드 등록하고 무료 체험 시작",
                 "ctaPaid": "{{price}} 결제하기",
                 "renewTrial": "{{date}}부터 매월 {{day}}일 {{price}}이 자동 결제됩니다. 해지는 구독 관리에서 언제든 하실 수 있습니다.",
@@ -329,7 +357,8 @@
                 "back": "이전",
                 "error": {
                     "limit": "카드 등록 시도 횟수를 넘었습니다. 잠시 뒤 다시 시도해 주세요.",
-                    "conflict": "지금은 이 구독을 시작하실 수 없습니다. 구독 관리에서 이용 중인 구독을 확인해 주세요."
+                    "conflict": "지금은 이 구독을 시작하실 수 없습니다. 구독 관리에서 이용 중인 구독을 확인해 주세요.",
+                    "invalid": "결제자 정보가 빠졌습니다. 이전 화면으로 돌아가 다시 입력해 주세요."
                 }
             },
             "status": {
@@ -429,6 +458,8 @@
                 "upgradedBodyPaid_other": "{{price}}을 결제했으며 클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "upgradedBodyFree_one": "체험 중이라 결제되지 않았으며, 클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "upgradedBodyFree_other": "체험 중이라 결제되지 않았으며, 클라우드를 {{count}}개까지 만드실 수 있습니다.",
+                "upgradedBody_one": "클라우드를 {{count}}개까지 만드실 수 있습니다.",
+                "upgradedBody_other": "클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "nextDateLabel": "다음 결제일",
                 "nextAmountLabel": "다음 결제부터",
                 "receiptLabel": "영수증",
@@ -533,38 +564,54 @@
             "cardLabel": "{{brand}} ···· {{last4}}",
             "list": {
                 "title": "구독 관리",
-                "subtitle": "지금 구독과 끝난 구독을 확인하실 수 있습니다. 카드를 누르시면 자세히 보실 수 있습니다.",
-                "source": "결제 수단 · 웹",
-                "clouds": "클라우드",
+                "subtitle": "지금 구독과 끝난 구독을 확인하실 수 있습니다. 항목을 누르시면 구독 정보를 자세히 보실 수 있습니다.",
                 "cloudsValue_one": "{{count}}개",
                 "cloudsValue_other": "{{count}}개",
-                "nextBilling": "다음 결제일",
-                "nextAmount": "다음 결제 금액",
-                "paymentMethod": "결제수단",
-                "viewDetail": "구독 정보 보기 ›",
-                "detail": "구독 정보",
                 "ended": "끝난 구독",
-                "endedLine": "{{from}} – {{to}} · 웹",
                 "downgradeTitle": "DoU Cloud {{from}} → DoU Cloud {{to}}",
-                "status": {
-                    "trial": "무료 체험 {{date}}까지 · {{chargeAt}}부터 매월 {{amount}} 자동 결제",
-                    "pastDue": "밀린 금액 {{amount}} · {{date}}({{dday}})부터 클라우드 이용 제한",
-                    "restricted": "밀린 금액 {{amount}} · {{date}}부터 클라우드 이용 제한",
-                    "cancelScheduled": "{{date}}까지 이용 · 자동 결제가 중지되었습니다 · 종료일 전까지 해지를 취소하실 수 있습니다",
-                    "cancelScheduledNoUndo": "{{date}}까지 이용 · 자동 결제가 중지되었습니다",
-                    "downgradeScheduled": "{{date}}부터 DoU Cloud {{to}} · 월 {{amount}}"
-                },
                 "empty": {
                     "title": "이용 중인 구독이 없습니다",
                     "body": "DoU Cloud를 구독하시면 클라우드를 만들어 친구들과 그룹방을 여실 수 있습니다.",
                     "subscribe": "구독하기"
                 },
-                "endedLineWithReason": "{{from}} – {{to}} · 웹 · {{reason}}",
                 "endedReason": {
                     "canceled": "해지로 끝남",
                     "replaced": "다음 구독으로 바뀜",
                     "paymentFailed": "결제 실패로 끝남"
-                }
+                },
+                "live": "이용 중인 구독",
+                "columns": {
+                    "product": "상품",
+                    "status": "상태",
+                    "clouds": "클라우드",
+                    "amount": "결제 금액",
+                    "next": "다음 결제 · 기한",
+                    "end": "종료"
+                },
+                "row": {
+                    "source": "웹 결제",
+                    "sourceCard": "웹 결제 · {{card}}",
+                    "amount": "월 {{amount}}",
+                    "amountChange": "월 {{from}} → {{to}}",
+                    "cloudsChange": "{{from}}개 → {{to}}개",
+                    "cloudsLine": "클라우드 {{clouds}} · {{amount}}",
+                    "autoCharge": "{{amount}} 자동 결제",
+                    "trialEnds": "체험 종료 {{date}}",
+                    "trialThen": "{{date}}부터 {{amount}} 자동 결제",
+                    "nextBilling": "다음 결제 {{date}}",
+                    "restoredNote": "기존 클라우드를 이어서 이용하실 수 있습니다",
+                    "restrictAt": "이용 제한 {{date}}",
+                    "restrictAtDday": "이용 제한 {{date}} ({{dday}})",
+                    "checkPayment": "결제 정보를 확인해 주세요",
+                    "endsAt": "이용 종료 {{date}} ({{dday}})",
+                    "autoStopped": "자동 결제가 중지되었습니다",
+                    "changesAt": "변경 적용 {{date}}",
+                    "changeCharge": "그날 {{amount}} 결제",
+                    "endedOn": "종료일 {{date}}",
+                    "startedOn": "{{date}}부터 이용",
+                    "startedOnWithReason": "{{date}}부터 이용 · {{reason}}"
+                },
+                "downgradeTitleShort": "DoU Cloud {{from}} → {{to}}"
             },
             "detail": {
                 "title": "구독 정보",
@@ -785,7 +832,7 @@
                     "title": "알아 두세요",
                     "removeDefault": "기본 카드를 삭제하시려면 다른 카드를 먼저 기본으로 지정해 주세요.",
                     "removeLast": "구독 중에는 마지막 카드를 삭제하실 수 없습니다 — 새 카드를 등록하신 뒤 바꿔 주세요.",
-                    "domestic": "지금은 국내 카드만 등록하실 수 있습니다.",
+                    "currency": "현재 구독의 결제 통화로 결제할 카드만 등록하실 수 있습니다.",
                     "noCharge": "카드 추가는 결제 없이 등록만 합니다."
                 },
                 "declined": {
@@ -823,8 +870,13 @@
                 "removeRefused": "구독 결제에 쓰이고 있는 카드는 삭제하실 수 없습니다. 다른 카드를 대표로 지정한 뒤 삭제해 주세요.",
                 "addDialog": {
                     "title": "카드 추가",
-                    "body": "결제 없이 카드만 등록합니다. 카드 정보는 결제사 결제창에서 입력해 주세요.",
-                    "open": "결제창 열기"
+                    "body": "결제 없이 카드만 등록합니다. 카드 정보는 다음 화면에서 입력해 주세요.",
+                    "open": "카드 입력 열기",
+                    "lock": {
+                        "label": "청구 국가",
+                        "note": "구독 중에는 청구 국가를 바꾸실 수 없습니다.",
+                        "OTHER": "대한민국 외 국가"
+                    }
                 },
                 "defaultDialog": {
                     "title": "기본 카드를 변경하시겠습니까?",
@@ -842,6 +894,11 @@
                 "cannotRemoveLast": {
                     "title": "마지막 카드는 삭제하실 수 없습니다",
                     "body": "구독 중에는 결제할 카드가 한 장 있어야 합니다. 새 카드를 등록하신 뒤 삭제해 주세요."
+                },
+                "barTitle": "결제수단 관리",
+                "group": {
+                    "KRW": "원화로 결제하는 카드",
+                    "USD": "달러로 결제하는 카드"
                 }
             },
             "history": {
@@ -874,7 +931,8 @@
                     "title": "아직 결제 내역이 없습니다",
                     "trial": "무료 체험 중입니다. {{date}}에 첫 결제({{amount}})가 예정되어 있습니다."
                 },
-                "taxNote": "카드 결제분은 세금계산서를 따로 발급하지 않습니다."
+                "taxNote": "카드 결제분은 세금계산서를 따로 발급하지 않습니다.",
+                "barTitle": "청구 내역·영수증"
             },
             "info": {
                 "title": "청구 정보",

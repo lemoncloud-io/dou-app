@@ -1,13 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const runtimeMock = vi.hoisted(() => ({
-    isAuthenticated: false,
-    startWebTransportInit: vi.fn(),
-}));
+const runtimeMock = vi.hoisted(() => ({ isAuthenticated: false }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: runtimeMock.startWebTransportInit },
         session: { getIdentityContext: () => ({ isAuthenticated: runtimeMock.isAuthenticated }) },
     },
 }));
@@ -19,18 +15,13 @@ describe('ensureDeviceSession', () => {
 
     beforeEach(() => {
         runtimeMock.isAuthenticated = false;
-        runtimeMock.startWebTransportInit.mockReset().mockResolvedValue(undefined);
         register.mockReset().mockResolvedValue(undefined);
     });
 
-    it('starts the transport, then registers the device, when there is no session', async () => {
-        const order: string[] = [];
-        runtimeMock.startWebTransportInit.mockImplementation(async () => void order.push('init'));
-        register.mockImplementation(async () => void order.push('register'));
-
+    it('registers the device when there is no session', async () => {
         await ensureDeviceSession(register);
 
-        expect(order).toEqual(['init', 'register']);
+        expect(register).toHaveBeenCalledTimes(1);
     });
 
     it('does nothing when a session already exists', async () => {
@@ -38,7 +29,6 @@ describe('ensureDeviceSession', () => {
 
         await ensureDeviceSession(register);
 
-        expect(runtimeMock.startWebTransportInit).not.toHaveBeenCalled();
         expect(register).not.toHaveBeenCalled();
     });
 
@@ -46,12 +36,5 @@ describe('ensureDeviceSession', () => {
         register.mockRejectedValue(new Error('offline'));
 
         await expect(ensureDeviceSession(register)).rejects.toThrow('offline');
-    });
-
-    it('does not register when the transport fails to start', async () => {
-        runtimeMock.startWebTransportInit.mockRejectedValue(new Error('no transport'));
-
-        await expect(ensureDeviceSession(register)).rejects.toThrow('no transport');
-        expect(register).not.toHaveBeenCalled();
     });
 });

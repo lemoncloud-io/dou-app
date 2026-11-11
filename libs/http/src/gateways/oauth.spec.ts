@@ -39,6 +39,21 @@ describe('createOAuthHttpGateway', () => {
         expect(executeRelayRequest).toHaveBeenLastCalledWith(expect.objectContaining({ params: undefined }));
     });
 
+    it('registerUserV2 — posts to the configured relay, or to the endpoint passed', async () => {
+        executeRelayRequest.mockResolvedValue({});
+        const gateway = createOAuthHttpGateway(exec);
+
+        await gateway.registerUserV2({} as never);
+        expect(executeRelayRequest).toHaveBeenLastCalledWith(
+            expect.objectContaining({ baseURL: 'https://relay.test/oauth/register-user-v2' })
+        );
+
+        await gateway.registerUserV2({} as never, false, { endpoint: 'https://other.test/dou-d1' });
+        expect(executeRelayRequest).toHaveBeenLastCalledWith(
+            expect.objectContaining({ baseURL: 'https://other.test/dou-d1/oauth/register-user-v2' })
+        );
+    });
+
     it('login — POST {relay}/oauth/login-user?token=1', async () => {
         executeRelayRequest.mockResolvedValue({});
         const gateway = createOAuthHttpGateway(exec);

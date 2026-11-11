@@ -1,5 +1,5 @@
 import type { Purchase } from 'react-native-iap';
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 
 export type { IapProductSubscription };
 

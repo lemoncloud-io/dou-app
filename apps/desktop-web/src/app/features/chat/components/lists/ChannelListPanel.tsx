@@ -9,13 +9,19 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 import { bareChannelName, messagePreview } from '../../../../shared';
 import { useLastChats } from '../../hooks';
 import { isDmBucket, sortByRecency } from '../../utils';
-import { ConversationList, ConversationRow } from './ConversationList';
+import {
+    ConversationList,
+    ConversationRow,
+    markThreadReply,
+    usePickConversation,
+    type SelectConversation,
+} from './ConversationList';
 
 interface ChannelListPanelProps {
     /** The active place's channels; its DMs are left to the DM list. */
     channels: DomainChannel[];
     selectedChannelId: string | null;
-    onSelect: (channelId: string) => void;
+    onSelect: SelectConversation;
     /** Absent where channels cannot be created (the default cloud, a guest). */
     onCreateChannel?: () => void;
     /** While the place's channels load, an empty list is not yet an empty place. */
@@ -32,9 +38,9 @@ const CHANNEL_TILE = (
 /** A channel's preview line: who said the last message and what, or that there is none. */
 const previewOf = (lastChat: DomainChat | undefined, t: TFunction): string => {
     const preview = lastChat ? messagePreview(lastChat) : '';
-    if (!preview) return t('lists.noMessages');
-    const sender = lastChat?.owner$?.name;
-    return sender ? t('lists.previewFrom', { name: sender, text: preview }) : preview;
+    if (!lastChat || !preview) return t('lists.noMessages');
+    const sender = lastChat.owner$?.name;
+    return markThreadReply(lastChat, sender ? t('lists.previewFrom', { name: sender, text: preview }) : preview, t);
 };
 
 /**
@@ -53,6 +59,7 @@ export const ChannelListPanel = ({
     const [query, setQuery] = useState('');
     const rooms = useMemo(() => channels.filter(channel => channel.id && !isDmBucket(channel)), [channels]);
     const lastByChannel = useLastChats(rooms);
+    const pick = usePickConversation(lastByChannel, onSelect);
     const ordered = useMemo(() => sortByRecency(rooms, lastByChannel), [rooms, lastByChannel]);
     const needle = query.trim().toLowerCase();
     const shown = needle
@@ -85,7 +92,7 @@ export const ChannelListPanel = ({
                         preview={previewOf(lastChat, t)}
                         unread={channel.unreadCount ?? 0}
                         isActive={channel.id === selectedChannelId}
-                        onSelect={onSelect}
+                        onSelect={pick}
                     />
                 );
             })}

@@ -4,7 +4,7 @@ import type {
     CacheSiteView,
     CacheModelMap,
     CacheQueryMap,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { ILogService } from '../log';
 import type { ICacheSearchService } from './types';
 import type { ICacheDataSource } from '../../data/cache';

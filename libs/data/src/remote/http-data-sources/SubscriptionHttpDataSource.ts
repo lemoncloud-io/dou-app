@@ -14,7 +14,9 @@ import type {
     MembershipDropsResult,
     SubscriptionCardBody,
     SubscriptionRefundBody,
+    SubscriptionSandboxParams,
     SubscriptionStartBody,
+    SubscriptionStartParams,
     WebSubscriptionMineView,
     WebSubscriptionView,
 } from '@chatic/http';
@@ -31,7 +33,9 @@ export type {
     SubscriptionCardIdBody,
     SubscriptionPayer,
     SubscriptionRefundBody,
+    SubscriptionSandboxParams,
     SubscriptionStartBody,
+    SubscriptionStartParams,
     WebSubscriptionMineView,
     WebSubscriptionStatus,
     WebSubscriptionView,
@@ -61,14 +65,14 @@ export interface ISubscriptionHttpDataSource {
 
     // The web subscription — one per account, billed through the payment provider.
     fetchMySubscription(): Promise<WebSubscriptionMineView>;
-    fetchSubscriptionCards(): Promise<BillkeyView[]>;
-    issueBillingKey(productId: string): Promise<BillingIssueParams>;
-    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
+    fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
+    issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
+    startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
     changeSubscription(productId: string): Promise<WebSubscriptionView>;
     cancelSubscription(): Promise<WebSubscriptionView>;
-    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
-    setDefaultCard(billkeyId: string): Promise<BillkeyView>;
-    removeCard(billkeyId: string): Promise<BillkeyView>;
+    addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
+    setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
+    removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
 /**
@@ -159,16 +163,16 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         return this.gateway.mySubscription();
     }
 
-    fetchSubscriptionCards(): Promise<BillkeyView[]> {
-        return this.gateway.subscriptionCards();
+    fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]> {
+        return this.gateway.subscriptionCards(params);
     }
 
-    issueBillingKey(productId: string): Promise<BillingIssueParams> {
-        return this.gateway.issueBillingKey({ productId });
+    issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams> {
+        return this.gateway.issueBillingKey({ productId }, params);
     }
 
-    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView> {
-        return this.gateway.startSubscription(body);
+    startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView> {
+        return this.gateway.startSubscription(body, params);
     }
 
     changeSubscription(productId: string): Promise<WebSubscriptionView> {
@@ -179,15 +183,15 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         return this.gateway.cancelSubscription();
     }
 
-    addCard(body: SubscriptionCardBody): Promise<BillkeyView> {
-        return this.gateway.addCard(body);
+    addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.gateway.addCard(body, params);
     }
 
-    setDefaultCard(billkeyId: string): Promise<BillkeyView> {
-        return this.gateway.setDefaultCard({ billkeyId });
+    setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.gateway.setDefaultCard({ billkeyId }, params);
     }
 
-    removeCard(billkeyId: string): Promise<BillkeyView> {
-        return this.gateway.removeCard({ billkeyId });
+    removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.gateway.removeCard({ billkeyId }, params);
     }
 }

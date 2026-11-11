@@ -118,6 +118,24 @@ describe('useSocialLinks — 연동 (verify → confirm)', () => {
         );
     });
 
+    // The virtual shell's relay sign-in answers with a relay code instead of a provider token.
+    // `link-account` takes the code too, so both steps carry it unchanged.
+    it('links with a relay code from the virtual shell, sending the code to verify and confirm', async () => {
+        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', platform: 'ios', code: 'c-1' } } });
+
+        const { result } = renderHook(() => useSocialLinks());
+        await act(async () => {
+            await result.current.linkProvider('google');
+        });
+
+        const tokens = { provider: 'google', platform: 'ios', code: 'c-1' };
+        expect(verifySocialMock).toHaveBeenCalledWith(tokens);
+        expect(confirmSocialMock).toHaveBeenCalledWith(tokens);
+        expect(toastMock).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'mypage.accountInfo.social.linkSuccess' })
+        );
+    });
+
     it('네이티브 OAuth 취소(null)는 verify도 confirm도 부르지 않고 토스트도 없다', async () => {
         oauthLoginMock.mockResolvedValue({ data: { result: null } });
 

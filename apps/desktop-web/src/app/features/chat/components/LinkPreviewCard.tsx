@@ -7,7 +7,7 @@ import { isNative, webClient } from '@chatic/bridges';
 
 /**
  * What the chip renders — a view model, not the wire contract. The shell sends
- * more (see `OnFetchUrlMetadataPayload` in libs/app-messages); anything not
+ * more (see `OnFetchUrlMetadataPayload` in libs/bridge-messages); anything not
  * listed here is dropped on arrival.
  */
 export interface UrlMetadata {

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { PAIRED_CLOUD_CHECK_INTERVAL_MS, pairedCloudSessions } from '../../pairing/pairedCloudSessions';
-import { pairedClouds } from '../../pairing/pairedClouds';
-import { isRelayGuest } from '../../pairing/pairedSession';
+import { PAIRED_CLOUD_CHECK_INTERVAL_MS, pairedCloudSessions, pairedClouds, isRelayGuest } from '@chatic/auth';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 /**

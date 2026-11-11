@@ -40,7 +40,7 @@
             "path": "../../libs/shared/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../../libs/logger/tsconfig.lib.json"

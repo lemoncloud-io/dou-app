@@ -8,13 +8,11 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('./appBridge', () => ({ appBridge: {} }));
 
-const notFound = Object.assign(new Error('no handler'), { code: 'NOT_FOUND' });
 const timeout = Object.assign(new Error('slow'), { code: 'TIMEOUT' });
 
 beforeEach(() => {
     jest.clearAllMocks();
     mockNative = true;
-    attachmentPicker.reset();
 });
 
 describe('attachmentPicker.pick', () => {
@@ -194,15 +192,10 @@ describe('attachmentPicker.pick', () => {
         expect(pick?.items[0]).toBeInstanceOf(File);
     });
 
-    it('learns from NOT_FOUND for the page, and only from NOT_FOUND', async () => {
+    it('passes a failure through without giving up on the picker', async () => {
         mockRequest.mockRejectedValueOnce(timeout);
         await expect(attachmentPicker.pick({ source: 'media', selectionLimit: 10 })).rejects.toBe(timeout);
         expect(attachmentPicker.isUnsupported()).toBe(false);
-
-        mockRequest.mockRejectedValueOnce(notFound);
-        await expect(attachmentPicker.pick({ source: 'media', selectionLimit: 10 })).resolves.toBeNull();
-        await expect(attachmentPicker.pick({ source: 'document', selectionLimit: 10 })).resolves.toBeNull();
-        expect(mockRequest).toHaveBeenCalledTimes(2);
     });
 });
 

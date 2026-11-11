@@ -19,11 +19,18 @@ export interface RailCloud {
 
 /**
  * A cloud its subscription no longer keeps open: the membership lapsed or was blocked, and the
- * server suspends or expires the cloud. Switching into one cannot succeed, and the only way back
- * is a subscription, which is bought in the mobile app.
+ * server suspends or expires the cloud. The only way back is a subscription, which is bought in
+ * the mobile app. A suspended cloud is on hold but can still be entered (see `isExpiredCloud`);
+ * what it cannot do is take new places.
  */
 export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
     cloud.status === 'suspended' || cloud.status === 'expired';
+
+/**
+ * A cloud the server has released. Switching into one cannot succeed, so the rail does not try.
+ * A suspended cloud is not this: the server accepts a switch into it, so the pick goes through.
+ */
+export const isExpiredCloud = (cloud: Pick<RailCloud, 'status'>): boolean => cloud.status === 'expired';
 
 /**
  * Whether a place can be made from where the session is. Three things have to hold.
@@ -67,14 +74,30 @@ export const useClouds = () => {
     const { t } = useTranslation();
     const { clouds: rawClouds, isFetchingClouds, isCloudsError, refetchClouds } = useCloudSessionCatalog();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
-    const joinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
+    const allJoinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
     const session = runtime.session.useGlobalSession();
-    const [cachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
+    // The cloud cache's invited rows and the joined-clouds store are device-wide and outlive a sign-out
+    // (the device's guest keeps its grants), so they hold other accounts' clouds too. Only the signed-in
+    // account's are used: a tile for another account's cloud can only 403 on switch.
+    const acceptorId = runtime.data.getAcceptorId();
+    const [allCachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
     // Fall back to 'default' so the synthesized Home cloud highlights in relay mode —
     // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.
     const activeCloudId = session.cloud.cloudId || (!isFetchingClouds && rawClouds.length === 0 ? 'default' : null);
 
     useEffect(() => cloudRepository.observeList(result => setCachedClouds(result?.list ?? [])), [cloudRepository]);
+
+    const joinedClouds = useMemo(
+        () =>
+            Object.fromEntries(
+                Object.entries(allJoinedClouds).filter(([, j]) => !!acceptorId && j.ownerUid === acceptorId)
+            ),
+        [allJoinedClouds, acceptorId]
+    );
+    const cachedClouds = useMemo(
+        () => allCachedClouds.filter(c => c.cloudType !== 'invited' || runtime.data.isAcceptedBy(c, acceptorId)),
+        [allCachedClouds, acceptorId]
+    );
 
     const clouds = useMemo<RailCloud[]>(() => {
         const byId = new Map<string, RailCloud>();

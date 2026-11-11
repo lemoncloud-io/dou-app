@@ -52,6 +52,6 @@ Attach it at the end of the response. Give each unit of change its own section.
 
 - [x] Unit tests pass: `npx jest libs/data/src/data/repositories-v2/CloudRepositoryV2.test.ts` — 4 passed
 - [x] Cache-miss → empty-list contract still holds (no regression in the existing tests)
-- [ ] Watch rows accumulate locally when cloud is queried from the testbed DBBrowser
+- [ ] Watch rows accumulate locally when cloud is queried from the running app
 - [ ] Regression risk: ChannelRepositoryV2 shares the contextProvider — check with `npx jest ChannelRepositoryV2`
 ```

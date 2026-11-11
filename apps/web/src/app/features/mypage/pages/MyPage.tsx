@@ -37,6 +37,9 @@ export const MyPage = () => {
     const canApprovePairing = pairingEnabled && isNative() && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
     const canListDevices = pairingEnabled && (!isGuest || isNative());
+    // An app guest signs in before buying, so the row waits for an account. A browser guest is handed
+    // to the website like anyone else — it signs the buyer in itself — so the row is there too.
+    const canOpenSubscription = !isGuest || !isNative();
 
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
@@ -100,7 +103,7 @@ export const MyPage = () => {
                     )}
                 </MenuCard>
 
-                {!isGuest && (
+                {canOpenSubscription && (
                     <MenuCard>
                         <ListRow
                             title={t('mypage.subscription.hubEntry')}

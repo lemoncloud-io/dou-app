@@ -18,10 +18,13 @@
     "exclude": ["node_modules", "out", "dist", "src/**/*.test.ts"],
     "references": [
         {
-            "path": "../../libs/app-messages"
+            "path": "../../libs/shared"
         },
         {
             "path": "../../libs/bridges"
+        },
+        {
+            "path": "../../libs/bridge-messages"
         }
     ]
 }

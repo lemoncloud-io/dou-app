@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { OnListPhotosPayload } from '@chatic/app-messages';
+import type { OnListPhotosPayload } from '@chatic/bridge-messages';
 import { IDENTITY_PHOTO_EDIT, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { PhotoLibrary } from '../../../bridge/photoLibrary';
@@ -57,11 +57,8 @@ const fakeLibrary = (over: Partial<PhotoLibrary> = {}): PhotoLibrary => ({
         size: 10,
         kind: 'video' as const,
     })),
-    videosSupported: jest.fn().mockReturnValue(true),
-    pagesByOffset: jest.fn().mockReturnValue(true),
     manageSelection: jest.fn().mockResolvedValue('limited'),
     isUnsupported: jest.fn().mockReturnValue(false),
-    reset: jest.fn(),
     ...over,
 });
 
@@ -73,7 +70,7 @@ const gridIds = (picker: { count: number; photoAt(index: number): { id: string }
     Array.from({ length: picker.count }, (_, i) => picker.photoAt(i)?.id);
 
 describe('usePhotoPicker', () => {
-    it('knows at once there is no picker in a browser or an old app', () => {
+    it('knows at once there is no picker in a browser', () => {
         const { result } = setup(fakeLibrary({ isUnsupported: jest.fn().mockReturnValue(true) }));
         expect(result.current.supported).toBe(false);
     });
@@ -154,7 +151,7 @@ describe('usePhotoPicker', () => {
     });
 
     // Two requests for the same cursor would append the same page twice.
-    it('pages by cursor on an app that does not echo the offset, one page at a time', async () => {
+    it('pages by cursor on an answer that does not echo the offset, one page at a time', async () => {
         let release: (value: OnListPhotosPayload) => void = () => undefined;
         const photos = jest
             .fn()
@@ -177,16 +174,6 @@ describe('usePhotoPicker', () => {
         // The last page had no cursor: nothing more to ask for.
         act(() => result.current.setVisibleRange({ start: 0, end: 2 }));
         expect(photos).toHaveBeenCalledTimes(2);
-    });
-
-    it('asks an app known to page by cursor for its first page without an offset', async () => {
-        const library = fakeLibrary({ pagesByOffset: jest.fn().mockReturnValue(false) });
-        const { result } = setup(library);
-
-        act(() => result.current.openGrid());
-        await waitFor(() => expect(result.current.count).toBe(3));
-
-        expect(library.photos).toHaveBeenCalledWith(expect.not.objectContaining({ offset: expect.anything() }));
     });
 
     it('lays out the whole album from the first page answered by offset', async () => {
@@ -719,37 +706,6 @@ describe('usePhotoPicker', () => {
         });
         expect(result.current.preparing).toBe(false);
         expect(result.current.gridOpen).toBe(false);
-    });
-
-    it('drops the listed videos once the app turns out unable to keep one', async () => {
-        let supported = true;
-        const library = fakeLibrary({
-            photos: jest.fn().mockResolvedValue({
-                access: 'granted',
-                items: [
-                    { id: 'p', thumbBase64: 'p' },
-                    { id: 'v', thumbBase64: 'v', mediaType: 'video' },
-                ],
-            }),
-            keepVideo: jest.fn(async () => {
-                supported = false;
-                throw Object.assign(new Error('no handler'), { code: 'NOT_FOUND' });
-            }),
-            videosSupported: jest.fn(() => supported),
-        });
-        const { result } = setup(library);
-        await act(() => result.current.probe());
-        act(() => result.current.openGrid());
-        await waitFor(() => expect(result.current.count).toBe(2));
-        act(() => result.current.toggle({ id: 'v', src: '', kind: 'video' }));
-
-        await act(async () => {
-            await result.current.takePicked();
-        });
-
-        // The grid lists afresh when it next opens, and the list leaves videos out from then on.
-        expect(result.current.count).toBe(0);
-        expect(result.current.recent.map(p => p.id)).toEqual(['p']);
     });
 
     it('lists again after the limited-access sheet closes', async () => {

@@ -79,21 +79,27 @@ export const BillingInfoPage = (): JSX.Element => {
                 </Banner>
             )}
 
-            <Card className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-[13px] font-medium text-navy">{t('subscription.billing.info.emails.label')}</h2>
+            <Card className="flex flex-col gap-5 rounded-[14px] border-line p-4 md:gap-6 md:rounded-2xl md:p-[18px]">
+                <div className="flex flex-col gap-2.5">
+                    <h2 className="text-[13px] font-semibold text-ink">
+                        {t('subscription.billing.info.emails.label')}
+                    </h2>
                     {emails.length === 0 ? (
-                        <p className="rounded-lg bg-muted px-4 py-3 text-sm text-subtitle">
+                        <p className="rounded-xl bg-note px-4 py-3 text-sm font-medium text-mute">
                             {t('subscription.billing.info.emails.empty')}
                         </p>
                     ) : (
                         <ul className="flex flex-col gap-2">
                             {emails.map(email => (
-                                <li key={email.id} className="rounded-lg border border-border px-4 py-3">
+                                <li key={email.id} className="rounded-xl border border-line px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="min-w-0 truncate text-sm text-navy">{email.address}</span>
+                                        <span className="min-w-0 truncate text-sm font-medium text-ink">
+                                            {email.address}
+                                        </span>
                                         {email.primary && (
-                                            <Badge tone="info">{t('subscription.billing.info.emails.primary')}</Badge>
+                                            <Badge className="bg-[#eef3fb] font-semibold text-navy">
+                                                {t('subscription.billing.info.emails.primary')}
+                                            </Badge>
                                         )}
                                         {email.status !== 'verified' && (
                                             <Badge tone={STATUS_TONE[email.status]}>
@@ -190,15 +196,19 @@ export const BillingInfoPage = (): JSX.Element => {
                     </Button>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-[13px] font-medium text-navy">
+                <div className="flex flex-col gap-2.5">
+                    <h2 className="text-[13px] font-semibold text-ink">
                         {t('subscription.billing.info.country.label')}
                     </h2>
-                    <div className="flex h-11 items-center justify-between rounded-lg border border-border px-4 text-sm text-navy">
+                    <div className="flex h-12 items-center justify-between rounded-xl border border-line bg-note px-4 text-sm font-semibold text-ink md:h-11 md:bg-transparent md:font-medium">
                         {regionName(country, i18n.language)}
-                        <span className="text-xs text-subtitle">{t('subscription.billing.info.country.locked')}</span>
+                        <span className="text-xs font-medium text-mute">
+                            {t('subscription.billing.info.country.locked')}
+                        </span>
                     </div>
-                    <p className="text-xs text-subtitle">{t('subscription.billing.info.country.note')}</p>
+                    <p className="text-xs font-medium leading-normal text-mute">
+                        {t('subscription.billing.info.country.note')}
+                    </p>
                 </div>
             </Card>
 

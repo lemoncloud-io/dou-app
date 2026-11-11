@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { OnUpdateStatusPayload } from '@chatic/app-messages';
+import type { OnUpdateStatusPayload } from '@chatic/bridge-messages';
 
 /** Statuses pushed over the bridge (no 'idle' — that's the store's local initial sentinel). */
 type WireStatus = OnUpdateStatusPayload['status'];

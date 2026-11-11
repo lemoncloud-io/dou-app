@@ -171,6 +171,7 @@ describe('placeUnreadCounts mentions-only channels', () => {
 
     const mention = (id: string, channelId: string, placeId: string, chatNo: number): MentionItem => ({
         id,
+        cloudId: 'cloud-1',
         channelId,
         placeId,
         chatNo,
@@ -239,6 +240,14 @@ describe('placeUnreadCounts mentions-only channels', () => {
         const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
 
         expect(countsWith(channels, [mention('g:1', 'g', 'place-b', 1)])).toEqual({ byPlace: {}, total: 0 });
+    });
+
+    // Every cloud numbers its places and channels from the same start.
+    it('leaves out another cloud’s channel of the same place and id', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+        const elsewhere = { ...mention('g:1', 'g', 'place-a', 1), cloudId: 'cloud-2' };
+
+        expect(countsWith(channels, [elsewhere])).toEqual({ byPlace: {}, total: 0 });
     });
 
     it('drops the addition once the channel is read', () => {

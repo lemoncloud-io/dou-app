@@ -7,7 +7,7 @@ import type {
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).
@@ -57,8 +57,7 @@ export const appBridge = {
 
     /**
      * Tell native the first screen has painted, so it can lift its launch splash (or the cover it
-     * shows while a crashed WebView reloads). Fire-and-forget: an older shell answers NOT_FOUND and
-     * lifts its splash on its own.
+     * shows while a crashed WebView reloads). Fire-and-forget.
      */
     notifyFirstScreenReady(): void {
         webClient.post({ type: 'FirstScreenReady', data: {} });
@@ -101,7 +100,8 @@ export const appBridge = {
     /**
      * Open a Firebase Performance trace in the native shell. Fire-and-forget: the SDK times the
      * trace from this call to `stopPerfTrace`, and nothing the caller does may wait on it. Only sent
-     * once the WebAppReady report says the installed app handles it (see `runtime/perf`).
+     * once the WebAppReady report has landed, from an app at or above the version floor (see
+     * `runtime/perf`).
      */
     startPerfTrace(data: Payload<'StartPerfTrace'>): void {
         webClient.post({ type: 'StartPerfTrace', data });
@@ -148,7 +148,7 @@ export const appBridge = {
     /**
      * Drains the cross-cloud push marks recorded natively for a background chat push (ADR-0056) —
      * read + clear in one native call, so a mark is delivered exactly once. Resolves `[]` on a
-     * plain browser (no native bridge) or a shell build that predates this bridge message.
+     * plain browser (no native bridge) or a failed request.
      */
     fetchPushMarks(): Promise<PushCloudMarkRecord[]> {
         return webClient
@@ -271,8 +271,8 @@ export const appBridge = {
      * Ask native to fetch and parse a page's og: metadata for a chat link preview — the webview
      * can't read cross-origin pages itself.
      *
-     * Rejects on an older shell that has no handler (NOT_FOUND); callers treat that as "no
-     * preview". This is also the single seam to swap if unfurling ever moves to the backend.
+     * Rejects when the shell cannot fetch it; callers treat that as "no preview". This is also the
+     * single seam to swap if unfurling ever moves to the backend.
      */
     fetchUrlMetadata(url: string): Promise<WebMessageResponse<'FetchUrlMetadata'>> {
         return webClient.request({ type: 'FetchUrlMetadata', data: { url } });
@@ -384,8 +384,7 @@ export const appBridge = {
      * above is served by notifee whose badge API is a no-op off iOS (ADR-0099).
      *
      * Raw like its neighbours: unwrapping and the platform routing that decides WHICH of the two to
-     * ask both live in `nativeBadgeReader`, so this stays a message facade. Rejects on a shell that
-     * predates the message, which is how that reader learns the capability.
+     * ask both live in `nativeBadgeReader`, so this stays a message facade.
      */
     fetchBadgeBase(): Promise<WebMessageResponse<'FetchBadgeBase'>> {
         return webClient.request({ type: 'FetchBadgeBase', data: {} });
@@ -454,15 +453,15 @@ export const appBridge = {
         return webClient.request({ type: 'OpenDocument', data: payload });
     },
 
-    // In-app photo picker. Raw like their neighbours: the NOT_FOUND learning (an app built before the
-    // picker has no handler) and the base64 decoding live in `photoLibrary`, so these stay a facade.
+    // In-app photo picker. Raw like their neighbours: the browser check and the base64 decoding live in
+    // `photoLibrary`, so these stay a facade.
     //
     // None of them use the 15s default, because each can be waiting on something other than the
     // shell. A timed-out request drops the answer that arrives after it, so a clock shorter than the
     // wait turns a photo that was on its way into a failure.
 
     /**
-     * The albums the in-app picker can switch between. Rejects with NOT_FOUND on an older app.
+     * The albums the in-app picker can switch between.
      *
      * 60s: on first use the OS permission prompt is raised inside this request, as for contacts.
      */
@@ -486,7 +485,7 @@ export const appBridge = {
     /**
      * Copies one library video into the shell's pick folder and answers with the reference the send
      * uploads from. 10 minutes, the same bound as `PrepareVideo`: a video kept only in iCloud is
-     * downloaded first, with no progress to report. Rejects with NOT_FOUND on an app from before it.
+     * downloaded first, with no progress to report.
      */
     keepLibraryVideo(id: string, timeoutMs = 10 * 60_000): Promise<WebMessageResponse<'KeepLibraryVideo'>> {
         return webClient.request({ type: 'KeepLibraryVideo', data: { id } }, { timeoutMs });
@@ -496,7 +495,7 @@ export const appBridge = {
      * A received video's frame as a JPEG, made by the shell from the video's signed address. The shell
      * gives up after 20s of its own; the page waits a little longer, so the shell's answer — a frame or
      * `UNREADABLE` — is what settles it, and a read the shell is still running is never taken for done
-     * while the next one starts. Rejects with NOT_FOUND on an app from before it.
+     * while the next one starts.
      */
     readVideoFrame(
         payload: Payload<'ReadVideoFrame'>,
@@ -532,17 +531,31 @@ export const appBridge = {
         );
     },
 
-    /**
-     * Play one short haptic and wait for the shell's answer — the way to learn whether it has the
-     * message at all (an app built before it answers `NOT_FOUND`). Call it through `haptics`.
-     */
-    triggerHaptic(kind: HapticKind): Promise<WebMessageResponse<'TriggerHaptic'>> {
-        return webClient.request({ type: 'TriggerHaptic', data: { kind } });
-    },
-
-    /** Play one short haptic with no answer. Only once `triggerHaptic` has shown the shell has it. */
+    /** Play one short haptic with no answer. */
     postHaptic(kind: HapticKind): void {
         webClient.post({ type: 'TriggerHaptic', data: { kind } });
+    },
+
+    /**
+     * Show `url` in the shell's sub WebView, over the app. Rejects with the shell's code when it
+     * refuses (`NOT_ALLOWED`, `ALREADY_OPEN`, …). Call it through `openSubWebView`, which checks
+     * the shell has it first.
+     */
+    openSubWebView(
+        url: string,
+        title?: string,
+        params?: Payload<'OpenSubWebView'>['params'],
+        appId?: string
+    ): Promise<WebMessageResponse<'OpenSubWebView'>> {
+        return webClient.request({
+            type: 'OpenSubWebView',
+            data: { url, ...(title ? { title } : {}), ...(params ? { params } : {}), ...(appId ? { appId } : {}) },
+        });
+    },
+
+    /** Close the sub WebView this page opened; `OnSubWebViewClosed` follows. */
+    closeSubWebView(viewId: string): Promise<WebMessageResponse<'CloseSubWebView'>> {
+        return webClient.request({ type: 'CloseSubWebView', data: { viewId } });
     },
 
     /** Write text to the OS clipboard — the native one, not the browser's. */
@@ -550,11 +563,17 @@ export const appBridge = {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });
     },
 
-    /** Ask the OS for a permission. Idempotent once granted, and the response carries the status. */
+    /**
+     * Ask the OS for a permission. Idempotent once granted, and the response carries the status.
+     *
+     * 60s, as for contacts: the answer waits on the OS prompt, and the default timeout would drop it for
+     * someone still reading that prompt.
+     */
     requestPermission(
-        permission: Payload<'RequestPermission'>['permission']
+        permission: Payload<'RequestPermission'>['permission'],
+        timeoutMs = 60_000
     ): Promise<WebMessageResponse<'RequestPermission'>> {
-        return webClient.request({ type: 'RequestPermission', data: { permission } });
+        return webClient.request({ type: 'RequestPermission', data: { permission } }, { timeoutMs });
     },
 
     // ---------------------------------------------------------------

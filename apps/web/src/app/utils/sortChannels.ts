@@ -15,7 +15,7 @@ export const toTime = (value: unknown): number => {
 export interface SortChannelsInput {
     channels: DomainChannel[];
     /**
-     * The last cached message per channel id (`useLastChats`) — the activity time. A channel with
+     * The latest activity per channel id (`useLastActivities`) — a thread reply counts. A channel with
      * no cached message falls back to `channel.updatedAt`.
      */
     lastChatByChannel?: ReadonlyMap<string, DomainChat>;
@@ -31,8 +31,8 @@ export interface SortChannelsInput {
 /**
  * Order channels for the home list by the place's chosen sort method (pure — unit-tested).
  *
- * Base order is always most-recent-activity first, and activity means **the last message's time**
- * (`lastChatByChannel`) — the very value the row prints beside the preview, so the order and the
+ * Base order is always most-recent-activity first, and activity means **the latest message's time**,
+ * a thread reply included (`lastChatByChannel`) — the very value the row prints beside the preview, so the order and the
  * times on screen can never disagree (ADR-0055 decision 2, landed on ADR-0057's list-level read).
  * My join's `updatedAt` is deliberately not consulted: it bumps when I *read* a room, which is not
  * when the room moved. A channel with nothing cached yet falls back to `channel.updatedAt`.

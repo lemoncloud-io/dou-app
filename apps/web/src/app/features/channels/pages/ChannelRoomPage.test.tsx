@@ -30,6 +30,10 @@ const mockSetSearchParams = jest.fn();
 
 // The Lab's input lock on this room, as `useChatInputLock` answers it.
 let mockInputLocked = false;
+// The edit the composer is holding, when a case opens one. Absent means the composer is writing.
+let mockEditComposer: Record<string, unknown> | undefined;
+// What the room last told its scroll hook.
+let mockChatScrollArgs: Record<string, unknown> = {};
 const mockSetInputLocked = jest.fn();
 
 // The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
@@ -170,8 +174,23 @@ interface MockAttachInput {
     composerRef?: { current: HTMLElement | null };
     onComposerSlide?: (sliding: boolean) => void;
     disabled?: boolean;
+    onVoice?: () => void;
 }
 let mockAttachInput: MockAttachInput = {};
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+let mockVoiceCanRecord = true;
+const mockVoiceOpen = jest.fn();
+let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: (input: { disabled?: boolean; scope?: string }) => {
+        mockVoiceInput = input;
+        return {
+            canRecord: mockVoiceCanRecord,
+            open: mockVoiceOpen,
+            sheet: <div data-testid="voice-sheet" />,
+        };
+    },
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInput = input;
@@ -206,8 +225,9 @@ jest.mock('../hooks', () => ({
         deleteMessage: mockDeleteMessage,
     }),
     useMessageEditing: () => ({
-        isEditing: false,
-        editStateFor: () => undefined,
+        isEditing: !!mockEditComposer,
+        composer: mockEditComposer,
+        isEditTarget: () => false,
         deleteTarget: null,
         discardOpen: false,
         cancelDelete: jest.fn(),
@@ -231,7 +251,10 @@ jest.mock('../hooks', () => ({
         fillGap: mockFillGap,
         revalidateAround: jest.fn(),
     }),
-    useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn() }),
+    useChatScroll: (args: Record<string, unknown>) => {
+        mockChatScrollArgs = args;
+        return { containerRef: { current: null }, handleScroll: jest.fn() };
+    },
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
     useDmPeer: () => null,
     useJoinPositions: (...args: unknown[]) => {
@@ -265,6 +288,7 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 });
 
 beforeEach(() => {
+    mockVoiceCanRecord = true;
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockGaps = [];
@@ -282,6 +306,8 @@ beforeEach(() => {
     mockUseJoinPositions.mockReset();
     mockStackInMounts.length = 0;
     mockInputLocked = false;
+    mockEditComposer = undefined;
+    mockAttachStrip = false;
     mockSetInputLocked.mockReset();
     mockAttachReady = false;
     (toast as jest.Mock).mockClear();
@@ -318,6 +344,27 @@ describe('ChannelRoomPage — the input lock', () => {
         expect(mockSendPicked).not.toHaveBeenCalled();
     });
 
+    it("hands the attach panel the voice entry that opens the recording sheet, under the composer's lock", () => {
+        const { unmount } = render(<ChannelRoomPage />);
+        expect(mockAttachInput.onVoice).toBe(mockVoiceOpen);
+        expect(screen.getByTestId('voice-sheet')).toBeInTheDocument();
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: false, scope: 'ch1' }));
+        unmount();
+
+        mockInputLocked = true;
+        render(<ChannelRoomPage />);
+
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: true }));
+    });
+
+    it('offers no voice entry where the app cannot record', () => {
+        mockVoiceCanRecord = false;
+
+        render(<ChannelRoomPage />);
+
+        expect(mockAttachInput.onVoice).toBeUndefined();
+    });
+
     it('lifts the lock from the padlock in the composer', () => {
         mockInputLocked = true;
 
@@ -326,6 +373,124 @@ describe('ChannelRoomPage — the input lock', () => {
 
         expect(mockSetInputLocked).toHaveBeenCalledWith(false);
         expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.unlocked' });
+    });
+});
+
+describe('ChannelRoomPage — editing in the composer', () => {
+    const editState = (overrides: Record<string, unknown> = {}) => ({
+        targetId: 'm1',
+        original: '원래 메시지',
+        draft: '고치는 중',
+        onDraftChange: jest.fn(),
+        isSaving: false,
+        hasFailed: false,
+        onSave: jest.fn(),
+        onCancel: jest.fn(),
+        ...overrides,
+    });
+
+    it('turns the composer into the editor: the draft in the field and the message quoted above it', () => {
+        mockEditComposer = editState();
+
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('composer-input')).toHaveValue('고치는 중');
+        expect(screen.getByTestId('composer-input')).toHaveAttribute('placeholder', 'chat.room.editMessage');
+        expect(screen.getByTestId('composer-edit-bar')).toHaveTextContent('원래 메시지');
+    });
+
+    it('saves the edit from the send button instead of sending a new message', () => {
+        const state = editState();
+        mockEditComposer = state;
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('send-typed'));
+
+        expect(state.onSave).toHaveBeenCalledTimes(1);
+        expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('types into the draft, not into the new message', () => {
+        const state = editState();
+        mockEditComposer = state;
+
+        render(<ChannelRoomPage />);
+        fireEvent.change(screen.getByTestId('composer-input'), { target: { value: '고친 내용' } });
+
+        expect(state.onDraftChange).toHaveBeenCalledWith('고친 내용');
+    });
+
+    // The new message typed before the edit is kept aside and comes back when the edit closes.
+    it('gives back the unsent message once the edit closes', () => {
+        const { rerender } = render(<ChannelRoomPage />);
+        fireEvent.change(screen.getByTestId('composer-input'), { target: { value: '보내려던 말' } });
+
+        mockEditComposer = editState();
+        rerender(<ChannelRoomPage />);
+        expect(screen.getByTestId('composer-input')).toHaveValue('고치는 중');
+
+        mockEditComposer = undefined;
+        rerender(<ChannelRoomPage />);
+        expect(screen.getByTestId('composer-input')).toHaveValue('보내려던 말');
+        expect(screen.queryByTestId('composer-edit-bar')).not.toBeInTheDocument();
+    });
+
+    // The room's lock is about sending something new; an edit sends nothing new.
+    it('leaves the field open in a locked room and closes it only while the save is in flight', () => {
+        mockInputLocked = true;
+        mockEditComposer = editState();
+        const { rerender } = render(<ChannelRoomPage />);
+        expect(screen.getByTestId('composer-input')).not.toBeDisabled();
+
+        mockEditComposer = editState({ isSaving: true });
+        rerender(<ChannelRoomPage />);
+        expect(screen.getByTestId('composer-input')).toBeDisabled();
+    });
+
+    // Opening the edit focuses the field and grows the composer; either pin would carry the list away
+    // from the message being changed. A jump is a different hold and stays off.
+    it('holds the bottom pin while editing, and only then', () => {
+        const { rerender } = render(<ChannelRoomPage />);
+        expect(mockChatScrollArgs).toEqual(
+            expect.objectContaining({ holdBottomPin: false, suppressAutoScroll: false })
+        );
+
+        mockEditComposer = editState();
+        rerender(<ChannelRoomPage />);
+
+        expect(mockChatScrollArgs).toEqual(expect.objectContaining({ holdBottomPin: true, suppressAutoScroll: false }));
+    });
+
+    // The edit borrows the field; its text is not a message being written.
+    it('raises no @ list from the text of an edit, during it or after it closes', () => {
+        mockActiveMemberIds = ['peer', 'uid-b'];
+        mockMembers = [
+            { id: 'peer', name: 'Minsu' },
+            { id: 'uid-b', name: 'Me' },
+        ];
+        mockEditComposer = editState({ draft: 'hi @' });
+        const { rerender } = render(<ChannelRoomPage />);
+        const field = screen.getByTestId('composer-input') as HTMLTextAreaElement;
+        field.setSelectionRange(4, 4);
+        fireEvent.keyUp(field);
+        fireEvent.click(field);
+
+        mockEditComposer = undefined;
+        rerender(<ChannelRoomPage />);
+
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    // The edit is text only: the photos waiting to go and the padlock step aside while it lasts.
+    it('hides the waiting photos and the padlock while editing', () => {
+        mockAttachStrip = true;
+        mockInputLocked = true;
+        mockEditComposer = editState();
+
+        render(<ChannelRoomPage />);
+
+        expect(screen.queryByTestId('attach-strip')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'chat.inputLock.unlock' })).not.toBeInTheDocument();
     });
 });
 

@@ -3,9 +3,7 @@
 **Inside an app that can, the media viewer saves the showing photo or video — or every one of the
 message — to the phone's library, or puts the showing one on the share sheet.** The page does not
 hold the bytes, so the shell downloads the original itself and hands its own file onward; the page
-only starts the download, waits, and reports the result. A browser tab and an app built before
-downloads show neither button; an app built before videos shows them on photos only, once it has
-refused a video.
+only starts the download, waits, and reports the result. A browser tab shows neither button.
 
 What the shell does with each message — where a download lands, which files it lets out, the
 permission prompts — is [apps/mobile media-export.md](../../../../mobile/docs/native/media-export.md)
@@ -27,29 +25,10 @@ only when `supportedWebMessages` lists **both** `SaveToPhotoLibrary` and `ShareF
 gives it the handshake reply the moment it arrives; before that, and in a browser where there is no
 reply, the answer is false.
 
-That is a different reading from the photo picker's, which learns from its first `NOT_FOUND` and
-never looks at the handshake. The picker can afford to ask, because asking is invisible: the attach
-menu just shows no recent photos. A button cannot — on an older app it would be there, and pressed,
-before anything was learned. The two known faults of the handshake are covered instead:
-
-- **It arrives asynchronously.** Here it races nothing. The buttons start hidden, and the viewer opens
-  long after boot.
-- **An older app builds it from its compiled message map, not its registered handlers.** An app
-  whose bridge is `2.6.0` or later lists only what it registered; before that, the app's router test
-  held both messages to a handler. And if a press still meets `NOT_FOUND`, `withdrawImageExport()`
-  hides the buttons for the rest of the session, with a toast asking for an app update.
-
-**Videos need one more thing, and it is learned, not read.** Videos widened the same two messages
-instead of adding new ones, so an app built before them lists both in its handshake exactly as a
-current one does. What tells them apart is the answer: an older app's byte check knew images only, so
-it answers a video's `SaveToPhotoLibrary` or `ShareFile` with `UNSUPPORTED_TYPE`. A video refused
-that way calls `withdrawVideoExport()`, and `useCanExportVideos()` — the photo rule and no such
-refusal yet — turns false for the rest of the session: video items lose their buttons, photos keep
-theirs, and that first press ends with a toast asking for an app update. This leans on the shell
-keeping `UNSUPPORTED_TYPE` for "not a format this message takes" and never for another failure. A
-photo refused the same way is only that photo's format, and changes nothing. The cost is one press
-that cannot succeed on an older app; the handshake carries nothing that would tell the two apps
-apart beforehand.
+Every phone app this page runs in lists both, and takes videos as well as photos, so the handshake is
+what tells the app from a browser rather than one app version from another. It arrives
+asynchronously, which races nothing here: the buttons start hidden, and the viewer opens long after
+boot.
 
 **Where they sit.** Share at the left end and save at the right end of a bar along the viewer's
 bottom edge (`renderFooter`); the top bar keeps only the position and the close button. The
@@ -62,8 +41,7 @@ viewer's own backdrop still closes it.
 Keys and drags on a sheet the buttons open stay with the sheet: React events bubble through portals,
 so the viewer acts only on events from its own DOM, and the sheet keeps the photo it was opened on.
 
-Which items get them: a sent photo or video (its address is `https:`), and a video only while
-`useCanExportVideos()` holds (`canExportItem`). An item still on its way has only a page-local
+Which items get them: a sent photo or video (its address is `https:`). An item still on its way has only a page-local
 `blob:` preview the shell cannot fetch, and one the viewer could not draw (`broken`) has nothing to
 offer, so both buttons show but are disabled. On a video the buttons are named for a video ("Save
 video", "Share video") rather than a photo, so a screen reader says what will be saved. While a save
@@ -77,7 +55,7 @@ second tap inside the same frame is ignored too. The state is kept per upload
 
 `exportMedia({ action, kind, url, name, signal })` with its dependencies passed in, so it is tested
 without a shell. A photo and a video take the same path — the shell's `SaveToPhotoLibrary` takes MP4
-as well as images — and differ only in how an older app refuses a video:
+as well as images — and differ only in how their toasts are worded:
 
 1. **Download.** `runtime/transfer`'s `nativeGet` sends `StartFileTransfer` with
    `direction: 'download'`, `method: 'GET'`, a name hint and a title for the Android notification —
@@ -98,24 +76,19 @@ as well as images — and differ only in how an older app refuses a video:
    sweep — so the order is bookkeeping, not what keeps the file alive.
 
 An `INVALID` from the save or share means the shell refused a file it handed out itself. That is a
-bug on one side or the other, so it is logged as well as reported as a failure. An
-`UNSUPPORTED_TYPE` for a video is the older-app answer above: the flow calls `withdrawVideos()` and
-reports `video-update-required`.
+bug on one side or the other, so it is logged as well as reported as a failure.
 
-| Outcome                                    | What the user sees                                            |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| saved                                      | "Saved to Photos" / "Video saved" toast                       |
-| shared, or the sheet closed with no target | nothing — the sheet was the feedback                          |
-| permission refused                         | toast with a **Settings** button                              |
-| not an image the library takes             | "can't be saved" toast                                        |
-| network failure, or the download stalled   | "check your connection" toast                                 |
-| any other failure                          | "couldn't save or share" toast                                |
-| `NOT_FOUND`                                | "update the app" toast; buttons hidden                        |
-| a video refused as `UNSUPPORTED_TYPE`      | "update the app" toast; video buttons hidden                  |
-| save all: every item saved                 | "Saved N photos", or "Saved N" with a video in it             |
-| save all: some saved, some failed          | "M photos saved · K failed", or "M saved · K failed"          |
-| save all: an older app refused a video     | "Saved M photos · videos can be saved after updating the app" |
-| no answer within ten minutes, or cancelled | nothing — the button just comes back                          |
+| Outcome                                    | What the user sees                                   |
+| ------------------------------------------ | ---------------------------------------------------- |
+| saved                                      | "Saved to Photos" / "Video saved" toast              |
+| shared, or the sheet closed with no target | nothing — the sheet was the feedback                 |
+| permission refused                         | toast with a **Settings** button                     |
+| not an image the library takes             | "can't be saved" toast                               |
+| network failure, or the download stalled   | "check your connection" toast                        |
+| any other failure                          | "couldn't save or share" toast                       |
+| save all: every item saved                 | "Saved N photos", or "Saved N" with a video in it    |
+| save all: some saved, some failed          | "M photos saved · K failed", or "M saved · K failed" |
+| no answer within ten minutes, or cancelled | nothing — the button just comes back                 |
 
 Android cannot say whether a share reached a target: it answers as soon as the chooser is up, with
 `completed: null`, which is read the same as a dismissed sheet. Neither is a failure, and on Android
@@ -152,13 +125,11 @@ sheet counts items ("전체 저장 (N개)"). Share always takes the showing item
 Save all runs the flow above for each item **one after another**, in viewer order, never side by
 side, so the first save's permission prompt appears once and the shell is not handed a burst of
 downloads; each item keeps its own 403 retry, `SOURCE` retry and acknowledgement. A refused permission
-or `NOT_FOUND` stops the run, since every remaining item would get the same answer. A video refused by
-an older app does not: the run learns it, skips the remaining videos, and keeps saving photos. Any
-other failure skips that item.
+stops the run, since every remaining item would get the same answer. Any other failure skips that
+item.
 
 One toast ends the run (`toastForSaveAll`). A run that stopped speaks for the reason it stopped, even
-after some were saved. A run in which a video was refused says how many photos it saved and that
-videos need an update — or, when it saved none, only that. Otherwise it says how many were saved, how
+after some were saved. Otherwise it says how many were saved, how
 many failed when some did, or — when none was saved — speaks for the last failure that had something
 to say. A run of photos only keeps the photo wording; one with a video in it counts items.
 
@@ -195,17 +166,17 @@ the download catch-up would then find no record and fail a save that had succeed
 
 ## Where the code is
 
-| File                                                | Holds                                                                            |
-| --------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `bridge/shellCapabilities.ts`                       | the handshake reading, and the session withdrawals of export and of video export |
-| `bridge/shellDownload.ts`                           | the one download registry per page, and the page's catch-up                      |
-| `bridge/appBridge.ts`                               | `saveToPhotoLibrary`, `shareFile`                                                |
-| `runtime/transfer/nativeGet.ts`                     | start, wait, stall window, cancel, acknowledge, list catch-up                    |
-| `features/channels/lib/imageExport.ts`              | the flow above, save all, and their toasts                                       |
-| `features/channels/hooks/useImageExports.tsx`       | the per-upload busy state, what is savable, the dependencies, the toasts         |
-| `features/channels/components/SaveShareButtons.tsx` | the two buttons, the save-all position and the save sheet                        |
-| `features/channels/components/MessageImages.tsx`    | puts the buttons in the viewer, stops shares and save all on close               |
-| `libs/web-ui-kit` `MediaViewer` (`renderFooter`)    | the bottom bar, and `MediaViewerActionButton`                                    |
+| File                                                | Holds                                                                    |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `bridge/shellCapabilities.ts`                       | the handshake reading                                                    |
+| `bridge/shellDownload.ts`                           | the one download registry per page, and the page's catch-up              |
+| `bridge/appBridge.ts`                               | `saveToPhotoLibrary`, `shareFile`                                        |
+| `runtime/transfer/nativeGet.ts`                     | start, wait, stall window, cancel, acknowledge, list catch-up            |
+| `features/channels/lib/imageExport.ts`              | the flow above, save all, and their toasts                               |
+| `features/channels/hooks/useImageExports.tsx`       | the per-upload busy state, what is savable, the dependencies, the toasts |
+| `features/channels/components/SaveShareButtons.tsx` | the two buttons, the save-all position and the save sheet                |
+| `features/channels/components/MessageImages.tsx`    | puts the buttons in the viewer, stops shares and save all on close       |
+| `libs/web-ui-kit` `MediaViewer` (`renderFooter`)    | the bottom bar, and `MediaViewerActionButton`                            |
 
 The decision is recorded in
 [ADR-0155](../../../../../docs/adr/0155-the-viewer-offers-save-and-share-when-the-handshake-lists-both.md).
@@ -234,8 +205,7 @@ On a device, against the transfer test server (`scripts/upload-test-server.js`, 
 cover a plain image, a chunked one, a 403, a slow body and a cut-off one): open a sent photo, press
 save, and find it in the library; do the same for a sent MP4; on a message of three, choose save all
 and find three, with the bar counting "1 / 3", "2 / 3", "3 / 3"; press share and close the sheet, and
-no toast should appear. On an app built before videos, save a video: the toast asks for an update,
-the video's buttons go, and save all on a mixed message counts and saves the photos only. Deny the permission and the toast's Settings opens
+no toast should appear. Deny the permission and the toast's Settings opens
 the system settings over the open viewer. Then cut the body off mid-download: Android reports a
 network failure at once, while iOS keeps the download running until the window cancels it.
 

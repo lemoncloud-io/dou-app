@@ -5,7 +5,7 @@ the reply back to whoever asked.** It holds the web-side client, the native-side
 channel adapters under the client, the JSON framing between them, and the listener that relays web
 log entries into the native runtime.
 
-[`@chatic/app-messages`](../app-messages/README.md) is the other half of the boundary. **That package
+[`@chatic/bridge-messages`](../bridge-messages/README.md) is the other half of the boundary. **That package
 declares what a message is; this one decides what happens to it.** Every cross-boundary type —
 including `BridgeError`, which this lib constructs on both sides but does not declare — lives over
 there, because the installed native shell has to be able to build one and it compiles against the
@@ -26,7 +26,7 @@ dependency statement:
 
 ```bash
 grep -rhoE "from '@[a-z-]+/[a-z-]+'" --include='*.ts' libs/bridges/src | sort | uniq -c
-#   8 from '@chatic/app-messages'
+#   8 from '@chatic/bridge-messages'
 #  15 from '@chatic/logger'
 ```
 
@@ -36,7 +36,7 @@ the named imports, none of which this package owns. `src/logger/index.ts` re-exp
 resolve to symbols declared here, `isNative` (69) and `webClient` (28) are almost all of them.
 
 What this lib does **not** own: message names, payload shapes and the request→reply map
-([`@chatic/app-messages`](../app-messages/README.md)); the log entry contract, the hub, masking and
+([`@chatic/bridge-messages`](../bridge-messages/README.md)); the log entry contract, the hub, masking and
 the upload queue ([`@chatic/logger`](../logger/README.md)); the handlers that answer messages
 (`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`,
 `apps/desktop/src/main/bridgeHandlers.ts`); and the injection that puts a channel on `window` in
@@ -52,7 +52,7 @@ dependencies, and must not assume a DOM — the e2e host has none.
 1. **The vocabulary is read, never extended.** `WEB_MESSAGE_RESPONSE_TYPE` is consulted twice —
    `WebBridgeClient` to learn which reply to wait for, `AppBridgeHost` to build the handshake's
    supported-message lists — and this lib adds nothing to it. A new message is an
-   `@chatic/app-messages` change plus a handler in a shell; it is never a change here.
+   `@chatic/bridge-messages` change plus a handler in a shell; it is never a change here.
 2. **One client per web runtime, constructed at module scope.** `webClient` in `provider.ts` is the
    entry point, and it is a singleton because two clients would both bind the DOM `message` listener
    and both try to match the same `refId` — the second one resolves nothing and leaks every promise
@@ -69,7 +69,7 @@ dependencies, and must not assume a DOM — the e2e host has none.
    **And it counts only while the page is visible.** A hidden page is one whose replies may not
    arrive until it shows again, so a timeout that kept counting would report a wait as a fault —
    [scenario 7](#7-another-app-in-front-of-this-one) is the case that forced it.
-5. **The reply type is re-checked at runtime.** `@chatic/app-messages` makes the pairing a compile
+5. **The reply type is re-checked at runtime.** `@chatic/bridge-messages` makes the pairing a compile
    error, but the two sides are different release trains — a web build and an installed shell are not
    necessarily the same generation of that map. A successful reply whose `type` is not the expected
    one is rejected as `RESPONSE_TYPE_MISMATCH` rather than handed to a caller that would read the
@@ -95,7 +95,7 @@ buffer; `JsonProtocol` and `MessageQueue`; `isNative()`; the protocol version co
 web→native log relay (`setupBridgeLogger`, `createNativeForwarder`, `appLogInfoCodec`).
 
 **Out** — the message vocabulary and every cross-boundary type
-([`@chatic/app-messages`](../app-messages/README.md)); the logging core this package re-exports
+([`@chatic/bridge-messages`](../bridge-messages/README.md)); the logging core this package re-exports
 ([`@chatic/logger`](../logger/README.md)); the handlers (`apps/mobile`, `apps/desktop`); the channel
 injection (each shell's preload or injected script); and the console listener, which moved to
 `apps/web` because choosing which sinks run is an app decision, not a bridging one.
@@ -109,9 +109,9 @@ flowchart TD
     classDef app fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
     classDef com fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Caller["apps/web · desktop-web · admin-v2"]:::ext
+    Caller["apps/web · desktop-web · admin"]:::ext
     Shell["apps/mobile · apps/desktop<br/><i>registerHandler × N · pushEvent</i>"]:::ext
-    Msgs["@chatic/app-messages<br/><i>WEB_MESSAGE_RESPONSE_TYPE</i>"]:::ext
+    Msgs["@chatic/bridge-messages<br/><i>WEB_MESSAGE_RESPONSE_TYPE</i>"]:::ext
     Log["@chatic/logger<br/><i>logHub · LogEntry</i>"]:::ext
 
     WC["webClient — WebBridgeClient<br/><i>refId map · readiness buffer · timers</i>"]:::web
@@ -231,17 +231,18 @@ bound to the page.
 
 ```text
 libs/bridges/src/
-├── index.ts       barrel — common · web · app · provider · logger · version
+├── index.ts       barrel — common · web · app · provider · logger · version · storage
 ├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
 ├── version.ts     BRIDGE_VERSION · BRIDGE_VERSION_INFO
 ├── common/        JsonProtocol, MessageQueue, isNative, the message/adapter types
 ├── web/           WebBridgeClient + adapters/ (NativeBridgeAdapter, InMemoryAdapter)
 ├── app/           AppBridgeHost + IAppBridgeHost
-└── logger/        the web→native relay, and the @chatic/logger re-export
+├── logger/        the web→native relay, and the @chatic/logger re-export
+└── storage/       BridgeStorageChannel (StorageGet · StorageSave · StorageClear), shellKeepsStorageMedium
 ```
 
-22 production files, 6 spec files, 3,833 lines. The barrel exports 14 runtime values of its own — 5
-classes and 9 constants — plus 12 interfaces, 6 type aliases, and everything `@chatic/logger`
+26 production files, 7 spec files, 4,116 lines. The barrel exports 16 runtime values of its own — 6
+classes, 9 constants and a function — plus 13 interfaces, 6 type aliases, and everything `@chatic/logger`
 exports.
 
 Names you would not find by guessing at a filename:
@@ -274,7 +275,7 @@ Names you would not find by guessing at a filename:
 
 Two things about that table are worth knowing before you write a `catch`.
 
-`BridgeErrorCode` (declared in `@chatic/app-messages`) lists six literals and then `| string`, which
+`BridgeErrorCode` (declared in `@chatic/bridge-messages`) lists six literals and then `| string`, which
 is why `DESTROYED` type-checks without appearing in it. The reverse also holds:
 **`MALFORMED_RESPONSE` is in that union and nothing in the repo produces it.** It stays declared
 because the union is the wire contract a peer reads, not a list of what this lib builds today.
@@ -367,10 +368,10 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 ### Wiring
 
 ```text
-web runtime                             apps/web · apps/desktop-web · apps/admin-v2
+web runtime                             apps/web · apps/desktop-web · apps/admin
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.8.0')
+       ├─ version  BRIDGE_VERSION ('2.22.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -381,6 +382,9 @@ native runtime
                                           cacheSchemaVersion, supportedCacheTypes,
                                           resolveCacheDomainVersions })
                 useWebMessageRouter()     registerHandler per domain hook
+  apps/mobile   SubWebView              new AppBridgeHost({ sendToWeb, subWebViewContext,
+                createSubBridgeHost()     maxMessageLength }) — a second host, for the sub WebView
+                                          page: the SubWebViewRequestType subset only
   apps/desktop  createWindow()          new AppBridgeHost({ sendToWeb: IPC })
                 registerHandlers(host, deps) · startUpdater(host, …)
 ```
@@ -392,7 +396,10 @@ debug overlay sends; it is answered with a `Pong` carrying the payload back, the
 so a round trip that reaches any host comes back as an answer rather than as `NOT_FOUND`. A shell does
 not register either itself: its own cleanup would unregister the host's. The mobile host passes three
 cache-capability fields into it; the desktop host passes none, has no local cache DB, and is read by
-the web as legacy. The negotiation those fields feed is
+the web as legacy. The sub WebView's host passes the other two options: `subWebViewContext`, which
+the handshake reports as `subWebView`, read when the reply is built, and `maxMessageLength`, past
+which a message is answered `TOO_LARGE` (as an `ERROR`, with its `refId`) without reaching a handler.
+It still counts as the page's first message and releases held pushes. The main hosts set no limit. The negotiation those fields feed is
 [`app-runtime`'s](../app-runtime/docs/data/README.md).
 
 ## Scenarios
@@ -420,9 +427,9 @@ answers, not what it compiled against. That makes registration order part of the
 registers its handlers before the page can send `WebAppReady` — mobile in the router's mount
 effect, desktop while it creates the window, both long before the page has loaded far enough to
 send anything — and a handler added after a handshake is answered but not advertised until the next
-one. A host from before `2.6.0` names the whole map instead, and a web build has to keep working
-against one: anything it decides from these lists
-still needs its `NOT_FOUND` fallback. `supportedAppMessages` covers replies only; the pushed events
+one. A host from before `2.6.0` names the whole map instead; `apps/web` no longer meets one, because
+its version floor (app 0.30.0, bridge 2.9.0) is above it, but any other web on this contract still
+needs its `NOT_FOUND` fallback for anything it decides from these lists. `supportedAppMessages` covers replies only; the pushed events
 (`OnNavigate`, `OnUpdateStatus`, …) are not listed, as they never were.
 
 ### 3. An event that arrives before anyone is listening
@@ -436,9 +443,8 @@ order.
 
 `AppBridgeHost` answers `NOT_FOUND` with a `traceId`, the `requestType` and the
 `expectedResponseType` it looked up, so the failure can be followed across two log systems. The web
-deploys ahead of the app, so this is an ordinary outcome and not an incident — `@chatic/db` turns
-three specific `NOT_FOUND`s into learned fallbacks, and `apps/desktop-web` swallows others to degrade
-gracefully.
+deploys ahead of the app, so this is an ordinary outcome and not an incident — the web degrades or
+hides the feature, and `apps/desktop-web` swallows the messages the desktop shell leaves out.
 
 Which messages a shell leaves to this answer is a decision, not an accident. Each shell has a
 contract suite beside its handlers — `apps/mobile`'s `useWebMessageRouter.contract.test.ts` and
@@ -537,7 +543,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
 - **`tsconfig.json` references both sub-projects on purpose.** Jest does not type check — the base
   sets `isolatedModules` and ts-jest transpiles — so without the spec reference a mock that has
   drifted from the interface it imitates surfaces only as `… is not a function` at runtime, if at
-  all. Both sub-projects also reference `../app-messages/tsconfig.lib.json` and
+  all. Both sub-projects also reference `../bridge-messages/tsconfig.lib.json` and
   `../logger/tsconfig.lib.json`; a new workspace dependency needs `nx sync` or the build fails
   downstream, not here.
 - `tsconfig.spec.json` emits to `libs/bridges/out-tsc/jest`, which is **not** where
@@ -551,7 +557,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
 - `setupBridgeLogger` keeps module state — a `handle` that makes it idempotent. A spec that does not
   call `teardown()` leaves the forwarder subscribed to the hub for the next one.
 - Downstream: 260 files across `apps/web`, `libs/app-runtime`, `apps/desktop-web`, `apps/mobile`,
-  `libs/db`, `libs/data`, `apps/admin-v2`, `apps/desktop`, `libs/shared` and `libs/theme` import this
+  `libs/db`, `libs/data`, `apps/admin`, `apps/desktop`, `libs/shared` and `libs/theme` import this
   barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile`,
   and excludes `web` from the test run — those are the ones to check by hand.
 
@@ -561,7 +567,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.8.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.22.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

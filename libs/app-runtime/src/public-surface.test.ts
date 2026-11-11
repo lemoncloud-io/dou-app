@@ -24,8 +24,17 @@ const GROUPS: Record<string, readonly string[]> = {
     // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
-    boot: ['initAppRuntime', 'isNativeApp', 'setNativeCacheSupport', 'startWebTransportInit', 'webTransport'],
-    // Session state · auth. `applySessionToken`/`logoutSession` live in socket/auth —
+    boot: [
+        'LATE_VAULT_MARK',
+        'initAppRuntime',
+        'isNativeApp',
+        'prepareSecretStorage',
+        'readStorageEnvironment',
+        'resolveStorageStores',
+        'setNativeCacheSupport',
+        'webTransport',
+    ],
+    // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
     // to a consumer, all three are "session".
     session: [
         'SWITCH_CLOUD_MUTATION_KEY',
@@ -48,6 +57,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'isInOwnCloudSession',
         'isPairedSession',
         'isRefusedForEndedPairing',
+        'isSessionKey',
         'logoutSession',
         'pairingClientOf',
         'patchRelaySessionUser',
@@ -66,6 +76,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useLogoutCloudSession',
         'usePairedCloudCheck',
         'usePairedCloudIds',
+        'usePairedCloudNames',
         'usePairingAwareLogout',
         'usePairingRequest',
         'useRegisterUserV2',
@@ -101,20 +112,25 @@ const GROUPS: Record<string, readonly string[]> = {
         'clearLocalCaches',
         'cloudsKeys',
         'createChatOutbox',
+        'getAcceptorId',
         'getCacheMetricsSource',
         'getCloudRepositories',
         'globalCacheRefKey',
+        'isAcceptedBy',
         'recoverInvitedCloudIfMissing',
         'requestSyncCursorReset',
         'sendChatInCloud',
         'setStateOutboxObserver',
         'syncInvitedCloudName',
+        'syncPairedCloudName',
         'useGlobalCacheSearch',
         'useImageSendProgress',
         'useInvitedCloudNameSync',
+        'usePairedCloudNameSync',
         'useRuntimeRepositories',
         'useSendImages',
         'waitForCloudSocket',
+        'withAcceptor',
     ],
     sync: [
         'fetchRoomFeed',

@@ -11,6 +11,7 @@ import { MAX_PLACES } from '../../../utils';
 
 let selectedCloudId: string | null = 'default';
 let pairedCloudIds: string[] = [];
+let pairedCloudNames: Record<string, string> = {};
 // The active place (site). Mutable so a test can drop to "no place active", where the place-settings
 // route has no id to key off.
 let selectedSiteId: string | null = 'site-1';
@@ -48,6 +49,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionAuth: () => ({ isAuthenticated }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
             usePairedCloudIds: () => pairedCloudIds,
+            usePairedCloudNames: () => pairedCloudNames,
         },
     },
 }));
@@ -419,6 +421,16 @@ describe('HomePage — cloud mode', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
         pairedCloudIds = [];
+        pairedCloudNames = {};
+    });
+
+    it('names a paired cloud by the name read from inside it', () => {
+        selectedCloudId = '1000002';
+        pairedCloudIds = ['1000002'];
+        pairedCloudNames = { '1000002': 'Team Cloud' };
+        render(<HomePage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-name', 'Team Cloud');
     });
 
     it('names a paired cloud it has no name for by its id, as the switch sheet does', () => {

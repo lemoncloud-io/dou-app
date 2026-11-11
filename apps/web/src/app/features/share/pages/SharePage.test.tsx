@@ -293,6 +293,24 @@ describe('SharePage — sending', () => {
         expect(mockSend.mock.calls[0][0].files).toEqual(many.slice(0, 10));
     });
 
+    // A voice memo shared from another app goes like any document, under an alias too; a format the
+    // server does not take is still named as not sent.
+    it('sends a shared audio file and names one the server would refuse as not sent', async () => {
+        const memo = { uri: `${dir}/memo.m4a`, name: 'memo.m4a', type: 'audio/x-m4a', size: 1, kind: 'file' };
+        const clip = { uri: `${dir}/clip.aac`, name: 'clip.aac', type: 'audio/aac', size: 1, kind: 'file' };
+        const doc = pdf('a.pdf');
+        (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [memo, clip, doc], refused: [] });
+        renderAt(`/share?id=${id}`);
+        await screen.findByText('a.pdf');
+
+        expect(screen.getByText(/share\.notSent/).textContent).toMatch(/clip\.aac/);
+        expect(screen.getByText(/share\.notSent/).textContent).not.toMatch(/memo\.m4a/);
+        pick('General');
+        fireEvent.click(screen.getByRole('button', { name: 'share.send' }));
+
+        expect(mockSend.mock.calls[0][0].files).toEqual([memo, doc]);
+    });
+
     it('keeps the picks a cancelled "To" list made from reaching the composer', async () => {
         (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [pdf('a.pdf')], refused: [] });
         renderAt(`/share?id=${id}`);

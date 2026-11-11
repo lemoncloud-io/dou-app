@@ -3,6 +3,18 @@
 How a person gets signed in on desktop, and what the app refuses to take as a sign-in. The code is
 `src/app/features/auth/`.
 
+## Where the session is kept
+
+The session's four tokens are in the desktop shell's vault — Electron `safeStorage`, one encrypted
+file under the app's `userData` — once the shell lists `nativeSecure` in
+`window.CHATIC_APP_STORAGE_MEDIA`. `main.tsx` loads the vault before the runtime boots, and moves tokens
+an older build left in `localStorage` into it, deleting that copy only once the shell confirmed the
+write. The rest of the session (the selection, the ids) stays in `localStorage`. There is no second copy of
+the credential: signed HTTP reads it from the relay token on every request. A desktop shell from before the
+vault keeps the tokens in `localStorage` until it updates itself. The rules — what happens when the
+vault cannot be read, and the logout order — are in
+[libs/auth docs/session](../../../../libs/auth/docs/session/README.md#the-device-vault-at-boot).
+
 ## Social login
 
 "Continue with Google" (the Welcome page, or the Profile page and the account hub for a Guest Session
@@ -10,6 +22,15 @@ signing in to an account) opens the OAuth Relay's authorize URL in the system br
 embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-response`, which
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
+
+"Continue with Apple" sits after Google wherever Google is offered — the Welcome page, the Profile
+page and the account hub's guest card — and takes the same round trip through the relay's
+`/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on
+every platform, not only on a Mac: the relay's web flow works anywhere, which is not true of the mobile
+app's native Apple sign-in. The two buttons share one look — an outline and a mark in the text colour,
+one of the styles Apple allows — at the same size, so neither provider leads. Copy that names the
+provider (the waiting screen, the signed-in toast, the new-account stop) names the one the start
+recorded.
 
 The exchange is signed with that session. It goes to the relay's `verify-oauth-code`, which records the
 Guest Session's user as the new session's link — the same record the mobile sign-in leaves — so the
@@ -24,20 +45,23 @@ a guest. An account with no email is not a guest: one that signed up with a phon
 The Account card's name, email and user id come from the relay session for the same reason. The
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
 
-Every place that offers the button says, under it, that someone who signed up on mobile with a phone
-number gets a new account from it unless Google is linked to that account. Where phone-number
-sign-in is on, the note sends them to sign in with the number and link Google from the account hub;
+Every place that offers the buttons says, under them, that someone who signed up on mobile with a phone
+number gets a new account from them unless Google or Apple is linked to that account. Where phone-number
+sign-in is on, the note sends them to sign in with the number and link one from the account hub;
 where it is off, it sends them to the mobile app. Sign-in is not linking: signing in with Google while
 signed in to another account opens a session as the Google account's owner (the server keeps it that
-way, as on mobile). Linking is its own button ([Linking Google](#linking-google)). Recovering someone
+way, as on mobile). Linking is its own button ([Linking Google or Apple](#linking-google-or-apple)). Recovering someone
 who already landed in a new account is out of scope.
 
 The steps, in order:
 
 1. **Register the device**, if there is no session yet (below).
 2. **Record the start** — provider, time and a random nonce — in persistent storage.
-3. **Open the browser** at the relay's authorize URL; the nonce rides its `redirect` address.
-4. **The hand-off page** receives the code and the nonce and puts both on the deeplink.
+3. **Open the browser** at the relay's authorize URL; the nonce and the provider ride its `redirect`
+   address.
+4. **The hand-off page** receives the code and the nonce and puts both on the deeplink, with the
+   provider read off its own address. The provider is put there at the start because a page that
+   finds none falls back to Google, and an Apple code read as Google fails the start's provider check.
 5. **The app takes the deeplink** and exchanges the code only if the start record agrees (next section).
 
 The deeplink carries a relay code and the nonce — never a Google token and never a session,
@@ -138,15 +162,86 @@ guest's id (`delegatorId`) and still stands on that guest's invite grants. Two t
   account reset used to wipe both, which emptied the list until a push re-cached one cloud at a time.
   It now keeps both on every logout, as apps/web does, and still clears the rest of the cloud cache
   (owned clouds' names belong to the account).
+- **Kept for the device does not mean listed for every account.** Both records are device-wide, so
+  each names the account it belongs to: the cache row in `acceptedBy` and the joined-clouds entry in
+  `ownerUid`, both the relay uid (`runtime.data.getAcceptorId()`) of the session that joined the
+  cloud. The rail lists only the signed-in account's. Without it, account B signing in after account
+  A saw A's invited clouds (and any cloud a push recovery re-cached under A), and switching into
+  one answered 403 because the server never granted B that cloud. A row or entry with no owner was
+  written before attribution existed and is listed for nobody until it is adopted.
+  `reconcileCloudRecordOwners` (run by `useCloudRecordOwnership` from the signed-in shell, so once
+  per session start or sign-in and never from the rail's render) stamps the signed-in account onto
+  every invited row with no `acceptedBy` and every joined entry with no `ownerUid`. The first
+  account on a device adopts them all, including what several accounts left there before the
+  upgrade; it can drop a stray one with "remove cloud". A record that has an owner is never
+  re-stamped, so a second run, or a second account signing in later, changes nothing.
+  A guest that links to an account in place (Google, Apple or phone sign-in over the live guest
+  session) can come out with a different uid: signing in to an account that already exists answers
+  with that account's uid. The reconcile remembers which uid it last ran for
+  (`chatic-cloud-records-owner`, dropped on every sign-out) and, when the uid changes with no
+  sign-out in between, moves the previous uid's records to the new one. After a sign-out the next
+  account is a different account, and nothing moves.
 
 The join entry reads the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`:
 inside a cloud the active session is that cloud's user, and its role says nothing about the account.
 No relay user counts as a guest, as on the account hub.
 
-## Linking Google
+## Joining with an invite link
 
-A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
-hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
+A signed-out person who installed the app without a link lands on Welcome, where "I have an invite
+link" is the first and only filled button. It opens `/auth/login`, which is one card in three steps,
+shown as three dots above the heading. Each screen slides in; the card around it stays put.
+
+1. **Paste.** The link or code goes in a large field at the middle of the screen. Pressing Continue
+   parses it, refuses an untrusted backend, and looks the invite up. Nothing is joined yet.
+2. **Preview.** The card names the place and who invited the person, read from the lookup. A bare
+   `invt:` code names no backend, so there is nothing to look up and the card says it has no details;
+   joining is still allowed. Join exchanges the code.
+3. **Entering.** The exchange runs; on a refusal the card returns to the preview with the reason.
+
+The lookup is signed, so it needs a device guest session, and the preview is where that session is
+made: before the person has joined anything. The preview blocks an invite whose lookup is rejected or
+whose state is one of four — `accepted` reads as already used, `expired` as expired, `canceled` and
+`rejected` as no longer available — with the same sentences the exchange uses. A state the list does not
+name, or none at all (an older backend), is read as pending. An invite still marked pending whose
+`expiredAt` or `graceAt` has passed is read as expired too (`graceAt` is the window the first lookup
+opens, after which the exchange is refused with `grace-timeout`); 0 or none means that limit was not set.
+
+What the dev backend was seen to do, which the preview cannot change: it does not move an invite to
+`accepted` when it is exchanged, so a link stays pending and joinable until `graceAt` (30 minutes after
+the first lookup) or `expiredAt` (a day after it was made), and within that window the preview cannot
+tell a link that was already used from a fresh one. An invite
+made for a phone number also signs the person in as the account of that number, not as a guest;
+the preview only knows the guest session it made itself, so that is the moment the identity changes.
+
+The guest session flips the router to its signed-in branch, so the page state (step, preview, the
+pasted code, whether the preview registered the guest) lives in `useInviteLoginPageStore`, and its
+`held` flag keeps `/auth/login` mounted until the person leaves or finishes. Two rules follow from that
+session existing before the person has agreed to anything:
+
+- **Leaving signs out a guest the preview made.** Back from the paste step signs that guest out, which
+  reloads to Welcome; without it the signed-in router would drop the person into the app as a guest
+  they never chose. A session that was there before the page opened is never signed out. The device id
+  is fixed per install, so a later start registers the same guest again; backing out creates no extra
+  account.
+- **Back is withheld while the lookup runs.** The guest is not yet known to the page then, and leaving
+  would release the hold before it could be signed out. The lookup is seconds long and ends by itself.
+  An answer that arrives after the page was left is dropped (each preview carries an attempt number,
+  and leaving advances it).
+
+The connection banner stays off while the page is held, because the guest's socket is still coming
+up and nothing on the page uses it; a lost network is still reported there.
+
+Quitting or reloading the app during the preview is not covered: the page state lives in memory, so
+the next start finds the guest the preview registered and opens the app as that guest.
+
+The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
+and still goes straight to the exchange.
+
+## Linking Google or Apple
+
+A signed-in account (not a guest) with no social account linked gets **Link Google** and **Link Apple**
+on the account hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
 as a sign-in, with two differences:
 
 - **No device registration.** There is a session already, and the button is only offered with one.
@@ -158,22 +253,24 @@ as a sign-in, with two differences:
   link is refused (`linkable: false` with a `reason`); confirm answers the same cases with a status.
 
 The session does not change, so nothing reloads. The server's answer (provider and hint) is patched
-into the relay user's `link$`, so the hub shows Google straight away; the next relay verification
+into the relay user's `link$`, so the hub shows the provider straight away; the next relay verification
 reads the profile again. Whether the code arrives by the deeplink or lands in the app window (the
 hand-off page inside the shell), the app goes back to the account hub once the link has run, whatever
 its outcome.
 
 What the person is told:
 
-| Answer                                    | Where              | What                                                                                                                         |
-| ----------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| linked                                    | toast              | Google is now linked                                                                                                         |
-| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that Google already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
-| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                             |
-| anything else                             | sign-in card, kept | the link failed, try again                                                                                                   |
+| Answer                                    | Where              | What                                                                                                                          |
+| ----------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| linked                                    | toast              | the provider (Google or Apple) is now linked                                                                                  |
+| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that account already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
+| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                              |
+| anything else                             | sign-in card, kept | the link failed, try again                                                                                                    |
 
 A refusal stays on the card until dismissed: a toast is gone before someone back from the browser
-looks, and the occupied case needs its next step read.
+looks, and the occupied case needs its next step read. The refusals name no provider: the card keeps
+only the reason, and the button just pressed sits right above it. The toast does name it, from the
+server's answer or else the start.
 
 The intent is read off the record, never off the link, so a link cannot turn a login into a link or
 the other way round. A record written before intents existed, or one whose intent cannot be read, is
@@ -201,9 +298,10 @@ the code in it.
 - **A refusal says so.** Nothing is exchanged; the app logs the reason (never the code or the nonce)
   and shows a message that the link was ignored, or that the login expired and should be started again.
 - **The link has to look right.** The scheme and host are compared as a parsed URL, not as a prefix
-  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows. A link with no
-  provider is refused rather than assumed to be Google. A link with no nonce still parses, so the
-  refusal above is shown to the person instead of the link being dropped silently.
+  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows — `google` or
+  `apple`, written exactly so. A link with no provider is refused rather than assumed to be Google.
+  A link with no nonce still parses, so the refusal above is shown to the person instead of the link
+  being dropped silently.
 - **The hand-off page stops too.** A page that arrives without a nonce shows the failure screen and
   does not open the app.
 
@@ -299,7 +397,7 @@ always arrives by text. The number and the code stay in the request body and are
 
 ## Sign-in with another device
 
-In a plain browser, where device pairing is on (`feature.auth.devicePairing`, off by default), Welcome
+In a plain browser, where device pairing is on (`feature.auth.devicePairing`, on by default), Welcome
 also offers **Sign in with another device**: the browser shows a code that the signed-in desktop or
 mobile app approves. Like phone sign-in it registers a guest first and holds its page across the
 router's switch. The flow, the approving side and the device list are in
@@ -320,6 +418,10 @@ used up on its first exchange and bound to a challenge sent when the sign-in sta
 Phone sign-in was held for the same invited-cloud question. On the dev channel a guest who joined a
 cloud by invite signed into an existing account by phone and could still enter the cloud after a
 reload.
+
+Apple sign-in was not held the same way: it reuses Google's round trip, exchange and link record
+unchanged, so the invited-cloud answer carries over. What only a real round trip shows is the relay's
+side — that its Apple sign-in returns to the desktop hand-off page the way it returns to the web.
 
 The invited cloud follows the guest session that signs in, not the account for good: the same account
 signed in later from a fresh guest did not list it. Mobile sign-in leaves the same link record.

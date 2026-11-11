@@ -17,18 +17,18 @@ libs/config/src/registry/
 ├── system.ts   2  the two keys the lane machinery itself needs
 ├── env.ts     13  read-only build facts
 ├── net.ts     12  endpoints, deeplink schemes, HTTP retry
-├── ui.ts      15  user preferences — theme, blur, push mute, pin, sort, rail order, home sections, recent searches, photo grid columns, photo send grouping
+├── ui.ts      16  user preferences — theme, blur, push mute, pin, sort, rail order, home sections, recent searches, photo grid columns, photo send grouping, phone country
 ├── log.ts     11  collection and upload levers, plus upload tuning
 ├── auth.ts    10  session, credential refresh and retry timing
 ├── debug.ts    6  the debug panel's own controls
-├── feature.ts  9  per-stage gates — phone auth shortcuts, social login, desktop phone sign-in, device pairing, subscription dry run — and the Lab experiments (place invite, chat input lock)
+├── feature.ts 10  per-stage gates — phone auth shortcuts, social login, desktop phone sign-in, device pairing, subscription dry run — and the Lab experiments (place invite, chat input lock)
 ├── sync.ts     6  socket and sync cadence
 ├── limit.ts    4  operational guardrails
 ├── cache.ts    3  cache TTLs
 └── bridge.ts   2  bridge request and handshake timeouts
 ```
 
-93 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
+95 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
 what proves it:
 
 ```bash
@@ -45,7 +45,7 @@ refuses to stop the boot.
 
 **A duplicate key does not throw.** `merge` keeps the **first** declaration, drops the later one, and
 calls `onDuplicateKey`. The reason to reject one is real — two domains reading the same key
-differently is a genuine bug — but 68 of 93 keys are developer-facing, and one mistake among those
+differently is a genuine bug — but 69 of 95 keys are developer-facing, and one mistake among those
 must not keep every user's app from starting. The check moved to a test instead. Merge order is fixed
 in `modules.ts`, so two devices never disagree about which declaration survived.
 
@@ -84,16 +84,17 @@ Measured from the source, and asserted in `allModules.spec.ts`.
 | ---------- | ---: | ------------------------------------------------------------------------------------------------------------------------- |
 | `user`     |    4 | Settings and its notification sub-page. A hand-built row per key, not a generated one                                     |
 | `labs`     |    2 | The Lab page's Experiments card. A hand-built row per key, like `user`; `feature.placeInvite` and `feature.chatInputLock` |
-| `dev`      |   68 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
-| `internal` |   19 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                                 |
+| `dev`      |   69 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
+| `internal` |   20 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                                 |
 
 **Declaring a surface does not create a screen.** There is no renderer that walks the registry and
 produces Settings rows. `ConfigScreen` is the one generic viewer and it covers `dev` only.
 
 The `internal` keys are the interesting boundary. `ui.channelSort`, `ui.pinnedChannels`, `ui.railOrder`,
-`ui.homeSectionsCollapsed`, `ui.recentSearches`, `ui.photoGridColumns` and `ui.photoSendGrouped` are
-changed by a person constantly — but through a sort picker, a pin gesture, a drag on the rails, a section header, a search
-box, a pinch on the photo grid and the grid's "send as one message" box, not through a settings screen.
+`ui.homeSectionsCollapsed`, `ui.recentSearches`, `ui.photoGridColumns`, `ui.photoSendGrouped` and
+`ui.phoneCountry` are changed by a person constantly — but through a sort picker, a pin gesture, a drag on
+the rails, a section header, a search box, a pinch on the photo grid, the grid's "send as one message" box
+and a phone field's country picker, not through a settings screen.
 `internal` is what stops a generic panel from drawing a second, competing control for them.
 
 ### The four `meta` keys

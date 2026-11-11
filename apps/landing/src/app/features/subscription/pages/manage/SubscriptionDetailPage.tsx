@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { ConfirmDialog, PageLoader, PlanCard, StatusBadge, SummaryTile } from '../../components';
+import { ConfirmDialog, PageHeader, PageLoader, PlanCard, StatusBadge, SummaryTile } from '../../components';
 import { Badge, Banner, Button, Card, Dialog, useToast } from '../../components/ui';
 import {
     useBillingInfo,
@@ -142,10 +142,10 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
 
     return (
         <div className="flex max-w-[1072px] flex-col gap-5">
-            <header className="mb-2 flex flex-col gap-2">
-                <h1 className="text-[28px] font-bold text-navy">{t('subscription.manage.detail.title')}</h1>
-                <p className="text-sm text-subtitle">{t('subscription.manage.detail.subtitle')}</p>
-            </header>
+            <PageHeader
+                title={t('subscription.manage.detail.title')}
+                subtitle={t('subscription.manage.detail.subtitle')}
+            />
 
             {bounced && (
                 <Banner
@@ -162,28 +162,35 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             )}
             <SceneBannerView sub={sub} banner={banner} card={card} fmt={fmt} />
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* A phone reads the four facts as one bordered card in two rows; from `md` they are four tiles. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-[14px] border border-line p-4 md:grid-cols-4 md:gap-3 md:rounded-none md:border-0 md:p-0">
                 <SummaryTile label={t('subscription.manage.detail.tiles.product')} value={fmt.planName(sub.planId)} />
                 <SummaryTile
                     label={t('subscription.manage.detail.tiles.status')}
-                    value={
-                        <span className="text-sm">
-                            <StatusBadge subscription={sub} />
-                        </span>
-                    }
+                    value={<StatusBadge subscription={sub} />}
+                    className="max-md:gap-2"
                 />
                 {sceneTiles(sub, banner, card, fmt, t).map(tile => (
-                    <SummaryTile key={tile.label} label={tile.label} value={tile.value} />
+                    <SummaryTile
+                        key={tile.label}
+                        label={tile.label}
+                        value={tile.value}
+                        className="max-md:border-t max-md:border-line max-md:pt-4"
+                    />
                 ))}
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 md:gap-[11px]">
                 {actions.map((action, index) => (
                     <Button
                         key={action}
                         size="lg"
                         variant={action === 'cancel' ? 'ghost' : index === 0 ? 'primary' : 'secondary'}
-                        className={action === 'cancel' ? `${PILL} ml-auto` : PILL}
+                        className={
+                            action === 'cancel'
+                                ? `${PILL} ml-auto max-md:w-full`
+                                : `${PILL} whitespace-nowrap max-md:h-[54px] max-md:min-w-0 max-md:flex-1 max-md:basis-[calc(50%-4px)]`
+                        }
                         disabled={action === 'resume' && !resume.ready}
                         onClick={() => run(action)}
                     >
@@ -393,11 +400,11 @@ const InfoCard = ({
     action?: string;
     onAction: () => void;
 }): JSX.Element => (
-    <Card className="flex flex-col items-start gap-3 px-5 py-5">
-        <h2 className="text-sm font-semibold text-navy">{title}</h2>
-        <p className="text-[13px] text-subtitle">{line}</p>
+    <Card className="flex flex-col items-start gap-2 rounded-[14px] border-line p-4 md:gap-2.5 md:rounded-2xl md:px-[21px] md:py-[19px]">
+        <h2 className="text-sm font-bold leading-normal text-ink">{title}</h2>
+        <p className="text-[13px] font-medium leading-normal text-mute">{line}</p>
         {action && (
-            <Button size="sm" variant="secondary" onClick={onAction}>
+            <Button size="sm" variant="secondary" className="max-md:h-10 max-md:px-4 max-md:text-sm" onClick={onAction}>
                 {action}
             </Button>
         )}

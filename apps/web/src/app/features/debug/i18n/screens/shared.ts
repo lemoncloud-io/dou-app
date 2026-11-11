@@ -4,8 +4,8 @@ import { defineDebugStrings } from '../define';
  * Strings for the pieces shared across screens (`CopyButton`, `DebugUnlockDialog`,
  * `useCopyFeedback`, `useDebugOperation`) rather than any one screen's own table.
  *
- * `operation.notSupported` and `operation.sentNoConfirmation` are asserted byte-for-byte by many
- * screen tests (in `en`) that other workers own — do not change the `en` text.
+ * `operation.sentNoConfirmation` and `operation.failedPrefix` are asserted byte-for-byte by many
+ * screen tests (in `en`) — do not change the `en` text.
  */
 const en = {
     copy: {
@@ -24,8 +24,6 @@ const en = {
     operation: {
         /** `${label} → sent (no confirmation)` — asserted verbatim by other workers' screen tests. */
         sentNoConfirmation: 'sent (no confirmation)',
-        /** `${label} → not supported by this app version` — asserted verbatim by other workers' screen tests. */
-        notSupported: 'not supported by this app version',
         /** `${label} → failed: ${message}` — the prefix is asserted verbatim by other workers' screen tests. */
         failedPrefix: 'failed',
     },
@@ -47,7 +45,6 @@ const ko: typeof en = {
     },
     operation: {
         sentNoConfirmation: '보냈습니다 (확인 없음)',
-        notSupported: '이 앱 버전이 지원하지 않습니다',
         failedPrefix: '실패',
     },
 };

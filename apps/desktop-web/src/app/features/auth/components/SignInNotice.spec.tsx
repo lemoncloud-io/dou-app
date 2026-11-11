@@ -81,7 +81,9 @@ describe('SignInNotice', () => {
         state.notice = { provider: 'google', isNew: true };
         render(<SignInNotice />);
 
-        expect(screen.getByRole('dialog').textContent).toContain(i18n.t('auth.social.newAccountBody'));
+        expect(screen.getByRole('dialog').textContent).toContain(
+            i18n.t('auth.social.newAccountBody', { provider: 'Google' })
+        );
         fireEvent.click(screen.getByRole('button', { name: 'name step' }));
         expect(screen.queryByRole('dialog')).toBeNull();
     });
@@ -94,7 +96,9 @@ describe('SignInNotice', () => {
             </StrictMode>
         );
 
-        expect(screen.getByRole('dialog').textContent).toContain(i18n.t('auth.social.newAccountBody'));
+        expect(screen.getByRole('dialog').textContent).toContain(
+            i18n.t('auth.social.newAccountBody', { provider: 'Google' })
+        );
     });
 
     // The store takes the notice when the app loads, so it is there on the first render.
@@ -127,5 +131,26 @@ describe('SignInNotice', () => {
         });
 
         expect(state.signOut).toHaveBeenCalled();
+    });
+
+    describe('Apple sign-in', () => {
+        it('says the sign-in was with Apple when the account has no name to show', () => {
+            state.notice = { provider: 'apple', isNew: false };
+            state.name = undefined;
+            render(<SignInNotice />);
+
+            const [[{ description }]] = state.toast.mock.calls as [[{ description: string }]];
+            expect(description).toContain('Apple');
+            expect(description).not.toContain('Google');
+        });
+
+        it('says the new account came from Apple', () => {
+            state.notice = { provider: 'apple', isNew: true };
+            render(<SignInNotice />);
+
+            const dialog = screen.getByRole('dialog');
+            expect(dialog.textContent).toContain('Apple');
+            expect(dialog.textContent).not.toContain('Google');
+        });
     });
 });

@@ -50,7 +50,8 @@ shortens that splash; nothing on it needs to draw a placeholder of its own.
   `MainScreen`.
 - `RootNavigator` hosts `MainScreen` directly as the `Main` screen of one
   `createNativeStackNavigator`. There is no intermediate navigator layer: `RootStackParamList` is
-  `{ Main: undefined }`, and `MainScreen` takes no route params — deep-link destinations reach the
+  `Main` (no params) plus `SubWebView`, a full-screen modal only the sub WebView's routing navigates
+  to, and `MainScreen` takes no route params — deep-link destinations reach the
   web client through the `OnNavigate` bridge message (`useDeepLinkNavigation`), never through native
   route params.
 

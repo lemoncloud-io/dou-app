@@ -1,4 +1,6 @@
 // The IndexedDB adapter opens a real database in its constructor, so a shim must exist first.
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import 'fake-indexeddb/auto';
 
 /**
@@ -16,15 +18,15 @@ import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { DataManager } from '../../data/DataManager';
-import { getDataManager } from '../../data/runtime';
-import { getGlobalSessionContext, getUidInCloud } from '../../session/store';
-import { SocketManager } from '../SocketManager';
-import { getSocketManager } from '../runtime';
-import type { SocketBindingConfig } from '../types';
-import { slotKeyOf } from '../utils/slotKey';
-import { BackgroundReceiver } from './BackgroundReceiver';
-import { subscribeBackgroundDeltas } from './backgroundDeltas';
-import type { BackgroundDelta } from './types';
+import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
+import { SocketManager } from '@chatic/transport/socket/SocketManager';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { syncDataGraph } from '@chatic/sync/dataGraph';
+import type { SocketBindingConfig } from '@chatic/transport/socket/types';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
+import { BackgroundReceiver } from '@chatic/sync/BackgroundReceiver';
+import { subscribeBackgroundDeltas } from '@chatic/sync/backgroundDeltas';
+import type { BackgroundDelta } from '@chatic/sync/types';
 
 // fake-indexeddb clones every value it stores, and jsdom has no structuredClone — the shim libs/db's
 // own IndexedDB suites use.
@@ -40,11 +42,11 @@ jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('../../data/runtime', () => ({ getDataManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/sync/dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
-jest.mock('../../session/store', () => ({
-    ...jest.requireActual('../../session/store'),
+jest.mock('@chatic/session/store', () => ({
+    ...jest.requireActual('@chatic/session/store'),
     getGlobalSessionContext: jest.fn(),
     getUidInCloud: jest.fn(),
     getCommittedCloudId: jest.fn(),
@@ -113,6 +115,9 @@ const flush = async () => {
     for (let i = 0; i < 5; i += 1) await new Promise(resolve => setTimeout(resolve, 0));
 };
 
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
+
 describe('background receive — a cloud off screen keeps its own partition current', () => {
     let manager: SocketManager;
     let data: DataManager;
@@ -151,7 +156,7 @@ describe('background receive — a cloud off screen keeps its own partition curr
         }));
         (getUidInCloud as jest.Mock).mockImplementation(uidOf);
         data = new DataManager();
-        (getDataManager as jest.Mock).mockReturnValue(data);
+        (syncDataGraph.get as jest.Mock).mockReturnValue(data);
     });
 
     afterEach(() => {

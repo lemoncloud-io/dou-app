@@ -1,4 +1,4 @@
-import type { CacheDomainVersions, CacheType } from '@chatic/app-messages';
+import type { CacheDomainVersions, CacheType } from '@chatic/bridge-messages';
 
 /**
  * What this app build promises the web about each cache domain (ADR-0053).

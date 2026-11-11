@@ -738,20 +738,20 @@ enum VideoPreparation {
         // The index (`moov`) goes first, so the web can start playing before the download ends.
         session.shouldOptimizeForNetworkUse = true
 
-        // An export has no background time: iOS stops it once the app leaves the screen. It is ended
-        // there and then, as a failure the web retries from the start, rather than left to stall.
+        // Leaving the screen used to cancel the export at once, so a lock or a glance at another app
+        // threw away minutes of conversion. A background task asks iOS for its short grace period
+        // (about 30 seconds) and the export runs on through it; only when that runs out is the export
+        // cancelled, as a failure the web retries from the start, rather than left to stall.
         let running = ExportHandle(session)
-        let observer = NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
-        ) { _ in running.session.cancelExport() }
+        let grace = BackgroundGrace(name: "PrepareVideo") { running.session.cancelExport() }
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             session.exportAsynchronously { done.resume() }
         }
-        NotificationCenter.default.removeObserver(observer)
+        grace.end()
 
         guard session.status == .completed else {
             try? fm.removeItem(at: staging)
-            let reason = session.status == .cancelled ? "the conversion stopped when the app left the screen" : session.error?.localizedDescription ?? "the conversion failed"
+            let reason = session.status == .cancelled ? "the conversion stopped when the app stayed off the screen" : session.error?.localizedDescription ?? "the conversion failed"
             throw Rejection(code: "SYSTEM", message: TransferText.sanitize(reason))
         }
         do {
@@ -913,5 +913,30 @@ private final class ExportHandle: @unchecked Sendable {
 
     init(_ session: AVAssetExportSession) {
         self.session = session
+    }
+}
+
+/// One `UIApplication` background task, ended exactly once — by `end()` when the work finishes, or by
+/// iOS's expiration, which first runs `onExpire` so the work can stop before the app is suspended.
+private final class BackgroundGrace: @unchecked Sendable {
+    private let lock = NSLock()
+    private var identifier = UIBackgroundTaskIdentifier.invalid
+
+    init(name: String, onExpire: @escaping @Sendable () -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+        identifier = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            onExpire()
+            self?.end()
+        }
+    }
+
+    func end() {
+        lock.lock()
+        let ending = identifier
+        identifier = .invalid
+        lock.unlock()
+        guard ending != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(ending)
     }
 }

@@ -19,6 +19,21 @@ overlaps the viewport plus 800 px of overscan above and below, so a fast scroll 
 - Before the first real layout — first paint, a hidden tab, or a test, where jsdom has no layout — the
   whole feed is mounted, exactly as before windowing. Landing refs and existing tests see every row.
 
+## Day blocks and the date pill
+
+Each date pill is `sticky` and holds to the top of the feed while its day scrolls by. A sticky box is
+bounded by its parent, so pills that were flat siblings in the one feed column never handed over: the
+next day's pill landed on the same spot and the earlier one stayed pinned underneath, its wider label
+peeking out on both sides. `groupIntoDayBlocks` splits the mounted rows at each date row, and each
+block is its own flex column, so a pill is bounded by its own day and leaves with it. Rows whose pill
+is above the window share one block under a fixed key, so they do not remount as the window moves. The
+blocks keep the feed's 8 px gap inside and between them, so the spacer math is unchanged.
+
+When the newest message is from an earlier day, the main feed ends with a divider for today
+(`buildMessageRows` takes the current time; `useStartOfToday` re-renders at midnight). A day that has
+begun without a message still reads as begun. The thread panel never adds one: its headers carry the
+day.
+
 ## Holding the reading position
 
 When a row above the viewport changes height (an image finishes loading in the overscan, a row is
@@ -28,6 +43,10 @@ browser's scroll anchoring (Chromium's default, `overflow-anchor: auto`) already
 row in place for all of those changes, and adding the delta by hand on top of it moved the reader a
 second time. Setting `overflow-anchor: none` on the feed would make that manual correction necessary
 again, for spacer shifts as well as row heights.
+
+## Grouped join notices
+
+Adjacent join notices on the same day fold into one system row that prints a single text line ("Ada joined along with Bo and Cy", then "Ada, Bo and 3 others joined" from four names). The folded row keeps the **first** notice's key, so a join arriving later changes the row's text but never adds a row or changes a key, and the window has nothing to re-anchor. Any other row between two joins (a date divider, a message, a leave) ends the run, and a join whose author has no resolved name stays on its own row with the server's text. Leave notices are never folded.
 
 ## Jumping to a row outside the window
 

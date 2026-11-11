@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { DeviceInfo, Env, PageLanguage, Platform, VersionInfo } from '@chatic/app-messages';
+import type { DeviceInfo, Env, PageLanguage, Platform, VersionInfo } from '@chatic/bridge-messages';
 
 declare const __APP_VERSION__: string;
 

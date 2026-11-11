@@ -98,6 +98,7 @@ jest.mock('../components/ReinviteDialog', () => ({
 }));
 
 import { ContactInvitePage } from './ContactInvitePage';
+import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 /**
  * jsdom reports `navigator.language` as `en-US`, which would open the picker on US and reject every
@@ -105,8 +106,7 @@ import { ContactInvitePage } from './ContactInvitePage';
  * path rather than stubbing around it (ADR-0044 §4).
  */
 const seedCountry = (code = 'KR') => {
-    localStorage.clear();
-    localStorage.setItem('dou.phoneInput.country.v1', code);
+    seedPhoneCountry(code);
 };
 
 const fillForm = (name: string, phone: string) => {
@@ -396,7 +396,7 @@ describe('ContactInvitePage — 국가 (ADR-0044)', () => {
     });
 
     it('국가를 정할 수 없으면 제출이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
-        localStorage.clear();
+        seedPhoneCountry();
         Object.defineProperty(window.navigator, 'language', { value: 'en', configurable: true });
 
         render(<ContactInvitePage />);

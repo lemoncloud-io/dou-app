@@ -1,4 +1,4 @@
-import type { DownloadedFile, OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { DownloadedFile, OnFileTransferStatePayload } from '@chatic/bridge-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
 
 export type DownloadBridge = Pick<IWebBridgeClient, 'request' | 'onEvent'>;
@@ -12,9 +12,7 @@ export type DownloadResult =
     | { kind: 'failed'; reason: 'network' | 'source' | 'system' | 'other' }
     /** No byte moved for the stall window, so it was cancelled here. */
     | { kind: 'stalled' }
-    | { kind: 'cancelled' }
-    /** The shell answered `NOT_FOUND` — an app built before downloads. */
-    | { kind: 'unsupported' };
+    | { kind: 'cancelled' };
 
 export interface DownloadProgress {
     transferredBytes: number;
@@ -239,13 +237,10 @@ export const createNativeDownloads = ({
             .catch(error => {
                 const code = codeOf(error);
                 if (code === 'NOT_FOUND' || code === 'INVALID') {
-                    if (code === 'INVALID') log('native download: start refused', { code });
+                    log('native download: start refused', { code });
                     // Refused outright, so no terminal state will follow to clear a cancel sent meanwhile.
                     abandoned.delete(transferId);
-                    finish(
-                        transferId,
-                        code === 'NOT_FOUND' ? { kind: 'unsupported' } : { kind: 'failed', reason: 'other' }
-                    );
+                    finish(transferId, { kind: 'failed', reason: 'other' });
                     return;
                 }
                 // No answer (a timeout, while an OS prompt holds the shell up): it may have started after

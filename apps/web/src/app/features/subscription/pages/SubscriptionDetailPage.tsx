@@ -26,13 +26,17 @@ import { useClouds } from '../../../hooks/useCloudCatalog';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 import { ROUTES } from '../../../routes/paths';
 import { NoticeList, PlanProductCard } from '../components';
+import { leaveForWeb } from '../components/leaveForWeb';
+import { WEB_SUBSCRIPTION_URL } from '../consts';
 import { usePlanCatalog, usePlanPrice } from '../hooks';
 import {
+    canCheckoutOnWeb,
     daysUntil,
     deriveBanner,
     deriveInfoRows,
     formatDate,
     hasDropMarks,
+    isWebBilled,
     isWithinExpiredHold,
     keepCandidates,
     needsKeepChoice,
@@ -89,14 +93,32 @@ export const SubscriptionDetailPage = () => {
     const hasPendingChange = summary.isEntitled && !!summary.pendingProductId;
     const validUntil = formatDate(membership?.validUntil);
     const banner = deriveBanner({ summary, autoRenewing: membership?.autoRenewing, hasPrice: !!price, restored });
+    const webBilled = isWebBilled(membership?.platform);
     // This device's store management lists only its own subscriptions, so it has nothing to offer
-    // for one the other store bills — the banners stay informational and the buttons give way to a
-    // note (`isOtherStore`).
-    const canManageHere = isOnMobileApp && !isOtherStore;
-    const openStore = canManageHere ? () => appBridge.openSubscriptionManagement() : undefined;
-    // Where to manage it is the store it was bought on, not this device's — fall back to the device
-    // only when the membership does not say.
-    const storeKey = membership?.platform === 'google' || (!membership?.platform && !isIOS) ? 'google' : 'apple';
+    // for one the other store — or the website — bills: the banners stay informational and the
+    // buttons give way to a note (`isOtherStore`). The website is checked on its own too, since its
+    // plan may be missing from the catalog that `isOtherStore` is judged against.
+    const canManageHere = isOnMobileApp && !isOtherStore && !webBilled;
+    // Outside the app the website's checkout takes the store's place for anyone a store is not
+    // billing right now. Inside the app it is never offered: the stores do not allow pointing a buyer
+    // at another way to pay.
+    const canUseWeb = !isOnMobileApp && canCheckoutOnWeb(summary, membership?.platform);
+    const openWebSubscription = () => leaveForWeb(WEB_SUBSCRIPTION_URL.list);
+    const openStore = canManageHere
+        ? () => appBridge.openSubscriptionManagement()
+        : canUseWeb && webBilled
+          ? openWebSubscription
+          : undefined;
+    // Where to manage it is where it was bought, not this device's store — fall back to the device
+    // only when the membership does not say. The website is named only outside the app, for the same
+    // reason it is never linked inside it; there the `webBilled` note says what can be said.
+    const storeKey = webBilled
+        ? isOnMobileApp
+            ? undefined
+            : 'web'
+        : membership?.platform === 'google' || (!membership?.platform && !isIOS)
+          ? 'google'
+          : 'apple';
     const platformKey = platformLabelKey(membership?.platform);
 
     const candidates = keepCandidates(cloudsData?.list ?? []);
@@ -336,7 +358,7 @@ export const SubscriptionDetailPage = () => {
                     </section>
 
                     <div className="flex flex-col gap-4 px-4">
-                        {canManageHere ? (
+                        {canManageHere || canUseWeb ? (
                             <>
                                 {summary.state !== 'blocked' && (
                                     <Button size="lg" fullWidth onClick={() => navigate(ROUTES.subscription.plans)}>
@@ -345,31 +367,47 @@ export const SubscriptionDetailPage = () => {
                                             : t('mypage.subscription.detail.changePlan')}
                                     </Button>
                                 )}
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    fullWidth
-                                    onClick={() => appBridge.openSubscriptionManagement()}
-                                >
-                                    {t('mypage.subscription.detail.manageInStore')}
-                                </Button>
+                                {canManageHere ? (
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        fullWidth
+                                        onClick={() => appBridge.openSubscriptionManagement()}
+                                    >
+                                        {t('mypage.subscription.detail.manageInStore')}
+                                    </Button>
+                                ) : (
+                                    webBilled && (
+                                        <Button variant="outline" size="lg" fullWidth onClick={openWebSubscription}>
+                                            {t('mypage.subscription.detail.manageOnWeb')}
+                                        </Button>
+                                    )
+                                )}
                             </>
                         ) : (
                             <p className="text-center text-[14px] text-description">
-                                {isOnMobileApp
-                                    ? t('mypage.subscription.detail.otherStore', {
-                                          store: platformKey ? t(platformKey) : '',
-                                      })
-                                    : t('mypage.subscription.mobileOnly')}
+                                {webBilled
+                                    ? t('mypage.subscription.detail.webBilled')
+                                    : isOnMobileApp || platformKey
+                                      ? t('mypage.subscription.detail.otherStore', {
+                                            store: platformKey ? t(platformKey) : '',
+                                        })
+                                      : t('mypage.subscription.mobileOnly')}
                             </p>
                         )}
                     </div>
 
                     <NoticeList
                         items={[
-                            t('mypage.subscription.notice.upgradeImmediate'),
-                            t('mypage.subscription.notice.downgradeNextRenewal'),
-                            t(`mypage.subscription.notice.manageAt.${storeKey}`),
+                            // How a store applies a tier change; a change the website bills is made, and
+                            // explained, on the website.
+                            ...(webBilled
+                                ? []
+                                : [
+                                      t('mypage.subscription.notice.upgradeImmediate'),
+                                      t('mypage.subscription.notice.downgradeNextRenewal'),
+                                  ]),
+                            ...(storeKey ? [t(`mypage.subscription.notice.manageAt.${storeKey}`)] : []),
                         ]}
                     />
                 </div>

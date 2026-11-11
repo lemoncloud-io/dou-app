@@ -30,17 +30,17 @@ const mockGetScopedClient = jest.fn((key: string) => {
     if (!mockScopedClients.has(key)) mockScopedClients.set(key, { slot: key });
     return mockScopedClients.get(key);
 });
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ getScopedClient: mockGetScopedClient, getBoundCid: () => 'cloud-a' }),
 }));
 
 const mockUids: Record<string, string | null> = {};
-jest.mock('../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: () => 'cloud-a',
     getUidInCloud: (cid: string) => mockUids[cid] ?? null,
 }));
 
-jest.mock('../session/scope', () => ({
+jest.mock('@chatic/session/scope', () => ({
     deriveSelectedContext: () => ({ cid: 'cloud-a', uid: 'uid-a' }),
     ActiveScope: jest.fn().mockImplementation(() => ({ tag: 'active-scope' })),
 }));

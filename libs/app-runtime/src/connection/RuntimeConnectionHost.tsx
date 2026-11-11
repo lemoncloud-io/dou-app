@@ -26,10 +26,9 @@ export interface RuntimeHostProps {
 /**
  * The one connection host. Both exported hosts are this component with one switch flipped.
  *
- * It is the SINGLE web-core init driver: `useRelaySessionInit` runs `initializeRelaySession`
- * (transport + auth) once and gates the whole connection subtree until ready — replacing the old
- * separate `TransportBootstrap`, which independently re-triggered `startWebCoreInit` (a duplicate
- * initialization). The socket session delegate AND the socket slots are owned here, so an app passes
+ * It is the SINGLE session init driver: `useRelaySessionInit` runs `initializeRelaySession` once
+ * and gates the whole connection subtree until ready — replacing the old separate
+ * `TransportBootstrap`, which ran a duplicate initialization. The socket session delegate AND the socket slots are owned here, so an app passes
  * nothing but its children; socket lifecycle + SDK re-auth are handled by `SocketBinder` +
  * `bootstrapSocketConnection` (which wires `onTokenRefresh` → `commitRefreshedToken`, re-minting the
  * AWS/HTTP signing credentials) and `SocketReauthBinder`.
@@ -79,13 +78,13 @@ const ConnectionHost = ({
 
 /**
  * The connection host for a chat app: keeps a session-less visitor alive as a guest so the socket
- * and its credentials exist before login. apps/web · apps/desktop-web · apps/testbed.
+ * and its credentials exist before login. apps/web · apps/desktop-web.
  */
 export const RuntimeConnectionHost = (props: RuntimeHostProps) => <ConnectionHost {...props} guestKeepAlive />;
 
 /**
  * The same host WITHOUT background guest login — for a surface that must not have a session until
- * someone signs in (apps/admin-v2). Everything else is identical: same init gate, same socket auth
+ * someone signs in (apps/admin). Everything else is identical: same init gate, same socket auth
  * loop, same in-place re-auth.
  *
  * It used to be a 51-line copy of the host above, differing by one line, and its comment claimed a

@@ -157,7 +157,8 @@ reopens stays searchable. Closing that belongs to the sync layer, not to this fi
 **A reaction event is not a result either.** It is a chat row whose `content` is the emoji itself —
 two UTF-16 units, so it passes the minimum query length — and the feed folds it into a chip instead
 of drawing it, so opening one could only end in "couldn't find that message". It is dropped in the
-same place, before the cap.
+same place, before the cap, and so is a revision notice (`subType: 'edit'`, both under `isEventChat`) —
+it has no body to match, but it is not a message either.
 
 The scan itself matches the raw stored body, not the flattened one. A query that only hits markup —
 the address behind a labelled link, a backtick — still finds the message, and its row then shows the

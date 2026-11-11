@@ -32,7 +32,7 @@ other.
 
 A handler returns the payload of the reply `WEB_MESSAGE_RESPONSE_TYPE` pairs with its request
 (`ShellReply<K>`); the reply's `type` is filled in from that map, never by the handler. Renaming a
-reply or changing its payload in `@chatic/app-messages` therefore breaks every table that answers it —
+reply or changing its payload in `@chatic/bridge-messages` therefore breaks every table that answers it —
 the e2e fixtures and the virtual shell's handler module alike — at compile time, instead of leaving a fake that answers
 a contract the app no longer speaks. `ShellFailure` answers `success: false` with a domain code;
 leaving a type out answers the host's own `NOT_FOUND`, which the web reads as an app built before

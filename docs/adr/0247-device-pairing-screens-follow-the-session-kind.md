@@ -5,7 +5,7 @@
 > `libs/app-runtime/src/session/pairing/`, `libs/data` (`PairingRepository`, `UserRepository.listDevices`)
 > · The module docs are [apps/web pairing](../../apps/web/docs/feature/pairing/README.md),
 > [apps/desktop-web pairing](../../apps/desktop-web/docs/pairing/README.md) and
-> [app-runtime session](../../libs/app-runtime/docs/session/README.md#device-pairing)
+> [libs/auth pairing](../../libs/auth/docs/pairing/README.md)
 
 ## Context
 
@@ -74,8 +74,9 @@ out. None of it is enforced by the server in the way a user would expect from th
   until they are upgraded.
 - The `/pairings/**` wire types are a temporary copy in `@chatic/http` until
   `@lemoncloud/chatic-backend-api` publishes them.
-- Every entry stays behind `feature.auth.devicePairing` (on in LOCAL and DEV) until the screens' design
-  and wording are settled.
+- Every entry stays behind `feature.auth.devicePairing`. It was on in LOCAL and DEV only at first, and
+  was turned on in PROD as well once the feature was opened to everyone; the key remains as the way to
+  hide the screens again.
 
 ## Alternatives
 

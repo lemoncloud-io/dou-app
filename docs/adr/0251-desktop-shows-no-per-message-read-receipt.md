@@ -1,6 +1,6 @@
 # ADR-0251: Desktop shows no per-message read receipt
 
-> Status: Accepted · Decided: 2026-10-29 · Implemented: `feat/desktop-drop-read-receipts`
+> Status: Superseded by [ADR-0267](./0267-desktop-works-out-who-read-a-message-from-join-rows.md) · Decided: 2026-10-29 · Implemented: `feat/desktop-drop-read-receipts`
 > · Scope: `apps/desktop-web/src/app/features/chat/`
 > · Amends: [ADR-0239](./0239-korean-screen-copy-follows-the-product-glossary.md) — only its note that
 > desktop's receipt reads `미확인` / `모두 읽음`. The rest of that ADR stands.

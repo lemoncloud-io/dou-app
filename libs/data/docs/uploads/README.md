@@ -85,7 +85,7 @@ A pick is made of two kinds of source (`ChatAttachmentSource`):
   its name, type and size are still the source's.
 
 The sequence does not look inside either. `SendImagePorts<S>` and `PreparedImageMirror<S>` are
-generic over the source type, `File` by default, so the browser, desktop and testbed shells that only
+generic over the source type, `File` by default, so the browser and desktop shells that only
 ever send page files type their ports as before. A caller that also sends shell files widens `S` to
 `ChatAttachmentSource`, and its `put` then takes both: a shell file's original and poster reach it as
 shell files, and only the native transfer can send them (`ShellFilePutPort`). The guard that fails a
@@ -96,9 +96,12 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the thirteen server
-formats (less the ones the calling app says it does not send, through the optional filter argument;
-no app passes one today — it is there for the day the server opens a format one app follows later),
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the eighteen formats
+of `domain/chatAttachments.ts` (less the ones an app or a picker does not send, through the optional
+filter argument — the photos entry's image-only form, `judgeChatImages`, is one, and the phone app's
+`PHONE_SENDS` leaves out HTML, which only desktop sends; the four audio formats are judged as `file`).
+HTML is listed ahead of the server: until the server takes `text/html`, an HTML upload is refused with a
+415 and the message shows the failed file. The rest of the judgement is
 each kind's own limit, the same item twice (a page file by name, size and time, a
 shell file by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
@@ -192,7 +195,7 @@ quote the request it failed on.
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.
   `isPendingUploadSlot` tells them apart inside one `upload$$` list.
-- **The slot type lives in the cache contract** (`@chatic/app-messages`, `CacheChatView.upload$$`).
+- **The slot type lives in the cache contract** (`@chatic/bridge-messages`, `CacheChatView.upload$$`).
   The chat storage port is typed by that contract, so a slot that only the domain model knew about
   could be read but not written. The native shell stores a chat row as a JSON blob, so the wider
   type asks nothing of it.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BackNavigationBridge } from '../../bridge';
 import { useAndroidBack } from './useAndroidBack';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 /**

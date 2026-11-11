@@ -1,5 +1,13 @@
 import type { DomainChat } from './models';
-import { compareByChatNo, isPreviewableChat, pickPreviewChat } from './chatPreview';
+import {
+    compareByChatNo,
+    isActivityChat,
+    isEventChat,
+    isFeedVisible,
+    isPreviewableChat,
+    pickActivityChat,
+    pickPreviewChat,
+} from './chatPreview';
 
 // The preview-decision cases that apps/web's useLastChat (the per-row subscription hook, retired by
 // ADR-0057) used to cover, ported to a pure-function unit. This decision is shared by the home and
@@ -36,27 +44,31 @@ describe('pickPreviewChat', () => {
         expect(picked?.chatNo).toBe(3);
     });
 
-    // A room's last activity is the preview, and a reply in a thread is activity.
-    it('picks a thread reply when it is the newest message', () => {
+    // The room's feed leaves replies to the thread page, so the preview does too.
+    it('skips a thread reply and keeps the newest top-level message', () => {
+        const top = chat(3, 'hello', { ownerId: 'u1', stereo: 'user' });
         const reply = chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' });
-        expect(pickPreviewChat([chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }), reply])).toEqual(reply);
-        expect(isPreviewableChat(reply)).toBe(true);
+        expect(pickPreviewChat([top, reply])).toEqual(top);
+        expect(isPreviewableChat(reply)).toBe(false);
     });
 
-    it('keeps a newer top-level message over an older thread reply', () => {
-        const picked = pickPreviewChat([
-            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
-            chat(6, 'newer', { ownerId: 'u2', stereo: 'user' }),
-        ]);
-        expect(picked?.chatNo).toBe(6);
+    it('picks a thread reply as the newest activity while the preview stays on the top-level message', () => {
+        const top = chat(3, 'hello', { ownerId: 'u1', stereo: 'user' });
+        const reply = chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' });
+        expect(pickActivityChat([top, reply])).toEqual(reply);
+        expect(pickPreviewChat([top, reply])).toEqual(top);
+        expect(isActivityChat(reply)).toBe(true);
     });
 
-    it('still skips a reaction event on a thread reply', () => {
-        const picked = pickPreviewChat([
-            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
-            chat(6, '', { ownerId: 'u2', stereo: 'system', subType: 'reaction', parentId: '3' }),
-        ]);
-        expect(picked?.chatNo).toBe(5);
+    it('does not count a reaction event or a failed send as activity', () => {
+        const top = chat(3, 'hello', { ownerId: 'u1', stereo: 'user' });
+        const reaction = chat(5, '', { ownerId: 'u2', stereo: 'system', subType: 'reaction', parentId: '3' });
+        const failed = chat(0, 'nope', { ownerId: 'u1', stereo: 'user', isFailed: true });
+        expect(pickActivityChat([top, reaction, failed])).toEqual(top);
+    });
+
+    it('is undefined when the whole window is thread replies', () => {
+        expect(pickPreviewChat([chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' })])).toBeUndefined();
     });
 
     it('undefined when the whole window is system rows', () => {
@@ -82,5 +94,34 @@ describe('compareByChatNo', () => {
     it('chatNo 0 (pending) is newer than any committed row, and pending rows order by createdAt', () => {
         expect(compareByChatNo(chat(9, 'a'), chat(0, 'p'))).toBeLessThan(0);
         expect(compareByChatNo(chat(0, 'p1', { createdAt: 100 }), chat(0, 'p2', { createdAt: 200 }))).toBeLessThan(0);
+    });
+});
+
+// A revision notice is what the server writes each time a message is edited or deleted. It says
+// which message changed; it is not a message, and in the feed it would be an empty notice line.
+describe('isEventChat / isFeedVisible — revision notices', () => {
+    const revision = (fields: Partial<DomainChat> = {}) =>
+        chat(12, '', { stereo: 'system', subType: 'edit', edit$: { action: 'update', chatId: 'C1:4' }, ...fields });
+
+    it('counts a revision and a reaction as events, and nothing else', () => {
+        expect(isEventChat(revision())).toBe(true);
+        expect(isEventChat(chat(3, '', { stereo: 'system', subType: 'reaction' }))).toBe(true);
+        expect(isEventChat(chat(3, '', { stereo: 'system', subType: 'join' }))).toBe(false);
+        expect(isEventChat(chat(3, 'hi'))).toBe(false);
+    });
+
+    it('keeps a revision out of the feed, whoever made it and whatever it did', () => {
+        expect(isFeedVisible(revision())).toBe(false);
+        expect(isFeedVisible(revision({ edit$: { action: 'delete', chatId: 'C1:4' } }))).toBe(false);
+        expect(isFeedVisible(revision({ ownerId: 'someone-else' }))).toBe(false);
+    });
+
+    it('still keeps a join/leave notice in the feed', () => {
+        expect(isFeedVisible(chat(3, '', { stereo: 'system', subType: 'join' }))).toBe(true);
+    });
+
+    it('lets a revision be neither the preview nor activity', () => {
+        expect(isPreviewableChat(revision())).toBe(false);
+        expect(pickPreviewChat([chat(11, 'real'), revision()])?.content).toBe('real');
     });
 });

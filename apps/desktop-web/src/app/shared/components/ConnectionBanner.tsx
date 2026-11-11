@@ -8,9 +8,11 @@ import { runtime } from '@chatic/app-runtime';
  * App-shell connection status bar. The engine's connectivity derivation composes
  * `navigator.onLine` with the socket transport state — surface it everywhere so a
  * dropped/reconnecting socket is visible regardless of route or open channel.
- * Hidden while healthy (connected + verified).
+ * Hidden while healthy (connected + verified). `quiet` also hides "Reconnecting…" for a
+ * screen where the person is not using the socket yet (the invite page registers the device
+ * guest, whose socket is still coming up); a lost network is still reported.
  */
-export const ConnectionBanner = () => {
+export const ConnectionBanner = ({ quiet = false }: { quiet?: boolean }) => {
     const { t } = useTranslation();
     const status = runtime.connection.useConnectivity();
     // A cloud/place switch intentionally tears the socket down and re-verifies; surfacing
@@ -26,7 +28,7 @@ export const ConnectionBanner = () => {
     // deriveConnectivity. 'online' covers both a healthy socket and the pre-connect idle boot, so
     // the banner stays quiet for it.
     const offline = status === 'offline';
-    if (isSwitching || status === 'online') return null;
+    if (isSwitching || status === 'online' || (quiet && !offline)) return null;
 
     return (
         <div

@@ -29,12 +29,13 @@ shell, which is a separate deploy. A cache read therefore crosses three packages
 libs/data     LocalDataSource → the CacheStorage port
 libs/db       IndexedDBAdapter   web    · rows live here, in the browser's IndexedDB
               NativeDBAdapter    native · a bridge client holding no rows
+              WebStorageAdapter  session · rows live here, in the tab's sessionStorage (invitecloud in a plain tab only)
                                             ↓ SaveCacheData · FetchCacheData · …
 apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
               database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
 ```
 
-Which of the two a domain gets is decided by neither of them — `resolveCacheBackend` in
+Which of them a domain gets is decided by none of them — `resolveCacheBackend` in
 `@chatic/app-runtime` owns that.
 
 **Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in
@@ -184,23 +185,20 @@ storage carries that request out.
 `clearByChannelId` does the same job a different way per adapter
 (ADR-0067).
 
-| Adapter                    | How                                                                                                                             |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `IndexedDBAdapter`         | A channel index range cursor                                                                                                    |
-| `NativeDBAdapter`          | The bridge message `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (one round trip, zero payload) |
-| `BaseDbAdapter` (fallback) | `loadAll({ channelId })` → `deleteAll(ids)`                                                                                     |
+| Adapter                   | How                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `IndexedDBAdapter`        | A channel index range cursor                                                                                                    |
+| `NativeDBAdapter`         | The bridge message `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (one round trip, zero payload) |
+| `BaseDbAdapter` (default) | `loadAll({ channelId })` → `deleteAll(ids)`, for a store with no scoped delete of its own                                       |
 
 Why this was not done by adding a `channelId` field to the existing `ClearCacheData`: web ships ahead of
-the app, so **an older app would ignore the field it does not know and wipe the entire table for that
-scope.** With a new type, the same situation becomes a `NOT_FOUND`, which the adapter learns once
-(`resetNativeClearByChannelSupport` is the test seam) and then drops to the fallback. It is the same
-idiom as `FetchManyCacheData` and `FetchLastChatsData`, but the fallback has a different character — a
-read that fails can come back empty-handed, while a delete's fallback has to actually finish the same
-job.
+the app, so **a shell that did not know the field would have ignored it and wiped the entire table for
+that scope.** A new message type cannot fail that way. Every phone shell the web still runs in (app
+0.30.0 and later) answers it, so `NativeDBAdapter` keeps no fallback for it: a failure (a timeout, say)
+is rethrown as is, because a delete that did not happen must not look as if it did.
 
-The fallback read narrows to the channel for the domains that declared `channelId` as a query (chat and
-join). So emptying one room does not send an entire table across the bridge. A failure that is not
-`NOT_FOUND` (a timeout, say) is not learned from; it is rethrown as is.
+The default read narrows to the channel for the domains that declared `channelId` as a query (chat and
+join). So emptying one room does not send an entire table across the bridge.
 
 ## Adding a cache domain
 
@@ -210,7 +208,7 @@ only the middle of it is type-checked. Work top to bottom.
 
 | #   | Where                                                                                                                                                                                                                                                           | Caught by                                                                                             |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | `CacheType` in [`libs/app-messages`](../../../app-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                                  | the compiler, everywhere the union is switched on                                                     |
+| 1   | `CacheType` in [`libs/bridge-messages`](../../../bridge-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                            | the compiler, everywhere the union is switched on                                                     |
 | 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
 | 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                         | the compiler                                                                                          |
 | 4   | `REQUIRED_DOMAIN_VERSION` in app-runtime [`nativeCacheSupport.ts`](../../../app-runtime/src/data/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |

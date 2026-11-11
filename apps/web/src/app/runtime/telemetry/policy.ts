@@ -2,6 +2,10 @@ import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy } from '@chatic/bridges'
 
 import type { TelemetryPolicy, TelemetryPolicyMatch, TelemetryPolicyRule } from '@chatic/bridges';
 
+import { deviceStore } from '../../storage';
+
+import { APP_VERSION_FLOOR } from '../../features/appUpdate/lib/appVersionFloor';
+
 /**
  * Where the sampling policy comes from.
  *
@@ -15,20 +19,15 @@ export type TelemetryPolicySource = () => Promise<unknown>;
 export const disabledTelemetryPolicySource: TelemetryPolicySource = async () => ({ version: 0, enabled: false });
 
 /**
- * The first mobile app version whose native log queue has a statistics share. An older build relays
- * a statistic into a queue that stores it as a plain log and drops its `kind` on a restart, so those
- * builds stay off.
- */
-export const FIRST_APP_VERSION_WITH_STATISTICS = '0.29.2';
-
-/**
- * Where statistics are collected: the two mobile apps from the first build with the share, and the
- * web in a browser tab. The desktop app also runs the web as `host: 'app'` (`platform: 'web'`) on a
- * version line of its own, so it matches none of these and stays off.
+ * Where statistics are collected: the two mobile apps and the web in a browser tab. A mobile app is
+ * held to the version floor: every app at or above it has a statistics share in its native log queue,
+ * and an app below it still boots the web up to the update screen, where its queue would store a
+ * statistic as a plain log. The desktop app also runs the web as `host: 'app'` (`platform: 'web'`) on
+ * a version line of its own, so it matches none of these and stays off.
  */
 const COLLECTED: TelemetryPolicyMatch[] = [
-    { host: 'app', platform: 'ios', minAppVersion: FIRST_APP_VERSION_WITH_STATISTICS },
-    { host: 'app', platform: 'android', minAppVersion: FIRST_APP_VERSION_WITH_STATISTICS },
+    { host: 'app', platform: 'ios', minAppVersion: APP_VERSION_FLOOR },
+    { host: 'app', platform: 'android', minAppVersion: APP_VERSION_FLOOR },
     { host: 'browser' },
 ];
 
@@ -60,7 +59,7 @@ const rulesFor = (where: TelemetryPolicyMatch): TelemetryPolicyRule[] => [
 
 /**
  * The policy the app serves itself until the server serves one. No `defaults`: a run that matches
- * no rule — an older app build, the desktop app — collects nothing.
+ * no rule — the desktop app — collects nothing.
  *
  * A week of `ttlSec`, not an hour: a run starts from the stored policy only while it is that fresh,
  * and an hour would leave most cold starts — a user opening the app once a day — with statistics
@@ -77,6 +76,12 @@ export const BUILT_IN_TELEMETRY_POLICY: TelemetryPolicy = {
 export const builtInTelemetryPolicySource: TelemetryPolicySource = async () => BUILT_IN_TELEMETRY_POLICY;
 
 const STORAGE_KEY = '@chatic/web.telemetry.policy';
+
+/**
+ * The prefix of every key this module writes — the stored policy and the development override. A
+ * sign-out takes them; the entry point declares it to the runtime (`initAppRuntime({ signedOutKeyPrefixes })`).
+ */
+export const TELEMETRY_POLICY_KEY_PREFIX = STORAGE_KEY;
 
 /** How long a stored policy may start a run when the document gave no `ttlSec`. */
 const DEFAULT_TTL_SEC = 3_600;
@@ -95,7 +100,7 @@ interface StoredPolicy {
 
 const readJson = (key: string): unknown => {
     try {
-        const text = localStorage.getItem(key);
+        const text = deviceStore.get(key);
         return text ? JSON.parse(text) : undefined;
     } catch {
         return undefined;
@@ -150,10 +155,8 @@ export const refreshPolicy = async (
     const policy = parseTelemetryPolicy(raw);
     if (!policy) return undefined;
 
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
-    } catch {
-        /* storage full or blocked: the next run starts from the default, which is safe */
-    }
+    // Storage full or blocked: the device store drops the write, and the next run starts from the
+    // default, which is safe.
+    deviceStore.set(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
     return policy;
 };

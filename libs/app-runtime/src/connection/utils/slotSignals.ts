@@ -1,5 +1,5 @@
-import { sessionSignal } from '../../session/store';
-import type { SessionSignalKind } from '../../session/store';
+import { sessionSignal } from '@chatic/session';
+import type { SessionSignalKind } from '@chatic/session';
 
 /**
  * The slices the socket slots are derived from — deliberately NOT `identity` (ADR-0076 E5).

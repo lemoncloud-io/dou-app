@@ -1,3 +1,6 @@
+import { sessionStores } from '@chatic/session';
+import { MemoryStore } from '@chatic/storage';
+
 import { PushRegistrationRecord, type RegistrationIdentity } from './registrationRecord';
 
 const identity: RegistrationIdentity = { uid: 'u-1', deviceId: 'd-1', platform: 'ios' };
@@ -219,5 +222,18 @@ describe('PushRegistrationRecord — 설치당 1회 등록 기록', () => {
 
             expect(record.read(identity)).toBeNull();
         });
+    });
+});
+
+describe('PushRegistrationRecord — where its web copy lives by default', () => {
+    it("writes to the session's plain store, even one configured after the record was made", () => {
+        const record = new PushRegistrationRecord();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret: new MemoryStore(), plain });
+
+        record.write(identity, 'tok-1');
+
+        expect(plain.keys()).toEqual(['push-reg:v1:u-1:d-1:ios']);
+        expect(record.read(identity)).toBe('tok-1');
     });
 });

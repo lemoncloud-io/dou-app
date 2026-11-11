@@ -140,6 +140,7 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ cloud: mockDevice.cloudRepository }),
+            getAcceptorId: () => mockDevice.guest,
         },
         session: {
             useSessionIdentity: () => ({ delegatorId: mockDevice.guest }),

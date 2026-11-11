@@ -19,13 +19,14 @@ inside be rearranged with no blast radius.
 grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-Five apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-`apps/testbed`, and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
+Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin`,
+and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
 [`src/public-surface.test.ts`](./src/public-surface.test.ts): 81 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
-live elsewhere and do not leak to apps: the socket transport and its auth controller
+live elsewhere and do not leak to apps: the socket and HTTP managers
+([`libs/transport`](../transport/README.md)), the socket transport and its auth controller
 (`@lemoncloud/chatic-sockets-lib`), the data layer ([`libs/data`](../data/README.md)), the HTTP
 executor ([`libs/http`](../http/README.md)), the storage adapters ([`libs/db`](../db/README.md)),
 the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logger/README.md)).
@@ -34,33 +35,34 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 
 ## Design principles
 
-1. **Session state has one home and one writer, and that writer is passive.** `session/store/**` stores and announces; it knows nothing about sockets, data, HTTP or its own sibling folders. The rule is not a convention — [`eslint.config.mjs`](./eslint.config.mjs) bans those imports inside `store/**`, with exactly one exempt file.
-2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug, and the sync manager deliberately gets its own file so `socket/` never imports `socket/sync/`.
-3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk the source tree and fail on the string: [`http/refreshAbsence.test.ts`](./src/http/refreshAbsence.test.ts) and [`socket/authUpdateAbsence.test.ts`](./src/socket/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
-4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `http/`; even the login and token-exchange use cases in `session/auth/` go through `AuthRepository` (ADR-0036). There is no direct-gateway escape hatch.
+1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
+2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug. The socket and HTTP ones live in [`@chatic/transport`](../transport/README.md) and the sync one in [`@chatic/sync`](../sync/README.md), the packages below this one.
+3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk this package's source and every package cut from it, and fail on the string: [`refreshAbsence.test.ts`](./src/refreshAbsence.test.ts) and [`authUpdateAbsence.test.ts`](./src/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
+4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `@chatic/auth` go through `AuthRepository` (ADR-0036). There is no direct-gateway escape hatch.
 5. **The three scope views are never collapsed.** `selected` flips optimistically, `bound` is observed from the live socket, `committed` follows the token. Their disagreement _is_ optimistic cloud switching; merging them brings back cross-cloud cache poisoning.
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
 8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
 9. **Boot is an explicit call.** `initAppRuntime()` runs the wiring that used to happen as an import side effect, where it was invisible in the entry point and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
-11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — all seven of them — because `socket/index.ts` re-exports its `types.ts` wholesale and a value put there leaks onto a barrel. Value constants go in `constants.ts`, pure helpers in `utils/`.
+11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — the three here, and those of the packages below, whose barrels re-export theirs wholesale, so a value put there would leak onto them. Value constants go in `constants.ts`, pure helpers in `utils/`.
 12. **There are no value import cycles.** [`importCycleAbsence.test.ts`](./src/importCycleAbsence.test.ts) re-measures the tree on every run rather than trusting a lint path.
 
 ## Scope
 
-**In** — the session store and its signal, the login/logout/switch use cases, the scope owner, the
-React session surface, the socket manager and its slots (relay, the committed cloud, and a background slot per other
-joined cloud), socket authentication wiring and
-credential renewal, the sync manager and the app's sync plans, the receive loops that keep the clouds off screen
-current, the HTTP manager and its route
-endpoints, the repository graph and cache-storage routing, the offline chat outbox, device-token
+**In** — the React session surface, the host and the binders that decide which socket slots exist (relay, the committed cloud, and a
+background slot per other joined cloud), the hooks a screen registers sync targets with, the repository graph and cache-storage routing, the offline chat outbox, device-token
 registration, the user issue report and the log-batch upload, and the boot call that wires them.
 
-**Out** — the socket transport and its `AuthController`
+**Out** — the session's state: the three stores, their signal, the derived contexts and the scope
+([`libs/session`](../session/README.md)); the socket manager and its slots, and the HTTP manager
+and its routes ([`libs/transport`](../transport/README.md)); the sync manager, the app's sync plans and
+the receive loops that keep the clouds off screen current ([`libs/sync`](../sync/README.md)); the
+login/logout/switch use cases, device pairing, socket authentication wiring and credential renewal
+([`libs/auth`](../auth/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
 ([`libs/data`](../data/README.md)); the HTTP executor, retry and error classification
-([`libs/http`](../http/README.md)); IndexedDB and native SQLite adapters
+([`libs/http`](../http/README.md)); IndexedDB, native SQLite and Web Storage adapters
 ([`libs/db`](../db/README.md)); the HMAC signature itself (`libs/auth-sign`); the log entry
 contract and its uploader ([`libs/logger`](../logger/README.md)); the settings registry
 ([`libs/config`](../config/README.md)); and everything a screen does with any of it.
@@ -79,13 +81,13 @@ flowchart TD
     Host["connection/<br/><i>RuntimeConnectionHost + 2 binders</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
-    Auth["session/auth · socket/auth<br/><i>login · sign · renew · expiry</i>"]:::sess
-    Store["session/store<br/><i>relay · cloud · identity · signal</i>"]:::sess
-    Scope["session/scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
+    Auth["@chatic/auth<br/><i>login · sign · renew · expiry · pairing</i>"]:::sess
+    Store["@chatic/session · store<br/><i>relay · cloud · identity · signal</i>"]:::sess
+    Scope["@chatic/session · scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
 
-    SM["SocketManager<br/><i>relay + cloud slots</i>"]:::eng
-    SyncM["SyncManager<br/><i>slot runtimes · target registry</i>"]:::eng
-    HM["HttpManager<br/><i>route endpoints · staleness port</i>"]:::eng
+    SM["@chatic/transport · SocketManager<br/><i>relay + cloud slots</i>"]:::eng
+    SyncM["@chatic/sync · SyncManager<br/><i>slot runtimes · target registry</i>"]:::eng
+    HM["@chatic/transport · HttpManager<br/><i>route endpoints · staleness port</i>"]:::eng
     DM["DataManager<br/><i>3 data-source bundles → repositories</i>"]:::eng
 
     SDK["chatic-sockets-lib<br/><i>ClientSocketV2 · AuthController</i>"]:::ext
@@ -118,9 +120,40 @@ flowchart TD
 
 Three rules the arrows cannot draw. **The store is a leaf** — every arrow touching it points in.
 **The status path only reads** — `deriveAuthStatus` and `ActiveScope` observe the store and the
-socket and write to neither. And **`http/` is a leaf too, with one exception**:
-[`http/factory.ts`](./src/http/factory.ts) is the only file under `http/` that imports the session,
-which is what lets `session/auth` and `data/` both depend on HTTP without closing a cycle.
+socket and write to neither. And **the HTTP half reaches no further than the store**:
+[`http/factory.ts`](../transport/src/http/factory.ts) (the staleness port) and `http/transport.ts`
+(the relay token the signer reads per request) are the only files under `@chatic/transport`'s
+`http/` that import the session, and they import `@chatic/session` alone, which is what lets `@chatic/auth` and `data/` both depend on
+HTTP without closing a cycle.
+
+### Layers
+
+This package is the top of a stack of packages, cut out of it one layer at a time (ADR-0253). Each
+imports only the ones below it, and the package graph refuses the reverse:
+
+| Package                                       | Holds                                                                                     | Imports            |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------ |
+| [`@chatic/session`](../session/README.md)     | the session's state: three stores, their signal, the contexts, the scope                  | —                  |
+| [`@chatic/transport`](../transport/README.md) | the socket manager and its slots, the HTTP manager                                        | session            |
+| [`@chatic/sync`](../sync/README.md)           | the sync manager, its plans, the background receive                                       | session, transport |
+| [`@chatic/auth`](../auth/README.md)           | the session use cases, pairing, socket authentication and renewal                         | session, transport |
+| `@chatic/app-runtime`                         | the repository graph's assembly, every hook and component, push, report, boot, the facade | all of the above   |
+
+Sync and auth sit side by side: each one's eslint config refuses the other. What stays here is the
+app layer — every `hooks/` folder, because hooks are React and React stays here, and `utils/`, which is
+one app-layer helper.
+
+The direction is also a tag: the four packages and `@chatic/data` are `layer:core-lib`, this one is
+`layer:react-surface`, and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or
+imports React — and this package importing a platform adapter such as `@chatic/runtime-web`. The tags,
+and the two packages the assembly is moving towards, are in
+[`@chatic/runtime-core`](../runtime-core/README.md#layers).
+
+The repository graph is assembled in `data/`, above the two packages that read it. So it is **handed
+down at boot** instead of imported: `initAppRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
+accessor for the `AuthRepository`, and `@chatic/sync`'s `syncDataGraph` one for the scoped graphs. Both
+are read on every call — the graph is still built lazily — and both throw a message naming
+`initAppRuntime()` when nothing was handed in.
 
 ### Booting one slot
 
@@ -131,7 +164,7 @@ sequenceDiagram
     participant B as SocketBinder
     participant M as SocketManager
     participant A as client.auth (SDK)
-    participant S as session/store
+    participant S as @chatic/session
 
     App->>App: config.init() · logging wiring
     App->>App: initAppRuntime({ data })
@@ -153,7 +186,7 @@ sequenceDiagram
 
 The gate is the part that is easy to get wrong: the backend cannot process `auth.update` until a
 device is registered on that connection, and the SDK sends both on the same `connected` event with
-`auth.update` first. Details in [docs/auth/](./docs/auth/README.md).
+`auth.update` first. Details in [auth docs/socket/](../auth/docs/socket/README.md).
 
 ### Directories
 
@@ -161,29 +194,29 @@ device is registered on that connection, and the SDK sends both on the same `con
 libs/app-runtime/src/
 ├── index.ts          public barrel — one export, `runtime`
 ├── facade.ts         the seven groups, assembled from group barrels
-├── init.ts           initAppRuntime — five boot steps, in order
+├── init.ts           initAppRuntime — seven boot steps, in order
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
-├── session/          55 files — store (12) · auth (10) · scope (3) · hooks (30)
-├── socket/           39 files — SocketManager (7) + utils (4) + auth wiring (19) + sync (9)
-├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
+├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
+├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
 ├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
-└── utils/            4 files — Coalescer · Throttle · unrefTimer · isNativeApp
+├── storage/          2 files — resolveStorageStores (an app's stores, chosen once) and the runtime's device/tab stores
+└── utils/            1 file — isNativeApp
 ```
 
-154 source files, 100 test files, 13,002 lines of non-test code.
+94 source files, 63 test files, about 6,400 lines of non-test code.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
-`ScopedSocketClient` all live in [`socket/types.ts`](./src/socket/types.ts) — there is no
-`ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in
-[`socket/auth/types.ts`](./src/socket/auth/types.ts); `IDataManager` and `CacheAssemblyOptions` in
-[`data/types.ts`](./src/data/types.ts); `ISyncManager` in
-[`socket/sync/types.ts`](./src/socket/sync/types.ts). The `boot` group is a **file**,
+`ScopedSocketClient` all live in `@chatic/transport`'s
+[`socket/types.ts`](../transport/src/socket/types.ts) — there is no `ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in `@chatic/auth`'s
+[`socket/types.ts`](../auth/src/socket/types.ts); `IDataManager` and `CacheAssemblyOptions` in
+[`data/types.ts`](./src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
+[`types.ts`](../sync/src/types.ts). The `boot` group is a **file**,
 `boot.ts`, not a directory — booting is not an engine, so the logic stays in whichever module owns
-each piece. `http/`, `config/` and `utils/` have no `index.ts` at all: they are not facade groups
+each piece. `config/` and `utils/` have no `index.ts` at all: they are not facade groups
 and in-package callers reach them by concrete path.
 
 ## Usage
@@ -220,7 +253,7 @@ const ChannelList = () => {
 Four rules hold.
 
 1. **Import one identifier.** `runtime`, then pick a group. The groups are not importable on their own, and that is deliberate: `data` is already a local in 23 consumer files, `session` in 17, `sync` in 9, so `const { data } = useQuery()` would shadow the group and stop the file compiling. There is no flat alias lane either — selling a symbol under two names guarantees one of them rots.
-2. **A group is a job, not a folder.** `session.applySessionToken` lives in `socket/auth/`, `session.authFailureReaction` in `http/`, `push.useRegisterDeviceTokenMutation` in `data/hooks/`. Each group's own barrel names every symbol it sells, so the barrel is the catalogue.
+2. **A group is a job, not a folder.** `session.applySessionToken` lives in `@chatic/auth`, `session.authFailureReaction` in `@chatic/transport`, `push.useRegisterDeviceTokenMutation` in `data/hooks/`. Each group's own barrel names every symbol it sells, so the barrel is the catalogue.
 3. **Read values with hooks; control lifecycle by mounting.** `RuntimeAuthHost` is the same host with background guest login switched off — for a console that must not silently acquire a session. It is a second named export rather than a prop so a forgotten argument cannot hand a console a guest.
 4. **Store writers are not on the surface.** Reading `getGlobalSessionContext()` is fine; there is no `setSessionAuthenticated` to call. Driving the session is the runtime's own job.
 
@@ -228,13 +261,23 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
+  ├─ resolveStorageStores()               every store the app keeps state in, chosen once (apps/web, apps/desktop-web; admin still builds its own)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
+  ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ data? })            ↓ five steps, in this order
+  ├─ initAppRuntime({ storage, transport, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
+  │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
+  │    │  runtimeStores.configure()       … and the runtime's own device/tab stores (cursor watermark, a tab's invited clouds)
+  │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
+  │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
+  │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
+  │    ├─ applyPendingSyncCursorReset()   a cache clear on the last page retires every saved sync cursor
   │    ├─ configureSessionStore()         env → relay endpoint RESOLVERS (functions, not values)
   │    ├─ credentialRecovery.register()   HTTP recovery → the relay renewer
   │    ├─ configureDataRuntime(config)    app cache/repository policy, only if passed
+  │    ├─ authRepositorySource.provide()  the repository graph, handed down to auth
+  │    │  syncDataGraph.provide()         … and to sync (accessors — nothing is built yet)
   │    └─ attachConfigStateLog()          one boot line naming every overridden setting
   └─ render
        └─ <RuntimeConnectionHost>
@@ -255,17 +298,38 @@ logging wiring, because it logs; **before** anything that can read the session, 
 `relayStore.getBackend()` throws rather than guessing when its resolvers are missing — a loud
 failure that names `initAppRuntime()` beats a request going out with an empty host.
 
-Three of the five steps delegate to the module that owns the thing being configured. Credential
+Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and
-the registry imports nothing at runtime precisely so the two sides never meet. A wiring with no owner
-belongs to the composition root.
+the registry imports nothing at runtime precisely so the two sides never meet. Handing the repository
+graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
+A wiring with no owner belongs to the composition root.
+
+**Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
+package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
+`configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `configureDataRuntime`,
+`authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
+site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
+in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;
+tests are exempt, since they wire packages on purpose. For the same reason the `boot` group has no
+setter that swaps the session's stores after boot — it would be a wiring call any file could make
+through `runtime.boot`. What an app sets up for itself before the runtime (`configurePerfTraces`, the
+storage adapter, the log context) and the reaction it registers through
+`runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
+
+**Choosing the stores.** `resolveStorageStores()` (the `boot` group) is the one place an app's storage
+stores are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
+three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
+and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
+everything else writes through. `plain` follows the session (localStorage in a shell, sessionStorage
+in a browser); `device` is localStorage everywhere, because a draft or a recent emoji has always
+outlived the tab. The entry point hands the result out and constructs nothing itself.
 
 ## Scenarios
 
 ### 1. Cold boot as a guest
 
 `initAppRuntime` injects the endpoint resolvers and registers credential recovery; no network. The
-host awaits `useRelaySessionInit`, which runs the transport init once and blocks the subtree —
+host awaits `useRelaySessionInit`, which blocks the subtree until the session is initialized —
 it reads the stored session's existence, it does not refresh it. With no relay token,
 `useRelaySessionKeepAlive` runs one device-based guest login (a `Coalescer` keeps a re-render from
 firing a second). The token commits, `SocketBinder` boots the relay slot, and the slot reaches
@@ -277,7 +341,7 @@ The app calls `recoverSocketsOnResume()` on its own foreground signal. Only slot
 `needsSocketKick(status)` holds get kicked — a slot that looks `verified` (or `stale`) is not recycled outright,
 because churning a warm connection costs more than it fixes. It is sent one ping instead, and
 recycled only if that goes unanswered for 3 s: a half-open connection keeps reading verified after
-a suspension ([auth § Waking a wedged socket](./docs/auth/README.md#waking-a-wedged-socket)). When the relay socket re-verifies,
+a suspension ([auth § Waking a wedged socket](../auth/docs/socket/README.md#waking-a-wedged-socket)). When the relay socket re-verifies,
 `useSessionStalenessGuard` evaluates on that rising edge; a `stale` status runs
 `credentialRenewers.relay.renew()`, which is the SDK's own `auth.refresh()`. The refreshed view
 comes back through `onTokenRefresh`, is merged so that `identityToken`, `identityPoolId` and the
@@ -301,7 +365,7 @@ registered with instead of exchanging new ones, and the reconcile pass only move
 log reads `active moved`, nothing reconnects, and the cloud just left stays up as a background slot.
 Its receive loop takes over from the app's own sync as the pointer leaves it, and the target's loop
 stops as the pointer arrives: the target's list and cursor are already in its partition, so the app's
-first delta there continues from where the loop left off ([docs/sync/](./docs/sync/README.md#background-receive)).
+first delta there continues from where the loop left off ([libs/sync](../sync/README.md#background-receive)).
 A target without one is bound fresh, the pointer moves, and a left cloud that is not kept is torn
 down — `slot bound` → `active moved` → `slot torn down`. The relay slot is untouched throughout.
 
@@ -338,31 +402,33 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                                     | What it covers                                                                                                                             |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| [docs/session/](./docs/session/README.md)                                  | The session hub. Three stores and their keys, the typed signal and batching, the scope's three views, the use cases, the hooks             |
-| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards         |
-| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK        |
-| [docs/socket/](./docs/socket/README.md)                                    | `SocketManager`. Dual slots and the active facade, slot-pinned requests and subscriptions, the binders, state, failure reporting           |
-| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, the room-feed dedupe, `updateLocalSnapshot` |
-| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows                |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                                |
-| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it         |
-| [docs/http/](./docs/http/README.md)                                        | `HttpManager`. The three routes, the sealed transport, the staleness port, and the two late-bound registries                               |
-| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                               |
+| Folder                                                                     | What it covers                                                                                                                     |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                                  | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                 |
+| [docs/connection/](./docs/connection/README.md)                            | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                 |
+| [docs/sync/](./docs/sync/README.md)                                        | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                       |
+| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                        |
+| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
+| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
+
+The socket manager and the HTTP manager are documented with `@chatic/transport`:
+[transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).
+The sync manager, its plans and the background receive are documented with
+[`@chatic/sync`](../sync/README.md); the use cases, pairing and staying authenticated on every socket
+with [`@chatic/auth`](../auth/README.md).
 
 ## How to verify
 
 ```bash
 npx tsc -b libs/app-runtime/tsconfig.json         # every project tsconfig.json references
-npx jest --config libs/app-runtime/jest.config.js # 79 test files
+npx jest --config libs/app-runtime/jest.config.js # 63 test files
 cd libs/app-runtime && npx eslint src             # flat config — run it from this directory
 ```
 
 - Type checking must be `tsc -b`. Inside `libs/app-runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Five tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
-- Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow type checks all of them.
+- Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin` and `libs/data`. That workflow type checks all of them.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves — downstream projects read a lib's emitted `.d.ts`, not its source, and `tsc -b` does not delete orphans. `rm -rf libs/app-runtime/dist libs/app-runtime/out-tsc` and look again. For the same reason, an app "type error" right after a barrel change is usually an unbuilt lib: build the lib first, then re-run the app alone.

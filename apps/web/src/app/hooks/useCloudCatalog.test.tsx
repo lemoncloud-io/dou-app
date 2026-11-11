@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
  */
 let relayVerified = false;
 let mockIsAuthenticated = true;
+let mockIsAccountGuest = false;
 const mockFetchCloudCatalog = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -29,6 +30,8 @@ jest.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
+
+jest.mock('./useMyUser', () => ({ useIsAccountGuest: () => mockIsAccountGuest }));
 
 import { useCloudCatalogRelayResync, useClouds, useCloudSessionCatalog } from './useCloudCatalog';
 
@@ -50,6 +53,7 @@ const setup = () => {
 beforeEach(() => {
     relayVerified = false;
     mockIsAuthenticated = true;
+    mockIsAccountGuest = false;
     mockFetchCloudCatalog.mockReset();
 });
 
@@ -77,6 +81,32 @@ describe('useClouds', () => {
         await act(async () => undefined);
         expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
         expect(result.current.fetchStatus).toBe('idle');
+    });
+
+    it('answers a guest account with an empty catalog without asking the relay', async () => {
+        mockIsAccountGuest = true;
+        const { result } = renderClouds({ limit: -1 });
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(result.current.data?.list).toEqual([]);
+        expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
+
+        // `refetch` ignores `enabled`, so it is the path that would have reached the relay.
+        await act(async () => void (await result.current.refetch()));
+        expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
+    });
+
+    it("reads the account's catalog once the guest signs in, not the guest's empty answer", async () => {
+        mockIsAccountGuest = true;
+        mockFetchCloudCatalog.mockResolvedValue({ list: [{ id: 'c1' }] });
+        const { result, rerender } = renderClouds({ limit: -1 });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        mockIsAccountGuest = false;
+        rerender();
+
+        await waitFor(() => expect(result.current.data?.list).toEqual([{ id: 'c1' }]));
+        expect(mockFetchCloudCatalog).toHaveBeenCalledTimes(1);
     });
 });
 

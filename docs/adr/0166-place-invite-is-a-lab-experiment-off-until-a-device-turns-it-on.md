@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-02 · Implemented: `feat/place-invite-lab-experiment`
 > · The missing place member list this cites as the reason is supplied by
-> [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md); the switch stays
+> [ADR-0258](./0258-invite-candidates-come-from-the-place-member-list.md); the switch stays
 > · Scope: libs/config `feature.placeInvite` · apps/web `features/mypage` (`LabPage`),
 > `app/hooks/usePlaceInviteExperiment`, `app/utils/placeInviteGate`, the home profile menu,
 > `features/invite` (`PlaceInvitePage`)

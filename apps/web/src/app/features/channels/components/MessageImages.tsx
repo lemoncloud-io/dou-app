@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
@@ -6,6 +6,7 @@ import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/da
 import { cn } from '@chatic/ui-kit';
 import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 
+import { useCanExportImages } from '../../../bridge/shellCapabilities';
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
@@ -14,6 +15,7 @@ import { useInView } from '../hooks/useInView';
 import { useVideoFrames } from '../hooks/useVideoFrames';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
 
+import { MessageAudioCard } from './MessageAudioCard';
 import { SaveShareButtons } from './SaveShareButtons';
 
 interface MessageImagesProps {
@@ -51,6 +53,10 @@ interface MessageImagesProps {
  * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
  * open viewer too.
  *
+ * An audio upload that has been sent is a player card (`MessageAudioCard`) in its place among the
+ * documents; one still on its way, failed or broken is drawn as a document card, which already shows
+ * those states. Its menu saves and shares it through the same downloads as a document's.
+ *
  * A video that came without a poster gets its first frame drawn on this device once the message is on
  * screen (`useVideoFrames`): from a frame kept earlier, else one the shell makes from the video's
  * address, else — in a browser — one drawn from the video's first bytes, or the video itself drawn in
@@ -73,6 +79,12 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
 
     const split = useMemo(() => chatMediaItems(cid, uploads), [cid, uploads]);
     const files = useFileDownloads({ cid, chatId });
+    // Sharing a file is offered where the action sheet offers it: an app that shares photos shares
+    // documents and audio too.
+    const canShareFiles = useCanExportImages();
+    // Audio cards whose message was read again after a playback error. Once per card: an Ogg Vorbis file
+    // fails on iOS whatever its address, and every re-read signs a new one.
+    const audioRefreshed = useRef<Set<string>>(new Set());
     // How far a message still on its way has gone, by `upload$$` position. Only a pending row has any,
     // and it is read from page memory, so the ring's ticks never touch the cached row.
     const sendProgress = runtime.data.useImageSendProgress(chatId);
@@ -214,6 +226,26 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     />
                 )}
                 {split.files.map((file, at) => {
+                    if (file.audio && file.state === 'ready' && file.url) {
+                        return (
+                            <MessageAudioCard
+                                key={file.key}
+                                src={file.url}
+                                name={file.name}
+                                download={files.stateOf(file)}
+                                onSave={() => void files.download(file)}
+                                onCancel={() => files.cancel(file)}
+                                onShare={canShareFiles ? () => void files.share(file) : undefined}
+                                // Read again once, in case the address expired: a fresh one starts the card over.
+                                onError={() => {
+                                    if (!chatId || !file.url || audioRefreshed.current.has(file.key)) return;
+                                    audioRefreshed.current.add(file.key);
+                                    void refresh({ cid, chatId, src: file.url });
+                                }}
+                                className={align === 'end' ? 'self-end' : 'self-start'}
+                            />
+                        );
+                    }
                     const name = file.name ?? t('chat.attach.fileCard.fallbackName');
                     const sent = file.state === 'sending' ? sendProgress?.[split.fileSlots[at]] : undefined;
                     return (
@@ -233,7 +265,6 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                                 download: t('chat.attach.fileCard.download', { name }),
                                 cancel: t('chat.attach.fileCard.cancel', { name }),
                                 open: t('chat.attach.fileCard.open', { name }),
-                                unavailable: t('chat.attach.fileCard.unavailable'),
                                 broken: t('chat.attach.fileCard.broken'),
                                 sending: t('chat.attach.sending'),
                             }}
@@ -259,7 +290,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     exports.canExport
                         ? at => {
                               const item = exportables[at];
-                              if (!item || !exports.canExportItem(item)) return null;
+                              if (!item) return null;
                               const savable = exports.savable(exportables);
                               return (
                                   <SaveShareButtons

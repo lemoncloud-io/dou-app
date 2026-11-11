@@ -47,15 +47,26 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
-    // Off in prod until the screens' design and wording are settled; that switch is a server setting.
+    // On in every stage. Kept as a key so the debug panel can still turn the screens off on one device.
     'feature.auth.devicePairing': {
         title: 'Device pairing',
         description: 'Shows web login by code, the approval screen, and device management.',
         type: 'boolean',
+        defaultValue: true,
+        surface: 'dev',
+        writableBy: ['local', 'server'],
+        persist: 'session',
+    },
+    // Email + password sign-in is a development tool (switching between seeded test accounts), not a
+    // product entry point, so it is off everywhere except the stages developers run against.
+    'feature.auth.emailLogin': {
+        title: 'Email login',
+        description: 'Shows the email + password form on the login screen.',
+        type: 'boolean',
         defaultValue: false,
         byStage: { LOCAL: true, DEV: true },
         surface: 'dev',
-        writableBy: ['local', 'server'],
+        writableBy: ['local'],
         persist: 'session',
     },
     'feature.subscription.dryRun': {

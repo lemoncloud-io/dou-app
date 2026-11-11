@@ -1,9 +1,10 @@
-import type { CacheTtlMeta } from '@chatic/app-messages';
-import { logger } from '@chatic/bridges';
+import type { CacheTtlMeta } from '@chatic/bridge-messages';
+import { logger } from '@chatic/logger';
 import { SyncMetaLocalDataSource } from './SyncMetaLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

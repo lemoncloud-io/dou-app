@@ -1,5 +1,11 @@
 import { AlertCircle, Clock, Loader2, RotateCcw, X } from 'lucide-react';
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    type PointerEvent as ReactPointerEvent,
+    type MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
@@ -16,14 +22,13 @@ import { isMessageEdited, isWebhookChat } from '@chatic/data';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
-import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { LONG_PRESS_DELAY_MS, MOVE_CANCEL_PX } from '../utils/longPress';
 import { mentionMarksFor, type MentionPerson, type MentionViewer } from '../utils/mentionHighlight';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';
 import { MessageText } from './MessageText';
-import { MessageEditor } from './MessageEditor';
 import { MessageImages } from './MessageImages';
 import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
@@ -31,8 +36,6 @@ import { ThreadFooter } from './ThreadFooter';
 
 // A message longer than this is truncated in the bubble with a "view all" affordance.
 const MAX_MESSAGE_LENGTH = 200;
-// How far the finger may drift and still count as a hold rather than a scroll — a fingertip's wobble.
-const MOVE_CANCEL_PX = 10;
 // `self-end` so the marker sits on the bubble's last line rather than its vertical middle.
 const EDITED_MARK_CLASS = 'shrink-0 self-end pb-0.5 text-[11px] leading-none text-muted-foreground';
 
@@ -89,8 +92,11 @@ export interface ChannelMessageRowProps {
     formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
     onOpenThread?: () => void;
-    /** The in-place editor, when this message is the one being edited. Absent means read. */
-    edit?: MessageEditState;
+    /**
+     * This is the message the composer is editing. The edit is typed in the composer, so the row
+     * only marks itself and keeps itself in view — the list is where you see which one it is.
+     */
+    isEditTarget?: boolean;
     /**
      * Opens the sender's profile from their avatar or name. Handed exactly the name and photo this
      * row drew, so the profile can never introduce the person differently from the row it was opened
@@ -102,20 +108,6 @@ export interface ChannelMessageRowProps {
      * does not know its reader cannot tell a mention of them from one of anybody else.
      */
     mentionViewer?: MentionViewer;
-}
-
-/**
- * Everything the row needs to draw the edit states. Absent means "read" — the row is not in an
- * edit at all, which is why this is one optional object rather than four loose props that could
- * disagree with each other.
- */
-export interface MessageEditState {
-    draft: string;
-    onDraftChange: (value: string) => void;
-    isSaving: boolean;
-    hasFailed: boolean;
-    onSave: () => void;
-    onCancel: () => void;
 }
 
 /** Who sent a row, as the row drew them. */
@@ -154,7 +146,7 @@ export const ChannelMessageRow = ({
     unseenReplyCount,
     formatThreadTime,
     onOpenThread,
-    edit,
+    isEditTarget = false,
     onOpenProfile,
     mentionViewer,
 }: ChannelMessageRowProps) => {
@@ -176,7 +168,7 @@ export const ChannelMessageRow = ({
     // a real edit flag. It already excludes tombstones, unsent rows and missing timestamps, so
     // there is nothing to re-check here. An optimistic edit shows its new text at once and picks
     // the marker up when the server's record lands; that lag is intended (see `isMessageEdited`).
-    const wasEdited = !edit && isMessageEdited(message);
+    const wasEdited = !isEditTarget && isMessageEdited(message);
     // A structured message — a webhook send (`stereo: 'webhook'`), carrying Block Kit either in
     // `blocks$` or as JSON in `content`. `resolveChatBlocks` reads none from anyone else, so a
     // person who pastes a payload keeps the text they sent. Null for everything else, which is
@@ -240,10 +232,16 @@ export const ChannelMessageRow = ({
     // the web-ui-kit bubble is purely presentational. The images are part of the message as much
     // as its text is, so an image-only message is pressable too: reacting to a photo or starting a
     // thread on it is the same act as on a line of text. What the sheet then offers is the page's
-    // call — an image has nothing to copy or edit. Not while this message is being edited: the
-    // bubble is the editor then, and a sheet opened from the images under it would offer Edit
-    // again, which re-seeds the draft and throws away what was typed.
-    const canPress = !isDeleted && !edit && (!!content || hasImages);
+    // call — an image has nothing to copy or edit. Not while this message is being edited: the sheet
+    // would offer Edit again, which re-seeds the composer's draft and throws away what was typed.
+    const canPress = !isDeleted && !isEditTarget && (!!content || hasImages);
+    // Opening the edit raises the keyboard, which can bury the message under it. Centred, to leave the
+    // keyboard room, and once, when the edit starts — not on every render while it lasts, which would fight the
+    // reader scrolling away to look something up.
+    const pressTargetRef = useRef<HTMLSpanElement>(null);
+    useEffect(() => {
+        if (isEditTarget) pressTargetRef.current?.scrollIntoView?.({ block: 'center' });
+    }, [isEditTarget]);
     // React bubbles events out of portals along the component tree, not the DOM, so a press inside
     // the image viewer — portalled to the body, but a child of the tiles here — would otherwise
     // reach this gesture and open the sheet over the photo being looked at.
@@ -478,127 +476,119 @@ export const ChannelMessageRow = ({
                 block then scrolls inside the bubble, which is what `overflow-x-auto` was for.
                 `justify-end` because my bubble no longer sits in a row that hugs it: the column is
                 wider than the bubble whenever the chips or the thread footer are. */}
-            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && !edit && 'justify-end')}>
-                {edit ? (
-                    <MessageEditor
-                        value={edit.draft}
-                        onChange={edit.onDraftChange}
-                        isSaving={edit.isSaving}
-                        hasFailed={edit.hasFailed}
-                        onSave={edit.onSave}
-                        onCancel={edit.onCancel}
-                    />
-                ) : (
-                    <>
-                        {message.isFailed && mine && (
-                            <button onClick={onRetry} className="flex shrink-0 items-center">
-                                <AlertCircle size={20} className="text-destructive" />
-                            </button>
-                        )}
-                        {/* The marker sits beside the bubble on the side the bubble grew from, so it never
+            <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
+                {message.isFailed && mine && (
+                    <button onClick={onRetry} className="flex shrink-0 items-center">
+                        <AlertCircle size={20} className="text-destructive" />
+                    </button>
+                )}
+                {/* The marker sits beside the bubble on the side the bubble grew from, so it never
                     pushes the text around. It is not drawn while editing — the row is mid-change,
                     and "edited" is a statement about a settled message. */}
-                        {wasEdited && mine && (
-                            <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
-                                {t('chat.room.edited')}
-                            </span>
-                        )}
-                        {imageOnly ? (
-                            renderImages()
+                {wasEdited && mine && (
+                    <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
+                        {t('chat.room.edited')}
+                    </span>
+                )}
+                {imageOnly ? (
+                    renderImages()
+                ) : (
+                    <span
+                        // `min-w-0`: as a flex item this span defaults to `min-width: auto`
+                        // (= its min-content width), and min-width beats max-width — a long
+                        // unbroken message would push it past `max-w-full` and out of the row.
+                        // `select-none` (and the WebKit callout suppression) replaces what the old
+                        // `preventDefault()` on pointerdown did — without taking the scroll gesture
+                        // down with it. See `handlePointerDown`.
+                        className="inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]"
+                        ref={pressTargetRef}
+                        data-edit-target={isEditTarget || undefined}
+                        {...pressHandlers}
+                    >
+                        {drawnBlocks ? (
+                            // A card, not a bubble. A webhook send is not someone speaking, and
+                            // giving it the same ground as a person's message blurs who said what.
+                            // Block Kit also brings its own headings, rules and field grid, none of
+                            // which read as speech inside a speech bubble.
+                            //
+                            // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
+                            // itself, so a surface-filled card has no fill at all. What the fill has
+                            // to separate is this from the bubble beside it, and `--card` does that
+                            // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
+                            // Against the page it reads as a card only in dark; in light the border
+                            // carries it, which is how this app draws every other card.
+                            //
+                            // As wide as what it holds, up to the row: a three-line attendance note
+                            // is a small card, and a stack trace fills the row because it needs to.
+                            // A card stretched to the row regardless leaves a short one mostly empty.
+                            //
+                            // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
+                            // so its raw-body path is unreachable from here. A message with nothing
+                            // drawable never enters this arm — it stays in the bubble as text.
+                            //
+                            // `onLinkClick` for the same reason the bubble's links take it: an
+                            // anchor's default would load the page into this WebView in the
+                            // native shell, and a hold that opened the action sheet must not
+                            // also follow the link.
+                            <div className="min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-4">
+                                <BlockKitMessage
+                                    blocks={drawnBlocks}
+                                    raw={content}
+                                    onLinkClick={handleUrlClick}
+                                    sourceUrl={sourceUrl}
+                                    labels={{
+                                        expandCode: count => t('chat.room.codeBlock.expand', { count }),
+                                        collapseCode: t('chat.room.codeBlock.collapse'),
+                                        openSource: t('chat.room.attachment.openSource'),
+                                    }}
+                                />
+                            </div>
                         ) : (
-                            <span
-                                // `min-w-0`: as a flex item this span defaults to `min-width: auto`
-                                // (= its min-content width), and min-width beats max-width — a long
-                                // unbroken message would push it past `max-w-full` and out of the row.
-                                // `select-none` (and the WebKit callout suppression) replaces what the old
-                                // `preventDefault()` on pointerdown did — without taking the scroll gesture
-                                // down with it. See `handlePointerDown`.
-                                className="inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]"
-                                {...pressHandlers}
+                            <MessageBubble
+                                variant={mine ? 'mine' : 'other'}
+                                className={cn(
+                                    message.isFailed &&
+                                        'border border-destructive/30 bg-destructive/10 text-destructive',
+                                    // The one being edited, marked where it sits — the composer's
+                                    // quote says which message, this says where it is.
+                                    isEditTarget && 'ring-2 ring-main-accent'
+                                )}
+                                onExpand={isLong ? onExpand : undefined}
+                                expandLabel={t('chat.room.viewAll')}
                             >
-                                {drawnBlocks ? (
-                                    // A card, not a bubble. A webhook send is not someone speaking, and
-                                    // giving it the same ground as a person's message blurs who said what.
-                                    // Block Kit also brings its own headings, rules and field grid, none of
-                                    // which read as speech inside a speech bubble.
-                                    //
-                                    // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
-                                    // itself, so a surface-filled card has no fill at all. What the fill has
-                                    // to separate is this from the bubble beside it, and `--card` does that
-                                    // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
-                                    // Against the page it reads as a card only in dark; in light the border
-                                    // carries it, which is how this app draws every other card.
-                                    //
-                                    // As wide as what it holds, up to the row: a three-line attendance note
-                                    // is a small card, and a stack trace fills the row because it needs to.
-                                    // A card stretched to the row regardless leaves a short one mostly empty.
-                                    //
-                                    // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
-                                    // so its raw-body path is unreachable from here. A message with nothing
-                                    // drawable never enters this arm — it stays in the bubble as text.
-                                    //
-                                    // `onLinkClick` for the same reason the bubble's links take it: an
-                                    // anchor's default would load the page into this WebView in the
-                                    // native shell, and a hold that opened the action sheet must not
-                                    // also follow the link.
-                                    <div className="min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-4">
-                                        <BlockKitMessage
-                                            blocks={drawnBlocks}
-                                            raw={content}
-                                            onLinkClick={handleUrlClick}
-                                            sourceUrl={sourceUrl}
-                                            labels={{
-                                                expandCode: count => t('chat.room.codeBlock.expand', { count }),
-                                                collapseCode: t('chat.room.codeBlock.collapse'),
-                                                openSource: t('chat.room.attachment.openSource'),
-                                            }}
-                                        />
-                                    </div>
+                                {isDeleted ? (
+                                    // Italic muted, the same treatment desktop gives it: the row is
+                                    // still a message-shaped hole in the conversation, not a message.
+                                    <span className="italic text-muted-foreground">
+                                        {t('chat.room.deletedMessage')}
+                                    </span>
                                 ) : (
-                                    <MessageBubble
-                                        variant={mine ? 'mine' : 'other'}
-                                        className={cn(
-                                            message.isFailed &&
-                                                'border border-destructive/30 bg-destructive/10 text-destructive'
-                                        )}
-                                        onExpand={isLong ? onExpand : undefined}
-                                        expandLabel={t('chat.room.viewAll')}
-                                    >
-                                        {isDeleted ? (
-                                            // Italic muted, the same treatment desktop gives it: the row is
-                                            // still a message-shaped hole in the conversation, not a message.
-                                            <span className="italic text-muted-foreground">
-                                                {t('chat.room.deletedMessage')}
-                                            </span>
-                                        ) : (
-                                            <>
-                                                {/* The ellipsis stays outside MessageText so it can't be swallowed
+                                    <>
+                                        {/* The ellipsis stays outside MessageText so it can't be swallowed
                                     into a URL at the cut. `truncated` also stops a URL that runs
                                     to the cut from being linked at all — it may be a fragment, and
                                     makes a fence left open at the cut render as a block anyway. */}
-                                                <MessageText
-                                                    text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
-                                                    truncated={isLong}
-                                                    onUrlClick={handleUrlClick}
-                                                    renderCodeBlock={(code, lang) => (
-                                                        <MessageCodeBlock code={code} lang={lang} />
-                                                    )}
-                                                    mentions={mentionMarks}
-                                                    onMentionClick={handleMentionClick}
-                                                />
-                                                {isLong && '...'}
-                                            </>
-                                        )}
-                                    </MessageBubble>
+                                        <MessageText
+                                            text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
+                                            truncated={isLong}
+                                            onUrlClick={handleUrlClick}
+                                            renderCodeBlock={(code, lang) => (
+                                                <MessageCodeBlock code={code} lang={lang} />
+                                            )}
+                                            mentions={mentionMarks}
+                                            onMentionClick={handleMentionClick}
+                                        />
+                                        {isLong && '...'}
+                                    </>
                                 )}
-                            </span>
+                            </MessageBubble>
                         )}
-                        {wasEdited && !mine && (
-                            <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
-                                {t('chat.room.edited')}
-                            </span>
-                        )}
-                    </>
+                    </span>
+                )}
+                {wasEdited && !mine && (
+                    <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
+                        {t('chat.room.edited')}
+                    </span>
                 )}
             </div>
             {/* Ordered as the message, then metadata about it: the unfurl card belongs to the

@@ -1,8 +1,8 @@
 # ADR-0165: admin-v2 signs its own goods calls on the relay's host, and deploys one cloud product at a time
 
 > Status: Accepted · Decided: 2026-10-02
-> · Scope: `apps/admin-v2/src/app/features/cloud-deployments/`
-> · The module doc is [apps/admin-v2 cloud-deployments](../../apps/admin-v2/docs/cloud-deployments/README.md)
+> · Scope: `apps/admin/src/app/features/cloud-deployments/`
+> · The module doc is [apps/admin cloud-deployments](../../apps/admin/docs/cloud-deployments/README.md)
 > · Related: [ADR-0101 (the admin membership console)](./0101-admin-membership-console-and-app-override-parity.md)
 
 ## Context

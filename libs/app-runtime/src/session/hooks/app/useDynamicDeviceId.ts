@@ -1,4 +1,8 @@
-import { useSessionDeviceId } from '@chatic/shared';
+import { useState } from 'react';
+
+import { v4 as uuidv4 } from 'uuid';
+
+import { identityStore } from '@chatic/session';
 
 declare global {
     interface Window {
@@ -25,7 +29,9 @@ declare global {
  * <= 0.15.x) and the bare device id (>= 0.16.0), so it cannot be trusted.
  */
 export const useDynamicDeviceId = () => {
-    const { deviceId: sessionDeviceId } = useSessionDeviceId('chatic-device-id');
+    // The page's own id, in the session's plain port. Read-or-made and stored in one step, so a second
+    // caller in the same render gets the same id rather than making its own.
+    const [sessionDeviceId] = useState(() => identityStore.getOrMakeDeviceId(() => uuidv4()));
     const [compositeBareId, compositeFirebaseId] = (window.CHATIC_APP_DEVICE_ID ?? '').split(':');
     const deviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || compositeBareId || sessionDeviceId;
     const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || compositeFirebaseId || undefined;

@@ -19,6 +19,8 @@ interface NavRailProps {
     items: NavDestination[];
     /** Destinations holding something unread; each gets a dot on its tile. */
     unread?: Partial<Record<NavDestination, boolean>>;
+    /** The open place. Its logo stands in for Home's glyph, so the rail says which place it is in. */
+    place?: { thumbnail?: string };
 }
 
 /**
@@ -26,7 +28,7 @@ interface NavRailProps {
  * Channels or DM — with the account menu pinned under them. Picking a destination swaps the
  * sidebar and leaves the open conversation where it is.
  */
-export const NavRail = ({ items, unread = {} }: NavRailProps) => {
+export const NavRail = ({ items, unread = {}, place }: NavRailProps) => {
     const { t } = useTranslation();
     const active = useNavStore(s => s.active);
     const go = useNavStore(s => s.go);
@@ -51,10 +53,17 @@ export const NavRail = ({ items, unread = {} }: NavRailProps) => {
                             <span
                                 className={cn(
                                     'relative flex h-11 w-11 items-center justify-center rounded-xl text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                                    isActive ? 'bg-primary/[0.24]' : 'group-hover:bg-accent'
+                                    // Light mode takes the palette's tile; dark mode keeps its lime tint.
+                                    isActive
+                                        ? 'bg-rail-active text-rail-active-foreground dark:bg-primary/[0.24] dark:text-rail-foreground'
+                                        : 'group-hover:bg-accent'
                                 )}
                             >
-                                <Icon size={20} strokeWidth={isActive ? 2.25 : 2} aria-hidden />
+                                {destination === 'home' && place?.thumbnail ? (
+                                    <img src={place.thumbnail} alt="" className="h-7 w-7 rounded-lg object-cover" />
+                                ) : (
+                                    <Icon size={20} strokeWidth={isActive ? 2.25 : 2} aria-hidden />
+                                )}
                                 {hasUnread && (
                                     <span className="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-badge-unread" />
                                 )}

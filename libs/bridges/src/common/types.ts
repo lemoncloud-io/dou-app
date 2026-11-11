@@ -1,4 +1,4 @@
-import type { AppMessage, BaseMessage, BridgeResponseMessage, WebMessage } from '@chatic/app-messages';
+import type { AppMessage, BaseMessage, BridgeResponseMessage, WebMessage } from '@chatic/bridge-messages';
 
 export type RequestMessage = WebMessage;
 export type EventMessage = AppMessage;

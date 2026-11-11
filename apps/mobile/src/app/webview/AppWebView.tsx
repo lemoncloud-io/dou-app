@@ -13,6 +13,7 @@ import { toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
+import { STORAGE_MEDIA } from './utils/storageRequest.util';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
 import { bootMetricsService, configKvService, logger, pendingReportQueueService } from '../services';
@@ -122,6 +123,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // instance is alive, and the web's own optimistic store update is what that screen sees
         // immediately. This bag only needs to be current for the NEXT cold start.
         configBag: configKvService.getAll(),
+        // Listed in the boot script, which is also the post-load script, so the web finds it before
+        // its first StorageGet.
+        storageMedia: STORAGE_MEDIA,
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: toEnvStage(Config.VITE_ENV),
             // Same flag that gates the console subscription in `provider.ts`.

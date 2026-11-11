@@ -6,7 +6,7 @@ import { runtime } from '@chatic/app-runtime';
 import { subscriptionKeys } from '../../../hooks/queryKeys';
 import { useValidateMembership } from '../../../hooks/useMembership';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 import { appBridge, useOnPurchaseError, useOnPurchaseSuccess } from '../../../bridge';
 import { useLinkedAccounts } from '../../../hooks';

@@ -31,11 +31,13 @@ vi.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
+const socialStart = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
+    AppleIcon: () => null,
     GoogleIcon: () => null,
     isSocialLoginEnabled: () => session.socialLogin,
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
-    useSocialLogin: () => ({ start: vi.fn(), isStarting: false }),
+    useSocialLogin: () => ({ start: socialStart, isStarting: false }),
 }));
 // The dialog has its own spec; this file is about what the page draws.
 vi.mock('../components', () => ({
@@ -152,6 +154,38 @@ describe('ProfilePage account card inside a cloud', () => {
         await screen.findByRole('button', { name: 'Set up' });
 
         expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    });
+
+    describe('Apple guest sign-in', () => {
+        it('offers a guest Apple sign-in beside Google, under the same note', async () => {
+            session.relayUser = { uid: 'account-uid', userRole: 'guest' };
+            render(<ProfilePage />, { wrapper });
+            await screen.findByRole('button', { name: 'Set up' });
+
+            const apple = screen.getByRole('button', { name: 'Continue with Apple' });
+            const google = screen.getByRole('button', { name: 'Continue with Google' });
+            expect(apple.getAttribute('aria-describedby')).toBe(google.getAttribute('aria-describedby'));
+            fireEvent.click(apple);
+            expect(socialStart).toHaveBeenCalledWith('apple');
+        });
+
+        it('offers a guest no Apple sign-in when social login is off', async () => {
+            session.socialLogin = false;
+            session.relayUser = { uid: 'account-uid', userRole: 'guest' };
+            render(<ProfilePage />, { wrapper });
+            await screen.findByRole('button', { name: 'Set up' });
+
+            expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+        });
+
+        it('offers no Apple sign-in to a signed-in account', async () => {
+            session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
+            render(<ProfilePage />, { wrapper });
+            await screen.findByRole('button', { name: 'Set up' });
+
+            expect(screen.queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
+        });
     });
 });
 

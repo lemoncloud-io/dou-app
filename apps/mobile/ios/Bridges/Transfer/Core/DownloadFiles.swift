@@ -158,12 +158,25 @@ enum DownloadFiles {
     /// How many leading bytes `exportFamily` reads: enough to look for a NUL in a text file.
     static let familySniffBytes = 4096
 
-    /// The byte families a downloaded file may leave the app as. A family only gates: DOCX, XLSX, PPTX,
-    /// HWPX and a plain ZIP archive are all ZIP files, so which of them a file is comes from its name
-    /// (`serverFormats`).
+    /// The server's four audio formats.
+    enum AudioType: String {
+        case mp3 = "audio/mpeg"
+        case m4a = "audio/mp4"
+        case wav = "audio/wav"
+        case ogg = "audio/ogg"
+
+        var mimeType: String { rawValue }
+    }
+
+    /// The byte families a downloaded file may leave the app as. Only an image or `isoBmff` may go to
+    /// the photo library, so audio never does; beyond that a family only gates. DOCX, XLSX, PPTX, HWPX
+    /// and a plain ZIP archive are all ZIP files, so which of them a file is comes from its name
+    /// (`serverFormats`), and so does the type the share sheet and QuickLook give an audio file.
     enum ExportFamily: Equatable {
         case image(ImageType)
-        /// MP4 and the rest of its family: bytes 4 to 7 are `ftyp`.
+        /// MP3, M4A, WAV or Ogg. An M4A is an MPEG-4 file like a video, so it is told apart first.
+        case audio(AudioType)
+        /// MP4 and the rest of its family: bytes 4 to 7 are `ftyp`. Never an M4A (`audio(.m4a)`).
         case isoBmff
         case pdf
         /// DOCX, XLSX, PPTX, HWPX, and a plain ZIP archive.
@@ -175,18 +188,31 @@ enum DownloadFiles {
     }
 
     /// The family a file's first bytes (up to `familySniffBytes`) and its name show, or `nil`.
+    ///
+    /// An MPEG-4 file is audio when its major brand is `M4A ` or its name ends in `.m4a` — a recorder
+    /// may write the generic `isom` brand into an audio-only file — and a video otherwise. That is
+    /// decided before the video rule, so an M4A never reaches the photo library as a video. An MP3
+    /// opens with an ID3 tag or straight with an MPEG audio frame, whose first eleven bits are set;
+    /// that bare frame rule is the loosest here, so it is tried last, after text.
     static func exportFamily(_ head: Data, fileName: String) -> ExportFamily? {
         if let image = sniffImage(head) { return .image(image) }
         let bytes = [UInt8](head.prefix(familySniffBytes))
         func matches(_ offset: Int, _ expected: [UInt8]) -> Bool {
             bytes.count >= offset + expected.count && Array(bytes[offset..<(offset + expected.count)]) == expected
         }
-        if matches(4, Array("ftyp".utf8)) { return .isoBmff }
-        if matches(0, Array("%PDF".utf8)) { return .pdf }
+        func ascii(_ offset: Int, _ text: String) -> Bool { matches(offset, Array(text.utf8)) }
+        if ascii(4, "ftyp") {
+            return ascii(8, "M4A ") || serverExtension(of: fileName) == "m4a" ? .audio(.m4a) : .isoBmff
+        }
+        if ascii(0, "ID3") { return .audio(.mp3) }
+        if ascii(0, "RIFF") && ascii(8, "WAVE") { return .audio(.wav) }
+        if ascii(0, "OggS") { return .audio(.ogg) }
+        if ascii(0, "%PDF") { return .pdf }
         if matches(0, [0x50, 0x4B, 0x03, 0x04]) { return .zip }
         if matches(0, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) { return .ole2 }
         // Text has no signature: the name says it is one, and binary bytes would say it is not.
         if serverExtension(of: fileName) == "txt", !bytes.contains(0) { return .text }
+        if bytes.count >= 2, bytes[0] == 0xFF, bytes[1] & 0xE0 == 0xE0 { return .audio(.mp3) }
         return nil
     }
 
@@ -209,6 +235,10 @@ enum DownloadFiles {
         "hwpx": "application/hwp+zip",
         "txt": "text/plain",
         "zip": "application/zip",
+        "mp3": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "wav": "audio/wav",
+        "ogg": "audio/ogg",
     ]
 
     /// The lower-case text after the last dot, unless that dot is the first or last character — the

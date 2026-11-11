@@ -10,7 +10,7 @@ const STORE_IAP = 'Store purchases happen on the phones only';
 /**
  * Every app → web event the desktop shell could send on its own initiative, decided: either the
  * file that pushes it and the test that triggers it, or the reason it never does. Paths are relative
- * to `apps/desktop/src`. A new push-only message in `@chatic/app-messages`, or a new `pushEvent`
+ * to `apps/desktop/src`. A new push-only message in `@chatic/bridge-messages`, or a new `pushEvent`
  * call here, fails this suite until it has a line.
  *
  * A reply type is listed too when the shell also pushes it unprompted — `OnFetchFcmToken` answers
@@ -33,6 +33,16 @@ const DESKTOP_APP_EVENTS = {
     },
     OnPurchaseSuccess: { notEmitted: STORE_IAP },
     OnPurchaseError: { notEmitted: STORE_IAP },
+    OnSubWebViewClosed: {
+        emittedBy: ['main/subWebView/DesktopSubWebViewService.ts'],
+        test: 'main/subWebView/desktopSubWebView.test.ts',
+    },
+    OnSubWebViewContextChanged: {
+        notEmitted: 'The desktop sub view keeps the theme and language it opened with; the page reads its context once',
+    },
+    OnSubWebViewCloseRequested: {
+        notEmitted: 'The desktop page host has no close guard; SetSubWebViewCloseGuard answers NOT_FOUND there',
+    },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '..');

@@ -51,7 +51,14 @@ export type MessageRowItem =
     | { kind: 'date'; key: string; timestamp: number }
     | { kind: 'unread'; key: string }
     | { kind: 'replies'; key: string; count: number }
-    | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
+    | {
+          kind: 'system';
+          key: string;
+          chat: DomainChat;
+          authorName: string;
+          /** Every actor of a run of adjacent joins, in order; set only once a second join has folded in. */
+          joinedNames?: string[];
+      }
     | { kind: 'group'; group: MessageGroup };
 
 /** Floor to the clock minute — the unit the group header prints its time in. */
@@ -104,7 +111,7 @@ const isSameDay = (a: number, b: number): boolean => {
     return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
 };
 
-const startOfDay = (ms: number): number => {
+export const startOfDay = (ms: number): number => {
     const d = new Date(ms);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
@@ -131,7 +138,12 @@ export const buildMessageRows = (
      * "N replies" divider is dropped above the first reply (the first message with a
      * `parentId`). Undefined in the main feed, where no such divider appears.
      */
-    threadReplyCount?: number
+    threadReplyCount?: number,
+    /**
+     * Main feed only: the current time. When the newest message is from an earlier day, the feed
+     * closes with today's divider, so a day that has begun without a message reads as begun.
+     */
+    now?: number
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
@@ -181,11 +193,29 @@ export const buildMessageRows = (
         // event is worse than landing on the first real message below it.
         if (message.stereo === 'system') {
             flush();
+            const authorName = resolveOwnerName(message, viewer, names) ?? '';
+            // Adjacent joins on the same day fold into the first notice's row. A date row or any other
+            // row in between ends the run, so the previous row being a join is the whole same-day test.
+            // The folded row keeps the first notice's key so the feed window does not see a new row
+            // appear (and shift scroll) each time another join arrives. Unnamed joins stay separate:
+            // they fall back to the server's raw text, which cannot be merged into a name list.
+            const previous = rows[rows.length - 1];
+            if (
+                previous?.kind === 'system' &&
+                previous.chat.subType === 'join' &&
+                message.subType === 'join' &&
+                previous.authorName &&
+                authorName
+            ) {
+                previous.joinedNames = [...(previous.joinedNames ?? [previous.authorName]), authorName];
+                lastTimestamp = timestamp;
+                continue;
+            }
             rows.push({
                 kind: 'system',
                 key: message.id ?? message.tempId ?? `system:${message.channelId}:${message.chatNo}`,
                 chat: message,
-                authorName: resolveOwnerName(message, viewer, names) ?? '',
+                authorName,
             });
             lastTimestamp = timestamp;
             continue;
@@ -268,5 +298,9 @@ export const buildMessageRows = (
     }
 
     flush();
+    if (now !== undefined && threadReplyCount === undefined && lastTimestamp && !isSameDay(lastTimestamp, now)) {
+        const dayMs = startOfDay(now);
+        rows.push({ kind: 'date', key: `date:${dayMs}:today`, timestamp: dayMs });
+    }
     return rows;
 };

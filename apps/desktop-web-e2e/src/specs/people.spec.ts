@@ -345,6 +345,45 @@ test.describe('two people', () => {
         if (quiet.DM) await expect(navTile(app, 'DM')).toHaveAccessibleName('DM');
     });
 
+    // A reply raises the channel's unread count but stays out of the feed, so the root has to say it.
+    test('a reply in a channel thread marks the root as new, and the channel opens there', async ({
+        app,
+        browser,
+        room,
+    }) => {
+        test.skip(!inviteLink, 'the invite scenario did not run');
+        await addPeerToChannel(app);
+        const root = marker('root');
+        await send(app, root);
+        // Looking at another room, so the reply arrives in a channel that is not open.
+        await go(app, 'Home');
+        await homeList(app)
+            .getByRole('button', { name: /^\S* ?You$/ })
+            .click();
+        await expect(app.getByRole('main').getByRole('heading', { level: 1, name: 'You' })).toBeVisible();
+
+        const peer = await openPeer(browser);
+        await go(peer, 'Home');
+        await channelRow(peer, room).click();
+        await pressMessageButton(peer, message(peer, root), 'Reply in thread');
+        const thread = peer.getByRole('complementary', { name: 'Thread' });
+        const reply = marker('channel thread reply');
+        await send(peer, reply, thread.getByRole('textbox', { name: 'Reply in thread' }), thread.getByRole('log'));
+
+        await go(app, 'Channels');
+        const roomRow = panel(app, 'Channels').getByRole('listitem').filter({ hasText: room });
+        await expect(roomRow).toContainText('1 unread message', { timeout: 30_000 });
+        await roomRow.getByRole('button').first().click();
+
+        const footer = app.getByRole('button', { name: 'Open thread · 1 reply · 1 new reply' });
+        await expect(footer).toBeInViewport();
+        await expect(footer).toContainText('1 new reply');
+        // Opening the thread is what clears the mark; the reply is read there.
+        await footer.click();
+        await expect(app.getByRole('complementary', { name: 'Thread' }).getByText(reply)).toBeVisible();
+        await expect(app.getByRole('button', { name: 'Open thread · 1 reply' })).toBeVisible();
+    });
+
     test('lists a notification only in the place it came from, and opens it at its message', async ({
         app,
         browser,

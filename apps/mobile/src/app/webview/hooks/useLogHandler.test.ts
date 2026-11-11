@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { logHub } from '@chatic/logger';
 import { useLogHandler } from './useLogHandler';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import type { LogEntry } from '@chatic/logger';
 
 const sendLog = (data: Partial<WebMessageData<'SendLog'>['data']>): WebMessageData<'SendLog'> =>

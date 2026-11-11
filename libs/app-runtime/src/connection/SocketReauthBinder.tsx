@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-import { getSocketManager } from '../socket/runtime';
-import { reauthenticateActiveSocket } from '../socket';
-import type { SocketKind, SocketSessionDelegate } from '../socket';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { getSocketManager, slotKeyOf } from '@chatic/transport';
+import type { SocketKind } from '@chatic/transport';
+import { reauthenticateActiveSocket } from '@chatic/auth';
+import type { SocketSessionDelegate } from '@chatic/auth';
 import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 

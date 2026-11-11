@@ -1,15 +1,25 @@
 import { logger } from '@chatic/bridges';
 
 import { attachConfigStateLog } from './config/configStateLog';
-import { configureDataRuntime } from './data/runtime';
+import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
-import { credentialRecovery } from './http/credentialRecovery';
-import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
-import { configureSessionStore } from './session/store/configure';
-import { credentialRenewers } from './socket/auth/renewers';
+import { runtimeStores } from './storage/runtimeStores';
+import { credentialRecovery, transportPlatform } from '@chatic/transport';
+import {
+    authRepositorySource,
+    dropLemonLeftovers,
+    logoutStorageSweeper,
+    credentialRenewers,
+    signedOutAppKeys,
+} from '@chatic/auth';
+import { configureSessionStore, sessionStores } from '@chatic/session';
+import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
+import type { SessionStoragePorts } from '@chatic/session';
+import type { TransportPlatformPorts } from '@chatic/transport';
 import type { DataRuntimeConfig } from './data/runtime';
+import type { RuntimeStorePorts } from './storage/runtimeStores';
 
 export interface AppRuntimeConfig {
     /**
@@ -18,6 +28,27 @@ export interface AppRuntimeConfig {
      * desktop-web's per-channel chat cap.
      */
     data?: DataRuntimeConfig;
+    /**
+     * The stores the runtime keeps state in, chosen by the entry point for its environment — normally
+     * straight from `resolveStorageStores()`. `secret` and `plain` back the session's two ports, and are
+     * required: the session has no store of its own to fall back on. `device` and `tab` back the
+     * runtime's own non-session state (the sync cursor watermark, a tab's invited clouds); left out,
+     * they are this page's `localStorage` (tolerant) and `sessionStorage` (raw — the invited clouds are
+     * a cache that must hear a failed write).
+     */
+    storage: SessionStoragePorts & Partial<RuntimeStorePorts>;
+    /**
+     * What the sockets and the link verdict take from the platform: the network signal, the device's
+     * self-description and how a socket is opened. Required — the transport has no platform of its own
+     * to fall back on. A web page passes `webTransportPorts()` from `@chatic/runtime-web`.
+     */
+    transport: TransportPlatformPorts;
+    /**
+     * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
+     * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
+     * store at sign-out and once more on the `?logout=1` boot. Left out, a sign-out takes none.
+     */
+    signedOutKeyPrefixes?: readonly string[];
 }
 
 let booted = false;
@@ -53,11 +84,25 @@ let booted = false;
  * still reported: a duplicate boot means two entry paths believe they own it, which is how the
  * pre-ADR-0070 tree ended up initializing the transport twice.
  */
-export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
+export const initAppRuntime = (config: AppRuntimeConfig): void => {
     if (booted) {
         logger.warn('WEB_CORE', '[initAppRuntime] called more than once; the runtime is already booted');
     }
     booted = true;
+
+    // The session's stores, before anything below can read or sweep the session.
+    const { secret, plain, device, tab } = config.storage;
+    sessionStores.configure({ secret, plain });
+    runtimeStores.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
+    // The platform the sockets and the link verdict read, before anything below can open one.
+    transportPlatform.configure(config.transport);
+
+    // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
+    // The plain store is the web storage lemon used to write in each environment.
+    dropLemonLeftovers(sessionStores.of('plain'));
+
+    // Before the sweep below, which takes what these name.
+    signedOutAppKeys.register(config.signedOutKeyPrefixes ?? []);
 
     // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
     // FIRST, because everything below may end up reading a token, and this is what drops the ones
@@ -84,7 +129,7 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     // **Wired here rather than in a module of its own.** The two wirings above and below delegate to
     // the module that OWNS the thing being configured (the store, the data runtime). This one owns
     // nothing: it joins the HTTP registry to the socket renewers, and the registry deliberately
-    // imports nothing at runtime so the two sides never meet (see `http/credentialRecovery.ts`). A
+    // imports nothing at runtime so the two sides never meet (see the transport's `http/credentialRecovery.ts`). A
     // wiring with no owner belongs to the composition root, which is this function — it used to sit
     // in `connection/` only because that folder happened to be downstream of both.
     credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());
@@ -92,6 +137,14 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     if (config.data) {
         configureDataRuntime(config.data);
     }
+
+    // Hands the repository graph down to the two layers that read it but sit below where it is
+    // assembled: the auth use cases and the sync plans. Same reasoning as the credential recovery
+    // above — the graph is built from the socket manager and the session, so the layers beside those
+    // cannot import it, and the wiring belongs to the root. Accessors, not instances: the graph is
+    // still built lazily on first access, and nothing here builds it.
+    authRepositorySource.provide(() => getRepositories().auth);
+    syncDataGraph.provide(getDataManager);
 
     // Records this device's effective settings in the logs (ADR-0079 Decision 16). Last, because the
     // boot line should describe the registry as the app will actually run with it, and unconditional

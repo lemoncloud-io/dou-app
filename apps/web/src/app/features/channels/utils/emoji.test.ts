@@ -1,7 +1,27 @@
-import { EMOJI_CATEGORIES } from './emoji';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { EMOJI_CATEGORIES, emojiNameKey } from './emoji';
 import { QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 
 const allEmojis = EMOJI_CATEGORIES.flatMap(cat => cat.emojis);
+
+const readEmojiNames = (lang: string): Record<string, string> =>
+    JSON.parse(readFileSync(join(__dirname, '../../../../../public/locales', lang, 'emoji.json'), 'utf-8'));
+
+describe('emoji names — the `emoji` locale namespace', () => {
+    it('emojiNameKey drops the presentation selector and keeps everything else', () => {
+        expect(emojiNameKey('\u2639\uFE0F')).toBe('\u2639');
+        expect(emojiNameKey('\u{1F9D1}\u200D\u{1F4BB}')).toBe('\u{1F9D1}\u200D\u{1F4BB}');
+    });
+
+    // A curated emoji with no name gets no hold bubble. After adding to the curation, regenerate
+    // the tables with `yarn generate:emoji-names`.
+    it.each(['ko', 'en'])('every curated emoji has a %s name', lang => {
+        const names = readEmojiNames(lang);
+        expect(allEmojis.filter(emoji => !names[emojiNameKey(emoji)])).toEqual([]);
+    });
+});
 
 describe('EMOJI_CATEGORIES — 피커 큐레이션', () => {
     it('카테고리 키가 겹치지 않는다', () => {

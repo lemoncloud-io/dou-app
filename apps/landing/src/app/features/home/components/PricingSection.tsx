@@ -1,5 +1,8 @@
 import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
+
+import { ROUTES } from '../../../routes/paths';
 
 export const PricingSection = (): JSX.Element => {
     const { t } = useTranslation();
@@ -17,10 +20,10 @@ export const PricingSection = (): JSX.Element => {
                 {t('pricing.title')}
             </h2>
 
-            {/* Cards - vertical stack */}
-            <div className="flex flex-col gap-[26px]">
+            {/* Cards: side by side from `xl` as in the design, stacked below it */}
+            <div className="flex flex-col xl:flex-row xl:items-stretch gap-[26px]">
                 {/* Basic Service */}
-                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 animate-fade-in-up animate-delay-100 text-center">
+                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 xl:flex-1 xl:flex xl:flex-col xl:justify-center animate-fade-in-up animate-delay-100 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-6">
                         {t('pricing.basic.title')}
                     </h3>
@@ -39,7 +42,7 @@ export const PricingSection = (): JSX.Element => {
                 </div>
 
                 {/* Subscription Service */}
-                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 animate-fade-in-up animate-delay-200 text-center">
+                <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 xl:flex-1 animate-fade-in-up animate-delay-200 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-4">
                         {t('pricing.subscription.title')}
                     </h3>
@@ -59,7 +62,7 @@ export const PricingSection = (): JSX.Element => {
                             </li>
                         ))}
                     </ul>
-                    <div className="flex flex-wrap gap-3 justify-center">
+                    <div className="flex flex-wrap gap-3 justify-center xl:flex-col xl:items-start xl:flex-nowrap">
                         {(['feature1', 'feature2', 'feature3', 'feature4', 'feature5'] as const).map(key => (
                             <span
                                 key={key}
@@ -72,9 +75,28 @@ export const PricingSection = (): JSX.Element => {
                     </div>
                 </div>
             </div>
+
+            {/* The way on to the plans, which are listed on every host */}
+            <div className="mt-10 flex justify-center animate-fade-in-up animate-delay-300">
+                <Link
+                    to={ROUTES.subscription.plans}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-main-green
+                               px-10 py-6 text-xl md:text-2xl font-bold tracking-[-0.6px] text-main-green backdrop-blur-md
+                               transition-opacity hover:opacity-80"
+                >
+                    {t('header.plans')}
+                    <ChevronRightIcon />
+                </Link>
+            </div>
         </div>
     );
 };
+
+const ChevronRightIcon = () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
 
 const StarIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="#B0EA10" stroke="none">

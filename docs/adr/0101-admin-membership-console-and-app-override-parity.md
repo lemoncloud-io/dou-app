@@ -203,7 +203,7 @@ and lets operators see the mismatch. Rejected — it only makes the mismatch vis
 - Follow one user through grant → shows valid in the app, block → shows restricted in the app, release →
   reverts to the original state.
 - After the `0.26.811` bump, confirm the typecheck baseline (web · admin-v2 at 0) holds across
-  `apps/web`, `apps/admin-v2`, and `libs`.
+  `apps/web`, `apps/admin`, and `libs`.
 
 **Still open**
 

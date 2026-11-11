@@ -76,6 +76,7 @@ import {
     NotificationsPanel,
     ChannelListPanel,
     DmListPanel,
+    type SelectConversation,
     ThreadPanel,
     WelcomePage,
 } from '../components';
@@ -249,15 +250,17 @@ export const HomePage = () => {
         [isDefaultMode, selectedPlaceId, placeIds]
     );
     const mainPage = useSavedPageStore(s => s.page);
-    const threadsCloudId = activeCloudId ?? RELAY_CLOUD_ID;
+    // The cloud the place scope belongs to. Place ids repeat across clouds, so every scoped reader
+    // (threads, notifications) checks the cloud before the place.
+    const scopeCloudId = activeCloudId ?? RELAY_CLOUD_ID;
     const hasUnreadThreads = useMyThreadsStore(s =>
         Object.values(s.threads).some(
-            thread => isThreadUnread(thread) && isThreadInScope(thread, threadsCloudId, inboxScope)
+            thread => isThreadUnread(thread) && isThreadInScope(thread, scopeCloudId, inboxScope)
         )
     );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s =>
-        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, inboxScope))
+        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, scopeCloudId, inboxScope))
     );
     const hasChannelUnread = hasUnreadRoom(channels);
     const hasDmUnread = hasUnreadDm(channels);
@@ -636,13 +639,19 @@ export const HomePage = () => {
 
     // Stable handlers for the sidebar, whose rows are memo'd. Picking a channel from
     // the list is a deliberate move, not a detour, so it retires any return point.
-    const selectFromList = useCallback(
-        (id: string) => {
+    // Read through a ref: it compares against the current selection, and depending on it would
+    // re-create the handler — and re-render every memo'd row — on each render.
+    const openThreadNowOrDeferRef = useRef(openThreadNowOrDefer);
+    openThreadNowOrDeferRef.current = openThreadNowOrDefer;
+    const selectFromList = useCallback<SelectConversation>(
+        (id, thread) => {
             useMessageJumpStore.getState().clearOrigin();
             // The list's own room too: picking it is how the reader leaves the Saved page for it.
             closeSaved();
             setRoomOpenedHere(true);
             selectChannel(id);
+            // A row previewing a thread reply opens that thread: the room's feed has no row for it.
+            if (thread) openThreadNowOrDeferRef.current(id, thread.threadRootId);
         },
         [selectChannel, closeSaved]
     );
@@ -887,6 +896,7 @@ export const HomePage = () => {
                     <NavRail
                         items={NAV_ITEMS}
                         unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
+                        place={isDefaultMode ? undefined : places.find(p => p.id === selectedPlaceId)}
                     />
                 }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
@@ -895,7 +905,7 @@ export const HomePage = () => {
                         active={navActive}
                         notifications={
                             <NotificationsPanel
-                                cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                                cloudId={scopeCloudId}
                                 channels={channels}
                                 currentPlaceId={selectedPlaceId ?? undefined}
                                 placeScope={inboxScope}
@@ -973,13 +983,14 @@ export const HomePage = () => {
                 main={
                     savedOpen && mainPage === 'threads' ? (
                         <ThreadsPage
-                            cloudId={threadsCloudId}
+                            cloudId={scopeCloudId}
                             channels={channels}
                             placeScope={inboxScope}
                             onOpen={jumpToSaved}
                         />
                     ) : savedOpen ? (
                         <SavedPage
+                            cloudId={scopeCloudId}
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}

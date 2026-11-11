@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { isInJoinWindow, type DomainChat } from '@chatic/data';
+import { isEventChat, isInJoinWindow, type DomainChat } from '@chatic/data';
 
 import { classifyWireError, extractErrorMessage, isNotifiableChat, threadRootNo } from '../../../shared';
 
@@ -90,7 +90,7 @@ export const useThreadCard = ({
                         row =>
                             row.parentId &&
                             threadRootNo(row.parentId) === rootNo &&
-                            row.subType !== 'reaction' &&
+                            !isEventChat(row) &&
                             isNotifiableChat(row)
                     )
                     .sort((a, b) => (a.chatNo ?? Infinity) - (b.chatNo ?? Infinity));

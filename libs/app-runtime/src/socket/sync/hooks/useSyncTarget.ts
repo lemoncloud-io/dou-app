@@ -6,13 +6,12 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { getActivePerfTrace } from '@chatic/perf';
 
-import { getSyncManager } from '../runtime';
-import { fetchRoomFeed } from '../roomFeed';
+import { getSyncManager, fetchRoomFeed } from '@chatic/sync';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
 import { getDataManager } from '../../../data/runtime';
-import { slotKeyOf } from '../../utils/slotKey';
+import { slotKeyOf } from '@chatic/transport';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
     target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;

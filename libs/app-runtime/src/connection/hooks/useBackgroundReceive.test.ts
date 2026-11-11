@@ -4,7 +4,7 @@ import { useBackgroundReceive } from './useBackgroundReceive';
 
 const mockStop = jest.fn();
 const mockStart = jest.fn(() => mockStop);
-jest.mock('../../socket/sync/runtime', () => ({ startBackgroundReceive: () => mockStart() }));
+jest.mock('@chatic/sync/runtime', () => ({ startBackgroundReceive: () => mockStart() }));
 
 describe('useBackgroundReceive', () => {
     beforeEach(() => {

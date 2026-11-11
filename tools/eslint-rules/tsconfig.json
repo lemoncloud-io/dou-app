@@ -1,0 +1,7 @@
+{
+    // Required by `@nx/eslint-plugin`, which registers this file for transpiling before it loads
+    // the folder. The rules are plain CommonJS, so there is nothing for it to compile.
+    "extends": "../../tsconfig.base.json",
+    "files": [],
+    "include": []
+}

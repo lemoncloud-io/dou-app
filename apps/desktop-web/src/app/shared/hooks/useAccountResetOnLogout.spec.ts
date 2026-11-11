@@ -72,6 +72,24 @@ describe('useAccountResetOnLogout', () => {
         removeItemSpy.mockRestore();
     });
 
+    it('forgets which account the cloud records were reconciled for, so the next one is a new account', async () => {
+        localStorage.setItem('chatic-cloud-records-owner', 'account-a');
+
+        const { result } = renderHook(() => useAccountResetOnLogout());
+        await result.current.resetAccount();
+
+        expect(localStorage.getItem('chatic-cloud-records-owner')).toBeNull();
+    });
+
+    it("clears the sign-in notice from the session's plain storage, which is sessionStorage in a browser tab", async () => {
+        sessionStorage.setItem('chatic-signin-notice', '{"provider":"google"}');
+
+        const { result } = renderHook(() => useAccountResetOnLogout());
+        await result.current.resetAccount();
+
+        expect(sessionStorage.getItem('chatic-signin-notice')).toBeNull();
+    });
+
     describe('invited clouds', () => {
         const invited = { id: 'cloud-invited', name: 'Friends', cloudType: 'invited' };
         const owned = { id: 'cloud-owned', name: 'Studio', cloudType: 'owner' };

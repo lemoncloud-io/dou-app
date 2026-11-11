@@ -1,4 +1,4 @@
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 
 /** Why the WebView was revealed — logged, so a boot that ended on a fallback is visible in the field. */
 export type WebRevealReason = 'first-screen' | 'handshake' | 'load-error';

@@ -1,0 +1,33 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthRoutes } from './features/auth/routes';
+import { CloudDeploymentsRoutes } from './features/cloud-deployments';
+import { CostMonitorRoutes } from './features/cost-monitor';
+import { MembershipsRoutes } from './features/memberships';
+import { ReportLogsRoutes } from './features/report-logs';
+import { SocketLabRoutes } from './features/socket-lab';
+import { UsersRoutes } from './features/users';
+import { PrivateLayout } from './layout/PrivateLayout';
+
+export const AppRoutes = () => (
+    <Routes>
+        <Route path="/auth/*" element={<AuthRoutes />} />
+        <Route
+            element={
+                <ProtectedRoute>
+                    <PrivateLayout />
+                </ProtectedRoute>
+            }
+        >
+            <Route path="/" element={<Navigate to="/socket-lab" replace />} />
+            <Route path="/socket-lab/*" element={<SocketLabRoutes />} />
+            <Route path="/report-logs/*" element={<ReportLogsRoutes />} />
+            <Route path="/users/*" element={<UsersRoutes />} />
+            <Route path="/memberships/*" element={<MembershipsRoutes />} />
+            <Route path="/cloud-deployments/*" element={<CloudDeploymentsRoutes />} />
+            <Route path="/cost-monitor/*" element={<CostMonitorRoutes />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/socket-lab" replace />} />
+    </Routes>
+);

@@ -1,4 +1,4 @@
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 import { provider } from '../services';
 import { DEFAULT_THEME_MODE, isThemeMode, parseThemeMode } from './themeMode';
 import type { ThemeMode } from './themeMode';

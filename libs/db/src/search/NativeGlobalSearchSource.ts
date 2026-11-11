@@ -5,7 +5,7 @@ import type {
     CacheSiteView,
     OnFetchAllCacheDataPayload,
     OnSearchGlobalCacheDataPayload,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type {
     GlobalCacheContext,

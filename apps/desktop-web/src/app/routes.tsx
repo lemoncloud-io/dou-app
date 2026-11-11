@@ -1,8 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
@@ -13,7 +12,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
-import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
+import { RouteFallback, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
  * Desktop notification-open router. Mounted inside the Router (so it can
@@ -73,6 +72,10 @@ const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ defaul
 // Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
 // where it used to be dead until the return to chat.
 const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
+// Route-independent too: the account menu opens it from any page.
+const AppearanceDialog = lazy(() =>
+    import('./features/settings/components/AppearanceDialog').then(m => ({ default: m.AppearanceDialog }))
+);
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
@@ -96,6 +99,10 @@ const PairingCodePage = lazy(() => import('./features/pairing').then(m => ({ def
 const PairingApprovePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingApprovePage })));
 const DevicesPage = lazy(() => import('./features/pairing').then(m => ({ default: m.DevicesPage })));
 
+const LocationFallback = ({ isAuthenticated }: { isAuthenticated: boolean }) => (
+    <RouteFallback pathname={useLocation().pathname} isAuthenticated={isAuthenticated} />
+);
+
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
@@ -111,12 +118,12 @@ export const AppRouter = () => {
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
                     <JoinWithInviteDialog />
+                    <AppearanceDialog />
                 </Suspense>
             )}
-            {/* A signed-out person is on their way to Welcome, not to the chat
-                shell — showing its skeleton promises a workspace they do not have
-                yet. Same branch app.tsx makes for the boot fallback. */}
-            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />}>
+            {/* Same branch app.tsx makes for the boot fallback: the chat shell skeleton only for
+                home, a page skeleton for the other signed-in routes, the plain loader signed out. */}
+            <Suspense fallback={<LocationFallback isAuthenticated={isAuthenticated} />}>
                 {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}

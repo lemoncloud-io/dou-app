@@ -9,6 +9,8 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 import { appBridge } from '../../../bridge';
 import { ROUTES } from '../../../routes/paths';
 import { useRestoredSignal } from '../stores/useRestoredSignal';
+import { WEB_SUBSCRIPTION_URL } from '../consts';
+import { leaveForWeb } from '../components/leaveForWeb';
 import type { SubscriptionSummary } from '../lib';
 
 // Echo the key, plus the values a scenario cares about, so assertions can name both.
@@ -32,8 +34,12 @@ jest.mock('react-router-dom', () => ({
 }));
 jest.mock('../../../bridge', () => ({ appBridge: { openSubscriptionManagement: jest.fn() } }));
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn(), usePlanPrice: jest.fn() }));
+jest.mock('../consts', () => ({
+    WEB_SUBSCRIPTION_URL: { plans: 'https://web.example/subscription/plans', list: 'https://web.example/subscription' },
+}));
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useClouds: jest.fn() }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
+jest.mock('../components/leaveForWeb', () => ({ leaveForWeb: jest.fn() }));
 
 const DAY = 86_400_000;
 const NOW = 1_790_000_000_000;
@@ -118,6 +124,8 @@ describe('Subscription detail — scenarios', () => {
 
         fireEvent.click(screen.getByRole('button', { name: `${K}.detail.changePlan` }));
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
+        expect(screen.getByText(`${K}.notice.upgradeImmediate`)).toBeInTheDocument();
+        expect(screen.getByText(`${K}.notice.downgradeNextRenewal`)).toBeInTheDocument();
     });
 
     it('scheduled cancellation: ending banner with a day countdown and the end date row', () => {
@@ -210,13 +218,59 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.getByText(`${K}.trialRemaining:4`)).toBeInTheDocument();
     });
 
-    it('web: no price, no banner, no store buttons', () => {
+    it('browser, a running store subscription: no price, no banner, a note naming the store', () => {
         mockNative = false;
         show({ summary: {} });
 
-        expect(screen.getByText(`${K}.mobileOnly`)).toBeInTheDocument();
+        expect(screen.getByText(`${K}.detail.otherStore`)).toBeInTheDocument();
         expect(screen.queryByText(`${K}.banner.autoRenew.title`)).not.toBeInTheDocument();
         expect(screen.queryByText(`${K}.info.price`)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.changePlan` })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+    });
+
+    it('browser, a lapsed store subscription: offers to subscribe again, on the website', () => {
+        mockNative = false;
+        show({ summary: { state: 'expired', isEntitled: false, hasLiveReceipt: false, validUntil: NOW - DAY } });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.detail.resubscribe` }));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageOnWeb` })).not.toBeInTheDocument();
+    });
+
+    it('browser, a subscription the website bills: changes and manages it on the website', () => {
+        mockNative = false;
+        show({ summary: {}, membership: { platform: 'portone' } });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.detail.changePlan` }));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.detail.manageOnWeb` }));
+        expect(leaveForWeb).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.list);
+        expect(screen.getByText(`${K}.notice.manageAt.web`)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+        // How a store applies a tier change says nothing about the website's.
+        expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.notice.downgradeNextRenewal`)).not.toBeInTheDocument();
+    });
+
+    it('in the app, a subscription the website bills: says so, and links nowhere', () => {
+        show({ summary: {}, membership: { platform: 'stripe' } });
+
+        expect(screen.getByText(`${K}.detail.webBilled`)).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: new RegExp(`${K}.banner.autoRenew.title`) })
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.changePlan` })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageOnWeb` })).not.toBeInTheDocument();
+        expect(appBridge.openSubscriptionManagement).not.toHaveBeenCalled();
+        expect(leaveForWeb).not.toHaveBeenCalled();
+        // Nor names it: no "manage it at …" line for the website, and none for a store either.
+        expect(screen.queryByText(`${K}.notice.manageAt.web`)).not.toBeInTheDocument();
+        expect(screen.queryByText(new RegExp(`${K}.notice.manageAt`))).not.toBeInTheDocument();
+        // And no tier-change rules for a change it cannot make: with nothing left, no notice block.
+        expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.notice.title`)).not.toBeInTheDocument();
     });
 });

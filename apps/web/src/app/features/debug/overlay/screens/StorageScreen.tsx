@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
-import type { OnFetchNativeStorageSummaryPayload } from '@chatic/app-messages';
+import type { OnFetchNativeStorageSummaryPayload } from '@chatic/bridge-messages';
 import { runtime } from '@chatic/app-runtime';
 import { isNative, logger } from '@chatic/bridges';
 
@@ -22,7 +22,6 @@ import { appBridge } from '../../../../bridge';
 type NativeState =
     | { status: 'loading' }
     | { status: 'noShell' }
-    | { status: 'unsupported' }
     | { status: 'error'; message: string }
     | { status: 'ready'; summary: OnFetchNativeStorageSummaryPayload };
 
@@ -42,8 +41,6 @@ const defaultNavigate = (to: 'reload' | 'root') => {
     if (to === 'root') window.location.replace('/');
     else window.location.reload();
 };
-
-const isNotFound = (error: unknown) => (error as { code?: string } | undefined)?.code === 'NOT_FOUND';
 
 /** One name with its size, wrapping a long key instead of pushing the size off the panel. */
 const SizeLine = ({ name, detail, tag }: { name: string; detail: string; tag?: string }) => (
@@ -102,8 +99,7 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
             const res = await appBridge.fetchNativeStorageSummary();
             next = res.data ? { status: 'ready', summary: res.data } : { status: 'error', message: 'empty response' };
         } catch (e) {
-            // An app build older than this screen answers NOT_FOUND: a version gap, not a failure.
-            next = isNotFound(e) ? { status: 'unsupported' } : { status: 'error', message: (e as Error).message };
+            next = { status: 'error', message: (e as Error).message };
         }
         if (current()) setNative(next);
     }, [env]);
@@ -115,18 +111,14 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
     /** True when the native tables all cleared. */
     const clearNative = async (): Promise<boolean> => {
         let cleared = false;
-        await run(
-            t.operations.clearNative,
-            async () => {
-                const res = await appBridge.clearNativeCache(includeInvitedClouds);
-                const failed = res.data?.failed ?? [];
-                // Thrown so the result line reports it as a failure, not as a response to read.
-                if (failed.length > 0) throw new Error(t.nativeFailed(failed.join(', ')));
-                cleared = true;
-                return res;
-            },
-            'ClearNativeCache'
-        );
+        await run(t.operations.clearNative, async () => {
+            const res = await appBridge.clearNativeCache(includeInvitedClouds);
+            const failed = res.data?.failed ?? [];
+            // Thrown so the result line reports it as a failure, not as a response to read.
+            if (failed.length > 0) throw new Error(t.nativeFailed(failed.join(', ')));
+            cleared = true;
+            return res;
+        });
         return cleared;
     };
 
@@ -142,6 +134,15 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
         } catch (e) {
             await run(t.operations.clearWeb, async () => {
                 throw e;
+            });
+            return false;
+        }
+        // The vault too, where the shell keeps one: the session's tokens are there, not in the two web
+        // storages, and a wipe has to leave the next load signed out. Awaited before the synchronous
+        // part, which must not be split by a wait.
+        if (env.clearVault && !(await env.clearVault())) {
+            await run(t.operations.clearWeb, async () => {
+                throw new Error('the device vault was not cleared');
             });
             return false;
         }
@@ -198,9 +199,6 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
 
             <Section title={t.native.section}>
                 {native.status === 'noShell' && <p className="text-xs text-muted-foreground">{t.native.noShell}</p>}
-                {native.status === 'unsupported' && (
-                    <p className="text-xs text-muted-foreground">{t.native.unsupported}</p>
-                )}
                 {native.status === 'error' && <p className="text-xs text-destructive">{native.message}</p>}
                 {native.status === 'ready' && (
                     <>

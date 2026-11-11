@@ -96,12 +96,24 @@ describe('Subscription list — scenarios', () => {
         expect(screen.queryByRole('button', { name: `${K}.restore` })).not.toBeInTheDocument();
     });
 
-    it('web: says subscriptions are app-only and offers nothing to tap', () => {
+    it('browser: the empty state leads to the cloud guide, on the way to the website', () => {
         mockNative = false;
         show(none);
 
-        expect(screen.getByText(`${K}.mobileOnly`)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: `${K}.subscribe` })).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.mobileOnly`)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: `${K}.subscribe` }));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
+    });
+
+    it('browser, guest: no sign-in first — the website signs the buyer in itself', () => {
+        mockNative = false;
+        mockGuest = true;
+        show(none);
+
+        expect(screen.getByText(`${K}.list.emptyDescription`)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: `${K}.subscribe` }));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
+        expect(loginMock).not.toHaveBeenCalled();
     });
 
     it('active: one card with the price and the renewal line, opening the detail', () => {

@@ -140,7 +140,13 @@ has not yet re-minted it — is read again once the relay socket is verified
 (`useCloudCatalogRelayResync`, mounted once under `AppRuntime`), so the name fills in by itself
 instead of waiting for the switcher sheet's open-time refetch. The rule is desktop-web's: one re-read
 each time the socket verifies with a failure standing, and one when a read fails with the socket
-already verified. A re-read that fails again waits for the next verification, a pull, or the sheet. The Place section lists the cloud's
+already verified. A re-read that fails again waits for the next verification, a pull, or the sheet.
+A cloud this browser entered through a device pairing is in neither the catalog nor the cache, so its
+name comes from a third place: `PairedCloudNameRunner` (mounted under `AppRuntime`, in a browser tab as
+well as the shells) reads it from the relay once per entry, after the cloud's socket and the relay are
+verified, and keeps it beside the paired-cloud list (`runtime.session.usePairedCloudNames`). Until that
+read succeeds — or if it fails, silently — the header names the cloud by the end of its id
+(`pairing.cloud.unnamed`). The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
 
 **The profile menu** holds "Place settings" and, for the owner of the active cloud place who has
@@ -238,9 +244,10 @@ browser entered through a device pairing (`runtime.session.usePairedCloudIds`, s
 [pairing](../pairing/README.md#a-cloud-approval)). A guest's own catalog is empty, so without this list
 those clouds would not appear anywhere. Its footer, "Add a cloud with another device", opens the code
 screen; the section is shown while the device pairing flag is on or a paired cloud exists, and never to
-an account (a relay pairing included — an account has its catalog). A paired row's name comes from the
-cached cloud names, which fill in once the browser has been inside the cloud; until then it shows the
-end of the cloud id.
+an account (a relay pairing included — an account has its catalog). A paired row's name is a cached
+cloud name if the browser has one, else the name read from inside the cloud
+(`runtime.session.usePairedCloudNames`, the same source as the header); until that read has succeeded
+it shows the end of the cloud id.
 
 A switch refused over a revoked approval signs the browser out with a toast ("the approval was
 revoked"): a 403 on a paired cloud (`forgetRefusedPairedCloud`), or `403 … pairing revoked` on any
@@ -289,7 +296,9 @@ A pull adds **no fetch of its own**. It asks, sooner, for what the screen would 
   while an earlier one is still running joins it.
 - `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
   tier pill, which the background sync does not own. The catalog is asked only with a session,
-  because its query is disabled without one and `refetch` does not honour that.
+  because its query is disabled without one and `refetch` does not honour that. For a guest
+  account neither reaches the relay: both hooks answer a guest themselves (no owned clouds, no
+  membership), so a guest's pull refreshes them without a request.
 
 The indicator stays up until all three have settled, or 10 seconds at most, and every part is
 best-effort: a failure ends the pull just as a success does, with whatever the cache already held
@@ -351,12 +360,8 @@ shell, through `haptics.play(kind)` in `app/bridge/haptics.ts`. The kinds name a
 `selection` for a row reaching its actions and for each step of the pull-to-refresh gauge, `impact`
 for the gauge filling and the refresh starting.
 
-The web ships ahead of the app, so an installed app older than the message answers `NOT_FOUND`. One
-such answer settles it for the session and nothing more is sent; a browser is never asked. After the
-first answered request every haptic is a one-way post that the shell plays without replying, so a
-gesture never waits on a round trip. Only that first request is ever out at a time: while it is
-unanswered further haptics are dropped, so the run of ticks on a session's first pull sends one
-request rather than eight. The shell honours the device's own touch-feedback setting.
+Every haptic is a one-way post that the shell plays without replying, so a gesture never waits on a
+round trip; a browser is never asked. The shell honours the device's own touch-feedback setting.
 
 ## When an invite lands
 

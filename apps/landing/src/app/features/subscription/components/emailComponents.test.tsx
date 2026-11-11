@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import i18n from '../../../../i18n';
 import { registerSubscriptionCopy } from '../lib/i18n';
-import { createMockPort } from '../lib/mock';
-import { memoryStateStore } from '../lib/mock/storage';
+import { createMockPort } from '../testing/mock';
+import { memoryStateStore } from '../testing/mock/storage';
 import { PortProvider } from '../lib/port';
 import { BillingEmailChangeDialog } from './BillingEmailChangeDialog';
 import { EmailVerificationForm } from './EmailVerificationForm';

@@ -28,8 +28,6 @@ const setup = (results: Array<DownloadResult | Promise<DownloadResult>>, overrid
         save: jest.fn(async () => ({ data: {} })),
         share: jest.fn(async () => ({ data: { completed: true } })),
         freshUrl: jest.fn(async () => fresh),
-        withdraw: jest.fn(),
-        withdrawVideos: jest.fn(),
         ...overrides,
     } as never;
     const acked = () => deps.acknowledge.mock.calls.map(([ids]) => ids);
@@ -101,19 +99,6 @@ describe('exportMedia', () => {
 
         expect(deps.download).toHaveBeenCalledTimes(2);
         expect(acked()).toEqual([['d-1'], ['d-2']]);
-    });
-
-    it('withdraws export when the shell turns out not to know the message', async () => {
-        const fromStart = setup([{ kind: 'unsupported' }]);
-        await expect(exportMedia({ action: 'save', url }, fromStart.deps)).resolves.toEqual({
-            kind: 'update-required',
-        });
-        expect(fromStart.deps.withdraw).toHaveBeenCalledTimes(1);
-
-        const fromSave = setup([{ kind: 'file', file: file(1) }]);
-        fromSave.deps.save.mockRejectedValueOnce(failure('NOT_FOUND'));
-        await expect(exportMedia({ action: 'save', url }, fromSave.deps)).resolves.toEqual({ kind: 'update-required' });
-        expect(fromSave.deps.withdraw).toHaveBeenCalledTimes(1);
     });
 
     it('logs the shell refusing its own file as invalid, and reports a plain failure', async () => {
@@ -197,31 +182,15 @@ describe('exportMedia', () => {
         expect(started[0].cancel).not.toHaveBeenCalled();
     });
 
-    it('learns from a video refused as a format that the app is too old for videos', async () => {
-        const saving = setup([{ kind: 'file', file: file(1) }]);
-        saving.deps.save.mockRejectedValueOnce(failure('UNSUPPORTED_TYPE'));
-        await expect(exportMedia({ action: 'save', kind: 'video', url }, saving.deps)).resolves.toEqual({
-            kind: 'video-update-required',
-        });
-        expect(saving.deps.withdrawVideos).toHaveBeenCalledTimes(1);
-        expect(saving.deps.withdraw).not.toHaveBeenCalled();
+    it('reads a photo or a video refused as a format as just that format', async () => {
+        for (const kind of ['image', 'video'] as const) {
+            const { deps } = setup([{ kind: 'file', file: file(1) }]);
+            deps.save.mockRejectedValueOnce(failure('UNSUPPORTED_TYPE'));
 
-        const sharing = setup([{ kind: 'file', file: file(1) }]);
-        sharing.deps.share.mockRejectedValueOnce(failure('UNSUPPORTED_TYPE'));
-        await expect(exportMedia({ action: 'share', kind: 'video', url }, sharing.deps)).resolves.toEqual({
-            kind: 'video-update-required',
-        });
-        expect(sharing.deps.withdrawVideos).toHaveBeenCalledTimes(1);
-    });
-
-    it('keeps reading a photo refused as a format as just that format', async () => {
-        const { deps } = setup([{ kind: 'file', file: file(1) }]);
-        deps.save.mockRejectedValueOnce(failure('UNSUPPORTED_TYPE'));
-
-        await expect(exportMedia({ action: 'save', kind: 'image', url }, deps)).resolves.toEqual({
-            kind: 'unsupported-type',
-        });
-        expect(deps.withdrawVideos).not.toHaveBeenCalled();
+            await expect(exportMedia({ action: 'save', kind, url }, deps)).resolves.toEqual({
+                kind: 'unsupported-type',
+            });
+        }
     });
 
     it('gives a video the same recoveries as a photo', async () => {
@@ -260,8 +229,6 @@ describe('toastFor', () => {
         expect(toastFor({ kind: 'unsupported-type' })?.titleKey).toBe('chat.attach.export.unsupportedType');
         expect(toastFor({ kind: 'network' })?.titleKey).toBe('chat.attach.export.network');
         expect(toastFor({ kind: 'failed' })?.titleKey).toBe('chat.attach.export.failed');
-        expect(toastFor({ kind: 'update-required' })?.titleKey).toBe('chat.attach.export.updateRequired');
-        expect(toastFor({ kind: 'video-update-required' })?.titleKey).toBe('chat.attach.export.videoUpdateRequired');
     });
 
     it('words a saved or failed video as a video', () => {
@@ -346,29 +313,6 @@ describe('saveAllMedia', () => {
         expect(deps.download).toHaveBeenCalledTimes(1);
     });
 
-    it('stops when the app turns out not to know the message', async () => {
-        const { deps } = setup([{ kind: 'unsupported' }]);
-
-        await expect(saveAllMedia(items, () => deps)).resolves.toEqual([
-            { kind: 'image', outcome: { kind: 'update-required' } },
-        ]);
-    });
-
-    it('skips the remaining videos once one is refused as a format, and keeps saving photos', async () => {
-        const { deps, started } = setup([
-            { kind: 'file', file: file(1) },
-            { kind: 'file', file: file(2) },
-            { kind: 'file', file: file(3) },
-        ]);
-        deps.save.mockResolvedValueOnce({ data: {} }).mockRejectedValueOnce(failure('UNSUPPORTED_TYPE'));
-
-        const results = await saveAllMedia([photo('a'), video('v1'), video('v2'), photo('b')], () => deps);
-
-        expect(results).toEqual([saved(), { kind: 'video', outcome: { kind: 'video-update-required' } }, saved()]);
-        expect(started.map(entry => entry.url)).toEqual(['https://bucket/a', 'https://bucket/v1', 'https://bucket/b']);
-        expect(deps.withdrawVideos).toHaveBeenCalledTimes(1);
-    });
-
     it('finishes the item it is on when the viewer closes, and starts no other', async () => {
         let finish: (result: DownloadResult) => void = () => undefined;
         const pending = new Promise<DownloadResult>(resolve => (finish = resolve));
@@ -411,17 +355,6 @@ describe('toastForSaveAll', () => {
             values: { saved: 1, failed: 1 },
             variant: 'default',
         });
-    });
-
-    it('says how many photos were saved and that videos need an update when a video was refused', () => {
-        const refused = { kind: 'video' as const, outcome: { kind: 'video-update-required' as const } };
-
-        expect(toastForSaveAll([saved(), refused, saved()])).toEqual({
-            titleKey: 'chat.attach.export.savedPhotosVideosNeedUpdate',
-            values: { n: 2 },
-            variant: 'default',
-        });
-        expect(toastForSaveAll([refused])?.titleKey).toBe('chat.attach.export.videoUpdateRequired');
     });
 
     it('speaks for the reason a run stopped, even after some were saved', () => {

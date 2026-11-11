@@ -1,4 +1,4 @@
-import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/bridge-messages';
 import type { DataContext, DataContextProvider } from '../../repositories/types';
 import { stableHash } from '../stableHash';
 import { resolveScopedContext } from './policy';
@@ -31,8 +31,7 @@ export interface CacheStorage<TType extends CacheType> {
      * only, ADR-0057).
      *
      * Implementing it is optional. `null` means "this storage cannot provide this query" — an adapter
-     * that does not implement it (IndexedDB), an older app that does not know this message, and a
-     * transient native error all land here — and the caller (`ChatLocalDataSource`) falls back to a
+     * that does not implement it (IndexedDB) and a transient native error both land here — and the caller (`ChatLocalDataSource`) falls back to a
      * per-channel windowed read. Why IndexedDB does not implement it: the fallback path is in-process
      * with no round-trip cost, so it is already the best option, and keeping two copies of the decision
      * logic would only let the semantics drift.

@@ -1,6 +1,7 @@
 # ADR-0235: Landing lists the plans on every host before checkout opens
 
 > Status: Accepted · Decided: 2026-10-27
+> · Decision 1 amended by [ADR-0264](./0264-landing-drops-the-in-page-mock-and-keeps-the-fake-server-for-tests.md) (the plans page alone also where the build has no server addresses — `isSubscriptionAccountOpen`)
 > Scope: `apps/landing` (`README.md` principle 10 and § Plans before checkout opens,
 > `src/app/routes/CommonRoutes.tsx`, `src/app/config/stage.ts`, `src/app/features/subscription/`)
 > Amends: decision 5 of [ADR-0227](./0227-landing-serves-a-public-surface-and-a-signed-in-subscription-surface.md)

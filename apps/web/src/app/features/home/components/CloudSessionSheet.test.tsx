@@ -37,6 +37,7 @@ let invited: unknown[] = [];
 let promoVisible = true;
 let accountGuest = false;
 let pairedCloudIds: string[] = [];
+let pairedCloudNames: Record<string, string> = {};
 let pairingEnabled = false;
 const forgetRefusedPairedCloud = jest.fn((_id: string, _e: unknown) => false);
 const isRefusedForEndedPairing = jest.fn((_e: unknown) => false);
@@ -47,6 +48,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId }),
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
             usePairedCloudIds: () => pairedCloudIds,
+            usePairedCloudNames: () => pairedCloudNames,
             forgetRefusedPairedCloud: (id: string, e: unknown) => forgetRefusedPairedCloud(id, e),
             isRefusedForEndedPairing: (e: unknown) => isRefusedForEndedPairing(e),
         },
@@ -106,6 +108,7 @@ beforeEach(() => {
     useCloudPushMarkStore.setState({ badged: {} });
     accountGuest = false;
     pairedCloudIds = [];
+    pairedCloudNames = {};
     pairingEnabled = false;
 });
 
@@ -411,6 +414,16 @@ describe('CloudSessionSheet — clouds a guest entered through a pairing', () =>
         expect(screen.getByTestId('paired-cloud-1000002')).toBeInTheDocument();
         fireEvent.click(screen.getByTestId('paired-cloud-add'));
         expect(navigate).toHaveBeenCalledWith('/mypage/login/pair');
+    });
+
+    it('names a paired cloud by the name read from inside it, and by its id until then', () => {
+        accountGuest = true;
+        pairedCloudIds = ['1000002', '1000004'];
+        pairedCloudNames = { '1000002': 'Team Cloud' };
+        renderSheet();
+
+        expect(screen.getByTestId('paired-cloud-1000002')).toHaveTextContent('Team Cloud');
+        expect(screen.getByTestId('paired-cloud-1000004')).toHaveTextContent('pairing.cloud.unnamed');
     });
 
     it('enters a paired cloud through the ordinary switch', async () => {

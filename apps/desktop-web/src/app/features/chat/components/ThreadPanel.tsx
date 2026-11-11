@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { isEventChat, RELAY_CLOUD_ID } from '@chatic/data';
 import type { ChatMentionBody, DomainChannel } from '@chatic/data';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -17,6 +17,7 @@ import {
     threadRootNo,
     useMyThreadsStore,
     useAuthorNames,
+    useChannelReadCounts,
     useChats,
     ResizablePanel,
     PANE_HEADER,
@@ -76,6 +77,10 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
         persist: false,
     });
 
+    // The same read positions the chat pane draws, so a member shows on the reply they last read.
+    // The pane's join syncs are refcounted by key, so asking again polls nobody twice.
+    const { readCountOf } = useChannelReadCounts(channel);
+
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
     const mentionables = useMentionables(members, viewer, channel);
@@ -106,7 +111,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
         // The panel is another view of the same messages, so a deleted reply reads the
         // same way it does in the feed: a tombstone in place, not a closed gap. Reaction
         // events are the exception — they are chips on a message, never rows.
-        const replies = thread.replies.filter(reply => reply.subType !== 'reaction');
+        const replies = thread.replies.filter(reply => !isEventChat(reply));
         return {
             threadMessages: root ? [root, ...replies] : replies,
             replyCount: replies.length,
@@ -241,6 +246,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}
+                        readCountOf={readCountOf}
                     />
                 ) : (
                     <div

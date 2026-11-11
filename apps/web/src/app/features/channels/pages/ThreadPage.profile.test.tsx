@@ -64,6 +64,10 @@ jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => nul
 jest.mock('../hooks/useSendImages', () => ({
     useSendImages: () => ({ sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() }),
 }));
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: () => ({ canRecord: true, open: jest.fn(), sheet: null }),
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: () => ({
         button: null,
@@ -119,7 +123,8 @@ jest.mock('../hooks', () => ({
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     useMessageEditing: () => ({
         isEditing: false,
-        editStateFor: () => undefined,
+        composer: undefined,
+        isEditTarget: () => false,
         deleteTarget: null,
         cancelDelete: jest.fn(),
         confirmDelete: jest.fn(),

@@ -2,7 +2,8 @@
 
 The lower part of the left rail, under the cloud switcher and a divider, lists the places of the
 active cloud (`PlaceRail`). The active place's tile fills with the brand lime (`bg-primary`); the
-others stay on the rail until hovered. A place is a site inside a
+others stay on the rail until hovered. A tile showing the place's logo cannot show the fill (the logo
+covers it), so the open one wears a ring instead. A place is a site inside a
 cloud; selecting a tile moves the socket session into it (`useSelectPlace`), and the sidebar then
 lists that place's channels. On Home, and for a guest, the rail shows a single Home tile: the
 default cloud has no places to choose between.

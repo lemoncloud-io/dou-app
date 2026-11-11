@@ -71,7 +71,7 @@ export const netModule: ConfigRegistryModule = {
     },
     'net.admin.backend': {
         title: 'Admin backend address',
-        description: 'The backend address admin-v2 calls.',
+        description: 'The backend address admin calls.',
         type: 'string',
         defaultValue: '',
         envDefaultKey: 'VITE_BACKEND_ENDPOINT',

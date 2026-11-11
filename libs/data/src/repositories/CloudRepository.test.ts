@@ -59,6 +59,19 @@ describe('CloudRepository', () => {
         expect(result.id).toBe('cloud-1');
     });
 
+    it('reads a cloud without touching the cache when asked not to cache it', async () => {
+        const local = createLocalDataSource();
+        const remote = createSocketDataSource();
+        remote.getCloud.mockResolvedValue({ id: 'cloud-1', name: 'Cloud One' });
+        const repository = new CloudRepository(remote as any, local as any, contextProvider);
+
+        const result = await repository.getCloud({ id: 'cloud-1' } as any, { cache: false });
+
+        expect(result.name).toBe('Cloud One');
+        expect(local.cacheRead).not.toHaveBeenCalled();
+        expect(local.cacheWrite).not.toHaveBeenCalled();
+    });
+
     it('optimistically writes the edit, then rolls back when the remote update fails', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue({ id: 'cloud-1', name: 'Old' });
