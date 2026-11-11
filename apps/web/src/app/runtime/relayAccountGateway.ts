@@ -18,7 +18,7 @@ import { runtime } from '@chatic/app-runtime';
  * app-level version work, so this gateway only ever moves data in and out of that token.
  *
  * Built once and reused: `getScopedClient` resolves its slot lazily on every call, so the instance
- * survives relay slot teardown/rebuild (app-runtime docs/socket). It THROWS when
+ * survives relay slot teardown/rebuild (transport docs/socket). It THROWS when
  * no relay slot is bound — callers must gate on `useSlotVerified(RELAY_SLOT)` (or
  * `waitUntilSlotVerified`) rather than firing hopefully, same as `useRelayInvites`.
  *

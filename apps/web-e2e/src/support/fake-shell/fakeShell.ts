@@ -12,7 +12,7 @@ import {
     type ShellHandlerTable,
     type ShellPlatform,
 } from '@chatic/fake-shell';
-import type { AppMessageDataMap, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageDataMap, AppMessageType, WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 
 import { loadAppInjection } from './appInjection';
 
@@ -23,6 +23,8 @@ export interface FakeShellOptions {
     /** `@chatic/config`'s shell lane, as the app injects it. Onboarding is done unless a test says otherwise. */
     configBag?: Record<string, string>;
     insets?: { top: number; bottom: number; left: number; right: number };
+    /** The installed app's version. A current one unless a scenario is about an older app. */
+    appVersion?: string;
 }
 
 /**
@@ -187,7 +189,7 @@ export class FakeShell {
                 uniqueId: 'e2e-device:e2e-install',
                 deviceModel: ios ? 'iPhone17,1' : 'Pixel 7',
                 osVersion: ios ? '26.0' : '15',
-                appVersion: FAKE_SHELL_APP_VERSION,
+                appVersion: this.options.appVersion ?? FAKE_SHELL_APP_VERSION,
                 buildNumber: '1',
                 appLanguage: 'en',
                 installationId: 'e2e-device',

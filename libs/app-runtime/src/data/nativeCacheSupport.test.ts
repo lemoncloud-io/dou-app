@@ -4,7 +4,7 @@
  * the handshake report plus the frozen legacy set. This suite pins down that judgment rule —
  * libs/app-runtime/docs/data/cache-contract-versions.md.
  */
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 
 import {
     LOCAL_AUTHORITY_CACHE_TYPES,

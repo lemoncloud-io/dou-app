@@ -226,7 +226,8 @@ than ten minutes out it reads in words from the first unit that is not zero — 
 `3시간 20분 남음`, `45분 남음` — and `useInviteCountdown` ticks it by the minute (`minuteUntilImminent`).
 The last ten minutes switch to a spaced clock counting by the second, `00 : 09 : 05 남음`, in red,
 and an expired link stays on `00 : 00 : 00 남음` in red. The lifetime is the record's `expiredAt`:
-links this app issues live 24 hours, but the server's own default is 3 days, so the day unit can show.
+links this app issues live 24 hours, and so does the server's own default, so the day unit shows only for a
+link issued by an older server.
 
 ### Declining
 
@@ -330,9 +331,10 @@ on whatever screen that lands on — see
 - `PlaceProfileCreateDialog` pulls in `@chatic/app-runtime`, whose config barrel the jest transform
   cannot parse. Import it by file path rather than through a barrel, and stub it in consuming
   suites the way `PhoneVerifyScreen` is stubbed.
-- The invited user's server display name is `*<last 4 digits>` — a number-derived account has no
-  other name. The heading falls back only when `inviter$.name` is _empty_, so a masked name is never
-  mistaken for a missing one.
+- A number-derived account's server display name is `*<last 4 digits>` — it has no other name. That is
+  why the heading reads `inviter$.nick` (the inviter's nickname in their personal place) and never
+  `inviter$.name`: an inviter with no nickname gets the nameless line, not a masked account name. The 1:1
+  card reads the same nickname. See [What the accept screen names](./README.md#what-the-accept-screen-names).
 - `channelDeleted` copy exists in the accept screen but nothing in the relay lane triggers it; the
   relay backend has no matching signal.
 

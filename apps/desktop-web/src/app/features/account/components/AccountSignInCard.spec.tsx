@@ -10,7 +10,7 @@ const navigate = vi.hoisted(() => vi.fn());
 const reopen = vi.hoisted(() => vi.fn());
 const cancel = vi.hoisted(() => vi.fn());
 const attempts = vi.hoisted(() => ({
-    attempt: null as { intent: 'login' | 'link'; nonce?: string } | null,
+    attempt: null as { intent: 'login' | 'link'; provider?: string; nonce?: string } | null,
     failed: false,
     linkFailure: null as 'occupied' | 'typeLinked' | 'failed' | null,
     busy: false,
@@ -20,7 +20,9 @@ const verifySocialAccount = vi.hoisted(() => vi.fn());
 const confirmSocialAccount = vi.hoisted(() => vi.fn());
 
 vi.mock('../../auth', () => ({
+    AppleIcon: () => null,
     GoogleIcon: () => null,
+    oauthProviderName: (provider: string) => (provider === 'apple' ? 'Apple' : 'Google'),
     PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => socialEnabled.value,
     isPhoneLoginEnabled: () => phoneEnabled.value,
@@ -170,12 +172,12 @@ describe('AccountSignInCard', () => {
     });
 
     it('holds the Google link while one is out in the browser, with a way to give up', () => {
-        attempts.attempt = { intent: 'link', nonce: 'n' };
+        attempts.attempt = { intent: 'link', provider: 'google', nonce: 'n' };
         render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
 
         const link = screen.getByRole('button', { name: i18n.t('account.signIn.link.google') }) as HTMLButtonElement;
         expect(link.disabled).toBe(true);
-        expect(screen.getByText(i18n.t('account.signIn.link.waiting'))).toBeTruthy();
+        expect(screen.getByText(i18n.t('account.signIn.link.waiting', { provider: 'Google' }))).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.reopen') }));
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.cancel') }));
         expect(reopen).toHaveBeenCalled();
@@ -192,12 +194,12 @@ describe('AccountSignInCard', () => {
     });
 
     it('holds the guest Google sign-in while it is out in the browser', () => {
-        attempts.attempt = { intent: 'login' };
+        attempts.attempt = { intent: 'login', provider: 'google' };
         render(<AccountSignInCard account={{ userRole: 'guest' }} />);
 
         const google = screen.getByRole('button', { name: i18n.t('auth.social.google') }) as HTMLButtonElement;
         expect(google.disabled).toBe(true);
-        expect(screen.getByText(i18n.t('auth.social.waitingInline'))).toBeTruthy();
+        expect(screen.getByText(i18n.t('auth.social.waitingInline', { provider: 'Google' }))).toBeTruthy();
     });
 
     it('keeps an occupied Google on the card with its next step, until dismissed', () => {
@@ -218,5 +220,88 @@ describe('AccountSignInCard', () => {
         expect(screen.getByRole('alert').textContent).toBe(
             i18n.t('account.signIn.link.typeLinked') + i18n.t('auth.social.dismiss')
         );
+    });
+
+    describe('Apple guest sign-in', () => {
+        it('offers a guest Apple sign-in after Google, under the same note', () => {
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            const names = screen.getAllByRole('button').map(b => b.textContent);
+            const google = names.findIndex(text => text?.includes(i18n.t('auth.social.google')));
+            const apple = screen.getByRole('button', { name: i18n.t('auth.social.apple') });
+            expect(names.findIndex(text => text?.includes(i18n.t('auth.social.apple')))).toBeGreaterThan(google);
+            expect(document.getElementById(apple.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+                i18n.t('auth.social.phoneSignupNote')
+            );
+            fireEvent.click(apple);
+            expect(start).toHaveBeenCalledWith('apple');
+        });
+
+        it('offers no Apple sign-in when social login is off', () => {
+            socialEnabled.value = false;
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            expect(screen.queryByRole('button', { name: i18n.t('auth.social.apple') })).toBeNull();
+        });
+
+        it('names Apple while the Apple sign-in is out in the browser', () => {
+            attempts.attempt = { intent: 'login', provider: 'apple' };
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            const apple = screen.getByRole('button', { name: i18n.t('auth.social.apple') }) as HTMLButtonElement;
+            expect(apple.disabled).toBe(true);
+            expect(screen.getByRole('status').textContent).toContain('Apple');
+            expect(screen.getByRole('status').textContent).not.toContain('Google');
+        });
+    });
+
+    describe('Link Apple', () => {
+        const numberOnly = { userRole: 'user', link$: { phone: { hint: '1234' } } };
+
+        it('offers a number-only account an Apple link after Google', () => {
+            render(<AccountSignInCard account={numberOnly} />);
+
+            const names = screen.getAllByRole('button').map(b => b.textContent);
+            const google = names.findIndex(text => text?.includes(i18n.t('account.signIn.link.google')));
+            const apple = names.findIndex(text => text?.includes(i18n.t('account.signIn.link.apple')));
+            expect(google).toBeGreaterThanOrEqual(0);
+            expect(apple).toBeGreaterThan(google);
+            fireEvent.click(screen.getByRole('button', { name: i18n.t('account.signIn.link.apple') }));
+            expect(startLink).toHaveBeenCalledWith('apple');
+        });
+
+        it('offers no Apple link once a social account is linked', () => {
+            render(
+                <AccountSignInCard
+                    account={{ userRole: 'user', link$: { social: { provider: 'google', hint: 'a' } } }}
+                />
+            );
+
+            expect(screen.queryByRole('button', { name: i18n.t('account.signIn.link.apple') })).toBeNull();
+        });
+
+        it('shows a linked Apple as Apple', () => {
+            render(<AccountSignInCard account={{ userRole: 'user', link$: { social: { provider: 'apple' } } }} />);
+
+            expect(screen.getByText('Apple')).toBeTruthy();
+        });
+
+        it('names Apple while the Apple link is out in the browser', () => {
+            attempts.attempt = { intent: 'link', provider: 'apple', nonce: 'n' };
+            render(<AccountSignInCard account={numberOnly} />);
+
+            const apple = screen.getByRole('button', {
+                name: i18n.t('account.signIn.link.apple'),
+            }) as HTMLButtonElement;
+            expect(apple.disabled).toBe(true);
+            expect(screen.getByRole('status').textContent).toContain('Apple');
+        });
+
+        it('names neither provider in a link failure, which the store keeps without one', () => {
+            attempts.linkFailure = 'occupied';
+            render(<AccountSignInCard account={numberOnly} />);
+
+            expect(screen.getByRole('alert').textContent).not.toMatch(/Google|Apple/);
+        });
     });
 });

@@ -2,19 +2,27 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Smartphone } from 'lucide-react';
+import { QrCode, Smartphone } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { AuthCard, GoogleIcon } from '../components';
+import { canRequestPairing } from '../../pairing/utils/devicePairing';
+import { AppleIcon, AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useAttemptExpired } from '../hooks/useAttemptExpired';
 import { useSocialLogin } from '../hooks/useSocialLogin';
 import { selectAttemptBusy, useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
-import { PHONE_BUTTON_CLASS, isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
+import {
+    PHONE_BUTTON_CLASS,
+    isPhoneLoginEnabled,
+    isSocialLoginEnabled,
+    oauthProviderName,
+    type OAuthProvider,
+    phoneSignupNoteKey,
+} from '../utils';
 
 /**
- * The Google sign-in is out in the system browser. Said here, with the ways out, rather than leaving
+ * The social sign-in is out in the system browser. Said here, with the ways out, rather than leaving
  * the person on a page that looks like nothing happened: open the browser again, sign in with the
  * phone number instead, or cancel, which undoes the device registration the start made.
  */
@@ -49,7 +57,8 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
                       ? 'auth.social.waitingExpired'
                       : attempt.startedAt === undefined
                         ? 'welcome.starting'
-                        : 'auth.social.waitingBody'
+                        : 'auth.social.waitingBody',
+                { provider: oauthProviderName(attempt.provider) }
             )}
         >
             <div className="flex flex-col gap-2">
@@ -83,9 +92,9 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
 };
 
 /**
- * First-run landing. Offers a one-tap guest start (device-register into the
- * Default Cloud's Self Channel) plus a secondary path for users who hold an
- * Invite Code. Replaces the invite-only gate as the default unauthenticated screen.
+ * First-run landing. Leads with the invite link, then offers a one-tap guest start
+ * (device-register into the Default Cloud's Self Channel) and the sign-in paths. Replaces the
+ * invite-only gate as the default unauthenticated screen.
  */
 export const WelcomePage = () => {
     const { t } = useTranslation();
@@ -96,6 +105,12 @@ export const WelcomePage = () => {
     const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === 'login' ? s.attempt : null));
     const attemptFailed = useOAuthAttemptStore(s => s.failed);
     const isBusy = isSubmitting || isStarting;
+    // Which social button was pressed, so only that one says it is starting. Google until one is.
+    const [pressed, setPressed] = useState<OAuthProvider>('google');
+    const startWith = (provider: OAuthProvider) => {
+        setPressed(provider);
+        void startSocialLogin(provider);
+    };
 
     // From the moment the start begins, retries included: a second start from the buttons below would
     // write a second record over the first one's nonce.
@@ -109,10 +124,19 @@ export const WelcomePage = () => {
                 </p>
             )}
 
-            {/* One filled primary leads; the alternatives sit under it, and the
-                invite path is a link rather than a fourth identical pill. */}
+            {/* One filled primary leads and it is the invite link: someone who installed the app without
+                a link is here to join something, and the other ways in sit under it. */}
             <div className="flex flex-col gap-2">
-                <Button size="lg" onClick={() => void submit()} disabled={isBusy} aria-describedby="welcome-guest-note">
+                <Button size="lg" onClick={() => navigate('/auth/login')} disabled={isBusy}>
+                    {t('welcome.haveInvite')}
+                </Button>
+                <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => void submit()}
+                    disabled={isBusy}
+                    aria-describedby="welcome-guest-note"
+                >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </Button>
                 {/* The button mints a guest account. Saying so here, not only in the
@@ -123,9 +147,9 @@ export const WelcomePage = () => {
                 >
                     {t('welcome.guestNote')}
                 </p>
-                {/* Phone before Google, and weighted above it: someone who signed up on mobile with a
-                    number gets a second, empty account from Google until Google is linked to theirs. The
-                    order steers them; nothing stops someone who signed up with Google. */}
+                {/* Phone before Google and Apple, and weighted above them: someone who signed up on mobile
+                    with a number gets a second, empty account from either until it is linked to theirs. The
+                    order steers them; nothing stops someone who signed up with Google or Apple. */}
                 {isPhoneLoginEnabled() && (
                     <Button
                         variant="secondary"
@@ -143,23 +167,40 @@ export const WelcomePage = () => {
                         <Button
                             variant="outline"
                             size="lg"
-                            onClick={() => void startSocialLogin('google')}
+                            onClick={() => startWith('google')}
                             disabled={isBusy}
                             aria-describedby={noteId}
                         >
                             <GoogleIcon />
-                            {isStarting ? t('welcome.starting') : t('auth.social.google')}
+                            {isStarting && pressed === 'google' ? t('welcome.starting') : t('auth.social.google')}
+                        </Button>
+                        {/* Outline and a mark in the text colour, like Google beside it: one of the
+                            button styles Apple allows, at the same size, so neither provider leads. */}
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => startWith('apple')}
+                            disabled={isBusy}
+                            aria-describedby={noteId}
+                        >
+                            <AppleIcon />
+                            {isStarting && pressed === 'apple' ? t('welcome.starting') : t('auth.social.apple')}
                         </Button>
                         {/* Said before the tap: someone who signed up on mobile with a phone number
-                            and never linked Google there gets a new, empty account from this button. */}
+                            and never linked Google or Apple there gets a new, empty account from these. */}
                         <p id={noteId} className="-mt-0.5 break-keep text-center text-caption text-muted-foreground">
                             {t(phoneSignupNoteKey())}
                         </p>
                     </>
                 )}
-                <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
-                    {t('welcome.haveInvite')}
-                </Button>
+                {/* A browser can borrow the session of an app that is already signed in, by showing a code
+                    that app approves. Not in the desktop app, which is the approving side. */}
+                {canRequestPairing() && (
+                    <Button variant="outline" size="lg" onClick={() => navigate('/auth/pair')} disabled={isBusy}>
+                        <QrCode className="h-4 w-4" />
+                        {t('pairing.welcome.start')}
+                    </Button>
+                )}
                 {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
                     dead-code-eliminated from production builds — mirrors the /auth/debug
                     route guard in routes.tsx; never ships in the installed app. */}

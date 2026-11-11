@@ -1,4 +1,4 @@
-import type { OnFetchShareIntakePayload } from '@chatic/app-messages';
+import type { OnFetchShareIntakePayload } from '@chatic/bridge-messages';
 import type { IShareIntakeBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

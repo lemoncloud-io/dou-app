@@ -2,8 +2,9 @@
 
 > Scope: `apps/web/src/app/ui/layouts/UnifiedLayout.tsx`,
 > `apps/web/src/app/ui/components/{BottomNavigation,BottomNavSpacer}.tsx`,
-> `libs/web-ui-kit` `composites/navigation/FloatingTabBar.tsx`, `apps/web/src/styles.css`
-> (`--app-width`), and the bottom insets of the chat composer (`ChannelRoomPage`, `ThreadPage`).
+> `libs/web-ui-kit` `composites/navigation/FloatingTabBar.tsx` and `resources/icons/NavIcons.tsx`,
+> `apps/web/src/styles.css` (`--app-width`, `--nav-ink`), and the bottom insets of the chat composer
+> (`ChannelRoomPage`, `ThreadPage`).
 
 `UnifiedLayout` wraps every route and renders the floating bottom navigation exactly once,
 showing or hiding it and picking the active tab from the current path. Pages never render their
@@ -29,10 +30,36 @@ export interface FloatingTabBarItem {
     icon: React.ReactNode;
     activeIcon?: React.ReactNode;
     badge?: number; // > 0 shows it; above badgeMax (default 999) clamps to "+999"
-    badgeLabel?: string; // folded into the button's aria-label, not a sibling span
+    badgeLabel?: string; // aria-label becomes "{label}, {badgeLabel}" — the name always leads
     active?: boolean;
 }
 ```
+
+## What the bar draws
+
+The selected tab is a tinted capsule holding its filled icon and its name; every other tab is its line
+icon alone, so an unselected tab is named for screen readers by its `aria-label` only. `BottomNavigation`
+passes each tab both glyphs (`icon`, `activeIcon`: `IconNavChat`/`IconNavChatSolid`,
+`IconNavMy`/`IconNavMySolid` from the kit). The pill hugs its tabs: four would land on the design's
+343px, and the two tabs there are today make a narrower pill centred over the column.
+
+The unread badge hangs off the icon's top-right corner on an icon-only tab, and moves to the
+capsule's own corner when its tab is selected, since the name starts right under where it would
+otherwise hang. A screen reader hears the tab's name before the count ("Chat, 5 unread"): with the
+name gone from an unselected tab's face, a bare "5 unread" would not say which tab it is on.
+
+Changing tabs animates over 300ms, in CSS only: the new tab's label unfolds while the old one's folds
+(a one-column grid going between `0fr` and `1fr`, the way to animate a width the text decides), so
+the two tabs widen and narrow in step; the capsule's tint and the line/filled glyphs cross-fade on the
+same clock. It plays live because a tab switch is a `replace` navigation, which runs no page view
+transition over the bar. `prefers-reduced-motion` turns every one of those transitions off.
+
+The surface is glass, approximated in CSS — an 8px frost with a saturation lift, a lit rim on the
+top-left edge and a fainter one opposite. The design's glass also refracts, which only Chromium can
+draw from HTML: WebKit, and so the iOS app's WKWebView, ignores an SVG filter in `backdrop-filter`.
+Rather than give Android a lens iOS cannot have, both draw the same bar without one. A native glass
+bar over the WebView on iOS is the way to the real material, and is not built because every web
+overlay (sheets, dialogs, the snackbar) would then draw beneath it. ADR-0286 has the full trade.
 
 ## Where the nav shows
 
@@ -77,7 +104,7 @@ the inset.
 ## Snackbar clearance (`--toast-lift`)
 
 The snackbar (`@chatic/ui-kit`'s `Toaster`, mounted once in `AppRuntime`) rests at the bottom, 16px
-above the taller of `--safe-bottom` and `--keyboard-height`. `AppRuntime` sits above the router, so
+above the taller of `--safe-bottom` and `--keyboard-height`, plus a fixed floor of 80px (`TOAST_MIN_LIFT_PX`, the tab bar's geometry) so the toast is at the same height on screens with their own button rows too. `AppRuntime` sits above the router, so
 the toaster cannot tell what is pinned to the bottom. Each bar tells it instead, by calling the
 kit's `useToastLift(px)` with its own height while it is mounted:
 
@@ -277,8 +304,9 @@ sheet), and it is the mistake to watch for in a new one.
 
 ## Verification
 
-- `libs/web-ui-kit`: `FloatingTabBar.test.tsx` (active/inactive render, `+999` badge clamp,
-  `onSelect`), `FloatingTabBar.stories.tsx`.
+- `libs/web-ui-kit`: `FloatingTabBar.test.tsx` (active/inactive render, the name drawn on the
+  selected tab only, the badge anchored to the icon, `+999` badge clamp, `onSelect`),
+  `FloatingTabBar.stories.tsx` (`OverContent` shows the glass over coloured rows), `NavIcons.test.tsx`.
 - `apps/web`: navigate `/` ↔ `/mypage` and confirm the nav persists with the active tab switching;
   navigate into `/mypage/account` or a channel room and confirm it hides.
 - Resize to a desktop width and open a bottom sheet, a fullscreen dialog, and a `fixed` route side

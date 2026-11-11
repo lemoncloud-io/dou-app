@@ -45,13 +45,25 @@ vi.mock('./features/auth/components/OAuthDeeplinkListener', () => ({ OAuthDeepli
 vi.mock('./features/auth/components/SignInNotice', () => ({ SignInNotice: () => <p>sign-in notice</p> }));
 vi.mock('./features/auth/pages/WelcomePage', () => ({ WelcomePage: () => <p>welcome page</p> }));
 
-const login = vi.fn();
-vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ login }) }));
+const pairing = vi.hoisted(() => ({ enabled: true }));
+vi.mock('./features/pairing/utils/devicePairing', () => ({
+    isDevicePairingEnabled: () => pairing.enabled,
+    canRequestPairing: () => pairing.enabled,
+}));
+vi.mock('./features/pairing/pages/PairingCodePage', () => ({ PairingCodePage: () => <p>pairing page</p> }));
+vi.mock('./features/pairing/pages/PairingApprovePage', () => ({ PairingApprovePage: () => <p>approve page</p> }));
+vi.mock('./features/pairing/pages/DevicesPage', () => ({ DevicesPage: () => <p>devices page</p> }));
+
+const preview = vi.fn();
+const enter = vi.fn();
+vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ preview, enter }) }));
+vi.mock('./features/auth/hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 
 import '../i18n';
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { useJoinDialogStore } from './features/auth/stores/useJoinDialogStore';
 import { useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
+import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
 import { AppRouter } from './routes';
 
 /** The exchange needs a guest session, so a real attempt signs in before the code is judged. */
@@ -67,9 +79,11 @@ const WAIT = { timeout: 5000 };
 const submitCode = async (code: string) => {
     fireEvent.change(await screen.findByRole('textbox', {}, WAIT), { target: { value: code } });
     await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     });
 };
+
+const previewOf = (code: string) => ({ preview: { code, info: null, createdGuest: true } });
 
 // Signed out, a bad code used to land the person on Home: the guest login flipped the router
 // to its signed-in branch, whose `/auth/*` redirect unmounted the page and its error with it.
@@ -87,7 +101,12 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 
     it('keeps the invite page and shows why a code was rejected after the guest sign-in', async () => {
-        login.mockImplementation(signInThen({ kind: 'server', message: '400 INVALID - code is invalid (not-found)' }));
+        preview.mockImplementation(
+            signInThen({
+                error: { kind: 'server', message: '400 INVALID - code is invalid (not-found)' },
+                createdGuest: true,
+            })
+        );
         await act(async () => {
             render(<AppRouter />);
         });
@@ -101,12 +120,17 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 
     it('goes Home once the code is accepted', async () => {
-        login.mockImplementation(signInThen(null));
+        preview.mockImplementation(signInThen(previewOf('invt:good')));
+        enter.mockResolvedValue(null);
         await act(async () => {
             render(<AppRouter />);
         });
 
         await submitCode('invt:good');
+        // The guest the preview registered flipped the router to its signed-in branch; the page stays for the join.
+        await act(async () => {
+            fireEvent.click(await screen.findByRole('button', { name: 'Join' }, WAIT));
+        });
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
         expect(window.location.pathname).toBe('/');
@@ -237,5 +261,70 @@ describe('AppRouter signed-out Google attempt', () => {
         });
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
+    });
+});
+
+// The code screen signs in as a guest before it asks for a code, which flips the router to its signed-in
+// branch mid-flow; the hold keeps `/auth/pair` there, and nothing else does.
+describe('AppRouter device pairing', () => {
+    beforeAll(async () => {
+        await Promise.all([import('./features/pairing'), import('./features/chat')]);
+    });
+    beforeEach(() => {
+        pairing.enabled = true;
+        window.history.pushState({}, '', '/auth/pair');
+    });
+    afterEach(() => {
+        session.set(false);
+        usePairingCodePageStore.getState().release();
+    });
+
+    it('opens the code screen signed out', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('pairing page', {}, WAIT)).toBeTruthy();
+    });
+
+    it('keeps the code screen once its guest sign-in flips the router, while it is held', async () => {
+        usePairingCodePageStore.getState().hold(true);
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('pairing page', {}, WAIT)).toBeTruthy();
+        expect(window.location.pathname).toBe('/auth/pair');
+    });
+
+    it('sends a signed-in session home from the code screen when nothing holds it', async () => {
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
+    });
+
+    it('routes nothing of the feature while the flag is off', async () => {
+        pairing.enabled = false;
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        expect(await screen.findByText('welcome page', {}, WAIT)).toBeTruthy();
+    });
+
+    it.each([
+        ['/settings/pairing/approve', 'approve page'],
+        ['/account/devices', 'devices page'],
+    ])('routes %s for a signed-in session', async (path, text) => {
+        window.history.pushState({}, '', path);
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText(text, {}, WAIT)).toBeTruthy();
     });
 });

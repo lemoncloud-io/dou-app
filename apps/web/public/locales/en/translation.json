@@ -193,10 +193,46 @@
             "experiments": "Experiments",
             "placeInvite": "Place invite",
             "placeInviteSubtitle": "Invite into a place, no chat room needed",
-            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own.",
             "chatInputLock": "Chat input lock",
             "chatInputLockSubtitle": "Lock the message input per chat room",
-            "chatInputLockNote": "Adds 'Lock input' to chat room settings. A locked room and its threads cannot send messages. Applies to this device only."
+            "inApp": "In-app",
+            "inAppNote": "Opens over the app in a sub WebView. Shown in debug mode only.",
+            "inAppOpenFailed": "Could not open it",
+            "miniApp": {
+                "title": "Mini apps",
+                "open": "Open mini apps",
+                "openHint_one": "Choose it on the mini app home.",
+                "openHint_other": "Choose one of the {{count}} on the mini app home.",
+                "openHubHint": "No mini apps yet. Opens the mini app home.",
+                "openFailed": "Couldn't open the mini app",
+                "openedOutside": "Opened in your browser. Update the app to open it here.",
+                "add": "Add mini app",
+                "addHint": "Saved on this phone only. Up to {{max}}.",
+                "manageHint": "{{host}} · Edit",
+                "editTitle": "Edit mini app",
+                "linkHint": "It shows by this name on the mini app home. Saved on this phone only.",
+                "nameLabel": "Name",
+                "nameMissing": "Enter a name.",
+                "nameTooLong": "A name can be up to {{max}} characters.",
+                "linkLabel": "Address (https)",
+                "linkInvalid": "Enter an https address without a port or sign-in part.",
+                "linkIsHub": "The mini app home opens from its own row. Enter another address.",
+                "full": "A cloud can have up to {{max}} mini apps.",
+                "linkSaveFailed": "Couldn't save on this phone.",
+                "linkSaved": "Mini app saved",
+                "linkRemoved": "Mini app removed",
+                "remove": "Remove",
+                "save": "Save",
+                "consentTitle": "Open a site outside DoU?",
+                "consentBody": "{{host}} will receive your name, your id in this cloud, this cloud and the place you have open. DoU does not run this site.",
+                "consentAgree": "Open"
+            },
+            "inAppPages": {
+                "enhanceDou": {
+                    "title": "Raise DoU",
+                    "subtitle": "Raise your DoU"
+                }
+            }
         },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
@@ -254,6 +290,7 @@
             "loginCta": "Sign in to subscribe",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
+            "toWebCheckout": "Opening web checkout…",
             "noProducts": "Failed to load subscription plans",
             "purchaseFailed": "Payment failed",
             "notice": {
@@ -262,12 +299,14 @@
                 "downgradeNextRenewal": "Moving down a plan takes effect at your next renewal.",
                 "manageAt": {
                     "apple": "Manage your subscription in iPhone Settings > Apple ID > Subscriptions, or in the App Store.",
-                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
+                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions.",
+                    "web": "Manage your subscription on the DoU website, under Subscriptions."
                 }
             },
             "platform": "Platform",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
+            "platformWeb": "DoU website",
             "adminGrant": "Admin grant",
             "adminGrantIndefinite": "Indefinite",
             "blockedNotice": "Your access has been restricted by an administrator. Store billing continues — please contact support.",
@@ -416,7 +455,9 @@
                 "changePlan": "Change plan",
                 "resubscribe": "Subscribe again",
                 "manageInStore": "Manage in store",
+                "manageOnWeb": "Manage on the web",
                 "otherStore": "You subscribe through {{store}}. Change or manage it on a device that uses {{store}}.",
+                "webBilled": "This subscription was bought on the DoU website. It can't be changed or managed in the app.",
                 "pendingTitle": "Upcoming plan",
                 "pendingHeader": "Applies from your next payment",
                 "pendingDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",
@@ -864,6 +905,7 @@
             "editMessage": "Edit message",
             "editSave": "Save",
             "editSaving": "Saving",
+            "editCancel": "Cancel edit",
             "editFailed": "Couldn't save that change. Try saving again.",
             "editDiscardTitle": "Discard your changes?",
             "editDiscardDescription": "What you typed won't be saved.",
@@ -1075,7 +1117,9 @@
                 "photosTitle": "No access to your photos",
                 "description": "You can change this in Settings",
                 "cancel": "Cancel",
-                "settings": "Open Settings"
+                "settings": "Open Settings",
+                "microphoneTitle": "No access to the microphone",
+                "microphoneDescription": "Allow the microphone in Settings"
             },
             "preview": "Photo",
             "previewCount": "{{count}} photos",
@@ -1093,13 +1137,13 @@
             "cannotRetry": "These attachments can't be resent. Please delete them",
             "videoRefused": {
                 "too-large": "Videos can be up to about 4 minutes long",
-                "unsupported": "This video format can't be sent"
+                "unsupported": "This video format can't be sent",
+                "not-converted": "The video couldn't be prepared. Keep the app open and send it again"
             },
             "source": {
                 "title": "Files",
                 "album": "Choose from album",
                 "files": "Choose from files",
-                "videoNeedsUpdate": "Update the app to send videos",
                 "videoInApp": "Videos can be sent from the DoU app"
             },
             "tapAgain": "Please tap again",
@@ -1110,15 +1154,13 @@
                 "download": "Download {{name}}",
                 "cancel": "Cancel downloading {{name}}",
                 "open": "Open {{name}}",
-                "unavailable": "Update the app to download",
                 "broken": "Can't open",
                 "downloadFailed": "Couldn't download the file",
                 "saved": "File saved",
                 "openAction": "Open",
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
-                "shareUpdateRequired": "Update the app to share files",
-                "archiveNeedsUpdate": "Update the app to save ZIP files"
+                "saveNeedsUpdate": "Update the app to save this file"
             },
             "export": {
                 "save": "Save photo",
@@ -1129,7 +1171,6 @@
                 "unsupportedType": "This format can't be saved",
                 "network": "Check your connection and try again",
                 "failed": "Couldn't save or share the photo",
-                "updateRequired": "Update the app to save and share photos",
                 "saveOne": "Save this photo",
                 "saveAll": "Save all ({{n}})",
                 "cancel": "Cancel",
@@ -1141,19 +1182,39 @@
                 "shareVideo": "Share video",
                 "savedVideo": "Video saved",
                 "failedVideo": "Couldn't save or share the video",
-                "videoUpdateRequired": "Update the app to save and share videos",
                 "saveOneVideo": "Save this video",
                 "saveAllItems": "Save all ({{n}})",
                 "chooseTitleItems": "Save photos and videos",
                 "chooseDescriptionItems": "Save only this one or every photo and video in the message",
                 "saveAllProgress": "Saving {{current}} / {{total}}",
                 "savedAllItems": "Saved {{n}}",
-                "savedSomeItems": "{{saved}} saved · {{failed}} failed",
-                "savedPhotosVideosNeedUpdate": "Saved {{n}} photos · videos can be saved after updating the app"
+                "savedSomeItems": "{{saved}} saved · {{failed}} failed"
             },
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
-            "removeFile": "Remove {{name}}"
+            "removeFile": "Remove {{name}}",
+            "audio": {
+                "voiceMessage": "Voice message",
+                "play": "Play {{name}}",
+                "pause": "Pause {{name}}",
+                "seek": "Playback position of {{name}}",
+                "playFailed": "Can't play this",
+                "menu": "More for {{name}}",
+                "save": "Save"
+            },
+            "voice": {
+                "entry": "Voice",
+                "title": "Voice message",
+                "description": "Record a voice message and send it to this conversation",
+                "record": "Start recording",
+                "tapToRecord": "Tap to record. Up to 5 minutes.",
+                "recordingHint": "Recording…",
+                "send": "Send",
+                "cancel": "Cancel",
+                "tooShort": "Record for at least a second",
+                "interrupted": "Recording stopped",
+                "failed": "Couldn't record"
+            }
         },
         "preview": {
             "thread": "[Thread] {{text}}",
@@ -1421,6 +1482,7 @@
         "signup": "Sign Up",
         "forgotPassword": "Forgot Password",
         "or": "or",
+        "continueWithEmail": "Continue with email",
         "continueWithPhone": "Continue with phone number",
         "socialMobileOnly": "Social sign-in is available in the mobile app.",
         "socialFirstNotice": "If you already have an account, sign in with social first.",
@@ -1693,10 +1755,8 @@
         "close": "Close",
         "retry": "Try again",
         "target": {
-            "you": "You",
             "group": "Group chat",
             "oneToOne": "1:1 chat",
-            "place": "Place member",
             "roomFriends": "{{count}} members"
         },
         "expiry": {
@@ -1755,6 +1815,7 @@
         "networkError": "Please check your network connection and try again.",
         "authVerifyFailed": "Authentication failed. Please try again.",
         "expired": "This invite has expired or is invalid.",
+        "alreadyUsed": "You've already joined this invite.",
         "enterFailed": "The invite was accepted but entering failed. Please try again."
     },
     "relayInviteAccept": {
@@ -1946,7 +2007,11 @@
         "title": "A new update is available",
         "description": "Update to the latest version to get the newest features.",
         "later": "Later",
-        "update": "Update"
+        "update": "Update",
+        "required": {
+            "title": "Please update the app",
+            "description": "This version of the app is no longer supported.\nUpdate to the latest version to keep using DoU."
+        }
     },
     "contactInvite": {
         "title": "Invite a Friend",
@@ -2110,6 +2175,135 @@
             "subtitle": "This profile is used only in this place.\nYou can be someone new in each place.",
             "nameLabel": "Name",
             "photoLabel": "Profile photo"
+        }
+    },
+    "pairing": {
+        "entry": {
+            "login": "Sign in with another device",
+            "approve": "Approve web sign-in",
+            "devices": "Devices"
+        },
+        "code": {
+            "title": "Sign in with another device",
+            "inCloud": "You can't sign in with another device while you're signed in to a cloud. Sign out of this cloud to continue",
+            "inCloudSignOut": "Sign out of the cloud and continue",
+            "requesting": "Getting a code",
+            "applying": "Signing in",
+            "instruction": "On a signed-in phone or desktop app, enter this code or scan the QR in Settings › Approve web sign-in",
+            "remaining": "{{time}} left",
+            "checkBrowser": "Check that the app's approval screen shows \"{{name}}\"",
+            "checkBrowserUnnamed": "Check that the app's approval screen shows this browser",
+            "expired": "This code has expired",
+            "newCode": "Get a new code",
+            "denied": "The sign-in was declined",
+            "lost": "The sign-in could not be finished. Please start over",
+            "failed": "Could not get a code",
+            "retry": "Try again",
+            "startOver": "Start over",
+            "doneRelayTitle": "Signed in as {{name}}",
+            "doneRelayBody": "This browser can use your whole account. Closing the tab ends the sign-in",
+            "doneCloud": "You're in the approved cloud",
+            "doneSecondaryBody": "This device is a secondary device of the one that approved it. Signing out there signs this device out too"
+        },
+        "scope": {
+            "accountSection": "Sign in as my account",
+            "accountSectionHint": "This browser signs in to your account, with your account settings, as on your phone",
+            "relayTitle": "My whole account",
+            "relayDescription": "This browser can use DoU Home, the clouds you created and your account settings",
+            "relayInvitedNote": "Clouds you were invited to aren't included. To use one, pick it below and approve it",
+            "cloudSection": "Use one cloud only",
+            "cloudSectionHint": "This browser enters only the cloud you pick, as you. Account settings stay off, and more clouds can be approved one at a time from \"Add a cloud with another device\" on the web home",
+            "cloudBadge": "Cloud",
+            "cloudOwned": "A cloud you created",
+            "cloudInvited": "A cloud you were invited to",
+            "relayApprove": "Approve my whole account",
+            "cloudApprove": "Approve only the {{cloud}} cloud",
+            "relayLabel": "My whole account",
+            "cloudLabel": "Only the {{cloud}} cloud"
+        },
+        "approve": {
+            "title": "Approve web sign-in",
+            "instruction": "Enter the 8 digits shown on the web, or scan its QR",
+            "codeLabel": "Sign-in code",
+            "scan": "Scan QR",
+            "scanHint": "Hold the QR on the web screen inside the square",
+            "scanDenied": "Camera access is off. Allow it in Settings, or type the digits",
+            "cameraRefused": {
+                "title": "No access to the camera",
+                "description": "Allow the camera in Settings to scan QR codes",
+                "settings": "Open Settings"
+            },
+            "scanOldApp": "Update the app to scan QR codes. For now, type the digits",
+            "scanNotOurs": "This isn't a DoU web sign-in QR",
+            "scanNoQr": "Couldn't read a QR code. Try again or type the digits",
+            "requesterBrowser": "Browser asking to sign in",
+            "requesterPhone": "Phone asking to sign in",
+            "unknownClient": "Unknown device",
+            "onlyYours": "Approve only if this is the browser you just opened",
+            "debugWarning": "A developer token with every permission of this account will be issued",
+            "debugConfirm": "I confirm I started this developer tool myself",
+            "noTarget": "There is no account you can approve for",
+            "deny": "Decline",
+            "otherCode": "Enter another code",
+            "approved": "The web sign-in will finish now",
+            "denied": "Declined",
+            "errors": {
+                "notFound": "Code not found. Check the code on the web screen",
+                "expired": "The code has expired. Get a new one on the web",
+                "codeRefused": "This code can't be approved",
+                "targetRefused": "You can't approve for this target",
+                "alreadyHandled": "This request was already handled. Request again on the web",
+                "unknown": "Couldn't complete the request. Try again shortly"
+            }
+        },
+        "devices": {
+            "title": "Devices",
+            "header": "Devices",
+            "cloudHeader": "Devices in this cloud",
+            "thisDevice": "This device",
+            "online": "Online",
+            "lastActive": "Last active {{time}}",
+            "unlink": "Remove",
+            "loadFailed": "Couldn't load the list",
+            "noDevices": "No devices connected",
+            "approvedHeader": "Approved sign-ins",
+            "noApprovals": "No approved sign-ins",
+            "approvedAt": "Approved {{time}}",
+            "claimedAt": "Signed in {{time}}",
+            "unclaimed": "Never signed in · removal recommended",
+            "confirmTitle": "Remove?",
+            "unlinkBody": "This device will be signed out",
+            "unlinkCloudNote": "To end a web sign-in, remove it from approved sign-ins too",
+            "revokeRelayBody": "This browser will be signed out right away",
+            "revokeCloudBody": "It can't get back in. Screens already open may stay for up to 30 days — to cut them now, remove it in that cloud's devices too",
+            "unlinkFailed": "Couldn't remove the device. Try again",
+            "revokeFailed": "Couldn't remove the approval. Try again",
+            "kind": {
+                "mobile": "Phone",
+                "desktop": "Desktop",
+                "web": "Browser",
+                "cli": "Developer tool",
+                "unknown": "Unknown device"
+            }
+        },
+        "cloud": {
+            "section": "Approved clouds",
+            "sectionDescription": "This browser can use only the clouds approved from your phone",
+            "add": "Add a cloud with another device",
+            "pairedLabel": "Approved on another device",
+            "unnamed": "Cloud …{{id}}",
+            "ended": "The approval was revoked, so you were signed out",
+            "endedNamed": "The approval for {{cloud}} was revoked, so you were signed out"
+        },
+        "secondary": {
+            "notice": "Signed in as a secondary device — signing out on the approving device signs this one out too"
+        },
+        "logout": {
+            "title": "The {{count}} sign-in(s) this device approved will end too",
+            "withdrawTitle": "Withdrawing ends the {{count}} sign-in(s) this device approved too",
+            "cloudNote": "A cloud screen already open may stay until that device checks again",
+            "confirm": "Sign out",
+            "withdrawConfirm": "Withdraw"
         }
     },
     "share": {

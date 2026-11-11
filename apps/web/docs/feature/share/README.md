@@ -28,12 +28,11 @@ and nothing about how the shell copies or keeps the items.
 | --------- | ------------------------------------------------------------------- | ---------------------------------------- |
 | `loading` | The shell is still answering — Android may still be copying a video | A preparing spinner, for up to 10 min    |
 | `ready`   | The items, the refusals and any text                                | The composer                             |
-| `empty`   | No id, an app without share intake, or a share it no longer holds   | Home, with a notice when an id was given |
+| `empty`   | No id, or a share the app no longer holds                           | Home, with a notice when an id was given |
 | `error`   | A timeout or the bridge dropping                                    | A retry                                  |
 
-`NOT_FOUND`, `GONE` and `INVALID` all read as `empty`: the web ships before the app, so an app without
-the handler is normal, and a share already released is simply over. Only a transient failure offers a
-retry.
+`GONE` and `INVALID` read as `empty`: a share already released is simply over, and an id the app never
+made has nothing behind it. Only a transient failure offers a retry.
 
 ### Items are shell files until the send
 
@@ -84,7 +83,9 @@ written leaves nothing in the room, so the page says so with a notice instead. E
 have its send mounted before anything is read — otherwise nothing is sent and the composer stays. Like any send whose screen was left before it
 settled, that row can be deleted but not retried: the runtime lets go of the files of a send nobody is
 attached to once it fails, rather than holding them for a screen that may never come back. After one
-room the page opens it; after several it says how many and goes home.
+room the page opens it, handing over the room's row as the home list does — the room is on screen
+before its cache answers, so a refusal the sync layer records in that gap does not evict the reader
+from their own room until the cache has answered; after several it says how many and goes home.
 
 ### Leaving
 

@@ -192,7 +192,7 @@ A backend has two methods and no return values. Nothing a caller does may wait o
 of, where a measurement is recorded.
 
 - **The no-op backend** is what the slot holds until `configurePerfTraces` runs. It is also what it
-  returns to on `resetPerfTraces`. That is why `apps/desktop`, `apps/desktop-web`, `apps/testbed` and
+  returns to on `resetPerfTraces`. That is why `apps/desktop`, `apps/desktop-web` and
   a plain browser tab record nothing: none of them configures a backend.
 - **`FanOutPerfTraceBackend`** hands every call to several backends. A branch that throws is
   skipped, and each branch gets its own copy of a stop, so one branch can never cost another its

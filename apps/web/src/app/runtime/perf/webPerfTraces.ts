@@ -7,8 +7,9 @@ import {
 } from '@chatic/perf';
 
 import { appBridge } from '../../bridge/appBridge';
+import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
 
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import type { Logger } from '@chatic/logger';
 import type { PerfTelemetryRecorder, PerfTraceBackend } from '@chatic/perf';
 
@@ -21,18 +22,6 @@ import type { PerfTelemetryRecorder, PerfTraceBackend } from '@chatic/perf';
 export const bridgePerfTraceBackend: PerfTraceBackend = {
     start: ({ id, name }) => appBridge.startPerfTrace({ id, name }),
     stop: ({ id, name, attributes, metrics }) => appBridge.stopPerfTrace({ id, name, attributes, metrics }),
-};
-
-/**
- * Whether the installed app records traces for the web.
- *
- * Asked, not assumed: the web deploys ahead of the app, so an app build without the handlers is
- * the common case for a while. Both messages are required — a start with nowhere to stop would
- * leave traces open until the native side expires them.
- */
-export const supportsNativePerfTraces = (report: OnWebAppReadyPayload | null): boolean => {
-    const supported = report?.supportedWebMessages ?? [];
-    return supported.includes('StartPerfTrace') && supported.includes('StopPerfTrace');
 };
 
 /**
@@ -55,9 +44,9 @@ export const pipelinePerfTraceBackend: PerfTraceBackend = new PipelinePerfTraceB
  * Returns the one decision left: once the WebAppReady report arrives, `resolveWith` points every
  * trace — the ones already held and all later ones — at the destinations this host has:
  *
- * - an app that records traces: Firebase over the bridge (cut down to exactly what Firebase has
- *   always received) **and** the log pipeline, side by side;
- * - an app that cannot, or a plain browser tab (`null` report): the log pipeline alone.
+ * - the app: Firebase over the bridge (cut down to exactly what Firebase has always received)
+ *   **and** the log pipeline, side by side;
+ * - a plain browser tab (`null` report): the log pipeline alone.
  *
  * The deferring buffer wraps the whole fan-out, so held calls reach both branches in one order.
  *
@@ -75,8 +64,10 @@ export const configureWebPerfTraces = (_options: { logger?: Logger; runId?: stri
         isHeld: (): boolean => !resolved,
         resolveWith(report: OnWebAppReadyPayload | null): void {
             resolved = true;
+            // An app below the version floor stops at the update screen and may not handle the traces.
+            const traced = report && !isBelowAppVersionFloor(readShellVersion());
             deferred.resolve(
-                supportsNativePerfTraces(report)
+                traced
                     ? new FanOutPerfTraceBackend([
                           new FirebaseDimensionsPerfTraceBackend(bridgePerfTraceBackend),
                           pipelinePerfTraceBackend,

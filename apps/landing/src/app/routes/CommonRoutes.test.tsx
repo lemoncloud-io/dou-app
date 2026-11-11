@@ -20,7 +20,10 @@ vi.mock('../features/subscription', () => ({
         <p>{account ? 'subscription' : 'subscription catalog'}</p>
     ),
 }));
-vi.mock('../features/deeplink/pages', () => ({ DeepLinkPage: () => <p>deeplink</p> }));
+vi.mock('../features/deeplink/pages', () => ({
+    DeepLinkPage: () => <p>deeplink</p>,
+    SubWebViewLinkPage: () => <p>sub webview link</p>,
+}));
 
 // The production host, where the subscription pages are shut, unless a test says otherwise.
 const appRoutes = createAppRoutes({ subscriptionAccount: false });
@@ -55,6 +58,8 @@ describe('appRoutes', () => {
         ['/s?code=invt:1:x&relay', 'deeplink', '/s?code=invt:1:x&relay'],
         ['/i?t=eyJjIjoiaW52dDoxOngifQ', 'deeplink', '/i?t=eyJjIjoiaW52dDoxOngifQ'],
         ['/i/extra', 'deeplink', '/i/extra'],
+        ['/apps/quiz', 'sub webview link', '/apps/quiz'],
+        ['/apps/quiz/level?x=1', 'sub webview link', '/apps/quiz/level?x=1'],
         ['/invite/accept?x=1', 'home', '/'],
         ['/subscription', 'home', '/'],
         ['/subscription/checkout?plan=pro-tier-01', 'home', '/'],

@@ -63,7 +63,7 @@ set, so security-relevant rules — `meta` keys and everything under `debug.` �
 
 **Two stage vocabularies exist and the adapter normalizes between them.** `VITE_ENV` is already
 `LOCAL`/`DEV`/`PROD`. The shell-injected `CHATIC_APP_STAGE` uses `local`/`stage`/`prod`, which is
-`@chatic/app-messages`' `Env` type, so `'stage'` maps to `'DEV'`. An unrecognized token falls back to
+`@chatic/bridge-messages`' `Env` type, so `'stage'` maps to `'DEV'`. An unrecognized token falls back to
 `buildStage()` silently.
 
 That fallback is currently load-bearing for one shell. Electron's preload injects
@@ -73,7 +73,7 @@ shared bridge vocabulary rather than in this adapter, and the same preload injec
 `CHATIC_APP_PLATFORM: 'desktop'`, which the shared `Platform` union does not contain either.
 
 `Stage` and `Platform` are declared in this lib's own `types.ts` rather than imported from
-`@chatic/app-messages`, because importing that lib to gain two unions would chain this one — and
+`@chatic/bridge-messages`, because importing that lib to gain two unions would chain this one — and
 every test — to the whole bridge contract. The copy is character-identical to the original today.
 The docblock in `types.ts` says an app-side test asserts the two sets stay equal; **no such test
 exists in the repo.** The copies match, so nothing is broken, but the defence that docblock cites is
@@ -87,6 +87,9 @@ export const webConfigPorts: ConfigRuntimePorts = {
     // …
 };
 ```
+
+`apps/web` and `apps/desktop-web` write the same thing as a factory, `createWebConfigPorts(stores)`,
+because their storage ports are the stores their entry points built; the env part is identical.
 
 Each app supplies only `read`, a function from a raw name to its value, which is the one piece this
 lib cannot hold (`import.meta`). All four Vite apps write the same four lines of it: `VITE_*` names
@@ -111,6 +114,9 @@ interface StorageLike {
 
 This is not a new type: it is the shape `@chatic/shared`'s `StorageAdapter` already has, taken
 structurally so this lib imports nothing. `localStorage` and `sessionStorage` satisfy it directly.
+`apps/web` and `apps/desktop-web` pass neither directly: each hands over the two web stores its
+`resolveStorageStores()` built, seen as DOM `Storage` through `@chatic/storage`'s `asDomStorage`
+(`createWebConfigPorts(stores)`).
 
 A key's `persist` picks which one it lands in, and the **`shell` strategy resolves to the same
 `local` store a `persist: 'local'` key uses**. That looks redundant and is the opposite: the bridge is
@@ -124,8 +130,9 @@ Writes are wrapped in `try`/`catch`: a blocked or full store must not break the 
 
 Values cross the storage boundary as JSON, under `storageKeyFor(key)` — `@chatic/config.<key>`.
 Decoding is total, so anything unreadable comes back as absent and the lane is simply skipped.
-`encodeValue` and `storageKeyFor` are on the barrel so an app writing a one-time legacy migration can
-seed the exact format `hydrateStorage()` reads back, instead of duplicating this encoding.
+`encodeValue` and `storageKeyFor` are on the barrel so an app that seeds a local-lane value before
+`init` — `apps/web` mirrors the theme key other apps on the same browser share — writes the exact
+format `hydrateStorage()` reads back, instead of duplicating this encoding.
 
 ### `IShellKvAdapter` — the shell as an opaque key-value store
 
@@ -180,8 +187,7 @@ a toast.
 | ------------------ | :-: | :-----: | ------------------- | :----: | :-------: |
 | `apps/web`         |  ✓  |    ✓    | ✓ when `isNative()` |   —    |     ✓     |
 | `apps/desktop-web` |  ✓  |    ✓    | —                   |   —    |     —     |
-| `apps/admin-v2`    |  ✓  |    ✓    | —                   |   —    |     —     |
-| `apps/testbed`     |  ✓  |    ✓    | —                   |   —    |     —     |
+| `apps/admin`       |  ✓  |    ✓    | —                   |   —    |     —     |
 
 Only `apps/web` runs inside a native shell, and it wires the port **conditionally**: a plain browser
 tab has no shell to round-trip a write to, and leaving the member unset rather than wired-and-always-
@@ -196,7 +202,7 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 1. Create `src/app/config/adapters.ts` exporting a `ConfigRuntimePorts`. Keep the `import.meta.env` read in that file and nowhere else — it is the one file per Vite app allowed to touch it.
 2. Build `env` with `createWebEnvAdapter(read)`. Do not reimplement stage validation or the lowercasing.
 3. Put anything testable in a **separate** file. A module that reads `import.meta.env` is unloadable under the CommonJS test transform, and so is anything importing it — which is why `apps/web` keeps its two callbacks in `configPortCallbacks.ts`.
-4. Call `config.init(ports)` in `main.tsx`, after any legacy migration and before the runtime boot.
+4. Call `config.init(ports)` in `main.tsx`, after anything that seeds a local-lane value and before the runtime boot.
 
 ### What not to do
 
@@ -210,7 +216,7 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 - **`testing/fixtures.ts` covers all of this.** `ports()` returns `env` plus two `memoryStorage()` instances, and takes overrides; `envAdapter(stage, buildStage, platform)` defaults `buildStage` to `stage`, so a test that wants them to disagree must say so explicitly.
 - **`memoryStorage()` exposes `dump()`** on top of `StorageLike`, which is how the persistence tests assert what landed under which key.
 - **`adapters/webEnvAdapter.spec.ts` is the one place the lowercasing rule is pinned.** Changing that set without changing the test is how a path-bearing endpoint would start being lowercased.
-- **The shell round trip is not tested here.** `ConfigFacade`'s retry and failure reporting are covered in `index.spec.ts` with a fake adapter; the `NOT_FOUND` downgrade to the legacy bridge lives in `apps/web`'s `shellKvAdapter.test.ts`, and the native side in `apps/mobile`'s `ConfigKvService.test.ts`.
+- **The shell round trip is not tested here.** `ConfigFacade`'s retry and failure reporting are covered in `index.spec.ts` with a fake adapter; the shell adapter itself is covered by `apps/web`'s `shellKvAdapter.test.ts`, and the native side in `apps/mobile`'s `ConfigKvService.test.ts`.
 
 ## Further reading
 

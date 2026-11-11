@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
         isError: false,
     } as Record<string, unknown>,
     phoneLogin: true,
+    pairing: false,
     navigate: vi.fn(),
 }));
 
@@ -22,8 +23,10 @@ vi.mock('../utils', () => ({
     PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => true,
     isPhoneLoginEnabled: () => state.phoneLogin,
+    oauthProviderName: (provider: string) => (provider === 'apple' ? 'Apple' : 'Google'),
     phoneSignupNoteKey: () => (state.phoneLogin ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote'),
 }));
+vi.mock('../../pairing/utils/devicePairing', () => ({ canRequestPairing: () => state.pairing }));
 vi.mock('../components', () => ({
     AuthCard: ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
         <div>
@@ -32,6 +35,7 @@ vi.mock('../components', () => ({
             {children}
         </div>
     ),
+    AppleIcon: () => null,
     GoogleIcon: () => null,
 }));
 
@@ -45,6 +49,7 @@ describe('WelcomePage', () => {
         state.social = { start: vi.fn(), reopen: vi.fn(), cancel: vi.fn(), isStarting: false, isError: false };
         useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null, completing: false });
         state.phoneLogin = true;
+        state.pairing = false;
         state.navigate = vi.fn();
     });
 
@@ -98,6 +103,22 @@ describe('WelcomePage', () => {
         expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNotePhone'));
     });
 
+    // Someone who installed the app without a link came for an invite; the other ways in follow it.
+    it('leads with the invite link, ahead of every other way in', () => {
+        render(<WelcomePage />);
+
+        const buttons = screen.getAllByRole('button').map(b => b.textContent);
+        expect(buttons[0]).toBe(i18n.t('welcome.haveInvite'));
+    });
+
+    it('opens the invite page from the invite button', () => {
+        render(<WelcomePage />);
+
+        screen.getByRole('button', { name: i18n.t('welcome.haveInvite') }).click();
+
+        expect(state.navigate).toHaveBeenCalledWith('/auth/login');
+    });
+
     it('opens phone sign-in from its button', () => {
         render(<WelcomePage />);
 
@@ -121,6 +142,22 @@ describe('WelcomePage', () => {
         render(<WelcomePage />);
 
         expect(screen.queryByText(i18n.t('auth.phone.start'))).toBeNull();
+    });
+
+    // `canRequestPairing` is the flag and "a plain browser, not the desktop app" together.
+    it('offers sign-in with another device where a browser can request it', () => {
+        state.pairing = true;
+        render(<WelcomePage />);
+
+        screen.getByText(i18n.t('pairing.welcome.start')).click();
+
+        expect(state.navigate).toHaveBeenCalledWith('/auth/pair');
+    });
+
+    it('offers no sign-in with another device where it cannot be requested', () => {
+        render(<WelcomePage />);
+
+        expect(screen.queryByText(i18n.t('pairing.welcome.start'))).toBeNull();
     });
 
     describe('while the Google sign-in is out in the browser', () => {
@@ -203,6 +240,63 @@ describe('WelcomePage', () => {
 
             expect(screen.getByText(i18n.t('auth.social.waitingExpired'))).toBeTruthy();
             expect(screen.getByText(i18n.t('auth.social.retry'))).toBeTruthy();
+        });
+    });
+
+    describe('Apple sign-in', () => {
+        it('starts the Apple flow from the Apple button', () => {
+            render(<WelcomePage />);
+
+            screen.getByText(i18n.t('auth.social.apple')).click();
+
+            expect(state.social.start).toHaveBeenCalledWith('apple');
+        });
+
+        it('puts Apple after Google', () => {
+            render(<WelcomePage />);
+
+            const buttons = screen.getAllByRole('button').map(b => b.textContent);
+            const google = buttons.findIndex(text => text?.includes(i18n.t('auth.social.google')));
+            const apple = buttons.findIndex(text => text?.includes(i18n.t('auth.social.apple')));
+            expect(google).toBeGreaterThanOrEqual(0);
+            expect(apple).toBeGreaterThan(google);
+        });
+
+        it('tells people who signed up with a phone number before they tap Apple too', () => {
+            render(<WelcomePage />);
+
+            const apple = screen.getByText(i18n.t('auth.social.apple')).closest('button');
+            const note = document.getElementById(apple?.getAttribute('aria-describedby') ?? '');
+            expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNotePhone'));
+        });
+
+        it('says it is starting on the Apple button once Apple was pressed, and only there', () => {
+            const { rerender } = render(<WelcomePage />);
+            screen.getByText(i18n.t('auth.social.apple')).click();
+            state.social.isStarting = true;
+            rerender(<WelcomePage />);
+
+            const apple = screen.getByText(i18n.t('welcome.starting')).closest('button');
+            expect(apple?.getAttribute('aria-describedby')).toBeTruthy();
+            expect(screen.getByText(i18n.t('auth.social.google'))).toBeTruthy();
+            expect(screen.queryByText(i18n.t('auth.social.apple'))).toBeNull();
+        });
+
+        it('names Apple while the Apple sign-in is out in the browser', () => {
+            useOAuthAttemptStore.setState({
+                attempt: {
+                    provider: 'apple',
+                    intent: 'login',
+                    signedOutAtStart: true,
+                    startedAt: Date.now(),
+                    nonce: 'n',
+                },
+                failed: false,
+            });
+            render(<WelcomePage />);
+
+            expect(screen.getByText(/Apple/)).toBeTruthy();
+            expect(screen.queryByText(/Google/)).toBeNull();
         });
     });
 });

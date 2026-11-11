@@ -1,17 +1,18 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
+import { canRequestPairing, isDevicePairingEnabled } from './features/pairing/utils/devicePairing';
 import { selectHeldLogin, useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
 import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
-import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
+import { RouteFallback, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
  * Desktop notification-open router. Mounted inside the Router (so it can
@@ -71,6 +72,10 @@ const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ defaul
 // Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
 // where it used to be dead until the return to chat.
 const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
+// Route-independent too: the account menu opens it from any page.
+const AppearanceDialog = lazy(() =>
+    import('./features/settings/components/AppearanceDialog').then(m => ({ default: m.AppearanceDialog }))
+);
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
@@ -90,11 +95,19 @@ const PhoneLoginPage = lazy(() => import('./features/auth').then(m => ({ default
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
 const SignInNotice = lazy(() => import('./features/auth').then(m => ({ default: m.SignInNotice })));
+const PairingCodePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingCodePage })));
+const PairingApprovePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingApprovePage })));
+const DevicesPage = lazy(() => import('./features/pairing').then(m => ({ default: m.DevicesPage })));
+
+const LocationFallback = ({ isAuthenticated }: { isAuthenticated: boolean }) => (
+    <RouteFallback pathname={useLocation().pathname} isAuthenticated={isAuthenticated} />
+);
 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
     const socialLoginHeld = useOAuthAttemptStore(selectHeldLogin);
+    const pairingHeld = usePairingCodePageStore(s => s.held);
 
     return (
         <Router>
@@ -105,12 +118,12 @@ export const AppRouter = () => {
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
                     <JoinWithInviteDialog />
+                    <AppearanceDialog />
                 </Suspense>
             )}
-            {/* A signed-out person is on their way to Welcome, not to the chat
-                shell — showing its skeleton promises a workspace they do not have
-                yet. Same branch app.tsx makes for the boot fallback. */}
-            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />}>
+            {/* Same branch app.tsx makes for the boot fallback: the chat shell skeleton only for
+                home, a page skeleton for the other signed-in routes, the plain loader signed out. */}
+            <Suspense fallback={<LocationFallback isAuthenticated={isAuthenticated} />}>
                 {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}
@@ -132,6 +145,13 @@ export const AppRouter = () => {
                             <Route path="/account/policies" element={<PolicyListPage />} />
                             <Route path="/account/policies/terms" element={<TermsPage />} />
                             <Route path="/account/policies/privacy" element={<PrivacyPage />} />
+                            {isDevicePairingEnabled() && (
+                                <>
+                                    {/* The page itself turns away the browser and a paired session. */}
+                                    <Route path="/settings/pairing/approve" element={<PairingApprovePage />} />
+                                    <Route path="/account/devices" element={<DevicesPage />} />
+                                </>
+                            )}
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}
@@ -147,6 +167,9 @@ export const AppRouter = () => {
                             {/* Sending the first code registers the device, which lands here mid-flow;
                                 the page also turns away an account that is already signed in. */}
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
+                            {/* The code screen signs in as a guest before it asks for a code, which flips
+                                the router here mid-flow. Keep it until it finishes or is left. */}
+                            {pairingHeld && <Route path="/auth/pair" element={<PairingCodePage />} />}
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -157,6 +180,7 @@ export const AppRouter = () => {
                             <Route path="/auth/login" element={<InviteLoginPage />} />
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
+                            {canRequestPairing() && <Route path="/auth/pair" element={<PairingCodePage />} />}
                             {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                             <Route path="*" element={<Navigate to="/auth/welcome" replace />} />
                         </>

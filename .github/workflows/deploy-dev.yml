@@ -38,14 +38,14 @@ jobs:
                   base: 'develop'
                   filters: |
                       admin:
-                          - 'apps/admin-v2/src/**'
-                          - 'apps/admin-v2/public/**'
-                          - 'apps/admin-v2/index.html'
-                          - 'apps/admin-v2/vite.config.mts'
-                          - 'apps/admin-v2/project.json'
-                          - 'apps/admin-v2/tsconfig*.json'
-                          - 'apps/admin-v2/tailwind.config.js'
-                          - 'apps/admin-v2/postcss.config.js'
+                          - 'apps/admin/src/**'
+                          - 'apps/admin/public/**'
+                          - 'apps/admin/index.html'
+                          - 'apps/admin/vite.config.mts'
+                          - 'apps/admin/project.json'
+                          - 'apps/admin/tsconfig*.json'
+                          - 'apps/admin/tailwind.config.js'
+                          - 'apps/admin/postcss.config.js'
                           # Shared sources. Every deployable app compiles these in, so a change
                           # confined to one of them has to redeploy the app that carries it.
                           #
@@ -152,7 +152,7 @@ jobs:
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
                   # admin not supported yet — never add it to the deploy matrix.
-                  # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin-v2"')
+                  # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
                   [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
                   [[ "${{ steps.filter.outputs.blockkitbuilder }}" == "true" ]] && PROJECTS+=('"block-kit-builder"')
@@ -251,7 +251,7 @@ jobs:
                   WEB_VERSION=$(node -p "require('./apps/web/package.json').version")
                   echo "web-version=${WEB_VERSION}" >> $GITHUB_OUTPUT
 
-                  ADMIN_VERSION=$(node -p "require('./apps/admin-v2/package.json').version")
+                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
                   echo "admin-version=${ADMIN_VERSION}" >> $GITHUB_OUTPUT
 
                   LANDING_VERSION=$(node -p "require('./apps/landing/package.json').version")
@@ -301,10 +301,13 @@ jobs:
                 include:
                     - project: web
                       prefix: WEB
-                    - project: admin-v2
+                    - project: admin
                       prefix: ADMIN
+                    # landing reuses WEB_* env secrets too: its account surface signs in to the web app's
+                    # relay session, so every address must match the web app's. Only its S3/CloudFront
+                    # target differs (LANDING_* in the deploy step).
                     - project: landing
-                      prefix: LANDING
+                      prefix: WEB
                     # desktop-web reuses WEB_* env secrets (same backend/firebase config);
                     # only its S3/CloudFront target differs (DESKTOP_* in the deploy step).
                     - project: desktop-web
@@ -355,6 +358,10 @@ jobs:
               # Every VITE_* would resolve empty for the builder, and the step's
               # `grep -v '=$'` then matches no line and exits 1, killing it under
               # `set -e`. The builder has no `import.meta.env` reference to feed.
+              # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
+              # build. Relay, archive and socket are the web app's own servers, so they reuse its
+              # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
+              # Other apps get empty values, dropped below.
               if: ${{ matrix.project != 'block-kit-builder' }}
               run: |
                   set -e
@@ -374,6 +381,16 @@ jobs:
                   VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
                   VITE_DEBUG_CODE=${{ secrets[format('{0}_DEV_DEBUG_CODE', matrix.prefix)] }}
+                  VITE_D1_RELAY_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_DEV_DOU_ENDPOINT || '' }}
+                  VITE_V1_RELAY_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_DOU_ENDPOINT || '' }}
+                  VITE_D1_GOODS_ENDPOINT=${{ secrets[format('{0}_D1_GOODS_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_GOODS_ENDPOINT=${{ secrets[format('{0}_V1_GOODS_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_ARCHIVE_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_DEV_ARCHIVE_ENDPOINT || '' }}
+                  VITE_V1_ARCHIVE_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_ARCHIVE_ENDPOINT || '' }}
+                  VITE_D1_PRESENCE_ENDPOINT=${{ secrets[format('{0}_D1_PRESENCE_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_PRESENCE_ENDPOINT=${{ secrets[format('{0}_V1_PRESENCE_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_WS_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_DEV_WS_ENDPOINT || '' }}
+                  VITE_V1_WS_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_WS_ENDPOINT || '' }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
                   grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"

@@ -120,7 +120,7 @@ Two facts the bounding work established that this ADR did not anticipate:
 
 - **`IndexedDbOnlyCacheStorageStrategy` is not a desktop path.** `localFactory.selectStrategy`
   routes every client without `window.ReactNativeWebView` to it — `apps/web` opened in a
-  browser and `apps/admin-v2` included. A capacity constant placed there silently truncates
+  browser and `apps/admin` included. A capacity constant placed there silently truncates
   their scrollback. The limit is therefore injected by the app that owns the policy
   (`setChatCacheLimit`, called from `apps/desktop-web`'s entry); unset stays unbounded.
 - **The quota safety net is gated on a limit being configured.** With no limit, eviction has

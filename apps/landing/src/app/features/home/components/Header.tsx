@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 
-import { isSubscriptionAccountEnabled } from '../../../config/stage';
+import { isSubscriptionAccountOpen } from '../../../config/subscriptionServer';
 import { ROUTES } from '../../../routes/paths';
 
 export const Header = (): JSX.Element => {
@@ -38,7 +38,7 @@ export const Header = (): JSX.Element => {
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/50 backdrop-blur-xl shadow-sm' : ''}`}
         >
-            <div className="max-w-[1440px] mx-auto flex items-center justify-between h-20 px-6 md:px-10">
+            <div className="w-full flex items-center justify-between h-20 xl:h-[104px] px-6 md:px-10 xl:px-16">
                 <Link to={ROUTES.root} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
                     <img src={Logo.douBk} alt="D.U" className="h-5" />
@@ -57,7 +57,7 @@ export const Header = (): JSX.Element => {
                     {/* Language Toggle */}
                     <button
                         onClick={toggleLanguage}
-                        className="flex items-center gap-2 px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
+                        className="flex items-center gap-2 px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all
                                    text-navy hover:opacity-80 border border-subtitle"
                     >
                         <GlobeIcon />
@@ -69,15 +69,15 @@ export const Header = (): JSX.Element => {
                         The plans are listed on every host; sign-in only where those pages are open. */}
                     <Link
                         to={ROUTES.subscription.plans}
-                        className="flex items-center px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
+                        className="flex items-center px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all
                                    bg-navy text-white hover:opacity-90"
                     >
                         {t('header.plans')}
                     </Link>
-                    {isSubscriptionAccountEnabled && (
+                    {isSubscriptionAccountOpen && (
                         <Link
                             to={ROUTES.subscription.login}
-                            className="flex items-center px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
+                            className="flex items-center px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all
                                        bg-navy text-white hover:opacity-90"
                         >
                             {t('header.signIn')}

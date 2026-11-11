@@ -3,12 +3,14 @@ import { useEffect, useMemo } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import { useInviteLoginPageStore } from '../features/auth/stores/useInviteLoginPageStore';
 import { AppRouter } from '../routes';
 import {
     AppToaster,
     ConnectionBanner,
     UpdateBanner,
     useClouds,
+    useCloudRecordOwnership,
     useCrossCloudPushBadge,
     useCrossCloudPushNotifications,
     useDesktopBadge,
@@ -30,6 +32,7 @@ import {
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
+import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
 // Debug frame log: start recording inbound socket envelopes for the whole session, so the
@@ -80,6 +83,12 @@ const DesktopNotifications = () => {
  * raise toasts/badges/OS banners on the logged-out shell. Unmounting drops the OnReceiveNotification
  * listeners so a logged-out app silently ignores inbound pushes; it re-registers on the next login.
  */
+/** Attributes the device-wide invited-cloud records to the signed-in account (needs a live session). */
+const AuthedCloudRecords = () => {
+    useCloudRecordOwnership();
+    return null;
+};
+
 const AuthedNotifications = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     return isAuthenticated ? <DesktopNotifications /> : null;
@@ -148,8 +157,8 @@ const ShellUnreadSync = () => {
  */
 export const DesktopRuntime = () => {
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
-    // return from sleep). The sealed transport init no longer refreshes them and the SDK's first
-    // writeback is a refresh cycle (5min) away, so without this every relay-signed request — the
+    // return from sleep). Nothing else refreshes them at boot and the SDK's first writeback is a
+    // refresh cycle (5min) away, so without this every relay-signed request — the
     // cloud switch's `delegate-cloud` first among them — 403s meanwhile, and a 403 with no CORS
     // header reaches the app as a bare `Network Error`.
     useRelayCredentialRefresh();
@@ -170,6 +179,12 @@ export const DesktopRuntime = () => {
     //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
     //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
+    // A browser a phone approved into clouds re-checks them through the relay — at mount, every ten
+    // minutes and on returning to the window — and signs out once an approval ended.
+    usePairedCloudSignOut();
+    // The invite page signs the device guest in before its code is checked; that socket is not
+    // the person's concern yet, so the banner stays off the page until the attempt is left.
+    const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
 
     return (
         <runtime.connection.RuntimeAuthHost>
@@ -181,6 +196,7 @@ export const DesktopRuntime = () => {
                 <BackgroundSyncRunner />
                 <BackgroundCloudsRunner />
                 <AuthedNotifications />
+                <AuthedCloudRecords />
                 <ShellUnreadSync />
                 {/* The banners are a row in the layout, not fixed overlays. Fixed, they
                     covered the shell's top row, and when both fired the update banner sat
@@ -188,7 +204,7 @@ export const DesktopRuntime = () => {
                     app below gives up exactly their height. */}
                 <div className="flex h-full flex-col">
                     <div className="flex shrink-0 flex-col">
-                        <ConnectionBanner />
+                        <ConnectionBanner quiet={inviteAttemptHeld} />
                         {/* Desktop auto-update banner — always mounted (no-op in browser). */}
                         <UpdateBanner />
                     </div>

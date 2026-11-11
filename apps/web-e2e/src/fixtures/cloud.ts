@@ -1,6 +1,7 @@
 import { SocketRefusal, type FakeBackend, type HttpHandler, type SocketHandler } from './backend';
 import { GUEST } from './guest';
 import { MINA } from './rooms';
+import { signedInMember } from './subscription';
 
 /**
  * A cloud the guest is invited into: its backend and socket, and the one place and room the invites
@@ -324,13 +325,17 @@ export interface OwnedCloudState {
 }
 
 /**
- * The guest owns the cloud: the relay's catalog lists it, and entering it goes the owner's way — a
+ * The account owns the cloud: the relay's catalog lists it, and entering it goes the owner's way — a
  * delegation from the relay (`delegate-cloud`), traded on the cloud's backend for the owner's own
  * token there (`exchange-token`), signed for the cloud's default place like an invite login's.
  * `issue: false` refuses the delegation, which no retry gets past.
+ *
+ * The scenario's guest is signed in first (`signedInMember`): the relay never lets a guest own a
+ * cloud, and the page does not ask the relay's catalog for a guest account at all.
  */
 export const ownCloud = (backend: FakeBackend, { issue = true }: { issue?: boolean } = {}): OwnedCloudState => {
     const owned: OwnedCloudState = { delegations: 0, issue };
+    signedInMember(backend);
     backend.useHttp({
         'GET /clouds/0/list': () => ({
             sort: '',

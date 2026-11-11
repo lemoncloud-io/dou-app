@@ -8,6 +8,7 @@ const deviceService = {
         { uri: 'file:///doc/report.pdf', name: 'report.pdf', type: 'application/pdf', size: 42 },
     ]),
     openSettings: jest.fn(async () => true),
+    openCamera: jest.fn(async (_options?: unknown) => [] as unknown[]),
 };
 const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
@@ -129,5 +130,69 @@ describe('useDeviceHandler handleOpenURL', () => {
 
         expect(res.success).toBe(false);
         expect(res.error).toEqual({ code: 'LINK_ERROR', message: 'no handler' });
+    });
+});
+
+const shoot = (data: unknown) =>
+    renderHook(() => useDeviceHandler()).result.current.handleOpenCamera({ type: 'OpenCamera', data } as any);
+
+describe('useDeviceHandler handleOpenCamera', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('passes the capture options the page asked for to the camera', async () => {
+        await shoot({ mediaType: 'photo', includeBase64: true, maxWidth: 1024, quality: 0.7 });
+
+        expect(deviceService.openCamera).toHaveBeenCalledWith({
+            mediaType: 'photo',
+            includeBase64: true,
+            maxWidth: 1024,
+            quality: 0.7,
+        });
+    });
+
+    it('returns the base64 the picker produced', async () => {
+        deviceService.openCamera.mockResolvedValueOnce([
+            { uri: 'file:///tmp/qr.jpg', base64: 'aGVsbG8=', width: 1024, height: 768, type: 'image/jpeg' },
+        ]);
+
+        const res: any = await shoot({ includeBase64: true, maxWidth: 1024 });
+
+        expect(res.success).toBe(true);
+        expect(res.data.assets[0]).toMatchObject({ base64: 'aGVsbG8=', width: 1024, height: 768 });
+    });
+
+    it.each([
+        ['no data', undefined],
+        ['an empty payload', {}],
+    ])('opens the camera with no options for %s, as before options were read', async (_label, data) => {
+        await shoot(data);
+
+        expect(deviceService.openCamera).toHaveBeenCalledTimes(1);
+        expect(deviceService.openCamera.mock.calls[0][0]).toBeUndefined();
+    });
+
+    it('keeps the photo default when the page sets options but no media type', async () => {
+        await shoot({ includeBase64: true });
+
+        expect(deviceService.openCamera).toHaveBeenCalledWith({ mediaType: 'photo', includeBase64: true });
+    });
+
+    it('passes only the fields of OpenCameraPayload', async () => {
+        await shoot({ includeBase64: true, cameraType: 'back', saveToPhotos: true, durationLimit: 5, maxHeight: 800 });
+
+        expect(deviceService.openCamera).toHaveBeenCalledWith({
+            mediaType: 'photo',
+            includeBase64: true,
+            cameraType: 'back',
+            maxHeight: 800,
+        });
+    });
+
+    it('reports a camera failure instead of throwing', async () => {
+        deviceService.openCamera.mockRejectedValueOnce(new Error('no camera'));
+
+        const res: any = await shoot({ includeBase64: true });
+
+        expect(res).toMatchObject({ success: false, error: { code: 'CAMERA_ERROR', message: 'no camera' } });
     });
 });

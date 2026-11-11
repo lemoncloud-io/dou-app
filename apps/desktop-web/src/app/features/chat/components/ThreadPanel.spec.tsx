@@ -35,6 +35,10 @@ const composerSend = vi.fn();
 const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
 const clearTray = vi.fn();
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
+// Read positions are covered in ThreadPanel.readMarkers.spec.tsx; here the room has none to draw.
+vi.mock('../../../shared/hooks/useChannelReadCounts', () => ({
+    useChannelReadCounts: () => ({ readCountOf: () => null, cursors: [] }),
+}));
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
     usePanelWidth: () => ({ width: 384, minWidth: 280, maxWidth: 640, panelRef: { current: null } }),
 }));
@@ -350,25 +354,6 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
         expect(screen.getByRole('heading', { name: /error-report/ })).toBeTruthy();
-    });
-
-    // The read counts are mounted once by the host and handed to both surfaces. The panel
-    // shares the feed's renderer, so forgetting to pass them on would leave replies silently
-    // without a receipt — the shape of the three twin bugs in CLAUDE.md.
-    it('passes the read counts through to the replies', () => {
-        messages = [chat(1, { content: 'root' }), chat(2, { content: 'reply', parentId: 'C1:1' })];
-
-        render(
-            <ThreadPanel
-                channel={CHANNEL}
-                rootId="C1:1"
-                members={[]}
-                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText('Seen by 2').length).toBeGreaterThan(0);
     });
 
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the

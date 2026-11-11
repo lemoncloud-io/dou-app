@@ -1,6 +1,7 @@
 import type {
     CloudHttpGateway,
     OAuthHttpGateway,
+    PairingHttpGateway,
     ReportHttpGateway,
     SubscriptionHttpGateway,
     UserHttpGateway,
@@ -52,7 +53,18 @@ export type SubscriptionHttpDomainGateway = Pick<
     //  on purpose — see `SubscriptionHttpDataSource`.
     | 'adminMemberships'
     | 'updateMembershipByAdmin'
+    | 'refundSubscriptionByAdmin'
     | 'adminClouds'
+    // the web subscription, billed through the payment provider
+    | 'mySubscription'
+    | 'subscriptionCards'
+    | 'issueBillingKey'
+    | 'startSubscription'
+    | 'changeSubscription'
+    | 'cancelSubscription'
+    | 'addCard'
+    | 'setDefaultCard'
+    | 'removeCard'
 >;
 
 /**
@@ -63,10 +75,20 @@ export type SubscriptionHttpDomainGateway = Pick<
  */
 export type ReportHttpDomainGateway = Pick<ReportHttpGateway, 'reportIssue' | 'uploadLogBatch'>;
 
+/**
+ * Device pairing. Every operation is taken: the requesting and the approving device each use their
+ * own half, and the server — not this bundle — refuses the half a session is not allowed.
+ */
+export type PairingHttpDomainGateway = Pick<
+    PairingHttpGateway,
+    'request' | 'check' | 'approve' | 'deny' | 'claim' | 'revoke' | 'list'
+>;
+
 export interface HttpGatewayBundle {
     auth: AuthHttpDomainGateway;
     user: UserHttpDomainGateway;
     cloud: CloudHttpDomainGateway;
     subscription: SubscriptionHttpDomainGateway;
     report: ReportHttpDomainGateway;
+    pairing: PairingHttpDomainGateway;
 }

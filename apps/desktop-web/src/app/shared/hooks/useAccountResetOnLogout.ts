@@ -3,6 +3,9 @@ import { useCallback } from 'react';
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 import type { ICloudRepository } from '@chatic/data';
+import { deviceStore, plainStore } from '../../storage';
+
+import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';
 
 /** Account/cloud-scoped persist keys — matches each store's persist `name` (single source of truth). */
 const ACCOUNT_SCOPED_STORAGE_KEYS = [
@@ -10,9 +13,8 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-cloud-push-badges',
     'chatic-notification-prefs',
     'chatic-saved-items',
-    // Legacy favorites key — migrateLegacyFavorites moves it when a place is opened. To stop an id
-    // left over from before migration from leaking into the next account, it must also be cleared on
-    // logout (the new record is handled by config.clear below).
+    // The favorites key older builds wrote (pins are a config row now). Nothing reads it any more, but a
+    // device can still hold one, and its ids must not outlive the account that pinned them.
     'chatic-favorite-channels',
     'chatic-mentions',
     'chatic-my-threads',
@@ -23,6 +25,9 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     // What the app says after a Google sign-in, left for the reload. Not yet said when the person logs
     // out, it would greet the next account with the previous one's news.
     'chatic-signin-notice',
+    // Who the invited-cloud records were last reconciled for. A sign-out forgets it, so the next account
+    // is told apart from a guest linking to an account in place.
+    CLOUD_RECORD_OWNER_KEY,
 ] as const;
 
 /** The cloud cache minus its invited rows — those carry the endpoints a later switch needs. */
@@ -62,7 +67,13 @@ export const useAccountResetOnLogout = () => {
     const repos = runtime.data.useRuntimeRepositories();
 
     const resetAccount = useCallback(async (): Promise<void> => {
-        ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+        // Most of these live in the device store; a few (the sign-in notice) in the session's plain
+        // store — sessionStorage in a browser tab. Both are cleared, so a key goes whichever of the two
+        // it was written to.
+        ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => {
+            deviceStore.remove(key);
+            plainStore.remove(key);
+        });
         // Favorites/ordering now live as @chatic/config records — config.clear sweeps both the lane
         // entry (in-memory) and the persisted `@chatic/config.ui.*` key together. removeItem alone
         // would leave the in-memory value alive right up until the reload.

@@ -32,7 +32,12 @@ import {
     TextNode,
 } from 'lexical';
 
-import { isLabelledLinkAddress, LINK_URL_SOURCE, useComposerDraftStore } from '../../../../shared';
+import {
+    isLabelledLinkAddress,
+    LINK_URL_SOURCE,
+    useComposerDraftStore,
+    useComposerFocusStore,
+} from '../../../../shared';
 import { type FenceSegment, splitFences } from '../../utils';
 import { $importWireMarkdown } from './wireMarkdown';
 
@@ -364,15 +369,21 @@ export const FormatShortcutsPlugin = () => {
 /**
  * Load the channel's saved draft (the wire string) on
  * switch, then focus with the caret at the end.
+ *
+ * A room opened by a rail number is the one exception: the reader is stepping through clouds and
+ * places with keys, and a caret in the box would make the next chord (Shift+digit) type its
+ * character instead of moving. The request holds for the whole switch (HomePage clears it once the
+ * switch settles), so every room a switch lands on — including a dev double-mount — stays put.
  */
 export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
     const [editor] = useLexicalComposerContext();
     useEffect(() => {
         const draft = useComposerDraftStore.getState().drafts[channelId] ?? '';
+        const skipped = useComposerFocusStore.getState().skipNext;
         // A channel switch can land after a panel opened for it — a thread from the inbox — has put
         // focus inside; the room's box does not pull it back out.
         const panel = document.activeElement?.closest('[data-trailing-panel]');
-        const focus = !(panel && !panel.contains(editor.getRootElement()));
+        const focus = !skipped && !(panel && !panel.contains(editor.getRootElement()));
         editor.update(() => {
             $importWireMarkdown(draft);
             // A selection in an editable root pulls DOM focus with it, so none is placed when focus stays put.
@@ -380,6 +391,13 @@ export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
             else $setSelection(null);
         });
         if (focus) editor.focus();
+        // Lexical restores the root's selection as it attaches and again as this update commits,
+        // which pulls DOM focus back in after the block above decided not to take it.
+        else {
+            const root = editor.getRootElement();
+            root?.blur();
+            requestAnimationFrame(() => root?.blur());
+        }
     }, [editor, channelId]);
     return null;
 };

@@ -19,22 +19,23 @@ feedback's, whose screen lives in another feature.
 
 ### The four depths
 
-| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                      |
-| --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------- |
-| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds        |
-| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card |
-| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal    |
-| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo     |
-| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them    |
-| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places |
-| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only         |
-| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released     |
-| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                      |
-| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                |
-| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout     |
-| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                   |
-| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, and the hidden debug unlock        |
-| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                  |
+| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                                                    |
+| --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------- |
+| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                                      |
+| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                               |
+| `EmailLoginPage`                                                | `/mypage/login/email`            | email + password sign-in, development stages only (`feature.auth.emailLogin`) |
+| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal                                  |
+| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                                   |
+| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                  |
+| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                               |
+| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                       |
+| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released                                   |
+| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                    |
+| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                                              |
+| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
+| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
+| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card, dev-only sub WebView pages, the debug unlock  |
+| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                                                |
 
 `/mypage` is the only one of these the floating nav appears on: `UnifiedLayout` matches that path
 exactly, so every depth below it is nav-free without needing its own opt-out.
@@ -50,6 +51,14 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
+- **The sub WebView pages.** The pages the Lab opens in the sub WebView are `IN_APP_PAGES` in
+  `consts/inAppPages.ts`, games so far but not only games. Each names an app id, resolved for this
+  build's stage by the same list a page link uses (`bridge/subWebViewApps.ts`), and a tap opens it with
+  `openSubWebView` and that id — so what the page shares names the app. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
+  for everyone (Raise DoU), a `debug` page stays in the "In-app" card that only debug mode draws
+  (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
+  sub WebView is, and what it allows, is the phone shell's
+  ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to
   [invite/place-invite.md](../invite/place-invite.md), the chat input lock's to
@@ -109,6 +118,9 @@ someone who is plainly signed in.
 - **Subscription.** Always the subscription list — it has a state for everyone, and its empty
   state is what leads to the guide. Branching here on `isValid` sent a scheduled cancellation,
   still paid for, to the pitch.
+  The row shows for an account, and for a guest in a browser: a browser guest is handed to the
+  website, which signs the buyer in itself, whereas a guest app signs in here first and so waits for an
+  account. The list and the guide still open there; the hand-off to the website starts at the plan picker.
 - **Version.** It goes to the store **only when an update is actually pending**, and the
   up-to-date / update-available label shows on iOS only, because Android has no live-version source
   and a label there would be a guess. Otherwise the row is inert — it is informational and carries
@@ -214,20 +226,68 @@ key on the registry's `labs` surface — default off, and declared killable by t
 draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
 experiment adds its own row, as a `user` key does in Settings.
 
-Today there are two, each in its own card with its note under it:
+Everything sits in the one **Experiments** card, so a person sees the whole list in one place; a row is
+a switch, or — for a sub WebView page — an arrow that opens it. Today there are three:
 
 - **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
   [invite/place-invite.md](../invite/place-invite.md).
 - **Chat input lock** (`feature.chatInputLock`), through `useChatInputLockExperiment` — see
   [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
   only adds a row to each room's settings; no room is locked until that row says so.
+- **Raise DoU** (`두유 키우기` in Korean), the raising game, a sub WebView page with nothing to turn on — see above.
 
-A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what the
-switch does and where it applies is the note under the card.
+A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line, and there
+is no note under the card: what a switch does is the feature's own doc.
 
 The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
 turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
 local storage, so another device of the same person starts with it off.
+
+### The mini app card
+
+Below the Experiments card, **Mini apps** opens DoU's hub for the active cloud in the sub WebView,
+with who is looking and the cloud's mini apps, and the hub opens the one chosen
+(`components/MiniAppCard.tsx`, `hooks/useMiniAppLauncher.ts`). It is the phone's half of the feature
+the desktop web carries in its settings, and behaves the same way:
+
+- **Where it shows.** Only in an app whose handshake says `subWebViewOpenScope: 'anyHttps'`: an older
+  app would refuse an owner's link, and a browser tab has no sub WebView. Never on the Default Cloud
+  (Home), which is the relay's — no owner, no mini apps.
+- **The way in.** One **Open mini apps** row, for everyone, always opens the hub
+  (`https://apps.chatic.io/`, `apps-dev` in a development build). The hub gets `MiniAppLaunchParams`:
+  the cloud, the open place, my id _in this cloud_ and name (the place nick, else the cloud profile's
+  name), `isOwner`, and `miniApps` — each mini app's id, name and host, never its address. A second
+  press while the first open is out sends nothing.
+- **Opening the one chosen.** When the hub closes with `result = { action: 'openMiniApp', id }`, the
+  card looks the id up in its own list and opens that address. An id the list does not hold opens
+  nothing, so the hub can only name a mini app the owner saved. That page gets the cloud, the place
+  and my id and name — no `isOwner` and no list; telling a third party who owns the cloud, or which
+  other sites it uses, is information it was never asked to hold.
+- **A site DoU does not run** is opened only after the user agreed to hand it those names, once per
+  account and host (`dou.miniAppConsent.<accountId>.<host>`). Declined, nothing opens.
+- **The owner's list.** Only the owner sees the cloud's mini apps here, as manage rows (the name, then
+  "host · Edit") that open the edit sheet, plus **Add mini app** while there is room (up to
+  `MINI_APP_LINK_LIMIT` = 10). A mini app needs a name of at most `MINI_APP_LINK_NAME_MAX` = 30
+  characters and an address the shell opens — plain https, no port, no sign-in part, and not on the
+  hub's own host, which would hand that page the hub's `isOwner` and list. Both are checked
+  by the shared `checkMiniAppLink`, the same rule the desktop uses, and `parseMiniAppLinks` drops any
+  stored entry that no longer passes it. When the hub closes with
+  `result.action = 'openMiniAppLinkSettings'`, the add sheet opens, for the owner only.
+- **Where it is kept.** On this phone only, as one JSON list per cloud through the device store
+  under `dou.miniAppLinks.<cloudId>` (an empty list removes the key). Another cloud never shows it,
+  and members do not see it until the list moves to the server. The list is read while rendering, not
+  in an effect, so a press in the commit right after a cloud switch cannot send the previous cloud's
+  list with the new cloud's params.
+- **Whose result counts.** The hub's result counts only for the view this card opened on the hub, and
+  only while the same cloud is open: a site that closes with the same result does nothing, and so
+  does a hub that closes after a cloud switch. A switch also drops an open sheet and an unanswered
+  consent question, so agreeing cannot hand one cloud's site the next cloud's names.
+
+Who owns a cloud is read from positive evidence only: the cloud is in the account's owned catalog
+(`useCloudSessionCatalog`). "Not in the invited list" is not used — that list starts empty on each
+mount and fills in later — so the owner's controls and `isOwner` stay off until the catalog answers.
+The tiers, the consent and the params are decided in ADR-0297; what the shell does with each tier is
+[sub-webview.md](../../../../mobile/docs/webview/sub-webview.md#where-it-may-go).
 
 ### UI comes from web-ui-kit, and missing pieces are added there first
 

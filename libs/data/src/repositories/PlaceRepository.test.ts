@@ -5,11 +5,12 @@ import { createRepositories } from './index';
 import { ChannelRepository } from './ChannelRepository';
 import { DataContextHolder } from './types';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 /** A channel clean-up for tests that never leave a place. */
 const noChannelCleanup = () => ({ evictLeftChannels: jest.fn(), dropMemberFromChannels: jest.fn() });

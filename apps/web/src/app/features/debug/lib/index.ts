@@ -9,3 +9,4 @@ export * from './verifyDebugCode';
 export * from './formatLogEntry';
 export * from './logFilter';
 export * from './webStorage';
+export * from './roomInspector';

@@ -26,8 +26,8 @@ Three things it needs live outside the feature folder, because other features sh
 `useRelayInviteMutations().createInvite` is the only way an invite is made, and it attaches two
 fields centrally so no call site can forget them:
 
-- **`expiresDays: 1`.** The server's own default is three days; sending one narrows the window a
-  phone-bound link is exposed for. The number reaches no copy — screens render the returned
+- **`expiresDays: 1`.** The server's own default is 24 hours now too; the value is still sent so a
+  relay server that predates that default does not hand out a longer-lived, phone-bound link. The number reaches no copy — screens render the returned
   `expiredAt`.
 - **`phone` in E.164** (`+821012345678`), never the local `0…` form. The backend's hasher reads
   `countryCode` only on a local number and silently ignores it once the string starts with `+`, so

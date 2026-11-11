@@ -10,8 +10,18 @@ import type {
 import type {
     AdminEndpointOptions,
     AdminOverrideOptions,
+    AdminSubscriptionView,
+    BillingIssueParams,
+    BillkeyView,
     ISubscriptionHttpDataSource,
     MembershipDropsResult,
+    SubscriptionCardBody,
+    SubscriptionRefundBody,
+    SubscriptionSandboxParams,
+    SubscriptionStartBody,
+    SubscriptionStartParams,
+    WebSubscriptionMineView,
+    WebSubscriptionView,
 } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -36,11 +46,36 @@ export interface ISubscriptionRepository extends DisposableRepository {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<MembershipView>>;
     updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
+    /** Full refund of a web subscription's last paid charge; the subscription expires at once. */
+    refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView>;
     fetchAdminClouds(
         ownerId: string,
         params?: Record<string, unknown>,
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
+
+    /**
+     * The web subscription — one per account, billed through the payment provider rather than a store.
+     * Remote-only like the rest: the landing site's account pages read it and keep no copy.
+     */
+    fetchMySubscription(): Promise<WebSubscriptionMineView>;
+    /** The cards the payment provider holds; `isDefault` marks the one it charges. */
+    fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
+    /** What the provider's card window opens with, for the product the card is for. */
+    issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
+    startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
+    changeSubscription(productId: string): Promise<WebSubscriptionView>;
+    cancelSubscription(): Promise<WebSubscriptionView>;
+    /** Adds a card; the default card stays as it was. */
+    addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
+    /** Makes a card the one charged. */
+    setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
+    /** The payment service refuses the default card and the card a subscription in use is charged to. */
+    removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
 /**
@@ -102,11 +137,58 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         return this.requireHttp().updateMembershipByAdmin(userId, body, opts);
     }
 
+    public async refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView> {
+        return this.requireHttp().refundSubscriptionByAdmin(userId, body, opts);
+    }
+
     public async fetchAdminClouds(
         ownerId: string,
         params?: Record<string, unknown>,
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>> {
         return this.requireHttp().fetchAdminClouds(ownerId, params, opts);
+    }
+
+    public async fetchMySubscription(): Promise<WebSubscriptionMineView> {
+        return this.requireHttp().fetchMySubscription();
+    }
+
+    public async fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]> {
+        return this.requireHttp().fetchSubscriptionCards(params);
+    }
+
+    public async issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams> {
+        return this.requireHttp().issueBillingKey(productId, params);
+    }
+
+    public async startSubscription(
+        body: SubscriptionStartBody,
+        params?: SubscriptionStartParams
+    ): Promise<WebSubscriptionView> {
+        return this.requireHttp().startSubscription(body, params);
+    }
+
+    public async changeSubscription(productId: string): Promise<WebSubscriptionView> {
+        return this.requireHttp().changeSubscription(productId);
+    }
+
+    public async cancelSubscription(): Promise<WebSubscriptionView> {
+        return this.requireHttp().cancelSubscription();
+    }
+
+    public async addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().addCard(body, params);
+    }
+
+    public async setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().setDefaultCard(billkeyId, params);
+    }
+
+    public async removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().removeCard(billkeyId, params);
     }
 }

@@ -6,7 +6,7 @@ import {
     startPerfTrace,
 } from '@chatic/perf';
 
-import type { HandedOverPerfTrace } from '@chatic/app-messages';
+import type { HandedOverPerfTrace } from '@chatic/bridge-messages';
 import type { PerfTrace } from '@chatic/perf';
 
 /**
@@ -91,8 +91,8 @@ class RoomOpenTraceSlot {
         const trace = handedOver
             ? adoptPerfTrace('chat_room_open', handedOver.id, handedOver.startedAt)
             : startPerfTrace('chat_room_open');
-        // An app build that predates the sync trace hands over only the first; the web then starts
-        // the second here, a little later than the tap.
+        // A hand-over without the sync trace (the contract leaves it optional) has the web start the
+        // second here, a little later than the tap.
         const sync = handedOver?.syncId
             ? adoptPerfTrace('chat_room_sync', handedOver.syncId, handedOver.startedAt)
             : startPerfTrace('chat_room_sync');

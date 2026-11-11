@@ -92,6 +92,7 @@ const Demo = ({
                 onPhoto={() => setSent('Photos')}
                 onCamera={() => setSent('Camera')}
                 onFile={() => setSent('Files')}
+                onVoice={() => setSent('Voice')}
             />
         </div>
     );

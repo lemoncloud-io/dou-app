@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { setStorageAdapter } from '@chatic/shared';
+import { WebStore } from '@chatic/storage';
+
+import { configureAppStores } from '../../../storage';
 
 import { NEW_ACCOUNT_CLOCK_SLACK_MS, isAccountMadeSince, saveSignInNotice, takeSignInNotice } from './signInNotice';
 
@@ -28,7 +30,8 @@ describe('isAccountMadeSince', () => {
 
 describe('sign-in notice storage', () => {
     beforeEach(() => {
-        setStorageAdapter(localStorage);
+        // As in the desktop shell, where the session's plain store is localStorage.
+        configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
     });
 

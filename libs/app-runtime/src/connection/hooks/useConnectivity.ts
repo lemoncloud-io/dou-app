@@ -2,9 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useVerifiedClouds } from './useVerifiedClouds';
-import { isLinkDown, readBrowserOnline } from '../../socket/linkState';
-import type { LinkSignals } from '../../socket/linkState';
-import type { SocketState } from '../../socket';
+import { isLinkDown, readOnline, subscribeOnline } from '@chatic/transport';
+import type { LinkSignals, SocketState } from '@chatic/transport';
 
 /** What the app should TELL THE USER about the connection. `online` means "nothing to warn about". */
 export type ConnectivityStatus = 'online' | 'reconnecting' | 'offline';
@@ -13,7 +12,7 @@ export type ConnectivityStatus = 'online' | 'reconnecting' | 'offline';
 export interface ConnectivitySignals extends SocketState, LinkSignals {}
 
 /**
- * Composes the browser's network signal with the socket transport state.
+ * Composes the platform's network signal with the socket transport state.
  *
  * `navigator.onLine` is asymmetric and the derivation encodes that asymmetry:
  * - **strong negative** — `false` means there is no network, so it outranks the active socket's
@@ -43,18 +42,9 @@ export const deriveConnectivity = ({
     return 'reconnecting';
 };
 
-const subscribeBrowserOnline = (onStoreChange: () => void): (() => void) => {
-    window.addEventListener('online', onStoreChange);
-    window.addEventListener('offline', onStoreChange);
-    return () => {
-        window.removeEventListener('online', onStoreChange);
-        window.removeEventListener('offline', onStoreChange);
-    };
-};
-
 /** Live connection status for the app shell. See `deriveConnectivity` for the semantics. */
 export const useConnectivity = (): ConnectivityStatus => {
-    const isBrowserOnline = useSyncExternalStore(subscribeBrowserOnline, readBrowserOnline, readBrowserOnline);
+    const isBrowserOnline = useSyncExternalStore(subscribeOnline, readOnline, readOnline);
     const socketState = useRuntimeSocketState();
     const hasVerifiedSocket = useVerifiedClouds().length > 0;
 

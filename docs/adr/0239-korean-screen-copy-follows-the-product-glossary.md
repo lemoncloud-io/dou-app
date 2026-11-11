@@ -76,7 +76,8 @@ The English locale is unchanged.
 
 - **Desktop is left behind on purpose.** Its screens are modelled on channels throughout, so swapping
   words there would not make the copy consistent. Until it is redesigned, the same receipt reads
-  `미확인` / `모두 읽음` on desktop and `안읽음` / `읽음 N` on the phone.
+  `미확인` / `모두 읽음` on desktop and `안읽음` / `읽음 N` on the phone. (Desktop has since dropped the
+  receipt altogether — [ADR-0251](./0251-desktop-shows-no-per-message-read-receipt.md).)
 - **Some uppercase pills stay.** The FREE/PRO pills in the header, the menu and the plan card come from
   the UI kit's default label, not from a locale key. Only the cloud guide's badges changed.
 - **Some keys keep their old Korean words for now.** Keys owned by other in-flight work still read

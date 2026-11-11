@@ -3,7 +3,7 @@
 // It has no module of its own on purpose: booting is not an engine (see libs/app-runtime/README.md's
 // engine table — session · socket · http · sync · data), it is the act of handing those engines
 // their configuration. So this file is a barrel and nothing else; the logic stays in the module
-// that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `http/transport`
+// that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `@chatic/transport`
 // for the transport, `@chatic/config` for env).
 //
 // Everything an app must decide at boot is reachable from `AppRuntimeConfig` below — including the
@@ -28,13 +28,27 @@ export type { DataRepositoriesOptions } from '@chatic/data';
 // routing them through this facade bought nothing.
 export { isNativeApp } from './utils/isNativeApp';
 
+// The session's storage. An entry point builds the stores for its environment and passes them to
+// `initAppRuntime({ storage })`; one in an app or desktop shell that keeps a vault first awaits
+// `prepareSecretStorage`, which loads the vault and moves secrets left in web storage into it.
+// There is no setter to swap the stores after boot: the session's stores are wired once, in
+// `initAppRuntime`, and a second wiring anywhere else would silently replace that choice.
+export { prepareSecretStorage } from './sessionStorageBoot';
+// The one place an app's stores are chosen and built. An entry point calls it once and hands the result
+// out — to `prepareSecretStorage`, to `initAppRuntime({ storage })`, to its config ports and its own
+// features — instead of constructing stores itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that
+// apps/web writes when a shell turns out to keep a vault only after its handshake.
+export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageStores } from './storage/resolveStorageStores';
+export type { StorageEnvironment, StorageStores } from './storage/resolveStorageStores';
+export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
+export type { SessionStoragePorts } from '@chatic/session';
+
 // Native local-cache capability, reported by the bridge handshake AFTER boot — which is why it is a
 // setter and not a field on `AppRuntimeConfig`. The web ships ahead of the app (see the deploy-order
 // rule), so a domain the installed app cannot store is routed to web storage instead of a silent void.
 export { setNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
 
-// The sealed web transport. `startWebTransportInit` is a boot primitive that apps should NOT need:
-// `connection.RuntimeConnectionHost` is the single init driver (see its doc). desktop-web's three
-// auth hooks are the last callers, and it stays here only until they route through the host.
-export { startWebTransportInit, webTransport } from './http/transport';
+// The relay HTTP transport — plain or signed requests; admin reaches the server through it. It needs no
+// boot: each signed request reads the session's relay token at that moment.
+export { webTransport } from '@chatic/transport';

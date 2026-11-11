@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload, SubWebViewOpenScope, WebMessageType } from '@chatic/bridge-messages';
 
 /**
  * Whether the installed app can save and share a chat image: its handshake lists both messages.
@@ -18,23 +18,13 @@ type Listener = () => void;
 /**
  * What the installed shell said it can do, held for the page's life.
  *
- * Image export is decided from the handshake rather than learned from a first `NOT_FOUND`, because
- * the buttons have to be absent before anyone presses them — on an older app they would otherwise
- * appear and fail. Until the report arrives the answer is `false`, so the viewer, which opens long
- * after boot, never shows a button that is not backed. The report lists the handlers the app
- * registered; an app whose bridge predates 2.6.0 lists its whole compiled message map instead, which
- * its own tests kept in step with its handlers for these two. If a press still meets `NOT_FOUND`,
- * `withdrawImageExport` turns the buttons off for the rest of the session.
- *
- * Videos widened the same two messages instead of adding new ones, so the handshake cannot tell an
- * app that takes videos from one built before them. That one is learned instead: an older app answers
- * a video with `UNSUPPORTED_TYPE`, and `withdrawVideoExport` hides video export from then on while
- * photos keep theirs.
+ * Image export is decided from the handshake, because the buttons have to be absent before anyone
+ * presses them. Until the report arrives the answer is `false`, so the viewer, which opens long after
+ * boot, never shows a button that is not backed. A plain browser tab never gets a report. Every phone
+ * app this page runs in lists both messages, and they take videos as well as photos.
  */
 class ShellCapabilities {
     private report: OnWebAppReadyPayload | null = null;
-    private imageExportWithdrawn = false;
-    private videoExportWithdrawn = false;
     private readonly listeners = new Set<Listener>();
 
     setReport(report: OnWebAppReadyPayload | null): void {
@@ -42,27 +32,21 @@ class ShellCapabilities {
         this.notify();
     }
 
+    /** Whether the handshake listed `type`. `false` before it arrives, and in a browser tab. */
+    supports(type: WebMessageType): boolean {
+        return this.report?.supportedWebMessages?.includes(type) ?? false;
+    }
+
     canExportImages(): boolean {
-        return !this.imageExportWithdrawn && supportsImageExport(this.report);
+        return supportsImageExport(this.report);
     }
 
-    /** Photo export, and no video yet refused as a format this app does not know. */
-    canExportVideos(): boolean {
-        return !this.videoExportWithdrawn && this.canExportImages();
-    }
-
-    /** An app built before videos refused one: hide video export until the page reloads. */
-    withdrawVideoExport(): void {
-        if (this.videoExportWithdrawn) return;
-        this.videoExportWithdrawn = true;
-        this.notify();
-    }
-
-    /** The shell answered `NOT_FOUND` after all: hide the buttons until the page reloads. */
-    withdrawImageExport(): void {
-        if (this.imageExportWithdrawn) return;
-        this.imageExportWithdrawn = true;
-        this.notify();
+    /**
+     * How far the shell's `OpenSubWebView` opens, or `null` when its handshake says nothing — an app
+     * from before the field, which opens the reviewed pages only, and a browser tab.
+     */
+    subWebViewOpenScope(): SubWebViewOpenScope | null {
+        return this.report?.subWebViewOpenScope ?? null;
     }
 
     subscribe = (listener: Listener): (() => void) => {
@@ -72,11 +56,9 @@ class ShellCapabilities {
         };
     };
 
-    /** Test seam — forgets the report and any withdrawal. */
+    /** Test seam — forgets the report. */
     reset(): void {
         this.report = null;
-        this.imageExportWithdrawn = false;
-        this.videoExportWithdrawn = false;
         this.notify();
     }
 
@@ -87,10 +69,14 @@ class ShellCapabilities {
 
 export const shellCapabilities = new ShellCapabilities();
 
-/** Re-renders when the handshake arrives or export is withdrawn. */
+/** Re-renders when the handshake arrives. */
 export const useCanExportImages = (): boolean =>
     useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.canExportImages());
 
-/** Re-renders when video export becomes possible or is withdrawn. */
-export const useCanExportVideos = (): boolean =>
-    useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.canExportVideos());
+/**
+ * How far the shell opens sub WebViews; re-renders when the handshake arrives. Only `anyHttps` lets
+ * the web offer a link a cloud's owner saved: the web ships before the shell, so it asks rather than
+ * assumes.
+ */
+export const useSubWebViewOpenScope = (): SubWebViewOpenScope | null =>
+    useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.subWebViewOpenScope());

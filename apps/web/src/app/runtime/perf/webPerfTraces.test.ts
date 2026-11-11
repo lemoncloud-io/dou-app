@@ -1,10 +1,10 @@
 import { recordPerfSample, resetPerfTraces, startPerfTrace } from '@chatic/perf';
 
 import { appBridge } from '../../bridge/appBridge';
-import { configureWebPerfTraces, setPerfTelemetryRecorder, supportsNativePerfTraces } from './webPerfTraces';
+import { configureWebPerfTraces, setPerfTelemetryRecorder } from './webPerfTraces';
 
 import type { Logger } from '@chatic/logger';
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
 jest.mock('../../bridge/appBridge', () => ({
     appBridge: { startPerfTrace: jest.fn(), stopPerfTrace: jest.fn() },
@@ -19,15 +19,6 @@ beforeEach(() => jest.clearAllMocks());
 afterEach(() => {
     resetPerfTraces();
     setPerfTelemetryRecorder(undefined);
-});
-
-describe('supportsNativePerfTraces', () => {
-    it('needs both the start and the stop handler', () => {
-        expect(supportsNativePerfTraces(reportWith(['StartPerfTrace', 'StopPerfTrace']))).toBe(true);
-        expect(supportsNativePerfTraces(reportWith(['StartPerfTrace']))).toBe(false);
-        expect(supportsNativePerfTraces(reportWith([]))).toBe(false);
-        expect(supportsNativePerfTraces(null)).toBe(false);
-    });
 });
 
 describe('configureWebPerfTraces', () => {
@@ -46,16 +37,19 @@ describe('configureWebPerfTraces', () => {
         );
     });
 
-    it('falls back to the log pipeline on an app build without the handlers', () => {
-        // A run id is needed for the log backend to sample at all; whether this one lands in the
-        // sample is not what is being asserted — only that nothing crosses the bridge.
-        const perf = configureWebPerfTraces({ logger, runId: 'run-1' });
-        perf.resolveWith(reportWith(['WebAppReady']));
+    it('keeps traces off the bridge for an app below the version floor', () => {
+        window.CHATIC_APP_PLATFORM = 'ios';
+        window.CHATIC_APP_CURRENT_VERSION = '0.29.2';
+        try {
+            const perf = configureWebPerfTraces({ logger, runId: 'run-1' });
+            perf.resolveWith(reportWith(['StartPerfTrace', 'StopPerfTrace']));
+            startPerfTrace('site_switch').stop();
 
-        startPerfTrace('site_switch').stop();
-
-        expect(appBridge.startPerfTrace).not.toHaveBeenCalled();
-        expect(appBridge.stopPerfTrace).not.toHaveBeenCalled();
+            expect(appBridge.startPerfTrace).not.toHaveBeenCalled();
+        } finally {
+            window.CHATIC_APP_PLATFORM = undefined;
+            window.CHATIC_APP_CURRENT_VERSION = undefined;
+        }
     });
 
     it('reports traces as held until the report arrives', () => {
@@ -102,17 +96,14 @@ describe('configureWebPerfTraces — the log pipeline branch', () => {
         );
     });
 
-    it('records on the pipeline alone on an app without the handlers, and in a plain tab', () => {
+    it('records on the pipeline alone in a plain tab', () => {
         const pipeline = recorder();
         setPerfTelemetryRecorder(pipeline);
-        configureWebPerfTraces().resolveWith(reportWith(['WebAppReady']));
-        startPerfTrace('site_switch').stop();
-        resetPerfTraces();
         configureWebPerfTraces().resolveWith(null);
         startPerfTrace('site_switch').stop();
 
         expect(appBridge.stopPerfTrace).not.toHaveBeenCalled();
-        expect(pipeline.record).toHaveBeenCalledTimes(2);
+        expect(pipeline.record).toHaveBeenCalledTimes(1);
     });
 
     it('never sends a pipeline-only trace over the bridge', () => {

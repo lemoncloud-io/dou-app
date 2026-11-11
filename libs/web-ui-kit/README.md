@@ -33,7 +33,7 @@ Two component libraries sit side by side, and the split is not by quality or by 
 | What it is         | 21 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
 | Named after        | The interaction — `dialog`, `sheet`, `popover`, `tabs`                   | The place on screen — `AppHeader`, `ChatRoomHeader`, `ListRow` |
 | Where it came from | `npx shadcn@latest add <name>` — regenerable                             | A Figma node, drawn by hand against the spec                   |
-| Who uses it        | `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `libs/shared`           | `apps/web` only                                                |
+| Who uses it        | `apps/web`, `apps/desktop-web`, `apps/admin`, `libs/shared`              | `apps/web` only                                                |
 | Decides            | Focus, portal, ARIA, dismiss — behaviour                                 | Spacing, colour, type, glyph — appearance                      |
 
 **The rule: a component belongs in `ui-kit` when more than one app could name it without saying
@@ -42,7 +42,7 @@ Two component libraries sit side by side, and the split is not by quality or by 
 sheet.
 
 The dependency runs **one way: this lib imports `ui-kit`, `ui-kit` never imports this lib.** That is
-what keeps `desktop-web` and `admin-v2` free of mobile-web components.
+what keeps `desktop-web` and `admin` free of mobile-web components.
 
 It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 21 primitives**,
 in 4 files:
@@ -107,7 +107,7 @@ grep -rln "@chatic/lib/utils" libs/web-ui-kit/src | wc -l
 **In** — Figma-spec components for the mobile web app, the semantic token sheet they resolve against,
 the icon aliases and brand assets they draw, and the Storybook showcase that renders all of it.
 
-**Out** — the shadcn/ui primitives (`libs/ui-kit`); anything `apps/desktop-web` or `apps/admin-v2`
+**Out** — the shadcn/ui primitives (`libs/ui-kit`); anything `apps/desktop-web` or `apps/admin`
 renders (they use `libs/ui-kit` directly and import nothing from here); screen composition, routing,
 data and translation (`apps/web`); the block-renderer components (`libs/block-kit`).
 
@@ -125,7 +125,7 @@ flowchart TD
 
     C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 59 icons · 7 assets</i>"]:::res
+    R["resources<br/><i>tokens.css · 63 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
@@ -167,8 +167,8 @@ flowchart TD
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
-│   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
-│   ├── icons/              59 exports: lucide aliases + Figma-exported glyphs
+│   ├── styles/tokens.css   134 lines of HSL channels, light + `.dark`
+│   ├── icons/              63 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
 ├── foundations/   11 groups, 38 components
 │   avatar(7) · button(9) · input(8) · badge(6) · brand(2) ·

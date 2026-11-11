@@ -20,16 +20,27 @@ export const MOBILE_ALIASES = {
 };
 
 /**
- * `deeplinkUtils.ts` takes its invite-link decoder from the `@chatic/shared` barrel, which also carries
- * React components, image assets and the web's config. Only that one importer is pointed at the module
- * the two functions live in — the same code, without the rest of the barrel.
+ * `deeplinkUtils.ts` takes its invite-link decoder and sub WebView link readers from the `@chatic/shared`
+ * barrel, which also carries React components, image assets and the web's config. Only that one importer
+ * is pointed at a virtual module re-exporting the modules those functions live in — the same code,
+ * without the rest of the barrel. A new `@chatic/shared` import in `deeplinkUtils.ts` has to be added to
+ * `SHARED_DEEPLINK_MODULES`.
  */
+const SHARED_DEEPLINK_MODULES = ['libs/shared/src/utils/inviteLink.ts', 'libs/shared/src/utils/subWebViewLink.ts'];
+const VIRTUAL_SHARED = '\0shell-adapter:shared-for-deeplinks';
+
 export const sharedInviteLinkForDeeplinks = (): Plugin => ({
     name: 'shell-adapter:shared-invite-link',
     enforce: 'pre',
     resolveId(source, importer) {
         if (source !== '@chatic/shared' || !importer?.endsWith('/deeplinks/deeplinkUtils.ts')) return null;
-        return path.join(ROOT, 'libs/shared/src/utils/inviteLink.ts');
+        return VIRTUAL_SHARED;
+    },
+    load(id) {
+        if (id !== VIRTUAL_SHARED) return null;
+        return SHARED_DEEPLINK_MODULES.map(file => `export * from ${JSON.stringify(path.join(ROOT, file))};`).join(
+            '\n'
+        );
     },
 });
 

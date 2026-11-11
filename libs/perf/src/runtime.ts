@@ -11,7 +11,7 @@ import type { PerfTraceName } from './types';
  * Instrumentation sits in unrelated code — a switch mutation, a room page, a web-vitals
  * callback — and cannot be handed a backend without threading it through every layer above,
  * so this slot is what they talk to. It starts at the no-op backend, which is what keeps a host
- * that never calls `configurePerfTraces` (desktop, testbed, a plain browser tab) silent by
+ * that never calls `configurePerfTraces` (desktop, a plain browser tab) silent by
  * construction rather than by a flag someone has to remember.
  *
  * A trace keeps the backend it was started on. Swapping the slot mid-flight — the WebView does,

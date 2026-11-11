@@ -31,4 +31,14 @@ describe('inviteLoginErrorText', () => {
         );
         expect(text).not.toBe(t('auth.invite.failed.network'));
     });
+
+    // `accepted` used to have no kind of its own and would have read as the conflict line, "you're
+    // already in this cloud", which is about the person and not about the link.
+    it.each(['ko', 'en'])('gives a used, expired and withdrawn invite each its own line (%s)', language => {
+        const t = i18n.getFixedT(language);
+        const lines = (['used', 'expired', 'canceled'] as const).map(kind => inviteLoginErrorText({ kind }, t));
+        expect(new Set(lines).size).toBe(3);
+        for (const line of lines) expect(line).not.toMatch(/^auth\./);
+        expect(lines[0]).not.toBe(t('auth.invite.failed.already'));
+    });
 });

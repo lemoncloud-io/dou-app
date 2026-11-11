@@ -1,7 +1,7 @@
 # @chatic/shared
 
 **One barrel of React-side parts that more than one front end reaches for.** It holds six
-presentational components, seven hook modules, the per-place sidebar preferences, five small helpers
+presentational components, six hook modules, the per-place sidebar preferences, five small helpers
 and two constant tables, and exports all of it from a single entry point that five projects import.
 
 It is a catch-all rather than a layer, and that has a measurable cost. [Scope](#scope) states what the
@@ -18,7 +18,7 @@ grep -rn "@chatic/shared/" --include='*.ts' --include='*.tsx' apps libs | grep -
 ```
 
 The consumer list is worth knowing because it is not all browsers — `apps/web`, `apps/desktop-web`,
-`apps/admin-v2`, `libs/app-runtime` and `apps/mobile`, which is React Native.
+`apps/admin`, `libs/app-runtime` and `apps/mobile`, which is React Native.
 
 ```bash
 grep -rln "@chatic/shared" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
@@ -70,18 +70,18 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
 ## Scope
 
 **In** — presentational components with no feature knowledge, generic React hooks, the two per-place
-sidebar preferences and their scope key, the swappable session-storage adapter, and small pure
+sidebar preferences and their scope key, and small pure
 helpers over the DOM and over dates, query keys and images.
 
-**Out** — design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
+**Out** — storage and its stores (`@chatic/storage`), design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
 (`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
 (`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
 (`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
-(`@chatic/http`), and the transport types the SDK already declares — `ListResult` from
-`@lemoncloud/chatic-backend-api`, `Params` from `@lemoncloud/lemon-web-core`.
+(`@chatic/http`), and the transport types the SDK already declares, such as `ListResult` from
+`@lemoncloud/chatic-backend-api`.
 
 Those four are named rather than left implied because each is the kind of thing that reads as harmless
-on the way in: a `sonner` wrapper, a four-line copy of the HTTP client's error promoter, two interfaces
+on the way in: a `sonner` wrapper, a four-line copy of the HTTP client's error promoter, an interface
 the SDK already declares. A duplicate in a barrel five projects import is not harmless. It is a second
 answer to a settled question, and call sites split between the two answers without anyone deciding to.
 
@@ -112,8 +112,8 @@ build objects to an export that nobody imports. Three measurements, each reprodu
   consumer files. Nine exports are named in exactly one, and nine more in two. A module whose contents
   range that far apart in demand is not one concern, and the single-consumer end is where the next
   thing to move out comes from — one consumer means one owner, and that owner is a feature.
-- **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes exactly
-  two constants from here, `STORE_URLS` and `getStoreUrl`. Its `package.json` nonetheless lists
+- **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes the
+  store constants and the two link helpers in `utils/` (the invite decoder and the sub WebView link map). Its `package.json` nonetheless lists
   `react-router-dom` as a dependency while its own source does not import it, and it does not import
   `@chatic/ui-kit` at all. `nx sync-deps` keeps that entry because the project graph reaches it through
   this barrel, by way of `NotFoundPage` and `RouterErrorFallback`. Its two test files
@@ -132,15 +132,15 @@ flowchart TD
     classDef pure fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    App["apps/web · desktop-web · admin-v2<br/>libs/app-runtime"]:::ext
-    RN["apps/mobile<br/><i>React Native — consts only</i>"]:::ext
+    App["apps/web · desktop-web · admin<br/>libs/app-runtime"]:::ext
+    RN["apps/mobile<br/><i>React Native — consts and two link helpers</i>"]:::ext
 
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
 
     Comp["components/ × 6<br/><i>React, DOM</i>"]:::grp
-    Hooks["hooks/ × 7<br/><i>React</i>"]:::grp
+    Hooks["hooks/ × 6<br/><i>React</i>"]:::grp
     Prefs["preferences/ × 3<br/><i>per-place UI settings</i>"]:::pure
-    Utils["utils/ × 5"]:::pure
+    Utils["utils/ × 7"]:::pure
     Const["consts/ · types/"]:::pure
 
     UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
@@ -206,14 +206,38 @@ libs/shared/src/
 ├── index.ts          public barrel — six lines of `export *`
 ├── components/       6 components + index; all React, all DOM
 ├── consts/           STORE_URLS, and ERROR_MESSAGES inline in index.ts
-├── hooks/            7 hook modules + index
+├── hooks/            6 hook modules + index
 ├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
 ├── preferences/      pinnedChannels · channelOrder · railOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
-└── utils/            5 single-purpose helpers + index
+└── utils/            7 single-purpose helpers + index
 ```
 
-Six things the filenames do not tell you.
+Eight things the filenames do not tell you.
+
+- **`utils/subWebViewLink.ts` is the only reader of a sub WebView page link**,
+  `https://app.chatic.io/apps/<appId>?<query>` (and `app-dev`): an app id and a query, no path, no
+  fragment. Landing reads it to decide whether to offer the app, mobile to check it and hand the web
+  `/apps/<appId>?…`, and the web to read that path; mobile also builds a page's `appLink` with it. It
+  maps no id to a page — that is the web's list, and later the server's — and reads the
+  `/sub-webview?url=…` path older apps hand over. It parses by hand, not with `URL`, for the reason
+  the invite decoder below gives about React Native.
+
+- **`utils/subWebViewTrust.ts` is the only place that decides what a sub WebView opens**, and how far
+  the shell trusts it: `firstParty` for the hub (`https://apps.chatic.io`, `https://apps-dev.chatic.io`,
+  exact origin), `reviewed` for one label under those domains (the pages the review pipeline deploys),
+  `external` for any other plain https host, and `null` for anything a parser could read two ways —
+  userinfo, a port, a backslash, whitespace, an IP literal — and the limits on what crosses with it
+  (`params` and `result` at most 16 KiB, a title 100 characters). Both shells check a request against it and
+  both webs check a link an owner saves against it, so the web never stores a link the shell would
+  refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
+  than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the
+  `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
+  and the cloud's mini app list (`miniApps`, name and host) for a `firstParty` page only. `utils/miniAppLinks.ts` holds the rules for the mini apps an owner adds
+  to a cloud, so both webs keep the same list: `checkMiniAppLink` (a name of 1–30 characters, an
+  address that rule opens and that is not on the hub's own hosts, `hubUrl` — a page there would get the
+  owner flag and the list), `MINI_APP_LINK_LIMIT` (10 per cloud), and `parseMiniAppLinks`, which reads
+  a stored list back and drops any entry the rules no longer pass.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
   Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link
@@ -255,32 +279,18 @@ Six things the filenames do not tell you.
 Import from the barrel. Nothing here needs construction or registration.
 
 ```ts
-import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage, storage } from '@chatic/shared';
+import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage } from '@chatic/shared';
 
 // Per-place preferences: derive the scope first, and let a null scope stay null.
 const scope = placeScopeKey(cloudId, placeId);
 const { pinnedIds, toggle, reorder } = usePinnedChannels(scope);
-
-// Session-scoped storage, through whichever adapter the entry point installed.
-storage.set('relay.lastCloud', cloudId);
 ```
 
 ### Wiring
 
-Two of the exports are process-wide and are set up by each app's entry point, in this order.
-
-```text
-apps/<app>/src/main.tsx
-  ├─ config.init(webConfigPorts)                            @chatic/config — before anything reads a setting
-  ├─ setStorageAdapter(isNative() ? localStorage : sessionStorage)
-  │     ↳ backs `storage`, used by app-runtime's session, relay and push records
-  └─ runtime.boot.initAppRuntime()                          reads the session, so it comes last
-```
-
-`setStorageAdapter` is an explicit call, not an import side effect. Without it, `storage` falls back to
-`sessionStorage` when the global exists and to a no-op adapter when it does not — which is why
-`apps/admin-v2` skips the call deliberately: it never runs inside a native or desktop shell, so
-`isNative()` is always false and the default is already right.
+The swappable storage adapter (`storage`, `setStorageAdapter`) used to live here. It moved to
+[`@chatic/storage`](../storage/README.md) and was later retired: every app now hands its features the
+stores its entry point chose.
 
 The components are mounted by the host, not by this lib:
 
@@ -369,11 +379,13 @@ rather than recognised.
 
 ### 6. React Native reaching into the barrel
 
-`apps/mobile` imports `STORE_URLS` and `getStoreUrl` for its store-update prompt. Everything else in
-the barrel assumes a DOM, so both of its suites `jest.mock('@chatic/shared')` with a literal copy of the
-constants rather than loading the real module. Treat `consts/` as the only part of this lib that is
-platform-neutral: a new import added to a file that `consts/` can reach becomes a React Native
-dependency, whether or not the code is ever run there.
+`apps/mobile` imports `STORE_URLS` and `getStoreUrl` for its store-update prompt, `inviteLink.ts`'s
+decoder for invite links, and `subWebViewLink.ts` for sub WebView page links and a page's `appLink`.
+Everything else in the barrel assumes a DOM, so its suites never load the barrel itself: the
+store-update ones `jest.mock('@chatic/shared')` with a literal copy of the constants, and the deep-link
+and sub WebView ones point the mock at the two `utils/` files with `jest.requireActual`. Treat
+`consts/` and those two files as the only platform-neutral parts of this lib: a new import added to a
+file they can reach becomes a React Native dependency, whether or not the code is ever run there.
 
 ## How to verify
 
@@ -404,8 +416,8 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
   same `.d.ts` paths.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both —
   `rm -rf libs/shared/out-tsc dist/out-tsc` — and look again.
-- Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin-v2`,
+- Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin`,
+  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin`,
   `desktop-web` and `@chatic/app-runtime`; `@chatic/mobile` is on its exclusion list, so that one
   is for you to run by hand. Its test step excludes `web` alone of this lib's consumers.
 - **`@chatic/mobile` fails its type check either way.** Remember that it reports a

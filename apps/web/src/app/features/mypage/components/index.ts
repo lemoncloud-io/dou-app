@@ -8,3 +8,4 @@ export * from './CloudIdentity';
 export * from './CloudManageRow';
 export * from './CloudSessionGate';
 export * from './SectionLabel';
+export * from './PairingLogoutDialog';

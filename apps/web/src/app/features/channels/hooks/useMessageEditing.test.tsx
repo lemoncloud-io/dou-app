@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import type { ClientChatView } from '../types';
 import { useMessageEditing } from './useMessageEditing';
+import { deleteConfirmQuote } from '../utils/messagePlainText';
 
 const editMessage = jest.fn();
 const deleteServerMessage = jest.fn();
@@ -48,14 +49,14 @@ describe('useMessageEditing — 편집', () => {
 
         act(() => result.current.startEdit(message({ content: long })));
 
-        const state = result.current.editStateFor(message({ content: long }));
+        const state = result.current.composer;
         // Carries the full body, not the cut value.
         expect(state?.draft).toBe(long);
         expect(state?.draft).toHaveLength(263);
 
         act(() => state?.onDraftChange(`${long}!`));
         await act(async () => {
-            result.current.editStateFor(message({ content: long }))?.onSave();
+            result.current.composer?.onSave();
         });
 
         await waitFor(() => expect(editMessage).toHaveBeenCalledWith('ch-1:4', `${long}!`));
@@ -66,10 +67,10 @@ describe('useMessageEditing — 편집', () => {
     it('저장에 성공해야 편집이 닫힌다', async () => {
         const { result } = renderHook(() => useMessageEditing());
         act(() => result.current.startEdit(message()));
-        act(() => result.current.editStateFor(message())?.onDraftChange('after'));
+        act(() => result.current.composer?.onDraftChange('after'));
 
         await act(async () => {
-            result.current.editStateFor(message())?.onSave();
+            result.current.composer?.onSave();
         });
 
         await waitFor(() => expect(result.current.isEditing).toBe(false));
@@ -80,19 +81,19 @@ describe('useMessageEditing — 편집', () => {
         editMessage.mockRejectedValueOnce(new Error('offline'));
         const { result } = renderHook(() => useMessageEditing());
         act(() => result.current.startEdit(message()));
-        act(() => result.current.editStateFor(message())?.onDraftChange('내가 친 내용'));
+        act(() => result.current.composer?.onDraftChange('내가 친 내용'));
 
         await act(async () => {
-            result.current.editStateFor(message())?.onSave();
+            result.current.composer?.onSave();
         });
 
-        await waitFor(() => expect(result.current.editStateFor(message())?.hasFailed).toBe(true));
+        await waitFor(() => expect(result.current.composer?.hasFailed).toBe(true));
         expect(result.current.isEditing).toBe(true);
-        expect(result.current.editStateFor(message())?.draft).toBe('내가 친 내용');
+        expect(result.current.composer?.draft).toBe('내가 친 내용');
 
         editMessage.mockResolvedValueOnce(undefined);
         await act(async () => {
-            result.current.editStateFor(message())?.onSave();
+            result.current.composer?.onSave();
         });
 
         await waitFor(() => expect(result.current.isEditing).toBe(false));
@@ -103,15 +104,15 @@ describe('useMessageEditing — 편집', () => {
         const { result } = renderHook(() => useMessageEditing());
 
         act(() => result.current.startEdit(message()));
-        act(() => result.current.editStateFor(message())?.onDraftChange('   '));
+        act(() => result.current.composer?.onDraftChange('   '));
         await act(async () => {
-            result.current.editStateFor(message())?.onSave();
+            result.current.composer?.onSave();
         });
         expect(editMessage).not.toHaveBeenCalled();
 
         act(() => result.current.startEdit(message()));
         await act(async () => {
-            result.current.editStateFor(message())?.onSave();
+            result.current.composer?.onSave();
         });
         expect(editMessage).not.toHaveBeenCalled();
     });
@@ -125,19 +126,58 @@ describe('useMessageEditing — 편집', () => {
         expect(result.current.isEditing).toBe(false);
 
         act(() => result.current.startEdit(message()));
-        act(() => result.current.editStateFor(message())?.onDraftChange('고침'));
+        act(() => result.current.composer?.onDraftChange('고침'));
         act(() => result.current.requestCloseEdit());
 
         expect(result.current.discardOpen).toBe(true);
         expect(result.current.isEditing).toBe(true);
     });
 
-    it('편집기는 대상 메시지에만 붙는다', () => {
+    // The edit is typed in the composer, so the row only needs to know whether it is the target.
+    it('marks only the message being edited as the target', () => {
         const { result } = renderHook(() => useMessageEditing());
+        expect(result.current.isEditTarget(message())).toBe(false);
+
         act(() => result.current.startEdit(message()));
 
-        expect(result.current.editStateFor(message())).toBeDefined();
-        expect(result.current.editStateFor(message({ id: 'ch-1:9' }))).toBeUndefined();
+        expect(result.current.isEditTarget(message())).toBe(true);
+        expect(result.current.isEditTarget(message({ id: 'ch-1:9' }))).toBe(false);
+    });
+
+    // The composer quotes the message being edited, so the quote is the server's body, not the draft.
+    it('hands the composer the original body alongside the draft', () => {
+        const { result } = renderHook(() => useMessageEditing());
+        expect(result.current.composer).toBeUndefined();
+
+        act(() => result.current.startEdit(message()));
+        act(() => result.current.composer?.onDraftChange('after'));
+
+        expect(result.current.composer).toMatchObject({ targetId: 'ch-1:4', original: 'before', draft: 'after' });
+    });
+
+    // The quote reads like every other quote of a message, not like its markup; the draft stays raw.
+    it('quotes the body flattened, while the draft keeps it as written', () => {
+        const { result } = renderHook(() => useMessageEditing());
+
+        act(() => result.current.startEdit(message({ content: 'line one\n**line two**' })));
+
+        expect(result.current.composer?.original).toBe(deleteConfirmQuote('line one\n**line two**'));
+        expect(result.current.composer?.original).not.toContain('\n');
+        expect(result.current.composer?.draft).toBe('line one\n**line two**');
+    });
+
+    // Going room to room keeps this page mounted; an edit left open would save into the room just left.
+    it('drops the edit when the surface moves to another conversation', () => {
+        const { result, rerender } = renderHook(({ scope }) => useMessageEditing(scope), {
+            initialProps: { scope: 'ch-1' },
+        });
+        act(() => result.current.startEdit(message()));
+        expect(result.current.composer).toBeDefined();
+
+        rerender({ scope: 'ch-2' });
+
+        expect(result.current.composer).toBeUndefined();
+        expect(result.current.isEditing).toBe(false);
     });
 });
 

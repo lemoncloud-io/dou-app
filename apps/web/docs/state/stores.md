@@ -104,34 +104,33 @@ to how apps/web sits on top of it:
    `shell` lane always wins (the priority order never changes).
 2. **`ui.theme` is the one exception.** Its storage key is not `@chatic/config`'s namespaced key
    (`@chatic/config.ui.theme`) — it is still the legacy `vite-ui-theme`, because five apps
-   (web, desktop-web, admin-v2, testbed, block-kit-builder) read and write that exact key directly
+   (web, desktop-web, admin, block-kit-builder) read and write that exact key directly
    in their pre-paint scripts, and `@chatic/theme`'s `ThemeProvider` does too. `syncThemeFromSharedKey()`
-   in `app/config/legacyPreferenceMigration.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
+   in `app/config/themeSharedKeySync.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
    namespaced storage on every boot, and `useTheme.ts`'s `setTheme` writes `vite-ui-theme` directly
    in addition to calling `config.set()`. Full detail in [theme.md](../shell/theme.md).
 
-## Legacy carry-over — `legacyPreferenceMigration.ts`
+## Theme mirror at boot — `themeSharedKeySync.ts`
 
-`main.tsx` calls `migrateLegacyPreferences()` **before** `config.init()`, because `hydrateStorage()`
-(inside `init()`) is what reads the values this function writes.
+`main.tsx` calls `syncThemeFromSharedKey()` **before** `config.init()`, because `hydrateStorage()`
+(inside `init()`) is what reads the value it writes. It is the permanent, every-boot mirror
+described above — not a migration — so it never deletes `vite-ui-theme`.
 
-- `migrateLegacyPreferences()` — one-time. Reads the old `chatic-*` localStorage keys, writes each
-  decoded value under `storageKeyFor(newKey)`, then deletes the old key regardless of whether the
-  decode succeeded. There is no completion flag: "does the old key still exist" is itself the
-  completion check, so a user who already migrated (or never had a value) is a no-op on every later
-  boot.
-- `syncThemeFromSharedKey()` — the permanent, every-boot mirror described above. It is a mirror,
-  not a migration, so it never deletes `vite-ui-theme`.
+There is no carry-over of values older builds wrote under the pre-registry `chatic-*` keys
+(`chatic-blur-last-message`, `chatic-pinned-channels`, …). That one-time step was retired: an
+install that has not booted since before the registry existed starts from each key's default.
 
 ## Native hydration fallback — `PreferenceLoader`
 
 Only three keys (`ui.blurLastMessage`, `ui.onboardingCompleted`, `ui.theme`) have an async fallback
-to the legacy native bridge. Because web ships before the app, an app build old enough to not know
-about the `CHATIC_APP_CONFIG_BAG` boot injection leaves `config.snapshot(key)?.isOverridden` false
-for these keys. `PreferenceLoader` only fires in that case: it calls the legacy `FetchPreference`
-bridge and writes the result with `{ lane: 'shell' }` — doing, slowly, what the boot injection would
-have done, and leaving the value in the local mirror so the next boot resolves synchronously without
-this fallback.
+to the legacy native bridge. Every app this page runs in injects the `CHATIC_APP_CONFIG_BAG` boot
+envelope and takes writes through `SaveConfigValue`, but a value set while an app from before the bag
+(below 0.24.1) was installed lives only in the app's legacy preference store, and the app never moves
+it into the bag. So when the bag and the local mirror leave `config.snapshot(key)?.isOverridden`
+false for one of these keys, `PreferenceLoader` calls the legacy `FetchPreference` bridge and writes
+the result with `{ lane: 'shell' }`, leaving the value in the local mirror so the next boot resolves
+synchronously without this fallback. Writes no longer go to the legacy store: `shellKvAdapter` only
+sends `SaveConfigValue`/`ClearConfigValue`.
 
 `isFirstRun` (legacy, `true` = onboarding not done) inverts to `onboardingCompleted` (`true` = done)
 in that fallback path — the two fields have opposite polarity. The theme value can arrive in the
@@ -179,10 +178,9 @@ and cannot be told apart, and on iOS the stored `en` is the bug itself. **Every 
 starts on `system`, and someone who had picked a language other than the device's picks it once
 more.** The decision and its alternatives are ADR-0138.
 
-The key is still written with the language in effect, because `relaySession` points lemon-web-core's
-`x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and storage
-(`@<project>.i18nextLng`), which matches this key only in a native local build — so in deployed builds
-the header is not sent, which was already true before the change.
+That key is no longer written. Its last reader was lemon-web-core's `x-lemon-language` header, which
+read the name under its own prefix and storage and so was never sent in a deployed build; with that
+SDK gone, nothing reads the key at all. An install that has it keeps a dead value.
 
 ## Out of scope (deliberately)
 

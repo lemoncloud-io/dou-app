@@ -1,0 +1,21 @@
+// libs/runtime-core/tsconfig.spec.json
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory: every spec project in the repo would otherwise share the single
+        // `dist/out-tsc` root and overwrite each other's declaration output and build info.
+        "outDir": "../../dist/out-tsc/runtime-core-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        }
+    ]
+}

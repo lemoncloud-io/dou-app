@@ -1,0 +1,117 @@
+import { logger } from '@chatic/logger';
+
+import { authIdRegistry } from './authIdRegistry';
+
+import type { AuthActivationGate } from './bootstrapSocketConnection';
+import type { ISocketManager, SlotKey } from '@chatic/transport';
+import type { ReauthDelegate } from './types';
+
+export interface ReauthenticateActiveSocketArgs {
+    manager: ISocketManager;
+    delegate: ReauthDelegate;
+    /** The slot whose identity changed — it is re-registered, and it is what seeds and signs the handshake. */
+    slot: SlotKey;
+}
+
+/**
+ * Re-authenticates the live socket to a NEW identity on the SAME connection — the guest→social
+ * (or email) promotion case, where web-core swaps the relay token but the url/deviceId/wssType are
+ * unchanged, so SocketBinder does not reboot and the SDK still holds the old identity.
+ *
+ * A bare `register()` on an already-active controller is a silent token swap (no `auth.update`),
+ * so the socket would stay authenticated as the old identity. The SDK's resume path re-runs the
+ * handshake only when it goes inactive, so we `logout()` (→ `auth.logout`, revoking the old backend
+ * session) and then `register()` the new token — the controller resumes and re-sends `auth.update`
+ * on the same connection. (multi-socket-design.md §6-7)
+ *
+ * Guard (feedback-loop safety): take the logout→register path ONLY when the registration token
+ * differs from the token the SDK already holds. The SDK's own refresh/switch writeback lands in
+ * web-core with the SAME token the controller holds, so that path is skipped there; only a genuine
+ * re-login (a new token the SDK was never told about) triggers it.
+ *
+ * The skipped case still gets one narrow correction: a matching token can hide a STALE `authId`,
+ * because the controller seeds that field only from register() while our signature is recomputed from
+ * the store per packet. That divergence is what makes every later refresh 403 with `invalid sign`, so
+ * a bare re-seed fixes the field without revoking the live session (see `authIdRegistry`).
+ */
+export const reauthenticateActiveSocket = async ({
+    manager,
+    delegate,
+    slot,
+}: ReauthenticateActiveSocketArgs): Promise<void> => {
+    // Target THIS slot, not the global active slot: a relay identity change must re-auth the relay
+    // client even while a cloud slot is the active one (getClient() would return cloud).
+    const client = manager.getClient(slot);
+    const auth = client?.auth;
+    if (!auth) {
+        return;
+    }
+
+    const registration = await delegate.getAuthRegistration(slot);
+    if (!registration) {
+        return;
+    }
+
+    const sign = (token: string, ctx?: { target?: string }) => delegate.signAuth(slot, token, ctx?.target);
+
+    // register() re-activates an inactive controller, which auto-sends `auth.update` on the next
+    // `connected` — BEFORE that connection's device.save:ok, the ordering failure the bootstrap gate
+    // exists for. Re-close the gate whenever we register on a socket that is not connected.
+    const closeGateIfDisconnected = (): void => {
+        if (client && client.state !== 'connected') {
+            (auth as unknown as AuthActivationGate).stop();
+        }
+    };
+
+    // The SDK already holds this token (its own refresh/switch writeback, or an unrelated re-render) —
+    // so this is NOT an identity change, and the logout→register below would be wrong. This is what
+    // keeps the SDK-driven writeback from looping back into a re-auth.
+    //
+    // It is not automatically a no-op, though. The controller's `authId` is seeded ONLY by register()
+    // and no writeback ever touches it, so a matching token can still hide a stale authId — the exact
+    // state that makes every later refresh 403 with `invalid sign`. Correct that field alone here
+    // (authIdRegistry), and leave the identity path untouched.
+    if (registration.token === auth.token) {
+        if (authIdRegistry.resync(slot, auth, registration, sign)) {
+            closeGateIfDisconnected();
+        }
+        return;
+    }
+
+    logger.info('SOCKET', '[reauthenticateActiveSocket] identity changed, re-authenticating', { data: { cid: slot } });
+
+    // Revoke the PREVIOUS session only on a LIVE (verified) socket, checked PER-SLOT (the active
+    // snapshot reflects a different slot when this is a background relay re-auth). auth.logout on a
+    // disconnected socket 503s and is pointless; register() below runs UNCONDITIONALLY, so even when
+    // we skip the revoke the new identity is stored and applied on the next handshake — the
+    // token-change edge is never dropped (a transient disconnect coinciding with a guest→social
+    // promotion must not leave the socket on the old identity).
+    const wasVerified = manager.isSlotVerified(slot);
+    if (wasVerified) {
+        // Fire-and-forget: logout() dispatches the frame synchronously (logout-before-update wire order)
+        // and flips the controller inactive so register() resumes immediately; we do NOT await the ack.
+        void Promise.resolve(auth.logout()).catch(() => undefined);
+    }
+
+    // Force a synchronous verified dip on the ACTIVE slot so useBackgroundSync's isVerified false→true
+    // rising edge fires once the SDK re-verifies the new identity. Without this an already-connected
+    // controller can swap identity without an auth-state dip, so a same-socket promotion would never
+    // re-anchor the promoted user's lists (restores the old markUnverified() behaviour). setAuthenticated
+    // only surfaces when `slot` is the active slot, so a background relay re-auth is unaffected.
+    if (wasVerified) {
+        manager.setAuthenticated(slot, false);
+    }
+
+    auth.register({ token: registration.token, authId: registration.authId, sign });
+    // Mirror what the controller now signs with, so a later writeback can tell drift from a match.
+    authIdRegistry.record(slot, registration.authId);
+
+    // register() on an inactive controller re-activates it. On a LIVE connection that fires
+    // auth.update right here — in order, since device.save:ok already ran for this connection. But
+    // when the socket is NOT connected, leaving the controller active makes the SDK auto-send
+    // auth.update on the next `connected` BEFORE that connection's device.save:ok — the exact
+    // ordering failure the bootstrap gate exists for (a failed initial update is never retried as
+    // update → terminal `expired`). Re-close the gate; the bootstrap's device.save:ok handler
+    // start()s it at the right time. (2026-08 session audit — found alongside §5-1.)
+    closeGateIfDisconnected();
+};

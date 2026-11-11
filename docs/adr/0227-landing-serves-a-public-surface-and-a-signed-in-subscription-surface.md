@@ -2,6 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-23 · Implemented: `feat/dou-subscription-web`
 > · Decision 5 amended by [ADR-0235](./0235-landing-lists-the-plans-on-every-host-before-checkout-opens.md) (the plans page opens on every host)
+> · Decision 3 amended by [ADR-0248](./0248-landing-account-surface-reaches-the-server-through-one-http-port.md) (the HTTP port, composed with the mock)
 > · Scope: `apps/landing` (`README.md` design principles, `src/app/routes/`, `src/app/config/stage.ts`,
 > `src/app/features/subscription/`)
 > · Builds on [ADR-0225](./0225-landing-follows-the-web-apps-layering-and-routes-from-routes.md) (layering, `ROUTES`)

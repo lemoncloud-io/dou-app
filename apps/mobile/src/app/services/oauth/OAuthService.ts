@@ -6,7 +6,7 @@ import type {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { AppleCredentialState, AppleRequestResponse } from '@invertase/react-native-apple-authentication';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
-import type { OAuthLoginProvider, OAuthTokenResult, Platform as PlatformType } from '@chatic/app-messages';
+import type { OAuthLoginProvider, OAuthTokenResult, Platform as PlatformType } from '@chatic/bridge-messages';
 import Config from 'react-native-config';
 import { Platform } from 'react-native';
 import type { IOAuthService } from './types';

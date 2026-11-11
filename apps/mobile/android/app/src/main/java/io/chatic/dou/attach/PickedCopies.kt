@@ -19,8 +19,8 @@ import java.util.UUID
 /**
  * Keeping a copy in `<cache>/attach-pick/<uuid>/`, shared by the attachment picker and the photo
  * library's `keepLibraryVideo`: a new pick folder, what the provider says about a URI, the copy
- * itself, the check that a copied video is sent as it is, and the answer a kept video or document
- * gets. A library video therefore lands where a picked one does, under the same rules, so
+ * itself, the check that a copied video is sent as it is (the library's) or the judgement of what a
+ * video needs (the picker's: as it is, or converted), and the answer a kept video or document gets. A library video therefore lands where a picked one does, under the same rules, so
  * `PrepareVideo`, the sweep and the upload rule take it without knowing where it came from.
  */
 class PickedCopies(private val context: Context) {
@@ -55,14 +55,44 @@ class PickedCopies(private val context: Context) {
         object Unreadable : VideoCheck()
     }
 
+    /** What [inspectVideo] found in a video. */
+    sealed class VideoInspection {
+        /** The container opened and its tracks were read. [verdict] is what the video needs; [tracks] are their formats. */
+        data class Readable(val verdict: AttachPickRules.VideoVerdict, val tracks: List<MediaFormat>) : VideoInspection() {
+            /** The first track that is video by its type, or null — a codec the extractor cannot name is not one. */
+            val video: MediaFormat? get() = tracks.firstOrNull { it.getString(MediaFormat.KEY_MIME)?.lowercase()?.startsWith("video/") == true }
+        }
+
+        /** The file or the provider could not be opened at all — swept, cleared, or a grant that lapsed. */
+        object Unreadable : VideoInspection()
+
+        /** It opened, but the extractor reads no container in it. */
+        object Unrecognised : VideoInspection()
+    }
+
+    /** How [keepVideo] ended. Every outcome but [AsIs] and [ToConvert] leaves no folder behind. */
+    sealed class KeptVideo {
+        /** An MP4 of H.264 and AAC (or no audio), within the video ceiling: sent as copied. */
+        data class AsIs(val file: File, val size: Long) : KeptVideo()
+
+        /** A video the conversion makes sendable; its size is what it is stored at, not what goes up. */
+        data class ToConvert(val file: File, val size: Long) : KeptVideo()
+
+        /** A video that goes up as it is, over the ceiling. */
+        object TooLarge : KeptVideo()
+
+        /** Could not be copied, or could not be read as a video container. */
+        object Unreadable : KeptVideo()
+    }
+
     /** A copy stopped because it passed its limit. */
     private class OverLimit : Exception()
 
     /**
      * Deletes the pick folders untouched for a day ([AttachPickRules.foldersToSweep]). Every writer of
-     * `attach-pick` runs it before it copies — the attachment picker's pick and the photo grid's
-     * `keepLibraryVideo` — so a person who sends only from one of them does not pile up copies. Never
-     * fails its caller: a folder it cannot delete waits for the next sweep.
+     * `attach-pick` runs it before it writes — the attachment picker's pick, the photo grid's
+     * `keepLibraryVideo` and the voice recorder's start — so a person who sends only from one of them
+     * does not pile up copies. Never fails its caller: a folder it cannot delete waits for the next sweep.
      */
     fun sweep() {
         try {
@@ -153,8 +183,9 @@ class PickedCopies(private val context: Context) {
 
     /**
      * Whether a copied video is sent as it is ([AttachPickRules.isMp4Container], then
-     * [AttachPickRules.checkTracks] over its tracks). Android does not convert, so anything else is
-     * [VideoCheck.Unsupported].
+     * [AttachPickRules.checkTracks] over its tracks), anything else being [VideoCheck.Unsupported]. The
+     * photo library's `keepLibraryVideo` still answers that way; the attachment picker judges with
+     * [inspectVideo] instead, which sends such a video to the conversion.
      */
     fun checkVideo(file: File): VideoCheck {
         val head = try {
@@ -180,12 +211,112 @@ class PickedCopies(private val context: Context) {
         }
     }
 
-    /** The answer for a video or document kept as copied — the item `PickAttachments` lists. */
-    fun keptItem(kind: Kind, file: File, name: String, mimeType: String?, size: Long): WritableMap = Arguments.createMap().apply {
-        putString("kind", kind.wire)
-        putString("uri", Uri.fromFile(file).toString())
-        putString("name", name)
-        putString("contentType", AttachPickRules.contentType(mimeType))
-        putDouble("size", size.toDouble())
+    /**
+     * What a video file needs: sent as it is, or converted ([AttachPickRules.judgeVideo]). The same
+     * judgement the pick makes after copying and `PrepareVideo` makes before converting.
+     */
+    fun inspectVideo(file: File): VideoInspection {
+        val head = try {
+            FileInputStream(file).use { stream -> readHead(stream) }
+        } catch (e: IOException) {
+            return VideoInspection.Unreadable
+        }
+        return inspect(head) { extractor -> extractor.setDataSource(file.path) }
     }
+
+    /**
+     * The same judgement of a video still at its provider, before a byte is copied: the one thing that
+     * decides whether a video over the ceiling is refused or converted. Only the picker's callback may
+     * call it — the provider's grant lasts as long as the screen that received the result.
+     */
+    fun inspectVideo(uri: Uri): VideoInspection {
+        val resolver = context.contentResolver
+        val head = try {
+            resolver.openInputStream(uri)?.use { stream -> readHead(stream) } ?: return VideoInspection.Unreadable
+        } catch (e: Exception) {
+            return VideoInspection.Unreadable
+        }
+        return inspect(head) { extractor ->
+            val descriptor = resolver.openFileDescriptor(uri, "r") ?: throw IOException("the provider gave no descriptor")
+            descriptor.use { extractor.setDataSource(it.fileDescriptor) }
+        }
+    }
+
+    private fun readHead(stream: java.io.InputStream): ByteArray {
+        val buffer = ByteArray(12)
+        var total = 0
+        while (total < buffer.size) {
+            val read = stream.read(buffer, total, buffer.size - total)
+            if (read < 0) break
+            total += read
+        }
+        return buffer.copyOf(total)
+    }
+
+    private fun inspect(head: ByteArray, open: (MediaExtractor) -> Unit): VideoInspection {
+        val extractor = MediaExtractor()
+        try {
+            try {
+                open(extractor)
+            } catch (e: SecurityException) {
+                return VideoInspection.Unreadable
+            } catch (e: Exception) {
+                // An IOException from a container it does not read; some builds throw a runtime
+                // exception for a header they cannot parse.
+                return VideoInspection.Unrecognised
+            }
+            val formats = (0 until extractor.trackCount).map { extractor.getTrackFormat(it) }
+            val verdict = AttachPickRules.judgeVideo(head, formats.map { it.getString(MediaFormat.KEY_MIME) })
+            return VideoInspection.Readable(verdict, formats)
+        } finally {
+            extractor.release()
+        }
+    }
+
+    /**
+     * Copies a video into [folder] as [name] and judges it. A video that will be converted is not held
+     * to the ceiling — its size is decided after the conversion — so the copy has no limit; one that
+     * goes up as it is, is. When the provider says the video is over the ceiling, its tracks are read
+     * first, from the provider, and an as-is video is refused without copying a byte, as before.
+     */
+    fun keepVideo(uri: Uri, folder: File, name: String, knownSize: Long?, limit: Long): KeptVideo {
+        if (knownSize != null && AttachPickRules.exceeds(knownSize, limit)) {
+            when (val found = inspectVideo(uri)) {
+                is VideoInspection.Readable -> if (found.verdict is AttachPickRules.VideoVerdict.AsIs) return KeptVideo.TooLarge
+                else -> return KeptVideo.Unreadable
+            }
+        }
+        val kept = when (val copied = copy(uri, folder, name, knownSize, 0L)) {
+            is Copied.Kept -> copied
+            Copied.TooLarge, Copied.Unreadable -> return KeptVideo.Unreadable
+        }
+        return when (val found = inspectVideo(kept.file)) {
+            is VideoInspection.Readable -> when (found.verdict) {
+                AttachPickRules.VideoVerdict.AsIs -> {
+                    if (AttachPickRules.exceeds(kept.size, limit)) {
+                        folder.deleteRecursively()
+                        KeptVideo.TooLarge
+                    } else {
+                        KeptVideo.AsIs(kept.file, kept.size)
+                    }
+                }
+                is AttachPickRules.VideoVerdict.NeedsExport -> KeptVideo.ToConvert(kept.file, kept.size)
+            }
+            else -> {
+                folder.deleteRecursively()
+                KeptVideo.Unreadable
+            }
+        }
+    }
+
+    /** The answer for a video or document kept as copied — the item `PickAttachments` lists. */
+    fun keptItem(kind: Kind, file: File, name: String, mimeType: String?, size: Long, needsExport: Boolean = false): WritableMap =
+        Arguments.createMap().apply {
+            putString("kind", kind.wire)
+            putString("uri", Uri.fromFile(file).toString())
+            putString("name", name)
+            putString("contentType", AttachPickRules.contentType(mimeType))
+            putDouble("size", size.toDouble())
+            if (needsExport) putBoolean("needsExport", true)
+        }
 }

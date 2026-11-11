@@ -4,36 +4,50 @@ import { runtime } from '@chatic/app-runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';
+import { useIsAccountGuest } from './useMyUser';
 
 import type { MembershipDropsResult } from '@chatic/data';
 import type { CreateMembershipBody, MembershipDropsBody, MembershipView } from '@lemoncloud/chatic-backend-api';
-import type { Params } from '@lemoncloud/lemon-web-core';
+/** Query parameters for a relay request. */
+type Params = Record<string, unknown>;
+
+/** What the relay answers for a user with no membership — and a guest account never has one. */
+const GUEST_MEMBERSHIP: MembershipView = { isValid: false };
 
 /**
  * Membership + product-plan reads, moved down from `@chatic/app-runtime`'s
  * `data/hooks/subscription.ts`. Nothing here is a cacheable entity (there is no local data source
  * behind `SubscriptionRepository`), so react-query is the only cache these reads have — and a
  * cache policy belongs to the app that renders it.
+ *
+ * A guest account is answered with {@link GUEST_MEMBERSHIP}, without a request: a membership is
+ * bought by a signed-in account, so a guest's read can only come back empty. It is answered rather
+ * than disabled because the website hand-off waits for a membership that was READ (`isSuccess`) and
+ * would wait for good on a disabled query, and home's pull calls `refetch`, which ignores `enabled`.
+ * The guest's answer has a key of its own, so signing in reads the account's membership instead of
+ * keeping the guest's.
  */
 export const useMembershipInfo = () => {
     const { subscription } = runtime.data.useRuntimeRepositories();
+    const isGuest = useIsAccountGuest();
 
     return useQuery<MembershipView>({
-        queryKey: subscriptionKeys.detail('mine'),
-        queryFn: () => subscription.fetchMembershipInfo(),
+        queryKey: subscriptionKeys.detail(isGuest ? 'guest' : 'mine'),
+        queryFn: isGuest ? () => Promise.resolve(GUEST_MEMBERSHIP) : () => subscription.fetchMembershipInfo(),
         refetchOnWindowFocus: false,
         staleTime: 0,
         refetchOnMount: 'always',
     });
 };
 
-export const useProductPlans = (params: Params = {}) => {
+export const useProductPlans = (params: Params = {}, { enabled = true }: { enabled?: boolean } = {}) => {
     const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
         queryKey: productPlansKeys.list(params),
         queryFn: () => subscription.fetchPlans(params),
         refetchOnWindowFocus: false,
+        enabled,
     });
 };
 

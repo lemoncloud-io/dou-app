@@ -27,7 +27,7 @@ refresh and reconnect re-auth are the SDK's `ClientSocketAuth`, and an identity 
 socket (guest → social promotion) is `SocketReauthBinder`.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md),
-[libs/app-runtime/docs/socket/](../../../../libs/app-runtime/docs/socket/README.md).
+[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md).
 
 ## 2. Reading connection and session state
 
@@ -50,7 +50,7 @@ re-fires whenever the cache changes, from either a local refresh or a sync push.
 
 **Scope pinning.** Re-emit routing keys on `{cid, uid}` (the same partition as cache storage; place
 and channel exclude `sid` from the key). `ActiveScope` derives this on every read from the session
-store (`libs/app-runtime/src/session/scope/ActiveScope.ts`) — there is no ancestor binder pushing it
+store (`libs/session/src/scope/ActiveScope.ts`) — there is no ancestor binder pushing it
 into a context on a delay, so there is no window where a descendant subscribes under a stale scope.
 The list hooks (`useActiveCloudPlaces`, and its siblings for channels) still pass an explicit
 `{ cid, uid }` override to `observeList` rather than relying on the ambient provider, because
@@ -123,7 +123,7 @@ not through the page. The page only calls `refreshList({ channelId, cursorNo, li
 thing — paging further into the past — and widens its `observeList` window to match.
 
 The registration mechanics (ref-counting, per-slot runtimes, plan cadence) are
-[libs/app-runtime/docs/sync/](../../../../libs/app-runtime/docs/sync/README.md)'s.
+[libs/sync](../../../../libs/sync/README.md)'s.
 
 ## 4. Writing data — through a repository, always
 
@@ -220,9 +220,11 @@ there rather than hand that cache's baseline to another cloud.
 `useSessionLogout` performs a best-effort socket logout and store teardown, then
 `relaySession.clearAndRedirect()` reloads the document at `/?logout=1`. The reload — not a manual
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
-On the next boot, `initAppRuntime` reads the `logout=1` flag and sweeps every `@`-prefixed storage
-key except the i18n language key and `@chatic/config`'s own lane
-(`libs/app-runtime/src/session/auth/logoutStorageSweep.ts`) — because the actor that decides to log
-out and the code that can safely clear storage run in two different page lifetimes.
+Before it leaves, it also clears the web log pipeline and telemetry policy keys, and — inside a shell that keeps a device vault — empties the vault and waits for
+the shell to confirm it. On the next boot the vault is emptied once more before it is read, and
+`initAppRuntime` reads the `logout=1` flag and sweeps the log keys again
+(`libs/auth/src/session/storage/logoutStorageSweep.ts`) — because the actor that decides to log out and the
+code that can safely clear storage run in two different page lifetimes. The order and the reasons are
+in [libs/auth docs/session](../../../../libs/auth/docs/session/README.md).
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md).

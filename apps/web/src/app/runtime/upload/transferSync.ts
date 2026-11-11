@@ -16,10 +16,9 @@ import type { NativeTransfers, TransferBridge } from './nativePut';
  *
  * Downloads are left alone — they have a reader of their own (`runtime/transfer`).
  *
- * Safe to run on a shell without the transfer module — the list request fails and nothing happens.
+ * A failed list request changes nothing; the next catch-up asks again.
  */
 export const syncFileTransfers = async (bridge: TransferBridge, transfers: NativeTransfers): Promise<void> => {
-    if (transfers.usesFallback()) return;
     // Only transfers accepted before the list was asked for can be judged missing from it.
     const waitingBefore = transfers.waiting();
     let held;

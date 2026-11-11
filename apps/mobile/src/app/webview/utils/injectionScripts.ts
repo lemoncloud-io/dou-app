@@ -1,5 +1,5 @@
 import type { EdgeInsets } from 'react-native-safe-area-context';
-import type { Env } from '@chatic/app-messages';
+import type { Env, StorageMedium } from '@chatic/bridge-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
 
@@ -70,6 +70,9 @@ export interface DeviceInfoParams {
 export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): string => `
     (function() {
         const root = document.documentElement;
+        // Android can run the boot script before the document has a root element. The post-load
+        // script and the inset effect set these again once it exists.
+        if (!root) return;
         root.style.setProperty('--safe-top', '${insets.top}px');
         root.style.setProperty('--safe-bottom', '${insets.bottom}px');
         root.style.setProperty('--safe-left', '${insets.left}px');
@@ -191,6 +194,17 @@ export const getConfigBagScript = (bag: Readonly<Record<string, string>>): strin
 `;
 
 /**
+ * Generates a script listing the storage media this shell keeps for the web
+ * (`window.CHATIC_APP_STORAGE_MEDIA`). The web decides from this list alone whether to ask for a
+ * medium with `StorageGet`, so it has to be there before the page's own scripts run — the same reason
+ * the theme and config bag are injected rather than sent. A shell without the list (an older build)
+ * keeps no medium, and the web keeps its secrets where it did before.
+ */
+export const getStorageMediaScript = (media: readonly StorageMedium[]): string => `
+    window.CHATIC_APP_STORAGE_MEDIA = ${JSON.stringify(media)};
+`;
+
+/**
  * Parameters for generating the combined synchronous injection script.
  */
 export interface SyncInjectionScriptParams {
@@ -205,6 +219,8 @@ export interface SyncInjectionScriptParams {
     theme: ThemeMode;
     /** `@chatic/config`'s shell-lane KV bag (see `ConfigKvService.getAll()`). Empty when absent. */
     configBag?: Readonly<Record<string, string>>;
+    /** The storage media this shell keeps (`StorageGet` and friends answer for these). None when absent. */
+    storageMedia?: readonly StorageMedium[];
 }
 
 /**
@@ -218,9 +234,17 @@ export interface SyncInjectionScriptParams {
  * an opaque "Script error.". Syntax errors cannot be caught this way — those
  * are prevented at build time by JSON.stringify interpolation (see
  * getDeviceInfoScript and getThemeScript).
+ *
+ * One throwing snippet skips every snippet after it, so the order matters. Android can run this
+ * script before `document.documentElement` exists; the safe-area snippet returns early there
+ * rather than throw, because a skipped config bag makes the web boot as a first run (onboarding)
+ * and a skipped storage-media list makes it boot on the tab and reload once the shell answers.
+ * The storage media also go first, as a bare assignment that cannot throw, so no later snippet
+ * can cost the web its vault.
  */
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
+        ${getStorageMediaScript(params.storageMedia ?? [])}
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
         ${getDeviceInfoScript(params.deviceInfo)}
         ${getDebugModeScript(params.debugModeEnabled ?? false)}

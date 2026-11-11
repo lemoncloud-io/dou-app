@@ -15,7 +15,7 @@
 > **However there is no way back** — desktop-web deploys only by push, has no manual deploy or
 > rollback path, and the repo's CI has no test workflow at all for it (only a build workflow). So this
 > migration is attached last, with more manual verification.
-> `apps/admin-v2` is **conditional** — it has no shell, so shell and server lanes are meaningless there;
+> `apps/admin` is **conditional** — it has no shell, so shell and server lanes are meaningless there;
 > whether it is folded in is decided by open question ⑤.
 > Amendment: [ADR-0080](./0080-debug-panel-shared-model-and-stage-visibility.md) amends decision 3's schema
 > (adds `meta`) and `env.*` (adds `buildStage`) — marked in place at each location.
@@ -447,9 +447,9 @@ export interface ConfigRuntimePorts {
 `Stage`/`Platform` are, conversely, **duplicated** — importing `app-messages` would tie config to the
 entire bridge contract; the reasoning and drift defense are owned by decision 14.
 
-It matters that `storage` is not a new type — [`StorageAdapter`](../../libs/shared/src/utils/storage.ts)
-(`getItem`/`setItem`/`removeItem`) is already the repo's storage interface, and config asks only for
-**its shape**. It does not import `@chatic/shared`, taking it as a structural type instead, so decision
+It matters that `storage` is not a new type — `StorageAdapter` (`getItem`/`setItem`/`removeItem`;
+retired with the app-wide storage in ADR-0296) was then the repo's storage interface, and config asks
+only for **its shape**. It does not import `@chatic/shared`, taking it as a structural type instead, so decision
 1's "zero dependencies" holds.
 
 App entry points plug in the adapters. The web adapter reads `import.meta.env`+`window.*`, the RN
@@ -689,7 +689,7 @@ union then.
 #### The stage vocabulary is already two, in fact
 
 Separate from `VITE_ENV`, there is
-[`Env`](../../libs/app-messages/src/types/model/device.ts:4), and `deviceInfoStore` casts
+[`Env`](../../libs/bridge-messages/src/types/model/device.ts:4), and `deviceInfoStore` casts
 `window.CHATIC_APP_STAGE` to that type.
 
 | Source                          | Values                           | Consumer                           |
@@ -713,7 +713,7 @@ differs. Today the code using each value never meets the other, so this doesn't 
 
 #### Duplicating `Stage`/`Platform` is a cost worth accepting
 
-[`Platform`](../../libs/app-messages/src/types/model/common.ts:2)
+[`Platform`](../../libs/bridge-messages/src/types/model/common.ts:2)
 (`'ios'|'android'|'windows'|'macos'|'web'`), which `byPlatform` uses, also lives in `app-messages`. For
 config to keep decision 1's "zero dependencies," **it must declare its own union, and then the
 definition exists twice in the repo.**
@@ -841,7 +841,7 @@ graph TD
         WEB["apps/web"]
         DWEB["apps/desktop-web"]
         MOB["apps/mobile (RN)"]
-        ADM["apps/admin-v2 (conditional)"]
+        ADM["apps/admin (conditional)"]
     end
 
     subgraph ports["ConfigRuntimePorts — adapters the app implements"]

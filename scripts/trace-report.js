@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Take a stack copied out of admin-v2 and print it as repo-relative
+ * Take a stack copied out of admin and print it as repo-relative
  * `path:line:col` frames — which an IDE terminal turns into clickable links, so
  * a report goes from the admin list to the editor in one command.
  *
- *   yarn trace                      # reads the clipboard (admin-v2 "Trace to IDE")
+ *   yarn trace                      # reads the clipboard (admin "Trace to IDE")
  *   pbpaste | yarn trace            # or stdin
  *   yarn trace --map <file.js.map>  # a map already on disk; skips the lookup
- *   yarn trace --project admin-v2   # override the app→project guess
+ *   yarn trace --project admin   # override the app→project guess
  *
  * Why this exists: `scripts/resolve-stack.js` already undoes minification, but
  * feeding it means finding the deploy run, downloading its artifact, and
@@ -21,8 +21,6 @@
  * `.sourcemaps/` (gitignored) by bundle name. That name is content-hashed, so
  * a name match is an exact build match and the cache cannot serve a map from
  * some other build.
- *
- * Manual: docs/guides/trace-report.md · design: libs/web-core/docs/error-reporting.md
  */
 
 const { execFileSync } = require('child_process');
@@ -47,7 +45,7 @@ const PROJECT_BY_APP = { web: 'web', mobile: 'web', desktop: 'desktop-web' };
 
 const USAGE = `usage: yarn trace [--map <file.js.map>] [--project <name>]
 
-  Copy from admin-v2's report detail via "Trace to IDE", then run with no
+  Copy from admin's report detail via "Trace to IDE", then run with no
   arguments. Piping the stack through stdin also works: pbpaste | yarn trace
 
   Manual: docs/guides/trace-report.md`;

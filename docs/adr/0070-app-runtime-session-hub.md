@@ -1,6 +1,8 @@
 # ADR-0070: One hub, `app-runtime`, owns the session — ClientSocketAuth refresh, HTTP symmetry for `data`, and separated transport rules
 
 > Status: Live · Decided: 2026-08-26 · Updated: 2026-09-01 · Baseline tree: develop
+> · Decision 2's lemon-web-core HTTP adapter is replaced by an in-house signer and transport —
+> [ADR-0298](./0298-relay-requests-are-signed-in-house-and-lemon-web-core-is-removed.md)
 > · Decision 7's note that `contextOverride` cannot change the physical partition is lifted by
 > [ADR-0112](./0112-the-cache-partition-is-the-one-an-operation-was-captured-for.md)
 > Progress: **Phases 1-5 complete, plus review follow-through.** `@chatic/web-core`, `apps/admin`, and

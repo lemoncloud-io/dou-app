@@ -31,7 +31,7 @@ The other ways to run — the web alone, the simulator — are `yarn local --mod
 ## Env and Firebase files — the team secrets repository
 
 The env and Firebase files that are not in git — every app's `.env` / `.env.dev` / `.env.prod`
-(web, mobile, admin-v2, desktop-web, testbed) and the mobile Firebase config
+(web, mobile, admin, desktop-web) and the mobile Firebase config
 (`GoogleService-Info-{Dev,Prod}.plist`, `google-services.json`) — are kept in the team's private
 secrets repository, **at the same paths as in this repo**. Clone it next to this checkout, then
 copy or link each file to the same path here; `git pull` there picks up changed values. If you
@@ -50,14 +50,11 @@ Copy the example environment files and fill in your values:
 # Web
 cp apps/web/.env.example apps/web/.env
 
-# Admin V2
-cp apps/admin-v2/.env.example apps/admin-v2/.env
+# Admin
+cp apps/admin/.env.example apps/admin/.env
 
 # Mobile — the LOCAL env (see the mobile section below for .env.dev / .env.prod)
 cp apps/mobile/.env.example apps/mobile/.env
-
-# Testbed (experimental app)
-cp apps/testbed/.env.example apps/testbed/.env
 ```
 
 `apps/landing` needs no `.env` — it has none to copy. `apps/desktop` needs no copy step either —

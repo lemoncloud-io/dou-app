@@ -4,7 +4,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { PushScreen } from './PushScreen';
-import { resetUnsupportedCommands } from '../../hooks';
 import { setDebugLanguageForTests } from '../../i18n';
 
 const deleteFcmToken = jest.fn();
@@ -30,7 +29,6 @@ jest.mock('../../hooks', () => ({
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
     // Uses the real implementation — mocking it would leave this hook's contract, like "no confirmation", unverified.
     useDebugOperation: jest.requireActual('../../hooks/useDebugOperation').useDebugOperation,
-    resetUnsupportedCommands: jest.requireActual('../../hooks/useDebugOperation').resetUnsupportedCommands,
 }));
 // A fake that returns the DEV scheme — this distinguishes whether the screen resolves the scheme, versus having it hardcoded somewhere.
 jest.mock('../../lib', () => ({
@@ -47,7 +45,6 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        resetUnsupportedCommands();
         restoreLanguage = setDebugLanguageForTests('en');
     });
 
@@ -108,17 +105,5 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         await click('Reproduce push tap');
 
         expect(openURL).toHaveBeenCalledWith('chatic-dev://chats');
-    });
-
-    // DeleteFcmToken is this round's new command, so it gets NOT_FOUND on older versions until
-    // the app is released. Without passing the command name, nothing gets learned, and pressing
-    // the same button just repeats the failure (audited at stage 7).
-    it('구버전 앱이 토큰 삭제를 모르면 버전 차이로 배운다', async () => {
-        deleteFcmToken.mockRejectedValue({ code: 'NOT_FOUND' });
-        render(<PushScreen />);
-
-        await click('Delete token');
-
-        expect(await screen.findByText(/not supported by this app version/)).toBeInTheDocument();
     });
 });

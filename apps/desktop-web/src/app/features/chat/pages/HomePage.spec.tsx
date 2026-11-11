@@ -101,9 +101,8 @@ vi.mock('../components', () => {
 vi.mock('../hooks', async importOriginal => ({
     ...(await importOriginal<typeof ChatHooks>()),
     useHydrateDmPeers: () => undefined,
-    useMessageViewer: () => null,
     useNextUnreadShortcut: () => undefined,
-    useReadCounts: () => () => undefined,
+    useRailShortcuts: () => undefined,
 }));
 
 const PLACES = [{ id: 'place-1' }, { id: 'place-2' }];

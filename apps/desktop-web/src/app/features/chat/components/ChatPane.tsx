@@ -28,6 +28,7 @@ import {
     useComposerFocusStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
+    useChannelReadCounts,
     useReadCursorStore,
     useReadReceipts,
     useSelectedChannelStore,
@@ -45,7 +46,7 @@ import {
     useImageAttachments,
     useMentionables,
     useMessageViewer,
-    type ReadCountOf,
+    useNewReplyRule,
 } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -63,8 +64,6 @@ interface ChatPaneProps {
     members: ChannelMember[];
     /** Roster still loading — message headers show a name skeleton, not "Unknown". */
     membersLoading?: boolean;
-    /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
-    readCountOf?: ReadCountOf;
     /**
      * Where a jump brought the reader from, and how to go back. Supplied by the
      * host, which owns both the channel list (for the name) and the jump itself.
@@ -82,7 +81,6 @@ export const ChatPane = ({
     channel,
     members,
     membersLoading,
-    readCountOf,
     jumpReturn,
     emptyState = { mode: 'pick' },
 }: ChatPaneProps) => {
@@ -143,9 +141,6 @@ export const ChatPane = ({
     // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
     // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
     // tombstone, so the filter no longer needs the thread index to decide.
-    // Reply counts come from the full set so a root's "N replies" footer is correct;
-    // replies keep arriving in the cache via chat:create.
-    const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
     const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
@@ -167,6 +162,12 @@ export const ChatPane = ({
         baselineRef.current = { id: channelId, no: Math.max(localCursor, serverJoinNo) };
     }
     const baselineReadNo = baselineRef.current.no;
+    // A reply takes a slot in the channel's unread count but stays out of this feed, so its root's
+    // footer is what shows it is new — and where the feed lands when nothing else is.
+    const newReplyRule = useNewReplyRule(channelId, messages, baselineReadNo, viewer);
+    // Reply counts come from the full set so a root's "N replies" footer is correct;
+    // replies keep arriving in the cache via chat:create.
+    const threadIndex = useMemo(() => buildThreadIndex(messages, newReplyRule), [messages, newReplyRule]);
 
     // owner$ is often omitted on other users' messages, so resolve author names
     // from the `user` cache keyed by owner id (useAuthorNames) — that paints a
@@ -192,6 +193,8 @@ export const ChatPane = ({
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages, channel ? channel.cid || RELAY_CLOUD_ID : '');
+    // How far each member has read: the faces on the message they stopped at, and the list behind them.
+    const { readCountOf, cursors: readCursors } = useChannelReadCounts(channel);
 
     // A notification click asks this channel to open at its latest message (the pinged
     // one) rather than the unread divider. Read the one-shot flag for THIS channel and
@@ -398,6 +401,8 @@ export const ChatPane = ({
                     mentionables={mentionables}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
+                    readCountOf={readCountOf}
+                    readCursors={readCursors}
                     onRetry={composer.retry}
                     canRetry={composer.canRetry}
                     onDiscard={composer.discard}
@@ -412,7 +417,6 @@ export const ChatPane = ({
                     jumpTarget={jumpTarget}
                     onJumpConsumed={clearJump}
                     onReadingPosition={reportPosition}
-                    readCountOf={readCountOf}
                     intro={intro}
                     loadFailed={loadFailed}
                     onRetryLoad={retryLoad}

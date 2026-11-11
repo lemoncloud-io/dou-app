@@ -1,4 +1,4 @@
-import type { IapProductSubscription, OnPurchaseErrorPayload, OnPurchaseSuccessPayload } from '@chatic/app-messages';
+import type { IapProductSubscription, OnPurchaseErrorPayload, OnPurchaseSuccessPayload } from '@chatic/bridge-messages';
 
 import type { ShellPlatform } from '../support/fake-shell/fakeShell';
 import type { ShellHandlerTable } from '../support/fake-shell/handlerTable';
@@ -38,6 +38,10 @@ export const signedInMember = (backend: FakeBackend): void => {
         },
     });
     backend.useSocket({
+        // The place switch answers with a new token, which replaces the session's. Left as the guest's,
+        // it turned the member back into a guest whenever it landed after the profile — on a slow run
+        // MY then showed "Sign in required" and had no subscription entry.
+        'auth.switch': () => ({ ...registerDeviceAnswer(backend.deviceId), userRole: 'user' }),
         // With a social account linked: the page refuses a cloud subscription to an account it knows
         // has none (`link$` present, `social` missing).
         'user.profile': () => {
@@ -52,7 +56,7 @@ export const signedInMember = (backend: FakeBackend): void => {
 };
 
 /** The relay's plan row for the entry tier, on one store — the catalog lists one per store. */
-const planRow = (platform: 'apple' | 'google') => ({
+export const planRow = (platform: 'apple' | 'google') => ({
     id: PLAN.id,
     name: PLAN.name,
     nameEn: PLAN.name,

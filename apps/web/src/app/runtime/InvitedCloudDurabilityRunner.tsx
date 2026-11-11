@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { useOnReceiveNotification } from '../bridge';
 import { extractPushContext } from '../utils/resolveInAppPushRoute';

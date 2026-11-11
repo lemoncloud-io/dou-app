@@ -18,7 +18,7 @@ import {
     type WebMessageData,
     type WebMessageResponse,
     type WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import { BRIDGE_VERSION } from '../version';
 
 /**

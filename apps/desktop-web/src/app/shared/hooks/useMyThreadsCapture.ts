@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
+import { RELAY_CLOUD_ID, isEventChat, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import { captureInboxReply } from './useInboxCapture';
@@ -124,7 +124,7 @@ export const useMyThreadsCapture = (): void => {
 
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
         // A reaction is an event about another message (its target is `reaction$.chatId`), not a reply.
-        if (!chat.parentId || !channel.id || chat.subType === 'reaction' || !isNotifiableChat(chat)) return;
+        if (!chat.parentId || !channel.id || isEventChat(chat) || !isNotifiableChat(chat)) return;
 
         const cid = channel.cid || RELAY_CLOUD_ID;
         const rootNo = threadRootNo(chat.parentId);

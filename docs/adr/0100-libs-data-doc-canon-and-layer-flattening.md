@@ -151,7 +151,7 @@ The mapping applied:
 | `LocalDataSources`                             | `LocalDataSources`                             |
 | `createLocalDataSources`                       | `createLocalDataSources`                       |
 
-`V2` unrelated to the data layer stays untouched — the `apps/admin-v2` path, `useRegisterUserV2`,
+`V2` unrelated to the data layer stays untouched — the `apps/admin` path, `useRegisterUserV2`,
 `useChatOutbox`·`useCloudCatalog`'s local identifiers, and so on. Not a global replace — only the names in the table
 above move.
 

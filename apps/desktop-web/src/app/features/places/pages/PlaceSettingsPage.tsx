@@ -5,7 +5,7 @@ import { ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { formatLongDate, useAuthorNames, usePlaces } from '../../../shared';
+import { PageSkeleton, formatLongDate, useAuthorNames, usePlaces } from '../../../shared';
 import { runtime } from '@chatic/app-runtime';
 import { EditPlaceDialog } from '../../chat/components/EditPlaceDialog';
 import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
@@ -31,15 +31,7 @@ export const PlaceSettingsPage = () => {
     const ownerNames = useAuthorNames(place?.ownerId ? [place.ownerId] : []);
     const ownerName = place?.ownerId ? ownerNames.get(place.ownerId) : undefined;
 
-    if (isLoading) {
-        return (
-            <div className="flex h-full flex-col bg-background">
-                <div role="status" aria-label={t('chat.loading')} className="m-auto">
-                    <span className="block h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
-                </div>
-            </div>
-        );
-    }
+    if (isLoading) return <PageSkeleton />;
 
     if (!place) {
         return (

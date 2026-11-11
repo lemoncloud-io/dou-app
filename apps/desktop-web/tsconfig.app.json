@@ -12,10 +12,16 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
+            "path": "../../libs/runtime-web/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../../libs/block-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/tsconfig.lib.json"
         },
         {
             "path": "../../libs/policy-content/tsconfig.lib.json"
@@ -30,6 +36,9 @@
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/config/tsconfig.lib.json"
         },
         {
@@ -37,9 +46,6 @@
         },
         {
             "path": "../../libs/theme/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/shared/tsconfig.lib.json"
         }
     ]
 }

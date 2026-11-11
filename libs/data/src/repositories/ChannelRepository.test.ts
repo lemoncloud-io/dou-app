@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { ChannelLocalDataSource } from '../local/data-sources/ChannelLocalDataSource';
 import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
@@ -9,7 +9,8 @@ import { DataContextHolder } from './types';
 // The swallowed purge failure is only observable through the logger, and the real one routes to a
 // sink that is not installed under jest — asserting on `console.warn` would pass or fail depending
 // on sink wiring rather than on this repository's behavior.
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

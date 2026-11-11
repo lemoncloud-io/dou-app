@@ -13,3 +13,7 @@ import { createQueryKeys } from '@chatic/shared';
  */
 export const subscriptionKeys = createQueryKeys('subscriptions');
 export const productPlansKeys = createQueryKeys('productPlans');
+/** My devices on the active slot's server — keyed by the cloud, since each answers for its own. */
+export const devicesKeys = createQueryKeys('devices');
+/** The web sign-ins this account approved (`GET /pairings`, relay). */
+export const pairingsKeys = createQueryKeys('pairings');

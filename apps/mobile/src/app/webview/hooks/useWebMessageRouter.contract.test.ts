@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'fs';
 import { join, relative } from 'path';
 import { renderHook } from '@testing-library/react';
-import { WEB_MESSAGE_RESPONSE_TYPE, type BridgeError, type WebMessageType } from '@chatic/app-messages';
+import { WEB_MESSAGE_RESPONSE_TYPE, type BridgeError, type WebMessageType } from '@chatic/bridge-messages';
 import { AppBridgeHost, InMemoryAdapter, JsonProtocol, WebBridgeClient } from '@chatic/bridges';
 
 import { useWebMessageRouter } from './useWebMessageRouter';
@@ -10,13 +10,25 @@ import { useWebViewNavigation } from './useWebViewNavigation';
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
  * answers each with `NOT_FOUND`, which is what the web falls back on. A message belongs here only
- * by decision — a new one in `@chatic/app-messages` fails this suite until it has a handler or a
+ * by decision — a new one in `@chatic/bridge-messages` fails this suite until it has a handler or a
  * line here.
  */
 const MOBILE_UNSUPPORTED = {
     ShowNotification: "Desktop's OS banner; the phone raises notifications from push, not on request",
     StartUpdateDownload: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)',
     RestartToUpdate: 'Desktop self-update; the phone updates through the store (OpenStore)',
+    FinishSubWebView: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    SetSubWebViewTitle: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewUserKey: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    SetSubWebViewCloseGuard: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    ReportSubWebViewError: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    SetSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    RemoveSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    ClearSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewStorageInfo: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    RequestSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.
@@ -109,7 +121,13 @@ describe('mobile bridge contract', () => {
     // A handler registered anywhere else is invisible to the checks above, so a message already
     // listed as unsupported could gain one without failing them.
     it('registers handlers only in the hooks this suite mounts', () => {
-        const allowed = ['useWebMessageRouter.ts', 'useWebViewNavigation.ts'];
+        // The sub WebView's host is a different host, with its own handshake test
+        // (createSubBridgeHost.test.ts) pinning it to the sub WebView subset.
+        const allowed = [
+            'useWebMessageRouter.ts',
+            'useWebViewNavigation.ts',
+            '../../subWebView/createSubBridgeHost.ts',
+        ];
         const appRoot = join(__dirname, '../..');
         const sources = (dir: string): string[] =>
             readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
@@ -123,6 +141,14 @@ describe('mobile bridge contract', () => {
             .filter(file => !allowed.includes(file));
 
         expect(elsewhere).toEqual([]);
+    });
+
+    // The device vault is the main web's alone; the sub WebView's handshake test pins it out of
+    // that host's subset.
+    it('answers the storage medium requests on the main WebView', () => {
+        const registered = new Set(registeredTypes());
+
+        expect(['StorageGet', 'StorageSave', 'StorageClear'].filter(type => !registered.has(type))).toEqual([]);
     });
 
     it('lists as unsupported only requests that have no handler', () => {

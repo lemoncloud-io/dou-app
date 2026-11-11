@@ -17,6 +17,10 @@ import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
  * and resets on place switch so the previous place's overrides never leak. Every
  * display surface reads the store via useDisplayProfile rather than subscribing itself.
  *
+ * My own row is not in a fresh sign-in's cache — the place-wide delta carries other members — so
+ * once the socket can carry it, this also reads it with `profile.get-mine`. Without that the rail's
+ * avatar showed no photo until the profile page happened to read the row.
+ *
  * The profile cache keys each entry by the member's `uid`. My own row can sit under my
  * account id (the row my own save writes) or my per-channel cloud id (a synced row), so
  * surfaces that name me look under both — see `viewerPlaceProfile`.
@@ -26,6 +30,7 @@ export const useSiteProfiles = (): void => {
     const session = runtime.session.useGlobalSession();
     // Re-subscribe on place switch so the previous place's overrides never leak.
     const selectedPlaceId = session.activeServer.siteId ?? null;
+    const { isVerified } = runtime.connection.useRuntimeSocketState();
     const setAll = useSiteProfilesStore(s => s.setAll);
     const reset = useSiteProfilesStore(s => s.reset);
 
@@ -41,6 +46,12 @@ export const useSiteProfiles = (): void => {
         });
         return unsubscribe;
     }, [profileRepository, selectedPlaceId, setAll, reset]);
+
+    useEffect(() => {
+        if (!selectedPlaceId || !isVerified) return;
+        // Best-effort: the cache write fans into the subscription above; a failure keeps the account photo.
+        void profileRepository.getMyProfile().catch(() => undefined);
+    }, [profileRepository, selectedPlaceId, isVerified]);
 };
 
 /** Resolved Display Profile for one user — Place override over the given Global fallback. */

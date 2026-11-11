@@ -74,6 +74,7 @@
         /* Block Kit message surfaces (libs/block-kit renders with these) */
         --hairline: 240 4% 92%; /* rule inside a message — same weight as a card border */
         --well: 240 5% 96%; /* recessed ground under a code block */
+        --code-inline: 20 90% 36%; /* #AE4009 - inline code text (web-ui-kit parity) */
         --primary-ink: 215 90% 56%; /* = --point-blue; links/mentions in message bodies */
         --link: 250 70% 60%; /* #6A52E0 - links in a Block Kit card (libs/block-kit), the design's purple */
         --warning: 38 92% 50%; /* highlight behind a mention of me (MSG_MENTION_SELF_CLASS) */
@@ -88,6 +89,7 @@
         --avatar-ring: 210 22% 96%; /* #F4F5F5 - place/chat avatar stroke + light avatar disc */
         --avatar-stroke: 195 17% 91%; /* #E4EAEC - photo/person avatar stroke (web-ui-kit parity) */
         --control-surface: 210 22% 96%; /* #F4F5F5 - circular action tile fill (chat attach menu) */
+        --nav-ink: 226 46% 20%; /* #1C274C - bottom nav glyphs (web-ui-kit parity) */
 
         /* Attach menu + photo picker (Figma, web-ui-kit parity) */
         --glyph-green: 135 59% 49%; /* #34C759 - photos glyph */
@@ -162,6 +164,7 @@
         /* Block Kit message surfaces (dark) */
         --hairline: 0 0% 23%; /* same weight as the dark card border */
         --well: 0 0% 12%; /* recessed against the 7% page ground */
+        --code-inline: 32 80% 54%; /* #E8902C - same, lifted for the dark ground */
         --primary-ink: 215 90% 56%; /* = --point-blue, unchanged on dark */
         --link: 250 90% 76%; /* lifted for the dark card */
         --warning: 43 90% 55%; /* lifted for the dark ground */
@@ -176,6 +179,7 @@
         --avatar-ring: 0 0% 18%; /* subtle ring on dark bg */
         --avatar-stroke: 0 0% 18%; /* avatar stroke on dark bg */
         --control-surface: 0 0% 15%; /* tile fill on dark bg */
+        --nav-ink: 0 0% 92%; /* light glyphs on the dark glass bar */
 
         /* Attach menu + photo picker (web-ui-kit parity) */
         --glyph-green: 135 59% 49%; /* same */

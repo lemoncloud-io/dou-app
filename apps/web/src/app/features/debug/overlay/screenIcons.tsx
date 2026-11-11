@@ -1,5 +1,6 @@
 import {
     Activity,
+    AppWindow,
     BarChart3,
     Bell,
     BellRing,
@@ -15,6 +16,7 @@ import {
     Link2,
     Mail,
     MessageSquare,
+    MessageSquareCode,
     Plug,
     Rocket,
     Route,
@@ -33,6 +35,7 @@ import type { DebugScreenIcon } from './screenManifest';
  */
 export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
     Activity,
+    AppWindow,
     BarChart3,
     Bell,
     BellRing,
@@ -48,6 +51,7 @@ export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
     Link2,
     Mail,
     MessageSquare,
+    MessageSquareCode,
     Plug,
     Rocket,
     Route,

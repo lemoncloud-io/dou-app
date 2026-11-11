@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -32,14 +32,35 @@ vi.mock('../../../shared/hooks/useAccountResetOnLogout', () => ({
 }));
 
 const logout = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        session: {
-            useSessionSelection: () => ({ selectedCloudId: 'c1' }),
-            useSessionLogout: () => logout,
+// What the approving app has standing when it signs out; none by default, so the logout runs at once.
+const pairing = vi.hoisted(() => ({ enabled: false, standing: [] as unknown[], revoke: vi.fn() }));
+vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairing.enabled }));
+vi.mock('@chatic/app-runtime', async () => {
+    const { useState } = await import('react');
+    return {
+        runtime: {
+            session: {
+                useSessionSelection: () => ({ selectedCloudId: 'c1' }),
+                useSessionLogout: () => logout,
+                // The pairing-aware logout, reduced to its contract: a confirm while approvals stand.
+                usePairingAwareLogout: (onLogout: () => void) => {
+                    const [pending, setPending] = useState<unknown[] | null>(null);
+                    return {
+                        start: async () => (pairing.standing.length ? setPending(pairing.standing) : onLogout()),
+                        pending,
+                        confirm: async () => {
+                            pairing.revoke();
+                            setPending(null);
+                            onLogout();
+                        },
+                        cancel: () => setPending(null),
+                        busy: false,
+                    };
+                },
+            },
         },
-    },
-}));
+    };
+});
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
@@ -175,6 +196,59 @@ describe('CloudHubPage', () => {
         });
         expect(resetAccount).toHaveBeenCalledTimes(1);
         expect(logout).toHaveBeenCalledTimes(1);
+    });
+
+    describe('releasing the active cloud on an app that approved web sign-ins', () => {
+        const approval = {
+            pairingId: 'p1',
+            status: 'approved',
+            client: { name: 'Chrome · macOS', platform: 'web' },
+            target: { type: 'relay' },
+        };
+
+        beforeEach(() => {
+            pairing.enabled = true;
+            pairing.standing = [approval];
+        });
+        afterEach(() => {
+            pairing.enabled = false;
+            pairing.standing = [];
+        });
+
+        const release = async () => {
+            renderAt('/account/clouds/c1');
+            fireEvent.click(screen.getByRole('button', { name: 'Delete this cloud' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+            await act(async () => {
+                await Promise.resolve();
+            });
+        };
+
+        it('still logs out when the approvals confirm is cancelled — only the approvals stay', async () => {
+            await release();
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+            expect(pairing.revoke).not.toHaveBeenCalled();
+            await act(async () => {
+                await Promise.resolve();
+            });
+            expect(resetAccount).toHaveBeenCalledTimes(1);
+            expect(logout).toHaveBeenCalledTimes(1);
+        });
+
+        it('revokes the approvals and logs out once when the confirm is accepted', async () => {
+            await release();
+
+            fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(pairing.revoke).toHaveBeenCalledTimes(1);
+            expect(resetAccount).toHaveBeenCalledTimes(1);
+            expect(logout).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('opens the cloud places from its entry', () => {

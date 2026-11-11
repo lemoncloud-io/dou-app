@@ -59,6 +59,17 @@ describe('RichText fenced code', () => {
     });
 });
 
+describe('RichText inline code', () => {
+    // Monospace on a near-page tint alone read as plain text; the chip needs an edge and its own
+    // colour to stand apart from the sentence around it.
+    it('sets an inline code span off with a border and its own text colour', () => {
+        const code = renderText('run `npm ci` first').querySelector('code');
+        expect(code?.textContent).toBe('npm ci');
+        expect(code?.classList).toContain('border');
+        expect(code?.classList).toContain('text-code-inline');
+    });
+});
+
 describe('RichText labelled links', () => {
     it('shows the label as a link to the address', () => {
         const container = renderText('see [the docs](https://example.com/a) here');

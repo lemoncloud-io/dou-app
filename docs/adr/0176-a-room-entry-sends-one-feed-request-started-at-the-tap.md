@@ -4,7 +4,7 @@
 > · Scope: `libs/app-runtime/src/socket/sync/{roomFeed.ts,hooks/useSyncTarget.ts}`
 > · `apps/web/src/app/features/channels/hooks/useForegroundChatRefresh.ts`
 > · `apps/web/src/app/features/home/components/ChannelList.tsx` · `apps/web/src/app/routes/{routeChunks.ts,PrivateRoutes.tsx}`
-> · The module docs are [sync/README.md](../../libs/app-runtime/docs/sync/README.md#one-fetch-per-room-entry)
+> · The module docs are [sync/README.md](../../libs/sync/README.md#one-fetch-per-room-entry)
 > and [performance.md](../../apps/web/docs/observability/performance.md#chat_room_sync)
 
 ## Context
@@ -75,7 +75,7 @@ measured.
 
 ## References
 
-- [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) — the per-cloud slot the fetch and the
+- [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) — the per-cloud slot the fetch and the
   tap's gate are keyed by
 - [ADR-0120](./0120-performance-traces-move-to-firebase-performance.md) — the traces that measured this
 - [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) — features do not import each other

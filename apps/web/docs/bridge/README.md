@@ -1,6 +1,6 @@
 # bridge — the app-side seam over `@chatic/bridges`
 
-> Scope: `apps/web/src/app/bridge/` (33 files). The transport itself — `webClient`, readiness
+> Scope: `apps/web/src/app/bridge/` (45 files). The transport itself — `webClient`, readiness
 > polling, timeouts, the message vocabulary — is [`@chatic/bridges`](../../../../libs/bridges/README.md);
 > this document covers only the wrapper this app builds on top of it.
 
@@ -23,10 +23,12 @@ folder:
 
 ## Outbound: `appBridge`
 
-`appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
-63 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
+`appBridge` (`appBridge.ts`) wraps the `webClient.post`/`webClient.request` calls the app makes —
+70 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
-'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file.
+'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. The
+exceptions are the modules that own a whole exchange with its own fallbacks and timeouts —
+`attachmentPicker`, `shareIntake`, `audioRecorder` — which call `webClient` themselves.
 
 | Pattern                  | Shape                       | When                                                                         |
 | ------------------------ | --------------------------- | ---------------------------------------------------------------------------- |
@@ -36,7 +38,7 @@ mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.p
 ## Inbound: `useHandleAppMessage` and `GlobalBridgeListener`
 
 `useHandleAppMessage(type, handler)` (`useHandleAppMessage.ts`) subscribes to one native→web push
-event through `webClient.onEvent`; every `useOn<EventName>` hook in that file (18 of them —
+event through `webClient.onEvent`; every `useOn<EventName>` hook in that file (17 of them —
 `useOnNavigate`, `useOnPurchaseSuccess`, `useOnFetchFcmToken`, …) is a typed alias over it. It is
 push-only: a request/response exchange goes through `appBridge`, never through one of these hooks.
 
@@ -54,8 +56,7 @@ registry behind it: `getShellPut()` returns the native sender inside the app and
 `xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
 the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
 through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
-from `@chatic/data`. The first
-`NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
+from `@chatic/data`, and the native sender also uses it for a page video or document.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
 ## Downloads and capabilities: `shellDownload`, `shellCapabilities`
@@ -66,21 +67,70 @@ up with downloads that ended while the page was away; calls that overlap share o
 `useShellDownloadCatchUp()`, mounted once in `GlobalBridgeListener`, runs it when the handshake
 allows export and on every return to the front. In a browser it does nothing.
 
-`shellCapabilities.ts` keeps what the handshake reply said the installed app can do. Unlike the
-picker, haptics and the upload sender, which each learn from their first `NOT_FOUND`, the viewer's
-save and share must be absent before anyone presses them. So `useCanExportImages()` is true only
-once the reply lists both `SaveToPhotoLibrary` and `ShareFile`, and false until it arrives.
-`withdrawImageExport()` turns it off for the session if a press meets `NOT_FOUND` anyway.
+`shellCapabilities.ts` keeps what the handshake reply said the installed app can do. The viewer's
+save and share must be absent before anyone presses them, so `useCanExportImages()` is true only
+once the reply lists both `SaveToPhotoLibrary` and `ShareFile`, and false until it arrives — and in a
+browser, which gets no reply. `supports(type)` answers the same question for any one message, for the
+features newer than the oldest app this page runs in (the sub WebView, the voice recorder).
 `main.tsx` is the one place that sets the reply. The consumer →
 [feature/channels/image-export.md](../feature/channels/image-export.md).
 
 ## Haptics: `haptics`
 
-`haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. The
-first call is a `request`: `NOT_FOUND` (an app built before the message) turns it off for the
-session, and a success switches every later call to a one-way `post`, which the shell plays without
-answering. A browser is never asked. What home uses it for →
+`haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. Every
+call is a one-way `post`, which the shell plays without answering. A browser is never asked. What home uses it for →
 [feature/home/README.md](../feature/home/README.md#haptics).
+
+## Voice messages: `audioRecorder`
+
+`audioRecorder.start()` / `stop(action)` drive the shell's recorder (`StartAudioRecording`,
+`StopAudioRecording`), and `onEnded` hears the end the shell pushes by itself — its five-minute limit,
+or an interruption (`OnAudioRecordingEnded`). `isSupported` (and the `useCanRecordAudio` hook) is
+`shellCapabilities.supports('StartAudioRecording')`: the voice entry is drawn only where the handshake
+lists it, never in a browser or an app built before the recorder. The start waits up to five minutes,
+since the first one waits on the OS permission prompt; a stop, thirty seconds. A stop answered
+`NOT_RECORDING` comes back as `null` — the shell had already ended the recording and pushed it. The
+button and its rules → [feature/channels/image-send.md](../feature/channels/image-send.md#voice-messages).
+
+## A page on another origin: `subWebView`
+
+`openSubWebView({ url, title, params, appId })` shows a page from another origin without leaving the app, as far
+as the app it runs in allows, and says where it went:
+
+| Where the page runs                           | What happens                          | Returns                         |
+| --------------------------------------------- | ------------------------------------- | ------------------------------- |
+| An app whose handshake lists `OpenSubWebView` | The shell's sub WebView, over the app | `{ via: 'subWebView', viewId }` |
+| An app built before it                        | `appBridge.openURL` — the OS browser  | `{ via: 'external' }`           |
+| A plain browser                               | A new tab                             | `{ via: 'browser' }`            |
+
+`appId` names the app `url` was resolved from (`bridge/subWebViewApps.ts`); the shell builds the
+page's share link from it, so a link the page shares names the app rather than where it is hosted.
+A page link (below) never takes the two fallbacks above: it opens in the sub WebView or not at all.
+
+The handshake is read through `shellCapabilities.supports('OpenSubWebView')`, so an older app is
+never asked something it would answer `NOT_FOUND`. A refusal from an app that does have it
+(`NOT_ALLOWED` for a URL off its allowlist, `ALREADY_OPEN`) rejects instead of falling back: it means
+this page asked for something the app will not show, and opening it in the OS browser would hide
+that. `useOnSubWebViewClosed` hears the view close, with its `viewId` and a `reason`: `user`, `host`
+(this page called `appBridge.closeSubWebView(viewId)`), `system` (the shell closed it before a deep
+link or a tapped push sends this page an `OnNavigate`), or `page` (the page finished, and `result`
+carries what it handed back). Handle an unknown reason too: an app released later may add one.
+`params` (JSON, at most 16 KiB) reach the page only in the sub WebView, as
+`window.ChaticSubWebView.params`; the two fallbacks cannot carry them.
+
+What an app opens depends on its handshake's `subWebViewOpenScope`, read through
+`useSubWebViewOpenScope()`. An app that says nothing opens only the pages under `*.apps.chatic.io`
+(`*.apps-dev.chatic.io` in dev), which the app's review pipeline alone deploys to. One that says
+`anyHttps` opens any plain https site as well, in the `external` tier: no manifest, the bar titled
+with its host. The web ships before the app, so a control that opens an arbitrary site — the Lab's
+mini app list ([mypage](../feature/mypage/README.md#the-mini-app-card)) — is drawn only where the
+handshake says `anyHttps`. A push or a page link still reaches only the reviewed pages. The page talks
+only to a host of its own with a few messages, and has none of this app's state; the shell's side,
+and what it allows, is [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
+An app link to a page (`app.chatic.io/apps/<appId>?…`) opens one too, through `OnNavigate` — see
+[push-navigation.md](./push-navigation.md). The Lab opens one for its pages and its mini app card. The debug panel's
+**Sub WebView (app)** screen opens one and logs how
+it closed; the Bridge screen's `OpenSubWebView` preset sends the same request but shows no close event.
 
 ## Foreground detection
 

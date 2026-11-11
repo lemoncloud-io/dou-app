@@ -1,5 +1,5 @@
 import { logger, webClient } from '@chatic/bridges';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { bootSplash } from '../../runtime/bootSplash';
 

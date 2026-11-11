@@ -1,5 +1,5 @@
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { FileTransferErrorCode, WebMessageData } from '@chatic/app-messages';
+import type { FileTransferErrorCode, WebMessageData } from '@chatic/bridge-messages';
 import type { IFileManagerBridge, ITransferManagerBridge } from '../../bridge';
 import { safeHost } from '../../bridge';
 import type { ILogService } from '../../services';

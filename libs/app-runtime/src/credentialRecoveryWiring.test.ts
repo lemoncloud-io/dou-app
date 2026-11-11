@@ -12,12 +12,14 @@
  * testing — a registry left unregistered is the SAFE state, so the thing that can silently break is
  * "boot did not wire it", not the wiring itself.
  */
-import { credentialRecovery } from './http/credentialRecovery';
+import { MemoryStore } from '@chatic/storage';
+import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { initAppRuntime } from './init';
 
 const mockRequestSessionRefresh = jest.fn();
 
-jest.mock('./socket/auth/requestRelaySessionRefresh', () => ({
+jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestSessionRefresh(...a),
 }));
 
@@ -45,7 +47,10 @@ describe('부팅 전', () => {
 
 describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
     beforeAll(() => {
-        initAppRuntime();
+        initAppRuntime({
+            storage: { secret: new MemoryStore(), plain: new MemoryStore() },
+            transport: fakeTransportPorts(),
+        });
     });
 
     // Hosts with no credential of their own also sign with relay's, so the recovery path is the same.

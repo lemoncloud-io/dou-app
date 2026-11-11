@@ -38,17 +38,16 @@ order and their draft state; the wizard's route.
 
 The stored value is `ui.onboardingCompleted` — **true means the carousel is done**. What the screens
 read is `isFirstRun`, its negation. Between the two there is a second inversion nobody expects, so
-all three places that touch it are worth knowing together.
+both places that touch it are worth knowing together.
 
 | Where                                                                               | Reads/writes                          | Polarity                             |
 | ----------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------ |
 | [`app/hooks/useOnboarding.ts`](../../../src/app/hooks/useOnboarding.ts)             | `config` key `ui.onboardingCompleted` | `isFirstRun = !onboardingCompleted`  |
 | [`app/runtime/PreferenceLoader.tsx`](../../../src/app/runtime/PreferenceLoader.tsx) | legacy bridge key `isFirstRun`        | decoded by negating the bridge value |
-| [`app/config/shellKvAdapter.ts`](../../../src/app/config/shellKvAdapter.ts)         | legacy bridge key `isFirstRun`        | written back negated                 |
 
-The two legacy paths exist because the web ships before the app: a native build that predates the
-config bag still answers only to the old `isFirstRun` preference, so reads fall back to it and writes
-degrade to it. A build new enough to inject `CHATIC_APP_CONFIG_BAG` never takes either path.
+The legacy read exists for an install whose answer was stored by an app from before the config bag:
+that app kept it only in the old `isFirstRun` preference, which a later app never moves into the bag.
+Writes always go to the bag (`SaveConfigValue`).
 
 `completeOnboarding()` and `resetOnboarding()` write with `{ lane: 'shell' }`. The lane is not
 decoration — `local` sits below a native-hydrated shell value in the lane order, so a `local` write

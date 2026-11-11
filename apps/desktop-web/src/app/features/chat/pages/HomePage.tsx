@@ -34,6 +34,9 @@ import {
     usePlaces,
     useProfilePanelStore,
     useSavedPageStore,
+    useMyThreadsStore,
+    isThreadUnread,
+    isThreadInScope,
     useMentionsStore,
     inboxPlaceScope,
     isInInboxScope,
@@ -54,6 +57,7 @@ import {
     type NavDestination,
     useUnreadStore,
     useCloudProfiles,
+    useComposerFocusStore,
 } from '../../../shared';
 import {
     ChannelList,
@@ -68,19 +72,20 @@ import {
     PlaceRail,
     SidebarHeader,
     SavedPage,
+    ThreadsPage,
     NotificationsPanel,
     ChannelListPanel,
     DmListPanel,
+    type SelectConversation,
     ThreadPanel,
     WelcomePage,
 } from '../components';
 import {
     useHydrateDmPeers,
-    useMessageViewer,
     useHeldChannel,
     useNextUnreadShortcut,
     usePendingLanding,
-    useReadCounts,
+    useRailShortcuts,
     usePlaceWelcome,
     useTrailingPanelOwners,
 } from '../hooks';
@@ -154,6 +159,21 @@ export const HomePage = () => {
     // the switch/reconnect window.
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const railLocked = isSwitching || !isVerified;
+
+    // A rail chord asks the room it opens not to take the caret, so the chord after it moves the
+    // rail instead of typing into the box. Drop the request when the switch settles, and a moment
+    // after the chord when no switch follows (the cloud is closed, the place is already open) — it
+    // must not outlive the switch it was made for and swallow the focus of a later click.
+    const skipComposerFocus = useComposerFocusStore(s => s.skipNext);
+    useEffect(() => {
+        if (!skipComposerFocus) return;
+        const timer = setTimeout(
+            () => useComposerFocusStore.getState().clearSkip(),
+            // Long enough for a slow switch to land, short enough to let go of a chord that starts none.
+            isSwitching ? 15000 : 3000
+        );
+        return () => clearTimeout(timer);
+    }, [isSwitching, skipComposerFocus]);
 
     // Place Profiles: mirror the current place's overrides into the store (one
     // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
@@ -229,9 +249,18 @@ export const HomePage = () => {
         () => inboxPlaceScope({ isDefaultMode, selectedPlaceId, placeIds }),
         [isDefaultMode, selectedPlaceId, placeIds]
     );
+    const mainPage = useSavedPageStore(s => s.page);
+    // The cloud the place scope belongs to. Place ids repeat across clouds, so every scoped reader
+    // (threads, notifications) checks the cloud before the place.
+    const scopeCloudId = activeCloudId ?? RELAY_CLOUD_ID;
+    const hasUnreadThreads = useMyThreadsStore(s =>
+        Object.values(s.threads).some(
+            thread => isThreadUnread(thread) && isThreadInScope(thread, scopeCloudId, inboxScope)
+        )
+    );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s =>
-        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, inboxScope))
+        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, scopeCloudId, inboxScope))
     );
     const hasChannelUnread = hasUnreadRoom(channels);
     const hasDmUnread = hasUnreadDm(channels);
@@ -610,13 +639,19 @@ export const HomePage = () => {
 
     // Stable handlers for the sidebar, whose rows are memo'd. Picking a channel from
     // the list is a deliberate move, not a detour, so it retires any return point.
-    const selectFromList = useCallback(
-        (id: string) => {
+    // Read through a ref: it compares against the current selection, and depending on it would
+    // re-create the handler — and re-render every memo'd row — on each render.
+    const openThreadNowOrDeferRef = useRef(openThreadNowOrDefer);
+    openThreadNowOrDeferRef.current = openThreadNowOrDefer;
+    const selectFromList = useCallback<SelectConversation>(
+        (id, thread) => {
             useMessageJumpStore.getState().clearOrigin();
             // The list's own room too: picking it is how the reader leaves the Saved page for it.
             closeSaved();
             setRoomOpenedHere(true);
             selectChannel(id);
+            // A row previewing a thread reply opens that thread: the room's feed has no row for it.
+            if (thread) openThreadNowOrDeferRef.current(id, thread.threadRootId);
         },
         [selectChannel, closeSaved]
     );
@@ -791,13 +826,6 @@ export const HomePage = () => {
         // channel.list-user at the new socket → 403 not-a-member on the relay.
     } = useChannelMembers(selectedChannel?.id ?? null, selectedChannel?.ownerId);
 
-    // One read-state subscription per open channel, shared by the chat pane and the thread
-    // panel — same reason the member subscription above lives here. Each mount registers a
-    // join sync for the whole roster and observes the join cache, so a second one would run
-    // the cache scan again on every emit for counts identical to the first's.
-    const viewer = useMessageViewer(selectedChannel);
-    const readCountOf = useReadCounts(selectedChannel, viewer);
-
     // Keep the open channel marked read up to its latest message (cursor grows as
     // new messages arrive while it's open), so it never shows unread after you
     // switch away. Gate on window focus/visibility: a message arriving while the
@@ -812,6 +840,28 @@ export const HomePage = () => {
         }
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
+    // Picking a cloud or a place is a deliberate move, like picking a channel from the list, so it
+    // retires any return point. The tile and the number key that stands for it run the same handler.
+    const selectCloudFromRail = (cloudId: string) => {
+        clearJumpOrigin();
+        void switchCloud(cloudId);
+    };
+    const selectPlaceFromRail = (placeId: string) => {
+        clearJumpOrigin();
+        switchPlace(placeId);
+    };
+    // Locked until the socket re-verifies on the new cloud, as the cloud tiles are: a switch sent over a
+    // half-open socket fails without saying anything about the cloud or place it was asked for.
+    useRailShortcuts({
+        clouds,
+        places,
+        activeCloudId,
+        onSelectCloud: selectCloudFromRail,
+        onSelectPlace: selectPlaceFromRail,
+        isSwitching: railLocked,
+        isDefaultMode,
+    });
+
     return (
         <>
             <DesktopLayout
@@ -822,12 +872,7 @@ export const HomePage = () => {
                             activeCloudId={activeCloudId}
                             hasUnread={cloudHasUnread}
                             badgedClouds={badgedClouds}
-                            // Switching from the rail is a deliberate move, like picking a
-                            // channel from the list, so it retires any return point.
-                            onSelectCloud={cloudId => {
-                                clearJumpOrigin();
-                                void switchCloud(cloudId);
-                            }}
+                            onSelectCloud={selectCloudFromRail}
                             isSwitching={railLocked}
                             isCatalogError={isCloudsError}
                             isRetryingCatalog={isFetchingClouds}
@@ -839,10 +884,7 @@ export const HomePage = () => {
                             unreadByPlace={unreadByPlace}
                             isDefaultMode={isDefaultMode}
                             isSwitching={isSwitching}
-                            onSelectPlace={placeId => {
-                                clearJumpOrigin();
-                                switchPlace(placeId);
-                            }}
+                            onSelectPlace={selectPlaceFromRail}
                             canManagePlaces={mayManagePlacesHere}
                             onCreatePlace={() => setCreatePlaceOpen(true)}
                             onEditPlace={openEditPlace}
@@ -854,6 +896,7 @@ export const HomePage = () => {
                     <NavRail
                         items={NAV_ITEMS}
                         unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
+                        place={isDefaultMode ? undefined : places.find(p => p.id === selectedPlaceId)}
                     />
                 }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
@@ -862,7 +905,7 @@ export const HomePage = () => {
                         active={navActive}
                         notifications={
                             <NotificationsPanel
-                                cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                                cloudId={scopeCloudId}
                                 channels={channels}
                                 currentPlaceId={selectedPlaceId ?? undefined}
                                 placeScope={inboxScope}
@@ -898,8 +941,11 @@ export const HomePage = () => {
                                     query={query}
                                     onQueryChange={setQuery}
                                     onEditPlaceProfile={openEditPlaceProfile}
-                                    onOpenSaved={openSaved}
-                                    isSavedOpen={savedOpen}
+                                    onOpenSaved={() => openSaved('saved')}
+                                    isSavedOpen={savedOpen && mainPage === 'saved'}
+                                    onOpenThreads={() => openSaved('threads')}
+                                    isThreadsOpen={savedOpen && mainPage === 'threads'}
+                                    hasUnreadThreads={hasUnreadThreads}
                                 />
                                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                                     <ChannelList
@@ -935,8 +981,16 @@ export const HomePage = () => {
                     />
                 }
                 main={
-                    savedOpen ? (
+                    savedOpen && mainPage === 'threads' ? (
+                        <ThreadsPage
+                            cloudId={scopeCloudId}
+                            channels={channels}
+                            placeScope={inboxScope}
+                            onOpen={jumpToSaved}
+                        />
+                    ) : savedOpen ? (
                         <SavedPage
+                            cloudId={scopeCloudId}
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}
@@ -957,7 +1011,6 @@ export const HomePage = () => {
                             channel={selectedChannel}
                             members={members}
                             membersLoading={membersLoading}
-                            readCountOf={readCountOf}
                             jumpReturn={jumpReturn}
                             emptyState={chatEmptyState}
                         />
@@ -975,7 +1028,6 @@ export const HomePage = () => {
                             rootId={openThreadRootId}
                             members={members}
                             membersLoading={membersLoading}
-                            readCountOf={readCountOf}
                         />
                     ) : settingsChannel ? (
                         <ChannelSettingsPanel

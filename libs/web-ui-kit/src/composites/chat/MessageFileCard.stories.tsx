@@ -18,10 +18,6 @@ export const Downloading: Story = { args: { download: 'downloading', progress: 0
 /** The transfer has not reported a total yet. */
 export const DownloadingUnknown: Story = { args: { download: 'downloading' } };
 export const Done: Story = { args: { download: 'done' } };
-/** An app built before it could save files: the notice instead of the button. */
-export const Unavailable: Story = {
-    args: { download: 'unavailable', labels: { unavailable: '앱을 업데이트하면 받을 수 있어요' } },
-};
 export const Sending: Story = { args: { name: '회의록 v1.2.hwpx', size: 320 * 1024, state: 'sending' } };
 /** Bytes counted: the ring fills and the size line says how much has gone. */
 export const SendingProgress: Story = {

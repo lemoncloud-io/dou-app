@@ -154,6 +154,37 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
+    it('refundSubscriptionByAdmin — POST {relay}/subscriptions/{userId}/refund with the reason as body', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ status: 'expired' });
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await expect(gateway.refundSubscriptionByAdmin('1000904', { reason: 'test refund' })).resolves.toEqual({
+            status: 'expired',
+        });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'POST',
+            baseURL: 'https://relay.test/subscriptions/1000904/refund',
+            params: {},
+            body: { reason: 'test refund' },
+        });
+    });
+
+    // The console's stage switch: a refund aimed at another relay must land there, not on the
+    // configured one, or the confirmation dialog would name the wrong server.
+    it('refundSubscriptionByAdmin — an endpoint override replaces the configured relay', async () => {
+        executeSignedRelayRequest.mockResolvedValue({});
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await gateway.refundSubscriptionByAdmin('1000904', { reason: 'r' }, undefined, {
+            endpoint: 'https://api.example.com/dou-d1',
+        });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ baseURL: 'https://api.example.com/dou-d1/subscriptions/1000904/refund' })
+        );
+    });
+
     it('adminClouds — GET {relay}/clouds/0/list, filtered by ownerId', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);
@@ -193,5 +224,133 @@ describe('createSubscriptionHttpGateway', () => {
         expect(executeSignedRelayRequest).toHaveBeenCalledWith(
             expect.objectContaining({ params: expect.objectContaining({ ownerId: '1000904' }) })
         );
+    });
+
+    describe('web subscription — {relay}/subscriptions/0/*', () => {
+        it('reads the subscription and the cards with GET', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.mySubscription();
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'GET',
+                baseURL: 'https://relay.test/subscriptions/0/mine',
+            });
+
+            await gateway.subscriptionCards();
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'GET',
+                baseURL: 'https://relay.test/subscriptions/0/cards',
+            });
+        });
+
+        it('posts the commands with their bodies', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+            const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
+
+            await gateway.issueBillingKey({ productId: 'p1' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/issue',
+                body: { productId: 'p1' },
+            });
+
+            await gateway.startSubscription({ productId: 'p1', billingKey: 'bk', ...payer });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/start',
+                body: { productId: 'p1', billingKey: 'bk', ...payer },
+            });
+
+            await gateway.changeSubscription({ productId: 'p2' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/change',
+                body: { productId: 'p2' },
+            });
+
+            await gateway.addCard({ billingKey: 'bk', ...payer });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/card',
+                body: { billingKey: 'bk', ...payer },
+            });
+        });
+
+        it('puts sandbox on the payer-scoped calls it is given to, and the interval on start', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+            const sandbox = { sandbox: 1 as const };
+
+            await gateway.subscriptionCards(sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/cards', params: sandbox })
+            );
+            await gateway.issueBillingKey({ productId: 'p1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/issue', params: sandbox })
+            );
+            await gateway.startSubscription({ productId: 'p1', billingKey: 'bk' }, { sandbox: 1, interval: '10m' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://relay.test/subscriptions/0/start',
+                    params: { sandbox: 1, interval: '10m' },
+                })
+            );
+            await gateway.addCard({ billingKey: 'bk', name: '', phone: '', email: '' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card', params: sandbox })
+            );
+            await gateway.setDefaultCard({ billkeyId: 'k1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card-default', params: sandbox })
+            );
+            await gateway.removeCard({ billkeyId: 'k1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card-delete', params: sandbox })
+            );
+        });
+
+        it('sends no query at all when none is given, or only empty values are', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.startSubscription({ productId: 'p1' }, { interval: '' });
+            expect(executeSignedRelayRequest.mock.lastCall?.[0]).not.toHaveProperty('params');
+            await gateway.subscriptionCards(undefined);
+            expect(executeSignedRelayRequest.mock.lastCall?.[0]).not.toHaveProperty('params');
+        });
+
+        it('sends an empty object with a command that takes nothing, which the relay gateway needs', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.cancelSubscription();
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/cancel',
+                body: {},
+            });
+        });
+
+        it('names the card to make the default or to remove by its id', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.setDefaultCard({ billkeyId: 'dou:dev:U1:02' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/card-default',
+                body: { billkeyId: 'dou:dev:U1:02' },
+            });
+
+            await gateway.removeCard({ billkeyId: 'dou:dev:U1:02' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/card-delete',
+                body: { billkeyId: 'dou:dev:U1:02' },
+            });
+        });
     });
 });

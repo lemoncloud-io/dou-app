@@ -1,4 +1,4 @@
-import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
+import type { DeviceInfo, VersionInfo } from '@chatic/bridge-messages';
 
 import { recordRoute, resetRouteTrail } from '../../../utils/routeTrail';
 import { buildReportContext } from './buildReportContext';

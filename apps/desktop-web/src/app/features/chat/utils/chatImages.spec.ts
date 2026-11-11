@@ -38,6 +38,28 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
+    // macOS types a voice memo `audio/x-m4a`; each goes as a document the receiver saves.
+    it('takes audio files as documents, in each format the server keeps', () => {
+        const result = validateAttachments(
+            [],
+            [
+                file('memo.m4a', 'audio/x-m4a'),
+                file('song.mp3', 'audio/mpeg'),
+                file('take.wav', 'audio/wav'),
+                file('voice.ogg', 'audio/ogg'),
+            ]
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['memo.m4a', 'song.mp3', 'take.wav', 'voice.ogg']);
+        expect(result.rejected).toEqual({});
+    });
+
+    // The server keeps no AAC or WebM audio, so those are refused before an upload can fail.
+    it('refuses audio in a format the server does not keep', () => {
+        const result = validateAttachments([], [file('clip.aac', 'audio/aac'), file('voice.webm', 'audio/webm')]);
+        expect(result.accepted).toEqual([]);
+        expect(result.rejected).toEqual({ unsupported: 2 });
+    });
+
     // Chromium on Windows types a `.zip` as `application/x-zip-compressed`.
     it('takes a ZIP archive, however the system typed it', () => {
         const result = validateAttachments(
@@ -348,7 +370,12 @@ describe('savedAttachmentOf', () => {
             { id: 'up-2', status: 'stored', stereo: 'file', name: 'spec.pdf' },
         ] as NonNullable<DomainChat['upload$$']>;
 
-        expect(savedAttachmentOf({ upload$$: slots })).toEqual({ kind: 'mixed', count: 2, name: 'logo.png', size: 2048 });
+        expect(savedAttachmentOf({ upload$$: slots })).toEqual({
+            kind: 'mixed',
+            count: 2,
+            name: 'logo.png',
+            size: 2048,
+        });
     });
 
     it('keeps only the count when the message names none, and nothing when nothing is attached', () => {

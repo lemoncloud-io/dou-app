@@ -1,10 +1,12 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 const mockLoginRelayGuestByDevice = jest.fn();
 const mockUseSessionAuth = jest.fn();
 const mockUseDynamicDeviceId = jest.fn();
 
-jest.mock('../../auth/relaySession', () => ({
+jest.mock('@chatic/auth/session/relaySession', () => ({
     relaySession: { loginGuestByDevice: (...args: unknown[]) => mockLoginRelayGuestByDevice(...args) },
 }));
 
@@ -25,6 +27,9 @@ const { useRelaySessionKeepAlive } = require('./useRelaySessionKeepAlive');
 const setOnline = (online: boolean): void => {
     Object.defineProperty(window.navigator, 'onLine', { value: online, configurable: true });
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('useRelaySessionKeepAlive', () => {
     beforeEach(() => {
@@ -84,6 +89,32 @@ describe('useRelaySessionKeepAlive', () => {
         act(() => {
             window.dispatchEvent(new Event('online'));
         });
+
+        await waitFor(() => expect(mockLoginRelayGuestByDevice).toHaveBeenCalledWith('device-1'));
+    });
+
+    // A native platform has no window `online` event; the hook has to hear the platform's own signal.
+    it("runs the attempt when the platform's online signal fires, with no window event at all", async () => {
+        let online = false;
+        let notify: () => void = () => undefined;
+        transportPlatform.configure(
+            fakeTransportPorts({
+                online: {
+                    read: () => online,
+                    subscribe: listener => {
+                        notify = listener;
+                        return () => undefined;
+                    },
+                },
+            })
+        );
+        mockUseSessionAuth.mockReturnValue({ isAuthenticated: false });
+
+        renderHook(() => useRelaySessionKeepAlive(true));
+        expect(mockLoginRelayGuestByDevice).not.toHaveBeenCalled();
+
+        online = true;
+        act(() => notify());
 
         await waitFor(() => expect(mockLoginRelayGuestByDevice).toHaveBeenCalledWith('device-1'));
     });

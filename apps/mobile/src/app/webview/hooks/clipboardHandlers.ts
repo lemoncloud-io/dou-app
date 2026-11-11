@@ -1,4 +1,4 @@
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import type { IClipboardService } from '../../services';
 import type { ILogService } from '../../services';
 

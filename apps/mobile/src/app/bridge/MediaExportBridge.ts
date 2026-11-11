@@ -5,7 +5,7 @@ import type {
     OnOpenFilePayload,
     OnSaveFilePayload,
     OnShareFilePayload,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * MediaExport — the native module that puts a downloaded file on an OS surface (Kotlin

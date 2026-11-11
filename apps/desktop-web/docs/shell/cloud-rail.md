@@ -7,6 +7,9 @@ with a small chip of its initial. Picking a row switches to that cloud. When the
 cloud, the tile shows Home, the same reading `HomePage` gives it. The place tiles sit under it, past a
 divider ([place-rail.md](./place-rail.md)).
 
+The rows are also reachable by number — Mod+0 for Home, Mod+1…Mod+9 for the rest, in this order
+([`../chat/keyboard.md`](../chat/keyboard.md#cloud-and-place-by-number)).
+
 The clouds used to be a rail of their own, one tile each. The design folds them into one rail with the
 places, so the tiles became rows and their right-click menus became items in the switcher's menu.
 
@@ -33,9 +36,14 @@ contrast.
 
 A suspended or expired cloud is one its subscription no longer keeps open (`isLapsedCloud`). Only a
 subscription reopens it, and desktop sells none: subscriptions and new clouds are in the DoU mobile
-app. So its row says that under the name, and picking it does not try to switch. It shows a toast
-with the same line and the App Store and Google Play links (`MobileAppPointer`) instead. A switch
-into it used to be refused and then offer Try again, which could never work.
+app. So its row says that under the name, and the dashed chip stays for both.
+
+The two differ on a pick. A suspended cloud is on hold, and the server still accepts a switch into
+it (the mobile app enters one), so picking it starts a normal switch; the server decides, and a
+refusal gets the switch failure toast below. An expired cloud is released (`isExpiredCloud`), so
+picking it does not try to switch. It shows a toast with the same line and the App Store and Google
+Play links (`MobileAppPointer`) instead. A switch into it used to be refused and then offer Try
+again, which could never work. Creating a place and renaming stay off for both.
 
 ## Renaming a cloud
 
@@ -113,6 +121,11 @@ back. It does nothing when the row is already there, and a revoked grant just le
 was. The row comes back without a name, so the row reads as the cloud's id until the cloud is
 entered and its name is fetched over its own socket.
 
+The row and the joined-clouds entry are recorded under the account that joined (`acceptedBy` /
+`ownerUid`), and `useClouds` reads only the signed-in account's; the names of owned tiles are
+read from the same filtered rows. Records with no owner are adopted by the first account to sign in,
+outside the render. See `docs/auth/README.md`.
+
 Three places name a cloud, and each one recovers it:
 
 - **A push.** `usePushInvitedCloudRecovery` reads the source cloud from the push (`data.cid`, which
@@ -151,7 +164,7 @@ and the owner would walk into their own cloud as the guest's member.
 (`runtime.connection.useReclaimOwnedClouds`) re-issues each of those once per signed-in account,
 socket included. The invited row stays, still drawn as owned. A cloud written as invited while the
 catalog was still loading (see above) lands in that list too, which costs one extra re-issue. The
-rules (when it records, how it backs off) are the runtime's: `libs/app-runtime` docs/auth, "An
+rules (when it records, how it backs off) are the runtime's: `libs/auth` docs/socket, "An
 owned cloud held as its invitee".
 
 ## A failed switch

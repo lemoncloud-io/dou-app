@@ -19,6 +19,7 @@ import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '..
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
+import { PairedCloudNameRunner } from './PairedCloudNameRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { QueueLossRunner } from './QueueLossRunner';
 import { PreferenceLoader } from './PreferenceLoader';
@@ -51,9 +52,8 @@ export const AppRuntime = () => {
     // loop to notice the zombie. No-op before the sockets boot.
     useSocketWakeRecovery();
 
-    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies. The
-    // sealed transport init no longer refreshes them and the SDK's first writeback is a refresh
-    // cycle (5min) away, so without this every relay-signed request — notably the cloud entry
+    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies. Nothing
+    // else refreshes them at boot and the SDK's first writeback is a refresh cycle (5min) away, so without this every relay-signed request — notably the cloud entry
     // calls — 403s meanwhile.
     useRelayCredentialRefresh();
     // ...and re-read the cloud catalog if that stale credential already cost it its boot read —
@@ -82,6 +82,7 @@ export const AppRuntime = () => {
                     <CloudActivatedRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
+                    <PairedCloudNameRunner />
                     <QueueLossRunner />
                     {/* Mirrors the two shared observations out to the debug overlay, which is mounted
                         outside AppRuntime and so cannot consume the providers. Nothing mounts below it

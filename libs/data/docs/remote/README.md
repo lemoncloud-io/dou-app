@@ -167,7 +167,7 @@ two forced an import alias. Removing the suffix closed that split
 
 `V2` that has nothing to do with the data layer (`ClientSocketV2`, `registerUserV2`,
 `RegisterUserV2Body`, `useWebSocketV2`, …) was never in scope and is untouched. So is the
-`apps/admin-v2` path.
+`apps/admin` path.
 
 Two things moved in `libs/app-runtime` alongside it. `factories/repositoryFactory.ts` is gone — it was
 a 30-line shell whose only job was renaming `contextProvider` to `context`, and once both sides said

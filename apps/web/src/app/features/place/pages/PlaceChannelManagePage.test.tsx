@@ -110,6 +110,7 @@ jest.mock('../../../hooks', () => ({
     useMyJoins: () => new Map(),
     useChannelUnreads: () => ({ byChannel: unreadByChannel }),
     useLastChats: () => lastChatsValue,
+    useLastActivities: () => lastChatsValue,
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
 }));
 

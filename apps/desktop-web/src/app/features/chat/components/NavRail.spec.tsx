@@ -20,6 +20,14 @@ vi.mock('@chatic/app-runtime', () => ({
             getRelaySessionUser: () => relayUser,
             useRuntimeProfile: () => profile,
             useSessionLogout: () => vi.fn(),
+            // The pairing-aware logout with nothing approved: it signs out straight away.
+            usePairingAwareLogout: (onLogout: () => void) => ({
+                start: async () => onLogout(),
+                pending: null,
+                confirm: async () => undefined,
+                cancel: () => undefined,
+                busy: false,
+            }),
         },
     },
 }));
@@ -34,6 +42,7 @@ vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), inf
 
 import '../../../../i18n';
 import { useNavStore } from '../../../shared';
+import { useAppearanceDialogStore } from '../../settings/stores/useAppearanceDialogStore';
 import { NavRail } from './NavRail';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -91,6 +100,26 @@ describe('NavRail destinations', () => {
         renderRail();
         expect(navItem('home').getAttribute('aria-current')).toBe('page');
         expect(navItem('channels').getAttribute('aria-current')).toBeNull();
+    });
+
+    it("draws the active place's logo on the Home tile, keeping the Home label", () => {
+        renderRail({ place: { thumbnail: 'https://cdn.test/lemon.png' } });
+        expect(navItem('home').querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/lemon.png');
+        expect(navItem('home').querySelector('svg')).toBeNull();
+    });
+
+    it('keeps the Home glyph when the place has no logo or there is no place', () => {
+        for (const place of [{}, undefined]) {
+            const { unmount } = renderRail({ place });
+            expect(navItem('home').querySelector('img')).toBeNull();
+            expect(navItem('home').querySelector('svg')).not.toBeNull();
+            unmount();
+        }
+    });
+
+    it('does not put the place logo on the other destinations', () => {
+        renderRail({ place: { thumbnail: 'https://cdn.test/lemon.png' } });
+        expect(navItem('channels').querySelector('img')).toBeNull();
     });
 
     it('moves the shell to the destination that is clicked', () => {
@@ -166,6 +195,22 @@ describe('NavRail account menu', () => {
         expect(items.indexOf(i18next.t('rail.menu.settings'))).toBeLessThan(
             items.indexOf(i18next.t('rail.menu.logout'))
         );
+    });
+
+    it('opens the Appearance popup from its menu item, ahead of settings', async () => {
+        useAppearanceDialogStore.setState({ isOpen: false });
+        renderRail();
+        await openAccountMenu();
+
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+        expect(items.indexOf(i18next.t('rail.menu.appearance'))).toBeLessThan(
+            items.indexOf(i18next.t('rail.menu.settings'))
+        );
+
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.appearance') }));
+
+        expect(useAppearanceDialogStore.getState().isOpen).toBe(true);
+        expect(navProbe.path).not.toBe('/settings');
     });
 
     it('opens the Account hub from its menu item', async () => {

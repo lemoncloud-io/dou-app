@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { FileText, Film, X } from 'lucide-react';
+import { FileText, Film, Pause, Play, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 
 import type { ComposerAttachment } from '../../hooks';
-import { MAX_ATTACHMENTS, formatFileSize } from '../../utils';
-import { ComposerPreview, canPreviewAttachment } from './ComposerPreview';
+import { MAX_ATTACHMENTS, formatFileSize, formatPlaybackTime } from '../../utils';
+import { ComposerPreview, canPreviewAttachment, isAudioAttachment } from './ComposerPreview';
 import { ImageSpinner } from './ImageSpinner';
+import { useInlineAudio } from './useInlineAudio';
 import { Hint, hoverReveal } from '../../../../shared';
 
 interface ComposerAttachmentsProps {
@@ -23,7 +24,8 @@ interface ComposerAttachmentsProps {
  * that scrolls sideways, a spinner until an image's preview has decoded, a video or
  * document named on its tile with its size, the remove "×" on hover
  * or focus ("delete button on hover"), and how many of the ten are used. A tile opens
- * its file at full size before it is sent, where `canPreviewAttachment` says it can.
+ * its file at full size before it is sent, where `canPreviewAttachment` says it can;
+ * a voice file's tile plays it instead.
  *
  * The row used to wrap, so ten images took about 40% of the window and pushed the
  * conversation out of view while you wrote the message that goes with them.
@@ -94,47 +96,54 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                                     aria-busy={isDecoding || undefined}
                                     className="group/att relative h-[92px] w-[92px] shrink-0"
                                 >
-                                    <Tile
-                                        {...(canOpen && {
-                                            type: 'button' as const,
-                                            onClick: () => setPreviewId(attachment.id),
-                                            'aria-label': t('chat.file.open', { name: attachment.name }),
-                                        })}
-                                        className={cn(
-                                            'block h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted text-left',
-                                            canOpen && 'focus-ring cursor-zoom-in'
-                                        )}
-                                    >
-                                        {!isImage && (
-                                            <div className="flex h-full w-full flex-col justify-between p-2.5">
-                                                <KindIcon size={20} aria-hidden className="text-muted-foreground" />
-                                                <div className="min-w-0">
-                                                    <p className="line-clamp-2 break-all text-caption font-medium text-foreground">
-                                                        {attachment.name}
-                                                    </p>
-                                                    <p className="text-caption tabular-nums text-muted-foreground">
-                                                        {formatFileSize(attachment.size)}
-                                                    </p>
+                                    {isAudioAttachment(attachment) ? (
+                                        <AudioTile attachment={attachment} />
+                                    ) : (
+                                        <Tile
+                                            {...(canOpen && {
+                                                type: 'button' as const,
+                                                onClick: () => setPreviewId(attachment.id),
+                                                'aria-label': t('chat.file.open', { name: attachment.name }),
+                                            })}
+                                            className={cn(
+                                                'block h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted text-left',
+                                                canOpen && 'focus-ring cursor-zoom-in'
+                                            )}
+                                        >
+                                            {!isImage && (
+                                                <div className="flex h-full w-full flex-col justify-between p-2.5">
+                                                    <KindIcon size={20} aria-hidden className="text-muted-foreground" />
+                                                    <div className="min-w-0">
+                                                        <p className="line-clamp-2 break-all text-caption font-medium text-foreground">
+                                                            {attachment.name}
+                                                        </p>
+                                                        <p className="text-caption tabular-nums text-muted-foreground">
+                                                            {formatFileSize(attachment.size)}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                        {isImage && (
-                                            <img
-                                                src={attachment.url}
-                                                alt={attachment.name}
-                                                decoding="async"
-                                                draggable={false}
-                                                onLoad={() => markDecoded(attachment.id)}
-                                                onError={() => markDecoded(attachment.id)}
-                                                className={cn('h-full w-full object-cover', isDecoding && 'blur-[1px]')}
-                                            />
-                                        )}
-                                        {isDecoding && (
-                                            <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-overlay/40">
-                                                <ImageSpinner className="h-5 w-5 border-2" />
-                                            </span>
-                                        )}
-                                    </Tile>
+                                            )}
+                                            {isImage && (
+                                                <img
+                                                    src={attachment.url}
+                                                    alt={attachment.name}
+                                                    decoding="async"
+                                                    draggable={false}
+                                                    onLoad={() => markDecoded(attachment.id)}
+                                                    onError={() => markDecoded(attachment.id)}
+                                                    className={cn(
+                                                        'h-full w-full object-cover',
+                                                        isDecoding && 'blur-[1px]'
+                                                    )}
+                                                />
+                                            )}
+                                            {isDecoding && (
+                                                <span className="absolute inset-0 flex items-center justify-center rounded-2xl bg-overlay/40">
+                                                    <ImageSpinner className="h-5 w-5 border-2" />
+                                                </span>
+                                            )}
+                                        </Tile>
+                                    )}
                                     <Hint label={t('chat.attach.remove', { name: attachment.name })}>
                                         <button
                                             type="button"
@@ -165,5 +174,73 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
             )}
             {previewing && <ComposerPreview attachment={previewing} onClose={() => setPreviewId(null)} />}
         </>
+    );
+};
+
+/**
+ * A picked voice file's tile, which plays it from the tray's object URL: a click toggles play and
+ * pause, and a bar along the bottom edge shows how far it has gone.
+ */
+const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
+    const { t } = useTranslation();
+    const { audioProps, playing, time, duration, failed, toggle } = useInlineAudio(attachment.url);
+    const name = attachment.name;
+    const PlayIcon = playing ? Pause : Play;
+    // A file it cannot play is a plain tile, like a document nothing opens: a disabled button takes
+    // no focus, and its label would hide the error from a screen reader.
+    const Tile = failed ? 'div' : 'button';
+    const started = time > 0 || playing;
+    // The clock once it has started; before that the size, like any other file.
+    const caption = failed
+        ? t('chat.file.playFailed')
+        : started
+          ? formatPlaybackTime(time)
+          : formatFileSize(attachment.size);
+
+    return (
+        <Tile
+            {...(!failed && {
+                type: 'button' as const,
+                onClick: toggle,
+                'aria-label': t(playing ? 'chat.file.pause' : 'chat.file.play', { name }),
+            })}
+            className={cn(
+                'relative block h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted text-left',
+                !failed && 'focus-ring'
+            )}
+        >
+            <audio {...audioProps} />
+            <div className="flex h-full w-full flex-col justify-between p-2.5">
+                <span
+                    className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background',
+                        failed && 'opacity-40'
+                    )}
+                >
+                    <PlayIcon size={12} aria-hidden fill="currentColor" />
+                </span>
+                <div className="min-w-0">
+                    <p className="line-clamp-2 break-all text-caption font-medium text-foreground">{name}</p>
+                    <p
+                        className={cn(
+                            'text-caption tabular-nums',
+                            failed ? 'text-destructive' : 'text-muted-foreground'
+                        )}
+                    >
+                        {caption}
+                    </p>
+                </div>
+            </div>
+            {duration !== undefined && started && (
+                // Inside the padding, so the tile's rounded corners do not clip its ends; the same ink
+                // as the play button and the feed card's seek bar.
+                <span aria-hidden className="absolute inset-x-2.5 bottom-1.5 h-0.5 overflow-hidden rounded-full">
+                    <span
+                        className="block h-full origin-left bg-foreground"
+                        style={{ transform: `scaleX(${Math.min(time / duration, 1)})` }}
+                    />
+                </span>
+            )}
+        </Tile>
     );
 };

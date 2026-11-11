@@ -7,6 +7,8 @@ import type { Money, PlanId, Subscription } from '../types';
  * which of them a kind fills is listed beside it.
  */
 export type SceneBanner =
+    /** A first payment the provider has not settled yet. */
+    | { kind: 'pending' }
     /** `date` trial end, `chargeAt` first charge, `amount` first charge amount. */
     | { kind: 'trial'; date?: string; chargeAt?: string; amount?: Money }
     /** `date` next charge, `amount` next charge amount. */
@@ -44,7 +46,7 @@ const ACTIVE_ACTIONS: SceneAction[] = ['changePlan', 'paymentMethods', 'invoices
 
 /**
  * The banner and buttons for a subscription in its current state — the one place that decision is
- * made, so the screens draw the result and the mock only holds state.
+ * made, so the screens draw the result and the port only holds state.
  *
  * A scheduled downgrade and a restore are not statuses; they sit on an `active` subscription and take
  * over its banner. A restored subscription keeps the ordinary buttons beneath its "started again"
@@ -52,6 +54,9 @@ const ACTIVE_ACTIONS: SceneAction[] = ['changePlan', 'paymentMethods', 'invoices
  */
 export const sceneOf = (sub: Subscription, now: Date): Scene => {
     switch (sub.status) {
+        // Nothing can change a payment that is still being settled — not even cancelling it.
+        case 'pending':
+            return { banner: { kind: 'pending' }, actions: [] };
         case 'trial':
             return {
                 banner: { kind: 'trial', date: sub.trialEndsAt, chargeAt: sub.nextBillingAt, amount: sub.nextAmount },

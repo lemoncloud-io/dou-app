@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/data';
 
 import { compareByChatNo } from '../../../shared/utils/chatSort';
 
@@ -42,7 +42,30 @@ export interface ThreadMeta {
     lastReplyAt: number;
     /** Unique reply authors in first-seen order — feeds the footer avatar stack. */
     repliers: ThreadReplier[];
+    /** Replies the reader has not seen yet, under {@link NewReplyRule}; 0 without a rule. */
+    newCount: number;
 }
+
+/**
+ * Which replies count as new. A reply raises the channel's unread count (it takes a slot in the
+ * channel's chatNo sequence) but the main feed hides it, so without this the channel's badge would
+ * clear on open with nothing on screen to show for it.
+ */
+export interface NewReplyRule {
+    /** The reader's read cursor when the channel opened. 0 = unknown, and then nothing is new. */
+    readNo: number;
+    /** Per root, the newest reply the reader has since looked at in the thread panel. */
+    seenByRoot?: ReadonlyMap<string, number>;
+    /** My own replies are never news, even above the cursor. */
+    isMine: (chat: DomainChat) => boolean;
+}
+
+const isNewReply = (reply: DomainChat, rootKey: string, rule: NewReplyRule | undefined): boolean => {
+    if (!rule || rule.readNo <= 0 || reply.chatNo == null) return false;
+    // A deleted reply stays as a tombstone, but a reply that is gone is not something to go and read.
+    if (reply.hidden || rule.isMine(reply)) return false;
+    return reply.chatNo > Math.max(rule.readNo, rule.seenByRoot?.get(rootKey) ?? 0);
+};
 
 /**
  * Aggregate, per thread root, the replies present in the loaded message set.
@@ -53,7 +76,7 @@ export interface ThreadMeta {
  * optimistic→persisted round-trip. A full-id entry whose root is paged out
  * can't normalise, but that root renders no row either, so it is inert.
  */
-export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta> => {
+export const buildThreadIndex = (messages: DomainChat[], newReplies?: NewReplyRule): Map<string, ThreadMeta> => {
     const idToChatNo = new Map<string, string>();
     for (const m of messages) {
         if (!m.parentId && m.id && m.chatNo != null) idToChatNo.set(m.id, String(m.chatNo));
@@ -66,13 +89,14 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
         // the same as anywhere else. The footer's job is to say how many rows are
         // behind it, so counting and showing have to agree; skipping them here would
         // put a "2 replies" footer above a thread containing three.
-        if (message.subType === 'reaction') continue;
+        if (isEventChat(message)) continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
-        const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, repliers: [] };
+        const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, repliers: [], newCount: 0 };
         if (prev.count === 0) index.set(key, prev);
         prev.count += 1;
         if (at > prev.lastReplyAt) prev.lastReplyAt = at;
+        if (isNewReply(message, key, newReplies)) prev.newCount += 1;
         if (message.ownerId) {
             const seen = prev.repliers.find(r => r.id === message.ownerId);
             const thumbnail = message.owner$?.thumbnail;

@@ -8,6 +8,9 @@
 > · The module docs are [apps/web channels/chat-room.md](../../apps/web/docs/feature/channels/chat-room.md),
 > [channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md) and
 > [home/last-chat.md](../../apps/web/docs/feature/home/last-chat.md)
+> · Decision 5's reason is restated by
+> [ADR-0292](./0292-on-the-phone-a-message-is-edited-in-the-composer-not-in-its-bubble.md): on the phone
+> the edit now borrows the composer's field while the draft is kept aside — still never drafted
 
 ## Context
 

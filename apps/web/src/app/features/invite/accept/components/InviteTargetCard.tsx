@@ -10,47 +10,57 @@ import { InviteCard } from './InviteCard';
  */
 export type InviteTargetKind = 'group' | 'oneToOne' | 'place';
 
-const CAPTION_KEY: Record<InviteTargetKind, string> = {
+/** The kinds that have a room to draw a card for; a place invite joins none. */
+export type InviteRoomKind = Exclude<InviteTargetKind, 'place'>;
+
+const CAPTION_KEY: Record<InviteRoomKind, string> = {
     group: 'inviteAccept.target.group',
     oneToOne: 'inviteAccept.target.oneToOne',
-    place: 'inviteAccept.target.place',
 };
 
 interface InviteTargetCardProps {
     /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
-    kind?: InviteTargetKind;
+    kind?: InviteRoomKind;
+    /**
+     * Name of the room: the group room's name, or the inviter for a 1:1. Blank or absent draws no name
+     * line at all — the caption alone is complete, an empty line or a placeholder is not.
+     */
+    name?: string;
 }
 
 /**
- * Invite accept screen — the "You" block: who is joining. Shows the self avatar and the room-kind
- * caption (Figma 3072-10943 · 3076-11341). Cloud invites are group chats, so that stays the default;
- * the relay 1:1 invite passes `oneToOne`, and a cloud invite with no room passes `place`.
+ * Invite accept screen — the room card: what the invite leads to. Shows the room's name (when the
+ * invite carries one) over the room-kind caption (Figma 3072-10943 · 3076-11341). Cloud invites are
+ * group chats, so that stays the default; the relay 1:1 invite passes `oneToOne`. A place invite
+ * joins no room, so the screen does not draw this card for it.
  *
  * The avatar is the `self` variant on purpose: the design uses the Figma "1-Person Profile" solid glyph for
- * **both** kinds rather than the three-person group glyph (ADR-0037 decision 5 — flagged for designer
- * review, so switching to `variant="group"` later is a one-word change).
+ * **both** kinds rather than the three-person group glyph (flagged for designer review, so switching to
+ * `variant="group"` later is a one-word change).
  *
  * The "room friends N" badge appears only once the invite metadata carries a member count. The field is
  * wired all the way through (`InviteInfo.memberCount` → CloudInviteAccept → here), but the backend does
- * not denormalize it yet, so in practice the badge stays hidden until it does (ADR-0037 context 1).
+ * not denormalize it yet, so in practice the badge stays hidden until it does.
  */
-export const InviteTargetCard = ({ memberCount, kind = 'group' }: InviteTargetCardProps) => {
+export const InviteTargetCard = ({ memberCount, kind = 'group', name }: InviteTargetCardProps) => {
     const { t } = useTranslation();
+    const roomName = name?.trim();
 
     return (
-        <InviteCard>
+        <InviteCard data-testid="invite-target-card">
             <DefaultAvatar size={40} />
             <div className="flex w-full flex-col items-center gap-1 text-center">
-                <Text as="p" className="text-[16px] font-semibold leading-[1.4] text-foreground">
-                    {t('inviteAccept.target.you')}
-                </Text>
+                {roomName && (
+                    <Text as="p" className="text-[16px] font-semibold leading-[1.4] text-foreground">
+                        {roomName}
+                    </Text>
+                )}
                 <Text as="p" className="text-[14px] font-medium leading-[1.4] text-label">
                     {t(CAPTION_KEY[kind])}
                 </Text>
             </div>
-            {/* The count is a room's roster, so a place-only invite — which joins no room — has none to show. */}
-            {kind !== 'place' && memberCount != null && memberCount > 0 && (
+            {memberCount != null && memberCount > 0 && (
                 <Badge
                     icon={<IconUsersGroup size={18} />}
                     // Figma 3076-11378: white 20% painted *over* the InviteCard it sits in, so the pill

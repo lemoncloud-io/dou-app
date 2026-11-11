@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/bridge-messages';
 import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
 import type { ICacheDataSource, IChatCacheDataSource } from '../../data/cache';

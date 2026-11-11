@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
-import { type Theme, useTheme } from '@chatic/theme';
+import { runtime } from '@chatic/app-runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
@@ -13,19 +13,16 @@ import {
     SettingsSwitchRow,
     formatHourMinute,
     parseHourMinute,
-    radioGroupOptions,
     useNotificationPrefsStore,
     VersionInfo,
 } from '../../../shared';
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
+import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
-import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
-import { ReportIssueDialog } from '../components';
+import { MiniAppSettingsItem, ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
-
-const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
 /**
  * Length of a quiet window that may cross midnight (22:00–07:00 is 9h), or null
@@ -37,31 +34,15 @@ const quietWindowMinutes = (start: string, end: string): number | null => {
     if (s == null || e == null || s === e) return null;
     return (e - s + 24 * 60) % (24 * 60);
 };
-// The bundles that actually ship (src/i18n.ts owns the list). A picker with a
-// single choice is chrome, so it stays hidden until there is a second language.
-const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES;
-
-/**
- * Mini preview swatch for each theme choice. The two solid halves of the system
- * swatch are the light and dark grounds side by side — not a gradient blend,
- * which would read as a third theme that does not exist.
- */
-const THEME_SWATCH: Record<Theme, string> = {
-    light: 'border-swatch-border bg-swatch-light',
-    dark: 'border-swatch-border bg-swatch-dark',
-    system: 'border-swatch-border bg-swatch-light',
-};
 
 export const SettingsPage = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const navigate = useNavigate();
-    const { theme, setTheme } = useTheme();
-    const themeProps = radioGroupOptions(THEME_OPTIONS, theme, setTheme);
-    const languageProps = radioGroupOptions(LANGUAGE_OPTIONS, i18n.language, setLanguage);
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
     const [reportOpen, setReportOpen] = useState(false);
+    const isPairedSession = runtime.session.useIsPairedSession();
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
@@ -89,78 +70,23 @@ export const SettingsPage = () => {
                         hint={t('account.openHint')}
                         onClick={() => navigate('/account')}
                     />
-                </SettingsRowGroup>
-            </section>
-
-            <section className="mt-8 flex flex-col gap-4">
-                <h2 className="text-overline uppercase text-muted-foreground">{t('settings.appearance')}</h2>
-
-                <div className="flex flex-col gap-6 rounded-xl border border-border bg-card p-5">
-                    <div className="flex flex-col gap-2.5">
-                        <span id="settings-theme-label" className="text-callout font-medium text-foreground">
-                            {t('settings.theme')}
-                        </span>
-                        <div role="radiogroup" aria-labelledby="settings-theme-label" className="flex gap-2">
-                            {THEME_OPTIONS.map(option => (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    {...themeProps(option)}
-                                    className={cn(
-                                        'focus-ring tactile flex flex-1 flex-col items-center gap-2 rounded-lg border p-3 text-callout capitalize transition-colors ease-tactile',
-                                        theme === option
-                                            ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
-                                            : 'border-control-border text-muted-foreground hover:bg-accent'
-                                    )}
-                                >
-                                    <span
-                                        aria-hidden
-                                        className={cn(
-                                            'flex h-6 w-10 overflow-hidden rounded-md border',
-                                            THEME_SWATCH[option]
-                                        )}
-                                    >
-                                        {/* "System" is both grounds at once: two solid halves, no blend. */}
-                                        {option === 'system' && <span className="h-full w-1/2 bg-swatch-dark" />}
-                                    </span>
-                                    {t(`settings.theme.${option}`)}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. The
-                            choice is remembered, and with none stored the app follows the
-                            system language. */}
-                    {LANGUAGE_OPTIONS.length > 1 && (
-                        <div className="flex flex-col gap-2.5">
-                            <span id="settings-language-label" className="text-callout font-medium text-foreground">
-                                {t('settings.language')}
-                            </span>
-                            <div role="radiogroup" aria-labelledby="settings-language-label" className="flex gap-2">
-                                {LANGUAGE_OPTIONS.map(lng => (
-                                    <button
-                                        key={lng}
-                                        type="button"
-                                        {...languageProps(lng)}
-                                        className={cn(
-                                            'focus-ring tactile rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile',
-                                            i18n.language === lng
-                                                ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
-                                                : 'border-control-border text-muted-foreground hover:bg-accent'
-                                        )}
-                                    >
-                                        {LANGUAGE_LABELS[lng]}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    {/* Beside the account: approving a browser lends it this account. The browser's code
+                        screen names this place ("Settings › Approve web sign-in"), so it stays here. */}
+                    {canApprovePairing(isPairedSession) && (
+                        <SettingsNavRow
+                            label={t('pairing.approve.entry')}
+                            hint={t('pairing.approve.entryHint')}
+                            onClick={() => navigate('/settings/pairing/approve', { state: { from: '/settings' } })}
+                        />
                     )}
-                </div>
+                </SettingsRowGroup>
             </section>
 
             {/* Desktop shell only — renders nothing in a plain browser. */}
             <LaunchAtLoginSection />
+
+            {/* A shell that opens any https page only, and never in the Default Cloud. */}
+            <MiniAppSettingsItem />
 
             <section className="mt-8 flex flex-col gap-4">
                 <h2 className="text-overline uppercase text-muted-foreground">{t('settings.notifications')}</h2>

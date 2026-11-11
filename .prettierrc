@@ -15,7 +15,7 @@
             "files": [
                 "./package.json",
                 "apps/web/package.json",
-                "apps/admin-v2/package.json",
+                "apps/admin/package.json",
                 "apps/landing/package.json",
                 "apps/desktop-web/package.json"
             ],

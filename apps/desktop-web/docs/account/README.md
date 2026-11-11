@@ -12,6 +12,7 @@ and leaves through its back button, one level up each time.
 | `/account/clouds/:cloudId/places`     | `CloudPlacesPage`          | the places of that cloud            |
 | `/account/policies`                   | `PolicyListPage`           | terms, privacy                      |
 | `/account/policies/terms`, `/privacy` | `TermsPage`, `PrivacyPage` | the policy text                     |
+| `/account/devices`                    | `DevicesPage`              | devices and approved sign-ins       |
 
 ## The account is the relay account
 
@@ -35,6 +36,10 @@ ask what the person may do in the current cloud read the session's profile inste
   Policies are still offered. A signed-in account that can join by invite does so from the profile
   menu in the rail; the hub keeps the join link on the guest card only.
 
+Where device pairing is on, a signed-in account also gets **Devices**, its devices and the browser
+sign-ins it approved ([pairing](../pairing/README.md#devices-accountdevices)). A guest does not: its
+only device is this one.
+
 Notifications is a link to `/settings`, where the notification controls live; the hub holds none of
 its own.
 
@@ -43,22 +48,22 @@ its own.
 Under the identity card, `AccountSignInCard` says how the account signs in, read off the relay
 user's `userRole` and `link$` (`linkedSignInOf`):
 
-| Relay user                             | The card shows                                                                                                                                                                                |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `userRole: guest`                      | **Sign in with phone number** ([auth](../auth/README.md#phone-number-sign-in)) first, then **Continue with Google** with the note for phone sign-ups ([auth](../auth/README.md#social-login)) |
-| any of social, phone, email in `link$` | each one, social first: "Google · a\*\*\*@example.com", the last four digits of a number, the email hint, and **Link Google** while no social account is linked                               |
-| a `link$` with none of them            | that no sign-in method is linked, and **Link Google**                                                                                                                                         |
-| no relay user, or no `link$` at all    | nothing                                                                                                                                                                                       |
+| Relay user                             | The card shows                                                                                                                                                                                                            |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userRole: guest`                      | **Sign in with phone number** ([auth](../auth/README.md#phone-number-sign-in)) first, then **Continue with Google** and **Continue with Apple** with the note for phone sign-ups ([auth](../auth/README.md#social-login)) |
+| any of social, phone, email in `link$` | each one, social first: "Google · a\*\*\*@example.com", the last four digits of a number, the email hint, and **Link Google** / **Link Apple** while no social account is linked                                          |
+| a `link$` with none of them            | that no sign-in method is linked, and **Link Google** / **Link Apple**                                                                                                                                                    |
+| no relay user, or no `link$` at all    | nothing                                                                                                                                                                                                                   |
 
 A missing `link$` is not read as "nothing linked": the profile may not have arrived yet, or the
 server never built the slot for an older account, and saying "no sign-in method" to a signed-in
 person would be wrong. An account can hold one method of each kind — a number it signed up with and
-the Google linked to it — so the card lists them all. **Link Google** starts the browser round trip
-([auth](../auth/README.md#linking-google)); the card itself never calls the account-linking
-endpoints. While that round trip (or a guest's Google sign-in) is out in the browser, the button is
+the Google or Apple linked to it — so the card lists them all. **Link Google** and **Link Apple** start the
+browser round trip ([auth](../auth/README.md#linking-google-or-apple)); the card itself never calls the account-linking
+endpoints. While that round trip (or a guest's Google or Apple sign-in) is out in the browser, the button is
 held and the card says it is waiting, with ways to open the browser again or give up. A link that does
-not go through is shown on the card until dismissed — for an occupied Google, with what that means. The server keeps one social slot per account, so the button goes once any social account
-is linked, and it is hidden where the build turns Google off. The guest's buttons are the
+not go through is shown on the card until dismissed — for an occupied account, with what that means. The server keeps one social slot per account, so the button goes once any social account
+is linked, and they are hidden where the build turns social sign-in off. The guest's buttons are the
 same sign-ins the Welcome page starts; each is hidden where the build turns it off, and the card is
 left out when both are.
 

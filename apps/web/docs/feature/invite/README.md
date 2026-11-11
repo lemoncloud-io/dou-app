@@ -130,11 +130,16 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   member who already has a profile for one, then failing the save because the server wrote it to
   the default place.
 - **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
-  user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
-  accepted.** The cloud cache is one partition per device, not per user — each web tab starts its
-  own device user — and a listed cloud is one the background sockets delegate into, minting the empty
-  user above. A row with no `acceptedBy` was written before the field existed; it cannot be
-  attributed and is kept, because invited clouds have no server list to refill from.
+  user that accepted it here (read back as `runtime.data.getAcceptorId()`: the relay uid, which is
+  the guest's own for a guest), and **`useInvitedClouds` leaves out a row other device users
+  accepted.** Inside a shell the cloud cache is one partition per device, not per user, and a listed
+  cloud is one the background sockets delegate into, minting the empty user above. In a plain browser
+  tab the cache lives in the tab's `sessionStorage` and ends with the tab, so another tab's guest
+  never reaches it; the filter is rarely load-bearing there but stays, because logout does not clear
+  the tab's rows. A row with no `acceptedBy` was written before the field existed; it cannot be attributed and is kept
+  (desktop-web, which now writes the field, treats such a row strictly and lists it for nobody), because invited clouds have no server
+  list to refill from. A browser tab imports such a row from IndexedDB only if its session holds a uid
+  in that cloud.
 - **An invite into a cloud the account owns is entered as the owner.** The owner opening their own
   invite link still binds the device's guest as a member on the server, but the device keeps one
   token per cloud, so entering with the invitee's answer would hold the owner's own cloud as that
@@ -146,7 +151,7 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   already holds an invitee token, and a guest that accepted and later signed in to the owning account
   are all caught by `BackgroundCloudsRunner`, which hands the owned catalog to
   `runtime.connection.useReclaimOwnedClouds`: an owned cloud whose held token came from an invite
-  login is re-issued as the owner, socket included (`libs/app-runtime` docs/auth, "An owned cloud
+  login is re-issued as the owner, socket included (`libs/auth` docs/socket, "An owned cloud
   held as its invitee"). The runner also hands over the owned clouds still cached as invited
   (`useInvitedClouds().ownedAlsoInvitedIds`). A guest who used the cloud for a while had its invite
   token renewed through `delegate-cloud` as the guest before signing in, and that token no longer
@@ -197,6 +202,37 @@ first moment the profile can be written, and the last before the invitee is seen
 - **The accept is already committed.** Someone who quits on the form is a member with no name in
   that place. This flow does not recover that state; the missing-profile prompts elsewhere do (home's
   banner, and the room-settings nudge).
+
+## What the accept screen names
+
+Both lanes fill `InviteAcceptScreen` through the same rules, and change together: a rule applied to only
+one lane just moves the difference to the invite-kind axis. The backend attaches the names when the invite
+is **looked up**, not when it is issued, so an older invite carries them and an inviter who renames
+themselves is followed. A key is left out when there is nothing to say, and a blank value is read the same.
+
+- **The heading's name is `inviter$.nick` and nothing else.** That is the inviter's nickname in the
+  invited place (the relay's personal place for a relay invite). Trimmed; when it is missing or blank the
+  screen shows the nameless line. The account name `inviter$.name` is never a fallback — for a
+  number-derived account it is not a name a person recognises.
+- **The room card follows the invite kind.** A place invite leads to no room, so there is no card. A
+  group-room invite names the room (`channelName`); a relay 1:1 names the inviter (the same nickname as
+  the heading). With no name the card keeps its caption ("Group chat" / "1:1 chat") and draws no name
+  line — never "You", never an empty line. `resolveCloudInviteTargetKind` still decides the kind.
+- **The place card goes through `resolvePlaceDisplayName`, with the context taken from the invite kind**,
+  not from what is selected when the link opens. A relay invite is the relay's personal place and reads
+  "DoU Home"; a cloud invite is never the default cloud, even when the invitee has the relay selected, so
+  its place name is shown as it is. A cloud's own default place has no display name yet.
+- **A used link is not an expired one.** The invite login refuses a link whose grace period has passed
+  with a `400` whose message contains the expiry message. `resolveInviteErrorKey` checks for the grace
+  message **first**, before its generic `400` check, and the dialog is "already joined". Checked the other
+  way round it would silently stay "expired". The backend cannot tell who used the link, so someone the
+  link was forwarded to sees the same dialog.
+- **The countdown counts the server's `expiredAt` and nothing else.** The backend's default lifetime is 24
+  hours for every kind of invite, and the app still asks a relay invite for one day explicitly, so a
+  backend that predates that default is not relied on.
+
+The names exist only on a backend that has taken the change. A cloud that has not shows the nameless
+heading and a caption-only card, which is complete rather than broken; the app ships after the backend.
 
 ## Leaving the accept screen, and opening the room
 

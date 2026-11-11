@@ -132,26 +132,47 @@ states read as one indicator losing its `안읽음` half; that missing half is w
 left. The page passes the read count so the label can carry it.
 `dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
 
-**Editing.** A message of mine can be edited in place from the action sheet: the bubble becomes a
-field where it sits, so the surrounding conversation stays put and the position says which message
-is changing. `useMessageEditing` owns the state for both this page and the thread page — one hook,
-because two copies would be two chances to answer the same question differently.
+**Editing.** A message of mine is edited from the action sheet, **in the composer**: the composer
+becomes the editor. A strip above the field (`ComposerEditBar`) names the edit, quotes the message
+being changed, and holds the cancel; the field holds the draft; the send button saves. The edited
+row stays as it was in the list, outlined, and is scrolled back into view once when the edit opens,
+since the keyboard it raises can bury it; the list's bottom pins hold off meanwhile (`holdBottomPin`,
+below). While it is being edited the row opens no action sheet — offering Edit again would re-seed the
+field and drop what was typed — and does not show its edited mark. Enter saves wherever Enter sends.
+The `@` list is off for the edit's duration. `useMessageEditing` owns the state for both this page and
+the thread page — one hook, because two copies would be two chances to answer the same question
+differently.
 
-Pressing save **locks the editor and waits**; only the server's acceptance closes it. A rejection
-comes back to an editor that still holds what was typed and can be saved again. Desktop closes
-immediately instead; mobile is the side that fails more often, and there closing on the press means
-a failure has nowhere to return to. While an editor is open the composer is disabled — two live
-fields and there is no telling which one you are typing into — and leaving with unsaved changes is
-confirmed.
+The edit used to happen inside the bubble. The composer won because a bubble is often narrow and
+sits wherever the message happens to be, and two text fields on one screen leave you guessing which
+one the keyboard is feeding. Editing is **text only**: while it lasts, the photos waiting to be sent,
+the `@` list and the attach button step aside. Whatever new message was typed before the edit is
+kept aside untouched and is back in the field when the edit closes. The room's input lock and the
+empty-1:1 lock do not apply to the edit field — they stop something new from being sent, and an
+edit sends nothing new.
 
-The editor is seeded from `message.content`, **never from what the bubble drew**. The bubble
+Pressing save **locks the field and waits**; only the server's acceptance closes the edit. A
+rejection comes back to a field that still holds what was typed, the strip says so, and it can be
+saved again. Desktop closes immediately instead; mobile is the side that fails more often, and there
+closing on the press means a failure has nowhere to return to. Cancelling with unsaved changes is
+confirmed. While the save is in flight the strip says so; a failure puts the caret back in the field.
+
+The edit is seeded from `message.content`, **never from what the bubble drew**. The bubble
 truncates at 200 characters, and seeding from the rendered string would destroy everything past the
 cut on the first save. A test pins this.
 
-**Edited marker.** `isMessageEdited` from `@chatic/data` decides it, and it is an inference: the
-server has no edit flag, so what it really detects is that the row was written again. It excludes
-tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it would
-mean un-marking on failure.
+**Edited marker.** `isMessageEdited` from `@chatic/data` decides it. A server that records edits
+stamps `editedAt` when the text changes, and that is the answer there. An older server has no edit
+flag, and there it is an inference — what it really detects is that the row was written again. It
+excludes tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it
+would mean un-marking on failure.
+
+**Edits and deletes made while a device was away.** A server that records edits also writes a
+revision notice (`subType: 'edit'`) on the room's next chat number each time a message is edited or
+deleted. The notice is never drawn (`isFeedVisible`); the data layer re-reads the message it points at
+and writes its current state, so a device that was offline sees the edit or the tombstone once it
+catches up. The two paragraphs below describe an older server, which has neither the notice nor
+`editedAt`.
 
 **On the editor's own screen the marker is late, and later than "after the server responds."**
 Measured 2026-09-17 against the dev server: the server does advance `updatedAt` on an edit, but the
@@ -374,6 +395,11 @@ dialog, a thread root on the page) they keep the dark one. A fenced block also c
 so its edge stays visible where the tint is close to the ground, and a header row ruled off from the
 code with the language tag and an icon-and-label copy button.
 
+An inline code chip carries a border and its own colour too (`code-inline` — a burnt orange on the
+light ground, a lighter amber on the dark one), the way Slack sets one off: monospace on a tint alone
+read as part of the sentence. Inside my bubble the chip keeps the bubble's white text instead, since
+the light-theme accent sinks into navy.
+
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
 URL, so `…see https://example.com/a.` links to `/a`.
@@ -420,7 +446,8 @@ primary pointer is not `(hover: hover) and (pointer: fine)`.
 
 The composer is disabled outright when the DM peer is gone — see
 [dm-and-self-chat.md](./dm-and-self-chat.md) — and while I have locked its input
-([the input lock](#the-input-lock-a-lab-experiment)).
+([the input lock](#the-input-lock-a-lab-experiment)) — not while it is editing a message, which sends
+nothing new (see Editing).
 
 ### Mentions
 
@@ -503,7 +530,9 @@ id, or `channelId#rootNo` for a thread, so a thread's draft is its own and not t
   which then fails as any gone shell file does. They come back with the conversation while the app runs.
 - **The in-app photo pick is not drafted.** It goes, with the attach panel, when the conversation
   changes.
-- **Editing a sent message is not drafted.** It has its own field, and the composer is locked meanwhile.
+- **Editing a sent message is not drafted.** The edit borrows the composer's field but not its draft: the
+  text being written stays in the draft, untouched, and is back in the field when the edit closes. What
+  the edit types lives only as long as the edit.
 - **Sign-out clears every draft** (`clearComposerDrafts`, registered in `main.tsx`), so the next account
   on the device never opens a room onto another person's unsent words.
 - **The chat list shows a room's draft** in place of its last message — see
@@ -593,8 +622,15 @@ list still lands at the newest message.
 
 `suppressAutoScroll` stands the bottom pin down while a message jump is positioning the view;
 `scrollToBottom` defers to a `requestAnimationFrame` that runs after every effect, so without it the
-pin always won. Only a jump into the room holds it — a jump to one of its replies belongs to the
-thread page.
+pin always won. It holds every way the pin fires — a new latest message, the composer growing, and
+the resize/focus pin that otherwise follows the keyboard and the field taking focus. Only a jump into
+the room holds it — a jump to one of its replies belongs to the thread page.
+
+`holdBottomPin` is the narrower hold a message edit uses. Opening an edit focuses the composer and
+grows it, and either pin would carry the list away from the message being changed, so it stands down
+the focus/resize pin and the composer-growth pin. It leaves the new-message handling alone: rows still
+arrive during an edit, and a reader up in history must still be held in place while they do, which
+`suppressAutoScroll` would stop as well.
 
 A jump lands on `[data-chat-no]`, so **every row the feed draws carries it**, system notices
 included. A legacy notice stores its whole sentence in `content` ("…님이 들어왔습니다"), search matches
@@ -664,6 +700,10 @@ history pushes them up in WebKit, just as an arrival does.
   ([channel-settings.md](./channel-settings.md#the-notification-level)). The client does nothing
   special for it; `isSystem` is `stereo === 'system'` alone, which is why it
   draws as an ordinary bubble.
+- With debug mode unlocked, the room and the thread publish their channel and message lists to the
+  debug panel's Room screen through `useDebugRoomMirror`, and a long-press points that screen at the
+  message. Locked, the hook does nothing. What the screen shows and why is the debug feature's
+  ([debug § The Room screen](../debug/README.md#the-room-screen-shows-what-the-open-room-holds-not-a-second-read-of-it)).
 - The room suite:
 
 ```bash

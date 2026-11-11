@@ -30,15 +30,19 @@ export interface InvitedCloudsResult {
  * from the invited list (non-destructive: the cache row is kept) so they surface only as owned and
  * are never shown twice.
  *
- * Attribution: the cache is shared by every guest the device has had, so a row recorded as accepted
- * by another guest is left out (non-destructive too). Everything downstream — the cloud sheet, the
+ * Attribution: inside a shell the cache is shared by every guest the device has had, and a browser
+ * tab's rows survive a logout, so a row recorded as accepted by another guest is left out
+ * (non-destructive too). Everything downstream — the cloud sheet, the
  * background sockets, unread counts — reads this list, and a cloud left in it would be delegated into
  * by a guest the server never granted it to (see `utils/invitedCloudAcceptance`).
  */
 export const useInvitedClouds = (): InvitedCloudsResult => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
-    const { delegatorId } = runtime.session.useSessionIdentity();
+    // Subscribes to the session; the acceptor id is read off the relay session, which is the guest's own
+    // uid for a guest and the account's uid for a signed-in user — the id rebuilt rows are recorded under.
+    runtime.session.useSessionIdentity();
+    const acceptorId = runtime.data.getAcceptorId();
     const [cachedInvited, setCachedInvited] = useState<DomainCloud[]>([]);
 
     useEffect(() => {
@@ -49,7 +53,7 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
 
     // Drop invited rows whose id is present in the owned catalog (now owned by the signed-in account).
     const ownedIds = new Set(ownedClouds.map(c => c.id).filter((id): id is string => !!id));
-    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isAcceptedBy(c, delegatorId));
+    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isAcceptedBy(c, acceptorId));
     const ownedAlsoInvitedIds = cachedInvited.map(c => c.id).filter((id): id is string => !!id && ownedIds.has(id));
 
     return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0, ownedAlsoInvitedIds };

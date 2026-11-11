@@ -7,7 +7,8 @@
  * WebKit does not implement `navigator.vibrate` — so the page has to ask the shell.
  *
  * The kinds are feels, not gestures: `selection` is the system's selection tick, `impact` a light
- * impact. Anything else is ignored, so a newer web asking for a kind this build does not know
+ * impact, and `success`, `warning`, `error` the system's notification feedback for an outcome.
+ * Anything else is ignored, so a newer web asking for a kind this build does not know
  * simply gets no buzz. The generators are kept so a second tick does not pay their set-up again,
  * and UIKit already skips them when the user has turned system haptics off.
  */
@@ -17,6 +18,7 @@
 @implementation HapticModule {
     UISelectionFeedbackGenerator *_selection;
     UIImpactFeedbackGenerator *_impact;
+    UINotificationFeedbackGenerator *_notification;
 }
 
 RCT_EXPORT_MODULE(Haptic);
@@ -33,7 +35,18 @@ RCT_EXPORT_METHOD(trigger:(NSString *)kind) {
     } else if ([kind isEqualToString:@"impact"]) {
         if (!_impact) _impact = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
         [_impact impactOccurred];
+    } else if ([kind isEqualToString:@"success"]) {
+        [self notify:UINotificationFeedbackTypeSuccess];
+    } else if ([kind isEqualToString:@"warning"]) {
+        [self notify:UINotificationFeedbackTypeWarning];
+    } else if ([kind isEqualToString:@"error"]) {
+        [self notify:UINotificationFeedbackTypeError];
     }
+}
+
+- (void)notify:(UINotificationFeedbackType)type {
+    if (!_notification) _notification = [UINotificationFeedbackGenerator new];
+    [_notification notificationOccurred:type];
 }
 
 @end

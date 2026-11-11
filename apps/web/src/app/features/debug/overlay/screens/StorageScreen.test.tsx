@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { StorageScreen } from './StorageScreen';
-import { resetUnsupportedCommands } from '../../hooks';
 import { setDebugLanguageForTests } from '../../i18n';
 import type { WebStorageEnv } from '../../lib/webStorage';
 
@@ -23,7 +22,10 @@ jest.mock('@chatic/bridges', () => ({
 }));
 const requestSyncCursorReset = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { requestSyncCursorReset: () => requestSyncCursorReset() } },
+    runtime: {
+        data: { requestSyncCursorReset: () => requestSyncCursorReset() },
+        session: { isSessionKey: (key: string) => key === 'chatic-cloud-token-cache' },
+    },
 }));
 
 const memoryStorage = (entries: Record<string, string> = {}): Storage => {
@@ -59,7 +61,6 @@ describe('StorageScreen', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        resetUnsupportedCommands();
         native = true;
         fetchNativeStorageSummary.mockResolvedValue({ data: summary });
         clearNativeCache.mockResolvedValue({ data: { cleared: ['chats'], kept: ['invite_clouds'], failed: [] } });
@@ -172,6 +173,30 @@ describe('StorageScreen', () => {
         expect(requestSyncCursorReset).not.toHaveBeenCalled();
     });
 
+    it('empties the device vault before the web storages, where the shell keeps one', async () => {
+        const clearVault = jest.fn(async () => true);
+        env.clearVault = clearVault;
+        render(<StorageScreen env={env} navigate={navigate} />);
+        await screen.findByText('chats');
+
+        await clickTwice('Clear web cache');
+
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith('root'));
+        expect(clearVault).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays signed in on the page when the vault refuses the wipe, and leaves the web storages alone', async () => {
+        env.clearVault = jest.fn(async () => false);
+        render(<StorageScreen env={env} navigate={navigate} />);
+        await screen.findByText('chats');
+
+        await clickTwice('Clear web cache');
+
+        expect(await screen.findByText(/device vault was not cleared/)).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+        expect(env.localStorage.length).toBe(3);
+    });
+
     it('clears both, native first', async () => {
         render(<StorageScreen env={env} navigate={navigate} />);
         await screen.findByText('chats');
@@ -195,11 +220,11 @@ describe('StorageScreen', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('says the app build is too old when it does not know the summary request', async () => {
+    it('shows the error when the summary request fails, and offers no native clear', async () => {
         fetchNativeStorageSummary.mockRejectedValue({ code: 'NOT_FOUND', message: 'no handler' });
         render(<StorageScreen env={env} navigate={navigate} />);
 
-        expect(await screen.findByText(/This app build can't report its storage/)).toBeInTheDocument();
+        expect(await screen.findByText('no handler')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Clear app cache' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Clear both' })).toBeDisabled();
     });

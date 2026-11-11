@@ -1,4 +1,4 @@
-import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
+import type { AppLogInfo, AppLogLevel } from '@chatic/bridge-messages';
 
 export interface LogFilterOptions {
     /** Levels to keep. An empty set means "all levels". */

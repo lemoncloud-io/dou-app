@@ -1,14 +1,14 @@
 # ADR-0039: Unify the DM display name chain and drop the forced profile on invite accept
 
 > Status: Accepted (decision 5 is Superseded) · Superseded in part by
-> [ADR-0221](0221-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md) — decisions 1
+> [ADR-0259](0259-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md) — decisions 1
 > and 3, for a cloud 1:1 · Decided: 2026-07-31
 >
 > **Decision 5 was withdrawn by [ADR-0041](0041-place-profile-as-invite-precondition.md)** (2026-08-03).
 > Decisions 1 through 4, about the display name chain, still hold.
 >
 > **Decisions 1 and 3 are superseded in part by
-> [ADR-0221](0221-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md)** (2026-10-22):
+> [ADR-0259](0259-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md)** (2026-10-22):
 > for a cloud 1:1, both the title chain (decision 1's revision) and the intro's name (decision 3) read
 > the peer's user record — their cloud profile — after the place-profile nick. A relay 1:1 keeps the
 > rules below.

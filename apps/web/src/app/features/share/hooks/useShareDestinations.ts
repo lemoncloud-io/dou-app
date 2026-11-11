@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 import { useActiveCloudData, useHomeChannels, useMyProfile } from '../../../hooks';
 import { useCloudSelfChannels, useDmPeers } from '../../channels/hooks';
@@ -17,6 +17,13 @@ export interface ShareDestination {
     kind: 'self' | 'dm' | 'group';
     title: string;
     avatarSrc?: string;
+    /**
+     * The row the picker drew this destination from. Opening the room after a send hands it across,
+     * as the home list does: with nothing on screen the room page waits for the cache's first answer,
+     * and a refusal the sync layer records in that gap reads as "you are not in this conversation"
+     * for the reader's own room.
+     */
+    channel: DomainChannel;
 }
 
 const KIND_ORDER: Record<ShareDestination['kind'], number> = { self: 0, dm: 1, group: 2 };
@@ -70,6 +77,7 @@ export const useShareDestinations = (): { destinations: ShareDestination[]; isLo
                     myThumbnail: myProfile?.thumbnail,
                     peerThumbnail: peer?.thumbnail,
                 }).src,
+                channel,
             };
         });
         // `sort` is stable, so each kind keeps the list's order.

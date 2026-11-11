@@ -55,9 +55,9 @@ export const INVITE_LIST_LIMIT = 100;
  * Lifetime, in days, of every relay invite this client issues — 24 hours.
  *
  * Applied centrally rather than per call site so a new invite and a re-invite cannot drift apart,
- * and so there is exactly one place to move it. The server's own default, for a link issued without
- * one, is 3 days; sending this narrows the window a phone-bound link is exposed for. Callers may
- * still override.
+ * and so there is exactly one place to move it. The server's own default is 24 hours now too; the
+ * value is still sent so a relay server that predates that default does not hand out a longer-lived,
+ * phone-bound link. Callers may still override.
  */
 export const INVITE_EXPIRES_DAYS = 1;
 
@@ -279,8 +279,8 @@ export const useRelayInviteMutations = () => {
 
     const createMutation = useMutation({
         // `expiresDays` is defaulted here, not at the call sites: every link this app issues has the
-        // same lifetime, and a caller that forgot the field would silently fall back to the server's
-        // 3 days. `??` rather than spread order, so an explicit `undefined` still gets the default.
+        // same lifetime, and a caller that forgot the field would silently fall back to whatever the
+        // server defaults to. `??` rather than spread order, so an explicit `undefined` still gets the default.
         mutationFn: (input: RelayInviteCreateInput) =>
             invite.create({ ...input, expiresDays: input.expiresDays ?? INVITE_EXPIRES_DAYS }),
         onSuccess: invalidateList,

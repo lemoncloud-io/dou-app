@@ -3,6 +3,7 @@ import {
     getDebugModeScript,
     getDeviceInfoScript,
     getLogUploadHoldScript,
+    getStorageMediaScript,
     getSyncInjectionScript,
     getThemeScript,
 } from './injectionScripts';
@@ -177,5 +178,57 @@ describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
         });
 
         expect(script).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = false;');
+    });
+});
+
+describe('getStorageMediaScript', () => {
+    it('lists the kept media as a window global', () => {
+        expect(getStorageMediaScript(['nativeSecure'])).toContain(
+            'window.CHATIC_APP_STORAGE_MEDIA = ["nativeSecure"];'
+        );
+    });
+
+    it('rides in the boot script, which is also the post-load script', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+            storageMedia: ['nativeSecure'],
+        });
+
+        expect(script).toContain('window.CHATIC_APP_STORAGE_MEDIA = ["nativeSecure"];');
+    });
+
+    it('lists no medium when none is given', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+        });
+
+        expect(script).toContain('window.CHATIC_APP_STORAGE_MEDIA = [];');
+    });
+
+    it('runs every snippet when the document has no root element yet', () => {
+        const script = getSyncInjectionScript({
+            insets: { top: 0, bottom: 0, left: 0, right: 0 },
+            keyboardHeight: 0,
+            deviceInfo: makeParams(),
+            theme: 'dark',
+            configBag: { 'ui.onboardingCompleted': 'true' },
+            storageMedia: ['nativeSecure'],
+        });
+        // Android can run the boot script before `document.documentElement` exists. A throw there
+        // would skip the config bag and the storage media, which the web reads at boot.
+        const win: Record<string, unknown> = {};
+        const postMessage = jest.fn();
+        win.ReactNativeWebView = { postMessage };
+        new Function('window', 'document', script)(win, { documentElement: null });
+
+        expect(win.CHATIC_APP_STORAGE_MEDIA).toEqual(['nativeSecure']);
+        expect(win.CHATIC_APP_CONFIG_BAG).toEqual({ 'ui.onboardingCompleted': 'true' });
+        expect(postMessage).not.toHaveBeenCalled();
     });
 });

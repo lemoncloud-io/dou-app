@@ -3,7 +3,8 @@
 **Everything about making an HTTP request, and nothing about what the request is for.** It owns the
 two request executors and the policy wrapped around them — failure classification, credential
 attribution, recover-and-retry-once, structured network logging and the `bypass` opt-out — plus the
-sealed `lemon-web-core` transport they run on and the per-domain wire vocabulary in `gateways/`.
+request transport they run on (with its SigV4 signer) and the per-domain wire vocabulary in
+`gateways/`.
 
 The other side of this boundary is [`libs/data`](../data/docs/remote/http.md), which describes the
 same gateways from the caller's side: which methods each domain `Pick<>`s and what it does with the
@@ -32,18 +33,17 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 
 1. **Zero `@chatic/*` runtime dependencies.** Endpoint resolution, credential staleness, credential
    recovery, the log sink and the logout reaction are all `HttpRuntimePorts` members.
-   `@lemoncloud/lemon-web-core` is the one framework dependency, and it is used as a request builder
-   only.
-2. **No env read, but construction is allowed.** The contract forbids reading `import.meta`, not
-   building the SDK. So `createLemonWebTransport` lives here and takes four plain values
-   (`LemonTransportConfig`); the values and the singleton live in
-   `app-runtime/src/http/transport.ts`. Two instances would split the lemon token store, so this lib
-   holds no module state and hands back a factory.
-3. **The refresh-free surface is enforced by absence, not by comments.** `SealedWebTransport` omits
-   `init()`, `isAuthenticated()` and `getTokenStorage()` — the three lemon APIs that fire its own
-   HTTP token refresh or hand a caller the means to. Refresh ownership belongs to the socket
-   `AuthController`, whose writeback re-mints these credentials. `gateways/refreshAbsence.spec.ts`
-   makes the matching check on path strings: no gateway source file may contain a `/refresh` route.
+   The third-party runtime dependencies are `axios` (the request itself) and `@noble/hashes` (the
+   signature's hashing).
+2. **No env read, no stored credential.** `createRequestTransport` takes `RequestSigningPorts` —
+   `credential()`, `identityToken()`, `region()` and an optional `onUnsigned()` — and calls them at
+   send time, so the transport keeps no copy of anything. The bindings and the singleton live in
+   `transport/src/http/transport.ts`, which points them at the session's relay token. A token the
+   socket renewed is therefore the one the very next request signs with.
+3. **No HTTP refresh exists.** The transport has no refresh, no expiry clock and no token store.
+   Refresh ownership belongs to the socket `AuthController`, whose writeback re-mints the credential
+   the ports read. `gateways/refreshAbsence.spec.ts` makes the matching check on path strings: no
+   gateway source file may contain a `/refresh` route.
 4. **Destination and signing are independent.** `HttpRoute` picks the signing material, `baseURL`
    picks the host. There is no `'cloud'` route — a request to a cloud backend is relay-signed (or
    unsigned) and carries its own `baseURL`. The one request that ever signed with a delegated cloud
@@ -59,14 +59,14 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 
 ## Scope
 
-**In** — the request path (`client.ts`), the lemon adapter, error classification and credential
-attribution/recovery, the structured network log and the `bypass` contract, the sealed transport's
-construction and boot, and the wire vocabulary for 5 domains — plus `TelemetryPolicyHttpGateway`,
+**In** — the request path (`client.ts`), the request-builder surface it drives, error
+classification and credential attribution/recovery, the structured network log and the `bypass`
+contract, the request transport and its SigV4 signer, and the wire vocabulary for 6 domains — plus `TelemetryPolicyHttpGateway`,
 the port the statistics sampling policy is read through. The server has no route for it yet, so its
 only implementation is a static stand-in that answers "statistics off"
 (`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
 
-**Out** — `HttpRuntimePorts` implementations (`libs/app-runtime/src/http/`), view→domain mapping and
+**Out** — `HttpRuntimePorts` implementations (`libs/transport/src/http/`), view→domain mapping and
 cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the socket axis entirely.
 
 ## Structure
@@ -75,17 +75,18 @@ cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the so
 flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    DS["HttpDataSource × 5<br/>@chatic/data"]:::ext
-    SA["session/auth · report<br/>libs/app-runtime"]:::ext
-    HM["HttpManager · transport.ts<br/>libs/app-runtime"]:::ext
-    LWC["@lemoncloud/lemon-web-core"]:::ext
+    DS["HttpDataSource × 6<br/>@chatic/data"]:::ext
+    SA["@chatic/auth · app-runtime report"]:::ext
+    HM["HttpManager · transport.ts<br/>@chatic/transport"]:::ext
+    AX["axios"]:::ext
 
-    GW["gateways/ × 5<br/><i>path · method · pinned params</i>"]
+    GW["gateways/ × 6<br/><i>path · method · pinned params</i>"]
     CL["client.ts — HttpClient<br/><i>attribute · recover once · report</i>"]
     ERR["error/<br/><i>classify · stamp · recover</i>"]
     LOG["log/withNetworkLog"]
-    AD["adapters/LemonHttpExecutor"]
-    TR["transport/<br/><i>construct · sealed boot · probes</i>"]
+    AD["adapters/HttpExecutor"]
+    TR["transport/RequestTransport<br/><i>build · sign at send time</i>"]
+    SG["signing/sigV4"]
     PORTS["ports.ts — HttpRuntimePorts"]
 
     DS --> GW
@@ -97,14 +98,28 @@ flowchart TD
     CL -.->|"reads"| PORTS
     HM -.->|"implements"| PORTS
     HM --> TR
-    AD --> LWC
-    TR --> LWC
+    AD -.->|"RequestSurface"| TR
+    TR --> SG
+    TR --> AX
 ```
 
-**Nothing in this lib reads credential material.** Signing happens inside the lemon builder; the
-closest the lib gets is asking a port the yes/no question "was this route's credential already past
-its expiry?". That is why `HttpRuntimePorts` has no `getCredential` and no `getIdentityToken`, and
-why an unsigned request can never be attributed to a lapsed credential.
+**The request path never reads credential material.** `client.ts` only drives the
+`RequestSurface` it was handed; the closest it gets is asking a port the yes/no question "was this
+route's credential already past its expiry?". That is why `HttpRuntimePorts` has no `getCredential`
+and no `getIdentityToken`, and why an unsigned request can never be attributed to a lapsed
+credential. The credential is read in one place only: `RequestTransport`, through
+`RequestSigningPorts`, at the moment a signed request is sent.
+
+**The signer is a port, not a library.** `signing/sigV4.ts` (`signRequest`) reproduces the output,
+byte for byte, of the SigV4 client that lemon-web-core 1.5 vendored and this app signed with before
+it. That client is not textbook SigV4 — it signs `Accept` and `Content-Type` alongside `host` and
+`x-amz-date`, hashes the body as `JSON.stringify` of whatever was passed, and escapes the query and
+path by its own rules. The gateway has accepted exactly those bytes for years, and a rejected
+signature surfaces only as a status-less network failure, so `sigV4.spec.ts` pins the output against
+signatures lemon-web-core itself produced. Hashing is `@noble/hashes`, synchronous, because Web
+Crypto exists only in a secure context and a development build on an Android emulator
+(`http://10.0.2.2`) is not one. A signed request also carries the identity token as
+`x-lemon-identity`; with no credential at all it goes out unsigned and `onUnsigned` is told.
 
 `policy/retry.ts` is not on the arrows above. `withRetry` and `withTimeout` are exported and
 **nothing in the repo calls either** — `apps/web` and `apps/mobile` each carry their own unrelated
@@ -122,7 +137,7 @@ sequenceDiagram
     participant C as HttpClientImpl
     participant P as HttpRuntimePorts
     participant L as withNetworkLog
-    participant E as LemonHttpExecutor
+    participant E as HttpExecutor
 
     G->>C: executeSignedRelayRequest({ method, baseURL, body })
     C->>L: wrap (unless bypass: ['networkLog'])
@@ -143,14 +158,14 @@ If the replay fails too, `run` stops there — a second failure after a successf
 credential was not the problem. Only then does `reportAuthFailure` run, and only if
 `classifyError` says `shouldLogout`.
 
-### The sealed surface
+### The request surface
 
 Two interfaces are defined by what they leave out.
 
-| Interface             | Has                                                                                                                         | Deliberately absent                                            |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `LemonRequestBuilder` | `setBody` · `setParams` · `execute`                                                                                         | anything that cancels, aborts or times out a request in flight |
-| `SealedWebTransport`  | `logout` · `setUseXLemonLanguage` · `buildRequest` · `buildSignedRequest` · `buildCredentialsByToken` · `getTokenSignature` | `init` · `isAuthenticated` · `getTokenStorage`                 |
+| Interface          | Has                                   | Deliberately absent                                            |
+| ------------------ | ------------------------------------- | -------------------------------------------------------------- |
+| `RequestBuilder`   | `setBody` · `setParams` · `execute`   | anything that cancels, aborts or times out a request in flight |
+| `RequestTransport` | `buildRequest` · `buildSignedRequest` | login, logout, refresh, a token store — any session state      |
 
 **There is no request cancellation anywhere in this lib.** No `AbortSignal` reaches the builder, and
 `withTimeout` (unused, see above) rejects the caller's promise while the request keeps running. A
@@ -161,12 +176,13 @@ call the request off.
 
 ```text
 libs/http/src/
-├── index.ts                     public barrel — 12 `export *` lines, no named re-exports
+├── index.ts                     public barrel — 14 `export *` lines, no named re-exports
 ├── client.ts                    HttpClient, HttpRequestOptions, createHttpClient, throwIfApiError
 ├── ports.ts                     HttpRoute + HttpRuntimePorts — the whole injection surface
-├── adapters/lemonWebCore.ts     the 3-method lemon builder surface + LemonHttpExecutor
-├── transport/lemonTransport.ts  SDK construction, the sealed boot, read-only session probes
-├── gateways/                    5 domain gateways + the telemetry-policy port + types.ts + index.ts
+├── adapters/requestExecutor.ts  the 3-method RequestBuilder surface + HttpExecutor
+├── transport/requestTransport.ts createRequestTransport — plain and signed requests, signing ports
+├── signing/sigV4.ts             signRequest — the SigV4 signature, pinned by golden tests
+├── gateways/                    6 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
 ├── log/apiRequest.ts            endpointTemplateOf · apiBackendOf · statusClassOf · toApiRequestSample · createPerMinuteCap
@@ -174,8 +190,12 @@ libs/http/src/
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
 
-22 production files, 16 spec files. Names you cannot guess from a filename:
+25 production files, 18 spec files. Names you cannot guess from a filename:
 
+- **`gateways/pairingTypes.ts` is temporary.** It holds the `/pairings/**` wire types, copied from
+  the backend because no published `@lemoncloud/chatic-backend-api` carries them yet. The app keeps no
+  copies of server types otherwise: when a release with them is published, the file is deleted and
+  its importers switch to the package. It must not grow past what the server declares.
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
 - **`HttpLogSink`, `NetworkLogFields` and `HttpMethod` live in `log/networkLog.ts`**, not in
@@ -185,8 +205,8 @@ libs/http/src/
 - **`staleCredentialMarker` (`error/credentialStale.ts`) is a process-wide singleton.** It is
   stateless — the stamp lives on the error object under a non-enumerable key — so any client
   instance's stamp is readable by `classifyError`.
-- `LemonTransportConfig`, `SealedWebTransport` and `SealedWebTransportBundle` all live in
-  `transport/lemonTransport.ts`.
+- `RequestSigningPorts`, `RequestTransport` and `TransportRequestBuilder` all live in
+  `transport/requestTransport.ts`; `SigningCredential` lives in `signing/sigV4.ts`.
 
 ## Usage
 
@@ -217,18 +237,18 @@ const ports: HttpRuntimePorts = {
     onAuthFailure,
 };
 
-const client = createHttpClient(lemonSurface, ports);
+const client = createHttpClient(requestSurface, ports);
 ```
 
 ### Wiring
 
-This lib assembles nothing of its own. `libs/app-runtime/src/http/` is the composition root.
+This lib assembles nothing of its own. `libs/transport/src/http/` is the composition root.
 
 ```text
-transport.ts   createLemonWebTransport(config)  → the ONE sealed lemon instance (lazy singleton)
+transport.ts   createRequestTransport(ports)  → the relay transport, bound to relayStore (lazy singleton)
 factory.ts     createHttpManager(webTransport, new SessionCredentialAdapter(credentialFreshness))
                  └─ HttpManager.ts  binds resolveEndpoint / logSink / onAuthFailure
-                      └─ createHttpClient(lemonSurface, ports)   ← this lib
+                      └─ createHttpClient(requestSurface, ports)   ← this lib
 gateways.ts    create*HttpGateway(getHttpManager())  → one instance per domain, cached
 ```
 
@@ -311,7 +331,7 @@ the repo, and `networkLog` is the only rule the type allows.
 
 ```bash
 npx tsc -b libs/http/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/http/jest.config.js   # 14 suites, 95 cases
+npx jest --config libs/http/jest.config.js   # 18 suites, 153 cases
 ```
 
 - Type checking must be `tsc -b`. Inside a lib, `tsc --noEmit` checks zero files and succeeds, so
@@ -328,8 +348,8 @@ npx jest --config libs/http/jest.config.js   # 14 suites, 95 cases
   global as "cannot tell" rather than as offline, because an offline verdict _suppresses_ credential
   attribution — a wrong one would silently disable it in every non-browser runtime.
 - Downstream: a changed barrel identifier reaches `@chatic/data` and `@chatic/app-runtime` directly
-  (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/testbed`, `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
+  (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin`,
+  `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
   those except `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash

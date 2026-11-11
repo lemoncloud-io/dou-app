@@ -31,12 +31,13 @@ makes no difference.
 4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
 5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
-7. **This lib does not choose a cache adapter.** Which domain uses IndexedDB and which uses native SQLite is decided by `resolveCacheBackend` in `libs/app-runtime`.
+7. **This lib does not choose a cache adapter.** Which domain uses IndexedDB, native SQLite or the tab's sessionStorage is decided by `resolveCacheBackend` in `libs/app-runtime`.
+8. **This lib does not import `@chatic/bridges`.** Its eslint config refuses the package, type-only imports included, and `logger` comes from `@chatic/logger`. Repositories and their storage ports have to be able to run in a runtime with no WebView bridge; a storage adapter that does talk to the bridge is handed in through a port by whoever assembles the graph, as principle 7 already has it.
 
 ## Scope
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
-socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
+socket and HTTP gateway types (`Pick<>`) and their data sources, 14 repository facades, the
 `DataContext` contract, the image send sequence (`uploads/`) with its ports and answer guard, and the state
 outbox (`outbox/`) with its port, its machine and the state definitions.
 
@@ -58,9 +59,9 @@ flowchart TD
     UI["UI (React hooks)"]:::ext
     Sync["sync orchestrator<br/>libs/app-runtime"]:::ext
 
-    Repo["Repository × 13<br/><i>data facade</i>"]:::repo
+    Repo["Repository × 14<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
-    Remote["SocketDataSource × 12<br/>HttpDataSource × 5"]:::remote
+    Remote["SocketDataSource × 12<br/>HttpDataSource × 6"]:::remote
     Domain["domain<br/><i>models · mappers</i>"]:::domain
 
     DB["@chatic/db<br/><i>storage engine</i>"]:::ext
@@ -179,7 +180,9 @@ procedure for adding a new server call is in
 
 `useChats` subscribes to `chat.observeList({ channelId, limit })`. Subscribing emits the local snapshot
 once — it does not wait for the network. The same hook calls `chat.refreshList`, which requests
-`chat.feed`, and the response is **merged** into local (not overwritten). Once the merge lands, the
+`chat.feed`, and the response is **merged** into local (not overwritten). A row the cache already holds
+a newer copy of (a later server `updatedAt`) is not written at all — a message's state only moves
+forward ([domains.md](./docs/repositories/domains.md#chat)). Once the merge lands, the
 list observers **for that channel** re-emit — the re-emit prefix is per channel, so cursor, limit, sort
 and keyword variants of the same channel all wake together, as does the `chats-last` catch-all the home
 preview uses. The cursor metadata that comes back is input for the next page request only, never a
@@ -266,9 +269,9 @@ npx jest --config libs/data/jest.config.js
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
-- All 26 data sources have a matching test, and so do all 13 repositories. The commands above are what answer this, not this sentence.
-- Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
-  `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
+- All 27 data sources have a matching test, and so do all 14 repositories. The commands above are what answer this, not this sentence.
+- Downstream check: a changed barrel identifier reaches seven projects — `apps/web`, `apps/desktop-web`,
+  `libs/app-runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and
   `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.

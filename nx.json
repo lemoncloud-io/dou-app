@@ -31,8 +31,7 @@
                     "buildDepsName": "build-deps",
                     "watchDepsName": "watch-deps"
                 }
-            },
-            "exclude": ["libs/socket/*", "libs/chats/*", "libs/bridge/*"]
+            }
         },
         {
             "plugin": "@nx/react-native/plugin",
@@ -72,15 +71,6 @@
             "plugin": "@nx/jest/plugin",
             "options": {
                 "targetName": "test"
-            }
-        },
-        {
-            "plugin": "@nx/js/typescript",
-            "include": ["libs/socket/*", "libs/chats/*", "libs/bridge/*"],
-            "options": {
-                "typecheck": {
-                    "targetName": "typecheck"
-                }
             }
         },
         {

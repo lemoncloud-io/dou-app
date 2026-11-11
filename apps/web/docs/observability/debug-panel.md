@@ -33,7 +33,7 @@ flowchart LR
     subgraph WEB["apps/web/.../features/debug — the panel"]
         SCR["overlay screen"]
     end
-    subgraph CONTRACT["libs/app-messages — WEB_MESSAGE_RESPONSE_TYPE"]
+    subgraph CONTRACT["libs/bridge-messages — WEB_MESSAGE_RESPONSE_TYPE"]
         REQ["named request/reply pair"]
     end
     subgraph MOBILE["apps/mobile — the device"]
@@ -49,19 +49,15 @@ Three rules hold on every crossing:
 
 1. **Every command is named.** There is no general "run this native code" request — a screen that
    needs a new capability adds a request/reply pair to `WEB_MESSAGE_RESPONSE_TYPE`
-   ([`libs/app-messages`](../../../../libs/app-messages/README.md)), not a channel the panel can
+   ([`libs/bridge-messages`](../../../../libs/bridge-messages/README.md)), not a channel the panel can
    reuse for anything else.
 2. **A write gets an answer.** `useDebugOperation` (`hooks/useDebugOperation.ts`) splits every
    screen's call into `run`, for a command the app replies to, and `fire`, for the handful that
    were already void before this panel existed (`openURL`, `openSettings`, `openShareSheet`,
    `setBadgeCount` in `appBridge.ts`). `fire` never claims success — it reports `"sent (no confirmation)"` so a silent void call is never mistaken for a confirmed one.
-3. **A version gap is expected, not a bug.** The web ships before the app
-   ([`libs/app-messages`](../../../../libs/app-messages/README.md) states the same rule for every
-   bridge message). When an installed build has no handler yet, the host answers `NOT_FOUND`, and
-   `run` renders `"not supported by this app version"` instead of the raw handler-missing error — then
-   remembers the command in a module-level `Set` so `isUnsupported(command)` can lock that control
-   for the rest of the session. The set is never un-learned; an app build cannot grow a handler
-   without a reload.
+3. **A rejection is reported as it came.** Every command the panel sends is one the oldest app this
+   page runs in already handles, so `run` reports a rejection — `NOT_FOUND` included — as
+   `"failed: <message>"`, with nothing learned or locked.
 
 ## What stays in apps/mobile
 
@@ -88,9 +84,9 @@ machine, the on-device checklist — is in
 
 ## Further reading
 
-- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 23 screens, the
+- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 25 screens, the
   unlock gate, the manifest, how to add a screen.
-- [`libs/app-messages`](../../../../libs/app-messages/README.md) — the request/reply contract every
+- [`libs/bridge-messages`](../../../../libs/bridge-messages/README.md) — the request/reply contract every
   bridge command follows, including the web-ships-before-app rule.
 - [`bridge.md`](../bridge/README.md) — the `appBridge` / `useOn*` pattern the panel's screens use like any
   other feature.

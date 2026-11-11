@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { BootRecord } from '@chatic/app-messages';
+import type { BootRecord } from '@chatic/bridge-messages';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { CopyButton } from '../../components/CopyButton';
@@ -56,26 +56,20 @@ export const BootRecordsScreen = () => {
     const t = useBootRecordsScreenStrings();
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [busy, setBusy] = useState(false);
-    // Shared so the NOT_FOUND wording and the learning are the same here as on every other screen
-    // (ADR-0080 decision 11 step 4) — this screen used to hand-roll both.
-    const { result, run, isUnsupported } = useDebugOperation();
-    const unsupported = isUnsupported('FetchBootRecords');
+    // Shared so the result wording is the same here as on every other screen.
+    const { result, run } = useDebugOperation();
 
     const load = useCallback(async () => {
         setBusy(true);
-        await run(
-            t.loadOperation,
-            async () => {
-                const res = await appBridge.fetchBootRecords();
-                setLoaded({
-                    records: res.data?.records ?? [],
-                    contentProcessReloadCount: res.data?.contentProcessReloadCount ?? 0,
-                    lastForegroundResumeMs: res.data?.lastForegroundResumeMs ?? null,
-                });
-                return res;
-            },
-            'FetchBootRecords'
-        );
+        await run(t.loadOperation, async () => {
+            const res = await appBridge.fetchBootRecords();
+            setLoaded({
+                records: res.data?.records ?? [],
+                contentProcessReloadCount: res.data?.contentProcessReloadCount ?? 0,
+                lastForegroundResumeMs: res.data?.lastForegroundResumeMs ?? null,
+            });
+            return res;
+        });
         setBusy(false);
     }, [run, t]);
 
@@ -85,7 +79,7 @@ export const BootRecordsScreen = () => {
 
     const clear = useCallback(async () => {
         setBusy(true);
-        await run(t.clearOperation, () => appBridge.clearBootRecords(), 'ClearBootRecords');
+        await run(t.clearOperation, () => appBridge.clearBootRecords());
         setBusy(false);
         await load();
     }, [run, load, t]);
@@ -96,7 +90,7 @@ export const BootRecordsScreen = () => {
                 <button
                     type="button"
                     onClick={() => void load()}
-                    disabled={busy || unsupported}
+                    disabled={busy}
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
                     {t.refresh}
@@ -104,7 +98,7 @@ export const BootRecordsScreen = () => {
                 <button
                     type="button"
                     onClick={() => void clear()}
-                    disabled={busy || unsupported || !loaded?.records.length}
+                    disabled={busy || !loaded?.records.length}
                     className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                 >
                     {t.clear}
@@ -122,9 +116,7 @@ export const BootRecordsScreen = () => {
                 </Section>
             )}
 
-            {loaded?.records.length === 0 && !unsupported && (
-                <p className="text-xs text-muted-foreground">{t.noRecords}</p>
-            )}
+            {loaded?.records.length === 0 && <p className="text-xs text-muted-foreground">{t.noRecords}</p>}
 
             {loaded?.records.map(record => (
                 <Section

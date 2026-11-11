@@ -6,12 +6,12 @@ builds the three data-source bundles, injects the scope, and hands the result to
 The output is what `useRuntimeRepositories()` returns.
 
 It owns nothing about _reading_ data. Streams, merges and cursors are the data layer's; sync timing
-is [docs/sync/](../sync/README.md)'s.
+is [libs/sync](../../../sync/README.md)'s.
 
 ## Layout
 
 ```text
-data/                              24 source files, 17 tests
+data/                              27 source files, 21 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -19,6 +19,8 @@ data/                              24 source files, 17 tests
 ├── nativeCacheSupport.ts         what the installed shell says it can store
 ├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── pairedCloudName.ts            syncPairedCloudName — a paired cloud's name, kept outside the cloud cache
+├── invitedCloudSessionImport.ts  InvitedCloudImportStorage — a tab's one-time copy of its invited clouds out of IndexedDB
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
@@ -27,7 +29,8 @@ data/                              24 source files, 17 tests
 ├── factories/                    socketFactory · localFactory · httpFactory ·
 │                                 outboxFactory — the state outbox's transport, one outbox for every graph · setStateOutboxObserver
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
-                                  useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
+                                  useInvitedCloudNameSync · usePairedCloudNameSync ·
+                                  useRegisterDeviceTokenMutation · useSendImages ·
                                   imageSendProgress (useImageSendProgress) · queryKeys
 ```
 
@@ -70,7 +73,7 @@ splices `socketCid` in for.
 `getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
 kept for the session. It exists for work that belongs to a cloud other than — or independently of —
 the selected one: the sync plans, each writing its slot's frames; the background receive loops, each
-asking its cloud's delta ([docs/sync/](../sync/README.md#background-receive)); chat prime's cache read
+asking its cloud's delta ([libs/sync](../../../sync/README.md#background-receive)); chat prime's cache read
 and first page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
 
 | Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
@@ -118,7 +121,7 @@ an upload, then the send) runs inside one `runInCloud` so the hold covers the wh
 ([image-send.md](./image-send.md) — `data.useSendImages`, the one image send every shell runs):
 
 - It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
-- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/socket/](../socket/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
 - The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
 
 A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not
@@ -134,8 +137,8 @@ of write, and moving them is the same change made again.
 Each returns only the interfaces a repository consumes; no gateway instance escapes.
 
 - **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth, invite and cloud gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
-- **`httpFactory`** builds five HTTP data sources over the gateways in [docs/http/](../http/README.md): auth, user, cloud, subscription, report.
-- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
+- **`httpFactory`** builds five HTTP data sources over the gateways in [transport docs/http/](../../../transport/docs/http/README.md): auth, user, cloud, subscription, report.
+- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter (IndexedDB, the native bridge, or — for invited clouds in a plain tab — `sessionStorage` behind a one-time IndexedDB import) and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
 `localFactory` also produces two side outputs. It logs **one line per boot** naming the domains a
 native shell could not hold, so "why is this app re-downloading everything" is answerable from the
@@ -159,13 +162,14 @@ apply it to.
 what every client did before and still does unless it opts in. It only bites on web storage; inside a
 native shell chat always routes to SQLite.
 
-### The four hooks
+### The five hooks
 
 | Hook                               | Returns                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------ |
 | `useRuntimeRepositories()`         | The repository graph, bound to the current scope                         |
 | `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition   |
 | `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only   |
+| `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike     |
 | `useRegisterDeviceTokenMutation()` | The one REST call the runtime still owns — sold through the `push` group |
 
 `cloudsKeys` is the only query key left here, because the runtime is one of the things that
@@ -236,22 +240,52 @@ stopping stops at once. An observer that throws is logged, never passed on to th
 ### Invited clouds
 
 An invited cloud is the one domain with no server list API: if the row leaves the cache there is
-nothing to restore it from. Two functions defend it, both best-effort and both idempotent:
+nothing to restore it from.
+
+Where the row lives follows the device user that can enter it. In a plain browser tab that user is the
+tab's guest, kept in `sessionStorage`, so the row is kept there too and ends with the tab
+([cache-storage-routing.md](./cache-storage-routing.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
+has the routing and the one-time import from IndexedDB). Inside the mobile shell it is native SQLite;
+inside the desktop shell, IndexedDB.
+
+Two functions defend it, both best-effort and both idempotent:
 
 - `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list. It does nothing for `RELAY_CLOUD_ID`: the relay is never an invited cloud and `delegate-cloud` has no answer for it but a 404. A push names the relay `'#'`; its reader translates that before calling here.
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it. The read goes to the relay, which holds the name the owner set; the invited cloud's own server keeps a copy that renames no longer reach.
 
 A row may carry `acceptedBy`, the device users that accepted the cloud on this device, which apps/web
-reads to keep one device user's invited cloud out of another's list
+and desktop-web read to keep one device user's invited cloud out of another's list
 ([apps/web invite](../../../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)). A
-row this module rebuilds carries none, so it is listed like a row written before the field existed —
-for every device user, including one the cloud was never granted to, whose background socket then
-delegates into it.
+row this module rebuilds (`recoverInvitedCloudIfMissing`) is recorded under the signed-in user
+(`getAcceptorId`: the relay uid, falling back to the `delegatorId`) — the delegation just succeeded
+for that user — so it is not listed for another account on the device. `withAcceptor` and
+`isAcceptedBy` (strict: an unattributed row is nobody's) are the shared helpers.
 
 The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
 OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the
 single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
 answers exist with no way to tell which is right.
+
+### Paired clouds' names
+
+A cloud a guest browser entered through a device pairing ("this cloud only") is neither owned nor
+invited: it is not in the relay catalog, it has no row in the cloud cache, and the approval names only
+its id. Its name is read by `syncPairedCloudName(cloud, cid)`, driven by `usePairedCloudNameSync()` once
+the active cloud is on the paired-cloud list and both its socket and the relay are verified. It runs in
+a plain browser tab too — pairing is a browser feature — and once per entered cloud; a failure is
+silent and waits for the next entry.
+
+- The read is `cloud.getCloud({ id }, { cache: false })`. The relay answers a non-owner, a paired guest
+  included, with a minimal `{ id, name, status }` view.
+- **It never writes the cloud cache.** Every row there is classified `owner` or `invited`. A plain
+  `getCloud` would create an `owner` row for a cloud the cache has never seen — and the screens treat
+  a non-invited cloud as one the user owns; an `invited` row would list the cloud as invited, with a
+  background socket and unread counts attached. A third `cloudType` would have to be ignored by every
+  reader of the cache, native ones included through the bridge's cache model.
+- The name goes into `@chatic/auth`'s `PairedCloudStore` instead, beside the paired-cloud list, in the
+  session key `chatic-paired-cloud-names`. It is dropped with the cloud (an ended pairing, a logout),
+  so it cannot outlive the approval it came with. Screens read it through
+  `runtime.session.usePairedCloudNames()`, below a cached name when one exists.
 
 ### Clearing the cache
 
@@ -308,6 +342,6 @@ belongs to [`libs/data`](../../../data/README.md).
 - [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
 - [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
-- [docs/http/](../http/README.md) — the gateways `httpFactory` builds over
-- [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking
+- [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over
+- [libs/sync](../../../sync/README.md) — what writes into these repositories without a screen asking
 - [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines

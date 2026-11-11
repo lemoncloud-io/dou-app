@@ -21,17 +21,20 @@ import {
     useFileTransferHandler,
     useMediaExportHandler,
     useAttachmentPickerHandler,
+    useAudioRecordingHandler,
     useShareIntakeHandler,
     usePhotoLibraryHandler,
     useTestRecordHandler,
     useResumeOverlay,
     useCustomZipHandler,
     useNativeStorageHandler,
+    useSecureStorageHandler,
     usePerfHandler,
     useUnfurlHandler,
+    useSubWebViewHandler,
 } from './index';
 
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 import { useAppStateHandler } from './useAppStateHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
@@ -128,6 +131,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     } = useAttachmentPickerHandler();
 
     const {
+        isAvailable: isAudioRecorderAvailable,
+        handleStartAudioRecording,
+        handleStopAudioRecording,
+    } = useAudioRecordingHandler(bridge);
+
+    const {
         isAvailable: isShareIntakeAvailable,
         handleFetchShareIntake,
         handleReleaseShareIntake,
@@ -161,6 +170,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
+    const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
+    const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {
         handleFetchTestRecord,
@@ -237,6 +248,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchCustomZipStatus,
         handleFetchNativeStorageSummary,
         handleClearNativeCache,
+        handleStorageGet,
+        handleStorageSave,
+        handleStorageClear,
         handleStartFileTransfer,
         handleCancelFileTransfer,
         handleListFileTransfers,
@@ -250,6 +264,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handlePrepareVideo,
         handleReadAttachment,
         handleReadVideoFrame,
+        handleStartAudioRecording,
+        handleStopAudioRecording,
         handleFetchShareIntake,
         handleReleaseShareIntake,
         handleListPhotoAlbums,
@@ -263,6 +279,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSaveAllTestRecords,
         handleClearTestRecords,
         handleFetchUrlMetadata,
+        handleOpenSubWebView,
+        handleCloseSubWebView,
     });
 
     useEffect(() => {
@@ -332,6 +350,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchCustomZipStatus,
             handleFetchNativeStorageSummary,
             handleClearNativeCache,
+            handleStorageGet,
+            handleStorageSave,
+            handleStorageClear,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -350,6 +371,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handlePrepareVideo,
             handleReadAttachment,
             handleReadVideoFrame,
+            handleStartAudioRecording,
+            handleStopAudioRecording,
             handleFetchShareIntake,
             handleReleaseShareIntake,
             handleListPhotoAlbums,
@@ -358,6 +381,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleManagePhotoSelection,
             handleKeepLibraryVideo,
             handleFetchUrlMetadata,
+            handleOpenSubWebView,
+            handleCloseSubWebView,
         };
     });
 
@@ -444,8 +469,14 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             FetchNativeStorageSummary: message => handlersRef.current.handleFetchNativeStorageSummary(message),
             ClearNativeCache: message => handlersRef.current.handleClearNativeCache(message),
+            // The device vault. Main WebView only: the sub WebView's host never registers these.
+            StorageGet: message => handlersRef.current.handleStorageGet(message),
+            StorageSave: message => handlersRef.current.handleStorageSave(message),
+            StorageClear: message => handlersRef.current.handleStorageClear(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
+            OpenSubWebView: message => handlersRef.current.handleOpenSubWebView(message),
+            CloseSubWebView: message => handlersRef.current.handleCloseSubWebView(message),
             // Registered only where the native module exists. A build without it leaves the web its
             // NOT_FOUND, which is the signal to fall back to the page's own file input.
             ...(isPhotoLibraryAvailable && {
@@ -473,6 +504,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 canReadVideoFrame && {
                     ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
                 }),
+            // The web draws its microphone only when the handshake lists `StartAudioRecording`, so a
+            // build without the recorder leaves both unregistered rather than answering with an error.
+            ...(isAudioRecorderAvailable && {
+                StartAudioRecording: message => handlersRef.current.handleStartAudioRecording(message),
+                StopAudioRecording: message => handlersRef.current.handleStopAudioRecording(message),
+            }),
             ...(isShareIntakeAvailable && {
                 FetchShareIntake: message => handlersRef.current.handleFetchShareIntake(message),
                 ReleaseShareIntake: message => handlersRef.current.handleReleaseShareIntake(message),
@@ -499,6 +536,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         isPhotoLibraryAvailable,
         isAttachmentPickerAvailable,
         isShareIntakeAvailable,
+        isAudioRecorderAvailable,
         canKeepVideo,
         canReadVideoFrame,
         canOpenFile,

@@ -8,7 +8,6 @@ const en = {
     native: {
         section: 'App cache (native)',
         noShell: 'No app shell attached — only the web storage below exists here.',
-        unsupported: "This app build can't report its storage. Update the app to use this half.",
         sqlite: 'SQLite tables',
         mmkv: 'MMKV keys (not cleared)',
         mmkvNote:
@@ -60,7 +59,6 @@ const ko: typeof en = {
     native: {
         section: '앱 캐시 (네이티브)',
         noShell: '앱 셸이 붙어 있지 않습니다 — 여기서는 아래 웹 저장소만 있습니다.',
-        unsupported: '이 앱 빌드는 저장소를 알려주지 못합니다. 앱을 업데이트해야 이 절반을 볼 수 있습니다.',
         sqlite: 'SQLite 테이블',
         mmkv: 'MMKV 키 (비우지 않음)',
         mmkvNote: '셸 자체의 설정과 아직 안 보낸 로그·리포트 큐입니다. 서버 데이터가 아니라서 비우기 대상이 아닙니다.',

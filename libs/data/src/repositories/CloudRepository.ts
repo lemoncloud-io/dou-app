@@ -12,7 +12,12 @@ export interface ICloudRepository extends DisposableRepository {
     observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void;
     observeItem(id: string, callback: (item: DomainCloud | null) => void): () => void;
 
-    getCloud(payload: CloudGetInput): Promise<DomainCloud>;
+    /**
+     * Reads a cloud from the relay and, by default, writes its name into the local cache. `cache: false`
+     * reads only — for a cloud that must not get a cache row, which every row there is classified as
+     * owned or invited and a paired cloud is neither.
+     */
+    getCloud(payload: CloudGetInput, opts?: CloudGetOptions): Promise<DomainCloud>;
     updateCloud(payload: CloudUpdateInput): Promise<DomainCloud>;
 
     cacheRead(id: string): Promise<DomainCloud | null>;
@@ -43,6 +48,11 @@ export interface ICloudRepository extends DisposableRepository {
      * request that fails again, rejects. The returned row is not the catalog's — re-read the catalog.
      */
     retryCloudSetup(cloudId: string): Promise<DomainCloud>;
+}
+
+export interface CloudGetOptions {
+    /** `false` skips the cache write. Default `true`. */
+    cache?: boolean;
 }
 
 const resolveCloudId = (payload: unknown): string | undefined => {
@@ -102,11 +112,12 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         return this.cloudLocalDataSource.observeItem(id, callback as any, this.getRepositoryContext());
     }
 
-    public async getCloud(payload: CloudGetInput): Promise<DomainCloud> {
+    public async getCloud(payload: CloudGetInput, opts?: CloudGetOptions): Promise<DomainCloud> {
         // Capture the request-time context so a late response never pollutes a switched scope.
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const cloud = await this.cloudSocketDataSource.getCloud(payload, normalizedContext);
+        if (opts?.cache === false) return cloud;
         // Mirror the freshly loaded subscription cloud into the cache, overwriting its stale
         // name/fields so observers (name display, etc.) reflect the latest server value.
         await this.persistCloud(cloud, resolveCloudId(payload), requestContext);

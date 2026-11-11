@@ -14,6 +14,8 @@ describe('UserRepository', () => {
             requestInvite: jest.fn(),
             inviteBatch: jest.fn(),
             syncChannelUsers: jest.fn(),
+            listDevices: jest.fn(),
+            unlinkDevice: jest.fn(),
         };
         const userLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -249,6 +251,27 @@ describe('UserRepository', () => {
             channelId: 'ch-1',
         });
     });
+
+    describe('my devices', () => {
+        it('listDevices returns the socket answer and writes nothing to the cache', async () => {
+            const { repository, userSocketDataSource, userLocalDataSource } = createRepository();
+            const view = { list: [{ id: 'dev-1', kind: 'web', presence: 'green', current: true }], at: 1700 };
+            userSocketDataSource.listDevices.mockResolvedValue(view);
+
+            await expect(repository.listDevices()).resolves.toBe(view);
+            expect(userLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+            expect(userLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        });
+
+        it('unlinkDevice passes the device id through and returns the socket answer', async () => {
+            const { repository, userSocketDataSource } = createRepository();
+            const view = { id: 'dev-2', marked: true, closed: true };
+            userSocketDataSource.unlinkDevice.mockResolvedValue(view);
+
+            await expect(repository.unlinkDevice('dev-2')).resolves.toBe(view);
+            expect(userSocketDataSource.unlinkDevice).toHaveBeenCalledWith('dev-2');
+        });
+    });
 });
 
 describe('UserRepository — HTTP relay-user/profile surface (ADR-0070 late stage 2)', () => {
@@ -290,6 +313,28 @@ describe('UserRepository — HTTP relay-user/profile surface (ADR-0070 late stag
         );
 
         await expect(repository.tryFetchProfile()).resolves.toEqual({ id: 'u1' });
+    });
+
+    it('passes a listing endpoint override through with the request context', async () => {
+        const http = { listRelayUsers: jest.fn(), tryFetchProfile: jest.fn() };
+        http.listRelayUsers.mockResolvedValue({ list: [], meta: { total: 0, source: 'remote' } });
+        const repository = new UserRepository(
+            {} as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            contextProvider as any,
+            undefined,
+            http as any
+        );
+
+        await repository.listRelayUsers({ page: 0 }, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(http.listRelayUsers).toHaveBeenCalledWith(
+            { page: 0 },
+            expect.objectContaining({ cid: expect.any(String) }),
+            { endpoint: 'https://other.test/dou-d1' }
+        );
     });
 });
 

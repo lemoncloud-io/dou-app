@@ -4,7 +4,10 @@ import { cn } from '../../utils';
 
 /** A plain data table: hairline rows, muted header. Compose with the cells below. */
 export const Table = ({ className, ...props }: HTMLAttributes<HTMLTableElement>): JSX.Element => (
-    <table className={cn('w-full border-collapse text-sm', className)} {...props} />
+    // A phone is narrower than the columns: the table scrolls inside its card instead of the page.
+    <div className="overflow-x-auto">
+        <table className={cn('w-full min-w-[480px] border-collapse text-sm', className)} {...props} />
+    </div>
 );
 
 export const TableHead = (props: HTMLAttributes<HTMLTableSectionElement>): JSX.Element => <thead {...props} />;

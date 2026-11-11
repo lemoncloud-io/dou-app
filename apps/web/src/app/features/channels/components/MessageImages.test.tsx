@@ -432,4 +432,61 @@ describe('MessageImages — videos and documents', () => {
 
         expect(screen.getAllByText('chat.attach.fileCard.fallbackName').length).toBeGreaterThan(0);
     });
+
+    const voice = (id: string) =>
+        ({
+            id,
+            status: 'stored',
+            stereo: 'audio',
+            name: 'voice-20261102-101500.m4a',
+            contentType: 'audio/mp4',
+            contentSize: 64_000,
+            orgUrl: `https://s3/${id}`,
+        }) as Uploads[number];
+
+    it('plays a sent audio upload in its own card, in place among the documents', () => {
+        const { container } = render(
+            <MessageImages uploads={[pdf('d1', 'quote.pdf'), voice('a1')]} chatId="c:1" cid="c" align="start" />
+        );
+
+        expect(container.querySelector('audio')).toHaveAttribute('src', 'https://s3/a1');
+        expect(screen.getByText('chat.attach.audio.voiceMessage')).toBeInTheDocument();
+        expect(screen.getByText('quote')).toBeInTheDocument();
+    });
+
+    it('reads the message again once when the audio cannot be played, in case its address expired', () => {
+        refresh.mockClear();
+        const { container, rerender } = render(
+            <MessageImages uploads={[voice('a1')]} chatId="c:1" cid="c" align="start" />
+        );
+
+        act(() => void fireEvent.error(container.querySelector('audio') as HTMLAudioElement));
+        expect(refresh).toHaveBeenCalledWith({ cid: 'c', chatId: 'c:1', src: 'https://s3/a1' });
+
+        // A file this system cannot decode fails at its fresh address too: no second re-read.
+        rerender(
+            <MessageImages
+                uploads={[{ ...voice('a1'), orgUrl: 'https://s3/a1-fresh' } as Uploads[number]]}
+                chatId="c:1"
+                cid="c"
+                align="start"
+            />
+        );
+        act(() => void fireEvent.error(container.querySelector('audio') as HTMLAudioElement));
+        expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws an audio slot still on its way as a document card, with nothing to play yet', () => {
+        const pending = {
+            localStatus: 'sending',
+            localThumbUrl: '',
+            localName: 'voice-20261102-101500.m4a',
+            localContentType: 'audio/mp4',
+            localSize: 64_000,
+        } as unknown as Uploads[number];
+        const { container } = render(<MessageImages uploads={[pending]} chatId="c:1" cid="c" align="start" />);
+
+        expect(container.querySelector('audio')).toBeNull();
+        expect(screen.getByText('voice-20261102-101500')).toBeInTheDocument();
+    });
 });

@@ -402,13 +402,6 @@ describe('permission reported by the shell', () => {
 
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
-
-    it('still reads an empty list from an older shell as a denial', async () => {
-        getContacts.mockResolvedValue({ data: { contacts: [] } });
-        renderOnContactTab();
-
-        expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
-    });
 });
 
 describe('list order, subtitle and count', () => {

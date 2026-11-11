@@ -1,4 +1,4 @@
-import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
 
 import { BaseDbAdapter } from './BaseDbAdapter';
 

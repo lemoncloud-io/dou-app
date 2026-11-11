@@ -1,4 +1,4 @@
-import { MOCK_PLANS } from '../../lib/mock/policy';
+import { MOCK_PLANS } from '../../testing/mock/policy';
 import {
     DOWNGRADE_COMPLETE_URL,
     NO_CONSENTS,
@@ -52,23 +52,61 @@ describe('planFromQuery', () => {
     });
 });
 
-describe('checkout readiness', () => {
-    const allIn = setAllConsents(true);
+describe('checkout details', () => {
+    const payer = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
 
-    it('continues with Korea, a verified email and every consent', () => {
-        expect(canContinueCheckout({ country: 'KR', emailId: 'em-1', consents: allIn })).toBe(true);
+    it('carries a payer for Korea and refuses Korea without one', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', payer } })).toEqual({ country: 'KR', payer });
+        expect(checkoutDetailsOf({ checkout: { country: 'KR' } })).toBeUndefined();
     });
 
-    it('stops for a country outside Korea, even with everything else done', () => {
-        expect(canContinueCheckout({ country: 'US', emailId: 'em-1', consents: allIn })).toBe(false);
+    it('carries no payer for another country, and refuses a country the picker does not offer', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'US' } })).toEqual({ country: 'US' });
+        expect(checkoutDetailsOf({ checkout: { country: 'ZZ' } })).toBeUndefined();
+    });
+});
+
+describe('checkout readiness', () => {
+    const allIn = setAllConsents(true);
+    const payer = { name: '김민지', phone: '010-1234-5678' };
+
+    it('continues with Korea, a verified email, a payer and every consent', () => {
+        expect(canContinueCheckout({ country: 'KR', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(true);
+    });
+
+    it('stops until a billing country is chosen', () => {
+        expect(canContinueCheckout({ country: '', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(false);
+        expect(canContinueCheckout({ country: 'XX', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(
+            false
+        );
+    });
+
+    it('continues outside Korea with the consents alone: no payer, and no address for a card company', () => {
+        const none = { name: '', phone: '' };
+        expect(canContinueCheckout({ country: 'US', payer: none, consents: allIn })).toBe(true);
+        expect(canContinueCheckout({ country: 'OTHER', payer: none, consents: allIn })).toBe(true);
+        expect(canContinueCheckout({ country: 'US', payer: none, consents: NO_CONSENTS })).toBe(false);
     });
 
     it('stops without a verified email or with any consent missing', () => {
-        expect(canContinueCheckout({ country: 'KR', consents: allIn })).toBe(false);
-        expect(canContinueCheckout({ country: 'KR', emailId: 'em-1', consents: { ...allIn, autoRenew: false } })).toBe(
+        expect(canContinueCheckout({ country: 'KR', payer, consents: allIn })).toBe(false);
+        expect(
+            canContinueCheckout({
+                country: 'KR',
+                email: 'minji.kim@gmail.com',
+                payer,
+                consents: { ...allIn, autoRenew: false },
+            })
+        ).toBe(false);
+        expect(canContinueCheckout({ country: 'KR', email: 'minji.kim@gmail.com', payer, consents: NO_CONSENTS })).toBe(
             false
         );
-        expect(canContinueCheckout({ country: 'KR', emailId: 'em-1', consents: NO_CONSENTS })).toBe(false);
+    });
+
+    it('stops until the payer has a name and a mobile number', () => {
+        const ready = { country: 'KR', email: 'minji.kim@gmail.com', consents: allIn };
+        expect(canContinueCheckout({ ...ready, payer: { ...payer, name: '  ' } })).toBe(false);
+        expect(canContinueCheckout({ ...ready, payer: { ...payer, phone: '02-123-4567' } })).toBe(false);
     });
 });
 
@@ -90,16 +128,27 @@ describe('checkoutRouteFor', () => {
 });
 
 describe('checkoutDetailsOf', () => {
+    const payer = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
     it('reads what W-08 put in the navigation state', () => {
-        expect(checkoutDetailsOf({ checkout: { country: 'KR', emailId: 'em-1' } })).toEqual({
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', emailId: 'em-1', payer } })).toEqual({
             country: 'KR',
             emailId: 'em-1',
+            payer,
         });
+    });
+
+    it('reads a state with no billing email, as the hidden billing-email screens leave it', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', payer } })).toEqual({ country: 'KR', payer });
     });
 
     it('has nothing for a page reached without W-08', () => {
         expect(checkoutDetailsOf(null)).toBeUndefined();
         expect(checkoutDetailsOf({ checkout: { country: 'KR' } })).toBeUndefined();
+    });
+
+    it('has nothing for a state from before the payer was asked for', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', emailId: 'em-1' } })).toBeUndefined();
     });
 });
 

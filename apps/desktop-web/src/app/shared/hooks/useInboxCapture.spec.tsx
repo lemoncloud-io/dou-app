@@ -76,7 +76,27 @@ beforeEach(() => {
 describe('useInboxCapture mentions', () => {
     it('captures a mention written by someone else', () => {
         feedHandler?.(feed({}));
-        expect(captured().map(item => [item.id, item.kind])).toEqual([['ch-1:5', 'direct']]);
+        expect(captured().map(item => [item.id, item.kind])).toEqual([['cloud-1:ch-1:5', 'direct']]);
+    });
+
+    // Every cloud numbers its places, channels and messages from the same start.
+    it('files the item under the cloud of its channel', () => {
+        feedHandler?.(feed({}));
+        expect(captured()[0]).toMatchObject({ cloudId: 'cloud-1', placeId: 'place-1' });
+    });
+
+    it('keeps the same message id from two clouds as two items', () => {
+        feedHandler?.(feed({}));
+        const other = feed({});
+        feedHandler?.({ ...other, channel: { ...other.channel, cid: 'cloud-2' } });
+        expect(captured().map(item => item.cloudId)).toEqual(['cloud-1', 'cloud-2']);
+    });
+
+    // A relay row may leave its cloud empty; the relay is the `'default'` cloud everywhere else.
+    it('files a relay channel with no cloud under the relay', () => {
+        const relay = feed({});
+        feedHandler?.({ ...relay, channel: { ...relay.channel, cid: '' } });
+        expect(captured()[0]).toMatchObject({ id: 'default:ch-1:5', cloudId: 'default' });
     });
 
     it('files a call to everyone as such, not as a mention by name', () => {
@@ -97,7 +117,7 @@ describe('useInboxCapture mentions', () => {
 
     it('captures a webhook mention even when its owner id is mine', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID, stereo: 'webhook' }));
-        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+        expect(captured().map(item => item.id)).toEqual(['cloud-1:ch-1:5']);
     });
 
     it('skips my own message when the embedded owner carries my cloud user id', () => {
@@ -107,7 +127,7 @@ describe('useInboxCapture mentions', () => {
 
     it('compares only my account id when the channel has no join of mine', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID }, null));
-        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+        expect(captured().map(item => item.id)).toEqual(['cloud-1:ch-1:5']);
 
         useMentionsStore.setState({ items: {} });
         feedHandler?.(feed({ ownerId: ACCOUNT_UID }, null));
@@ -122,12 +142,12 @@ describe('useInboxCapture mentions', () => {
     // The phone writes the name its list showed; the record carries my id either way.
     it('captures a message whose record names me though the text does not', () => {
         feedHandler?.(feed({ content: '@Nickname hello', mention$: { userIds: [CLOUD_UID] } }));
-        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+        expect(captured().map(item => item.id)).toEqual(['cloud-1:ch-1:5']);
     });
 
     it('captures a message whose record calls everyone, with no @ in what is left of its text', () => {
         feedHandler?.(feed({ content: 'standup', mention$: { all: 1 } }));
-        expect(captured().map(item => item.id)).toEqual(['ch-1:5']);
+        expect(captured().map(item => item.id)).toEqual(['cloud-1:ch-1:5']);
     });
 
     it('skips a message that has my name in its text when its record names someone else', () => {
@@ -163,7 +183,7 @@ describe('useInboxCapture mentions', () => {
 describe('useInboxCapture direct messages', () => {
     it('captures every new message in a 1:1, mention or not', () => {
         feedHandler?.(feed({ content: 'are you there?' }, CLOUD_UID, 'dm'));
-        expect(captured().map(item => [item.id, item.kind])).toEqual([['ch-1:5', 'dm']]);
+        expect(captured().map(item => [item.id, item.kind])).toEqual([['cloud-1:ch-1:5', 'dm']]);
     });
 
     // One message, one item: a 1:1 message that also names me is the DM, not a second mention.
@@ -202,10 +222,10 @@ describe('useInboxCapture direct messages', () => {
         feedHandler?.(feed({ id: 'ch-1:5' }));
         feedHandler?.(feed({ id: 'ch-1:6', chatNo: 6, content: 'hi' }, CLOUD_UID, 'dm'));
         const byId = useMentionsStore.getState().items;
-        expect(byId['ch-1:5']).toMatchObject({ channelName: 'general' });
-        expect(byId['ch-1:5'].inDm).toBeUndefined();
-        expect(byId['ch-1:6']).toMatchObject({ inDm: true });
-        expect(byId['ch-1:6'].channelName).toBeUndefined();
+        expect(byId['cloud-1:ch-1:5']).toMatchObject({ channelName: 'general' });
+        expect(byId['cloud-1:ch-1:5'].inDm).toBeUndefined();
+        expect(byId['cloud-1:ch-1:6']).toMatchObject({ inDm: true });
+        expect(byId['cloud-1:ch-1:6'].channelName).toBeUndefined();
     });
 
     it('skips a channel message that does not call me', () => {
@@ -237,7 +257,7 @@ describe('useInboxCapture reactions', () => {
         const [item] = captured();
         expect(item).toMatchObject({ kind: 'reaction', emoji: '👍', ownerName: 'Ada', content: 'ship it', chatNo: 9 });
         // Keyed by target, emoji and person: the reaction event's own id changes with every toggle.
-        expect(item.id).toBe('reaction:ch-1:4:👍:u-ada');
+        expect(item.id).toBe('cloud-1:reaction:ch-1:4:👍:u-ada');
     });
 
     it('marks a reaction in a 1:1 as one, so it is listed with the DMs', async () => {
@@ -301,7 +321,7 @@ describe('captureInboxReply', () => {
 
     it('files a reply in my thread', () => {
         captureInboxReply(reply());
-        expect(captured().map(item => [item.id, item.kind, item.parentId])).toEqual([['ch-1:7', 'reply', '4']]);
+        expect(captured().map(item => [item.id, item.kind, item.parentId])).toEqual([['cloud-1:ch-1:7', 'reply', '4']]);
     });
 
     // A reply that names me is already in the inbox as a mention; it is not filed twice or downgraded.

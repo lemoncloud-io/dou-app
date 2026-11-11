@@ -6,7 +6,7 @@ import { logger } from '../../services';
 import { ErrorCode } from 'react-native-iap';
 
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { OnPurchaseErrorPayload, OnPurchaseSuccessPayload, WebMessageData } from '@chatic/app-messages';
+import type { OnPurchaseErrorPayload, OnPurchaseSuccessPayload, WebMessageData } from '@chatic/bridge-messages';
 import type { Purchase, PurchaseError } from 'react-native-iap';
 
 /**

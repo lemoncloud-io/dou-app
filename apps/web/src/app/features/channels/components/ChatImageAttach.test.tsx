@@ -8,6 +8,7 @@ import type { ChatAttachmentSource } from '@chatic/data';
 import { IDENTITY_PHOTO_EDIT, SLIDE_MS, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
+import type { CameraAccess, CameraAccessGate } from '../../../bridge/cameraAccess';
 import { ATTACH_INSET_VAR, KEYBOARD_COVER_MS, KEYBOARD_WAIT_MS } from '../hooks/useAttachPanelSlot';
 import type { PhotoPicker } from '../hooks/usePhotoPicker';
 import { useComposerDraftStore } from '../stores/useComposerDraftStore';
@@ -98,6 +99,7 @@ const Harness = ({
     caption = '',
     onUnsentText,
     scope,
+    cameraAccess,
 }: {
     sendImages: (files: ChatAttachmentSource[], options?: { separately?: boolean; content?: string }) => Promise<void>;
     disabled?: boolean;
@@ -107,6 +109,7 @@ const Harness = ({
     caption?: string;
     onUnsentText?: (text: string) => void;
     scope?: string;
+    cameraAccess?: CameraAccessGate;
 }) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const composerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +124,7 @@ const Harness = ({
         now,
         onUnsentText,
         scope,
+        cameraAccess,
     });
     return (
         <div style={{ position: 'relative' }}>
@@ -432,7 +436,6 @@ describe('useChatImageAttach — videos and documents', () => {
         readPhotos: jest.fn(async items => ({ items, refused: [] })),
         prepareVideo: jest.fn(),
         isUnsupported: () => unsupported,
-        reset: jest.fn(),
     });
     const shellVideo = {
         uri: 'file:///c/attach-pick/a/v.mp4',
@@ -498,54 +501,16 @@ describe('useChatImageAttach — videos and documents', () => {
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
         };
 
-        it('tells an app user that an update sends videos', () => {
-            mockNative = true;
-            render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
-
-            openSheet();
-
-            expect(screen.getByText('chat.attach.source.videoNeedsUpdate')).toBeInTheDocument();
-        });
-
-        it('tells a browser user that videos go from the app, not to update one', () => {
+        it('tells a browser user that videos go from the app', () => {
             render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
 
             openSheet();
 
             expect(screen.getByText('chat.attach.source.videoInApp')).toBeInTheDocument();
-            expect(screen.queryByText('chat.attach.source.videoNeedsUpdate')).not.toBeInTheDocument();
         });
     });
 
-    it('opens the page’s own input in the same tap when the shell answers it has no picker', async () => {
-        const shell = shellPicker(async () => null);
-        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => 0} />);
-        const click = jest.spyOn(screen.getByTestId('chat-attach-album') as HTMLInputElement, 'click');
-
-        openSource('chat.attach.source.album');
-        await flush();
-
-        expect(click).toHaveBeenCalledTimes(1);
-    });
-
-    // iOS opens a page input only within about a second of the tap; a late click would do nothing.
-    it('asks for another tap instead of a click the page would no longer be allowed', async () => {
-        let clock = 0;
-        const shell = shellPicker(async () => {
-            clock += INPUT_CLICK_WINDOW_MS + 1;
-            return null;
-        });
-        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => clock} />);
-        const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
-
-        openSource('chat.attach.source.files');
-        await flush();
-
-        expect(click).not.toHaveBeenCalled();
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.tapAgain' });
-    });
-
-    it('opens the page input straight from the tap once the shell is known to have no picker', () => {
+    it('opens the page input straight from the tap in a browser', () => {
         const shell = shellPicker(async () => null, true);
         render(<Harness sendImages={jest.fn()} shellPicker={shell} />);
         const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
@@ -602,6 +567,36 @@ describe('useChatImageAttach — videos and documents', () => {
 
         expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['보고서.hwp', 'b.hwpx']);
         expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
+    // Audio goes as a file, by its type, an alias or its extension.
+    it('sends an audio file from the files input, by its type, an alias or its extension', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-files', [
+            photo('memo.m4a', 'audio/x-m4a'),
+            photo('song.mp3', 'application/octet-stream'),
+            photo('a.pdf', 'application/pdf'),
+        ]);
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['memo.m4a', 'song.mp3', 'a.pdf']);
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    // AAC and WebM are not among the server's audio formats.
+    it('still refuses an audio format the server does not take', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-files', [photo('clip.aac', 'audio/aac'), photo('a.pdf', 'application/pdf')]);
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf']);
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
     });
 
@@ -877,7 +872,6 @@ describe('useChatImageAttach — editing and grouping in the grid', () => {
             readPhotos: jest.fn(async items => ({ items, refused: [] })),
             prepareVideo: jest.fn(),
             isUnsupported: () => false,
-            reset: jest.fn(),
         };
         render(<Harness sendImages={sendImages} shellPicker={shell} />);
 
@@ -1641,7 +1635,6 @@ describe('useChatImageAttach — files waiting above the composer', () => {
         readPhotos: jest.fn(async items => ({ items, refused: [] })),
         prepareVideo: jest.fn(),
         isUnsupported: () => false,
-        reset: jest.fn(),
     });
     const shellDoc = {
         uri: 'file:///c/attach-pick/a/plan.pdf',
@@ -2067,5 +2060,170 @@ describe('useChatImageAttach — files waiting above the composer', () => {
 
         expect(ready()).toBe('false');
         expect((files() as HTMLElement).closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true');
+    });
+});
+
+describe('useChatImageAttach — the camera inside the app', () => {
+    const openButton = () => screen.getByRole('button', { name: 'chat.attach.open' });
+    const flush = () => act(async () => undefined);
+    /** Taps the panel's camera entry, the panel already in place. */
+    const tapCamera = async () => {
+        fireEvent.click(openButton());
+        slideOver();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.camera' }));
+        await flush();
+    };
+    const cameraClick = () => jest.spyOn(screen.getByTestId('chat-attach-camera') as HTMLInputElement, 'click');
+    /** The app's answer, remembering a grant the way the real gate does. */
+    const gate = (answer: () => Promise<CameraAccess>): CameraAccessGate & { request: jest.Mock } => {
+        let granted = false;
+        return {
+            isGranted: () => granted,
+            request: jest.fn(async () => {
+                const access = await answer();
+                if (access === 'granted') granted = true;
+                return access;
+            }),
+            reset: () => {
+                granted = false;
+            },
+        };
+    };
+
+    beforeEach(() => {
+        mockNative = true;
+        jest.useFakeTimers();
+    });
+    afterEach(() => {
+        mockNative = false;
+        jest.useRealTimers();
+    });
+
+    it('opens the camera once the app says it may', async () => {
+        const access = gate(async () => 'granted');
+        render(<Harness sendImages={jest.fn()} cameraAccess={access} now={() => 0} />);
+        const click = cameraClick();
+
+        await tapCamera();
+
+        expect(access.request).toHaveBeenCalledTimes(1);
+        expect(click).toHaveBeenCalledTimes(1);
+        expect(screen.queryByText('chat.attach.permission.cameraTitle')).not.toBeInTheDocument();
+    });
+
+    // Android's WebView opens nothing for a capturing input without the permission, and says nothing.
+    it('sends a refusal to settings instead of a camera that would not open', async () => {
+        render(<Harness sendImages={jest.fn()} cameraAccess={gate(async () => 'refused')} now={() => 0} />);
+        const click = cameraClick();
+
+        await tapCamera();
+
+        expect(click).not.toHaveBeenCalled();
+        expect(screen.getByText('chat.attach.permission.cameraTitle')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.permission.settings' }));
+        expect(openSettings).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks for another tap when the grant came after the tap window, and opens at once on it', async () => {
+        let clock = 0;
+        const access = gate(async () => {
+            // The person read the OS prompt first.
+            clock += INPUT_CLICK_WINDOW_MS + 1;
+            return 'granted';
+        });
+        render(<Harness sendImages={jest.fn()} cameraAccess={access} now={() => clock} />);
+        const click = cameraClick();
+
+        await tapCamera();
+        expect(click).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.tapAgain' });
+
+        // The grant is known now: the tap opens the camera itself, with no round trip to miss the window.
+        await tapCamera();
+        expect(click).toHaveBeenCalledTimes(1);
+        expect(access.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks again after a refusal, since Settings may have changed it', async () => {
+        const access = gate(async () => 'refused');
+        render(<Harness sendImages={jest.fn()} cameraAccess={access} now={() => 0} />);
+
+        await tapCamera();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.permission.cancel' }));
+        await tapCamera();
+
+        expect(access.request).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens the camera as before when the app answers in time without saying', async () => {
+        render(<Harness sendImages={jest.fn()} cameraAccess={gate(async () => 'unknown')} now={() => 0} />);
+        const click = cameraClick();
+
+        await tapCamera();
+
+        expect(click).toHaveBeenCalledTimes(1);
+    });
+
+    // The prompt's title is read from the kind, which is set on opening and kept while it closes.
+    it('titles the prompt by the permission it is about', async () => {
+        const picker: PhotoPicker = { ...unsupportedPicker(), supported: true, access: 'denied' };
+        render(
+            <Harness sendImages={jest.fn()} picker={picker} cameraAccess={gate(async () => 'refused')} now={() => 0} />
+        );
+
+        await tapCamera();
+        expect(screen.getByText('chat.attach.permission.cameraTitle')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.permission.cancel' }));
+
+        fireEvent.click(openButton());
+        slideOver();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.photo' }));
+        expect(screen.getByText('chat.attach.permission.photosTitle')).toBeInTheDocument();
+    });
+
+    it('drops an answer that lands after the composer left', async () => {
+        let clock = 0;
+        let answer: (access: CameraAccess) => void = () => undefined;
+        const access = gate(() => new Promise<CameraAccess>(resolve => (answer = resolve)));
+        const { unmount } = render(<Harness sendImages={jest.fn()} cameraAccess={access} now={() => clock} />);
+
+        await tapCamera();
+        unmount();
+        // Granted at the OS prompt, past the tap window: on the composer's screen this would ask for a tap.
+        clock += INPUT_CLICK_WINDOW_MS + 1;
+        await act(async () => answer('granted'));
+
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('drops an answer that lands after the composer moved to another conversation', async () => {
+        let answer: (access: CameraAccess) => void = () => undefined;
+        const access = gate(() => new Promise<CameraAccess>(resolve => (answer = resolve)));
+        const { rerender } = render(
+            <Harness sendImages={jest.fn()} cameraAccess={access} now={() => 0} scope="room-a" />
+        );
+        const click = cameraClick();
+
+        await tapCamera();
+        rerender(<Harness sendImages={jest.fn()} cameraAccess={access} now={() => 0} scope="room-b" />);
+        await act(async () => answer('refused'));
+
+        expect(click).not.toHaveBeenCalled();
+        expect(screen.queryByText('chat.attach.permission.cameraTitle')).not.toBeInTheDocument();
+    });
+
+    it('asks nothing in a browser, where the tap opens the camera itself', () => {
+        mockNative = false;
+        const access = gate(async () => 'granted');
+        const picker: PhotoPicker = { ...unsupportedPicker(), supported: true, access: 'granted' };
+        render(<Harness sendImages={jest.fn()} picker={picker} cameraAccess={access} />);
+        const click = cameraClick();
+
+        fireEvent.click(openButton());
+        slideOver();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.camera' }));
+
+        expect(access.request).not.toHaveBeenCalled();
+        expect(click).toHaveBeenCalledTimes(1);
     });
 });

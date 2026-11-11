@@ -70,7 +70,8 @@ session's site too, writes a user and a member role per number at issue, and a c
 one lands in the place alone. Three differences from `user.invite`: a batch row carries **no
 `channelId` key at all** (not `""`, which the accept screen reads the same), its `name` is the phone
 number — the batch has no names, so that is what the new member is called until they set a profile —
-and it expires in **three days**, where a single invite asks for and gets one. What the server's own
+and, when it was measured, it expired in **three days**, where a single invite asked for and got one (the
+server's default is 24 hours now). What the server's own
 text says is not visible from the client.
 
 ## Who sees the entry, and when it works
@@ -112,8 +113,9 @@ room only if there is one (`useEnterInvitedChannel` skips that step when there i
 invite carries its `siteId`, so the profile step is reached without the room-based fallback, which a
 room-less invite could not use.
 What changed is the target card. `CloudInviteAccept` reads an empty `channelId` in the invite
-metadata as the `place` kind (`accept/lib/resolveCloudInviteTargetKind.ts`), captioned "Place
-member", with no room member count. Until the metadata arrives it keeps the group default.
+metadata as the `place` kind (`accept/lib/resolveCloudInviteTargetKind.ts`), and the accept screen
+draws no room card for it at all — the invite joins no room. Until the metadata arrives it keeps the
+group default.
 
 Home then shows the place with the invited empty state ("You're not in any chat room yet"), the
 state `ChannelEmptyState variant="invited"` already drew.

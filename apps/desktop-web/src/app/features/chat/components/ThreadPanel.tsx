@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { isEventChat, RELAY_CLOUD_ID } from '@chatic/data';
 import type { ChatMentionBody, DomainChannel } from '@chatic/data';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -17,6 +17,7 @@ import {
     threadRootNo,
     useMyThreadsStore,
     useAuthorNames,
+    useChannelReadCounts,
     useChats,
     ResizablePanel,
     PANE_HEADER,
@@ -31,7 +32,6 @@ import {
     useMentionables,
     useMessageViewer,
     useThreadRoot,
-    type ReadCountOf,
 } from '../hooks';
 import { useThreadStore } from '../stores';
 import { LazyComposer } from './LazyComposer';
@@ -46,13 +46,6 @@ interface ThreadPanelProps {
     /** Roster shared with the chat pane — used to name reply authors. */
     members: ChannelMember[];
     membersLoading?: boolean;
-    /**
-     * Per-message read counts, from the one `useReadCounts` the host mounts per channel.
-     * A reply carries the same channel-wide chatNo the read cursors point at, so its receipt
-     * is the same question the feed asks — and the panel shares the feed's renderer, so a
-     * prop the host forgets here is how `foldReactions` went missing in this file (CLAUDE.md).
-     */
-    readCountOf?: ReadCountOf;
 }
 
 const Spinner = () => (
@@ -75,7 +68,7 @@ const ROOT_NOTICE = {
  * feed. Reuses MessageList for rendering; passes no thread props down, so the
  * pane shows no nested reply affordances (threads are root-only).
  */
-export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCountOf }: ThreadPanelProps) => {
+export const ThreadPanel = ({ channel, rootId, members, membersLoading }: ThreadPanelProps) => {
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
@@ -83,6 +76,10 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId, lastChatNoOf(channel), {
         persist: false,
     });
+
+    // The same read positions the chat pane draws, so a member shows on the reply they last read.
+    // The pane's join syncs are refcounted by key, so asking again polls nobody twice.
+    const { readCountOf } = useChannelReadCounts(channel);
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -114,7 +111,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
         // The panel is another view of the same messages, so a deleted reply reads the
         // same way it does in the feed: a tombstone in place, not a closed gap. Reaction
         // events are the exception — they are chips on a message, never rows.
-        const replies = thread.replies.filter(reply => reply.subType !== 'reaction');
+        const replies = thread.replies.filter(reply => !isEventChat(reply));
         return {
             threadMessages: root ? [root, ...replies] : replies,
             replyCount: replies.length,

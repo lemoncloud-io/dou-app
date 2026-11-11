@@ -1,0 +1,142 @@
+/**
+ * `api/userApi.ts`
+ * - List of observed users (real data).
+ */
+import { runtime } from '@chatic/app-runtime';
+
+import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
+
+import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
+
+export interface DeviceViewRaw {
+    id?: string;
+    name?: string | null;
+    platform?: string;
+    status?: string;
+    tick?: number;
+    viewingType?: string;
+    viewingId?: string;
+    connId?: string;
+    connectedAt?: number;
+    lastActiveAt?: number;
+    updatedAt?: number;
+}
+interface UserViewRaw {
+    id?: string;
+    name?: string;
+    nick?: string;
+    accountId?: string;
+    presence?: Presence;
+    Devices?: DeviceViewRaw[];
+}
+interface UsersListResponse {
+    list?: UserViewRaw[];
+    total?: number;
+    page?: number;
+    limit?: number;
+}
+
+export interface UserSearchPage {
+    list: ObservedUser[];
+    total: number;
+    page: number;
+}
+
+export type UsersStage = 'd1' | 'v1';
+
+/**
+ * The socket service's user and presence base for a stage (`VITE_<STAGE>_PRESENCE_ENDPOINT`). Throws
+ * when unset — an empty base would turn every call into a same-origin path.
+ */
+export const getUsersBase = (stage: UsersStage): string => {
+    const base = stageEndpoint('presence', stage);
+    if (!base) throw new Error(`${stageEndpointKey('presence', stage)} is not set — no presence service on ${stage}.`);
+    return base;
+};
+
+export const mapDeviceView = (d: DeviceViewRaw): ObservedDevice => {
+    const status: Presence = d.status === 'red' || d.status === 'yellow' ? d.status : 'green';
+    const viewing = status !== 'red' && d.viewingType === 'channel' && d.viewingId ? `${d.viewingId}` : null;
+    return {
+        id: `${d.id ?? ''}`,
+        name: d.name || `${d.id ?? 'device'}`,
+        platform: d.platform || '-',
+        status,
+        tick: d.tick ?? 0,
+        viewing,
+        viewingFor: null,
+        lastActiveAt: d.lastActiveAt ?? d.updatedAt ?? 0,
+    };
+};
+
+const mapUser = (u: UserViewRaw): ObservedUser => ({
+    id: `${u.id ?? ''}`,
+    name: u.name || u.nick || `${u.id ?? ''}`,
+    code: u.accountId || '',
+    presence: u.presence ?? 'green',
+    devices: (u.Devices ?? []).map(mapDeviceView),
+});
+
+export interface FetchObservedUsersParams {
+    type?: UserSearchType;
+    query?: string;
+    page?: number;
+    limit?: number;
+    stage?: UsersStage;
+}
+
+export const fetchObservedUsers = async ({
+    type = 'id',
+    query = '',
+    page = 0,
+    limit = 10,
+    stage = 'd1',
+}: FetchObservedUsersParams = {}): Promise<UserSearchPage> => {
+    const q = query.trim();
+    const search = q ? (type === 'name' ? { keyword: q } : { id: q }) : {};
+    const { data } = await runtime.boot.webTransport
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${getUsersBase(stage)}/users/0/list`,
+        })
+        .setParams({ detail: 1, page, limit, ...search })
+        .execute<UsersListResponse>();
+    const list = (data?.list ?? []).map(mapUser);
+    return { list, total: data?.total ?? list.length, page: data?.page ?? page };
+};
+
+interface PresenceResponse {
+    presence?: Presence;
+    Devices?: DeviceViewRaw[];
+    devices?: DeviceViewRaw[];
+}
+
+export interface UserPresence {
+    presence: Presence;
+    devices: ObservedDevice[];
+}
+
+export const updateUserDevices = async (
+    userId: string,
+    deviceIds: string[],
+    stage: UsersStage = 'd1'
+): Promise<void> => {
+    await runtime.boot.webTransport
+        .buildSignedRequest({
+            method: 'PUT',
+            baseURL: `${getUsersBase(stage)}/users/CN${userId}/admin`,
+        })
+        .setBody({ deviceIds })
+        .execute();
+};
+
+export const fetchUserPresence = async (userId: string, stage: UsersStage = 'd1'): Promise<UserPresence> => {
+    const { data } = await runtime.boot.webTransport
+        .buildSignedRequest({
+            method: 'GET',
+            baseURL: `${getUsersBase(stage)}/users/${userId}/presence`,
+        })
+        .execute<PresenceResponse>();
+    const raw = data?.Devices ?? data?.devices ?? [];
+    return { presence: data?.presence ?? 'green', devices: raw.map(mapDeviceView) };
+};

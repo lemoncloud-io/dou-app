@@ -315,90 +315,6 @@ describe('MessageList', () => {
         expect(screen.getByText('{"blocks": [')).toBeDefined();
     });
 
-    // One receipt per author block, not one per message: a burst of four messages a second
-    // apart shares a single read position, and four identical lines under it would be four
-    // times the noise for the same fact.
-    it('puts the read receipt on the last message of an author block', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                // Answers for every message, so the assertion is about which one asked.
-                readCountOf={chatNo => ({ readCount: chatNo, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText(/^Seen by /)).toHaveLength(1);
-        expect(screen.getByText('Seen by 2')).toBeDefined();
-        expect(screen.getByText('Unseen by 1')).toBeDefined();
-    });
-
-    // A receipt under each of my blocks was the loudest repeated line in a busy channel. The
-    // latest block keeps it; an earlier one shows it only while its message is hovered or has
-    // focus, and focus is how the arrow keys move through the feed.
-    it('shows the receipt outright only on the latest block that has one', () => {
-        render(
-            <MessageList
-                messages={[
-                    message(1, 'me', 'mine, older'),
-                    message(2, 'ada', 'reply'),
-                    message(3, 'me', 'mine, latest'),
-                ]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 1 } : null)}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText(/^Seen by /).map(node => node.textContent)).toEqual(['Seen by 3']);
-
-        const older = screen.getByText('mine, older').closest('[role="article"]') as HTMLElement;
-        fireEvent.mouseEnter(older);
-        expect(screen.getByText('Seen by 1')).toBeDefined();
-        fireEvent.mouseLeave(older);
-        expect(screen.queryByText('Seen by 1')).toBeNull();
-
-        fireEvent.focus(older);
-        expect(screen.getByText('Seen by 1')).toBeDefined();
-    });
-
-    // "Seen by 10" alone left the reader to compare it with the room size; once nobody is
-    // behind, the counts give way to one phrase that says so.
-    it('collapses the receipt to "Seen by all" once every member has read', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'me', 'hello')]}
-                isLoading={false}
-                viewer={VIEWER}
-                readCountOf={() => ({ readCount: 3, unreadCount: 0 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getByText('Seen by all')).toBeDefined();
-        expect(screen.queryByText('Seen by 3')).toBeNull();
-        expect(screen.queryByText(/^Unseen by /)).toBeNull();
-    });
-
-    it('separates the read and unread counts with a bullet', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'me', 'hello')]}
-                isLoading={false}
-                viewer={VIEWER}
-                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getByText('Seen by 2').parentElement?.textContent).toBe('Seen by 2•Unseen by 1');
-    });
-
     // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar
     // over the author line hid the author's name. There it hangs under the header on a block's
     // first message; the rest keep their place above their own message. jsdom lays nothing out,
@@ -632,8 +548,8 @@ describe('MessageList', () => {
         expect(container.querySelector('[data-row-actions]')).toBeNull();
     });
 
-    it('hangs the first toolbar under the author line in a thread, not over it', () => {
-        const toolbarTops = (threadReplyCount?: number) => {
+    it('keeps every toolbar over the header, in a thread too, and folds quick reactions in a narrow column', () => {
+        const inspect = (threadReplyCount?: number) => {
             const { container, unmount } = render(
                 <MessageList
                     messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
@@ -644,33 +560,29 @@ describe('MessageList', () => {
                 />,
                 { wrapper }
             );
+            // Over the header is -top-10; a toolbar hung lower sits on the first line of text, where a
+            // reader dragging to select it runs under the toolbar.
             const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
-                node.className.includes('-top-1.5') ? 'under-header' : 'above'
+                node.className.includes('-top-10') ? 'over-header' : 'lower'
             );
+            // The column is the container the narrow rule measures, so a 360px thread panel folds the
+            // quick reactions away and the toolbar stays short enough to leave the author name visible.
+            const column = container.querySelector('[role="log"]');
+            const quick = [...container.querySelectorAll('button[aria-label^="React with"]')];
+            const result = {
+                tops,
+                columnIsContainer: !!column?.className.includes('[container-type:inline-size]'),
+                quickFold:
+                    quick.length > 0 &&
+                    quick.every(button => button.className.includes('[@container(max-width:480px)]:hidden')),
+            };
             unmount();
-            return tops;
+            return result;
         };
 
-        expect(toolbarTops(1)).toEqual(['under-header', 'above']);
-        expect(toolbarTops()).toEqual(['above', 'above']);
-    });
-
-    // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
-    // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
-    // false rather than staying quiet.
-    it('shows no receipt when the counts are unavailable', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'ada', 'first')]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                readCountOf={() => null}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.queryByText(/^Seen by /)).toBeNull();
+        const expected = { tops: ['over-header', 'over-header'], columnIsContainer: true, quickFold: true };
+        expect(inspect(1)).toEqual(expected);
+        expect(inspect()).toEqual(expected);
     });
 
     it('renders a reaction chip without throwing', () => {
@@ -1126,5 +1038,60 @@ describe('MessageList webhook sender', () => {
 
         expect(screen.getByRole('button', { name: 'Ada' })).toBeDefined();
         expect(screen.queryByText('App')).toBeNull();
+    });
+});
+
+describe('a channel badged only for thread replies', () => {
+    const replies = (newCount: number) =>
+        new Map<string, ThreadMeta>([
+            ['1', { count: 2, lastReplyAt: 1_700_000_100_000, repliers: [{ id: 'ada' }], newCount }],
+        ]);
+    // Which elements the list scrolled into view on its first fill.
+    const scrolledTo = () =>
+        vi.mocked(Element.prototype.scrollIntoView).mock.contexts.map(el => (el as HTMLElement).dataset.chatNo);
+
+    beforeEach(() => vi.mocked(Element.prototype.scrollIntoView).mockClear());
+
+    const renderFeed = (baselineReadNo: number, newCount: number) =>
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'parent'), message(2, 'bo', 'later')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                baselineReadNo={baselineReadNo}
+                threadMeta={replies(newCount)}
+                onOpenThread={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+    it('says how many replies are new on the root', () => {
+        renderFeed(2, 1);
+
+        expect(screen.getByText('1 new reply')).toBeDefined();
+        expect(screen.getByRole('button', { name: 'Open thread · 2 replies · 1 new reply' })).toBeDefined();
+    });
+
+    // The feed has nothing new of its own, so without this it would open at the bottom and the
+    // badge that brought the reader here would clear over nothing.
+    it('lands on the root with new replies', () => {
+        renderFeed(2, 1);
+
+        expect(scrolledTo()).toContain('1');
+    });
+
+    it('lands on the unread divider instead when the feed has new messages too', () => {
+        renderFeed(1, 1);
+
+        expect(screen.getByText(/new messages/i)).toBeDefined();
+        expect(scrolledTo()).not.toContain('1');
+    });
+
+    it('shows the last reply time and lands at the bottom once nothing is new', () => {
+        renderFeed(2, 0);
+
+        expect(screen.queryByText(/new repl/)).toBeNull();
+        expect(scrolledTo()).not.toContain('1');
     });
 });

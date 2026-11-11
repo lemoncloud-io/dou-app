@@ -209,8 +209,10 @@ is asked only for numbers it does not hold (ADR-0206).
   that same page for ever. Any `[X − 50, X)` is one `chat.feed` request. The window grows by the rows
   that were not in it, so a page landing between two runs does not push the older run out of a
   window counted in rows. `gapStatus` holds `loading` / `failed` per gap (`chatGapKey`).
-- **Re-checking old rows.** Cached history can be stale: an edit or a delete made while the device was
-  away is never replayed. `revalidateAround(chatNo)` fetches the 50-number block holding a row the
+- **Re-checking old rows.** Cached history can be stale against an older server: an edit or a delete
+  made while the device was away is never replayed there. A server that records edits writes a
+  revision notice the data layer acts on ([chat-room.md](./chat-room.md)), but a message whose notice
+  no page has carried yet is still stale until one does. `revalidateAround(chatNo)` fetches the 50-number block holding a row the
   reader is reading, once per visit, when that row was written to the cache before this app run
   (its `__cacheMeta.lastSyncedAt`) and no page has answered for all of the block; the cached rows show
   meanwhile. A row written this run — by the entry page, the catch-up, live sync or a fill — is what
@@ -257,7 +259,7 @@ already looking at.
 ### `messages` is filtered, `rawChats` is not
 
 `useChats` returns both. `messages` drops my own system rows and everything `isFeedVisible`
-excludes (reaction events, thread replies), sorts oldest → newest, and maps each row to
+excludes (event rows — reaction toggles and revision notices — and thread replies), sorts oldest → newest, and maps each row to
 `ClientChatView` — owner name resolved `user cache → owner$.name → ownerId`, `timestamp` from
 `createdAtMs`, `isSystem` from `stereo === 'system'`. Optimistic rows have no server `chatNo` yet
 and sort as `+Infinity` so they sit at the bottom, not pinned to the top at 0.

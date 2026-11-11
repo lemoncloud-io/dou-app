@@ -30,7 +30,13 @@ export { getCacheMetricsSource } from './factories/localFactory';
 // Invited-cloud durability: the name sync hook plus the two non-React halves an app runs on a
 // deeplink accept.
 export { useInvitedCloudNameSync } from './hooks/useInvitedCloudNameSync';
+export { getAcceptorId, isAcceptedBy, withAcceptor } from './invitedCloudAcceptance';
 export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
+
+// Paired-cloud name: a cloud entered through a pairing has no cache row, so its name is read once per
+// entry and kept beside the paired-cloud list.
+export { usePairedCloudNameSync } from './hooks/usePairedCloudNameSync';
+export { syncPairedCloudName } from './pairedCloudName';
 
 // The settings screen's "clear cache": every known cloud's partition, minus what only this device holds.
 export { clearLocalCaches } from './clearLocalCaches';

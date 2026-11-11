@@ -1,0 +1,205 @@
+/** Supported platform types */
+export type Platform = 'ios' | 'android' | 'windows' | 'macos' | 'web';
+
+/** App log level */
+export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/** Runtime where the log originated — recorded only when crossing the boundary (ADR-0097) */
+export type AppLogOrigin = 'web' | 'native';
+
+/**
+ * The fields a log entry carries beyond its message, as they cross the bridge.
+ *
+ * `kind` tells a log from a statistic (`trace` · `sample` · `event`); absent means a log. The rest
+ * are a statistic's numbers and dimensions, kept as numbers and objects end to end, and the two error
+ * keys a failed request or SDK call carries. All optional: an app or web build older than these
+ * fields sends and accepts entries without them.
+ */
+export type AppLogStructuredFields = {
+    kind?: 'log' | 'trace' | 'sample' | 'event';
+    httpStatus?: number;
+    errorCode?: string;
+    durationMs?: number;
+    attrs?: Record<string, string>;
+    metrics?: Record<string, number>;
+    /** Sampling rate the entry was kept at, `0..1`. */
+    sr?: number;
+    /** Sampling policy version. */
+    pv?: number;
+    /** Order within the run. */
+    seq?: number;
+};
+
+/** App log entry structure */
+export type AppLogInfo = AppLogStructuredFields & {
+    /**
+     * Entry-unique id — the server dedup key. In the hybrid app, a web log lands in both
+     * its own queue and the native buffer, and the uploader pulls from that buffer again,
+     * so without this value the same log gets stored as two separate documents. With it,
+     * the document id upsert merges them into one.
+     */
+    id?: string;
+    /** Context captured at occurrence — the lookup axis for batch upload. May differ from the value at save time, so it's captured at the moment the log happens */
+    runId?: string;
+    sid?: string;
+    uid?: string;
+    cid?: string;
+    appVersion?: string;
+    webVersion?: string;
+    route?: string;
+    os?: string;
+    osVersion?: string;
+    model?: string;
+    /** Usage session id — shorter-lived than runId. */
+    sessionId?: string;
+    /** `ios` · `android` · `web`. */
+    platform?: string;
+    /** `app` (WebView or native) · `browser` (standalone web). */
+    host?: string;
+    /** Connection type at the time. */
+    network?: string;
+    /** UI locale. */
+    locale?: string;
+    /** Route template (`/channels/:id/room`) — the screen axis statistics aggregate on. */
+    routeTemplate?: string;
+    tag: string; // Log identifying tag
+    message?: string; // Log message
+    data?: unknown; // Attached data
+    timestamp?: number; // Time of occurrence (ms)
+    level?: AppLogLevel; // Log level
+    error?: unknown; // Error object
+    source?: AppLogOrigin; // Runtime of origin (when it crosses a boundary)
+};
+
+/** [Request] Web -> App log delivery payload */
+export type SendLogPayload = AppLogStructuredFields & {
+    /** Entry-unique id — server dedup key (filled in by the receiver if absent) */
+    id?: string;
+    /** Context captured at occurrence — the lookup axis for batch upload. May differ from the value at save time, so it's captured at the moment the log happens */
+    runId?: string;
+    sid?: string;
+    uid?: string;
+    cid?: string;
+    appVersion?: string;
+    webVersion?: string;
+    route?: string;
+    os?: string;
+    osVersion?: string;
+    model?: string;
+    sessionId?: string;
+    platform?: string;
+    host?: string;
+    network?: string;
+    locale?: string;
+    routeTemplate?: string;
+    level?: AppLogLevel;
+    tag?: string;
+    message: string;
+    data?: unknown;
+    error?: unknown;
+    /** Time of occurrence (ms) — if absent (older web build), the receiver falls back to the receipt time (ADR-0097) */
+    timestamp?: number;
+    /** Runtime of origin — the web forwarder stamps this as 'web' */
+    source?: AppLogOrigin;
+};
+
+/** [Response] Web -> App log delivery completion payload */
+export type OnSendLogPayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/**
+ * [Request] Fetch a batch from the app upload queue (ADR-0063).
+ *
+ * **Non-destructive.** Returning the same entries again on a repeat call is expected
+ * behavior; only `AckLogUploadQueue` releases them. If fetching also removed entries,
+ * the only copy would disappear before the upload succeeds — if the process dies in
+ * that window, the entry survives nowhere, losing exactly the log that matters most:
+ * the one from the moment the app died.
+ *
+ * Since this queue is the sole log store, the debug view also reads it through this
+ * message. There is no longer a destructive consumer.
+ */
+export type FetchLogUploadQueuePayload = {
+    limit?: number;
+};
+
+/** [Response] Fetch a batch from the app upload queue (ADR-0063) */
+export type OnFetchLogUploadQueuePayload = {
+    logs: AppLogInfo[];
+    /** Total size of the upload queue at fetch time (not the size of the returned batch) */
+    size: number;
+};
+
+/** [Request] Remove successfully uploaded logs from the app upload queue (ADR-0063) */
+export type AckLogUploadQueuePayload = {
+    ids: string[];
+};
+
+/** [Response] App upload queue cleanup completion payload (ADR-0063) */
+export type OnAckLogUploadQueuePayload = {
+    /** Remaining queue size after cleanup */
+    size: number;
+};
+
+/**
+ * [Request] Discard the entire app upload queue (ADR-0063).
+ *
+ * Reserved for device opt-out only. Opt-out expresses "stop collecting on this device",
+ * so letting already-queued entries still go out afterward would contradict that intent
+ * — a different concern from a build flag that only stops future sending. Do not use
+ * this for logout: entries carry the uid/cid captured at occurrence, so accounts never
+ * mix and they're safe to keep; clearing them would lose the very entries that record
+ * whatever session problem prompted the logout.
+ */
+export type ClearLogUploadQueuePayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Response] App upload queue discard completion payload (ADR-0063) */
+export type OnClearLogUploadQueuePayload = {
+    /** Size after discarding — should be 0 in the normal case */
+    size: number;
+};
+
+/**
+ * A report item native detected but cannot send directly (ADR-0097).
+ * The `/hello/report` signing token is only held by the web session, so native queues
+ * a snapshot taken at detection time (in MMKV) and web pulls it after boot to send it
+ * on native's behalf.
+ */
+export type PendingReportInfo = {
+    /** Unique id used for ack-based dedup, to prevent double-sending */
+    id: string;
+    /** Report category (webview-crash | native-error | native-crash) */
+    category: string;
+    /** Summary message (e.g. the exception message) */
+    message?: string;
+    /** JS stack (available for native-error, when present) */
+    stack?: string;
+    /** Detection time (ms) — used as the payload timestamp, not the time of the proxied send */
+    detectedAt: number;
+    /** Platform-specific extra info (isFatal, exit reason, etc.) */
+    extra?: unknown;
+};
+
+/** [Request] Fetch the pending report queue */
+export type FetchPendingReportsPayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Response] Fetch the pending report queue */
+export type OnFetchPendingReportsPayload = {
+    reports: PendingReportInfo[];
+};
+
+/** [Request] Remove successfully sent pending reports */
+export type AckPendingReportsPayload = {
+    ids: string[];
+};
+
+/** [Response] Pending report cleanup completion payload */
+export type OnAckPendingReportsPayload = {
+    /** Remaining queue size after cleanup */
+    size: number;
+};

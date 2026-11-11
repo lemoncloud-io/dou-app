@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { nextUnreadChannelId, shouldCaptureTyping, sidebarMoveChord } from './keyboard';
+import { digitOfKey, isOverlayOpen, nextUnreadChannelId, shouldCaptureTyping, sidebarMoveChord } from './keyboard';
 
 const press = (key: string, init: KeyboardEventInit = {}, target: EventTarget = document.body): KeyboardEvent => {
     const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
@@ -43,8 +43,68 @@ describe('shouldCaptureTyping', () => {
     it('stays out of the way while a dialog is open', () => {
         const dialog = document.createElement('div');
         dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('data-state', 'open');
         document.body.appendChild(dialog);
         expect(shouldCaptureTyping(press('h'))).toBe(false);
+    });
+
+    // Shift+1 is the rail's place key; taking it as text would be the first character of a message.
+    it('leaves Shift+digit to the rail chords', () => {
+        expect(shouldCaptureTyping(press('!', { code: 'Digit1', shiftKey: true }))).toBe(false);
+        expect(shouldCaptureTyping(press('@', { code: 'Digit2', shiftKey: true }))).toBe(false);
+    });
+});
+
+describe('isOverlayOpen', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('is true while a dialog or a menu is over the page', () => {
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('data-state', 'open');
+        const menu = document.createElement('div');
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('data-state', 'open');
+        document.body.append(dialog, menu);
+        expect(isOverlayOpen()).toBe(true);
+    });
+
+    it('ignores one that has been closed and is only animating out', () => {
+        const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('data-state', 'closed');
+        document.body.appendChild(dialog);
+        expect(isOverlayOpen()).toBe(false);
+    });
+
+    // The compact sidebar drawer is a `role="dialog"` that stays mounted while it is shut, so an
+    // open-state check is the only thing that keeps it from swallowing every key on the page.
+    it('does not count a dialog that carries no open state at all', () => {
+        const drawer = document.createElement('div');
+        drawer.setAttribute('role', 'dialog');
+        document.body.appendChild(drawer);
+        expect(isOverlayOpen()).toBe(false);
+    });
+});
+
+describe('digitOfKey', () => {
+    // With Shift held the row reports "!" as `key`, so the code is what names the digit.
+    it('names the digit from the physical key, whatever Shift did to the character', () => {
+        expect(digitOfKey(press('1', { code: 'Digit1' }))).toBe(1);
+        expect(digitOfKey(press('!', { code: 'Digit1', shiftKey: true }))).toBe(1);
+        expect(digitOfKey(press('0', { code: 'Digit0' }))).toBe(0);
+    });
+
+    it('falls back to the character when the event carries no code', () => {
+        expect(digitOfKey(press('7'))).toBe(7);
+    });
+
+    it('is null for a key that is not a number-row digit', () => {
+        expect(digitOfKey(press('k', { code: 'KeyK' }))).toBeNull();
+        expect(digitOfKey(press('!'))).toBeNull();
+        expect(digitOfKey(press('ArrowUp', { code: 'ArrowUp' }))).toBeNull();
     });
 });
 

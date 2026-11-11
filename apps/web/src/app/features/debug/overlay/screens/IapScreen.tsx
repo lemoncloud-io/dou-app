@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 import { webClient } from '@chatic/bridges';
 
 import { useDebugOperation } from '../../hooks';
@@ -64,16 +64,14 @@ export const IapScreen = () => {
             <div className="flex flex-wrap gap-2">
                 <button
                     type="button"
-                    onClick={() => void run(t.fetchProducts, loadProducts, 'FetchProducts')}
+                    onClick={() => void run(t.fetchProducts, loadProducts)}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     {t.fetchProducts}
                 </button>
                 <button
                     type="button"
-                    onClick={() =>
-                        void run(t.purchaseHistory, () => appBridge.fetchCurrentPurchases(), 'FetchCurrentPurchases')
-                    }
+                    onClick={() => void run(t.purchaseHistory, () => appBridge.fetchCurrentPurchases())}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     {t.purchaseHistory}

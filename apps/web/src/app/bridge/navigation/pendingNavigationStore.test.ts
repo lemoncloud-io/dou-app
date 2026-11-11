@@ -1,5 +1,5 @@
 import { createPendingNavigationStore } from './pendingNavigationStore';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 jest.mock('@chatic/bridges', () => ({
     webClient: { onEvent: jest.fn() },

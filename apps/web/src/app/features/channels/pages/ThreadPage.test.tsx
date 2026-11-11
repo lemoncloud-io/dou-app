@@ -160,6 +160,10 @@ jest.mock('../hooks/useSendImages', () => ({
         return { sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() };
     },
 }));
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: () => ({ canRecord: true, open: jest.fn(), sheet: null }),
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInputs.push(input);
@@ -182,12 +186,15 @@ jest.mock('../lib', () => ({
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 const mockFollowFooter = jest.fn();
+// The composer's measured height, and whether a message is being edited — the two the follow reads.
+let mockFooterHeight = 0;
+let mockThreadEditing = false;
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
         headerRef: { current: null },
         footerRef: { current: null },
         headerHeight: 0,
-        footerHeight: 0,
+        footerHeight: mockFooterHeight,
         followFooter: mockFollowFooter,
     }),
 }));
@@ -233,12 +240,13 @@ jest.mock('../hooks', () => ({
     // This screen's tests do not cover edit and delete. That behaviour's contract is held by
     // useMessageEditing's own tests; here we only check the screen renders without them.
     useMessageEditing: () => ({
-        isEditing: false,
+        isEditing: mockThreadEditing,
         hasUnsavedEdit: false,
         startEdit: jest.fn(),
         requestCloseEdit: jest.fn(),
         closeEdit: jest.fn(),
-        editStateFor: () => undefined,
+        composer: undefined,
+        isEditTarget: () => false,
         deleteTarget: null,
         requestDelete: jest.fn(),
         cancelDelete: jest.fn(),
@@ -267,6 +275,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+    mockFooterHeight = 0;
+    mockThreadEditing = false;
     mockLocationState = null;
     mockRootNo = '7';
     // The composer's draft store is the real one: each case starts with no draft anywhere.
@@ -1303,5 +1313,49 @@ describe('ThreadPage — a gap between replies', () => {
         rerender(<ThreadPage />);
 
         expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+});
+
+// Opening an edit grows the composer and closing it shrinks it again; following either would carry the
+// list to the newest reply, away from where the reader was.
+describe('ThreadPage — the follow during a message edit', () => {
+    const listAt = (fromBottom: number) => {
+        const list = document.querySelector('.overflow-y-auto') as HTMLElement;
+        const scrollTo = jest.fn();
+        list.scrollTo = scrollTo as unknown as typeof list.scrollTo;
+        Object.defineProperty(list, 'scrollHeight', { value: 900, configurable: true });
+        Object.defineProperty(list, 'clientHeight', { value: 300, configurable: true });
+        list.scrollTop = 900 - 300 - fromBottom;
+        return scrollTo;
+    };
+
+    it('leaves a reader up in the list where they were when the edit opens and closes', () => {
+        const { rerender } = render(<ThreadPage />);
+        const scrollTo = listAt(400);
+
+        mockThreadEditing = true;
+        rerender(<ThreadPage />);
+        mockFooterHeight = 120;
+        rerender(<ThreadPage />);
+        mockThreadEditing = false;
+        rerender(<ThreadPage />);
+        mockFooterHeight = 60;
+        rerender(<ThreadPage />);
+
+        expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('keeps following for a reader at the bottom once the edit closes', () => {
+        const { rerender } = render(<ThreadPage />);
+        const scrollTo = listAt(0);
+
+        mockThreadEditing = true;
+        rerender(<ThreadPage />);
+        mockThreadEditing = false;
+        rerender(<ThreadPage />);
+        mockFooterHeight = 60;
+        rerender(<ThreadPage />);
+
+        expect(scrollTo).toHaveBeenLastCalledWith({ top: 900 });
     });
 });

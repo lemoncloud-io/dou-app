@@ -2,8 +2,8 @@ import { type JSX } from 'react';
 import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../routes/paths';
-import { DesktopOnlyNotice, PageLoader } from '../components';
-import { useNarrowViewport, useSession } from '../hooks';
+import { PageLoader } from '../components';
+import { useSession } from '../hooks';
 import { landingAfterSignIn } from '../lib/safeNext';
 import { signInRedirect } from '../lib/sessionEnded';
 
@@ -35,10 +35,4 @@ export const RedirectIfSignedIn = ({ children }: { children: JSX.Element }): JSX
     if (session.isLoading) return <PageLoader />;
     if (session.data) return <Navigate to={landingAfterSignIn(session.data, params.get('next'))} replace />;
     return children;
-};
-
-/** W-23 in place of any subscription page on a phone-width screen. */
-export const DesktopOnlyGuard = ({ account, children }: { account: boolean; children: JSX.Element }): JSX.Element => {
-    const narrow = useNarrowViewport();
-    return narrow ? <DesktopOnlyNotice account={account} /> : children;
 };

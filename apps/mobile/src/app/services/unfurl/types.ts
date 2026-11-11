@@ -1,4 +1,4 @@
-import type { OnFetchUrlMetadataPayload } from '@chatic/app-messages';
+import type { OnFetchUrlMetadataPayload } from '@chatic/bridge-messages';
 
 /** Result of an unfurl attempt. `success: false` means "no preview" — never an error to surface. */
 export type UrlMetadataResult = OnFetchUrlMetadataPayload;

@@ -2,20 +2,21 @@ import { type ButtonHTMLAttributes, type JSX, forwardRef } from 'react';
 
 import { cn } from '../../utils';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger';
 export type ButtonSize = 'md' | 'lg' | 'sm';
 
 const VARIANTS: Record<ButtonVariant, string> = {
     primary: 'bg-main-green text-navy hover:opacity-90',
-    secondary: 'bg-white text-navy border border-border hover:bg-muted',
+    secondary: 'bg-white text-ink border-[1.5px] border-[#d9dbe0] hover:bg-muted',
+    dark: 'bg-navy text-white hover:opacity-90',
     ghost: 'bg-transparent text-subtitle hover:text-navy hover:bg-muted',
     danger: 'bg-status-danger text-white hover:opacity-90',
 };
 
 const SIZES: Record<ButtonSize, string> = {
-    sm: 'h-8 px-3 text-[13px] rounded-lg',
-    md: 'h-10 px-4 text-sm rounded-lg',
-    lg: 'h-12 px-6 text-[15px] rounded-xl',
+    sm: 'h-8 px-3.5 text-[13px] rounded-full',
+    md: 'h-10 px-5 text-sm rounded-full',
+    lg: 'h-[46px] px-7 text-[15px] rounded-full',
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

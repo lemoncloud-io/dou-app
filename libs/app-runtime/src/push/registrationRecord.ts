@@ -1,11 +1,11 @@
-import { storage } from '@chatic/shared';
+import { sessionStores } from '@chatic/session';
 
 /**
  * The identity a push registration belongs to.
  *
  * `uid` is the RELAY account id, never the active slot's — `users/0/reg-dev` registers the token
  * against the account, and a uid that followed the slot into a cloud would turn "once per install"
- * into "once per cloud switch". See `getRelaySessionUser` in `session/store/contextStore.ts`.
+ * into "once per cloud switch". See `getRelaySessionUser` in `@chatic/session` (`store/contextStore.ts`).
  */
 export interface RegistrationIdentity {
     uid: string;
@@ -39,6 +39,16 @@ interface StorageLike {
     set(key: string, value: string): void;
 }
 
+/**
+ * The session's plain store, looked up on every call rather than when a record is made: the store
+ * exists only from `initAppRuntime` on, and asking for it before then throws. Boot comes before any
+ * screen that registers renders, so a call always finds the entry point's choice.
+ */
+const plainStore: StorageLike = {
+    get: key => sessionStores.of('plain').get(key),
+    set: (key, value) => sessionStores.of('plain').set(key, value),
+};
+
 const parseEntry = (raw: string | null): RegistrationEntry | null => {
     if (!raw) return null;
     try {
@@ -64,8 +74,8 @@ const parseEntry = (raw: string | null): RegistrationEntry | null => {
  * The record stores the TOKEN, not a boolean, so a rotated token still re-registers — the skip is
  * "nothing changed", never "we already did this once".
  *
- * **Two tiers.** The web tier is `@chatic/shared`'s `storage`, which each app's entry swaps to
- * `localStorage` inside a native shell (`setStorageAdapter(isNative() ? localStorage : …)`). It is
+ * **Two tiers.** The web tier is the session's plain store, which each app's entry point chooses —
+ * `localStorage` inside a native or desktop shell, `sessionStorage` in a browser. It is
  * synchronous, which is what lets the foreground-return path decide without a bridge round-trip.
  * The optional native tier survives a webview cache clear; it is asynchronous, so it is hydrated
  * once via {@link hydrate} and then answers from memory. A cleared web tier that the native tier
@@ -90,7 +100,7 @@ export class PushRegistrationRecord {
     private native: RegistrationEntry | null = null;
     private hydration: Promise<void> | null = null;
 
-    constructor(private readonly store: StorageLike = storage) {}
+    constructor(private readonly store: StorageLike = plainStore) {}
 
     private key({ uid, deviceId, platform }: RegistrationIdentity): string {
         return `${PushRegistrationRecord.POLICY_VERSION}:${uid}:${deviceId}:${platform}`;

@@ -1,9 +1,4 @@
-import {
-    NativeDBAdapter,
-    resetNativeBatchReadSupport,
-    resetNativeClearByChannelSupport,
-    resetNativeLastChatsSupport,
-} from './NativeDBAdapter';
+import { NativeDBAdapter } from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '@chatic/data';
 
@@ -166,10 +161,6 @@ describe('NativeDBAdapter', () => {
     });
 
     describe('clearByChannelId (ADR-0067)', () => {
-        beforeEach(() => {
-            resetNativeClearByChannelSupport();
-        });
-
         it('채널과 scope로 ClearCacheDataByChannel을 왕복 1회 요청한다', async () => {
             mockBridge.request.mockResolvedValue({} as never);
 
@@ -182,48 +173,7 @@ describe('NativeDBAdapter', () => {
             });
         });
 
-        it('핸들러가 없는 구버전 앱(NOT_FOUND)은 읽고-지우는 폴백으로 실제로 삭제를 끝낸다', async () => {
-            // Unlike a read, a delete can't just end with "couldn't do it" — the fallback has to actually finish the job.
-            mockBridge.request.mockImplementation((message: any) => {
-                if (message.type === 'ClearCacheDataByChannel') return Promise.reject({ code: 'NOT_FOUND' });
-                if (message.type === 'FetchAllCacheData') {
-                    return Promise.resolve({ data: { items: [{ id: 'm-1', channelId: 'ch-1' }] } } as never);
-                }
-                return Promise.resolve({} as never);
-            });
-
-            await adapter.clearByChannelId('ch-1');
-
-            const types = mockBridge.request.mock.calls.map(([message]: any) => message.type);
-            expect(types).toEqual(['ClearCacheDataByChannel', 'FetchAllCacheData', 'DeleteAllCacheData']);
-            // The fallback read is also scoped to the channel — clearing out one room doesn't bring the whole table across.
-            expect(mockBridge.request).toHaveBeenCalledWith({
-                type: 'FetchAllCacheData',
-                data: {
-                    type: 'chat',
-                    cid: mockScope.cid,
-                    uid: mockScope.uid,
-                    query: { cid: mockScope.cid, uid: mockScope.uid, channelId: 'ch-1' },
-                },
-            });
-        });
-
-        it('NOT_FOUND를 한 번 배우면 이후로는 시도조차 하지 않는다', async () => {
-            mockBridge.request.mockImplementation((message: any) => {
-                if (message.type === 'ClearCacheDataByChannel') return Promise.reject({ code: 'NOT_FOUND' });
-                if (message.type === 'FetchAllCacheData') return Promise.resolve({ data: { items: [] } } as never);
-                return Promise.resolve({} as never);
-            });
-
-            await adapter.clearByChannelId('ch-1');
-            mockBridge.request.mockClear();
-            await adapter.clearByChannelId('ch-2');
-
-            const types = mockBridge.request.mock.calls.map(([message]: any) => message.type);
-            expect(types).not.toContain('ClearCacheDataByChannel');
-        });
-
-        it('NOT_FOUND가 아닌 실패는 폴백으로 감추지 않고 그대로 던진다', async () => {
+        it('rethrows a bridge failure instead of swallowing it', async () => {
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.clearByChannelId('ch-1')).rejects.toEqual({ code: 'TIMEOUT' });
@@ -231,10 +181,6 @@ describe('NativeDBAdapter', () => {
     });
 
     describe('loadMany', () => {
-        beforeEach(() => {
-            resetNativeBatchReadSupport();
-        });
-
         it('빈 배열이면 브릿지를 호출하지 않는다', async () => {
             const result = await adapter.loadMany([]);
             expect(result).toEqual([]);
@@ -267,38 +213,7 @@ describe('NativeDBAdapter', () => {
             await expect(adapter.loadMany(['chat-1'])).resolves.toEqual([]);
         });
 
-        it('핸들러가 없는 구버전 앱(NOT_FOUND)에서는 id별 조회로 폴백한다', async () => {
-            mockBridge.request.mockImplementation((message: any) => {
-                if (message.type === 'FetchManyCacheData') return Promise.reject({ code: 'NOT_FOUND' });
-                return Promise.resolve({
-                    data: { type: 'chat', id: message.data.id, item: { id: message.data.id } },
-                } as any);
-            });
-
-            const result = await adapter.loadMany(['chat-1', 'chat-2']);
-
-            expect(result).toEqual([{ id: 'chat-1' }, { id: 'chat-2' }]);
-            expect(mockBridge.request).toHaveBeenCalledWith(expect.objectContaining({ type: 'FetchManyCacheData' }));
-            expect(mockBridge.request).toHaveBeenCalledWith(expect.objectContaining({ type: 'FetchCacheData' }));
-        });
-
-        it('폴백을 한 번 배우면 이후에는 배치 요청을 시도하지 않는다', async () => {
-            mockBridge.request.mockImplementation((message: any) => {
-                if (message.type === 'FetchManyCacheData') return Promise.reject({ code: 'NOT_FOUND' });
-                return Promise.resolve({ data: { type: 'chat', id: message.data.id, item: null } } as any);
-            });
-
-            await adapter.loadMany(['chat-1']);
-            mockBridge.request.mockClear();
-            await adapter.loadMany(['chat-2']);
-
-            expect(mockBridge.request).not.toHaveBeenCalledWith(
-                expect.objectContaining({ type: 'FetchManyCacheData' })
-            );
-        });
-
-        it('NOT_FOUND가 아닌 실패는 폴백으로 감추지 않고 그대로 던진다', async () => {
-            // Hiding a timeout behind the fallback would double the round trips while also hiding the cause.
+        it('rethrows a bridge failure without retrying per id', async () => {
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.loadMany(['chat-1'])).rejects.toEqual({ code: 'TIMEOUT' });
@@ -307,10 +222,6 @@ describe('NativeDBAdapter', () => {
     });
 
     describe('loadLastPerChannel (ADR-0057)', () => {
-        beforeEach(() => {
-            resetNativeLastChatsSupport();
-        });
-
         it('chat 스코프로 FetchLastChatsData를 요청하고 items를 그대로 돌려준다', async () => {
             const items = [{ channelId: 'ch-1', lastNo: 3, item: { id: 'm3' } }];
             mockBridge.request.mockResolvedValue({ data: { type: 'chat', items } } as any);
@@ -345,21 +256,9 @@ describe('NativeDBAdapter', () => {
             expect(mockBridge.request).toHaveBeenCalledTimes(2);
         });
 
-        it('핸들러가 없는 구버전 앱(NOT_FOUND)은 한 번으로 배우고 이후 시도하지 않는다', async () => {
-            mockBridge.request.mockRejectedValue({ code: 'NOT_FOUND' });
-
-            await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
-            mockBridge.request.mockClear();
-            await expect(adapter.loadLastPerChannel(['ch-2'])).resolves.toBeNull();
-
-            expect(mockBridge.request).not.toHaveBeenCalled();
-        });
-
-        it('타임아웃 등 다른 실패는 던지지 않고 null로 답하되 학습하지 않는다', async () => {
+        it('answers null for a failed read and tries again on the next one', async () => {
             // Whenever this lookup fails, the correct answer is always the window fallback, so
-            // it resolves null instead of throwing — but marking a transient error as
-            // unsupported would kill the fast path forever, even after the app updates, so
-            // learning is forbidden here.
+            // it resolves null instead of throwing; the failure applies only to this read.
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();

@@ -1,4 +1,4 @@
-import type { OnCheckAppUpdatePayload } from '@chatic/app-messages';
+import type { OnCheckAppUpdatePayload } from '@chatic/bridge-messages';
 
 export type AppUpdatePlatform = OnCheckAppUpdatePayload['platform'];
 

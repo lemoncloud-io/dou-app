@@ -7,7 +7,7 @@ jest.mock('./runtime', () => ({
 
 const mockIdentities: { value: Record<string, { uid: string }> } = { value: {} };
 const mockCommitted: { value: string | null } = { value: null };
-jest.mock('../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: () => mockCommitted.value,
     getRecordedCloudIds: () => Object.keys(mockIdentities.value),
 }));

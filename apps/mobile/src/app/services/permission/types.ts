@@ -1,4 +1,4 @@
-import type { AppPermissionType, PermissionStatus } from '@chatic/app-messages';
+import type { AppPermissionType, PermissionStatus } from '@chatic/bridge-messages';
 
 /**
  * The bridge contract owns this union — the web asks for these by name, so a second copy here is
@@ -9,8 +9,17 @@ export type { AppPermissionType };
 
 export type RequestedPermissionStatus = Exclude<PermissionStatus, 'UNAVAILABLE'>;
 
+/** The permissions `status` reads: every one but notifications, which the OS reports apart. */
+export type DevicePermissionType = Exclude<AppPermissionType, 'NOTIFICATIONS'>;
+
 export interface IPermissionService {
     check(type: AppPermissionType): Promise<boolean>;
+    /**
+     * Where the permission stands, without asking: DENIED can still be asked for, BLOCKED cannot, and
+     * UNAVAILABLE means the device has no such hardware. On Android the OS does not report BLOCKED
+     * until a request has been refused for good, so a blocked permission reads DENIED here until then.
+     */
+    status(type: DevicePermissionType): Promise<PermissionStatus>;
     /**
      * Asks for the permission and reports how it ended. BLOCKED means the OS will no longer show
      * a prompt (the reader chose "don't ask again", or system policy blocks it): a DENIED request

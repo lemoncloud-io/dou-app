@@ -26,19 +26,20 @@ There is no `api/` directory, no socket constructor, no token store and no cache
 
 What the app does **not** own:
 
-| Concern                                               | Owner                                                           |
-| ----------------------------------------------------- | --------------------------------------------------------------- |
-| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/app-runtime/README.md)       |
-| Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                     |
-| The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)               |
-| Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                 |
-| The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                 |
-| Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)         |
-| Cross-platform primitives, storage adapter, fallbacks | [`@chatic/shared`](../../libs/shared/README.md)                 |
-| Bridge message payload types                          | [`@chatic/app-messages`](../../libs/app-messages/README.md)     |
-| HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                     |
-| Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)     |
-| Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md) |
+| Concern                                               | Owner                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/app-runtime/README.md)         |
+| Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                       |
+| The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
+| Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                   |
+| The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                   |
+| Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)           |
+| Cross-platform primitives, fallbacks                  | [`@chatic/shared`](../../libs/shared/README.md)                   |
+| Stores                                                | [`@chatic/storage`](../../libs/storage/README.md)                 |
+| Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
+| HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
+| Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
+| Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md)   |
 
 `@chatic/http` and `@chatic/logger` reach the app indirectly: HTTP through `@chatic/app-runtime`,
 the logger through the `logger` re-export in `@chatic/bridges`. The app imports neither package
@@ -101,7 +102,7 @@ flowchart TD
     Main["main.tsx<br/><i>log wiring · config.init · runtime boot · bridge handshake</i>"]:::app
     App["app/app.tsx → app/runtime/AppRuntime.tsx<br/><i>providers · RuntimeConnectionHost · background runners</i>"]:::app
     Routes["app/routes/<br/><i>public · private · common</i>"]:::app
-    Feat["app/features/ × 13"]:::app
+    Feat["app/features/ × 14"]:::app
     SharedDirs["app/ui · hooks · stores · utils · bridge · config"]:::app
 
     Runtime["@chatic/app-runtime<br/><i>runtime.session · connection · data · sync · boot · push · report</i>"]:::lib
@@ -152,9 +153,10 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: migrateLegacyPreferences · config.init(webConfigPorts)
-    Main->>Main: setStorageAdapter(isNative() ? localStorage : sessionStorage)
-    Main->>RT: runtime.boot.initAppRuntime({ data: { repositories } })
+    Main->>Main: stores = runtime.boot.resolveStorageStores() · configureAppStores(device, tab)
+    Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
+    Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
+    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
@@ -182,7 +184,7 @@ apps/web/src/
     ├── app.tsx         provider assembly only — no session logic
     ├── routes/         12 files: three route tables, the ROUTES builder, entry gates
     ├── runtime/        66 files: RuntimeConnectionHost wiring, background runners, log and perf-trace wiring, PUT senders
-    ├── features/       615 files across 13 feature groups
+    ├── features/       617 files across 14 feature groups
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/
     ├── utils/          30 files: pure helpers
@@ -202,8 +204,14 @@ Files you cannot guess from the name:
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
-- `app/config/adapters.ts` — `webConfigPorts`, the object `config.init()` is called with in
-  `main.tsx`.
+- `app/config/adapters.ts` — `createWebConfigPorts(stores)`, the ports `config.init()` is called with
+  in `main.tsx`.
+- `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
+  the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
+  with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
+  at what `runtime.boot.resolveStorageStores()` built; a zustand `persist` store names one through
+  `persistStorageOver`. No feature names `localStorage`/`sessionStorage` itself — the root ESLint
+  config refuses it, and refuses a `persist` without a `storage`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
 - `app/navigation/index.ts` — the whole of what the rest of the app may use from the history-stack
   module. Its header says what the module answers and what deliberately stays outside it; import
@@ -286,10 +294,12 @@ navigate(ROUTES.channels.room(channelId));
 main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
-├── migrateLegacyPreferences / syncThemeFromSharedKey
-├── config.init(webConfigPorts)                                    (before any lazy setting read)
-├── setStorageAdapter(isNative() ? localStorage : sessionStorage)
-├── runtime.boot.initAppRuntime(...)                               (before any session read)
+├── runtime.boot.resolveStorageStores() → configureAppStores        (every store, chosen once)
+├── syncThemeFromSharedKey(stores.webLocal)
+├── config.init(createWebConfigPorts(stores))                       (before any lazy setting read)
+├── migrateLegacyPhoneCountry(stores.webLocal)
+├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
+├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → runtime.boot.setNativeCacheSupport
@@ -338,7 +348,7 @@ cold start is buffered by `pendingNavigationStore`, which `main.tsx` starts _bef
 
 ### 5. Read or change a setting
 
-Settings live in `@chatic/config`, initialised once in `main.tsx` with `webConfigPorts` from
+Settings live in `@chatic/config`, initialised once in `main.tsx` with `createWebConfigPorts(stores)` from
 `app/config/adapters.ts`. Read through `config`; never through `import.meta.env` inside a feature.
 The theme is a setting (`ui.theme`) that `app/runtime/ThemeApplier.tsx` mirrors onto `<html>`.
 

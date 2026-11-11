@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { formatLongDate } from '../../../shared';
+import { FEED_GAP_PX } from './feedWindow';
 
 interface DateSeparatorProps {
     timestamp: number;
@@ -29,11 +30,9 @@ export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
         return formatLongDate(timestamp);
     };
 
-    // The pill sticks to the top of the feed while its day scrolls by. The feed is one
-    // flat list, so pills hand over by standard sticky stacking: the next day's pill
-    // pushes the stuck one out at the boundary. The rule is a separate, non-sticky
-    // line pulled up behind the pill, so it scrolls away with the day instead of
-    // striking through the messages under a stuck pill.
+    // A sticky box is bounded by its parent, so MessageList mounts each day as its own block and
+    // the stuck pill leaves with its day. The rule is a separate, non-sticky line pulled up behind
+    // the pill, so it scrolls away with the day instead of striking through the messages under it.
     return (
         <>
             {/* -top-5 cancels the feed's own top padding (py-5), so a stuck pill sits 8px
@@ -46,10 +45,14 @@ export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
                     {formatLabel()}
                 </span>
             </div>
-            {/* Pulled up to the pill's vertical centre. Both numbers come from the one
-                constant, so a type change can no longer strike the rule through the
-                messages below. */}
-            <div aria-hidden style={{ marginTop: -(PILL_HEIGHT_PX / 2 + 1) }} className="mb-3 h-px bg-hairline" />
+            {/* Pulled up to the pill's vertical centre: past the pill's own half, and past the feed's
+                row gap that sits between the two siblings. Both come from constants, so a type or
+                gap change can no longer strike the rule through the messages below. */}
+            <div
+                aria-hidden
+                style={{ marginTop: -(PILL_HEIGHT_PX / 2 + 1 + FEED_GAP_PX) }}
+                className="mb-3 h-px bg-hairline"
+            />
         </>
     );
 };

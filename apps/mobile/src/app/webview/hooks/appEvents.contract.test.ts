@@ -8,12 +8,14 @@ type Decision = { emittedBy: string[]; test: string } | { notEmitted: string };
 /**
  * Every app → web event this shell could send on its own initiative, decided: either the file that
  * pushes it and the test that triggers it, or the reason it never does. Paths are relative to
- * `apps/mobile/src`. A new push-only message in `@chatic/app-messages`, or a new `pushEvent` call
+ * `apps/mobile/src`. A new push-only message in `@chatic/bridge-messages`, or a new `pushEvent` call
  * here, fails this suite until it has a line.
  */
 const MOBILE_APP_EVENTS = {
+    // The sub WebView's own host pushes it too, to a page that claimed back with `SetCanGoBack`; its
+    // test is `app/subWebView/SubWebView.test.tsx`.
     OnBackPressed: {
-        emittedBy: ['app/webview/hooks/useAndroidBack.ts'],
+        emittedBy: ['app/webview/hooks/useAndroidBack.ts', 'app/subWebView/SubWebView.tsx'],
         test: 'app/webview/hooks/useAndroidBack.test.ts',
     },
     OnBackgroundStatusChanged: {
@@ -36,6 +38,11 @@ const MOBILE_APP_EVENTS = {
         emittedBy: ['app/webview/hooks/fileTransferHandlers.ts'],
         test: 'app/webview/hooks/fileTransferHandlers.test.ts',
     },
+    // Also the reply to `StopAudioRecording`; pushed when the shell ends a recording by itself.
+    OnAudioRecordingEnded: {
+        emittedBy: ['app/webview/hooks/audioRecordingHandlers.ts'],
+        test: 'app/webview/hooks/audioRecordingHandlers.test.ts',
+    },
     OnPurchaseSuccess: {
         emittedBy: ['app/webview/hooks/useSubscriptionIapHandler.ts'],
         test: 'app/webview/hooks/useSubscriptionIapHandler.test.ts',
@@ -43,6 +50,20 @@ const MOBILE_APP_EVENTS = {
     OnPurchaseError: {
         emittedBy: ['app/webview/hooks/useSubscriptionIapHandler.ts'],
         test: 'app/webview/hooks/useSubscriptionIapHandler.test.ts',
+    },
+    OnSubWebViewClosed: {
+        emittedBy: ['app/webview/hooks/subWebViewHandlers.ts'],
+        test: 'app/webview/hooks/subWebViewHandlers.test.ts',
+    },
+    // Pushed to a sub WebView page by that view's own host, never to the main web.
+    OnSubWebViewContextChanged: {
+        emittedBy: ['app/subWebView/SubWebView.tsx'],
+        test: 'app/subWebView/SubWebView.test.tsx',
+    },
+    // Pushed to a sub WebView page with its close guard on, when the user asks to close the view.
+    OnSubWebViewCloseRequested: {
+        emittedBy: ['app/subWebView/SubWebView.tsx'],
+        test: 'app/subWebView/SubWebView.test.tsx',
     },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
 } satisfies Record<string, Decision>;

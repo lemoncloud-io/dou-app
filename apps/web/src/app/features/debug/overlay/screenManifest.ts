@@ -198,8 +198,24 @@ export const DEBUG_SCREENS = [
         section: 'tools',
         load: () => import('./screens/DeeplinkScreen').then(m => ({ default: m.DeeplinkScreen })),
     },
+    {
+        // Opens a page on another origin in the app's sub WebView and logs the close that comes back.
+        key: 'SubWebView',
+        requiresShell: true,
+        icon: 'AppWindow',
+        section: 'tools',
+        load: () => import('./screens/SubWebViewScreen').then(m => ({ default: m.SubWebViewScreen })),
+    },
 
     // Data — direct reads and edits of stored rows.
+    {
+        // The open room's channel and messages as the page holds them, beside their cache rows and a
+        // server copy. Fed by the room and thread pages themselves, so it is empty until one is open.
+        key: 'Room',
+        icon: 'MessageSquareCode',
+        section: 'data',
+        load: () => import('./screens/RoomScreen').then(m => ({ default: m.RoomScreen })),
+    },
     {
         key: 'DBBrowser',
         icon: 'Database',

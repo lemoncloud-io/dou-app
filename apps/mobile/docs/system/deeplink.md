@@ -55,6 +55,7 @@ A `https` link opens the app only when the OS sees the tap and finds the app cla
 | `/i?t=…`                | `"/i"`                             | `android:path="/i"`, exact                      |
 | `/s?code=…`             | `"/s"`                             | `android:path="/s"`, exact                      |
 | `/s/`, `/s/{code}`      | `"/s/*"`                           | `android:pathPattern="/s/.*"`                   |
+| `/apps/<appId>?…`       | `"/apps/*"`                        | `android:pathPattern="/apps/.*"`                |
 | `chatic://…` (any path) | the custom scheme in `Info.plist`  | the custom-scheme filter, no host or path limit |
 
 **The two platforms claim the same paths, and nothing else on the host.** The host is the landing
@@ -141,11 +142,38 @@ A `/s/{code}` legacy short-code link is no longer supported and resolves to `inv
 `convertShortUrlWithEnvsSync` throws for it, and the old Firestore-backed short-URL lookup it used is
 gone.
 
+## Sub WebView page links
+
+`https://app.chatic.io/apps/<appId>?<query>` names an app, not a page. `resolveDeepLink` checks its
+shape with `@chatic/shared`'s `readSubWebViewAppLink` and hands it to the web as its own path,
+`/apps/<appId>?<query>`, as an `OnNavigate` path. The web resolves the app id to the page's URL and
+opens it in a sub WebView over whatever it shows instead of routing — so it takes the same cold-start
+buffering, and the same "close a showing view as `system` first", as every other link. **The shell
+never maps an id to a page**: which URL an app opens is the web's to know (a list now, the server
+later), so a page can move without its links or the app changing. A dev build's web resolves against
+the dev pages, so a dev link never opens a production page.
+
+- **An id and a query, nothing else.** The id is one lower-case DNS label; there is no path after it
+  and no fragment. A claimed `/apps/` link of any other shape (`/apps/Quiz`, `/apps/`,
+  `/apps/quiz/level`) resolves to `invalid` and shows the invalid-link screen, rather than passing
+  through to the web's home with no word.
+- **The custom scheme carries the same link**: the landing site launches the app with
+  `chatic://apps/<appId>?…` when the OS did not hand it the https link, and it is read as its https form,
+  to the same shape.
+- **An app built on the earlier mapping** turned the link into `/sub-webview?url=<the label's page>`;
+  the web still opens that path. One built before it passes the bare path through, which is now the
+  path every app hands over.
+- **A push cannot carry a page link**: `resolvePushTapPath` reduces a `link` to a path on the web's
+  own host, so `https://app.chatic.io/apps/…` arrives as `/app.chatic.io/apps/…`. A push that should
+  open a page needs its own handling.
+
 ## The `OnNavigate` path contract
 
 The `path` handed to the web via `OnNavigate` follows these rules:
 
 - **Shape**: `pathname + search + hash` — no domain. The WebView's base is always `WEBVIEW_URL`.
+  Two paths are not routes: `/apps/<appId>?…` asks the web to open a sub WebView page, and so does
+  `/sub-webview?url=…` from an app built on the earlier mapping (above).
 - **`cid`/`sid`** travel as query parameters. The web (`resolvePushNavigation`) reads them, switches
   cloud/site, then strips them and routes on what remains — they are session context, not route
   parameters.
@@ -191,5 +219,7 @@ while a real device breaks.
   outside `WEBVIEW_URL`?
 - Is `OnNavigate`'s `path` shaped `pathname+search+hash`, with `cid`/`sid` (and a push tap's `chatId`)
   carried in the query?
+- Is a path that is not a route (like `/apps/<appId>?…`) written and read by one helper in
+  `@chatic/shared`, and handled in the web's `usePushNavigate` so every entry point takes it?
 - Does it still match the web's `resolvePushNavigation` contract (read `cid`/`sid`/`chatId` from the query,
   then strip them)?

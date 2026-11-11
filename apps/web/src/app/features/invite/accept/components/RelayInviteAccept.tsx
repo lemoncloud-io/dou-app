@@ -15,6 +15,7 @@ import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfile
 import { useSetMyPlaceProfile } from '../../../../hooks';
 import { useActivePlaceName } from '../../../../hooks';
 import { useRelayInviteFlow } from '../hooks';
+import { resolvePlaceDisplayName } from '../../../../utils/resolvePlaceDisplayName';
 
 /**
  * Split out because this screen is the ONE eager consumer of `libphonenumber-js` — every other one
@@ -146,20 +147,30 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
     if (flow.phase === 'loading') return <InviteAcceptLoading />;
 
     const isBusy = flow.phase === 'submitting' || flow.phase === 'awaitingChannel';
+    // One value for the heading and the 1:1 card, so the two cannot name different people.
+    const inviterNick = flow.invite?.inviter$?.nick?.trim() || undefined;
 
     return (
         <InviteAcceptScreen
-            inviterName={flow.invite?.inviter$?.name}
+            // The inviter's nickname in their personal place, never the account name — a number-derived
+            // account's name is its masked digits. With none, the screen's nameless line reads better.
+            inviterName={inviterNick}
             inviterImage={flow.invite?.inviter$?.image}
             // The invited place. Wired ahead of the data (ADR-0089 D1): `site$` is on the invite
             // contract (`SiteHead` = id + name, extended at runtime with intro/thumbnail) but relay
             // `invite.get` is not known to populate it yet, so the card stays hidden until it does
-            // rather than needing a code change on the day it arrives.
-            placeName={flow.invite?.site$?.name}
+            // rather than needing a code change on the day it arrives. A relay invite is into the relay's
+            // personal place, so its raw backend name goes through the home-place branding.
+            placeName={
+                flow.invite?.site$
+                    ? resolvePlaceDisplayName(flow.invite.site$, { isDefaultCloud: true }, t) || undefined
+                    : undefined
+            }
             placeIntro={flow.invite?.site$?.intro}
             placeThumbnail={flow.invite?.site$?.thumbnail}
             countdown={flow.countdown}
             targetKind="oneToOne"
+            targetName={inviterNick}
             isAccepting={isBusy}
             onAccept={flow.accept}
             onClose={flow.close}

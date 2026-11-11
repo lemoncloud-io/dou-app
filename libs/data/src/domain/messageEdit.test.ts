@@ -77,4 +77,21 @@ describe('isMessageEdited', () => {
         expect(isMessageEdited(chat({ createdAt: undefined, updatedAt: undefined }))).toBe(false);
         expect(isMessageEdited(chat({ createdAt: 0, updatedAt: 2000 }))).toBe(false);
     });
+
+    // A server that records edits stamps editedAt only when the text changes.
+    it('says yes from editedAt, whatever the timestamps say', () => {
+        expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 1000, editedAt: 1500 } as never))).toBe(true);
+    });
+
+    it('still infers from the timestamps where the server sends no editedAt', () => {
+        expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 2000 }))).toBe(true);
+        expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 1000, editedAt: 0 } as never))).toBe(false);
+    });
+
+    // A message edited and then deleted keeps its editedAt on the server; it is a tombstone, not "edited".
+    it('says no for a deleted message even with editedAt', () => {
+        expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 3000, editedAt: 2000, hidden: true } as never))).toBe(
+            false
+        );
+    });
 });

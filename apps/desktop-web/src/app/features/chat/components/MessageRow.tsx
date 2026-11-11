@@ -14,7 +14,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-import { chatAttachmentSummary, type DomainChat } from '@chatic/data';
+import { chatAttachmentSummary, isMessageEdited, type DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
@@ -33,13 +33,11 @@ import { ConfirmDialog } from '../../channels';
 import {
     canModifyMessage,
     hasMyReaction,
-    isEdited,
     isSendingImages,
     savedAttachmentOf,
     threadRootId,
     type MessageGroup,
     type ReactionTally,
-    type ReadCount,
 } from '../utils';
 import {
     Hint,
@@ -58,8 +56,8 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
+import { ReadReceiptPill, type ReadMarker } from './ReadReceiptPill';
 import { ReactionBar } from './ReactionBar';
-import { ReadReceipt } from './ReadReceipt';
 import {
     BlockKitMessage,
     blocksToPlainText,
@@ -91,6 +89,8 @@ export interface ThreadReplierView {
 export interface ThreadMetaView {
     count: number;
     lastReplyAt: number;
+    /** Replies the reader has not seen yet — the footer says so in place of the last-reply time. */
+    newCount: number;
     repliers: ThreadReplierView[];
 }
 
@@ -120,27 +120,15 @@ interface MessageRowProps {
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
     withDayInTime?: boolean;
     /**
-     * Read/unread counts for a message, or null when it gets no receipt (see
-     * `useReadCounts`). Absent on a surface that shows no receipts at all.
+     * Leave out the red "Saved" tag a saved message carries. The Saved page sets it: every row
+     * there is saved, so the tag would say nothing.
      */
+    hideSavedMark?: boolean;
     /**
-     * The read receipt for this block's last message, as numbers rather than a
-     * getter. A getter keyed on every member's cursor changed identity on each
-     * receipt anywhere in the channel, and re-rendered every row with it.
+     * The members who stopped reading at a message of this block, keyed by that message's chatNo; each
+     * is drawn on it — over the row's bottom-right corner in the main feed, under the body as a counted pill in a thread. Absent: no marker on any of them.
      */
-    receiptRead?: number;
-    receiptUnread?: number;
-    /**
-     * Show the receipt only while its message is hovered or focused. Set on every block of mine
-     * but the latest, where a line under each one was the loudest repeated thing in a busy feed.
-     */
-    receiptOnReveal?: boolean;
-    /**
-     * Hang the first message's toolbar just under the author line instead of over it. The
-     * thread panel sets it: its column is about 270px wide and the toolbar about 210px, so
-     * over the header the toolbar hid the name of the person whose message it acts on.
-     */
-    toolbarUnderHeader?: boolean;
+    readMarkers?: Readonly<Record<number, ReadMarker>>;
 }
 
 /**
@@ -248,10 +236,8 @@ export const MessageRow = memo(
         mentionables,
         highlightChatNo,
         withDayInTime,
-        receiptRead,
-        receiptUnread,
-        receiptOnReveal,
-        toolbarUnderHeader,
+        hideSavedMark,
+        readMarkers,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -405,7 +391,7 @@ export const MessageRow = memo(
                 data-roving-group=""
                 data-row-key={group.key}
                 className={cn(
-                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
+                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-[var(--message-row-py)] transition-colors ease-tactile hover:bg-accent/70',
                     // The pointer is in the editor, not over the band: keep the band so the row reads as open.
                     editingKey !== null && 'bg-accent/70'
                 )}
@@ -456,7 +442,7 @@ export const MessageRow = memo(
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-[var(--message-gap)]">
                         {group.messages.map((message, i) => {
                             // A long-pending row is an unsent artifact, not an in-flight
                             // send — treat it as failed so Retry/Delete are offered. Pictures
@@ -497,6 +483,7 @@ export const MessageRow = memo(
                             // to something the row says is gone, with no way to add or remove one
                             // because the toolbar is gone too.
                             const tallies = message.id && !message.hidden ? reactions?.get(message.id) : undefined;
+                            const readMarker = message.chatNo != null ? readMarkers?.[message.chatNo] : undefined;
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
@@ -515,27 +502,7 @@ export const MessageRow = memo(
                             const showMore = !!content || showSave || canModifyMessage(message, group.isMine);
                             const hasActions = showReactions || showReply || showMore;
                             const isEditing = editingKey === key;
-                            const wasEdited = isEdited(message);
-                            // One receipt per author block, on its last message — the same
-                            // place the group's own timestamp belongs to. Per-message
-                            // receipts would stack four identical lines under a burst of
-                            // four messages sent a second apart. A message still in flight,
-                            // failed or deleted has no meaningful count.
-                            //
-                            // An older block's receipt waits for its message to be hovered or
-                            // focused. Keyed on the same state as the toolbar, so the arrow keys
-                            // that move focus through the feed reveal it too, not only a pointer.
-                            const isLastInGroup = i === group.messages.length - 1;
-                            const isReceiptRevealed = !receiptOnReveal || hoverKey === key || focusKey === key;
-                            const receipt: ReadCount | null =
-                                receiptRead != null &&
-                                isLastInGroup &&
-                                isReceiptRevealed &&
-                                isSettled &&
-                                !message.hidden &&
-                                message.chatNo
-                                    ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
-                                    : null;
+                            const wasEdited = isMessageEdited(message);
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
@@ -570,14 +537,36 @@ export const MessageRow = memo(
                                     }}
                                     className={cn(
                                         'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
+                                        // Room for the read marker laid over the bottom-right corner, so a
+                                        // line running to the edge does not end under the faces.
+                                        readMarker && !readMarker.counted && 'pr-24',
+                                        // A tint around the whole message, tag included: a tag alone between
+                                        // two messages reads as belonging to whichever sits above it.
+                                        !hideSavedMark && isSavedKey(key) && '-mx-2 bg-destructive/5 px-2 py-1',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
                                             'bg-primary/10 ring-1 ring-ring'
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
+                                        <span
+                                            className={cn(
+                                                'absolute top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block',
+                                                // The saved tint widens the row by 8px on the left.
+                                                !hideSavedMark && isSavedKey(key) ? '-left-14' : '-left-12'
+                                            )}
+                                        >
                                             {msgTime}
+                                        </span>
+                                    )}
+                                    {!hideSavedMark && isSavedKey(key) && (
+                                        // Above the content, not in the gutter: the gutter holds the
+                                        // avatar on a block's first message and the hover time on the rest.
+                                        // Plain label, no filled pill: a tinted chip read as an error badge
+                                        // and outweighed the author line beneath it.
+                                        <span className="mb-0.5 flex w-fit items-center gap-1 text-micro font-medium text-destructive">
+                                            <Bookmark size={11} aria-hidden />
+                                            {t('chat.savedTag')}
                                         </span>
                                     )}
                                     {message.hidden ? (
@@ -677,6 +666,7 @@ export const MessageRow = memo(
                                         <MessageImages
                                             message={message}
                                             canDelete={group.isMine}
+                                            onDeleteMessage={() => message.id && deleteMessage(message.id)}
                                             author={author}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
@@ -713,9 +703,8 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
-                                    {receipt && (
-                                        <ReadReceipt readCount={receipt.readCount} unreadCount={receipt.unreadCount} />
-                                    )}
+                                    {/* Main feed: who stopped reading here, over the bottom-right corner. Thread: who has read it. */}
+                                    {readMarker && <ReadReceiptPill {...readMarker} />}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
@@ -744,8 +733,7 @@ export const MessageRow = memo(
                                             data-row-actions=""
                                             inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
-                                                i === 0 && toolbarUnderHeader ? '-top-1.5' : '-top-10',
-                                                'absolute right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
@@ -759,7 +747,19 @@ export const MessageRow = memo(
                                                 Always the same two, in the same order — see
                                                 QUICK_REACTIONS. A row that reorders itself has to
                                                 be read before it can be used, which is the cost
-                                                these buttons exist to remove. */}
+                                                these buttons exist to remove.
+
+                                                Folded away in a column under 480px (a thread
+                                                panel, a Threads page card): with them the toolbar
+                                                is about 210px, and over the header of a 270px
+                                                column it hid the author's name. Without them it
+                                                is short enough to sit there, and the picker
+                                                beside them still reacts in one click. Over the
+                                                header and not over the text, because a toolbar on
+                                                the first line sat under the pointer of a reader
+                                                dragging to select that line. The column is the
+                                                container: MessageList and ThreadCardMessages
+                                                declare it. */}
                                             {showReactions &&
                                                 QUICK_REACTIONS.map(emoji => (
                                                     <ToolbarButton
@@ -767,7 +767,7 @@ export const MessageRow = memo(
                                                         label={t('chat.reaction.quick', { emoji })}
                                                         pressed={hasMyReaction(tallies, emoji)}
                                                         className={cn(
-                                                            'text-lead leading-none hover:bg-accent',
+                                                            'text-lead leading-none hover:bg-accent [@container(max-width:480px)]:hidden',
                                                             hasMyReaction(tallies, emoji) && 'bg-accent'
                                                         )}
                                                         onClick={() => {
@@ -1013,7 +1013,13 @@ export const MessageRow = memo(
                                         <button
                                             type="button"
                                             onClick={() => onOpenThread(threadRootId(message))}
-                                            aria-label={t('chat.thread.openThread', { count: meta.count })}
+                                            aria-label={[
+                                                t('chat.thread.openThread', { count: meta.count }),
+                                                meta.newCount > 0 &&
+                                                    t('chat.thread.newReplies', { count: meta.newCount }),
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
                                             className="group/thread focus-ring tactile -mx-1.5 mt-1 flex w-full max-w-md items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-caption transition-colors ease-tactile hover:border-hairline hover:bg-elevated hover:shadow-raised"
                                         >
                                             {meta.repliers.length > 0 ? (
@@ -1045,12 +1051,24 @@ export const MessageRow = memo(
                                             <span className="shrink-0 font-semibold tabular-nums text-primary-ink group-hover/thread:underline">
                                                 {t('chat.thread.replyCount', { count: meta.count })}
                                             </span>
-                                            {meta.lastReplyAt > 0 && (
-                                                <span className="truncate text-muted-foreground group-hover/thread:hidden">
-                                                    {t('chat.thread.lastReplyAt', {
-                                                        time: formatTime(meta.lastReplyAt),
-                                                    })}
+                                            {meta.newCount > 0 ? (
+                                                <span className="flex min-w-0 items-center gap-1.5 font-semibold text-foreground group-hover/thread:hidden">
+                                                    <span
+                                                        aria-hidden
+                                                        className="h-2 w-2 shrink-0 rounded-full bg-badge-unread"
+                                                    />
+                                                    <span className="truncate">
+                                                        {t('chat.thread.newReplies', { count: meta.newCount })}
+                                                    </span>
                                                 </span>
+                                            ) : (
+                                                meta.lastReplyAt > 0 && (
+                                                    <span className="truncate text-muted-foreground group-hover/thread:hidden">
+                                                        {t('chat.thread.lastReplyAt', {
+                                                            time: formatTime(meta.lastReplyAt),
+                                                        })}
+                                                    </span>
+                                                )
                                             )}
                                             <span className="hidden truncate text-muted-foreground group-hover/thread:inline">
                                                 {t('chat.thread.view')}
@@ -1076,13 +1094,15 @@ export const MessageRow = memo(
         // one message changed. Everything else compares by identity as before;
         // those two compare only the entries this block actually reads.
         for (const k of Object.keys(next) as (keyof MessageRowProps)[]) {
-            if (k === 'reactions' || k === 'threadMeta' || k === 'group') continue;
+            if (k === 'reactions' || k === 'threadMeta' || k === 'group' || k === 'readMarkers') continue;
             if (prev[k] !== next[k]) return false;
         }
         // The group object is rebuilt on every feed change too; what matters is
         // its fields and the identity of each message in it (the repository
         // hands back a new object only for a message that actually changed).
         if (!sameGroup(prev.group, next.group)) return false;
+        // A fresh object per render; only its fields matter.
+        if (!sameEntry(prev.readMarkers, next.readMarkers)) return false;
         for (const message of next.group.messages) {
             if (message.id && !sameEntry(prev.reactions?.get(message.id), next.reactions?.get(message.id))) {
                 return false;

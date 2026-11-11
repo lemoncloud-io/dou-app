@@ -4,7 +4,7 @@ import * as React from 'react';
 import { SLIDE_FALLBACK_MS, SLIDE_MS } from '../overlay/slidePresence';
 import { AttachPanel, type AttachPanelHandle, type AttachPanelProps } from './AttachPanel';
 
-const labels = { photo: '사진', camera: '카메라', file: '파일', title: '첨부' };
+const labels = { photo: '사진', camera: '카메라', file: '파일', voice: '음성', title: '첨부' };
 
 const props = (overrides: Partial<AttachPanelProps> = {}): AttachPanelProps => ({
     open: true,
@@ -45,6 +45,19 @@ describe('AttachPanel', () => {
         render(<AttachPanel {...props({ onFile: undefined })} />);
 
         expect(screen.queryByRole('button', { name: '파일' })).not.toBeInTheDocument();
+    });
+
+    // A shell that cannot record passes no handler, and the panel draws no voice entry for it.
+    it('offers voice after files only where the host can record, and fires it', () => {
+        const { rerender } = render(<AttachPanel {...props()} />);
+        expect(screen.queryByRole('button', { name: '음성' })).not.toBeInTheDocument();
+
+        const onVoice = jest.fn();
+        rerender(<AttachPanel {...props({ onVoice })} />);
+        const names = screen.getAllByRole('button').map(button => button.textContent);
+        expect(names.slice(-2)).toEqual(['파일', '음성']);
+        fireEvent.click(screen.getByRole('button', { name: '음성' }));
+        expect(onVoice).toHaveBeenCalledTimes(1);
     });
 
     // A shell that cannot read the library passes no row; the panel must not draw an empty one.

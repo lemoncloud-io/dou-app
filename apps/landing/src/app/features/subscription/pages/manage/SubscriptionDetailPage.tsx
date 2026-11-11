@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { ConfirmDialog, PageLoader, PlanCard, StatusBadge, SummaryTile } from '../../components';
+import { ConfirmDialog, PageHeader, PageLoader, PlanCard, StatusBadge, SummaryTile } from '../../components';
 import { Badge, Banner, Button, Card, Dialog, useToast } from '../../components/ui';
 import {
     useBillingInfo,
@@ -13,8 +13,9 @@ import {
     useSession,
     useSubscription,
 } from '../../hooks';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
 import { type SceneAction, type SceneBanner, sceneOf } from '../../lib/sceneOf';
+import { useManagementScreens } from '../../lib/screens';
 import { chargeCardOf, changeTargetsOf, expiryOf, scheduledChangeDialogOf } from './manageModel';
 import { LoadFailure } from './LoadFailure';
 import { RecentInvoices } from './RecentInvoices';
@@ -22,10 +23,18 @@ import { SceneBannerView } from './SceneBannerView';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
 import { useResumeFlow } from './useResumeFlow';
 
+import type { SubscriptionPort } from '../../lib/port';
 import type { PaymentMethod, Subscription } from '../../types';
 import type { TFunction } from 'i18next';
 
 const PILL = 'rounded-full';
+
+/** The actions that call a port method of their own, which the port may have no server for. */
+const SERVER_CALL = {
+    invoices: 'listInvoices',
+    resume: 'resumeSubscription',
+    cancelScheduledChange: 'cancelScheduledChange',
+} as const satisfies Partial<Record<SceneAction, keyof SubscriptionPort>>;
 
 /** W-18 — one subscription: banner and actions from `sceneOf`, recent invoices. */
 export const SubscriptionDetailPage = (): JSX.Element => {
@@ -57,18 +66,32 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     const toast = useToast();
     const today = useToday();
     const methods = usePaymentMethods();
-    const billingInfo = useBillingInfo();
+    const screens = useManagementScreens();
+    // `management` is the card screens: the card tile and a failed payment lead to them.
+    const management = screens.cards;
+    const billingInfo = useBillingInfo({ enabled: screens.emails });
     const session = useSession();
     const plans = usePlans();
     const cancelChange = useCancelScheduledChange();
     const resume = useResumeFlow(sub, fmt);
     const [dialog, setDialog] = useState<'changePlan' | 'chooseClouds' | 'cancelChange' | 'sameDay' | null>(null);
 
-    const { banner, actions } = sceneOf(sub, today);
+    const scene = sceneOf(sub, today);
+    const { banner } = scene;
+    // With the card screens hidden, the buttons that lead to them go with them. An action whose call
+    // the port has no server for is left out the same way.
+    const supports = useSupports();
+    const actions = scene.actions.filter(
+        action =>
+            (management || (action !== 'paymentMethods' && action !== 'updatePaymentMethod')) &&
+            (!(action in SERVER_CALL) || supports(SERVER_CALL[action as keyof typeof SERVER_CALL]))
+    );
     const plan = fmt.planOf(sub.planId);
     const target = fmt.planOf(sub.pendingChange?.planId);
     const card = chargeCardOf(sub, methods.data ?? []);
-    const bounced = billingInfo.data?.emails.find(email => email.primary && email.status === 'bounced');
+    const bounced = screens.emails
+        ? billingInfo.data?.emails.find(email => email.primary && email.status === 'bounced')
+        : undefined;
     const changeTargets = plan ? changeTargetsOf(plan, plans.data ?? [], session.data ?? null) : [];
 
     const close = (next: boolean) => !next && setDialog(null);
@@ -119,10 +142,10 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
 
     return (
         <div className="flex max-w-[1072px] flex-col gap-5">
-            <header className="mb-2 flex flex-col gap-2">
-                <h1 className="text-[28px] font-bold text-navy">{t('subscription.manage.detail.title')}</h1>
-                <p className="text-sm text-subtitle">{t('subscription.manage.detail.subtitle')}</p>
-            </header>
+            <PageHeader
+                title={t('subscription.manage.detail.title')}
+                subtitle={t('subscription.manage.detail.subtitle')}
+            />
 
             {bounced && (
                 <Banner
@@ -139,28 +162,35 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             )}
             <SceneBannerView sub={sub} banner={banner} card={card} fmt={fmt} />
 
-            <div className="grid grid-cols-4 gap-3">
+            {/* A phone reads the four facts as one bordered card in two rows; from `md` they are four tiles. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-[14px] border border-line p-4 md:grid-cols-4 md:gap-3 md:rounded-none md:border-0 md:p-0">
                 <SummaryTile label={t('subscription.manage.detail.tiles.product')} value={fmt.planName(sub.planId)} />
                 <SummaryTile
                     label={t('subscription.manage.detail.tiles.status')}
-                    value={
-                        <span className="text-sm">
-                            <StatusBadge subscription={sub} />
-                        </span>
-                    }
+                    value={<StatusBadge subscription={sub} />}
+                    className="max-md:gap-2"
                 />
                 {sceneTiles(sub, banner, card, fmt, t).map(tile => (
-                    <SummaryTile key={tile.label} label={tile.label} value={tile.value} />
+                    <SummaryTile
+                        key={tile.label}
+                        label={tile.label}
+                        value={tile.value}
+                        className="max-md:border-t max-md:border-line max-md:pt-4"
+                    />
                 ))}
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 md:gap-[11px]">
                 {actions.map((action, index) => (
                     <Button
                         key={action}
                         size="lg"
                         variant={action === 'cancel' ? 'ghost' : index === 0 ? 'primary' : 'secondary'}
-                        className={action === 'cancel' ? `${PILL} ml-auto` : PILL}
+                        className={
+                            action === 'cancel'
+                                ? `${PILL} ml-auto max-md:w-full`
+                                : `${PILL} whitespace-nowrap max-md:h-[54px] max-md:min-w-0 max-md:flex-1 max-md:basis-[calc(50%-4px)]`
+                        }
                         disabled={action === 'resume' && !resume.ready}
                         onClick={() => run(action)}
                     >
@@ -170,7 +200,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             </div>
 
             {banner.kind === 'downgradeScheduled' && plan && target ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <PlanChangeCard
                         tag={<Badge tone="warning">{t('subscription.manage.detail.plans.ending')}</Badge>}
                         name={fmt.planName(plan.id)}
@@ -196,20 +226,26 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                 </div>
             ) : (
                 banner.kind !== 'restricted' && (
-                    <div className="grid grid-cols-2 gap-3">
-                        <InfoCard
-                            title={t('subscription.manage.detail.paymentCard.title')}
-                            line={
-                                card
-                                    ? t('subscription.manage.detail.paymentCard.line', {
-                                          card: fmt.card(card),
-                                          exp: expiryOf(card),
-                                      })
-                                    : t('subscription.manage.detail.paymentCard.none')
-                            }
-                            action={t('subscription.manage.detail.paymentCard.manage')}
-                            onAction={() => navigate(ROUTES.subscription.paymentMethods)}
-                        />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {management && (
+                            <InfoCard
+                                title={t('subscription.manage.detail.paymentCard.title')}
+                                line={
+                                    card
+                                        ? expiryOf(card)
+                                            ? t('subscription.manage.detail.paymentCard.line', {
+                                                  card: fmt.card(card),
+                                                  exp: expiryOf(card),
+                                              })
+                                            : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
+                                                  card: fmt.card(card),
+                                              })
+                                        : t('subscription.manage.detail.paymentCard.none')
+                                }
+                                action={t('subscription.manage.detail.paymentCard.manage')}
+                                onAction={() => navigate(ROUTES.subscription.paymentMethods)}
+                            />
+                        )}
                         <InfoCard
                             title={t('subscription.manage.detail.periodCard.title')}
                             line={
@@ -223,7 +259,11 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                                           day: sub.billingDay,
                                       })
                             }
-                            action={t('subscription.manage.detail.periodCard.history')}
+                            action={
+                                supports('listInvoices')
+                                    ? t('subscription.manage.detail.periodCard.history')
+                                    : undefined
+                            }
                             onAction={() => navigate(ROUTES.subscription.history)}
                         />
                     </div>
@@ -248,7 +288,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                 {changeTargets.length === 0 ? (
                     <p className="text-sm text-subtitle">{t('subscription.manage.dialogs.changePlan.none')}</p>
                 ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {changeTargets.map(({ plan: option, kind }) => (
                             <PlanCard
                                 key={option.id}
@@ -356,15 +396,18 @@ const InfoCard = ({
 }: {
     title: string;
     line: string;
-    action: string;
+    /** Left out, the card has no button. */
+    action?: string;
     onAction: () => void;
 }): JSX.Element => (
-    <Card className="flex flex-col items-start gap-3 px-5 py-5">
-        <h2 className="text-sm font-semibold text-navy">{title}</h2>
-        <p className="text-[13px] text-subtitle">{line}</p>
-        <Button size="sm" variant="secondary" onClick={onAction}>
-            {action}
-        </Button>
+    <Card className="flex flex-col items-start gap-2 rounded-[14px] border-line p-4 md:gap-2.5 md:rounded-2xl md:px-[21px] md:py-[19px]">
+        <h2 className="text-sm font-bold leading-normal text-ink">{title}</h2>
+        <p className="text-[13px] font-medium leading-normal text-mute">{line}</p>
+        {action && (
+            <Button size="sm" variant="secondary" className="max-md:h-10 max-md:px-4 max-md:text-sm" onClick={onAction}>
+                {action}
+            </Button>
+        )}
     </Card>
 );
 

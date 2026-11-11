@@ -8,7 +8,7 @@ import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { appBridge } from '../../../bridge/appBridge';
-import { shellCapabilities, useCanExportImages, useCanExportVideos } from '../../../bridge/shellCapabilities';
+import { useCanExportImages } from '../../../bridge/shellCapabilities';
 import { getShellDownloads } from '../../../bridge/shellDownload';
 import {
     exportMedia,
@@ -45,9 +45,9 @@ export interface MediaExportBusy {
 /** A local preview (`blob:`) or a `data:` address lives only in the page; the shell cannot fetch it. */
 export const isExportableUrl = (url: string | undefined): url is string => !!url && url.startsWith('https:');
 
-/** Sent, drawn, and of a kind this app can export: the item can be saved or shared right now. */
-const isReady = (item: ExportableMedia, videos: boolean): item is ExportableMedia & { url: string } =>
-    isExportableUrl(item.url) && !item.broken && (item.kind !== 'video' || videos);
+/** Sent and drawn: the item can be saved or shared right now. */
+const isReady = (item: ExportableMedia): item is ExportableMedia & { url: string } =>
+    isExportableUrl(item.url) && !item.broken;
 
 /**
  * Save and share for the photos and videos of one message, kept per upload so the state survives
@@ -56,14 +56,11 @@ const isReady = (item: ExportableMedia, videos: boolean): item is ExportableMedi
  * done; a share is cancelled on close — and when the row itself goes away — so its sheet never
  * appears over whatever the user went to next; a "save all" finishes the item it is on and stops.
  *
- * Photos follow the handshake (`canExport`). Videos need that and an app that has not refused one
- * (`canExportVideos`): an app built before videos lists the same messages and answers a video with
- * `UNSUPPORTED_TYPE`, which hides video export for the session.
+ * Photos and videos alike follow the handshake (`canExport`).
  */
 export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
     const canExport = useCanExportImages();
-    const canExportVideos = useCanExportVideos();
     const [busy, setBusy] = useState<ReadonlyMap<string, MediaExportBusy>>(() => new Map());
     const shares = useRef(new Set<AbortController>());
     const runs = useRef(new Set<AbortController>());
@@ -100,8 +97,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
                     // The same address the viewer opens: the original, or the thumbnail when there is none.
                     return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? slot.thumbUrl ?? undefined) : undefined;
                 },
-                withdraw: () => shellCapabilities.withdrawImageExport(),
-                withdrawVideos: () => shellCapabilities.withdrawVideoExport(),
                 log: (message, data) => logger.error('DOWNLOAD', message, data),
             };
         },
@@ -131,8 +126,7 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
 
     const run = useCallback(
         async (action: MediaExportAction, item: ExportableMedia) => {
-            // Read at the press, not at the render: a video refused a moment ago is already known here.
-            if (!isReady(item, shellCapabilities.canExportVideos()) || running.current.has(item.uploadId)) return;
+            if (!isReady(item) || running.current.has(item.uploadId)) return;
             running.current.add(item.uploadId);
             const controller = new AbortController();
             if (action === 'share') shares.current.add(controller);
@@ -162,13 +156,10 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
     );
 
     /**
-     * What a "save all" over these items would save now, in their order: sent, not broken, and no
-     * video once this app refused one. Its length is the count the save sheet offers.
+     * What a "save all" over these items would save now, in their order: sent and not broken. Its
+     * length is the count the save sheet offers.
      */
-    const savable = useCallback(
-        (items: readonly ExportableMedia[]) => items.filter(item => isReady(item, canExportVideos)),
-        [canExportVideos]
-    );
+    const savable = useCallback((items: readonly ExportableMedia[]) => items.filter(isReady), []);
 
     /**
      * Saves every savable item of the message, one after another, and reports once at the end. An
@@ -178,10 +169,9 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
      */
     const runAll = useCallback(
         async (items: readonly ExportableMedia[]) => {
-            const videos = shellCapabilities.canExportVideos();
             const queue = items.filter(
                 (item): item is ExportableMedia & { url: string } =>
-                    isReady(item, videos) && !running.current.has(item.uploadId)
+                    isReady(item) && !running.current.has(item.uploadId)
             );
             if (queue.length === 0) return;
             const ids = queue.map(item => item.uploadId);
@@ -218,16 +208,8 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
     // The row can go without the viewer closing first — a push tap or a deep link leaves the room.
     useEffect(() => stopOnClose, [stopOnClose]);
 
-    /** Whether the viewer shows the buttons on this item at all. */
-    const canExportItem = useCallback(
-        (item: ExportableMedia) => canExport && (item.kind !== 'video' || canExportVideos),
-        [canExport, canExportVideos]
-    );
-
     return {
         canExport,
-        canExportVideos,
-        canExportItem,
         savable,
         busyFor: (uploadId: string) => busy.get(uploadId),
         run,

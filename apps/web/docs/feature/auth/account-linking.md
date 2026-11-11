@@ -25,7 +25,7 @@ deliberately not in it.** That packet is the socket handshake and belongs to the
 `AuthController` alone; a second sender would authenticate a session the controller cannot account
 for, because every input to its state machine is keyed to packets it sent itself. `libs/app-runtime`
 enforces the absence with a test that walks its own source and fails on the string —
-see [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md).
+see [`libs/auth`](../../../../../libs/auth/docs/socket/README.md).
 
 ## Responsibilities
 
@@ -154,7 +154,7 @@ those calls answer 403. `applySessionToken` owns that installation —
 - **Do not spell a packet field above the data source.** A `mode: 'link'` string in a component means
   the vocabulary has leaked out of the one layer that owns it.
 - **Do not add a second `auth.update` sender.** The absence is enforced by a test, and the reason is
-  in [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md).
+  in [`libs/auth`](../../../../../libs/auth/docs/socket/README.md).
 - **Do not pass delivery switches as `false` to mean "default".** Omit them.
 - **Do not branch on the response shape to learn the mode.** The request knew.
 - **Do not treat `'unknown'` as `'absent'`.**
@@ -201,5 +201,5 @@ so a stale `dist` invents errors that the source does not contain.
 - [international-phone-input.md](./international-phone-input.md) — how a number reaches E.164 before
   it is sent.
 - [account](../account/README.md) — the `/mypage/account` card that reads `link$` and links social.
-- [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md) — who owns the socket
+- [`libs/auth`](../../../../../libs/auth/docs/socket/README.md) — who owns the socket
   handshake, and why nothing here may send it.

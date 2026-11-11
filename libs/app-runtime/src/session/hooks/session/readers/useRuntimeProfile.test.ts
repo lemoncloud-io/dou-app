@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { getActiveSessionUser } from '../../../store';
+import { getActiveSessionUser } from '@chatic/session/store';
 import { useGlobalSession } from './useGlobalSession';
 
 import { useRuntimeProfile } from './useRuntimeProfile';
@@ -11,7 +11,7 @@ import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeReposit
 // `../../session` barrel stopped working the day the barrel started publishing this hook (a barrel
 // re-exporting its own consumer is the cycle the facade groups avoid), and a barrel mock also drags
 // in transport's `import.meta`. The repositories hook is mocked locally.
-jest.mock('../../../store', () => ({ getActiveSessionUser: jest.fn() }));
+jest.mock('@chatic/session/store', () => ({ getActiveSessionUser: jest.fn() }));
 jest.mock('./useGlobalSession', () => ({ useGlobalSession: jest.fn() }));
 jest.mock('../../../../data/hooks/useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
 

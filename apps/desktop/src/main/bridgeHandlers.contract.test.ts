@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/app-messages';
+import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/bridge-messages';
 import {
     AppBridgeHost,
     InMemoryAdapter,
@@ -11,7 +11,7 @@ import {
     type ResponseMessage,
 } from '@chatic/bridges';
 
-import { registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
+import { DESKTOP_MAIN_HOST_OPTIONS, registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
 import { startUpdater } from './updater';
 
 // updater.ts registers the two auto-update handlers and is the one module here that needs electron.
@@ -43,11 +43,14 @@ const PHONE_TOOLING = "The phone shell's boot, resume, perf and debug-panel tool
 const STORE_IAP = 'Store purchases happen on the phones only';
 const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser and returns by deeplink';
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
+// The page-facing requests: a sub view page sends them to the sub view's own host, never to the main
+// window's. The desktop page host answers a subset of them (see desktopSubWebView.test.ts).
+const SUB_WEBVIEW_PAGE = "A sub WebView page's request; the main window's host never answers it";
 
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
  * host answers each with `NOT_FOUND`. A message belongs here only by decision — a new one in
- * `@chatic/app-messages` fails this suite until it has a handler or a line here.
+ * `@chatic/bridge-messages` fails this suite until it has a handler or a line here.
  */
 const DESKTOP_UNSUPPORTED = {
     SetCanGoBack: PHONE,
@@ -76,6 +79,8 @@ const DESKTOP_UNSUPPORTED = {
     PrepareVideo: BROWSER,
     ReadAttachment: BROWSER,
     ReadVideoFrame: BROWSER,
+    StartAudioRecording: PHONE,
+    StopAudioRecording: PHONE,
     FetchShareIntake: PHONE,
     ReleaseShareIntake: PHONE,
     RequestPermission: PHONE,
@@ -138,6 +143,18 @@ const DESKTOP_UNSUPPORTED = {
     ClearTestRecords: NO_STORE,
     CheckAppUpdate: STORE_UPDATE,
     OpenStore: STORE_UPDATE,
+    FinishSubWebView: SUB_WEBVIEW_PAGE,
+    SetSubWebViewTitle: SUB_WEBVIEW_PAGE,
+    GetSubWebViewUserKey: SUB_WEBVIEW_PAGE,
+    SetSubWebViewCloseGuard: SUB_WEBVIEW_PAGE,
+    ReportSubWebViewError: SUB_WEBVIEW_PAGE,
+    GetSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    SetSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    RemoveSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    ClearSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    GetSubWebViewStorageInfo: SUB_WEBVIEW_PAGE,
+    GetSubWebViewPermission: SUB_WEBVIEW_PAGE,
+    RequestSubWebViewPermission: SUB_WEBVIEW_PAGE,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**
@@ -154,6 +171,11 @@ const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] 
     SetBadgeCount: { count: 3 },
     StartUpdateDownload: {},
     RestartToUpdate: {},
+    StorageGet: { medium: 'nativeSecure' },
+    StorageSave: { medium: 'nativeSecure', set: { token: 'abc' }, remove: ['old'] },
+    StorageClear: { medium: 'nativeSecure' },
+    OpenSubWebView: { url: 'https://quiz.apps.chatic.io/' },
+    CloseSubWebView: { viewId: 'view-1' },
 };
 
 const VOCABULARY = Object.keys(WEB_MESSAGE_RESPONSE_TYPE) as WebMessageType[];
@@ -163,6 +185,26 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
     showNotification: jest.fn(),
     awaitFcmToken: jest.fn(() => Promise.resolve('fcm-token')),
     setBadgeCount: jest.fn<boolean, [number, string?]>(() => true),
+    secureStorage: {
+        get: jest.fn(() => Promise.resolve({ status: 'available' as const, values: { token: 'abc' } })),
+        save: jest.fn(() => Promise.resolve(true)),
+        clear: jest.fn(() => Promise.resolve(true)),
+    },
+    // A stand-in: what opens and how is the service's, tested in desktopSubWebView.test.ts. Here each
+    // request only has to reach it and come back as its paired reply.
+    subWebView: {
+        open: jest.fn(() => ({
+            ok: true as const,
+            view: {
+                viewId: 'view-1',
+                url: 'https://quiz.apps.chatic.io/',
+                origin: 'https://quiz.apps.chatic.io',
+                trust: 'reviewed' as const,
+                params: {},
+            },
+        })),
+        close: jest.fn(() => ({ ok: true as const })),
+    },
 });
 
 /**
@@ -177,6 +219,7 @@ const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
             replies.push(JsonProtocol.decode(raw) as ResponseMessage);
             deliver?.(raw);
         },
+        ...DESKTOP_MAIN_HOST_OPTIONS,
     });
     registerHandlers(host, deps);
     // startUpdater arms a check loop; the contract only needs what it registers.
@@ -236,7 +279,9 @@ describe('desktop bridge contract', () => {
     // A handler registered anywhere else is invisible to the checks above, so a message already
     // listed as unsupported could gain one without failing them.
     it('registers handlers only in the files this suite loads', () => {
-        const allowed = ['bridgeHandlers.ts', 'updater.ts'];
+        // The sub view's own host registers the page-facing subset; it is a different host, and
+        // desktopSubWebView.test.ts holds it to that subset.
+        const allowed = ['bridgeHandlers.ts', 'updater.ts', 'subWebView/desktopSubBridgeHost.ts'];
         const sources = (dir: string): string[] =>
             readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
                 entry.isDirectory() ? sources(join(dir, entry.name)) : [join(dir, entry.name)]
@@ -337,5 +382,69 @@ describe('desktop bridge handlers', () => {
 
         expect(deps.setBadgeCount).toHaveBeenCalledWith(4, 'data:image/png;base64,AA==');
         expect(reply).toEqual(expect.objectContaining({ data: { success: took } }));
+    });
+
+    describe('device vault (nativeSecure)', () => {
+        it('answers StorageGet with the vault snapshot', async () => {
+            const reply = await createShell().send('StorageGet', { medium: 'nativeSecure' });
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: true, data: { status: 'available', values: { token: 'abc' } } })
+            );
+        });
+
+        it('passes set and remove to the vault and reports whether the write landed', async () => {
+            const deps = createDeps();
+            (deps.secureStorage.save as jest.Mock).mockResolvedValue(false);
+
+            const reply = await createShell(deps).send('StorageSave', {
+                medium: 'nativeSecure',
+                set: { a: '1' },
+                remove: ['b'],
+            });
+
+            expect(deps.secureStorage.save).toHaveBeenCalledWith({ a: '1' }, ['b']);
+            expect(reply).toEqual(expect.objectContaining({ success: true, data: { ok: false } }));
+        });
+
+        it('answers StorageClear once the vault is cleared', async () => {
+            const deps = createDeps();
+
+            const reply = await createShell(deps).send('StorageClear', { medium: 'nativeSecure' });
+
+            expect(deps.secureStorage.clear).toHaveBeenCalled();
+            expect(reply).toEqual(expect.objectContaining({ success: true, data: { ok: true } }));
+        });
+
+        it.each(['StorageGet', 'StorageSave', 'StorageClear'] as const)(
+            'refuses %s for a medium the shell does not keep',
+            async type => {
+                const deps = createDeps();
+
+                const reply = await createShell(deps).send(type, { medium: 'localStorage', set: {}, remove: [] });
+
+                expect(reply).toEqual(
+                    expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+                );
+                expect(deps.secureStorage.get).not.toHaveBeenCalled();
+                expect(deps.secureStorage.save).not.toHaveBeenCalled();
+                expect(deps.secureStorage.clear).not.toHaveBeenCalled();
+            }
+        );
+
+        it('refuses a StorageSave whose values are not strings', async () => {
+            const deps = createDeps();
+
+            const reply = await createShell(deps).send('StorageSave', {
+                medium: 'nativeSecure',
+                set: { a: 1 },
+                remove: [],
+            });
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+            expect(deps.secureStorage.save).not.toHaveBeenCalled();
+        });
     });
 });

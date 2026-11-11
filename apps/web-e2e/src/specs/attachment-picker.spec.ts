@@ -9,8 +9,7 @@ import { expect, test } from '../support/test';
  * shell's half in `attachmentPickerHandlers`). The page asks the shell to open the OS picker with
  * `PickAttachments`; the shell keeps what was picked and answers with addresses. What was picked waits
  * above the composer in the "Files to send" tray, and goes to the room as a message only when Send is
- * pressed. A shell without the picker answers `NOT_FOUND`, and the page falls back to its own file
- * input for the rest of its life — whose files wait in the same tray.
+ * pressed. Every app the web runs in has the picker; the page's own file input is a browser's only.
  *
  * Every scenario stops at the room showing the message as sending: the relay never answers the
  * upload's first step, so what follows (the shell's file transfer, `chat.send`) is not decided here.
@@ -116,32 +115,4 @@ test('a file the app would not copy is reported, and nothing is sent', async ({ 
     await expect.poll(() => backend.sent('upload.start').length).toBe(1);
     expect(JSON.stringify(backend.sent('upload.start'))).not.toContain('site-backup.zip');
     await expect(roomFile(page, 'site-backup.zip')).toHaveCount(0);
-});
-
-test('an app without the picker gets the page own file input, and is not asked again', async ({
-    page,
-    shell,
-    backend,
-}) => {
-    // No `PickAttachments` handler: the host answers `NOT_FOUND`, as an app built before the picker does.
-    await openSelfChat(page);
-
-    const firstChooser = page.waitForEvent('filechooser');
-    await chooseFromFiles(page);
-    await (
-        await firstChooser
-    ).setFiles({ name: REPORT.name, mimeType: REPORT.contentType, buffer: Buffer.alloc(REPORT.size) });
-    await expect(trayFile(page, REPORT.name)).toBeVisible();
-    // The page's own input fills the same tray, and sends nothing until Send either.
-    expect(backend.sent('upload.start')).toHaveLength(0);
-    await send(page);
-    await expect(roomFile(page, REPORT.name)).toBeVisible();
-    await expect.poll(() => backend.sent('upload.start').length).toBe(1);
-    expect(shell.received('PickAttachments')).toHaveLength(1);
-
-    // The page learned the answer: the next tap opens its own input straight away.
-    const secondChooser = page.waitForEvent('filechooser');
-    await chooseFromFiles(page);
-    await secondChooser;
-    expect(shell.received('PickAttachments')).toHaveLength(1);
 });

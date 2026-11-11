@@ -68,7 +68,7 @@ class MediaExportModule(reactContext: ReactApplicationContext) : ReactContextBas
         executor.execute {
             settle(promise) {
                 val file = exportable(uri)
-                val mimeType = ExportFormats.photoLibraryType(head(file))
+                val mimeType = ExportFormats.photoLibraryType(head(file), file.name)
                     ?: throw Rejection("UNSUPPORTED_TYPE", "the file is not a PNG, JPEG, GIF or WebP image, or an MP4 video")
                 val video = mimeType == "video/mp4"
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -202,7 +202,7 @@ class MediaExportModule(reactContext: ReactApplicationContext) : ReactContextBas
     private fun exportableDocument(uri: String?): Pair<File, String> {
         val file = exportable(uri)
         val family = ExportFormats.family(head(file), file.name)
-            ?: throw Rejection("UNSUPPORTED_TYPE", "the file is not an image, an MP4, or a document the server stores")
+            ?: throw Rejection("UNSUPPORTED_TYPE", "the file is not an image, an MP4, an audio file or a document the server stores")
         return file to ExportFormats.mimeType(file.name, family)
     }
 

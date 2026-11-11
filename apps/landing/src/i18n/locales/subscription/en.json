@@ -32,26 +32,20 @@
                 "restricted": "Restricted",
                 "cancelScheduled": "Ending",
                 "expired": "Expired",
-                "downgradeScheduled": "Downgrade scheduled"
+                "downgradeScheduled": "Downgrade scheduled",
+                "pending": "Confirming payment"
             },
             "actions": {
                 "confirm": "OK",
                 "cancel": "Cancel",
                 "close": "Close",
+                "back": "Back",
                 "retry": "Try again"
             },
             "loading": "Loading…",
             "error": {
                 "network": "The connection is unstable. Please try again shortly.",
                 "unknown": "Something went wrong. Please try again."
-            },
-            "desktopOnly": {
-                "title": "DoU subscription",
-                "appTitle": "On a phone, subscribe in the app",
-                "appBody": "In the DoU app, go to MY › Subscription to subscribe through the App Store or Google Play.",
-                "openApp": "Open the DoU app",
-                "pcTitle": "Subscribe on the web from a computer",
-                "pcBody": "Open this page in a desktop browser to subscribe with web payment. Either way, your subscription works on both your phone and your PC."
             },
             "paymentWindow": {
                 "title": "Add a card",
@@ -65,7 +59,7 @@
                 "clouds_one": "{{count}} cloud",
                 "clouds_other": "{{count}} clouds",
                 "perMonth": "<price>{{price}}</price> / month",
-                "vatNote": "VAT included · 1 month"
+                "vatNote": "(VAT included)"
             },
             "email": {
                 "placeholder": "name@example.com",
@@ -109,6 +103,32 @@
                 "confirm": "Change",
                 "changed": "Billing email changed",
                 "verifiedNote": "Verified. Press Change to switch to this address now."
+            },
+            "payer": {
+                "title": "Payer",
+                "name": "Name",
+                "namePlaceholder": "The cardholder's name",
+                "phone": "Mobile phone",
+                "phonePlaceholder": "01012345678",
+                "note": "The card company asks for these with every card. They are not stored: a card added later asks again.",
+                "nameInvalid": "Enter the name: up to 10 Korean or 30 Latin characters.",
+                "phoneInvalid": "Enter a mobile number such as 01012345678."
+            },
+            "cardEntry": {
+                "title": "Add a card",
+                "description": "You enter your card in the payment processor's secure field. DoU does not store card numbers.",
+                "terms": {
+                    "trial": "When your trial ends on {{date}}, {{price}} is charged to this card, then the same amount on day {{day}} of every month.",
+                    "paid": "{{price}} is charged to this card today, then the same amount on day {{day}} of every month.",
+                    "card": "Once this card is the one you pay with, your subscription is charged to it on each billing day.",
+                    "cancel": "You can cancel any time in subscription management; nothing is charged after your current period ends."
+                },
+                "consent": "I agree to recurring charges to this card on these terms.",
+                "submit": "Add card",
+                "unavailable": {
+                    "title": "The card field didn't load",
+                    "body": "Please try again in a moment."
+                }
             }
         },
         "entry": {
@@ -173,7 +193,8 @@
                     "session-ended": "Your sign-in has expired. Sign in again to return to the page you were on."
                 },
                 "completing": "Signing you in",
-                "completingBody": "This will only take a moment."
+                "completingBody": "This will only take a moment.",
+                "or": "or"
             },
             "noAccount": {
                 "title": "No DoU account found",
@@ -218,7 +239,8 @@
                 "signIn": "Sign in",
                 "details": "Details",
                 "payment": "Payment method",
-                "done": "Done"
+                "done": "Done",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1",
@@ -254,7 +276,8 @@
                 "firstChargeShort": "First payment",
                 "today": "{{date}} (today)",
                 "dateAndPrice": "{{date}} · {{price}}",
-                "chargeToday": "Due today"
+                "chargeToday": "Due today",
+                "unpriced": "Choose a country to see what you pay."
             },
             "emailStep": {
                 "title": "Verify your email",
@@ -282,7 +305,7 @@
                 "next": "Next · Add a payment method"
             },
             "billing": {
-                "title": "Billing details",
+                "title": "① Billing country",
                 "country": "Billing country",
                 "email": "Billing email",
                 "change": "Change",
@@ -292,9 +315,19 @@
                     "JP": "Japan",
                     "OTHER": "Another country"
                 },
-                "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
-                "comingSoonTitle": "Paying from outside Korea is coming soon",
-                "comingSoonBody": "For now you can subscribe only with South Korea as the billing country."
+                "countryNote": "The billing country decides the currency you pay in: Korean won in South Korea, US dollars everywhere else. It cannot be changed after you subscribe.",
+                "noAccountEmail": {
+                    "title": "Your account has no email address",
+                    "body": "The card company needs an email address with every card, and this account has none to give. Sign in with an account that has one to subscribe."
+                },
+                "noticeEmail": "Receipts and notices go to your account's email address.",
+                "countryPlaceholder": "Choose a country",
+                "countryMissing": "Choose your billing country first.",
+                "currency": {
+                    "KRW": "You pay in Korean won (₩).",
+                    "USD": "You pay in US dollars ($)."
+                },
+                "payerTitle": "② Payer"
             },
             "consent": {
                 "all": "Agree to all",
@@ -311,9 +344,12 @@
                 "subtitleTrial": "Your free trial starts once a card is added. Nothing is charged today.",
                 "subtitlePaid": "Once a card is added, {{price}} is charged and your subscription starts.",
                 "card": "Card",
-                "cardNote": "You enter your card in the payment provider's window. DoU does not store card numbers.",
-                "windowTitle": "Korean card payment window (shown by the payment provider)",
-                "windowSteps": "Card issuer · Card number · Expiry · First 2 digits of PIN · Identity check",
+                "cardNote": "You enter your card on the payment processor's secure screen. DoU does not store card numbers.",
+                "windowTitle": "Card entry (shown by the payment processor)",
+                "windowSteps": {
+                    "KRW": "Card issuer · Card number · Expiry · First 2 digits of PIN · Identity check",
+                    "USD": "Card number · Expiry · Security check"
+                },
                 "ctaTrial": "Add card and start free trial",
                 "ctaPaid": "Pay {{price}}",
                 "renewTrial": "From {{date}}, {{price}} is charged on day {{day}} of every month. You can cancel at any time in subscription management.",
@@ -321,7 +357,8 @@
                 "back": "Back",
                 "error": {
                     "limit": "Too many card attempts. Please try again later.",
-                    "conflict": "This subscription cannot be started right now. Check your current subscription in subscription management."
+                    "conflict": "This subscription cannot be started right now. Check your current subscription in subscription management.",
+                    "invalid": "The payer details are missing. Go back and enter them again."
                 }
             },
             "status": {
@@ -421,6 +458,8 @@
                 "upgradedBodyPaid_other": "{{price}} was charged, and you can now create up to {{count}} clouds.",
                 "upgradedBodyFree_one": "Nothing was charged during your trial, and you can now create up to {{count}} cloud.",
                 "upgradedBodyFree_other": "Nothing was charged during your trial, and you can now create up to {{count}} clouds.",
+                "upgradedBody_one": "You can now create up to {{count}} cloud.",
+                "upgradedBody_other": "You can now create up to {{count}} clouds.",
                 "nextDateLabel": "Next payment date",
                 "nextAmountLabel": "From the next payment",
                 "receiptLabel": "Receipt",
@@ -449,6 +488,7 @@
                 "ending": {
                     "title": "A subscription that is ending cannot change plan",
                     "body": "Undo the cancellation on the subscription page, then try again.",
+                    "bodyNoUndo": "You can subscribe again once the current subscription ends.",
                     "action": "Go to subscription"
                 },
                 "upgrade": {
@@ -457,13 +497,13 @@
                     "subtitleFree": "Nothing is charged today during your trial. You can use {{plan}} right away.",
                     "pendingTitle": "A change to {{plan}} is scheduled",
                     "pendingBody": "Upgrading cancels the change scheduled for {{date}}, and you use {{plan}} from today.",
-                    "todayLabel": "Difference due today",
+                    "todayLabel": "Estimated difference today",
                     "cardLabel": "Card",
                     "cardValue": "{{brand}} ···· {{last4}} (default)",
                     "nextDateLabel": "Next payment date",
                     "nextDateValue": "{{date}} (unchanged)",
                     "nextAmountLabel": "From the next payment",
-                    "prorationNote": "The difference covers what is left of the current billing period.",
+                    "prorationNote": "The difference is estimated from the days left in this billing period; the card company confirms the exact amount when it charges.",
                     "ctaPaid": "Pay {{price}} and upgrade",
                     "ctaFree": "Upgrade",
                     "ctaPendingPaid": "Cancel the change and pay {{price}}",
@@ -506,6 +546,11 @@
                         "upgrade": "Pay and upgrade",
                         "downgrade": "Schedule the change"
                     }
+                },
+                "trialUpgrade": {
+                    "title": "You can move up once the trial ends",
+                    "body": "A higher plan starts with a paid period, so it cannot be chosen during the free trial. You can still move to a lower plan now.",
+                    "action": "Back to the subscription"
                 }
             }
         },
@@ -519,37 +564,54 @@
             "cardLabel": "{{brand}} ···· {{last4}}",
             "list": {
                 "title": "Subscriptions",
-                "subtitle": "Your current and ended subscriptions. Select one to see the details.",
-                "source": "Billed on the web",
-                "clouds": "Clouds",
+                "subtitle": "Your current and ended subscriptions. Select a row to see the details.",
                 "cloudsValue_one": "{{count}}",
                 "cloudsValue_other": "{{count}}",
-                "nextBilling": "Next payment",
-                "nextAmount": "Next amount",
-                "paymentMethod": "Payment method",
-                "viewDetail": "View subscription ›",
-                "detail": "Details",
                 "ended": "Ended subscriptions",
-                "endedLine": "{{from}} – {{to}} · Web",
                 "downgradeTitle": "DoU Cloud {{from}} → DoU Cloud {{to}}",
-                "status": {
-                    "trial": "Free trial until {{date}} · {{amount}} a month from {{chargeAt}}",
-                    "pastDue": "{{amount}} overdue · clouds restricted from {{date}} ({{dday}})",
-                    "restricted": "{{amount}} overdue · clouds restricted since {{date}}",
-                    "cancelScheduled": "In use until {{date}} · automatic payment stopped · you can undo the cancellation until then",
-                    "downgradeScheduled": "DoU Cloud {{to}} from {{date}} · {{amount}} a month"
-                },
                 "empty": {
                     "title": "You have no subscription",
                     "body": "Subscribe to DoU Cloud to create clouds and open group chats with your friends.",
                     "subscribe": "Subscribe"
                 },
-                "endedLineWithReason": "{{from}} – {{to}} · Web · {{reason}}",
                 "endedReason": {
                     "canceled": "Cancelled",
                     "replaced": "Replaced by the next subscription",
                     "paymentFailed": "Ended after a failed payment"
-                }
+                },
+                "live": "Current subscriptions",
+                "columns": {
+                    "product": "Plan",
+                    "status": "Status",
+                    "clouds": "Clouds",
+                    "amount": "Amount",
+                    "next": "Next payment · deadline",
+                    "end": "Ended"
+                },
+                "row": {
+                    "source": "Paid on the web",
+                    "sourceCard": "Paid on the web · {{card}}",
+                    "amount": "{{amount}} / month",
+                    "amountChange": "{{from}} → {{to}} / month",
+                    "cloudsChange": "{{from}} → {{to}}",
+                    "cloudsLine": "Clouds {{clouds}} · {{amount}}",
+                    "autoCharge": "{{amount}} charged automatically",
+                    "trialEnds": "Trial ends {{date}}",
+                    "trialThen": "{{amount}} charged automatically from {{date}}",
+                    "nextBilling": "Next payment {{date}}",
+                    "restoredNote": "Your existing clouds carry on",
+                    "restrictAt": "Restricted from {{date}}",
+                    "restrictAtDday": "Restricted from {{date}} ({{dday}})",
+                    "checkPayment": "Please check your payment details",
+                    "endsAt": "Ends {{date}} ({{dday}})",
+                    "autoStopped": "Automatic payment has stopped",
+                    "changesAt": "Change applies {{date}}",
+                    "changeCharge": "{{amount}} is charged that day",
+                    "endedOn": "Ended {{date}}",
+                    "startedOn": "Used from {{date}}",
+                    "startedOnWithReason": "Used from {{date}} · {{reason}}"
+                },
+                "downgradeTitleShort": "DoU Cloud {{from}} → {{to}}"
             },
             "detail": {
                 "title": "Subscription",
@@ -613,6 +675,10 @@
                         "title": "Check your billing email",
                         "body": "An email sent to {{address}} bounced. Check the address in billing info.",
                         "action": "Billing info"
+                    },
+                    "pending": {
+                        "title": "We are confirming your payment",
+                        "body": "The card company has not reported the result of your first payment yet. The plan becomes usable once it is confirmed; until then it cannot be changed or cancelled."
                     }
                 },
                 "actions": {
@@ -631,7 +697,8 @@
                     "title": "Payment method",
                     "line": "Default card {{card}} · expires {{exp}}",
                     "none": "No card registered",
-                    "manage": "Payment methods"
+                    "manage": "Payment methods",
+                    "lineNoExpiry": "Default card {{card}}"
                 },
                 "periodCard": {
                     "title": "Subscription period",
@@ -683,7 +750,8 @@
                 "resumeNoCard": {
                     "title": "No card to charge",
                     "body": "The card was removed after you cancelled, so the next payment cannot be made. Add a card to undo the cancellation.",
-                    "confirm": "Add a card"
+                    "confirm": "Add a card",
+                    "bodyHidden": "There is no card on this subscription, and cards cannot be added here yet, so the cancellation cannot be undone. You can subscribe again once it ends."
                 },
                 "cancelChange": {
                     "title": "Cancel the scheduled downgrade?",
@@ -734,6 +802,7 @@
                     "title": "You cancelled your subscription",
                     "bannerTitle": "You can use it until {{date}}",
                     "bannerBody": "You won't be charged again. If you change your mind, you can undo the cancellation until it ends.",
+                    "bannerBodyNoUndo": "You won't be charged again. You can keep using it as before until it ends.",
                     "toDetail": "Subscription details",
                     "resume": "Undo cancellation",
                     "note": "After the end date, subscribing again starts a new subscription instead of undoing the cancellation. If you removed your card after cancelling, add one first."
@@ -763,7 +832,7 @@
                     "title": "Good to know",
                     "removeDefault": "To remove your default card, make another card the default first.",
                     "removeLast": "While subscribed you can't remove your last card — add a new one, then swap.",
-                    "domestic": "Only cards issued in Korea can be added for now.",
+                    "currency": "Cards are added for your subscription's currency only.",
                     "noCharge": "Adding a card only registers it — nothing is charged."
                 },
                 "declined": {
@@ -795,12 +864,19 @@
                     "confirm": "Make default and pay {{amount}}"
                 },
                 "added": "{{card}} added",
+                "addedBack": "Your card was added.",
                 "defaultChanged": "Default card changed",
                 "removed": "Card removed",
+                "removeRefused": "This card can't be removed while your subscription is charged to it. Make another card the default first.",
                 "addDialog": {
                     "title": "Add card",
-                    "body": "This only registers a card — nothing is charged. You enter the card details in the payment provider's window.",
-                    "open": "Open payment window"
+                    "body": "This only registers a card — nothing is charged. You enter the card on the next screen.",
+                    "open": "Open card entry",
+                    "lock": {
+                        "label": "Billing country",
+                        "note": "The billing country can't be changed while you're subscribed.",
+                        "OTHER": "Outside South Korea"
+                    }
                 },
                 "defaultDialog": {
                     "title": "Change your default card?",
@@ -818,6 +894,11 @@
                 "cannotRemoveLast": {
                     "title": "Your last card can't be removed",
                     "body": "A subscription needs a card to charge. Add a new card, then remove this one."
+                },
+                "barTitle": "Manage payment methods",
+                "group": {
+                    "KRW": "Cards for payments in Korean won",
+                    "USD": "Cards for payments in US dollars"
                 }
             },
             "history": {
@@ -850,7 +931,8 @@
                     "title": "No payments yet",
                     "trial": "You're on a free trial. The first payment ({{amount}}) is on {{date}}."
                 },
-                "taxNote": "Card payments are not issued a separate tax invoice."
+                "taxNote": "Card payments are not issued a separate tax invoice.",
+                "barTitle": "Billing history & receipts"
             },
             "info": {
                 "title": "Billing info",

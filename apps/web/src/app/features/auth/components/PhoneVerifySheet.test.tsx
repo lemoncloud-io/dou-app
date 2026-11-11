@@ -37,6 +37,7 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 import { PhoneVerifySheet } from './PhoneVerifySheet';
+import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 const PHONE = '01012345678';
 // The field shows the local form; the packet carries E.164 now (ADR-0044 §5 correction).
@@ -44,8 +45,7 @@ const PHONE_E164 = '+821012345678';
 
 /** jsdom's locale is `en-US`; seed the remembered pick so these Korean numbers validate (ADR-0044 §4). */
 const seedCountry = () => {
-    localStorage.clear();
-    localStorage.setItem('dou.phoneInput.country.v1', 'KR');
+    seedPhoneCountry('KR');
 };
 
 /** The sheet serves both sides: the issue/guest gate logs in, the mypage account row links. */

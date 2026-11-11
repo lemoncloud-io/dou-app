@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-15
 > · Scope: `libs/app-runtime/src/socket/linkState.ts` and the offline skips in `libs/app-runtime`
-> · The module doc is [app-runtime socket](../../libs/app-runtime/docs/socket/README.md)
+> · The module doc is [app-runtime socket](../../libs/transport/docs/socket/README.md)
 > · Related: [ADR-0076 (single auth verdict)](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md),
 > whose `deriveConnectivity` and relay confirmation window treated `navigator.onLine === false` as proof
 

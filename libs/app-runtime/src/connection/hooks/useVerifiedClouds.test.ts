@@ -40,7 +40,7 @@ const createFakeManager = () => {
 };
 
 let mockManager = createFakeManager();
-jest.mock('../../socket/runtime', () => ({ getSocketManager: () => mockManager }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: () => mockManager }));
 
 beforeEach(() => {
     mockManager = createFakeManager();

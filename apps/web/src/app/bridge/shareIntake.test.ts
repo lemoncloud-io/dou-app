@@ -76,7 +76,7 @@ describe('fetchShareIntake', () => {
         await expect(fetchShareIntake(id)).resolves.toEqual({ items: [], refused: [], text: undefined });
     });
 
-    it.each(['NOT_FOUND', 'GONE', 'INVALID'])('reads %s as nothing to share', async code => {
+    it.each(['GONE', 'INVALID'])('reads %s as nothing to share', async code => {
         mockRequest.mockRejectedValue(withCode(code));
 
         await expect(fetchShareIntake(id)).resolves.toBeNull();

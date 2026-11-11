@@ -16,60 +16,25 @@ import type { LogStoreReader } from '@chatic/bridges';
  */
 
 /**
- * Whether the installed app predates these messages.
- *
- * The web ships ahead of the app, so this code runs inside builds whose host has
- * no handler for it — `AppBridgeHost` answers `NOT_FOUND`, and one such answer
- * is enough to stop trying for the rest of the session.
- *
- * The handshake's `supportedWebMessages` is deliberately NOT used. It arrives
- * asynchronously and would race the first flush, and on a build whose bridge
- * predates 2.6.0 it is derived from the compiled message map rather than from
- * handlers actually registered — so it can claim support that is not there. Learning from a real
- * rejection has neither problem. Same reasoning as `NativeDBAdapter`'s
- * `batchReadUnsupported`.
- *
- * Module scope is intentional: there is one installed app, so there is one
- * answer.
- */
-let uploadQueueUnsupported = false;
-
-/**
  * Size the app reported on the last round trip.
  *
- * Module scope for the same reason `uploadQueueUnsupported` is: there is one
- * installed app, so there is one store. Zero until the first trip answers —
- * callers that need to tell "empty" from "not asked yet" must look at `peek`.
+ * Module scope: there is one installed app, so there is one store. Zero until
+ * the first trip answers — callers that need to tell "empty" from "not asked
+ * yet" must look at `peek`.
  */
 let lastKnownSize = 0;
 
-/** Test seam — resets the learned fallback. */
-export const resetNativeUploadQueueSupport = (): void => {
-    uploadQueueUnsupported = false;
+/** Test seam — forgets the last reported size. */
+export const resetNativeUploadQueueSize = (): void => {
     lastKnownSize = 0;
 };
 
-/** Whether the bridge upload queue is known to be unavailable in this app build. */
-export const isNativeUploadQueueUnsupported = (): boolean => uploadQueueUnsupported;
-
-/**
- * True when this rejection means "the installed app does not know this message".
- *
- * Only `NOT_FOUND` qualifies. A timeout or a transport error must NOT be learned
- * from — those are transient, and treating one as a permanent capability verdict
- * would strand the app queue for the whole session over a single slow round trip.
- */
-const isUnsupported = (error: unknown): boolean => (error as { code?: string })?.code === 'NOT_FOUND';
-
 /** Drops the app's upload queue. Device opt-out only. */
 export const clearNativeLogQueue = async (): Promise<void> => {
-    if (uploadQueueUnsupported) return;
-
     try {
         await appBridge.clearLogUploadQueue();
-    } catch (error) {
-        if (isUnsupported(error)) uploadQueueUnsupported = true;
-        // Any other failure is transient; the next opt-out check tries again.
+    } catch {
+        // Transient; the next opt-out check tries again.
     }
 };
 
@@ -87,18 +52,12 @@ export const clearNativeLogQueue = async (): Promise<void> => {
  */
 export const createNativeUploadSource = (): LogStoreReader => ({
     async peek(limit) {
-        if (uploadQueueUnsupported) return [];
-
         try {
             const response = await appBridge.fetchLogUploadQueue(limit);
             if (!response?.success) return [];
             if (typeof response.data?.size === 'number') lastKnownSize = response.data.size;
             return (response.data?.logs ?? []).map(toLogEntry);
-        } catch (error) {
-            if (isUnsupported(error)) {
-                uploadQueueUnsupported = true;
-                console.warn('[nativeUploadSource] app build has no log upload queue — staying on the web queue');
-            }
+        } catch {
             return [];
         }
     },
@@ -108,16 +67,14 @@ export const createNativeUploadSource = (): LogStoreReader => ({
         // remotely, but the app stamps every entry at charge time so this filter
         // is a guard rather than a real case.
         const ids = entries.map(entry => entry.id).filter((id): id is string => Boolean(id));
-        if (!ids.length || uploadQueueUnsupported) return;
+        if (!ids.length) return;
 
         try {
             const response = await appBridge.ackLogUploadQueue(ids);
             if (typeof response?.data?.size === 'number') lastKnownSize = response.data.size;
-        } catch (error) {
-            if (isUnsupported(error)) uploadQueueUnsupported = true;
-            // Otherwise the entries stay in the app queue and ride the next
-            // batch. The server upserts on id, so a resend costs bandwidth, not
-            // correctness.
+        } catch {
+            // The entries stay in the app queue and ride the next batch. The
+            // server upserts on id, so a resend costs bandwidth, not correctness.
         }
     },
 

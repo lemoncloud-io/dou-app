@@ -198,10 +198,8 @@ batch the server fans out over SMS itself.
 
 When permission is refused, `PermissionDeniedBanner` explains and offers `appBridge.openSettings()`.
 The page believes the permission the app reports, so a granted but empty address book shows the
-empty-list message rather than the banner. An app built before that field existed reports nothing,
-and then the page falls back to what such an app does on a refusal: Android answers with an empty
-list, iOS with a failed request. Both still land on the banner — and so does a request that times
-out, which a current app only produces when something is actually broken.
+empty-list message rather than the banner. A failed or timed-out request lands on the banner too,
+which an app only produces when something is actually broken.
 
 **Partial contact access** arrives as `granted` and lists what the OS returned; neither the list nor
 the permission says it is partial. The app cannot tell: the contacts library's status call never
@@ -265,8 +263,8 @@ at once instead of leaving the settings and invite entries stacked underneath.
 - `InvitePage.test.tsx` covers the tab shell — place is the default, contacts are not requested
   while it stays there, they are requested once on entering the contact tab and not again, and a
   response that arrives after switching back still lands.
-- `InvitePage.test.tsx` also covers the reported permission (granted-and-empty, denied, and an
-  older app that reports none), the sort order, the second line and the count.
+- `InvitePage.test.tsx` also covers the reported permission (granted-and-empty, denied), the sort
+  order, the second line and the count.
 - `deviceContact.test.ts` holds the name chain, the phone matrix, the second line, the sort
   comparator and the search text; `contactInfo.test.ts` in `apps/mobile` holds the normalisation on
   the other side of the bridge, and `DeviceService.test.ts` the permission each platform reports.

@@ -5,10 +5,11 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { UserListDeviceView, UserUnlinkDeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainListResult, DomainPlaceMember, DomainUser } from '../domain';
 import type { IJoinLocalDataSource, IPlaceLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
 import type { IUserSocketDataSource, UserInviteBatchPayload } from '../remote/socket-data-sources';
-import type { IUserHttpDataSource } from '../remote/http-data-sources';
+import type { AdminEndpointOptions, IUserHttpDataSource } from '../remote/http-data-sources';
 import type { IProfileRepository } from './ProfileRepository';
 import { isForeignContext } from './scopeGuards';
 import type { DataContext, DataContextProvider } from './types';
@@ -68,6 +69,13 @@ export interface IUserRepository extends DisposableRepository {
      * itself is not cached: it is asked for each time a picker opens.
      */
     listPlaceMembers(query: PlaceMembersQuery): Promise<PlaceMembersResult>;
+    /**
+     * user.list-device — my own devices on the server the session is on: the relay, or the cloud when
+     * one is active. Not cached; the device screen asks each time it opens.
+     */
+    listDevices(): Promise<UserListDeviceView>;
+    /** user.unlink-device — signs one of my other devices out of the session's server. */
+    unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -79,9 +87,12 @@ export interface IUserRepository extends DisposableRepository {
     /**
      * HTTP relay-user listing/profile surface (ADR-0070 decision 5, late stage 2). `IUserHttpDataSource`
      * injection is optional (see libs/data/docs/repositories/README.md). `listRelayUsers` has exactly one
-     * consumer: the admin-v2 user console (`apps/admin-v2/.../users/api/usersQuery.ts`).
+     * consumer: the admin user console (`apps/admin/.../users/api/usersQuery.ts`).
      */
-    listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>>;
+    listRelayUsers(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainListResult<DomainUser>>;
     tryFetchProfile(): Promise<UserProfile$>;
 }
 
@@ -107,8 +118,11 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         return this.userHttpDataSource;
     }
 
-    public async listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>> {
-        return this.requireHttp().listRelayUsers(params, this.getRequestContext());
+    public async listRelayUsers(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainListResult<DomainUser>> {
+        return this.requireHttp().listRelayUsers(params, this.getRequestContext(), opts);
     }
 
     public async tryFetchProfile(): Promise<UserProfile$> {
@@ -221,6 +235,14 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     public async requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]> {
         const result = await this.userSocketDataSource.inviteBatch(payload);
         return result.list || [];
+    }
+
+    public listDevices(): Promise<UserListDeviceView> {
+        return this.userSocketDataSource.listDevices();
+    }
+
+    public unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView> {
+        return this.userSocketDataSource.unlinkDevice(deviceId);
     }
 
     public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number> {

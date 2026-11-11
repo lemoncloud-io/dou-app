@@ -1,6 +1,8 @@
 # Mount the floating bottom navigation once in the web layout shell, and move the nav into web-ui-kit
 
-> Status: Accepted · Decided: 2026-07-15
+> Status: Accepted · Decided: 2026-07-15 · the nav's shape (pill size, tabs, colours) superseded by
+> [ADR-0286](./0286-the-bottom-nav-glass-is-a-css-approximation-on-every-platform.md); mounting it
+> once in the shell still holds
 
 `apps/web`'s bottom navigation lives in `apps/web/src/app/ui/components/BottomNavigation.tsx`, and it
 is rendered **separately by `HomePage` and `MyPage`** rather than by a shared shell. It is a small

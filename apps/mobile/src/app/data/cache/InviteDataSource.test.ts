@@ -1,4 +1,4 @@
-import type { CacheInviteView } from '@chatic/app-messages';
+import type { CacheInviteView } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 import { InviteDataSource } from './InviteDataSource';
 

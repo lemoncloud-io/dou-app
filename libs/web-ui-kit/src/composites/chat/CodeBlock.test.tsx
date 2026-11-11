@@ -81,8 +81,20 @@ describe('InlineCode', () => {
         expect(node.className).toContain('font-mono');
     });
 
-    it('takes a light tint inside my bubble', () => {
+    it('is set off by a border and its own text colour', () => {
         render(<InlineCode>npm i</InlineCode>);
-        expect(screen.getByText('npm i').className).toContain('group-data-[variant=mine]/bubble:bg-white/15');
+        const { classList } = screen.getByText('npm i');
+
+        expect(classList).toContain('border');
+        expect(classList).toContain('text-code-inline');
+    });
+
+    it('takes a light tint and keeps the bubble text colour inside my bubble', () => {
+        render(<InlineCode>npm i</InlineCode>);
+        const { className } = screen.getByText('npm i');
+
+        expect(className).toContain('group-data-[variant=mine]/bubble:bg-white/15');
+        // The accent is tuned for the theme's ground, not my navy bubble — there it would sink.
+        expect(className).toContain('group-data-[variant=mine]/bubble:text-inherit');
     });
 });

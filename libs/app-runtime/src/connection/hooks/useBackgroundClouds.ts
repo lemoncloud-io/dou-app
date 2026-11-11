@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { backgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds } from '@chatic/transport';
 
 /**
  * Hands the runtime the clouds this account belongs to, so each of them keeps a socket session while

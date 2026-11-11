@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AtSign, BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
@@ -18,7 +18,6 @@ import {
     lastChatNoOf,
     MobileAppPointer,
     messagePreview,
-    migrateLegacyFavorites,
     channelNotifyMode,
     channelReadNo,
     hasUnreadMentionIn,
@@ -152,7 +151,9 @@ const ChannelRow = memo(function ChannelRow({
     const localReadNo = useReadCursorStore(s => s.cursors[id] ?? 0);
     const readNo = channelReadNo(channel, localReadNo);
     const calledMe = useMentionsStore(
-        s => indicator !== 'none' && hasUnreadMentionIn(s.items, { id, placeId: channel.sid }, readNo)
+        s =>
+            indicator !== 'none' &&
+            hasUnreadMentionIn(s.items, { cloudId: channel.cid || RELAY_CLOUD_ID, id, placeId: channel.sid }, readNo)
     );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself
@@ -350,12 +351,6 @@ export const ChannelList = ({
     const { pinnedIds, reorder: reorderPinned, toggle: togglePinned } = usePinnedChannels(pinScope);
     // Non-favorite display order comes from `ui.channelOrder` (one array: channels then DMs).
     const { storedIds: storedChannelOrder, set: setStoredChannelOrder } = useChannelOrder(pinScope);
-    // Lazy legacy migration: ids this place confirms move to `ui.pinnedChannels` the first time
-    // its list is on screen; other places' ids stay in the old key until their place loads.
-    useEffect(() => {
-        if (isLoading || !pinScope) return;
-        migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
-    }, [pinScope, isLoading, channels]);
     // The drawing order, unfiltered, for the next-unread shortcut (useNextUnreadShortcut).
     // Computed below the early returns, pushed to the store after every render.
     const displayOrderRef = useRef<string[]>([]);

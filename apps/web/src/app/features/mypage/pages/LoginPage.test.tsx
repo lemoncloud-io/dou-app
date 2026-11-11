@@ -28,12 +28,19 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const loginRelaySocial = jest.fn();
+const createCredentialsByProvider = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
+            createCredentialsByProvider: (...a: unknown[]) => createCredentialsByProvider(...a),
         },
     },
+}));
+
+let mockPairingEnabled = false;
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
 }));
 
 // Native by default so the social buttons render; the browser tests flip it.
@@ -46,7 +53,7 @@ jest.mock('@chatic/bridges', () => ({
 /** What native puts on the `OnOAuthLogin` channel: a credential, a cancel, or a failure. */
 type OAuthResultMessage = {
     success: boolean;
-    data?: { result: { provider: string } | null };
+    data?: { result: { provider: string; platform?: string; code?: string; idToken?: string } | null };
     error?: { code: string };
 };
 
@@ -79,6 +86,8 @@ beforeEach(() => {
     currentLocation = { state: null };
     deliverOAuthResult = null;
     loginRelaySocial.mockResolvedValue(undefined);
+    createCredentialsByProvider.mockResolvedValue(undefined);
+    mockPairingEnabled = false;
 });
 
 const GOOGLE_CREDENTIAL: OAuthResultMessage = { success: true, data: { result: { provider: 'google' } } };
@@ -158,6 +167,76 @@ describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
 
         expect(loginRelaySocial).toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalled();
+    });
+});
+
+/** What the virtual shell answers when its sign-in goes through the OAuth relay: a code, no token. */
+const RELAY_CODE: OAuthResultMessage = {
+    success: true,
+    data: { result: { provider: 'google', platform: 'ios', code: 'relay-code-1' } },
+};
+
+describe('LoginPage — relay code from the virtual shell', () => {
+    it('exchanges a relay code linked to the current session and leaves like a native sign-in', async () => {
+        withStackDepth(3);
+        currentLocation = { state: { returnTo: '/mypage' } };
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers(RELAY_CODE);
+
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith(-1));
+        expect(createCredentialsByProvider).toHaveBeenCalledWith('google', 'relay-code-1', {
+            linkCurrentSession: true,
+        });
+        expect(loginRelaySocial).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith('AUTH', '[LoginPage] social login succeeded', {
+            provider: 'google',
+            via: 'relay-code',
+        });
+    });
+
+    it('keeps a native token on the token path and never exchanges a code', async () => {
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers({ success: true, data: { result: { provider: 'google', idToken: 'tok' } } });
+
+        await waitFor(() => expect(navigate).toHaveBeenCalled());
+        expect(loginRelaySocial).toHaveBeenCalledWith({
+            body: { provider: 'google', idToken: 'tok' },
+            provider: 'google',
+        });
+        expect(createCredentialsByProvider).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed code exchange and stays on the screen with the buttons usable', async () => {
+        createCredentialsByProvider.mockRejectedValue(new Error('403'));
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers(RELAY_CODE);
+
+        await waitFor(() =>
+            expect(logger.error).toHaveBeenCalledWith('AUTH', '[LoginPage] OAuth login failed', expect.anything())
+        );
+        expect(navigate).not.toHaveBeenCalled();
+        expect((screen.getByTestId('login-google') as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    // The exchange is a plain call, not the social mutation, so the screen keeps its own pending flag:
+    // without it the buttons would come back while the code is still being exchanged.
+    it('keeps the buttons disabled while the code is being exchanged', async () => {
+        let finish: () => void = () => undefined;
+        createCredentialsByProvider.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
+        render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers(RELAY_CODE);
+
+        expect((screen.getByTestId('login-google') as HTMLButtonElement).disabled).toBe(true);
+        await act(async () => finish());
+        await waitFor(() => expect(navigate).toHaveBeenCalled());
     });
 });
 
@@ -360,5 +439,31 @@ describe('LoginPage — policy links', () => {
         fireEvent.click(screen.getByTestId('login-terms'));
 
         expect(navigate).not.toHaveBeenCalled();
+    });
+});
+
+describe('LoginPage — sign in with another device', () => {
+    it.each([true, false])('offers it when the device pairing flag is on (native %s)', native => {
+        mockIsNative = native;
+        mockPairingEnabled = true;
+        render(<LoginPage />);
+
+        expect(screen.queryByTestId('login-pairing')).not.toBeNull();
+    });
+
+    it('hides it while the flag is off', () => {
+        render(<LoginPage />);
+
+        expect(screen.queryByTestId('login-pairing')).toBeNull();
+    });
+
+    it('opens the code screen and hands the login state on', () => {
+        mockPairingEnabled = true;
+        currentLocation = { state: { returnTo: '/channels' } };
+        render(<LoginPage />);
+
+        fireEvent.click(screen.getByTestId('login-pairing'));
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/login/pair', { state: { returnTo: '/channels' } });
     });
 });

@@ -20,6 +20,7 @@ const DOMAIN_KEYS = [
     'device',
     'invite',
     'join',
+    'pairing',
     'place',
     'profile',
     'report',

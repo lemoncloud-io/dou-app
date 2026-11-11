@@ -2,7 +2,7 @@ import { type ShareAction } from 'react-native';
 import { type Asset, type CameraOptions, type ImageLibraryOptions } from 'react-native-image-picker';
 import { type DocumentPickerResponse } from '@react-native-documents/picker';
 import { type Contact } from 'react-native-contacts';
-import { type ContactsPermission } from '@chatic/app-messages';
+import { type ContactsPermission } from '@chatic/bridge-messages';
 
 export interface ContactsReadResult {
     contacts: Contact[];

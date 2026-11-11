@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
 import type { AdapterScope, CacheStorage, DataContextProvider } from '@chatic/data';
 import { resolveScopedContext } from '@chatic/data';
 
@@ -71,8 +71,7 @@ export abstract class BaseDbAdapter<TType extends CacheType> implements CacheSto
     /**
      * The default implementation reads, filters, and deletes — a fallback path for a store with
      * no way to scope the delete itself to a channel. `IndexedDBAdapter` overrides it with a
-     * channel index range, and `NativeDBAdapter` with a dedicated bridge message, falling back
-     * to here on an older app that doesn't know that message (ADR-0067).
+     * channel index range, and `NativeDBAdapter` with a dedicated bridge message.
      *
      * **The read is scoped to the channel.** For a domain that declares `channelId` as a query
      * field (chat, join), only that channel's rows come back, so clearing out one room doesn't

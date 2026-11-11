@@ -69,3 +69,27 @@ export const windowForViewport = ({
     }
     return { start: Math.min(start, count), end: Math.min(Math.max(end, start + 1), count) };
 };
+
+/** One day of mounted rows: the date row that opens it, then everything up to the next one. */
+export interface DayBlock {
+    key: string;
+    rows: MessageRowItem[];
+}
+
+/**
+ * Splits mounted rows at each date row. A sticky pill is bounded by its parent, so a pill that
+ * shares the whole feed with the others never hands over — the earlier one stays pinned under the
+ * next. Giving each day its own block bounds it. Rows before the first mounted date row (their pill
+ * scrolled out of the window) share one block under a fixed key, so they do not remount as the
+ * window start moves.
+ */
+export const groupIntoDayBlocks = (rows: MessageRowItem[]): DayBlock[] => {
+    const blocks: DayBlock[] = [];
+    for (const row of rows) {
+        if (row.kind === 'date' || blocks.length === 0) {
+            blocks.push({ key: row.kind === 'date' ? row.key : 'day:lead', rows: [] });
+        }
+        blocks[blocks.length - 1].rows.push(row);
+    }
+    return blocks;
+};

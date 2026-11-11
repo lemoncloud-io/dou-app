@@ -1,0 +1,543 @@
+/**
+ * `lib/report-logs/parseReportLog.spec.ts`
+ * - Covers the plausible storage shapes of a stored report (unverified backend
+ *   mapping), ensuring the parser degrades gracefully and never throws.
+ */
+import { describe, expect, it } from 'vitest';
+
+import { parseReportLog, formatOs } from './parseReportLog';
+
+const errorPayload = {
+    message: 'Boom failed\nsecond line',
+    stack: 'Error: Boom\n at x',
+    app: 'web',
+    env: 'prod',
+    url: 'https://app/x',
+    user: { uid: '1000891', name: 'Raine' },
+    http: { status: 500 },
+    network: { online: true },
+};
+
+const issuePayload = {
+    title: 'Cannot send message',
+    message: 'it just spins',
+    app: 'mobile',
+    env: 'dev',
+    logs: [{ level: 'info', message: 'a' }],
+    version: { appVersion: '1.2.3' },
+};
+
+describe('parseReportLog', () => {
+    it('unwraps a SlackReportBody stored as a meta object (message = JSON string)', () => {
+        const row = parseReportLog({
+            id: 'm1',
+            createdAt: 100,
+            meta: { title: '[web] error', message: JSON.stringify(errorPayload), save: true },
+        });
+        expect(row.type).toBe('error');
+        expect(row.app).toBe('web');
+        expect(row.env).toBe('prod');
+        // Error has no human title → summary is the first line of the message.
+        expect(row.title).toBe('Boom failed');
+        expect(row.payload?.stack).toContain('Error: Boom');
+        expect(row.message).toBe('Boom failed\nsecond line');
+        expect(row.userName).toBe('Raine');
+        expect(row.userId).toBe('1000891');
+        expect(row.parseError).toBe(false);
+    });
+
+    it('unwraps a SlackReportBody stored as a meta JSON string', () => {
+        const row = parseReportLog({
+            id: 'm2',
+            meta: JSON.stringify({
+                title: '[mobile] issue: Cannot send message',
+                message: JSON.stringify(issuePayload),
+            }),
+        });
+        expect(row.type).toBe('issue');
+        expect(row.app).toBe('mobile');
+        expect(row.title).toBe('Cannot send message');
+        expect(row.payload?.logs).toHaveLength(1);
+    });
+
+    it('treats a bare payload object in meta as the payload and infers type', () => {
+        const row = parseReportLog({ id: 'm3', meta: errorPayload });
+        expect(row.type).toBe('error'); // inferred from stack/http/network
+        expect(row.app).toBe('web');
+        expect(row.title).toBe('Boom failed');
+    });
+
+    it('infers issue type from payload when no title prefix is present', () => {
+        const row = parseReportLog({ id: 'm4', meta: issuePayload });
+        expect(row.type).toBe('issue'); // inferred from logs/version
+        expect(row.title).toBe('Cannot send message'); // payload.title
+    });
+
+    it('uses the record name as the title source when meta lacks a title', () => {
+        const row = parseReportLog({ id: 'm5', name: '[web] issue: From name', meta: { foo: 1 } });
+        expect(row.type).toBe('issue');
+        expect(row.app).toBe('web');
+        expect(row.title).toBe('From name');
+    });
+
+    it('flags parseError and preserves raw for an unparseable meta string', () => {
+        const row = parseReportLog({ id: 'm6', meta: 'not-json-at-all' });
+        expect(row.parseError).toBe(true);
+        expect(row.type).toBe('unknown');
+        expect(row.payload).toBeNull();
+        expect(row.raw).toBe('not-json-at-all');
+    });
+
+    it('handles a record with no meta at all', () => {
+        const row = parseReportLog({ id: 'm7' });
+        expect(row.parseError).toBe(false);
+        expect(row.type).toBe('unknown');
+        expect(row.title).toBe('(untitled)');
+        expect(row.payload).toBeNull();
+    });
+
+    it('parses category from the new `[app] <category>` title format (ADR-0029)', () => {
+        const row = parseReportLog({
+            id: 'm8',
+            meta: {
+                title: '[mobile] script-error',
+                message: JSON.stringify({ ...errorPayload, category: 'script-error', app: 'mobile' }),
+            },
+        });
+        expect(row.type).toBe('error');
+        expect(row.app).toBe('mobile');
+        expect(row.category).toBe('script-error');
+    });
+
+    it('keeps legacy `[app] error` titles working with no category', () => {
+        const row = parseReportLog({
+            id: 'm9',
+            meta: { title: '[mobile] error', message: JSON.stringify(errorPayload) },
+        });
+        expect(row.type).toBe('error');
+        expect(row.category).toBeUndefined();
+    });
+
+    it('falls back to the payload `category` field when the title has none', () => {
+        const row = parseReportLog({ id: 'm10', meta: { ...errorPayload, category: 'network' } });
+        expect(row.type).toBe('error');
+        expect(row.category).toBe('network');
+    });
+});
+
+// The client sends screenshots as `SlackReportBody.meta.images`, kept out of the
+// Slack-bound `message`. Where the backend puts that meta on the stored record is
+// unverified, so the parser probes several shapes — cover each.
+describe('parseReportLog — attached images', () => {
+    const IMAGE = 'data:image/jpeg;base64,AAAA';
+    const issuePayload = { title: '느려요', message: '본문', app: 'web', logs: [] };
+
+    it('reads images from the SlackReportBody wrapper meta', () => {
+        const row = parseReportLog({
+            id: 'i1',
+            meta: {
+                title: '[web] issue: 느려요',
+                message: JSON.stringify(issuePayload),
+                meta: { images: [IMAGE] },
+            },
+        });
+        expect(row.images).toEqual([IMAGE]);
+        expect(row.type).toBe('issue');
+    });
+
+    it('reads images when the record meta IS the meta object', () => {
+        const row = parseReportLog({ id: 'i2', meta: { images: [IMAGE] } });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('reads images that ended up inside the payload', () => {
+        const row = parseReportLog({
+            id: 'i3',
+            meta: { title: '[web] issue: 느려요', message: JSON.stringify({ ...issuePayload, images: [IMAGE] }) },
+        });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('is undefined when the report carried no attachment', () => {
+        const row = parseReportLog({
+            id: 'i4',
+            meta: { title: '[web] issue: 느려요', message: JSON.stringify(issuePayload) },
+        });
+        expect(row.images).toBeUndefined();
+    });
+
+    it('drops entries that are not renderable image sources', () => {
+        const row = parseReportLog({
+            id: 'i5',
+            meta: { images: [IMAGE, 'javascript:alert(1)', 'not-a-url', 42, null] },
+        });
+        expect(row.images).toEqual([IMAGE]);
+    });
+
+    it('accepts hosted URLs too, for when uploads replace inline base64', () => {
+        const row = parseReportLog({ id: 'i6', meta: { images: ['https://cdn.test/a.png'] } });
+        expect(row.images).toEqual(['https://cdn.test/a.png']);
+    });
+});
+
+// Shape taken from a real dev record (2026-08-11): the backend keeps the SlackReportBody
+// under the record's `meta` and adds `id`.
+//
+// NOTE: that nested `meta` came back `{}` even though the client DID send images in it —
+// the backend discards a client-supplied `meta`. These cases therefore pin the parser's
+// handling of the envelope, not a working transport; the empty-meta case is what production
+// actually looks like today. See ADR-0049.
+describe('parseReportLog — real stored envelope', () => {
+    const IMAGE = 'data:image/jpeg;base64,AAAA';
+
+    const storedRecord = (meta: Record<string, unknown>) => ({
+        id: '1009178',
+        meta: {
+            title: '[web] issue: 레인',
+            message: JSON.stringify({
+                title: '레인',
+                message: '1',
+                app: 'web',
+                env: 'dev',
+                url: 'https://dou-dev.chatic.io/mypage/feedback',
+                user: { uid: '1001525', role: 'guest', isAuthenticated: true },
+                logs: [],
+                path: '/mypage/feedback',
+                routeTrail: ['/mypage', '/mypage/feedback'],
+            }),
+            meta,
+            silent: false,
+            save: true,
+            id: '1009178',
+        },
+    });
+
+    it('parses the envelope and finds no attachment when meta is the empty default', () => {
+        const row = parseReportLog(storedRecord({}));
+
+        expect(row.type).toBe('issue');
+        expect(row.title).toBe('레인');
+        expect(row.payload?.routeTrail).toEqual(['/mypage', '/mypage/feedback']);
+        expect(row.images).toBeUndefined();
+    });
+
+    it('finds attachments once the client fills that same meta', () => {
+        const row = parseReportLog(storedRecord({ images: [IMAGE, IMAGE] }));
+
+        expect(row.images).toEqual([IMAGE, IMAGE]);
+        // The rest of the report still parses exactly as before.
+        expect(row.type).toBe('issue');
+        expect(row.title).toBe('레인');
+    });
+});
+
+// Batch-uploaded structured logs (chatic-backend-api log-batch-ingest) share the same
+// `stereo='log'` bucket as the Slack error reports above (SPEC.md D6). They're detected
+// structurally — `level`+`tag` together is never set by a Slack report — and skip the
+// title/payload unwrap entirely.
+describe('parseReportLog — batch LogEntry', () => {
+    it('parses a debug-level entry (e.g. WEB_VITALS) as log-entry, not unknown', () => {
+        const row = parseReportLog({
+            id: '1013322',
+            createdAt: 1787211544197,
+            meta: {
+                level: 'debug',
+                tag: 'WEB_VITALS',
+                message: 'INP',
+                data: JSON.stringify({ value: '64.00', rating: 'good' }),
+                timestamp: 1787211544197,
+                source: 'web',
+                id: '1013322',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.level).toBe('debug');
+        expect(row.tag).toBe('WEB_VITALS');
+        expect(row.title).toBe('WEB_VITALS');
+        expect(row.message).toBe('INP');
+        expect(row.source).toBe('web');
+        expect(row.logData).toEqual({ value: '64.00', rating: 'good' });
+        expect(row.parseError).toBe(false);
+    });
+
+    it('parses an info-level entry with no `data` and no `source` (e.g. IAP)', () => {
+        const row = parseReportLog({
+            id: '1013397',
+            createdAt: 1787214102551,
+            meta: {
+                level: 'info',
+                tag: 'IAP',
+                message: 'Fetching available purchases for restore...',
+                timestamp: 1787214102551,
+                id: '1013397',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.level).toBe('info');
+        expect(row.tag).toBe('IAP');
+        expect(row.source).toBeUndefined();
+        expect(row.logData).toBeUndefined();
+        expect(row.logDataRaw).toBeUndefined();
+    });
+
+    it('prefers uid/runId hoisted onto the record when meta omits them', () => {
+        const row = parseReportLog({
+            id: 'l1',
+            uid: '1000891',
+            runId: 'run-abc',
+            meta: { level: 'error', tag: 'NET', message: 'timeout' },
+        });
+
+        expect(row.userId).toBe('1000891');
+        expect(row.runId).toBe('run-abc');
+    });
+
+    it('still routes a Slack error report through the report parser, not the log-entry one', () => {
+        const row = parseReportLog({
+            id: 'm-not-log',
+            meta: { title: '[web] error', message: JSON.stringify(errorPayload) },
+        });
+
+        expect(row.type).toBe('error');
+        expect(row.level).toBeUndefined();
+    });
+});
+
+describe('parseReportLog — 추적·파셋 축', () => {
+    it('lifts the log entry axes the console filters and counts by', () => {
+        const row = parseReportLog({
+            id: 'l1',
+            createdAt: 9_000,
+            meta: {
+                level: 'error',
+                tag: 'auth',
+                timestamp: 8_000,
+                uid: 'u1',
+                cid: 'c1',
+                sid: 's1',
+                runId: 'r1',
+                appVersion: '1.4.0',
+                webVersion: '0.59.0',
+                route: '/chat/1',
+                os: 'iOS',
+                osVersion: '18.1',
+            },
+        });
+
+        expect(row.type).toBe('log-entry');
+        expect(row.timestamp).toBe(8_000);
+        expect(row.cid).toBe('c1');
+        expect(row.sid).toBe('s1');
+        expect(row.appVersion).toBe('1.4.0');
+        expect(row.webVersion).toBe('0.59.0');
+        expect(row.route).toBe('/chat/1');
+        // Name and version stay APART. They are stored and filtered separately
+        // (chatic-backend-api#41), so joining them here would make a facet selection send
+        // `iOS 18.1` at a field holding `iOS` and match nothing. `formatOs` joins for display.
+        expect(row.os).toBe('iOS');
+        expect(row.osVersion).toBe('18.1');
+    });
+
+    it('joins the two only for display', () => {
+        expect(formatOs('iOS', '18.1')).toBe('iOS 18.1');
+        expect(formatOs('iOS', undefined)).toBe('iOS');
+        expect(formatOs(undefined, '18.1')).toBe('18.1');
+        expect(formatOs(undefined, undefined)).toBeUndefined();
+    });
+
+    it('lifts the device model, which had no row field before', () => {
+        const row = parseReportLog({
+            id: 'l3',
+            createdAt: 1,
+            meta: { level: 'info', tag: 'DEVICE', model: 'iPhone16' },
+        });
+
+        expect(row.model).toBe('iPhone16');
+    });
+
+    // `readAxis` prefers `meta` and falls back to the record's own field, so the top-level
+    // copies #41 writes are read without a second code path.
+    it('reads the round-2 axes from the hoisted record copy too', () => {
+        const row = parseReportLog({
+            id: 'l4',
+            createdAt: 1,
+            os: 'android',
+            osVersion: '15',
+            model: 'Pixel9',
+            meta: { level: 'info', tag: 'DEVICE' },
+        } as never);
+
+        expect(row.os).toBe('android');
+        expect(row.osVersion).toBe('15');
+        expect(row.model).toBe('Pixel9');
+    });
+
+    it('reads the hoisted record copy when the entry omitted an axis', () => {
+        // A re-sent entry that dropped `cid` must not lose it — `saveLogEntry` left the
+        // hoisted copy in place precisely so the axis survives.
+        const row = parseReportLog({
+            id: 'l2',
+            uid: 'hoisted-uid',
+            cid: 'hoisted-cid',
+            runId: 'hoisted-run',
+            createdAt: 1,
+            meta: { level: 'info', tag: 'boot' },
+        });
+
+        expect(row.userId).toBe('hoisted-uid');
+        expect(row.cid).toBe('hoisted-cid');
+        expect(row.runId).toBe('hoisted-run');
+    });
+
+    it('keeps only the OS half when there is no version', () => {
+        const row = parseReportLog({ id: 'l3', meta: { level: 'info', tag: 'boot', os: 'Android' } });
+
+        expect(row.os).toBe('Android');
+    });
+
+    it('falls back to the record uid for a report with no payload user', () => {
+        const row = parseReportLog({
+            id: 'i1',
+            uid: 'record-uid',
+            meta: { title: '[web] issue: 안 돼요', message: JSON.stringify({ message: '자세히' }) },
+        });
+
+        expect(row.type).toBe('issue');
+        expect(row.userId).toBe('record-uid');
+    });
+
+    it('prefers the payload user over the record uid', () => {
+        const row = parseReportLog({
+            id: 'i2',
+            uid: 'record-uid',
+            meta: {
+                title: '[web] issue: 안 돼요',
+                message: JSON.stringify({ user: { uid: 'payload-uid', name: '레인' } }),
+            },
+        });
+
+        expect(row.userId).toBe('payload-uid');
+        expect(row.userName).toBe('레인');
+    });
+
+    it('reads both build versions off the report payload', () => {
+        // The attached type is `VersionInfo` from `@chatic/bridge-messages` — note the repo
+        // has a second, unrelated `VersionInfo` in `libs/shared` (`{ version, buildTime }`)
+        // that does NOT reach here. Reading `version.version` finds nothing.
+        const row = parseReportLog({
+            id: 'i3',
+            meta: {
+                title: '[web] issue: 느려요',
+                message: JSON.stringify({
+                    version: {
+                        currentVersion: '1.4.0',
+                        latestVersion: '1.4.1',
+                        shouldUpdate: false,
+                        appVersion: '1.4.0',
+                        webVersion: '0.59.0',
+                    },
+                }),
+            },
+        });
+
+        expect(row.appVersion).toBe('1.4.0');
+        expect(row.webVersion).toBe('0.59.0');
+    });
+
+    it('takes the screen the reporter was actually on, not the feedback screen', () => {
+        // `path` is always the feedback screen (reached from a MyPage menu), so bucketing
+        // by it would file every report under the same route.
+        const row = parseReportLog({
+            id: 'i4',
+            meta: {
+                title: '[web] issue: 안 보여요',
+                message: JSON.stringify({
+                    path: '/mypage/feedback',
+                    routeTrail: ['/home', '/chat/9', '/mypage/feedback'],
+                }),
+            },
+        });
+
+        expect(row.route).toBe('/chat/9');
+    });
+
+    it('falls back to path when the trail is too short to name a previous screen', () => {
+        const row = parseReportLog({
+            id: 'i5',
+            meta: {
+                title: '[web] issue: 안 보여요',
+                message: JSON.stringify({ path: '/mypage/feedback', routeTrail: ['/mypage/feedback'] }),
+            },
+        });
+
+        expect(row.route).toBe('/mypage/feedback');
+    });
+
+    it('treats a null meta as an empty record rather than a parse failure', () => {
+        const row = parseReportLog({ id: 'n1', meta: null });
+
+        expect(row.parseError).toBe(false);
+    });
+});
+
+describe('parseReportLog — statistics fields', () => {
+    const logEntry = (meta: Record<string, unknown>) =>
+        parseReportLog({
+            id: 'x',
+            createdAt: 1,
+            stereo: 'log',
+            meta: { level: 'info', message: 'm', timestamp: 2, ...meta },
+        });
+
+    it('reads kind and the structured fields of a statistic', () => {
+        const parsed = logEntry({
+            tag: 'perf.chat_room_open',
+            area: 'perf',
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list', bad: 3 },
+            metrics: { mount: 327, junk: 'x' },
+            sr: 0.5,
+            pv: 2,
+            seq: 7,
+            routeTemplate: '/channels/:id/room',
+            sessionId: 's1',
+            platform: 'ios',
+            host: 'app',
+        });
+
+        expect(parsed).toMatchObject({
+            recordKind: 'trace',
+            area: 'perf',
+            durationMs: 381,
+            attrs: { entry: 'list' },
+            metrics: { mount: 327 },
+            sr: 0.5,
+            pv: 2,
+            seq: 7,
+            routeTemplate: '/channels/:id/room',
+            sessionId: 's1',
+            platform: 'ios',
+            host: 'app',
+        });
+    });
+
+    it('derives the area from a tag when the entry carries none, the clients way', () => {
+        expect(logEntry({ tag: 'SOCKET' }).area).toBe('socket');
+        expect(logEntry({ tag: 'socket.reconnect_failed' }).area).toBe('socket');
+    });
+
+    it('reads httpStatus and errorCode on a log, and adds no statistics keys to it', () => {
+        const parsed = logEntry({ tag: 'NET', httpStatus: 401, errorCode: 'ERR_NETWORK' });
+
+        expect(parsed).toMatchObject({ httpStatus: 401, errorCode: 'ERR_NETWORK' });
+        expect(parsed).not.toHaveProperty('recordKind');
+        expect(parsed).not.toHaveProperty('durationMs');
+    });
+
+    it('ignores an unknown kind', () => {
+        expect(logEntry({ tag: 'x', kind: 'metric' })).not.toHaveProperty('recordKind');
+    });
+});

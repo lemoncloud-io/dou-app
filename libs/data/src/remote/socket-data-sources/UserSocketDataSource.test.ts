@@ -228,4 +228,38 @@ describe('UserSocketDataSource', () => {
             expect(result).toMatchObject({ total: Number.POSITIVE_INFINITY, page: 3, limit: 5 });
         });
     });
+
+    describe('my devices (user.list-device / user.unlink-device)', () => {
+        it('listDevices sends user.list-device and returns the SDK view as it came', async () => {
+            const view = {
+                list: [
+                    { id: 'dev-1', kind: 'mobile', platform: 'ios', presence: 'green', current: true },
+                    { id: 'dev-2', kind: '', presence: 'red', current: false },
+                ],
+                at: 1700,
+            };
+            (mockGateways.user.listDevice as jest.Mock).mockResolvedValue(view);
+
+            const result = await dataSource.listDevices();
+
+            expect(mockGateways.user.listDevice).toHaveBeenCalledTimes(1);
+            expect(result).toBe(view);
+        });
+
+        it('unlinkDevice sends user.unlink-device with the device id and returns the SDK view as it came', async () => {
+            const view = { id: 'dev-2', marked: true, closed: false };
+            (mockGateways.user.unlinkDevice as jest.Mock).mockResolvedValue(view);
+
+            const result = await dataSource.unlinkDevice('dev-2');
+
+            expect(mockGateways.user.unlinkDevice).toHaveBeenCalledWith({ deviceId: 'dev-2' });
+            expect(result).toBe(view);
+        });
+
+        it('lets a refused unlink reject — the caller decides what to show', async () => {
+            (mockGateways.user.unlinkDevice as jest.Mock).mockRejectedValue(new Error('400 current device'));
+
+            await expect(dataSource.unlinkDevice('dev-1')).rejects.toThrow('400 current device');
+        });
+    });
 });

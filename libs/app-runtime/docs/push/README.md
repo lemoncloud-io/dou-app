@@ -65,7 +65,7 @@ is the only thing limiting call volume.
 
 ### The record lives in two tiers
 
-- **Web tier** — `@chatic/shared`'s `storage`, which apps point at `localStorage` inside a shell. **Synchronous**, so the foreground-return path can decide without a bridge round trip.
+- **Web tier** — the session's plain store (`sessionStores`), which each app's entry point chooses: `localStorage` inside a shell, `sessionStorage` in a browser. It is read from `initAppRuntime` on. **Synchronous**, so the foreground-return path can decide without a bridge round trip.
 - **Native tier** — only when the shell supplies a `nativeRecordMirror`. It survives a WebView cache wipe, and it is **asynchronous**, so it is hydrated once after mount. A read that finds the web tier empty and the native tier populated backfills the web tier.
 
 Hydration runs **after** the foreground fast path and **in parallel with** the token fetch. After,
@@ -81,8 +81,9 @@ behaves exactly as it did before.
 
 The storage key is `push-reg:<policy version>:<uid>:<deviceId>:<platform>`, holding
 `{ id, token, at }`. `at` is diagnostic; **there is no expiry**. A corrupt or half-written entry reads
-as "never registered" rather than throwing. The key is deliberately **not** `@`-prefixed, so the
-logout storage sweep does not delete it.
+as "never registered" rather than throwing. The key is deliberately **not** `@`-prefixed: it survives a
+logout (the uid is part of the key, so an account switch re-registers anyway), and under `@` it would
+read as lemon's or the log pipeline's.
 
 Bumping the policy version is the only lever that re-registers everybody. There is no remote kill
 switch.
@@ -158,7 +159,7 @@ right project.
 - **Do not key the record on `useSessionIdentity().userId`.** It follows the active slot and breaks once-per-install into once-per-cloud.
 - **Do not drop `force: true`.** The broker's one-hour guard would swallow a genuine re-registration.
 - **Do not store a boolean.** A skip has to mean "nothing changed".
-- **Do not `@`-prefix the storage key.** The logout sweep clears that namespace.
+- **Do not `@`-prefix the storage key.** The logout sweep used to clear that whole namespace, and keys under it still read as lemon's or the app's log pipeline.
 - **Do not hydrate the mirror before the foreground fast path**, and do not chain it with the token fetch. Both are bridge requests with their own timeouts.
 - **Do not build the token in this folder.** Permission prompts and token issuance are the shell's.
 

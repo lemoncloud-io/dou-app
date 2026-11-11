@@ -7,7 +7,7 @@
 > · Amends [ADR-0167](./0167-bridge-requests-are-measured-before-the-bridge-is-split.md) decision 3
 > (the per-minute cap) and its first-ten consequence
 > · The module docs are [apps/web observability/performance.md](../../apps/web/docs/observability/performance.md),
-> [libs/app-runtime socket](../../libs/app-runtime/docs/socket/README.md) and
+> [libs/app-runtime socket](../../libs/transport/docs/socket/README.md) and
 > [image-send](../../libs/app-runtime/docs/data/image-send.md)
 
 ## Context

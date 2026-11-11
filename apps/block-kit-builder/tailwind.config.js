@@ -108,6 +108,7 @@ module.exports = {
                 elevated: 'hsl(var(--elevated))',
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
+                'code-inline': 'hsl(var(--code-inline))',
             },
             borderRadius: {
                 lg: 'var(--radius)',

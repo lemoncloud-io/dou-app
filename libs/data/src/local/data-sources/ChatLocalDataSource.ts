@@ -1,7 +1,13 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/app-messages';
+import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/bridge-messages';
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
-import { createDomainListResult, isPreviewableChat, pickPreviewChat } from '../../domain';
+import {
+    createDomainListResult,
+    isActivityChat,
+    isPreviewableChat,
+    pickActivityChat,
+    pickPreviewChat,
+} from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
 import type { ScopedCacheStorage } from '../ports';
 import {
@@ -52,6 +58,35 @@ const inferredHiddenAfter = (
     if (!existing?.hiddenByFeed || item.hiddenByFeed !== undefined) return {};
     return item.hidden ? { hiddenByFeed: false } : { hidden: false, hiddenByFeed: false };
 };
+
+/**
+ * Whether `item` is an older copy of a row the cache already holds a newer copy of — written by the
+ * server earlier than what is cached. Such a copy is not written: a message's state only moves forward.
+ *
+ * It arrives more often than it sounds. Every message edit or delete is followed by a revision notice,
+ * and a device brings the edited message to its current state by reading it again; that read can land
+ * after the change the server pushed live, and two quick edits can come back in either order. Without
+ * this an edited message could fall back to its previous text, or a deleted one come back.
+ *
+ * Compared only when both sides carry the server's time (`updatedAtMs` above 0); a row still on its way
+ * carries none and is written as before. An equal time is written, so receiving the same row twice
+ * settles to the same state — which is also why the delete marks this device infers (`markMissingHidden`,
+ * built from the cached copy and so carrying its time) are written.
+ */
+const isOlderThanCached = (existing: DomainChat | null | undefined, item: Partial<DomainChat>): boolean => {
+    const cachedAt = existing?.updatedAtMs ?? 0;
+    const incomingAt = item.updatedAtMs ?? 0;
+    return cachedAt > 0 && incomingAt > 0 && incomingAt < cachedAt;
+};
+
+/**
+ * The server time a merged row keeps: the incoming one when it has one, otherwise the cached one, and 0
+ * when neither does. Never the device's clock — a device running ahead would make every later server copy
+ * look older and be dropped by `isOlderThanCached` — and never a missing time (0) over a real one, which
+ * would switch that comparison off for the row.
+ */
+const serverTimeAfter = (existing: DomainChat | null | undefined, item: Partial<DomainChat>): number =>
+    item.updatedAtMs || existing?.updatedAtMs || 0;
 
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
 export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements IChatLocalDataSource {
@@ -121,7 +156,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
      * (in SQL) is only an optimization — this layer owns the semantics — so when a returned row
      * disagrees with the current `isPreviewableChat` (older semantics baked into the app), that channel
      * alone is redirected to a windowed read. When the fast path returns `null` (IndexedDB, which does
-     * not implement it; an older app; a transient error) every channel is read through the window —
+     * not implement it; a transient error) every channel is read through the window —
      * today's behaviour unchanged is the fallback.
      *
      * `lastNo` is that channel cache's maximum chatNo, regardless of previewability. It is the
@@ -148,8 +183,23 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 // `{ lastNo: 0, item: null }` for a channel with no rows is a valid answer ("no
                 // preview"), so it does not fall back. Only channels missing from the response or
                 // failing revalidation do.
-                if (!row || (row.item && !isPreviewableChat(row.item))) fallbackIds.push(channelId);
-                else byChannel.set(channelId, { channelId, lastNo: row.lastNo ?? 0, chat: row.item ?? null });
+                //
+                // A row without `activityItem` came from an app build that predates it, so the
+                // channel is read through the window rather than guessed at.
+                const valid =
+                    !!row &&
+                    row.activityItem !== undefined &&
+                    (!row.item || isPreviewableChat(row.item)) &&
+                    (!row.activityItem || isActivityChat(row.activityItem));
+                if (!row || !valid) fallbackIds.push(channelId);
+                else {
+                    byChannel.set(channelId, {
+                        channelId,
+                        lastNo: row.lastNo ?? 0,
+                        chat: row.item ?? null,
+                        activity: row.activityItem ?? null,
+                    });
+                }
             }
         } else {
             fallbackIds.push(...validIds);
@@ -160,7 +210,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 const page = await this.cacheReadList({ channelId, limit: LAST_CHAT_FALLBACK_LOOKBACK }, scope);
                 const list = page?.list ?? [];
                 const lastNo = list.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0);
-                const row: DomainLastChat = { channelId, lastNo, chat: pickPreviewChat(list) ?? null };
+                const row: DomainLastChat = {
+                    channelId,
+                    lastNo,
+                    chat: pickPreviewChat(list) ?? null,
+                    activity: pickActivityChat(list) ?? null,
+                };
                 byChannel.set(channelId, row);
             })
         );
@@ -199,6 +254,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
+        if (isOlderThanCached(existing, item)) return;
         const cid = scope.cid || 'default';
         const merged: DomainChat = {
             ...(existing ?? ({} as DomainChat)),
@@ -211,7 +267,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
             isPending: item.isPending ?? existing?.isPending ?? false,
             isFailed: item.isFailed ?? existing?.isFailed ?? false,
             createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
-            updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+            updatedAtMs: serverTimeAfter(existing, item),
         };
 
         await storage.save(id, merged);
@@ -230,8 +286,10 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
         const cid = scope.cid || 'default';
         const storage = this.storage(scope);
         const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
+        const freshItems = validItems.filter(item => !isOlderThanCached(existingById.get(item.id!), item));
+        if (freshItems.length === 0) return;
 
-        const mergedList = validItems.map(item => {
+        const mergedList = freshItems.map(item => {
             const existing = existingById.get(item.id!);
             return {
                 ...(existing ?? ({} as DomainChat)),
@@ -244,12 +302,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 isPending: item.isPending ?? existing?.isPending ?? false,
                 isFailed: item.isFailed ?? existing?.isFailed ?? false,
                 createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
-                updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+                updatedAtMs: serverTimeAfter(existing, item),
             } as DomainChat;
         });
 
         await storage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
+        this.scheduleItemReemit(freshItems.map(item => item.id!).filter(Boolean), scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 mergedList.map(item => item.channelId),

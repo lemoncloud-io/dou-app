@@ -24,7 +24,11 @@ grep -rn "lastChat\$" --include='*.ts' libs/data/src
 ## The read — `useLastChats`
 
 `apps/web/src/app/hooks/useLastChats.ts` takes the rendered channels and returns a
-`Map<channelId, DomainChat>`.
+`Map<channelId, DomainChat>`. A room has two last messages and the file exports one hook for each:
+`useLastChats` is the last message the room itself shows, which the row prints, and
+`useLastActivities` is the newest message anywhere in the room, a thread reply included, which gives
+the row its time and its order. Both read the same `observeLastList` key, so they share one
+observation; `DomainLastChat.chat` and `.activity` carry the two.
 
 1. It builds a **sorted, comma-joined key** of the channel ids. Re-ordering the list (a pin, a sort
    change) produces the same key, so the subscription is not torn down when only the order moved.
@@ -68,10 +72,11 @@ switch between them would otherwise hand one cloud's `lastNo` to the next cloud'
 Both hooks derive their key the same way, from the same sorted channel ids, so the two
 `observeLastList` calls resolve to one shared observation rather than two.
 
-## Ordering — the same value the row prints
+## Ordering — the same time the row prints
 
-`apps/web/src/app/utils/sortChannels.ts` takes the map as `lastChatByChannel` and orders by each
-chat's `createdAtMs ?? createdAt`, descending. An optimistic row carries `createdAt = now`, so
+`apps/web/src/app/utils/sortChannels.ts` takes the `useLastActivities` map as `lastChatByChannel` and
+orders by each chat's `createdAtMs ?? createdAt`, descending. That is the time printed beside the
+line, so the order and the clock never disagree. An optimistic row carries `createdAt = now`, so
 sending a message floats its channel before the server answers. The `unread` sort method and the
 pinned set are applied as stable passes on top of that order, so a pin always wins. Two rules follow
 from the activity time itself:
@@ -90,24 +95,28 @@ place's channel-management row print. In this order: a deleted message prints
 and quote markers dropped), whatever it
 has attached; and a message with attachments and no text prints what it carries.
 
-### A thread reply, and who wrote it
+### Thread replies stay off the row, and who wrote the message
 
-A room's last activity is the preview, and a reply in a thread is activity: `isPreviewableChat` in
-`libs/data` takes thread replies (reaction events and system rows still never preview). A reply prints
-behind a thread mark, `chat.preview.thread` — `[스레드] 답글` — so it does not read as a message in the
-room itself. The row orders by it as well, since the order is the same value the row prints.
+The line is the room's last top-level message. `isPreviewableChat` in `libs/data` leaves out thread
+replies, reaction events, system rows and failed sends, so the row prints only what the room's own feed
+shows — tapping it lands on a feed that contains the line. The time and the order are the room's
+latest activity (`isActivityChat`: the same rule without the reply exclusion), so a reply in a thread
+moves the room up the list and refreshes its time while the line stays on the last message the room
+shows. The line and the time can therefore belong to different messages. The `chat.preview.thread` mark
+in `lastChatPreview` stays as a guard for a reply that ever reaches a row.
 
-A group room's line names its writer, `chat.preview.sender` — `보낸 사람 : 내용`, and
-`[스레드] 보낸 사람 : 내용` for a reply. A 1:1 and a self chat print the message alone. The name comes
+A group room's line names its writer, `chat.preview.sender` — `보낸 사람 : 내용`. A 1:1 and a self chat print the message alone. The name comes
 from `useLastChatSenders`, one list-level `useChannelProfiles` subscription for every group row's
 writer (the shape of `useDmPeers`), and follows the room's order for a message's author without the
 room-only member cache: this place's profile nick, then the name the chat row carries. A writer with
 neither prints no name rather than a label. My own messages carry my name, like anyone's. The search
-and channel-management rows print the thread mark too (it comes from the chat row) but no writer.
+and channel-management rows print no writer.
 
-On the native app the last-chat fast path picks the row in SQL, which mirrors this rule; an app whose
-mirror still drops replies answers with an older message, and its rows keep the old preview until the
-app is updated.
+On the native app the last-chat fast path picks both rows in SQL, which mirrors these rules: the
+activity row first, and the preview row from a second pair of probes only when the activity row is a
+reply. An app that predates the activity row answers without it, and an app whose mirror still admits
+replies answers with a reply as the preview; the web falls back to the windowed query for either
+channel until the app is updated.
 
 ### Attachments
 
@@ -162,8 +171,8 @@ registration nor this observation. See [unread-dot](./unread-dot.md).
 
 ## Where it is consumed
 
-Home's `ChannelList` prints the preview and takes the order from it; place channel management reads
-the same map at page level; and search deliberately reads it without registering a row-level sync —
+Home's `ChannelList` prints the preview and takes its time and order from the activity; place channel
+management reads the same two maps at page level; and search deliberately reads it without registering a row-level sync —
 `useSearchContext` says why.
 
 ## Notes for implementers and tests
@@ -181,5 +190,5 @@ the same map at page level; and search deliberately reads it without registering
 - [unread-dot](./unread-dot.md) — the unread formula and its surfaces
 - [`libs/data`](../../../../../libs/data/README.md) — the chat cache, `observeLastList` and the
   channel mapper
-- [`libs/app-runtime`](../../../../../libs/app-runtime/README.md) — `SyncManager`, `registerChat`
+- [`libs/sync`](../../../../../libs/sync/README.md) — `SyncManager`, `registerChat`
   and `ChatSyncPlan`

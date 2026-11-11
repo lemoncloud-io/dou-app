@@ -2,13 +2,16 @@ import { ddayOf } from '../../lib/ddayOf';
 
 import type { BillingEmailReceives, PaymentMethod, Subscription } from '../../types';
 
-/** A card's expiry as the card prints it: `08/28`. */
-export const cardExpiry = ({ expMonth, expYear }: Pick<PaymentMethod, 'expMonth' | 'expYear'>): string =>
-    `${String(expMonth).padStart(2, '0')}/${String(expYear % 100).padStart(2, '0')}`;
+/** A card's expiry as the card prints it: `08/28`. `undefined` when the server does not say. */
+export const cardExpiry = ({ expMonth, expYear }: Pick<PaymentMethod, 'expMonth' | 'expYear'>): string | undefined =>
+    expMonth && expYear ? `${String(expMonth).padStart(2, '0')}/${String(expYear % 100).padStart(2, '0')}` : undefined;
 
-/** A card's expiry as a month in the app's date format: `2026.11`. */
-export const cardExpiryMonth = ({ expMonth, expYear }: Pick<PaymentMethod, 'expMonth' | 'expYear'>): string =>
-    `${expYear}.${String(expMonth).padStart(2, '0')}`;
+/** A card's expiry as a month in the app's date format: `2026.11`. `undefined` when the server does not say. */
+export const cardExpiryMonth = ({
+    expMonth,
+    expYear,
+}: Pick<PaymentMethod, 'expMonth' | 'expYear'>): string | undefined =>
+    expMonth && expYear ? `${expYear}.${String(expMonth).padStart(2, '0')}` : undefined;
 
 /**
  * The card a registration added, found by comparing the list before and after it. The provider's

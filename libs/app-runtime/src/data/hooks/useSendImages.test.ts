@@ -1817,12 +1817,55 @@ describe('useSendImages — shell files', () => {
 
         await act(() => result.current.sendImages([video, photo]));
 
-        expect(onVideoRefused).not.toHaveBeenCalled();
+        expect(onVideoRefused).toHaveBeenCalledTimes(1);
+        expect(onVideoRefused).toHaveBeenCalledWith('not-converted');
         const leftover = await chat.createPendingImageChat.mock.results[1].value;
         expect(result.current.canRetry(leftover)).toBe(true);
 
         await act(async () => void (await result.current.retry(leftover)));
         expect(prepareVideo).toHaveBeenLastCalledWith(video);
+        unmount();
+    });
+
+    it('tells the user when a bridge failure, such as a timeout, stops a conversion', async () => {
+        prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TIMEOUT' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([mov()]));
+
+        expect(onVideoRefused).toHaveBeenCalledWith('not-converted');
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
+        expect(result.current.canRetry(pendingId)).toBe(true);
+        unmount();
+    });
+
+    it('tells the user once when several videos in one send fail to convert', async () => {
+        prepareVideo.mockRejectedValue(Object.assign(new Error('x'), { code: 'SYSTEM' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+        const second = shellFile('IMG_0002.MOV', 'video/quicktime', { needsExport: true, size: 170_000_000 });
+
+        await act(() => result.current.sendImages([mov(), second]));
+
+        expect(prepareVideo).toHaveBeenCalledTimes(2);
+        expect(onVideoRefused).toHaveBeenCalledTimes(1);
+        expect(onVideoRefused).toHaveBeenCalledWith('not-converted');
+        unmount();
+    });
+
+    it('offers only delete, with no notice, for a video the shell does not recognise', async () => {
+        prepareVideo.mockRejectedValue(Object.assign(new Error('x'), { code: 'INVALID' }));
+        runSequence();
+        const { result, unmount } = renderHook(useShell);
+
+        await act(() => result.current.sendImages([mov()]));
+
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
+        expect(onVideoRefused).not.toHaveBeenCalled();
+        expect(result.current.canRetry(pendingId)).toBe(false);
         unmount();
     });
 

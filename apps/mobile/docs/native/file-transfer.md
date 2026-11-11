@@ -17,7 +17,7 @@ from is [attachment-picker.md](./attachment-picker.md).
 
 | Layer             | File                                                                                                                                                        |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/file-transfer.ts`                                                                                                        |
+| Messages          | `libs/bridge-messages/src/types/model/file-transfer.ts`                                                                                                     |
 | WebView handler   | `src/app/webview/hooks/fileTransferHandlers.ts`, `useFileTransferHandler.ts`                                                                                |
 | TS native wrapper | `src/app/bridge/TransferManagerBridge.ts`, `FileManagerBridge.ts` (`writeTempFile`)                                                                         |
 | Android           | `io/chatic/dou/transfer/` — `core/` (decisions), `TransferRegistry.kt` (owner), `TransferService.kt` (runs transfers), `TransferManagerModule.kt` (RN face) |

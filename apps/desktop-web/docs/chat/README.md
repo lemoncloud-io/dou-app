@@ -17,8 +17,8 @@ stores in `src/app/shared/`.
   paged past deleted messages.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
-- [read-receipts.md](./read-receipts.md): the "Seen by" line under a message, what it counts and which
-  messages show one.
+- [read-counts.md](./read-counts.md): the "Seen · Not seen" pill under each author block and the list of who read it — where it
+  shows, how members' read positions are counted, and why every member's join syncs while a room is open.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.
 - [channel-settings.md](./channel-settings.md): the channel settings panel's sections, and the channel
   ID a group channel shows for pointing a service at it.
@@ -35,7 +35,7 @@ stores in `src/app/shared/`.
 - [my-threads.md](./my-threads.md): the device's record of my threads, which the inbox's Threads tab
   reads — which threads it holds, the three ways one gets in, and what it cannot know.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded
-  window, and what it shows while it cannot.
+  window, what it shows while it cannot, and how a root in the feed marks replies the reader has not seen.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
   key, focus on open and close, and the next-unread shortcut.
 - [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no

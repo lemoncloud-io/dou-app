@@ -7,7 +7,7 @@ import type {
     ReadVideoFrameErrorCode,
     WebMessageData,
     WebMessageHandlerResponse,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IAttachmentPickerBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

@@ -4,7 +4,7 @@
 > · Scope: `libs/app-runtime/src/socket/SocketManager.ts` · `libs/app-runtime/src/connection/SocketBinder.tsx`
 > · Supersedes: decision 5 of [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (at most
 > one cloud slot, enforced by `ensure`)
-> · The module doc is [libs/app-runtime/docs/socket](../../libs/app-runtime/docs/socket/README.md#the-active-slot-is-a-pointer)
+> · The module doc is [libs/app-runtime/docs/socket](../../libs/transport/docs/socket/README.md#the-active-slot-is-a-pointer)
 
 ## Context
 

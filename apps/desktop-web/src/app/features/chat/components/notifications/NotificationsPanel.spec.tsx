@@ -29,6 +29,7 @@ const HOUR = 3_600_000;
 
 const item = (id: string, over: Partial<MentionItem> = {}): MentionItem => ({
     id,
+    cloudId: 'cloud-1',
     channelId: 'C1',
     chatNo: 5,
     content: `${id} body`,
@@ -265,11 +266,23 @@ describe('NotificationsPanel place scope', () => {
         expect(screen.getByRole('tab', { name: /^All\s*, 1 unread$/ })).toBeTruthy();
     });
 
-    it('keeps an item stored before items carried a place, since it cannot say where it was', () => {
-        seed(item('legacy', { placeId: undefined }));
+    it('keeps an item with no place, since it cannot say where in its cloud it was', () => {
+        seed(item('placeless', { placeId: undefined }));
         renderPanel();
 
-        expect(listed()).toEqual([expect.stringContaining('legacy body')]);
+        expect(listed()).toEqual([expect.stringContaining('placeless body')]);
+    });
+
+    // Every cloud numbers its places from the same start: P1 here is also P1 in the next cloud.
+    it("lists only the active cloud's items, not another cloud's place of the same id", () => {
+        seed(
+            item('here'),
+            item('other-cloud', { cloudId: 'cloud-2' }),
+            item('other-placeless', { cloudId: 'cloud-2', placeId: undefined })
+        );
+        renderPanel();
+
+        expect(listed()).toEqual([expect.stringContaining('here body')]);
     });
 
     it('says there is nothing new when only another place has items', () => {

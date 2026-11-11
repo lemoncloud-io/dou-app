@@ -58,7 +58,7 @@ jest.mock('./useEnterInvitedSite', () => ({
 }));
 jest.mock('./useEnterInvitedChannel', () => ({ useEnterInvitedChannel: () => ({ enterChannel: mockEnterChannel }) }));
 
-const { useInviteAccept } = require('./useInviteAccept');
+const { useInviteAccept, resolveInviteErrorKey } = require('./useInviteAccept');
 
 const ctx = (overrides: Partial<InviteContext> = {}): InviteContext =>
     ({
@@ -483,5 +483,38 @@ describe('useInviteAccept — invite_accept trace', () => {
         await runAccept(ctx({ info: undefined }));
 
         expect(backend.start).not.toHaveBeenCalled();
+    });
+});
+
+describe('resolveInviteErrorKey — a used link and an expired one', () => {
+    // The backend's grace message contains its expiry message as a substring, so these two cases only
+    // stay apart while the grace check runs first. Both live here so a reorder fails one of them.
+    it('reads a link past its grace period as already used', () => {
+        const error = new Error('400 INVALID - grace-timeout by invite[x]');
+
+        expect(resolveInviteErrorKey('login-invite', error)).toBe('inviteAccept.alreadyUsed');
+        expect(resolveInviteErrorKey('read-invite', error)).toBe('inviteAccept.alreadyUsed');
+    });
+
+    it('still reads an expired link as expired', () => {
+        const error = new Error('400 INVALID - timeout by invite[x]');
+
+        expect(resolveInviteErrorKey('login-invite', error)).toBe('inviteAccept.expired');
+        expect(resolveInviteErrorKey('read-invite', error)).toBe('inviteAccept.expired');
+    });
+
+    it('keeps any other 400 as expired', () => {
+        expect(resolveInviteErrorKey('login-invite', new Error('400 INVALID - bad code'))).toBe('inviteAccept.expired');
+    });
+
+    it('does not read the grace message in a step after the login', () => {
+        // Past the login the failure is about entering, whatever the text says.
+        expect(resolveInviteErrorKey('enter-site', new Error('400 INVALID - grace-timeout by invite[x]'))).toBe(
+            'inviteAccept.enterFailed'
+        );
+    });
+
+    it('lets a transport timeout win over everything', () => {
+        expect(resolveInviteErrorKey('login-invite', new Error('TIMEOUT: login'))).toBe('inviteAccept.timeout');
     });
 });

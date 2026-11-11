@@ -69,7 +69,7 @@ const CODE = 'invt:1:secret';
 
 const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     phase: 'review',
-    invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } },
+    invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Account Name', nick: 'Sunny' } },
     notice: null,
     countdown: null,
     verifyMode: 'login',
@@ -96,7 +96,8 @@ describe('RelayInviteAccept', () => {
     it('수락 화면에 초대자와 1:1 대화 라벨을 렌더한다', () => {
         render(<RelayInviteAccept code={CODE} />);
 
-        expect(screen.getByText('Sunny')).toBeInTheDocument();
+        // The heading and the 1:1 card both name the inviter, by the same nickname.
+        expect(screen.getAllByText('Sunny')).toHaveLength(2);
         expect(screen.getByText('inviteAccept.target.oneToOne')).toBeInTheDocument();
         expect(screen.queryByText('inviteAccept.target.group')).not.toBeInTheDocument();
     });
@@ -211,27 +212,61 @@ describe('RelayInviteAccept', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    // A relay 1:1 invite is not into a place. Two things guarantee the card stays away: this dialog
-    // never forwards `site$` to the screen, and the screen gates the card on `targetKind` regardless
-    // (ADR-0037). The mock carries a site precisely so neither guard can be dropped unnoticed.
-    it('초대가 실어온 플레이스 이름을 그린다', () => {
+    // The relay's personal place is called "default" by the backend, which is not a name to show.
+    it('draws the invited place under the home-place branding', () => {
         mockFlow = flow({
-            invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' }, site$: { name: '북클럽' } },
+            invite: {
+                id: 'inv-1',
+                state: 'pending',
+                inviter$: { nick: 'Sunny' },
+                site$: { id: '0000', name: 'default' },
+            },
         });
         render(<RelayInviteAccept code={CODE} />);
 
-        expect(screen.getByText('Sunny')).toBeInTheDocument();
-        expect(screen.getByText('북클럽')).toBeInTheDocument();
+        expect(screen.getByTestId('invite-place-card')).toBeInTheDocument();
+        expect(screen.getByText('placeList.defaultPlace')).toBeInTheDocument();
+        expect(screen.queryByText('default')).not.toBeInTheDocument();
     });
 
-    // The current state where relay invite.get doesn't populate site$ — the card just folds away
-    // quietly (ADR-0089 D1, applied ahead of time).
+    // The state where relay invite.get doesn't populate site$ — the card just folds away quietly
+    // (ADR-0089 D1, applied ahead of time). Branding must not conjure one out of nothing.
     it('플레이스 메타가 없으면 카드가 접힌다', () => {
-        mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { name: 'Sunny' } } });
+        mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { nick: 'Sunny' } } });
         render(<RelayInviteAccept code={CODE} />);
 
-        expect(screen.getByText('Sunny')).toBeInTheDocument();
+        expect(screen.getAllByText('Sunny').length).toBeGreaterThan(0);
         expect(screen.queryByTestId('invite-place-card')).not.toBeInTheDocument();
+    });
+});
+
+describe('RelayInviteAccept — naming the inviter', () => {
+    const open = (inviter: Record<string, unknown> | undefined) => {
+        mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: inviter } as never });
+        return render(<RelayInviteAccept code={CODE} />);
+    };
+
+    it('reads the heading and the card from the place nickname', () => {
+        open({ name: 'Account Name', nick: 'Sunny' });
+
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sunny');
+        expect(screen.getByTestId('invite-target-card')).toHaveTextContent('Sunny');
+        expect(screen.queryByText('Account Name')).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ['no nickname, only an account name', { name: 'Account Name' }],
+        ['a blank nickname', { name: 'Account Name', nick: '   ' }],
+        ['an empty nickname', { name: 'Account Name', nick: '' }],
+        ['no inviter at all', undefined],
+    ])('shows the nameless heading and a caption-only card for %s', (_label, inviter) => {
+        open(inviter);
+
+        // The i18n stub returns the key, so the nameless line reads as `inviteAccept.title`.
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('inviteAccept.title');
+        expect(screen.queryByText('Account Name')).not.toBeInTheDocument();
+        expect(screen.getByTestId('invite-target-card')).toHaveTextContent('inviteAccept.target.oneToOne');
+        expect(screen.getByTestId('invite-target-card').querySelectorAll('p')).toHaveLength(1);
     });
 });
 

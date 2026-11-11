@@ -33,7 +33,7 @@ Two collaborators live outside the feature and are the reason a reader gets lost
   and `url` — `buildReportContext` must not duplicate those.
 - **Route recording.** `stackObserver` does it; this feature only reads the buffer at submit time.
 - **The entry row.** `SettingsPage` under [mypage](../mypage/README.md) owns it.
-- **Reading reports back.** admin-v2's report-logs console does.
+- **Reading reports back.** admin's report-logs console does.
 
 ## The shared contract
 

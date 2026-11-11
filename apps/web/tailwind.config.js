@@ -109,6 +109,7 @@ module.exports = {
                 'avatar-ring': 'hsl(var(--avatar-ring))',
                 'avatar-stroke': 'hsl(var(--avatar-stroke))',
                 'control-surface': 'hsl(var(--control-surface))',
+                'nav-ink': 'hsl(var(--nav-ink))',
                 'glyph-green': 'hsl(var(--glyph-green))',
                 'glyph-indigo': 'hsl(var(--glyph-indigo))',
                 'glyph-cyan': 'hsl(var(--glyph-cyan))',
@@ -144,6 +145,7 @@ module.exports = {
                 // message, and the recessed ground under a code block.
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
+                'code-inline': 'hsl(var(--code-inline))',
                 warning: 'hsl(var(--warning))',
             },
             // Semantic type scale for `libs/block-kit`'s renderer, which both apps share.

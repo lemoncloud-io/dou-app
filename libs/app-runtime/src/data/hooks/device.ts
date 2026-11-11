@@ -1,6 +1,6 @@
 import { useCustomMutation } from '@chatic/shared';
 
-import { userGateway } from '../../http/gateways';
+import { userGateway } from '@chatic/transport';
 
 import type { RegisterDeviceTokenBody } from '@lemoncloud/chatic-backend-api';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';

@@ -1,12 +1,14 @@
 # cache storage routing
 
-Two stores exist for a cached row. Inside a native shell there is the app's SQLite, reached over the
+Three stores exist for a cached row. Inside a native shell there is the app's SQLite, reached over the
 bridge, which survives the OS clearing WebView data. Everywhere else — and sometimes inside the shell
-too — there is the WebView or browser's own IndexedDB. **One function decides which, for every type,
+too — there is the WebView or browser's own IndexedDB. And for one domain in a plain browser tab there
+is the tab's `sessionStorage`, which ends with the tab. **One function decides which, for every type,
 and nothing else may branch on it.**
 
 ```ts
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
+    if (type === 'invitecloud' && !isNative()) return 'session'; // 0. lives as long as the tab's guest
     if (!isNativeApp()) return 'web'; // 1. no shell, no other store to reach
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web'; // 2. pinned, with a reason
     if (!isNativeCacheTypeUsable(type)) return 'web'; // 3. the shell cannot be trusted with it
@@ -16,7 +18,8 @@ export const resolveCacheBackend = (type: CacheType): CacheBackend => {
 
 [`localFactory.getCacheStorage`](../../src/data/factories/localFactory.ts) materializes that verdict
 as an adapter and does nothing else: `web` builds an IndexedDB adapter (carrying the chat cap, which
-the adapter ignores for other types), `native` builds the bridge adapter. Global cache search follows
+the adapter ignores for other types), `native` builds the bridge adapter, and `session` builds a
+`sessionStorage` adapter wrapped in the one-time import described below. Global cache search follows
 the environment directly — on native it searches SQLite, because that is the source of truth and web
 storage there holds only the exceptions.
 
@@ -64,14 +67,53 @@ level: `REQUIRED_DOMAIN_VERSION`'s key type subtracts it, so naming it there doe
 the lookup always falls through to "edition 1 is enough". The pin lever must not be pointed at it
 either.
 
-Moving that domain's storage at all requires writing a migration bridge **first**. The one that
-existed was removed once it had run for weeks and exhausted its active users; there is no bridge
-today, and adding one is a precondition rather than a follow-up. See
-[README.md](./README.md#invited-clouds) for what defends the domain in the meantime.
+Moving that domain's storage at all requires writing a migration bridge **first**. The
+web-to-native one was removed once it had run for weeks and exhausted its active users. The move to
+`sessionStorage` below ships with its own, for the same reason. See
+[README.md](./README.md#invited-clouds) for what else defends the domain.
 
 The other domains are safe to move because the server refills them. `invite` is one of them because
 its list call always revalidates; `meta` is one because it holds sync cursors, and losing those costs
 a single full re-sync.
+
+## Check 0: invited clouds in a plain tab live with the tab's guest
+
+An invited cloud can only be entered by the device user that accepted the invite — the server grants
+the cloud to that `delegatorId` and nobody else. In a plain browser tab that device user is the tab's
+guest, kept in `sessionStorage`: each tab starts its own, and it is gone when the tab is. A row kept in
+IndexedDB outlived it and reached every later tab's list, where only the `acceptedBy` filter in
+apps/web kept it out, and a row written before that field existed could not be kept out at all.
+
+So the row is stored where its only user is: `sessionStorage`, routed ahead of every other check. The
+test is `isNative()` from `@chatic/bridges`, not `isNativeApp()`, because it is the same predicate the
+app entry points use to choose `sessionStorage` for the session itself — the row and the guest share a
+lifetime by construction. Inside a desktop shell the session is in `localStorage`, so the shell's
+invited clouds stay in IndexedDB; inside the mobile shell they stay native. A reload keeps the tab's
+`sessionStorage`, so it keeps both the guest and its clouds; "duplicate tab" copies both together.
+
+`WebStorageAdapter` keeps the partition as one JSON value and does not interpret query options, which
+is right for this domain — a handful of rows, no paging — and wrong for most others.
+
+**The import.** A tab open across the deploy that made this move has its guest in `sessionStorage`
+already but its accepted clouds still in IndexedDB, and on the web nothing can rebuild them (the push
+recovery runs in the native shell only). `InvitedCloudImportStorage` wraps the tab store: on the first
+call in a tab it copies the IndexedDB rows the tab can be shown to own — those whose `acceptedBy`
+names this tab's guest, and those the tab's session holds a uid in (desktop-web writes no
+`acceptedBy`, so the recorded uid is its only proof). Both records live in the tab's own
+`sessionStorage`. Any other row stays behind: those are the ones that leaked between guests. Once a
+pass ran with a guest id it sets `chatic-invitecloud-imported` in `sessionStorage`, so a row the tab
+later removes is not brought back; a pass with no guest id (an account session, the reload after a
+logout) leaves it unset, and a later boot with the returning guest tries again. The IndexedDB rows
+are left in place, since a tab still on the previous build reads them there. A tab opened after the
+deploy has a new guest, entered nothing, and imports nothing.
+
+The import is temporary: it serves only tabs that were open across that deploy, so once those are
+gone it and the IndexedDB `invitecloud` rows can be removed together.
+
+Moving the domain also changes the browser's routing fingerprint (`invitecloud:session`), which
+retires its sync cursors and costs a reloaded tab one full re-sync of its other domains. While an
+old-build tab and a new-build tab share an account, each retires the other's cursors, so that repeats
+until the last old-build tab reloads.
 
 ## Moving a domain retires its cursors
 
@@ -104,12 +146,13 @@ deploy alone — and it is a stopgap with the durability cost above.
 
 ## Verifying a change here
 
-- `localFactory.test.ts` fixes the routing table as a full **type × environment** matrix, plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
+- `invitedCloudSessionImport.test.ts` fixes the import — only this guest's rows, once per tab, a held row wins, a failed read retries next boot.
+- `localFactory.test.ts` fixes the routing table as a full **type × environment** matrix (with a desktop-shell case for `invitecloud`), plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
 - `nativeCacheSupport.test.ts` fixes the gate itself — the floor holds when a shell omits a legacy type, a reported version is honoured, a shortfall routes to web, and the local-authority domain stays native under every report shape.
 - The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and `localFactory.test.ts` asserts the fingerprint differs between environments and is derived from the storages actually built rather than a hand-kept list.
 
 ## Further reading
 
 - [README.md](./README.md) — the factories that consume this verdict, and the invited-cloud defences
-- [`libs/db`](../../../db/README.md) — the two adapters behind `web` and `native`
+- [`libs/db`](../../../db/README.md) — the adapters behind `web`, `native` and `session`
 - [`libs/data`](../../../data/README.md) — the cache partition key, and the sync-cursor data source that reads the fingerprint

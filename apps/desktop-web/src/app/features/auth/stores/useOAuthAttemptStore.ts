@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 
+import type { OAuthProvider } from '../utils/oauth';
 import type { OAuthStartIntent } from '../utils/oauthLoginStart';
 
 /** Why a pending link came back without linking. Shown on the account hub's sign-in card. */
 export type LinkFailure = 'occupied' | 'typeLinked' | 'failed';
 
 export interface OAuthAttempt {
-    provider: string;
+    provider: OAuthProvider;
     intent: OAuthStartIntent;
     /**
      * Nobody was signed in when the login began, so the device session it runs on was registered by it.

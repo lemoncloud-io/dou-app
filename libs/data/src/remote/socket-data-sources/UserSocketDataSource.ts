@@ -2,6 +2,7 @@ import type { ChannelUsersSyncView, UserView } from '@lemoncloud/chatic-socials-
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { MyInviteView, MySiteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
 import type { PlaceListUserResult } from '@lemoncloud/chatic-sockets-api/dist/lib/place/types';
+import type { UserListDeviceView, UserUnlinkDeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainJoin, DomainListResult, DomainPlace, DomainPlaceMember, DomainUser } from '../../domain';
 import {
     createDomainListResult,
@@ -80,6 +81,10 @@ export interface IUserSocketDataSource {
     syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
     /** Requests one page of a place's members (`place.list-user`) and returns them as domain members. */
     fetchPlaceUsers(payload: UserFetchPlaceUsersInput, context: DataContext): Promise<PlaceUsersPage>;
+    /** Requests my own devices on the session's server (`user.list-device`). The SDK view, unchanged. */
+    listDevices(): Promise<UserListDeviceView>;
+    /** Unlinks one of my devices other than this one (`user.unlink-device`). The SDK view, unchanged. */
+    unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView>;
 }
 
 /**
@@ -159,5 +164,15 @@ export class UserSocketDataSource implements IUserSocketDataSource {
             page: typeof remote?.page === 'number' ? remote.page : (payload.page ?? 0),
             limit: typeof remote?.limit === 'number' ? remote.limit : (payload.limit ?? members.length),
         };
+    }
+
+    // Device rows are not domain entities: nothing caches them and the device screen reads the
+    // server's fields (kind, presence, `current`) as they are, so the SDK views pass through.
+    public async listDevices(): Promise<UserListDeviceView> {
+        return this.gateway.listDevice();
+    }
+
+    public async unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView> {
+        return this.gateway.unlinkDevice({ deviceId });
     }
 }

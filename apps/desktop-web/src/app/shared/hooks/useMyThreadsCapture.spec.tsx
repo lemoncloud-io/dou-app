@@ -103,7 +103,7 @@ describe('useMyThreadsCapture', () => {
     it("puts someone else's reply in a thread of mine into the inbox", async () => {
         cacheRead.mockResolvedValue(rootBy(CLOUD_UID));
         feedHandler?.(feed({}));
-        await waitFor(() => expect(inboxKinds()).toEqual([['ch-1:5', 'reply']]));
+        await waitFor(() => expect(inboxKinds()).toEqual([['cloud-a:ch-1:5', 'reply']]));
     });
 
     it("leaves someone else's thread out of the inbox", async () => {

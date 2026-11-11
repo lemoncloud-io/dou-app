@@ -17,8 +17,8 @@ export const HeroSection = (): JSX.Element => {
                            pt-16 md:pt-0 pb-0 md:pb-0 min-h-screen"
             >
                 {/* Text content */}
-                <div className="md:flex-1 text-center md:text-left pb-[66px] md:pb-0 animate-fade-in-up">
-                    <div className="flex flex-col gap-[45px] md:gap-12 items-center md:items-start">
+                <div className="md:flex-1 text-center pb-[66px] md:pb-0 animate-fade-in-up">
+                    <div className="flex flex-col gap-[45px] md:gap-12 items-center">
                         <div className="flex flex-col gap-2 md:gap-[14px] w-full">
                             <h1
                                 className="font-heading font-bold text-navy tracking-[-0.8px] md:tracking-[-1.3px] xl:tracking-[-1.6px]
@@ -40,7 +40,7 @@ export const HeroSection = (): JSX.Element => {
                         </div>
 
                         {/* Desktop store buttons */}
-                        <div className="hidden md:flex flex-wrap items-center gap-3 justify-start animate-fade-in-up animate-delay-200">
+                        <div className="hidden md:flex flex-wrap items-center gap-3 justify-center animate-fade-in-up animate-delay-200">
                             <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} />
                             <StoreButton
                                 href={storeUrls.android}

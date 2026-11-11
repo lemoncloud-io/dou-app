@@ -1,67 +1,103 @@
-import { type JSX } from 'react';
+import { type JSX, type ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
 
+import chevronLeft from '../../../../assets/subscription/chevron-left.svg';
 import { ROUTES } from '../../../routes/paths';
-import { useSession } from '../hooks';
-import { cn } from '../utils';
+import { useGoBack, useSession } from '../hooks';
 import { AccountMenu } from './AccountMenu';
+import { SiteFooter } from './SiteFooter';
 
-const navClass = ({ isActive }: { isActive: boolean }) =>
-    cn('text-sm transition-colors', isActive ? 'font-semibold text-navy' : 'text-subtitle hover:text-navy');
+// The steps of a purchase: sign in, the checkout, a plan change — and the notice that a store
+// subscription is not changed here. Their bar has a back button and their page no footer — the
+// reader is in the middle of something and has one way on.
+const FLOW_PATHS = [
+    ROUTES.subscription.login,
+    ROUTES.subscription.checkout,
+    ROUTES.subscription.change,
+    ROUTES.subscription.storeManaged,
+];
+
+const ShellBackContext = createContext<() => () => void>(() => () => undefined);
 
 /**
- * The frame for the pages a reader reaches before or while buying: a plain top bar with the logo, the
- * three destinations and either `로그인` or the account menu. Not the home page's marketing header —
- * that one floats over a hero and watches the home page's own scroll container.
- *
- * Where the account surface is shut (`account` false) the bar keeps the plans and the policy and
- * drops the two that lead nowhere there: the subscription list and sign-in.
+ * Asks the shell for its back button on a page it would otherwise hide it on. The upgrade
+ * confirmation shares a path with the first-subscription one, which has nowhere to go back to.
  */
-export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Element => {
+export const useShellBack = (): void => {
+    const claim = useContext(ShellBackContext);
+    useEffect(() => claim(), [claim]);
+};
+
+/**
+ * The frame for the pages a reader reaches before or while buying: a bar with the logo and either
+ * `로그인` or the account menu — 60px on a phone, 64px from `sm` — over the page, with the company
+ * footer under it. Not the home page's marketing header: that one floats over a hero and watches the
+ * home page's own scroll container.
+ *
+ * Inside a purchase flow (`FLOW_PATHS`) the bar gains a back button — not on the pages where a payment
+ * settles or has settled — drops the sign-in button on the sign-in pages themselves, and the footer goes.
+ *
+ * Where the account surface is shut (`account` false) there is no sign-in to offer, so the bar keeps
+ * the logo alone.
+ */
+export const PublicShell = ({ account = true, children }: { account?: boolean; children?: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     const session = useSession();
+    const { pathname } = useLocation();
+    const goBack = useGoBack();
+    const flow = FLOW_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
+    const onSignIn = pathname === ROUTES.subscription.login || pathname.startsWith(`${ROUTES.subscription.login}/`);
+    // Where a payment ended — settling or settled — there is nothing to go back to.
+    const ended = pathname === ROUTES.subscription.checkoutStatus || pathname === ROUTES.subscription.checkoutComplete;
+    const [backClaims, setBackClaims] = useState(0);
+    const claimBack = useCallback(() => {
+        setBackClaims(count => count + 1);
+        return () => setBackClaims(count => count - 1);
+    }, []);
 
     return (
         <div className="flex h-full flex-col overflow-auto bg-background">
-            <header className="sticky top-0 z-30 border-b border-border bg-background">
-                <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-8">
-                    <Link to={ROUTES.root} className="flex items-center gap-2 hover:opacity-80">
+            <header className="sticky top-0 z-30 border-b border-line bg-background">
+                <div className="flex h-[60px] items-center gap-6 px-2 sm:h-16 sm:px-12">
+                    {flow && (!ended || backClaims > 0) && (
+                        <button
+                            type="button"
+                            aria-label={t('subscription.common.actions.back')}
+                            onClick={goBack}
+                            className="-mr-4 flex size-11 shrink-0 items-center justify-center"
+                        >
+                            <img src={chevronLeft} alt="" aria-hidden className="size-6" />
+                        </button>
+                    )}
+                    <Link
+                        to={ROUTES.root}
+                        className={`mr-auto flex shrink-0 items-center hover:opacity-80 ${flow ? '' : 'max-sm:pl-2'}`}
+                    >
                         <img src={Logo.logo} alt="DoU" className="h-8 w-8" />
-                        <img src={Logo.douBk} alt="D.U" className="h-4" />
+                        <img src={Logo.douBk} alt="D.U" className="ml-2 h-4" />
                     </Link>
-                    <nav className="flex items-center gap-6">
-                        <NavLink to={ROUTES.subscription.plans} className={navClass}>
-                            {t('subscription.common.nav.plans')}
-                        </NavLink>
-                        {account && (
-                            <NavLink to={ROUTES.subscription.root} end className={navClass}>
-                                {t('subscription.common.nav.manage')}
-                            </NavLink>
-                        )}
-                        <NavLink to={ROUTES.policy.refund} className={navClass}>
-                            {t('subscription.common.nav.policy')}
-                        </NavLink>
-                        {session.data ? (
-                            <AccountMenu account={session.data} />
-                        ) : (
-                            account && (
-                                <Link
-                                    to={ROUTES.subscription.login}
-                                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy hover:bg-muted"
-                                >
-                                    {t('subscription.common.nav.signIn')}
-                                </Link>
-                            )
-                        )}
-                    </nav>
+                    {session.data ? (
+                        <AccountMenu account={session.data} className="max-sm:pr-2" />
+                    ) : (
+                        account &&
+                        !onSignIn && (
+                            <Link
+                                to={ROUTES.subscription.login}
+                                className="whitespace-nowrap rounded-lg border border-line px-2 py-2 text-[13px] font-semibold text-ink hover:bg-muted max-sm:mr-2 sm:px-4 sm:text-sm"
+                            >
+                                {t('subscription.common.nav.signIn')}
+                            </Link>
+                        )
+                    )}
                 </div>
             </header>
-            <main className="mx-auto w-full max-w-[880px] flex-1 px-8 py-10">
-                <Outlet />
+            <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-[62px] pt-6 sm:px-8 sm:pb-[68px] sm:pt-10 min-[1200px]:px-0">
+                <ShellBackContext.Provider value={claimBack}>{children ?? <Outlet />}</ShellBackContext.Provider>
             </main>
+            {!flow && <SiteFooter />}
         </div>
     );
 };

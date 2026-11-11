@@ -4,7 +4,14 @@ import {
     type HttpGatewayBundle,
 } from '@chatic/data';
 
-import { cloudGateway, oauthGateway, reportGateway, subscriptionGateway, userGateway } from '../../http/gateways';
+import {
+    cloudGateway,
+    oauthGateway,
+    pairingGateway,
+    reportGateway,
+    subscriptionGateway,
+    userGateway,
+} from '@chatic/transport';
 
 /**
  * Assembles the HTTP gateway bundle and hands back the `data-source` bundle built on it —
@@ -13,8 +20,8 @@ import { cloudGateway, oauthGateway, reportGateway, subscriptionGateway, userGat
  * enough to build the data sources — same rule `socketFactory.createSocketDataSources` follows.
  *
  * `getHttpManager` used to live in this file, which is how `session/auth` came to import `data` just
- * to reach the HTTP client. It now lives in `http/factory.ts` and the gateway instances are shared
- * from `http/gateways.ts`, so what remains here is only data's own bundle.
+ * to reach the HTTP client. It now lives in the transport's `http/factory.ts` and the gateway instances
+ * are shared from its `http/gateways.ts`, so what remains here is only data's own bundle.
  */
 export const createHttpDataSources = (): { httpDataSources: HttpDataSources } => {
     const gateways: HttpGatewayBundle = {
@@ -30,6 +37,8 @@ export const createHttpDataSources = (): { httpDataSources: HttpDataSources } =>
         // Diagnostics (user issue reports · log batches). Not domain data, but a data call — it
         // comes through the same path so nothing builds its own signed request any more.
         report: reportGateway(),
+        // Device pairing — every operation is a signed relay request, whichever cloud is active.
+        pairing: pairingGateway(),
     };
 
     return { httpDataSources: createDataHttpDataSources({ gateways }) };

@@ -31,6 +31,7 @@ export const ko = {
         loadTitle: 'DoU를 불러오지 못했어요',
         loadMessage: '네트워크 연결을 확인하고 다시 시도해 주세요.',
         retry: '다시 시도',
+        subClose: '닫기',
     },
     notification: {
         channel: {

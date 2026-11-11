@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 
 import { appBridge, syncLanguageChoiceToShell } from '../bridge';
 import { toLanguagePreference } from '../../i18n/languagePreference';
@@ -10,7 +10,7 @@ import { parseThemeBridgeValue } from '../stores/preferenceParsers';
 interface ManagedKey {
     /** The registry key `config` resolves this preference under. */
     configKey: string;
-    /** The legacy `PreferenceKey` an app build old enough to lack the boot-injection bag still answers to. */
+    /** The legacy `PreferenceKey` an app from before the boot-injection bag stored this under. */
     nativeKey: PreferenceKey;
     /** Bridge value -> the value to write into `configKey`, or null to skip (unusable). */
     decode: (value: unknown) => unknown;
@@ -20,7 +20,7 @@ interface ManagedKey {
 // on purpose: an older shell's language store holds the device default or the language in effect at
 // the time — a guess and a pick in one value — so reading it back could pin a guess. Every other
 // `ui.*`/`debug.*` key is either `local`-only (nothing for native to answer) or has no legacy bridge
-// counterpart at all (see legacyPreferenceMigration.ts).
+// counterpart at all.
 const MANAGED_KEYS: readonly ManagedKey[] = [
     {
         configKey: 'ui.blurLastMessage',
@@ -38,8 +38,8 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
 
 /**
  * Bridge fallback read: fills `@chatic/config`'s shell lane for any managed key the boot-injection
- * bag did not already answer (an app build that predates `CHATIC_APP_CONFIG_BAG` — web ships before
- * the app).
+ * bag did not already answer — a value set while an app from before `CHATIC_APP_CONFIG_BAG` was
+ * installed, which the app keeps only in its legacy preference store and never moves into the bag.
  *
  * Runs only on native, and only for keys `config.init()` resolved to nothing but the floor
  * (`defaultValue`/a stage rule) — a value already supplied by the shell (the common case, once the
@@ -47,7 +47,7 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
  * `config.set(..., { lane: 'shell' })`, the same lane the boot injection itself would have used, so
  * this is exactly a slower version of what the injection already does — including feeding the same
  * local-storage mirror (`ConfigFacade`'s own `persist: 'shell'` fallback), so the NEXT boot resolves
- * synchronously without needing this fetch again, even before the app itself updates.
+ * synchronously without needing this fetch again.
  *
  * Renders nothing; mounted once under AppRuntime.
  */

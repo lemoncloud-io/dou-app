@@ -9,14 +9,13 @@ const CONFIG = {
     rootPackagePath: 'package.json', // Path to the root package.json
     projectPaths: {
         web: 'apps/web/package.json',
-        'admin-v2': 'apps/admin-v2/package.json',
+        admin: 'apps/admin/package.json',
         landing: 'apps/landing/package.json',
         'desktop-web': 'apps/desktop-web/package.json',
     },
     scopeMap: {
         web: 'web',
-        // admin-v2 is the current admin app; 'admin'-scoped commits bump it.
-        'admin-v2': 'admin',
+        admin: 'admin',
         landing: 'landing',
         'desktop-web': 'desktop-web',
     },

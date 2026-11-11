@@ -2,13 +2,15 @@
 
 The lower part of the left rail, under the cloud switcher and a divider, lists the places of the
 active cloud (`PlaceRail`). The active place's tile fills with the brand lime (`bg-primary`); the
-others stay on the rail until hovered. A place is a site inside a
+others stay on the rail until hovered. A tile showing the place's logo cannot show the fill (the logo
+covers it), so the open one wears a ring instead. A place is a site inside a
 cloud; selecting a tile moves the socket session into it (`useSelectPlace`), and the sidebar then
 lists that place's channels. On Home, and for a guest, the rail shows a single Home tile: the
 default cloud has no places to choose between.
 
 The tiles come from the place cache (`usePlaces`), which the runtime's background sync keeps
-current. Nothing on the rail fetches.
+current. Nothing on the rail fetches. Shift+1…Shift+9 select a tile by the position it is drawn in
+([`../chat/keyboard.md`](../chat/keyboard.md#cloud-and-place-by-number)).
 
 ## Order
 

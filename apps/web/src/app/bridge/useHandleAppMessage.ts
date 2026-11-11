@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { logger, webClient } from '@chatic/bridges';
-import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType } from '@chatic/bridge-messages';
 
 /**
  * A React hook for subscribing to a specific message.
@@ -79,6 +79,9 @@ export const useOnFetchFcmToken = (handler: (message: AppMessageData<'OnFetchFcm
 
 export const useOnNavigate = (handler: (message: AppMessageData<'OnNavigate'>) => void) =>
     useHandleAppMessage('OnNavigate', handler);
+
+export const useOnSubWebViewClosed = (handler: (message: AppMessageData<'OnSubWebViewClosed'>) => void) =>
+    useHandleAppMessage('OnSubWebViewClosed', handler);
 
 export const useOnFetchPreference = (handler: (message: AppMessageData<'OnFetchPreference'>) => void) =>
     useHandleAppMessage('OnFetchPreference', handler);

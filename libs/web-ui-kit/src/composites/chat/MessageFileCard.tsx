@@ -37,10 +37,8 @@ export type MessageFileCardState = 'ready' | 'sending' | 'failed' | 'broken';
  * - `downloading` — a ring filling with `progress`, or a spinner while that is unknown. Pressing it
  *   again cancels.
  * - `done` — downloaded; pressing it opens the downloaded file.
- * - `unavailable` — this shell cannot save a file (an app built before it could). No button, a notice
- *   in its place: a button that can only fail is worse than saying why there is none.
  */
-export type MessageFileDownloadState = 'idle' | 'downloading' | 'done' | 'unavailable';
+export type MessageFileDownloadState = 'idle' | 'downloading' | 'done';
 
 export interface MessageFileCardLabels {
     /** The name drawn for an upload that carries none — older uploads did not. */
@@ -48,8 +46,6 @@ export interface MessageFileCardLabels {
     download: string;
     cancel: string;
     open: string;
-    /** The notice drawn instead of the button while `download` is `unavailable`. */
-    unavailable: string;
     /** The line a `broken` card shows in place of its size. */
     broken: string;
     /** Accessible names of the sending spinner or ring, and of the failed mark. */
@@ -87,7 +83,6 @@ const DEFAULT_LABELS: MessageFileCardLabels = {
     download: 'Download',
     cancel: 'Cancel download',
     open: 'Open',
-    unavailable: 'Update the app to download',
     broken: "Can't open",
     sending: 'Sending',
     failed: "Couldn't send",
@@ -151,7 +146,6 @@ export const MessageFileCard = ({
         : sentBytes !== undefined
           ? `${formatFileSize(sentBytes)} / ${formatFileSize(size)}`
           : formatFileSize(size);
-    const notice = ready && download === 'unavailable' ? text.unavailable : undefined;
 
     const body = (
         <>
@@ -173,9 +167,6 @@ export const MessageFileCard = ({
                     <span className="text-[12px] leading-[1.4] tracking-[-0.12px] text-description tabular-nums">
                         {sub}
                     </span>
-                )}
-                {notice && (
-                    <span className="text-[12px] leading-[1.4] tracking-[-0.12px] text-description">{notice}</span>
                 )}
             </span>
         </>
@@ -208,7 +199,7 @@ export const MessageFileCard = ({
                 </span>
             );
         }
-        if (!ready || download === 'unavailable') return null;
+        if (!ready) return null;
 
         const button =
             download === 'downloading'

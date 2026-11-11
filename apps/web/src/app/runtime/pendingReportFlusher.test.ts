@@ -1,4 +1,4 @@
-import type { PendingReportInfo } from '@chatic/app-messages';
+import type { PendingReportInfo } from '@chatic/bridge-messages';
 
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();

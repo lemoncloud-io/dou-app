@@ -11,6 +11,8 @@ Three rows, in Slack's order:
 1. **Formats** — bold, italic, strikethrough, inline code and link, a rule, then quote and code
    block. Each format button lights up while the caret's text or block carries that format. The row is
    the same component the message editor uses, so the two always offer the same set.
+   Inline code is drawn as a bordered chip in the `code-inline` colour, in the composer and the message
+   view alike (both read `MSG_CODE_INLINE_CLASS`), so it stands apart from the sentence around it.
 2. **Text**, with the attachment tray under it.
 3. **Actions** — attach ("+", only where files are accepted) and emoji on the left; the newline hint
    (shown once there is text) and send on the right.
@@ -32,6 +34,25 @@ changing that number too.
 Slack's row also has underline and list buttons. They are left out on purpose: the wire format has
 no form for them that the web and mobile readers understand, so a message sent with one would lose it
 on every other client. Adding them means changing that shared format first.
+
+## Emoji picker
+
+`EmojiPicker` is the popover behind the composer's emoji button and the message toolbar's reaction
+button. Its emoji are the curated set in `utils/emoji.ts`, kept identical to the mobile web's.
+
+Hovering an emoji names it in a hint, in the app's language, and the same name is the button's
+`aria-label`. The names are the Unicode CLDR short names — what macOS and the phones show in their own
+emoji search — from the `emoji` i18n namespace in `src/locales/emoji/{ko,en}.ts`, keyed by the emoji
+with U+FE0F removed (`emojiNameKey`, so `☹️` and `☹` find the same name).
+
+Those tables are **generated**, not written: run `yarn generate:emoji-names` after changing the
+curation, and `utils/emoji.spec.ts` fails until every curated emoji has a name in both languages. The
+data's licences are in the root `THIRD_PARTY_NOTICES.md`, and ADR-0291 records why the names come from
+CLDR.
+An emoji with no name (an old pick still in recents) keeps its glyph as its label and gets no hint.
+
+The same names head the hint on a message's reaction chips (`ReactionBar`): the emoji's name on the
+first line, then who reacted. A reaction from outside the curation shows the reactors alone.
 
 ## Mentions
 

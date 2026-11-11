@@ -77,9 +77,14 @@ export type ProfileSocketDomainGateway = Pick<ProfileGateway, 'get' | 'getMine' 
  * the place bundle because what it answers is users, the same reason `channel.list-user` is here. It
  * is renamed because `listUser` already names the channel roster in this bundle; the composition root
  * binds it to `PlaceGateway.listUser`.
+ *
+ * `listDevice` / `unlinkDevice` (`user.list-device` / `user.unlink-device`) are my own devices on the
+ * server the session is on. They follow the active slot like the rest of this bundle — unlike
+ * `device.update-remote` they are not relay-owned: on a cloud, the devices that matter are the ones
+ * signed in to that cloud.
  */
 export type UserSocketDomainGateway = Pick<ChannelGateway, 'listUser' | 'syncUsers'> &
-    Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch'> & {
+    Pick<UserGateway, 'update' | 'profile' | 'invite' | 'inviteBatch' | 'listDevice' | 'unlinkDevice'> & {
         listPlaceUser: PlaceGateway['listUser'];
     };
 /**

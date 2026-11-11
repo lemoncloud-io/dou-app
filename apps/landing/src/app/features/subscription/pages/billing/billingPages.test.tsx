@@ -2,9 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
-import { createMockPort } from '../../lib/mock';
-import { MOCK_POLICY } from '../../lib/mock/policy';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { createMockPort } from '../../testing/mock';
+import { MOCK_POLICY } from '../../testing/mock/policy';
+import { memoryStateStore } from '../../testing/mock/storage';
+import { savePendingCardChange } from '../../lib/pendingCheckout';
+import { SubscriptionPortError } from '../../lib/port';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
@@ -13,23 +15,16 @@ import type { PortSetup } from '../../lib/createPortSetup';
 // the query client, the toasts and the stand-in payment window exactly as a reader meets them.
 
 beforeAll(async () => {
-    // jsdom has no matchMedia; a desktop-width viewport keeps the phone-width notice away.
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 
 const mockSetup = (search: string): PortSetup => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller };
 };
 
 const Where = () => {
@@ -41,7 +36,7 @@ const renderAt = (url: string, search: string, setup: PortSetup = mockSetup(sear
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -62,6 +57,14 @@ const emailRow = (address: string) =>
         return row as HTMLElement;
     });
 
+/** Fills in the payer the add-card dialog asks for, then opens the payment window from it. */
+const openPaymentWindow = async () => {
+    const dialog = await screen.findByRole('dialog', { name: 'Add card' });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '김민지' } });
+    fireEvent.change(within(dialog).getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Open card entry' }));
+};
+
 describe('W-12 payment methods', () => {
     const url = '/subscription/payment-methods';
 
@@ -76,14 +79,59 @@ describe('W-12 payment methods', () => {
         expect(within(second).getByRole('button', { name: 'Make default' })).toBeTruthy();
     });
 
-    it('explains instead of removing the default card', async () => {
+    it('explains why the default card, which the payment service refuses, cannot be removed', async () => {
         renderAt(url, '?mock=active');
 
-        fireEvent.click(within(await cardRow('신한 ···· 1234')).getByRole('button', { name: 'Remove' }));
+        const row = await cardRow('신한 ···· 1234');
+        expect(within(row).getByText('Default')).toBeTruthy();
+        // An open dialog hides the page behind it, so the other card is read first.
+        expect(within(await cardRow('현대 ···· 5678')).getByRole('button', { name: 'Remove' })).toBeTruthy();
+        fireEvent.click(within(row).getByRole('button', { name: 'Remove' }));
 
         const dialog = await screen.findByRole('dialog', { name: "Your default card can't be removed yet" });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'OK' }));
-        expect(screen.getByText('신한 ···· 1234')).toBeTruthy();
+        expect(within(dialog).getByText('Make another card the default, then remove this one.')).toBeTruthy();
+    });
+
+    it('says why the server would not remove a card', async () => {
+        const setup = mockSetup('?mock=active');
+        setup.port.removePaymentMethod = () => Promise.reject(new SubscriptionPortError('conflict', 'in use'));
+        renderAt(url, '?mock=active', setup);
+
+        fireEvent.click(within(await cardRow('현대 ···· 5678')).getByRole('button', { name: 'Remove' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Remove 현대 ···· 5678?' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+
+        expect(
+            await screen.findByText(
+                "This card can't be removed while your subscription is charged to it. Make another card the default first."
+            )
+        ).toBeTruthy();
+        expect(screen.getByText('현대 ···· 5678')).toBeTruthy();
+    });
+
+    it('reads a card window that came back through the address, and clears the address', async () => {
+        savePendingCardChange({ name: 'Minji Kim', phone: '01012345678', email: 'minji.kim@gmail.com' });
+        const setup = mockSetup('?mock=active');
+        const returned = vi.fn(async () => ({ outcome: 'registered' as const, card: 'pm-9' as never }));
+        setup.port.completePaymentMethodRegistration = returned;
+        renderAt(`${url}?billingKey=billing-key-9`, '?mock=active', setup);
+
+        expect(await screen.findByText('Your card was added.')).toBeTruthy();
+        expect(returned).toHaveBeenCalledWith(
+            expect.objectContaining({ purpose: 'addCard', payer: expect.objectContaining({ name: 'Minji Kim' }) })
+        );
+        expect(where()).toBe(url);
+    });
+
+    it('ignores a card window return it has nothing saved for', async () => {
+        const setup = mockSetup('?mock=active');
+        const returned = vi.fn();
+        setup.port.completePaymentMethodRegistration = returned;
+        renderAt(`${url}?billingKey=billing-key-9`, '?mock=active', setup);
+
+        await cardRow('신한 ···· 1234');
+        expect(returned).not.toHaveBeenCalled();
+        expect(where()).toBe(url);
     });
 
     it('removes another card once confirmed', async () => {
@@ -97,13 +145,12 @@ describe('W-12 payment methods', () => {
         expect(screen.queryByText('현대 ···· 5678')).toBeNull();
     });
 
-    it('keeps the last card of a live subscription and offers to add another', async () => {
+    it('keeps the last card of a live subscription, which is its default, and offers to add another', async () => {
         renderAt(url, '?mock=past-due');
 
         fireEvent.click(within(await cardRow('신한 ···· 1234')).getByRole('button', { name: 'Remove' }));
-
-        const dialog = await screen.findByRole('dialog', { name: "Your last card can't be removed" });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Add card' }));
+        const refusal = await screen.findByRole('dialog', { name: "Your last card can't be removed" });
+        fireEvent.click(within(refusal).getByRole('button', { name: 'Add card' }));
         expect(await screen.findByRole('dialog', { name: 'Add card' })).toBeTruthy();
     });
 
@@ -129,11 +176,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registered',
@@ -149,11 +192,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active&fail=card-declined');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registration failed',
@@ -167,11 +206,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active&fail=attempt-limit');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
 
         expect(await screen.findByText('Too many attempts')).toBeTruthy();
         expect(screen.queryByRole('dialog', { name: 'Add a card' })).toBeNull();
@@ -196,11 +231,7 @@ describe('W-12 payment methods', () => {
         expect(within(await cardRow('신한 ···· 1234')).getByText('Payment failed · 카드 한도 초과')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registered',

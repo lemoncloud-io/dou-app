@@ -13,6 +13,7 @@ export {
 export {
     usePreviewCheckout,
     useStartPaymentMethodRegistration,
+    useCompletePaymentMethodRegistration,
     useStartCheckout,
     usePaymentAttempt,
     ATTEMPT_POLL_MS,
@@ -34,5 +35,5 @@ export {
     useRemoveEmail,
 } from './billing';
 export { useCurrentSubscription } from './useCurrentSubscription';
-export { useNarrowViewport, NARROW_QUERY } from './useNarrowViewport';
 export { useNow } from './useNow';
+export { useGoBack } from './useGoBack';

@@ -47,6 +47,7 @@
     --avatar-ring: 210 22% 96%; /* #F4F5F5 - BK_50, place/chat avatar stroke + light avatar disc */
     --avatar-stroke: 195 17% 91%; /* #E4EAEC - gray_blue, photo/person avatar stroke (Figma 1-person Profile) */
     --control-surface: 210 22% 96%; /* #F4F5F5 - BK_50, circular action tile fill (chat attach menu) */
+    --nav-ink: 226 46% 20%; /* #1C274C - bottom nav glyphs (Figma 5780:17209) */
 
     /* Attach-menu glyph colours (Figma Colors/Green · Indigo · Cyan) — photos · camera · files */
     --glyph-green: 135 59% 49%; /* #34C759 */
@@ -69,6 +70,7 @@
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
     --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
+    --code-inline: 20 90% 36%; /* #AE4009 — inline code text, mirrors apps/web */
     /* ui-kit's dialog, alert-dialog and sheet scrims (bg-overlay/80); mirrors apps/web. */
     --overlay: 220 20% 10%;
 }
@@ -109,6 +111,7 @@
     --avatar-ring: 0 0% 18%;
     --avatar-stroke: 0 0% 18%;
     --control-surface: 0 0% 15%; /* tile fill on dark bg */
+    --nav-ink: 0 0% 92%; /* light glyphs on the dark glass bar */
     --glyph-green: 135 59% 49%; /* same */
     --glyph-indigo: 241 61% 59%; /* same */
     --glyph-cyan: 199 78% 55%; /* same */
@@ -126,5 +129,6 @@
     --verified: 211 100% 50%;
     --point-blue: 215 90% 56%; /* #2A7EF4 — same */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */
+    --code-inline: 32 80% 54%; /* #E8902C — lifted for the dark ground */
     --overlay: 0 0% 0%;
 }

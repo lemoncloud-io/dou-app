@@ -154,7 +154,10 @@ export const useShareSend = (intakeId: string | null) => {
                 // One notice: the toaster shows one at a time, so a second would replace the first at once.
                 if (destinations.length === 1) {
                     if (refusedNote) toast({ title: refusedNote });
-                    navigate(ROUTES.channels.room(destinations[0].id), { replace: true });
+                    navigate(ROUTES.channels.room(destinations[0].id), {
+                        replace: true,
+                        state: { channel: destinations[0].channel },
+                    });
                 } else {
                     toast({ title: t('share.sentMany', { count: destinations.length }), description: refusedNote });
                     navigate(ROUTES.home, { replace: true });

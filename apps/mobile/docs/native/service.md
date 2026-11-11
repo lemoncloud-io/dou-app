@@ -7,7 +7,7 @@ they look only downward" — `services/` imports nothing from `webview/` or `fea
 
 ## Layout
 
-20 domains, each shaped the same way:
+21 domains, each shaped the same way:
 
 ```text
 services/<domain>/
@@ -39,7 +39,9 @@ is framed, what the reply payload looks like, or how a native screen renders —
 - **Eager**, built in the constructor, for anything the cold-start path reads before the first
   render: `logService`, `logUploadQueueService`, `keyValueStorage`, `perfTraceBackend`,
   `bootMetricsService`, `notificationService`, `pushEventManager`, `deeplinkManager`,
-  `deeplinkService`, `firebaseCrashlyticsService`, `pendingReportQueueService`. `logService` is
+  `deeplinkService`, `firebaseCrashlyticsService`, `pendingReportQueueService`,
+  `secureStorageService` (its keychain read starts in the constructor, so the web's first
+  `StorageGet` finds it done — [../storage/device-vault.md](../storage/device-vault.md)). `logService` is
   constructed first, because most other services take it as their first constructor argument.
   `perfTraceBackend` (Firebase Performance, see [`@chatic/perf`](../../../../libs/perf/README.md))
   comes next and is installed as the process trace backend, because the boot service opens its trace
@@ -49,7 +51,8 @@ is framed, what the reply payload looks like, or how a native screen renders —
   data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`, `nativeStorageService`,
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
-  `preferenceService`, `configKvService`, `versionService`, `unfurlService`. `sqliteDatabase` opens
+  `preferenceService`, `configKvService`, `versionService`, `unfurlService`, `subWebViewService`.
+  `sqliteDatabase` opens
   on the first read of any lazy getter that needs it, not at boot — see
   [../boot/boot-optimization.md](../boot/boot-optimization.md) section 4.4, which this split exists to satisfy.
 

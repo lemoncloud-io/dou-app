@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-10-26 · Implemented: `chore/shell-dead-bridge-code`
 > · Scope: `libs/app-messages` (the vocabulary), the shells that answer it (`apps/mobile`,
 > `apps/desktop`, `apps/shell-adapter`), `libs/bridges` (`BRIDGE_VERSION`)
-> · The module doc is [the app-messages README](../../libs/app-messages/README.md#design-principles),
+> · The module doc is [the app-messages README](../../libs/bridge-messages/README.md#design-principles),
 > rule 4
 
 ## Context

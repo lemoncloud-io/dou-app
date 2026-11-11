@@ -4,25 +4,28 @@
  * `await` — `ensure`. What these cases prove is the connection count: moving between clouds that all
  * hold a slot creates no client and destroys none.
  */
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { render } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketBinder } from './SocketBinder';
-import { SocketManager } from '../socket/SocketManager';
-import { bootstrapSocketConnection } from '../socket';
-import { getSocketManager } from '../socket/runtime';
-import type { SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import { SocketManager } from '@chatic/transport/socket/SocketManager';
+import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import type { SocketBindingConfig } from '@chatic/transport/socket/types';
+import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../socket/runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
-jest.mock('../socket', () => ({ bootstrapSocketConnection: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
+jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({ bootstrapSocketConnection: jest.fn() }));
 
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;
 
@@ -45,6 +48,9 @@ const slot = (cid: string, wssType: 'relay' | 'cloud' = 'cloud') => ({
     config: { url: `wss://${cid}`, deviceId: 'd', wssType, cid } as SocketBindingConfig,
 });
 const relay = slot('default', 'relay');
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('background slots through the real manager and binder', () => {
     let manager: SocketManager;

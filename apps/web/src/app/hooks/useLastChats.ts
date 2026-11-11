@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { isInJoinWindow } from '@chatic/data';
-import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin, DomainLastChat } from '@chatic/data';
 
 /**
  * The "last message preview" for the whole home channel list — a list-level replacement for the
@@ -10,7 +10,7 @@ import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
  *
  * This is a pure cache observation: instead of subscribing to a 30-row window per channel, it reads
  * through a single `chat.observeLastList` (on newer app versions the whole list is one bridge
- * round-trip; older apps and the browser fall back to the data source doing per-channel windows).
+ * round-trip; the browser falls back to the data source doing per-channel windows).
  * **No network call is made here** — loading recent messages into the cache is managed separately,
  * outside this screen (native's background message loading), and that write re-wakes this
  * observation via the `chats-last` relimit. The list simply mirrors whatever last message the cache
@@ -26,6 +26,28 @@ import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 export const useLastChats = (
     channels: DomainChannel[],
     joinByChannel?: Map<string, DomainJoin>
+): Map<string, DomainChat> => useLastBy(channels, joinByChannel, previewOf);
+
+/**
+ * The room's latest activity per channel — the newest message anywhere in it, a thread reply
+ * included — where `useLastChats` is the last message the room itself shows. The home row reads its
+ * time and its place in the list from this one, and prints the line from `useLastChats`.
+ *
+ * It observes the same `chat.observeLastList` key as `useLastChats`, so the two share one query.
+ */
+export const useLastActivities = (
+    channels: DomainChannel[],
+    joinByChannel?: Map<string, DomainJoin>
+): Map<string, DomainChat> => useLastBy(channels, joinByChannel, activityOf);
+
+const previewOf = (row: DomainLastChat): DomainChat | null => row.chat;
+// `chat` stands in for an `activity` that is absent, so a reading without the field behaves as before.
+const activityOf = (row: DomainLastChat): DomainChat | null => row.activity ?? row.chat;
+
+const useLastBy = (
+    channels: DomainChannel[],
+    joinByChannel: Map<string, DomainJoin> | undefined,
+    select: (row: DomainLastChat) => DomainChat | null
 ): Map<string, DomainChat> => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
 
@@ -52,11 +74,12 @@ export const useLastChats = (
         return chatRepository.observeLastList(channelIds, rows => {
             const nextLast = new Map<string, DomainChat>();
             for (const row of rows) {
-                if (row.chat) nextLast.set(row.channelId, row.chat);
+                const chat = select(row);
+                if (chat) nextLast.set(row.channelId, chat);
             }
             setLastByChannel(nextLast);
         });
-    }, [chatRepository, channelKey]);
+    }, [chatRepository, channelKey, select]);
 
     // The join window is applied here rather than inside the subscription: `joinByChannel` is a new
     // Map on most renders, and making the observer depend on it would tear down and re-open the

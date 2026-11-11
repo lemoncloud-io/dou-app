@@ -46,7 +46,13 @@ import type { IVersionService } from './version';
 import { VersionService } from './version';
 import type { IUnfurlService } from './unfurl';
 import { UnfurlService } from './unfurl';
+import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
+import { createSubWebViewManifestStore, SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
+import type { ISecureStorageService } from './secureStorage';
+// Deep paths, per the barrel policy: these modules import react-native-keychain and react-native-mmkv.
+import { SecureStorageService } from './secureStorage/SecureStorageService';
+import { MmkvSecureStorageInstallFlag } from './secureStorage/MmkvSecureStorageInstallFlag';
 
 import {
     ChannelDataSource,
@@ -86,6 +92,8 @@ class DependencyProvider {
     /** Lifts the launch splash once the web is worth showing; read by the very first WebView messages. */
     public readonly bootSplashService: IBootSplashService;
     public readonly pendingReportQueueService: IPendingReportQueueService;
+    /** The device vault (`nativeSecure`); its read starts here so the web's first StorageGet finds it done. */
+    public readonly secureStorageService: ISecureStorageService;
 
     // Lazy — created on first access via getters to keep them off the boot critical path (see
     // boot-optimization.md 4.4). Backing fields are memoized after first construction.
@@ -102,6 +110,8 @@ class DependencyProvider {
     private _configKvService?: IConfigKvService;
     private _versionService?: IVersionService;
     private _unfurlService?: IUnfurlService;
+    private _subWebViewService?: ISubWebViewService;
+    private _subWebViewManifestStore?: SubWebViewManifestStore;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
     private _testRecordService?: TestRecordService;
@@ -166,6 +176,13 @@ class DependencyProvider {
         this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
         this.firebaseCrashlyticsService = new FirebaseCrashlyticsService(this.logService);
+        // Eager, and its keychain read starts now: the web asks for the vault while it boots, and
+        // the read runs on the native side while the WebView is still being created.
+        this.secureStorageService = new SecureStorageService(
+            this.logService,
+            new MmkvSecureStorageInstallFlag(),
+            DeviceInfo.getBundleId()
+        );
 
         // Initialize Logging
         // Context first: it is stamped at dispatch, so anything logged before
@@ -182,6 +199,9 @@ class DependencyProvider {
         // Pure-native (Kotlin/Swift) logs join the same core buffer with
         // source:'native'; ready() flushes the native cold-start queue (ADR-0097).
         attachNativeLoggerBridge();
+
+        // After the log hub is wired, so the read's outcome is logged.
+        this.secureStorageService.start();
 
         // Initialize Crashlytics immediately — boot-window crash reporting takes priority over the
         // small synchronous cost, so it stays eager while other services became lazy (4.4).
@@ -279,7 +299,8 @@ class DependencyProvider {
             this._nativeStorageService = new NativeStorageService(
                 this.logService,
                 this.sqliteDatabase,
-                this.keyValueStorage
+                this.keyValueStorage,
+                () => this.secureStorageService.keyCount()
             );
         }
         return this._nativeStorageService;
@@ -358,6 +379,23 @@ class DependencyProvider {
             this._unfurlService = new UnfurlService(this.logService);
         }
         return this._unfurlService;
+    }
+
+    public get subWebViewService(): ISubWebViewService {
+        if (!this._subWebViewService) this._subWebViewService = new SubWebViewService(this.logService);
+        return this._subWebViewService;
+    }
+
+    public get subWebViewManifestStore(): SubWebViewManifestStore {
+        if (!this._subWebViewManifestStore) {
+            this._subWebViewManifestStore = createSubWebViewManifestStore({
+                // `no-store`: iOS networking keeps an HTTP cache on disk, and a cached manifest would
+                // keep a withdrawn permission alive across launches.
+                fetch: (url, init) => fetch(url, { ...init, credentials: 'omit', cache: 'no-store' }),
+                logger: this.logService,
+            });
+        }
+        return this._subWebViewManifestStore;
     }
 
     public static getInstance(): DependencyProvider {

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-// Concrete paths, not the session barrel: the barrel PUBLISHES this hook (facade group `session`),
-// so importing it back here would be a cycle. Reaching a sibling's internals by concrete path is
-// the convention this package already states (session/index.ts's header).
-import { getActiveSessionUser } from '../../../store';
+// The session package, not the `session` facade group: the group PUBLISHES this hook, so importing
+// it back here would be a cycle (session/index.ts's header states the convention).
+import { getActiveSessionUser } from '@chatic/session';
 import { useGlobalSession } from './useGlobalSession';
 
 import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';

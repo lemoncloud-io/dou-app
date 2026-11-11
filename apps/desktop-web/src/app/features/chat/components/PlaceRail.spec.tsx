@@ -104,6 +104,30 @@ beforeEach(() => {
     dnd.end = undefined;
 });
 
+describe('PlaceRail active place with a logo', () => {
+    const logoPlaces = [
+        { id: 'place-1', name: 'Design', cid: 'mine', thumbnail: 'https://cdn.test/a.png' },
+        { id: 'place-2', name: 'Docs', cid: 'mine', thumbnail: 'https://cdn.test/b.png' },
+    ] as DomainPlace[];
+    const logoOf = (name: string) =>
+        screen.getByRole('button', { name: new RegExp(name) }).querySelector('img')?.parentElement as HTMLElement;
+
+    // A logo covers the tile's fill, so the open place needs a mark that sits outside it.
+    it('rings the open place tile and no other', () => {
+        renderRail({ places: logoPlaces, selectedPlaceId: 'place-2' });
+        expect(logoOf('Docs').className).toContain('ring-2');
+        expect(logoOf('Design').className).not.toContain('ring-2');
+    });
+
+    // The ring sits 4px outside the tile; the dot moves out to the ring's corner, off the logo.
+    it('moves the unread dot out to the ring corner on the open tile only', () => {
+        renderRail({ places: logoPlaces, selectedPlaceId: 'place-2', unreadByPlace: { 'place-1': 1, 'place-2': 1 } });
+        const dotOf = (tile: HTMLElement) => tile.parentElement?.querySelector('.bg-badge-unread') as HTMLElement;
+        expect(dotOf(logoOf('Docs')).className).toContain('-right-1.5');
+        expect(dotOf(logoOf('Design')).className).toContain('-right-0.5');
+    });
+});
+
 describe('PlaceRail new place tile', () => {
     it('opens place creation from the tile after the places', () => {
         const { onCreatePlace } = renderRail();

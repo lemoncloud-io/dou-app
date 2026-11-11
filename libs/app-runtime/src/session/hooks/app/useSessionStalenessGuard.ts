@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
+import { RELAY_SLOT, SDK_REFRESH_CYCLE_MS, isLinkKnownDown } from '@chatic/transport';
 
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
-import { RELAY_SLOT } from '../../../socket/utils/slotKey';
-import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
-import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
-import { credentialRenewers } from '../../../socket/auth/renewers';
-import { isLinkKnownDown } from '../../../socket/linkState';
-import { Coalescer } from '../../../utils/coalescer';
-import { Throttle } from '../../../utils/throttle';
+import {
+    canRefreshThroughSocket,
+    getAuthStatus,
+    credentialRenewers,
+    Coalescer,
+    relayCredentialProbe,
+    Throttle,
+} from '@chatic/auth';
 
 /**
  * Keeps the relay HTTP signing credentials fresh, as one hook instead of two app-local copies.
@@ -20,10 +21,10 @@ import { Throttle } from '../../../utils/throttle';
  * sleep or a dropped socket nothing refreshes them, so every signed request 403s while
  * `isAuthenticated` stays true (that flag is session EXISTENCE, not credential validity).
  *
- * apps/web and admin-v2 each invented this independently
+ * apps/web and admin each invented this independently
  * (`useRelayCredentialRefresh` · `useRelaySessionGuard`); desktop-web now has one too
  * (`app/runtime/useRelayCredentialRefresh`, added when a cloud switch surfaced as a bare
- * `Network Error`), and testbed still has none. The probe body was identical in every case; only the
+ * `Network Error`). The probe body was identical in every case; only the
  * policy differed, so policy is what this takes as options (ADR-0070 Step 3 checklist 7).
  *
  * **RELAY ONLY, by design — do not add a cloud branch here.** The name says "session", but every
@@ -31,15 +32,14 @@ import { Throttle } from '../../../utils/throttle';
  * recover by different means: relay can only be REFRESHED (its token has no parent to be minted
  * from), while a cloud token is re-issued from the relay identity whenever it lapses. The cloud
  * counterpart is `useCloudCredentialGuard`, which re-issues instead of refreshing; the reasoning
- * lives in `session/auth/cloudTokens`. Adding a `kind` option here would put two unrelated recovery
+ * lives in `@chatic/auth`'s `session/cloudTokens`. Adding a `kind` option here would put two unrelated recovery
  * strategies behind one switch — and inventing a second relay guard in an app is what this hook was
- * created to stop (admin-v2 had one).
+ * created to stop (admin had one).
  *
  * Two properties are NOT configurable, because they are the reason the guard exists:
- *  - **The probe never refreshes.** `isStoredSessionExpired` is a read-only storage check. The
- *    tempting `webTransport.isAuthenticated()` fires lemon-web-core's own HTTP refresh — a second
- *    refresh engine that updates only the lemon store and leaves the socket's signing material
- *    stale, which is the signature-error divergence this whole ADR is unwinding.
+ *  - **The probe never refreshes.** `relayCredentialProbe` reads the session and nothing else. A
+ *    probe that refreshed on its own would be a second refresh engine beside the socket's, which is
+ *    the signature-error divergence this guard exists to prevent.
  *  - **Refresh goes through `requestRelaySessionRefresh`.** That is the single entry point that prefers
  *    the socket AuthController (the owner, ADR-0070 invariant 1) over any direct HTTP call.
  */
@@ -76,18 +76,18 @@ export interface SessionStalenessPolicy {
     /** Ran after `consecutiveFailureLimit` definitive failures. Omit to never tear down. */
     onTeardown?: () => Promise<void> | void;
     /**
-     * Refresh ahead of the stored-session expiry horizon when the CREDENTIAL is running out.
+     * Refresh ahead of expiry when the CREDENTIAL is running out.
      *
-     * `isStoredSessionExpired` alone leaves a real hole at boot: the socket handshake's `auth.update`
+     * The expiry check alone leaves a real hole at boot: the socket handshake's `auth.update`
      * reply carries no token (the SDK only emits one from `refresh`/`switch`), so the first writeback
      * lands one refresh cycle after connect — 5 minutes with `AUTH_OPTIONS.refreshIntervalMs`, because
      * the server does not report `expiresIn` yet. Until then relay-signed HTTP runs on whatever the
      * store had, which is exactly the credential that 403s after a long sleep.
      *
      * **It asks the credential now, instead of refreshing blind.** This used to fire on every edge
-     * regardless — the stored probe reads lemon's `expired_time`, which the two clocks make unreliable
-     * (a refresh that updated the token but carried no credential leaves it fresh while the signing
-     * material is dead), so the hole was papered over by never trusting it. The better clock was
+     * regardless — the expiry probe then read lemon's `expired_time`, a second clock that disagreed with
+     * the credential's (a refresh that updated the token but carried no credential left it fresh while
+     * the signing material was dead), so the hole was papered over by never trusting it. The better clock was
      * already in the repo: `credentialFreshness` reads the relay credential's own `Expiration`, the
      * thing that actually signs. Measuring it closes the same hole and stays quiet the rest of the
      * time — a credential minted minutes ago is not refreshed just because the tab came back.
@@ -121,7 +121,7 @@ const FORCE_REFRESH_COOLDOWN_MS = 60_000;
  * needs no help. Below it, the socket is demonstrably not keeping up — which is exactly the boot
  * window and the wake-from-sleep case.
  *
- * Read from the cadence itself rather than restated: see `socket/constants.ts`.
+ * Read from the cadence itself rather than restated: see the transport's `socket/constants.ts`.
  */
 const PREEMPTIVE_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 
@@ -161,11 +161,13 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
         };
 
         try {
-            if (!(await hasStoredRelaySession())) {
+            if (!relayCredentialProbe.hasSession()) {
                 if (missingSessionCountsAsFailure) await registerFailure();
                 return;
             }
-            const expired = await isStoredSessionExpired();
+            // The relay credential's own clock — the only one; signed HTTP reads the same credential.
+            // Nothing to measure counts as expired.
+            const expired = relayCredentialProbe.isCredentialExpired();
             // Steady state while the socket writeback keeps the store ahead of expiry — unless the
             // caller opted into a preemptive refresh, which the cooldown keeps to one per minute.
             const now = Date.now();

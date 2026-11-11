@@ -19,7 +19,8 @@ export const relayInvitePath = (code: string = RELAY_INVITE_CODE): string =>
 export const pendingRelayInvite = () => ({
     id: 'e2e-invite-1',
     state: 'pending',
-    inviter$: { id: MINA.uid, name: MINA.nick },
+    // The accept screen names the inviter by place nickname, which the server attaches on a lookup.
+    inviter$: { id: MINA.uid, name: MINA.nick, nick: MINA.nick },
     name: 'Guest',
     siteId: GUEST.sid,
     // Far ahead of any run, so the countdown never reaches zero mid-scenario.
