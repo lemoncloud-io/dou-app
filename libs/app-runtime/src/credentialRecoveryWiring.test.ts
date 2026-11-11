@@ -15,6 +15,7 @@
 import { MemoryStore } from '@chatic/storage';
 import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
+import { fakeAuthPorts } from '@chatic/auth/testing/platform';
 import { initAppRuntime } from './init';
 
 const mockRequestSessionRefresh = jest.fn();
@@ -50,6 +51,7 @@ describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
         initAppRuntime({
             storage: { secret: new MemoryStore(), plain: new MemoryStore() },
             transport: fakeTransportPorts(),
+            auth: fakeAuthPorts(),
         });
     });
 

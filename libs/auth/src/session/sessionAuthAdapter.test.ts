@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
@@ -115,6 +117,9 @@ jest.mock('@chatic/logger', () => ({
 
 // Per-server (kind-explicit) bridge helpers for the dual-socket path (multi-socket-design.md §7):
 // verify the explicit-kind routing directly (no active-server context).
+// The user agent the signature is computed over comes from the transport's device port: a jsdom page's.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
+
 describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     beforeEach(() => {
         jest.resetAllMocks();
@@ -190,6 +195,40 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         mockGetCloudTokenOf.mockReturnValue(null);
 
         await expect(sessionAuthAdapter.signAuth(CLOUD)).rejects.toThrow('Missing cloud token fields');
+    });
+
+    // The server checks the signature's user agent against the one the socket's handshake sent, so
+    // both have to come from the one port the platform's socket reads.
+    it("signs over the transport device port's user agent, not the page's navigator", async () => {
+        transportPlatform.configure(fakeTransportPorts({ device: () => ({ userAgent: 'UA-from-the-port' }) }));
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { authId: 'http-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: 'jwt' },
+        });
+        mockGetCloudTokenOf.mockReturnValue({
+            Token: { authId: 'c-auth', accountId: 'c-acct', identityId: 'c-ident' },
+        });
+
+        await sessionAuthAdapter.signAuth(RELAY);
+        await sessionAuthAdapter.signAuth(CLOUD);
+
+        expect(mockCalcSignature.mock.calls.map(call => call[2])).toEqual(['UA-from-the-port', 'UA-from-the-port']);
+    });
+
+    // The only case in this file whose platform reports no user agent: the warning is once per process.
+    it("signs over '' when the device port reports no user agent, and says so once", async () => {
+        transportPlatform.configure(fakeTransportPorts({ device: () => ({}) }));
+        mockRelayGetRelayToken.mockReturnValue({
+            $auth: { id: 'relay-auth-id' },
+            Token: { authId: 'http-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: 'jwt' },
+        });
+
+        await sessionAuthAdapter.signAuth(RELAY);
+        await sessionAuthAdapter.signAuth(RELAY);
+
+        expect(mockCalcSignature.mock.calls.map(call => call[2])).toEqual(['', '']);
+        const warnings = mockLoggerWarn.mock.calls.filter(([, message]) => String(message).includes('no user agent'));
+        expect(warnings).toHaveLength(1);
     });
 
     it('sessionAuthAdapter.signAuth(relay)는 Token.authId가 아니라 $auth.id로 서명한다 (getTokenSignature 미사용)', async () => {

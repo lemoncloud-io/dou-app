@@ -1,5 +1,6 @@
 import { sessionStores } from '@chatic/session';
 
+import { authPlatform } from '../../platform';
 import { dropSignedOutAppKeys } from './signedOutAppKeys.util';
 
 import type { ILogoutStorageSweeper } from './types';
@@ -24,10 +25,12 @@ import type { ILogoutStorageSweeper } from './types';
  */
 class LogoutStorageSweeper implements ILogoutStorageSweeper {
     sweep(): void {
-        if (typeof window === 'undefined') return;
+        // Outside the try: a platform that was never wired is a boot bug to hear about, not a storage
+        // quirk to swallow.
+        const search = authPlatform.ports().currentSearch();
 
         try {
-            if (new URLSearchParams(window.location.search).get('logout') !== '1') return;
+            if (new URLSearchParams(search).get('logout') !== '1') return;
             dropSignedOutAppKeys(sessionStores.of('plain'));
         } catch {
             // Storage access throws in a few browser configurations. A missed sweep leaves a log batch

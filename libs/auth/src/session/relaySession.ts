@@ -22,6 +22,7 @@ import {
 import { pairedClouds } from '../pairing/pairedClouds';
 import { relayCredentialProbe } from './relayCredentialProbe';
 import { dropSignedOutAppKeys } from './storage/signedOutAppKeys.util';
+import { authPlatform } from '../platform';
 import { isNativeStore, WebStore } from '@chatic/storage';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
@@ -260,7 +261,8 @@ class RelaySession implements IRelaySession {
      * here — the weak halves lose their global names so the collision cannot be re-created.
      */
     async clearAndRedirect(options?: LogoutOptions): Promise<void> {
-        const searchBeforeCleanup = window.location.search;
+        const platform = authPlatform.ports();
+        const searchBeforeCleanup = platform.currentSearch();
 
         // No server-side logout: there is no backend session-revoke endpoint (the old POST
         // /users/logout always 403'd because it was unsigned, and it was never authoritative). Logout
@@ -341,17 +343,17 @@ class RelaySession implements IRelaySession {
         // `logout=1` must survive onto the target: the next document's boot reads it, empties the vault
         // once more before reading it, and sweeps the app keys again (`logoutStorageSweep.ts`).
         // Sign-out and cleanup are two page lifetimes, and this flag is what crosses between.
-        const targetUrl = new URL('/', window.location.origin);
+        const target = new URLSearchParams();
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
             for (const key of ['code', 'provider', '_backend', '_wss']) {
                 const value = params.get(key);
-                if (value) targetUrl.searchParams.set(key, value);
+                if (value) target.set(key, value);
             }
         }
-        targetUrl.searchParams.set('logout', '1');
+        target.set('logout', '1');
 
-        window.location.replace(targetUrl.toString());
+        platform.leaveToHome(target);
     }
 
     registerLogoutCallback(callback: () => void): () => void {

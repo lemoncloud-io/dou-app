@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { configureAppStores } from './app/storage';
@@ -65,6 +65,7 @@ const startApp = (): void => {
         // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
         storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
         transport: webTransportPorts(),
+        auth: webAuthPorts(),
         data: { cache: { maxChatsPerChannel: 1000 } },
     });
 

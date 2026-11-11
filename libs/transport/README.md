@@ -61,11 +61,11 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    them (`TransportPlatformPorts`, in [`platform.ts`](./src/platform.ts)) and the runtime's assembly
    hands them over before the first socket:
 
-    | Port           | Read by                                                                     | In a web page (`@chatic/runtime-web`)                     |
-    | -------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
-    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips | `navigator.onLine` and the window's online/offline events |
-    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`  | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
-    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                | `new WebSocket(url, protocols)`                           |
+    | Port           | Read by                                                                                                                 | In a web page (`@chatic/runtime-web`)                     |
+    | -------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips                                             | `navigator.onLine` and the window's online/offline events |
+    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`; auth's socket signature, for its user agent | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
+    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                                                            | `new WebSocket(url, protocols)`                           |
 
     Used before it is configured, `transportPlatform.ports()` throws and names `initAppRuntime`. A
     page's `WebSocket` and `navigator` do not exist in a native process, or answer wrongly there —

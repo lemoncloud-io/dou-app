@@ -29,6 +29,8 @@ file every importer reaches, this package's own modules included. This package r
 ```text
 libs/auth/src/
 ├── index.ts                    the package barrel
+├── platform.ts                 the ports the platform fills: the address, and the way home at logout
+├── testing/platform.ts         `fakeAuthPorts()` — a jsdom page's ports, for tests in any package
 ├── session/   11 files · 8 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
 ├── pairing/    6 files · 6 tests   device pairing: the request flow, paired clouds, the secondary-device check, errors
 ├── socket/    19 files · 17 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
@@ -54,6 +56,24 @@ hooks that share them depend on this package anyway.
 6. **Nothing here imports `@chatic/bridges`.** The eslint config refuses it, type-only imports
    included, and `logger` comes from `@chatic/logger`. Signing in and keeping a session alive must
    not need a WebView bridge to exist, so this package can run in a runtime that has none.
+7. **Where the app is open comes through `authPlatform`, and there is no default.** Ending a session
+   is a navigation in a page, and the boot reads the flag it carries back off the address; a native
+   process has neither. So `AuthPlatformPorts` ([`platform.ts`](./src/platform.ts)) has two:
+   `currentSearch()` — the address's query string, which the boot sweep and `preserveUrl` read — and
+   `leaveToHome(params)` — the navigation at the end of `clearAndRedirect`. In a page
+   (`webAuthPorts()` from `@chatic/runtime-web`) they are `location.search` and
+   `location.replace('/?<params>')`. Used before it is configured, `authPlatform.ports()` throws and
+   names `initAppRuntime`; the boot sweep reads it outside its storage `try`, so a missing wiring fails
+   the boot rather than skipping the sweep.
+
+    The user agent the socket signature is computed over is **not** an auth port: it is the transport's
+    `device().userAgent`, the value a native socket sends on its handshake. The server checks the two
+    against each other, and one source is what keeps them equal.
+
+    One browser read is left: a logout in a shell whose vault was unavailable earlier also clears the
+    tokens that run left in the tab's `sessionStorage` (`WebStore.session()` in `relaySession.ts`). It
+    only runs when the secret store is the shell's vault, and outside a page `WebStore` answers with a
+    memory store, so it does nothing there.
 
 ## Documents
 

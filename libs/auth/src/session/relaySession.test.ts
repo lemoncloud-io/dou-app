@@ -1,3 +1,5 @@
+import { authPlatform } from '../platform';
+import { fakeAuthPorts } from '../testing/platform';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { MemoryStore, NativeSecureStore } from '@chatic/storage';
@@ -134,6 +136,9 @@ jest.mock('@chatic/logger', () => ({
 
 const mockPairedCloudsClear = jest.fn();
 jest.mock('../pairing/pairedClouds', () => ({ pairedClouds: { clear: () => mockPairedCloudsClear() } }));
+
+// The address the session ends to: a jsdom page, which reports the navigation and does not perform it.
+beforeEach(() => authPlatform.configure(fakeAuthPorts()));
 
 describe('session/auth/relaySession', () => {
     beforeEach(() => {
@@ -332,6 +337,35 @@ describe('session/auth/relaySession', () => {
         );
 
         expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
+    });
+
+    describe('where the ended session goes', () => {
+        const leaveToHome = jest.fn();
+
+        beforeEach(() => {
+            leaveToHome.mockReset();
+            authPlatform.configure(
+                fakeAuthPorts({
+                    currentSearch: () => '?code=c-1&provider=google&_wss=wss%3A%2F%2Fw&other=x',
+                    leaveToHome,
+                })
+            );
+        });
+
+        it('leaves for home through the platform, carrying logout=1 and nothing of the old address', async () => {
+            await relaySession.clearAndRedirect();
+
+            expect(leaveToHome).toHaveBeenCalledTimes(1);
+            expect(leaveToHome.mock.calls[0][0].toString()).toBe('logout=1');
+        });
+
+        it('with preserveUrl, keeps the sign-in parameters of the address the app was opened with', async () => {
+            await relaySession.clearAndRedirect({ preserveUrl: true });
+
+            expect(leaveToHome.mock.calls[0][0].toString()).toBe(
+                'code=c-1&provider=google&_wss=wss%3A%2F%2Fw&logout=1'
+            );
+        });
     });
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY

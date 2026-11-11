@@ -210,6 +210,7 @@ const RUNTIME_WIRING = {
         { name: 'configureSessionStore' },
         { object: 'credentialRecovery', name: 'register' },
         { object: 'transportPlatform', name: 'configure' },
+        { object: 'authPlatform', name: 'configure' },
         { name: 'configureDataRuntime' },
         { object: 'authRepositorySource', name: 'provide' },
         { object: 'syncDataGraph', name: 'provide' },

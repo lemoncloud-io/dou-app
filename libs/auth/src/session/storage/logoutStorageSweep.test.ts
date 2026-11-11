@@ -1,10 +1,17 @@
+import { authPlatform } from '../../platform';
+import { fakeAuthPorts } from '../../testing/platform';
 import { MemoryStore } from '@chatic/storage';
 import { sessionStores } from '@chatic/session/store/ports';
 
 import { logoutStorageSweeper } from './logoutStorageSweep';
 import { signedOutAppKeys } from './signedOutAppKeys.util';
 
+import type * as SweepModule from './logoutStorageSweep';
+
 const setUrl = (search: string): void => window.history.replaceState({}, '', `/${search}`);
+
+// The address the sweep reads its flag from: the jsdom page's.
+beforeEach(() => authPlatform.configure(fakeAuthPorts()));
 
 describe('logoutStorageSweeper', () => {
     let plain: MemoryStore;
@@ -40,6 +47,21 @@ describe('logoutStorageSweeper', () => {
         logoutStorageSweeper.sweep();
 
         expect(plain.keys()).toHaveLength(6);
+    });
+
+    it("reads the flag from the platform's address, not the page's", () => {
+        authPlatform.configure(fakeAuthPorts({ currentSearch: () => '?logout=1' }));
+
+        logoutStorageSweeper.sweep();
+
+        expect(plain.keys()).toHaveLength(3);
+    });
+
+    it('fails the boot when the platform was never wired, instead of skipping the sweep in silence', () => {
+        jest.isolateModules(() => {
+            const fresh = jest.requireActual<typeof SweepModule>('./logoutStorageSweep');
+            expect(() => fresh.logoutStorageSweeper.sweep()).toThrow(/initAppRuntime/);
+        });
     });
 
     it('does nothing without the flag — a plain reload keeps everything', () => {

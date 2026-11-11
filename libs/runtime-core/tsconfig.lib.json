@@ -26,6 +26,9 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
+            "path": "../auth/tsconfig.lib.json"
+        },
+        {
             "path": "../transport/tsconfig.lib.json"
         },
         {
