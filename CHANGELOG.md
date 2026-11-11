@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Refactor
+
+- (runtime-core,app-runtime,session) read the session through the engine, without tokens
+
+## [2026-11-11] - No version updates
+
 ### Features
 
 - (bridge-messages,bridges,runtime-core) declare the runtime bridge contract (ADR-0309)
