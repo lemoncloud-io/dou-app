@@ -12,11 +12,12 @@ credential _per cloud_: the committed cloud's lives in the session store, every 
 per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either. That is what lets a
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
-It is spread over two folders of this package and one of app-runtime, and the split follows
+It is spread over two folders of this package and one of runtime-core, and the split follows
 dependency direction rather than subject: `socket/` holds the wiring and the policy (19 source files,
 17 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
-and the two guards that _trigger_ renewal are React hooks in app-runtime's `session/hooks/app/`
-([its session doc](../../../app-runtime/docs/session/README.md#the-two-guards)). The renewers live
+and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
+starts through app-runtime's hooks
+([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
 in `socket/` because `socket → session` is an existing edge and the reverse is not; putting them under
 `session/` would close a cycle.
 
@@ -493,7 +494,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.
 - Nothing in this package imports the package barrel — eslint refuses it — so in-package callers import by concrete path, which is what keeps the barrel out of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. The barrel leaves out what nothing above imports: `alignSessionSite.ts`, `authIdRegistry.ts`, `revokedSession.ts` and `renewCloudSession.ts`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.
-- The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `useCloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
+- The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `CloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
 
 ## Further reading
 

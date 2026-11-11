@@ -1,403 +1,67 @@
-import { transportPlatform } from '@chatic/transport/platform';
-import { fakeTransportPorts } from '@chatic/transport/testing/platform';
-import { act, renderHook } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 
 import { useSessionStalenessGuard } from './useSessionStalenessGuard';
 
-const mockHasStored = jest.fn();
-const mockIsExpired = jest.fn();
-const mockRequestRefresh = jest.fn();
-const mockVerified = jest.fn();
-
-jest.mock('@chatic/auth/session/relayCredentialProbe', () => ({
-    relayCredentialProbe: {
-        hasSession: (...a: unknown[]) => mockHasStored(...a),
-        isCredentialExpired: (...a: unknown[]) => mockIsExpired(...a),
-    },
-}));
-jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
-    requestRelaySessionRefresh: (...a: unknown[]) => mockRequestRefresh(...a),
-}));
-const mockAuthStatus = jest.fn();
-jest.mock('@chatic/auth/socket/authStatus', () => ({
-    getAuthStatus: (...a: unknown[]) => mockAuthStatus(...(a as [])),
-    // The real predicate — the point of these cases is which STATUS the guard sees, not a re-stub
-    // of the truth table it reads.
-    canRefreshThroughSocket: (status: string) => status === 'verified' || status === 'stale',
-}));
-jest.mock('../../../connection/hooks/useSlotVerified', () => ({
-    useSlotVerified: (...a: unknown[]) => mockVerified(...a),
-}));
-jest.mock('@chatic/bridges', () => ({
-    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
-const mockTimeToExpiry = jest.fn();
-jest.mock('@chatic/session/store/credentialFreshness', () => ({
-    credentialFreshness: { timeToExpiry: (...a: unknown[]) => mockTimeToExpiry(...(a as [])), isStale: jest.fn() },
+const mockStop = jest.fn();
+const mockStart = jest.fn(() => mockStop);
+const mockCheck = jest.fn(() => Promise.resolve());
+const mockSetPolicy = jest.fn();
+const mockConstruct = jest.fn();
+jest.mock('@chatic/runtime-core/session/relayCredentialGuard', () => ({
+    RelayCredentialGuard: jest.fn().mockImplementation((policy: unknown) => {
+        mockConstruct(policy);
+        return { start: mockStart, check: mockCheck, setPolicy: mockSetPolicy };
+    }),
 }));
 
-/** The hook only ever calls `check` itself through triggers; drive it directly for policy cases. */
-const runCheck = async (policy = {}) => {
-    const { result } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, ...policy }));
-    await act(async () => {
+beforeEach(() => jest.clearAllMocks());
+
+describe('useSessionStalenessGuard', () => {
+    it('starts one guard on mount and stops it on unmount', () => {
+        const { unmount } = renderHook(() => useSessionStalenessGuard({ intervalMs: null }));
+
+        expect(mockConstruct).toHaveBeenCalledTimes(1);
+        expect(mockStart).toHaveBeenCalledTimes(1);
+
+        unmount();
+        expect(mockStop).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-arms the triggers when they change, keeping the same guard', () => {
+        const { rerender } = renderHook(({ enabled }) => useSessionStalenessGuard({ enabled, intervalMs: null }), {
+            initialProps: { enabled: false },
+        });
+
+        rerender({ enabled: true });
+
+        expect(mockConstruct).toHaveBeenCalledTimes(1);
+        expect(mockStart).toHaveBeenCalledTimes(2);
+        expect(mockStop).toHaveBeenCalledTimes(1);
+        expect(mockSetPolicy).toHaveBeenLastCalledWith({ enabled: true, intervalMs: null });
+    });
+
+    it('does not re-arm on a re-render whose triggers did not change', () => {
+        const { rerender } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, forceRefresh: true }));
+
+        rerender();
+
+        expect(mockStart).toHaveBeenCalledTimes(1);
+    });
+
+    it('hands back a stable check that runs the guard', async () => {
+        const { result, rerender } = renderHook(() => useSessionStalenessGuard({ intervalMs: null }));
+        const first = result.current.check;
+
+        rerender();
         await result.current.check();
-    });
-    return result;
-};
 
-beforeEach(() => {
-    jest.clearAllMocks();
-    mockVerified.mockReturnValue(false);
-    mockHasStored.mockReturnValue(true);
-    mockIsExpired.mockReturnValue(false);
-    mockRequestRefresh.mockResolvedValue(true);
-    // "Can't measure" is the default — the actual state of a test session with no credential, and in
-    // that case the preemptive refresh fires unconditionally as before (the describe below pins that
-    // contract separately).
-    mockTimeToExpiry.mockReturnValue(null);
-    // The default is "the socket could have carried the refresh" — that's what makes a failure the
-    // session's fault.
-    mockAuthStatus.mockReturnValue('stale');
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-});
-
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
-beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
-
-describe('useSessionStalenessGuard — 프로브', () => {
-    it('만료되지 않았으면 refresh를 요청하지 않는다 (정상 구간)', async () => {
-        await runCheck();
-
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
+        expect(result.current.check).toBe(first);
+        expect(mockCheck).toHaveBeenCalledTimes(1);
     });
 
-    it('만료됐으면 requestRelaySessionRefresh로 넘긴다 — 직접 refresh하지 않는다', async () => {
-        mockIsExpired.mockReturnValue(true);
+    it('hands the guard its policy before it starts it', () => {
+        renderHook(() => useSessionStalenessGuard({}));
 
-        await runCheck();
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-    });
-
-    it('오프라인이면 프로브조차 하지 않는다 — 죽은 링크로 teardown이 유발되면 안 된다', async () => {
-        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-
-        await runCheck();
-
-        expect(mockHasStored).not.toHaveBeenCalled();
-    });
-});
-
-describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 된다)', () => {
-    it('missingSessionCountsAsFailure=false면 세션 부재는 실패가 아니다 (apps/web 판)', async () => {
-        mockHasStored.mockReturnValue(false);
-        const onTeardown = jest.fn();
-
-        await runCheck({ missingSessionCountsAsFailure: false, consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('missingSessionCountsAsFailure=true면 세션 부재가 teardown으로 이어진다 (admin 판)', async () => {
-        mockHasStored.mockReturnValue(false);
-        const onTeardown = jest.fn();
-
-        await runCheck({ missingSessionCountsAsFailure: true, consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).toHaveBeenCalled();
-    });
-
-    it('연속 실패가 한도에 닿아야 teardown한다 — 일시적 실패 한 번으로는 안 된다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        const onTeardown = jest.fn();
-
-        const { result } = renderHook(() =>
-            useSessionStalenessGuard({ intervalMs: null, consecutiveFailureLimit: 3, onTeardown })
-        );
-
-        await act(async () => {
-            await result.current.check();
-            await result.current.check();
-        });
-        expect(onTeardown).not.toHaveBeenCalled();
-
-        await act(async () => {
-            await result.current.check();
-        });
-        expect(onTeardown).toHaveBeenCalledTimes(1);
-    });
-
-    it('중간에 한 번 성공하면 연속 실패가 초기화된다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        const onTeardown = jest.fn();
-
-        const { result } = renderHook(() =>
-            useSessionStalenessGuard({ intervalMs: null, consecutiveFailureLimit: 2, onTeardown })
-        );
-
-        await act(async () => {
-            await result.current.check();
-        });
-        mockRequestRefresh.mockResolvedValue(true);
-        await act(async () => {
-            await result.current.check();
-        });
-        mockRequestRefresh.mockResolvedValue(false);
-        await act(async () => {
-            await result.current.check();
-        });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('consecutiveFailureLimit=null이면 절대 teardown하지 않는다 (apps/web은 수동 로그아웃만)', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        const onTeardown = jest.fn();
-
-        const { result } = renderHook(() =>
-            useSessionStalenessGuard({ intervalMs: null, consecutiveFailureLimit: null, onTeardown })
-        );
-        await act(async () => {
-            await result.current.check();
-            await result.current.check();
-            await result.current.check();
-        });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('소켓이 refresh를 나를 수 없는 상태면 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        mockAuthStatus.mockReturnValue('handshaking');
-        const onTeardown = jest.fn();
-
-        const { result } = renderHook(() =>
-            useSessionStalenessGuard({ intervalMs: null, consecutiveFailureLimit: 1, onTeardown })
-        );
-        await act(async () => {
-            await result.current.check();
-            await result.current.check();
-            await result.current.check();
-        });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('SDK가 terminal expired를 낸 상태도 세지 않는다 — 그 판단은 renewer의 확인 창이 소유한다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        mockAuthStatus.mockReturnValue('expired');
-        const onTeardown = jest.fn();
-
-        await runCheck({ consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('나를 수 있었는데도 거절당하면 그건 실패다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        mockAuthStatus.mockReturnValue('verified');
-        const onTeardown = jest.fn();
-
-        await runCheck({ consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).toHaveBeenCalledTimes(1);
-    });
-
-    it('예외는 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {
-        mockHasStored.mockImplementation(() => {
-            throw new Error('storage race');
-        });
-        const onTeardown = jest.fn();
-
-        await runCheck({ consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-});
-
-describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선제 갱신)', () => {
-    // The handshake's auth.update emits no token, so boot runs on the pre-sleep credential until the
-    // SDK's own 5-min timer fires. The expiry probe alone cannot see a credential that is running out.
-    it('만료되지 않았어도 refresh를 요청한다', async () => {
-        mockIsExpired.mockReturnValue(false);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-    });
-
-    it('쿨다운 안에서는 두 번째 트리거를 흘려보낸다 (포그라운드 연타 방어)', async () => {
-        mockIsExpired.mockReturnValue(false);
-
-        const { result } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, forceRefresh: true }));
-        await act(async () => {
-            await result.current.check();
-            await result.current.check();
-        });
-
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-    });
-
-    it('쿨다운이 지나면 다시 요청한다', async () => {
-        jest.useFakeTimers();
-        mockIsExpired.mockReturnValue(false);
-
-        const { result } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, forceRefresh: true }));
-        await act(async () => {
-            await result.current.check();
-        });
-        jest.setSystemTime(Date.now() + 61_000);
-        await act(async () => {
-            await result.current.check();
-        });
-
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(2);
-        jest.useRealTimers();
-    });
-
-    // A still-valid credential that failed to refresh is not a dead session — most often the socket
-    // is simply not authenticated yet. Counting it would log out a perfectly live user.
-    it('선제 refresh 실패는 teardown 스트릭에 넣지 않는다', async () => {
-        mockIsExpired.mockReturnValue(false);
-        mockRequestRefresh.mockResolvedValue(false);
-        const onTeardown = jest.fn();
-
-        await runCheck({ forceRefresh: true, consecutiveFailureLimit: 1, onTeardown });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-        expect(onTeardown).not.toHaveBeenCalled();
-    });
-
-    it('실제로 만료된 상태의 실패는 forceRefresh와 무관하게 그대로 실패로 센다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockRequestRefresh.mockResolvedValue(false);
-        const onTeardown = jest.fn();
-
-        await runCheck({ forceRefresh: true, consecutiveFailureLimit: 1, onTeardown });
-
-        expect(onTeardown).toHaveBeenCalledTimes(1);
-    });
-
-    it('오프라인이면 forceRefresh여도 아무 요청도 하지 않는다', async () => {
-        Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        mockIsExpired.mockReturnValue(false);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockHasStored).not.toHaveBeenCalled();
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('저장된 세션이 아예 없으면 forceRefresh여도 refresh로 넘어가지 않는다', async () => {
-        mockHasStored.mockReturnValue(false);
-        mockIsExpired.mockReturnValue(false);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-});
-
-describe('useSessionStalenessGuard — 트리거', () => {
-    it('intervalMs 주기로 검사한다', async () => {
-        jest.useFakeTimers();
-        mockIsExpired.mockReturnValue(true);
-
-        renderHook(() => useSessionStalenessGuard({ intervalMs: 30_000 }));
-        await act(async () => {
-            jest.advanceTimersByTime(60_000);
-        });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-        jest.useRealTimers();
-    });
-
-    it('enabled=false면 아무 트리거도 걸지 않는다', async () => {
-        jest.useFakeTimers();
-        renderHook(() => useSessionStalenessGuard({ enabled: false, intervalMs: 30_000 }));
-        await act(async () => {
-            jest.advanceTimersByTime(120_000);
-        });
-
-        expect(mockHasStored).not.toHaveBeenCalled();
-        jest.useRealTimers();
-    });
-
-    it('checkOnRelayVerified는 상승 에지에서만 검사한다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockVerified.mockReturnValue(false);
-
-        const { rerender } = renderHook(() =>
-            useSessionStalenessGuard({ intervalMs: null, checkOnRelayVerified: true })
-        );
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-
-        mockVerified.mockReturnValue(true);
-        await act(async () => {
-            rerender();
-        });
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-
-        // A re-render while already verified is not an edge
-        await act(async () => {
-            rerender();
-        });
-        expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
-    });
-});
-
-/**
- * The preemptive refresh **doesn't close its eyes**. It used to fire unconditionally on every edge,
- * so even a credential minted a moment ago got refreshed on every foreground return (and produced a
- * `superseded` by overlapping with the reauthentication that happens right at login).
- * Now it measures the relay credential's actual `Expiration`, and stays quiet if there's more slack
- * than one refresh cycle.
- */
-describe('useSessionStalenessGuard — forceRefresh는 자격증명을 재고 나서 쏜다', () => {
-    it('여유가 한 주기보다 많으면 쏘지 않는다 — 소유자가 알아서 갱신한다', async () => {
-        mockTimeToExpiry.mockReturnValue(50 * 60_000);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).not.toHaveBeenCalled();
-    });
-
-    it('마진 아래로 떨어졌으면 쏜다 — 소켓이 못 따라온다는 증거다', async () => {
-        mockTimeToExpiry.mockReturnValue(60_000);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-    });
-
-    it('이미 지났으면 쏜다', async () => {
-        mockTimeToExpiry.mockReturnValue(-1_000);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-    });
-
-    it('측정할 수 없으면 쏜다 — 읽을 것이 없을 때는 낮게 추측하는 쪽이 안전하다', async () => {
-        mockTimeToExpiry.mockReturnValue(null);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
-    });
-
-    it('실제로 만료된 세션은 자격증명 여유와 무관하게 갱신한다 — 그건 선제가 아니다', async () => {
-        mockIsExpired.mockReturnValue(true);
-        mockTimeToExpiry.mockReturnValue(50 * 60_000);
-
-        await runCheck({ forceRefresh: true });
-
-        expect(mockRequestRefresh).toHaveBeenCalled();
+        expect(mockSetPolicy.mock.invocationCallOrder[0]).toBeLessThan(mockStart.mock.invocationCallOrder[0]);
     });
 });

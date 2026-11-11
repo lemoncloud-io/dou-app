@@ -20,7 +20,7 @@ import { useAppForeground } from '../bridge';
  * credential may have lapsed while the WebView slept. That trigger is a bridge concept the hub
  * cannot know about, which is why the hub hands back `check`.
  *
- * **Never logs out**, unlike admin's guard: a failed refresh just retries on the next edge. The
+ * **Never logs out** — the guard has no way to: a failed refresh just retries on the next edge. The
  * one path that CAN end the session on its own is the socket's terminal `expired`
  * (`credentialRenewers.relay.onTerminalExpiry` — it logs out only after the expiry survives a
  * confirmation window with the browser online), and it is deliberately not this hook's business.
@@ -40,10 +40,8 @@ export const useRelayCredentialRefresh = (): void => {
         // moments the stored `expired_time` is a bad proxy for "the credential still signs": the
         // handshake's `auth.update` emits no token, so boot runs on the pre-sleep credential until
         // the SDK's own 5-min timer fires. Refresh regardless of the expiry probe — the hub throttles
-        // this to once a minute and never counts a preemptive miss as a failure.
+        // this to once a minute and only logs a preemptive miss.
         forceRefresh: true,
-        // apps/web never tears the session down from here.
-        consecutiveFailureLimit: null,
     });
 
     // Gated on the socket being up: with no live socket `check` cannot reach the refresh owner, so

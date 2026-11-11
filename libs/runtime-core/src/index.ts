@@ -39,3 +39,9 @@ export type { ConnectionController, ConnectionControllerOptions } from './connec
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export { createSessionController } from './session/sessionController';
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
+
+// the credential guards an app starts with its own policy
+export { RelayCredentialGuard } from './session/relayCredentialGuard';
+export type { SessionStalenessPolicy } from './session/relayCredentialGuard';
+export { CloudCredentialGuard } from './session/cloudCredentialGuard';
+export type { CloudCredentialPolicy } from './session/cloudCredentialGuard';

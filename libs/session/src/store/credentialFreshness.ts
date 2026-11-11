@@ -28,7 +28,7 @@ import { cloudStore, relayStore } from './stores';
  *   signature rejection apart from a network outage (`CredentialStalenessPort`).
  * - **a cloud** — a token-age proxy. Nothing signs with a cloud credential (the one request that
  *   did was the cloud HTTP refresh, deleted by ADR-0070), but it is minted alongside the cloud token
- *   and expires with it, so `useCloudCredentialGuard` reads it to know when that SOCKET session
+ *   and expires with it, so `CloudCredentialGuard` reads it to know when that SOCKET session
  *   needs re-issuing.
  */
 export interface ICredentialFreshness {

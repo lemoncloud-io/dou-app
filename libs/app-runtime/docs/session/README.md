@@ -46,49 +46,19 @@ and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch 
 
 ### The two guards
 
-An app mounts these; they are not automatic.
+An app mounts these; they are not automatic. Each is a thin hook over a guard class in runtime-core —
+it starts the guard on mount, re-arms its triggers when the policy's triggers change, stops it on
+unmount, and hands back a stable `check` for a trigger only the app knows (apps/web's WebView
+foreground). What the guards do, and why, is
+[runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-credential-guards).
 
-**[`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) is
-relay-only, and adding a `kind` option to it would be wrong** — relay and cloud recover by different
-means, and the cloud counterpart exists. Two properties are not configurable because they are the
-reason the hook exists: the probe never refreshes (it reads the session's relay token and nothing else; there is no HTTP
-refresh to fire, and a second refresh engine would leave the socket's signing material stale), and
-renewal always goes through `requestRelaySessionRefresh`.
+| Hook                                                                                          | Guard                  | Policy                                                                                                             |
+| --------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) | `RelayCredentialGuard` | `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`, `checkOnRelayVerified`, `forceRefresh` |
+| [`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts)   | `CloudCredentialGuard` | `enabled`, `marginMs`, `checkOnVisible`                                                                            |
 
-The policy covers `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`,
-`checkOnRelayVerified`, `missingSessionCountsAsFailure`, `consecutiveFailureLimit`, `onTeardown` and
-`forceRefresh`. Only **definitive** failures count toward the teardown streak: a refresh that could
-not even reach the socket is not one.
-
-`forceRefresh` closes a specific hole. The boot handshake's `auth.update` emits no token — the SDK
-emits one only from `refresh` and `switch` — so the first writeback is a whole refresh cycle away,
-and until it lands, relay-signed HTTP is signed with the credential from before the device went to
-sleep. The expiry probe (`relayCredentialProbe`) answers only "past expiry", not "about to expire",
-so the guard also measures how much is left: it fires only when
-`credentialFreshness.timeToExpiry('relay')` is under one refresh cycle. Firing on every edge
-unconditionally was the earlier behaviour and it refreshed credentials minted seconds earlier,
-colliding with the re-authentication at login. A 60-second cooldown throttles it, and a preemptive
-failure never counts toward teardown — a credential that is still valid is not evidence the session
-died.
-
-**[`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts) does not
-poll.** It derives a deadline from each credential's own `Expiration` minus a margin and sleeps until
-the earliest of them, waking at most every 5 minutes because a suspended tab serves long timers late.
-The margin is `SDK_REFRESH_CYCLE_MS`, and that is diagnosis rather than tuning: a healthy cloud
-socket re-mints every cycle, so being under the margin at all _is_ the evidence the socket is not
-keeping up.
-
-It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
-can arrive after the tokens) and every cloud the manager has a slot for — every background cloud
-included — each through its own renewer, so one cloud's failed exchange never delays another's. A
-background slot lives through many refresh cycles, and while its socket is down nothing else
-re-mints its credential, so for those clouds this guard is what catches a lapse.
-
-The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
-it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
-dropped link, a long stay in one place — nobody even _measured_ the credential, and once it lapsed
-every cloud-signed request 403'd. Re-entering a cloud hid it, because a switch re-issues, so it only
-showed up in sessions that sat still.
+Neither ends a session. The relay guard used to take a teardown policy (`onTeardown`,
+`consecutiveFailureLimit`, `missingSessionCountsAsFailure`); no app used it, and it is gone.
 
 ### The pairing hooks
 

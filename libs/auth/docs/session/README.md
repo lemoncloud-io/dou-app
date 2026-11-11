@@ -130,7 +130,7 @@ reloads onto it.
 and the relay credential has expired when `credentialFreshness` measures nothing left on it — or
 nothing to measure. `relaySession.initialize()` reads the first to decide whether the boot is signed
 in; nothing is rebuilt from the token, because signed HTTP reads it per request.
-`useSessionStalenessGuard` reads both. They used to be asked of lemon-web-core's own stored token
+runtime-core's `RelayCredentialGuard` reads both. They used to be asked of lemon-web-core's own stored token
 bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three

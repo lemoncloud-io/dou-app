@@ -10,7 +10,7 @@
  *
  * The cloud branch that used to live here is gone with the cloud route: nothing signs with the cloud
  * credential, so no failed request can blame it. Cloud re-issue is still real — it belongs to
- * `useCloudCredentialGuard`, which watches the cloud SOCKET, not to HTTP recovery.
+ * `CloudCredentialGuard`, which watches the cloud SOCKET, not to HTTP recovery.
  *
  * Driven through `createRuntime()` rather than a `configureCredentialRecovery()` of its own: the
  * wiring has no owning module (it joins the HTTP registry to the socket renewers), so it lives in the

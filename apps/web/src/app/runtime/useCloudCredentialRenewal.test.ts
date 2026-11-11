@@ -1,8 +1,9 @@
 import { renderHook } from '@testing-library/react';
 
 /**
- * The deadline/renew BODY lives in `@chatic/app-runtime`'s `useCloudCredentialGuard` (its own tests
- * cover the margin, the offline skip, the self-arming timer and the failure path).
+ * The deadline/renew BODY is runtime-core's `CloudCredentialGuard` (started by
+ * `runtime.session.useCloudCredentialGuard`; its own tests cover the margin, the offline skip, the
+ * self-arming timer and the failure path).
  *
  * apps/web's POLICY is the one thing here: the WebView foreground trigger the hub cannot see, and
  * NOT gating it on the cloud socket — unlike the relay half, cloud renewal is a re-issue over relay

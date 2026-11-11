@@ -1,7 +1,8 @@
-# session — the controller that brings the relay session up and keeps it there
+# session — bringing the relay session up, keeping it there, and keeping its credentials fresh
 
 `session/` holds the relay session's own lifecycle, with no React in it: bringing the session up once
-at boot, and keeping a visitor who has none signed in as a guest. The session's state — its stores,
+at boot, keeping a visitor who has none signed in as a guest, and keeping the relay and cloud
+credentials from lapsing while the app sits still. The session's state — its stores,
 its signal, the derived contexts — is `@chatic/session`'s; logging in and out is `@chatic/auth`'s
 (`relaySession`). This controller only decides **when** to call them.
 
@@ -13,9 +14,14 @@ will start the same one.
 
 ```text
 session/
-├── sessionController.ts    createSessionController — initialize, isReady, the guest keep-alive
-└── foreground.ts           ForegroundSignal and its holder, filled by initAppRuntime({ foreground })
+├── sessionController.ts      createSessionController — initialize, isReady, the guest keep-alive
+├── relayCredentialGuard.ts   RelayCredentialGuard — refreshes the relay credential before it lapses
+├── cloudCredentialGuard.ts   CloudCredentialGuard — re-issues each cloud's tokens before they lapse
+└── foreground.ts             ForegroundSignal and its holder, filled by initAppRuntime({ foreground })
 ```
+
+The connection host starts the session controller; an app starts the two guards with its own policy
+(`runtime.session.useSessionStalenessGuard` / `useCloudCredentialGuard` in app-runtime).
 
 ## Usage
 
@@ -61,6 +67,61 @@ never acquire a session on its own, so `RuntimeAuthHost` does not.
 - **The device id is read when an attempt runs.** A change of id is not a trigger of its own; it is
   picked up by the next attempt. The id is never empty on the web — it falls back to the page's own.
 
+### The credential guards
+
+Both follow one shape: `new Guard(policy)`, `check()` to evaluate once, `start()` to arm the triggers
+the policy asks for and return their stop, `setPolicy()` to replace the policy. Whatever has to
+outlive a stop — a single-flight slot, a floor, the last state an edge is measured from — belongs to
+the guard, not to a start: a stop followed by a start (React StrictMode, a policy change) does not
+fire the relay guard's verified edge twice. The cloud guard evaluates every cloud on each start, as
+the hook did on each mount. Neither ends a session — see
+[ADR-0307](../../../../docs/adr/0307-a-credential-guard-never-ends-a-session.md).
+
+**`RelayCredentialGuard` is relay-only, and adding a `kind` option to it would be wrong** — relay and
+cloud recover by different means, and the cloud counterpart exists. Two properties are not
+configurable because they are the reason the guard exists: the probe never refreshes (it reads the
+session's relay token and nothing else; a second refresh engine would leave the socket's signing
+material stale), and renewal always goes through `credentialRenewers.relay` →
+`requestRelaySessionRefresh`.
+
+- **Triggers**: an interval (`intervalMs`, `null` for edge-driven callers), the app returning to the
+  foreground (`checkOnVisible`), and the rising edge of the relay slot's verification
+  (`checkOnRelayVerified`) — the moment a refresh becomes possible. A socket already verified when the
+  guard starts counts as an edge, unless an earlier start saw it. The guard watches the slot only
+  while it runs, so turning a disabled guard on with the socket already verified probes once; the hook
+  it replaced tracked the slot while disabled and did not. The probe refreshes only an expired or
+  expiring credential, so this costs a store read.
+- **A refresh that did not run is logged, not acted on.** The log says why: a relay socket that could
+  not carry the refresh (`handshaking`, or the terminal `expired` whose confirmation window belongs to
+  the renewer) is no evidence the session is dead; only a refusal from a socket that could ask means
+  the credential is stale. The guard used to tear a session down after a streak of failures; no app
+  used it, and a probe that logs people out on its own failures had logged admins out of live sessions
+  after a laptop sleep. Ending a relay session is the server's verdict and the renewer's
+  terminal-expiry window.
+- **`forceRefresh` closes a specific hole.** The boot handshake's `auth.update` emits no token — the
+  SDK emits one only from `refresh` and `switch` — so the first writeback is a whole refresh cycle
+  away, and until it lands relay-signed HTTP is signed with the credential from before the device went
+  to sleep. The expiry probe answers only "past expiry", so the guard also measures how much is left
+  and fires only when `credentialFreshness.timeToExpiry('relay')` is under one refresh cycle (or cannot
+  be measured). A 60-second floor throttles it, and a preemptive refresh that fails is only a warning.
+
+**`CloudCredentialGuard` does not poll.** It derives a deadline from each credential's own
+`Expiration` minus a margin (`marginMs`, default `SDK_REFRESH_CYCLE_MS`) and sleeps until the earliest
+of them, waking at most every 5 minutes because a suspended page serves long timers late. The margin
+is diagnosis rather than tuning: a healthy cloud socket re-mints every cycle, so being under it at all
+_is_ the evidence the socket is not keeping up.
+
+It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
+can arrive after the tokens) and every cloud the manager has a slot for, background clouds included,
+each through its own renewer, so one cloud's failed exchange never delays another's. A throw while
+evaluating one cloud costs that cloud one retry sleep and nothing else. A failed renewal is a warning:
+losing a cloud is recoverable by re-entering it, and `onAuthExpired` owns giving up on one.
+
+The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
+it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
+dropped link, a long stay in one place — nobody even _measured_ the credential, and once it lapsed
+every cloud-signed request 403'd.
+
 ### The foreground port
 
 `ForegroundSignal { read(), subscribe(listener) }` says whether the app is in front of the user. It is
@@ -69,8 +130,9 @@ a port because only the platform knows: a page reads `document.visibilityState`
 passes it to `initAppRuntime({ foreground })`; like every port it is required, and reading it before
 then throws (`foregroundPlatform.ports()`). It is this package's own type — the session controller is what reads it.
 
-A phone shell's own return to the foreground is a bridge message, not this signal. An app that
-listens for it (apps/web's `useAppForeground`) calls a guard's `check` itself.
+Both credential guards read it for `checkOnVisible`. A phone shell's own return to the foreground is a
+bridge message, not this signal; an app that listens for it (apps/web's `useAppForeground`) calls the
+guards' `check` itself.
 
 ## What not to do
 
