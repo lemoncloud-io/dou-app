@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-core,app-runtime) register push tokens and prime chat rooms outside react
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
 - (runtime-core,app-runtime) run the credential guards outside react (ADR-0307)
 
 ## [2026-11-11] - No version updates
