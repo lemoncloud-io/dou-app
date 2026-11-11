@@ -73,6 +73,33 @@ in memory, which relay user it was asked as (`lastIssuedForOf`), for the owned-c
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 
+**An exchange may not move the account to another user in a cloud.** When a uid is already recorded for
+the cloud and the fresh token names a different one, the exchange throws `CloudIdentityChangedError`
+and writes nothing: the cache, the identity map and the session store keep the recorded user, and every
+caller treats it as a failed issue (a switch shows its failure, a renewal or a background slot backs
+off). The reason is what `delegate-cloud` answers. It issues for the relay user the request comes from
+(for a signed-in account, the guest its sign-in started from), and the exchange finds or creates that
+user's account in the cloud. An invitee whose invite login was made through a different guest
+therefore gets a new, empty user: no place, no room, every request refused. Taking that token hides
+everything the invitee had and overwrites the recorded uid, which is the last trace of the right
+user. The one change that is meant to happen, the owned-cloud reclaim, gets an owner token, and only
+the server can issue one, so a token whose role is `owner` is let through. With no uid recorded (a
+first entry, or after the account signed out and the map was cleared) any answer is taken. An invite
+login's own answer is committed by `cloudSession.switchTo` without an exchange, so accepting an invite
+again can still set the user. A pairing's `enter` forgets the cloud's uid before its re-issue, because
+replacing the tab's identity with the approver's is what it is for, and a guest that signs in to an
+account ends its paired clouds the same way.
+
+A refusal is remembered for the page life and answered without a round trip while the recorded uid is
+still the one it was refused over. The server's answer does not change until something on the device
+moves that uid, and without the memo every renewal tick and background retry would repeat the
+`delegate-cloud` and `exchange-token` calls.
+
+What `delegate-cloud` picks was measured on dev. A signed-in account that accepted an invite, and a
+guest that accepted and then signed in, both get back the guest their own session signed in from, so
+their uid stays the same. A flip takes a relay session linked to a guest other than the one whose
+invite login made the invitee.
+
 `relaySession.clearAndRedirect()` performs no server-side logout; notifying the sockets is
 [`logoutSession`](../socket/README.md)'s job, in `socket/`. It ends the account on this device, in
 this order, and only then leaves the page:

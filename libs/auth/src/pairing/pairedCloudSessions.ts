@@ -133,6 +133,10 @@ export class PairedCloudSessions {
      */
     async enter(cloudId: string, switchCloud: (cloudId: string) => Promise<unknown>): Promise<void> {
         await this.deps.settleExchangeInFlight(cloudId);
+        // Changing who this tab is in the cloud is the point here, and an exchange refuses to move a cloud
+        // off the uid recorded for it. So the tab's own uid is forgotten first; the re-issue records the
+        // approver's.
+        this.deps.dropIdentity(cloudId);
         await this.reissue(cloudId);
         this.deps.clouds.add(cloudId);
         await switchCloud(cloudId);

@@ -152,13 +152,16 @@ describe('PairedCloudSessions.reissue', () => {
 });
 
 describe('PairedCloudSessions.enter', () => {
-    it('settles an exchange already on the wire, re-issues, remembers the cloud, then switches', async () => {
+    it("settles an exchange on the wire, forgets the tab's own uid, re-issues, remembers the cloud, switches", async () => {
         const { sessions, calls, switchCloud } = harness();
 
         await sessions.enter('1000004', switchCloud);
 
+        // The drop sits between the settle and the re-issue: an exchange refuses to move a cloud off its
+        // recorded uid, and the approver's uid replacing the tab's own is what entering is for.
         expect(calls).toEqual([
             'settle:1000004',
+            'drop:1000004',
             'reissue:1000004',
             'reauth:1000004',
             'align:1000004',

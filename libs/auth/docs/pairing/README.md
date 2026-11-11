@@ -39,7 +39,10 @@ the approval side's failures.
   a paired cloud, with its collaborators — the list, the identity map, the token exchange, the socket
   re-registration, the place alignment, the credential teardown — passed to its constructor:
     - `enter(cloudId, switchCloud)` — lets an exchange for the cloud already on the wire finish,
-      re-issues the cloud's tokens, adds the cloud, then switches. The cloud joins the list before the
+      forgets the uid recorded for the cloud, re-issues the cloud's tokens, adds the cloud, then
+      switches. The forgetting is what lets the re-issue through: an exchange refuses to move a cloud
+      off its recorded uid ([docs/session/](../session/README.md)), and the approver replacing a tab's
+      own invite identity is exactly such a move, made on purpose here. The cloud joins the list before the
       switch: from the re-issue on, the tab holds the approver's tokens for it, so a switch that fails
       must still leave it where the check watches it. The re-issue comes first because a
       switch replays the tokens it already holds for the cloud: a tab holding older tokens of its own

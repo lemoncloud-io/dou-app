@@ -26,9 +26,11 @@ export const usePairedCloudCheck = (onEnded: (cloudId: string) => void): { check
     const check = useCallback(async () => {
         if (!ready.current || running.current || pairedClouds.list().length === 0) return;
         // A device that has since signed in to an account of its own enters clouds through that account;
-        // the list it kept as a guest no longer describes it.
+        // the list it kept as a guest no longer describes it. Each is ended, not just cleared: that also
+        // forgets the approver's uid recorded for the cloud, which would otherwise make the account's
+        // own entry into the cloud look like a change of user, and be refused as one.
         if (!isRelayGuest()) {
-            pairedClouds.clear();
+            pairedCloudSessions.list().forEach(cloudId => pairedCloudSessions.end(cloudId));
             return;
         }
         running.current = true;
