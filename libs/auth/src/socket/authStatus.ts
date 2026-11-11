@@ -11,7 +11,7 @@ import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
  *
  * Before this, answering "is relay's auth healthy?" meant reading seven values from seven modules
  * and combining them — and that combination was written out three separate times
- * (`useSessionStalenessGuard` · `requestRelaySessionRefresh` · `recoverUnverifiedSockets`), each with
+ * (`RelayCredentialGuard` · `requestRelaySessionRefresh` · `recoverUnverifiedSockets`), each with
  * its own 20~40 line justification that did not reference the others. (`useConnectivity` looked like
  * a fourth but is not: it answers what to TELL THE USER, and the credential clock has no place in
  * that answer — ADR-0076 §Decision 1.)

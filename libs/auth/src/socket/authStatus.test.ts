@@ -100,7 +100,7 @@ describe('deriveAuthStatus — 기존 판정 사본과의 동등성 (이관 전 
         expect(all.filter(status => needsLivenessProbe(status) && needsSocketKick(status))).toEqual([]);
     });
 
-    // useSessionStalenessGuard's two triggers (stored session expired, credential under margin) both converge on one state.
+    // RelayCredentialGuard's two triggers (stored session expired, credential under margin) both converge on one state.
     it('가드의 두 트리거가 모두 stale 하나로 모인다', () => {
         expect(deriveAuthStatus(healthy({ storedSessionExpired: true }))).toBe('stale');
         expect(deriveAuthStatus(healthy({ credentialMs: MARGIN - 1 }))).toBe('stale');

@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 /**
- * The probe/refresh BODY belongs to `@chatic/app-runtime`'s `useSessionStalenessGuard`, and its own
- * tests cover the offline skip, the "fresh → do nothing" path, the missing-session path and the
- * failure counting.
+ * The probe/refresh BODY is runtime-core's `RelayCredentialGuard` (started by
+ * `runtime.session.useSessionStalenessGuard`), and its own tests cover the offline skip, the "fresh →
+ * do nothing" path, the missing-session path, the preemptive floor and a failed refresh being only
+ * logged.
  *
  * What is desktop-web's — and therefore what a regression here would break — is the POLICY: edge
  * driven rather than polled, on both edges this shell has (relay verification, visibility return),
@@ -84,12 +85,5 @@ describe('useRelayCredentialRefresh — desktop-web 정책', () => {
     // SDK refresh cycle (5 min) away — until then relay-signed HTTP is signed with pre-sleep credentials and gets a 403.
     it('만료 여부와 무관하게 선제 refresh를 요청한다', () => {
         expect(render().forceRefresh).toBe(true);
-    });
-
-    it('절대 teardown하지 않는다 — desktop-web의 relay 로그아웃은 수동 전용이다', () => {
-        const policy = render();
-
-        expect(policy.consecutiveFailureLimit).toBeNull();
-        expect(policy.onTeardown).toBeUndefined();
     });
 });

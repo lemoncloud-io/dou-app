@@ -14,8 +14,8 @@ import { RELAY_CLOUD_ID, type IAuthRepository } from '@chatic/data';
  * (`delegate-cloud` is relay-signed HTTP), so as long as relay lives there is always a way to mint a
  * fresh one — `auth.refresh` on the cloud socket is an optimization, not the only route. Relay has no
  * such parent: its token can only be refreshed or re-logged-in. That asymmetry is the whole reason
- * relay and cloud manage their tokens separately, and it is why `useSessionStalenessGuard` (refresh)
- * is relay-only while the cloud counterpart (`useCloudCredentialGuard`) re-issues.
+ * relay and cloud manage their tokens separately, and it is why `RelayCredentialGuard` (refresh)
+ * is relay-only while the cloud counterpart (`CloudCredentialGuard`) re-issues.
  *
  * Two callers with two different intents share the exchange below:
  *  - `cloudSession.switchTo` — ENTERING a cloud. May replay the per-cloud cache, and owns the

@@ -1,9 +1,10 @@
 import { renderHook } from '@testing-library/react';
 
 /**
- * The probe/refresh BODY moved to `@chatic/app-runtime`'s `useSessionStalenessGuard`
- * (ADR-0070 3-step checklist 7), and its own tests cover the offline skip, the "fresh → do nothing"
- * path, the missing-session path, and the failure counting.
+ * The probe/refresh BODY is runtime-core's `RelayCredentialGuard` (started by
+ * `runtime.session.useSessionStalenessGuard`), and its own tests cover the offline skip, the "fresh →
+ * do nothing" path, the missing-session path, the preemptive floor and a failed refresh being only
+ * logged.
  *
  * What is apps/web's — and therefore what a regression here would break — is the POLICY: edge-driven
  * rather than polled, gated on relay verification, and never tearing the session down.
@@ -62,13 +63,6 @@ describe('useRelayCredentialRefresh — apps/web 정책', () => {
         const policy = render();
 
         expect(policy.forceRefresh).toBe(true);
-    });
-
-    it('절대 teardown하지 않는다 — apps/web의 relay 로그아웃은 수동 전용이다', () => {
-        const policy = render();
-
-        expect(policy.consecutiveFailureLimit).toBeNull();
-        expect(policy.onTeardown).toBeUndefined();
     });
 
     it('포그라운드 복귀에서도 검사한다 — 서스펜션을 견딘 소켓은 상승 엣지가 없다', () => {

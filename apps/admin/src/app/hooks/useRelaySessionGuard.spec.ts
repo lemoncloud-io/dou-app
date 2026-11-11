@@ -1,16 +1,14 @@
 /**
  * `hooks/useRelaySessionGuard.spec.ts`
  *
- * The probe/refresh BODY lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
- * and is covered by that hook's own tests — offline skip, the failure counting, the streak reset,
- * and which failures are definitive at all.
+ * The probe/refresh BODY is runtime-core's `RelayCredentialGuard` (reached through
+ * `runtime.session.useSessionStalenessGuard`) and is covered by its own tests — offline skip, the
+ * preemptive floor, and why a failed refresh is only logged.
  *
- * What is admin's and therefore tested here is the POLICY, and the load-bearing half of it is
- * now a NEGATIVE: this guard refreshes and never ends a session. The teardown it used to carry was
- * a second, speculative logout engine — "the refresh did not run" is a statement about the socket,
- * not the session — and the server's own verdict (`authFailureReaction`) is the one that ends
- * sessions. A regression that re-adds `onTeardown` here brings the wake-from-sleep logouts back,
- * so it is asserted explicitly rather than left to the absence of a test.
+ * What is admin's and therefore tested here is the POLICY. The guard refreshes and never ends a
+ * session — it no longer has a teardown option at all: that was a second, speculative logout engine
+ * ("the refresh did not run" is a statement about the socket, not the session), and the server's own
+ * verdict (`authFailureReaction`) is the one that ends sessions.
  */
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -45,14 +43,6 @@ describe('useRelaySessionGuard — admin 정책', () => {
 
     it('relay 검증 상승 에지에서도 검사한다 — refresh가 가능해지는 바로 그 순간이다', () => {
         expect(policyFor(true).checkOnRelayVerified).toBe(true);
-    });
-
-    it('teardown하지 않는다 — 세션 종료는 서버의 판정이지 이 프로브의 실패가 아니다', () => {
-        const policy = policyFor(true);
-
-        expect(policy.onTeardown).toBeUndefined();
-        expect(policy.consecutiveFailureLimit).toBeUndefined();
-        expect(policy.missingSessionCountsAsFailure).toBeUndefined();
     });
 
     it('로그아웃을 부르지 않는다 — 정책 어디에도 logoutSession이 없다', () => {

@@ -14,7 +14,7 @@ import { SDK_REFRESH_CYCLE_MS } from '@chatic/transport';
  * - **not bound** — this module. It issues (two HTTP calls, `delegate-cloud` + `exchange-token`)
  *   when the entry is missing or has less than one refresh cycle left, and the slot is derived only
  *   once `isBackgroundCloudReady` says so;
- * - **bound** — `useCloudCredentialGuard`, which re-issues AND re-registers the socket in one step
+ * - **bound** — `CloudCredentialGuard`, which re-issues AND re-registers the socket in one step
  *   (`renewCloudSession`). This module never touches a bound cloud.
  *
  * A failed issue backs off per cloud (60s, doubling, capped at 15 min): the usual causes are an

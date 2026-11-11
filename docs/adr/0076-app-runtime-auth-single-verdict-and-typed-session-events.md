@@ -1,6 +1,9 @@
 # ADR-0076: Auth state has one verdict — typed session signals · credential renewer · ADR-0070 §0 completed
 
 > Status: **Live** · Written: 2026-09-07 · Implementation complete: 2026-09-07 (§Execution log)
+> **Amended by [ADR-0307](./0307-a-credential-guard-never-ends-a-session.md) (2026-11-11):** the
+> relay credential guard has no teardown — no failure streak, no `onTeardown` — so the streak this
+> document describes and Decision 7's move of admin's guard teardown no longer apply.
 > Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin` · `apps/testbed` · `apps/desktop-web`)
 > Related: [ADR-0070](./0070-app-runtime-session-hub.md) (session hub — this document applies its §0
 > principle to the remainder and updates the wording of Decisions 2 and 7) ·

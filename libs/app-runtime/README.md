@@ -350,7 +350,7 @@ The app calls `recoverSocketsOnResume()` on its own foreground signal. Only slot
 because churning a warm connection costs more than it fixes. It is sent one ping instead, and
 recycled only if that goes unanswered for 3 s: a half-open connection keeps reading verified after
 a suspension ([auth § Waking a wedged socket](../auth/docs/socket/README.md#waking-a-wedged-socket)). When the relay socket re-verifies,
-`useSessionStalenessGuard` evaluates on that rising edge; a `stale` status runs
+`RelayCredentialGuard` (which `useSessionStalenessGuard` starts) evaluates on that rising edge; a `stale` status runs
 `credentialRenewers.relay.renew()`, which is the SDK's own `auth.refresh()`. The refreshed view
 comes back through `onTokenRefresh`, is merged so that `identityToken`, `identityPoolId` and the
 credential bundle survive, and lands in the store. **There is no HTTP fallback**: with no socket,

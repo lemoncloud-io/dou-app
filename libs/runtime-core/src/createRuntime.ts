@@ -125,7 +125,7 @@ export const createRuntime = (config: RuntimeConfig): void => {
     // hosts have none of their own — so they take the same path (ADR-0076 Decision 3). The `cloud` branch
     // that used to be here is gone with the route: nothing signs with the cloud credential any more,
     // so no failed request can blame it. Cloud re-issue is still real — it belongs to the guard that
-    // watches the cloud SOCKET (`useCloudCredentialGuard` → `renewCloudSession`), not to HTTP.
+    // watches the cloud SOCKET (`CloudCredentialGuard` → `renewCloudSession`), not to HTTP.
     //
     // **Wired here rather than in a module of its own.** The two wirings above and below delegate to
     // the module that OWNS the thing being configured (the store, the data runtime). This one owns
