@@ -9,6 +9,13 @@
 > [libs/runtime-web](../../libs/runtime-web/README.md)
 > · Amends: [ADR-0305](./0305-the-runtime-is-assembled-in-runtime-core.md) — the app-facing names its
 > Decision 1 kept (`initAppRuntime(config)`, `AppRuntimeConfig`), and the store choice it left in app-runtime
+>
+> **Amended by [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md) (2026-11-11):**
+> the session's state joins the engine before any mirror engine exists — as `RuntimeEngine.session`, a
+> snapshot without tokens that every session reader reads through, with the core engine as its first
+> implementation. The first Alternative and the last Consequence ("until it exists, the session's and
+> the connection's readers still bypass it") no longer hold for the session; the connection's readers
+> and the session's commands still bypass it and join the same way, one at a time.
 
 ## Context
 

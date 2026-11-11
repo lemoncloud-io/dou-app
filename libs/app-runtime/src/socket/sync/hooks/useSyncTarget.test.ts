@@ -10,10 +10,15 @@ import {
     startPerfTrace,
 } from '@chatic/perf';
 import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
 import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 
-// The hooks start their work from the engine the entry point hands over; these use the core one.
-beforeEach(() => initAppRuntime(coreEngine));
+// The hooks start their work from the engine the entry point hands over: the core one, with a fake
+// session view that `emitSession` loads the uids below into.
+const session = fakeSessionView();
+const uidsNow = () =>
+    Object.fromEntries(Object.entries(mockUids).filter((entry): entry is [string, string] => entry[1] !== null));
+beforeEach(() => initAppRuntime({ ...coreEngine, session }));
 afterEach(() => resetRuntimeEngine());
 
 const mockDispose = jest.fn();
@@ -34,7 +39,11 @@ jest.mock('../../../connection/hooks/useSlotVerified', () => ({
 let mockSelectedCloudId: string | null = 'default';
 let mockUids: Record<string, string | null> = {};
 let sessionListeners: Array<() => void> = [];
-const emitSession = () => act(() => sessionListeners.forEach(listener => listener()));
+const emitSession = () =>
+    act(() => {
+        session.set({ uidByCloud: uidsNow() });
+        sessionListeners.forEach(listener => listener());
+    });
 jest.mock('../../../session/hooks/session/readers/useSessionSelection', () => {
     const { useSyncExternalStore } = jest.requireActual('react');
     return {
@@ -49,13 +58,6 @@ jest.mock('../../../session/hooks/session/readers/useSessionSelection', () => {
         }),
     };
 });
-jest.mock('@chatic/session/store', () => ({
-    getUidInCloud: (cid: string) => mockUids[cid] ?? null,
-    subscribeSessionSignal: (listener: () => void) => {
-        sessionListeners.push(listener);
-        return () => undefined;
-    },
-}));
 
 const mockCacheReadList = jest.fn().mockResolvedValue({ list: [] });
 const mockRefreshList = jest.fn().mockResolvedValue({ fetchedCount: 0 });
@@ -77,6 +79,7 @@ beforeEach(() => {
     resetRoomFeeds();
     mockSelectedCloudId = 'default';
     mockUids = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
+    session.set({ uidByCloud: uidsNow() });
     sessionListeners = [];
 });
 

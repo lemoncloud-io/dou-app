@@ -1,9 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-import { getIdentityContext, subscribeSessionSignal } from '@chatic/session';
+import { getIdentityContext, subscribeSession } from '../../../sessionReads';
 
 /**
  * Subscribes to the identity snapshot of the current session.
  */
-export const useSessionIdentity = () =>
-    useSyncExternalStore(subscribeSessionSignal, getIdentityContext, getIdentityContext);
+export const useSessionIdentity = () => useSyncExternalStore(subscribeSession, getIdentityContext, getIdentityContext);

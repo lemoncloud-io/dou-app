@@ -63,10 +63,10 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
         const sessionUser = getActiveSessionUser() as { userRole?: string; name?: string } | null;
         const userRole = sessionUser?.userRole;
 
+        // The session as the app reads it carries no token, so "a cloud session" is the cloud half
+        // being active, and its user's name is the active token's user fields while it is.
         const cloudState = state.cloud;
-        const cloudToken = cloudState.cloudToken;
-        const backend = cloudState.backend;
-        const hasCloud = !!cloudToken && !!backend;
+        const hasCloud = cloudState.isActive;
 
         const payload = {
             title,
@@ -92,7 +92,7 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
             cloud: {
                 connected: hasCloud,
                 cloudId: hasCloud ? (cloudState.cloudId ?? undefined) : undefined,
-                name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
+                name: hasCloud ? (sessionUser?.name ?? undefined) : undefined,
                 placeId: cloudState.siteId ?? undefined,
             },
             // User-facing screen context (recent logs, device/version snapshot, attachments, ...).

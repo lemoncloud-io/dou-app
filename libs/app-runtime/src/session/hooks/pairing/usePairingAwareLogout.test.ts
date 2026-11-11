@@ -1,17 +1,22 @@
 import { act, renderHook } from '@testing-library/react';
 
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 import { usePairingAwareLogout } from './usePairingAwareLogout';
 
 const listPairings = jest.fn();
 const revokePairing = jest.fn();
 let mockNative = true;
-let mockPaired = false;
 
 jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('../../../data/hooks/useRuntimeRepositories', () => ({
     useRuntimeRepositories: () => ({ pairing: { listPairings, revokePairing } }),
 }));
-jest.mock('@chatic/auth/pairing/pairedSession', () => ({ isPairedSession: () => mockPaired }));
+const session = fakeSessionView();
+const setPaired = (isPairedSession: boolean) =>
+    session.set({ pairing: { ...session.snapshot().pairing, isPairedSession } });
 
 const row = (pairingId: string, status = 'approved') => ({
     pairingId,
@@ -24,10 +29,13 @@ const row = (pairingId: string, status = 'approved') => ({
 beforeEach(() => {
     jest.clearAllMocks();
     mockNative = true;
-    mockPaired = false;
+    setPaired(false);
+    initAppRuntime({ ...coreEngine, session });
     listPairings.mockResolvedValue({ list: [row('a'), row('b'), row('gone', 'revoked')] });
     revokePairing.mockResolvedValue({ status: 'revoked' });
 });
+
+afterEach(() => resetRuntimeEngine());
 
 const start = async (onLogout: jest.Mock) => {
     const hook = renderHook(() => usePairingAwareLogout(onLogout));
@@ -78,7 +86,7 @@ describe('usePairingAwareLogout', () => {
 
     it.each([
         ['a browser', () => (mockNative = false)],
-        ['a secondary device', () => (mockPaired = true)],
+        ['a secondary device', () => setPaired(true)],
     ])('does not read the list on %s', async (_label, arrange) => {
         arrange();
         const onLogout = jest.fn();

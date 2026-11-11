@@ -5,6 +5,8 @@ import type {
     RuntimeWireValue,
 } from '@chatic/bridge-messages';
 
+import type { SessionSnapshot } from '../session/snapshot';
+
 /**
  * The runtime contract this build speaks across the bridge: what the session snapshot holds, which
  * methods a `RuntimeCall` may name and what their arguments and results are, which events a
@@ -58,7 +60,7 @@ export const readRuntimeOffer = (
 /** The session as the shell hands it to a page: its sequence number and the snapshot, without tokens. */
 export interface SessionSnapshotWire {
     seq: number;
-    session: RuntimeWireValue;
+    session: SessionSnapshot;
 }
 
 /** What the shell knows when a page says hello. */
@@ -86,7 +88,9 @@ export const answerRuntimeHello = (request: RuntimeHelloPayload, host: RuntimeHe
         : null;
     if (!host.owns || contract === null) return { sessionOwner: 'web' };
     const { seq, session } = host.session();
-    return { sessionOwner: 'native', contract, seq, session };
+    // A snapshot is plain JSON by construction (`session/snapshot.ts`); the bridge declares its bodies
+    // as JSON values, which an interface without an index signature does not satisfy as a type.
+    return { sessionOwner: 'native', contract, seq, session: session as unknown as RuntimeWireValue };
 };
 
 /** What came back for the page's hello: the shell's answer, or the bridge's failure code. */

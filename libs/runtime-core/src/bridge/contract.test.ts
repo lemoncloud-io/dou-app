@@ -1,5 +1,8 @@
 import { answerRuntimeHello, chooseRuntimeContract, readRuntimeOffer, settleRuntimeHello } from './contract';
 import type { RuntimeHelloHost } from './contract';
+import { emptySessionSnapshot } from '../testing/sessionView';
+
+const snapshot = emptySessionSnapshot();
 
 describe('chooseRuntimeContract', () => {
     it('takes the newest version both sides speak', () => {
@@ -58,7 +61,7 @@ describe('answerRuntimeHello', () => {
     const host = (overrides: Partial<RuntimeHelloHost> = {}): RuntimeHelloHost => ({
         contracts: [1, 2],
         owns: true,
-        session: jest.fn(() => ({ seq: 7, session: { userId: 'u1' } })),
+        session: jest.fn(() => ({ seq: 7, session: snapshot })),
         ...overrides,
     });
 
@@ -67,7 +70,7 @@ describe('answerRuntimeHello', () => {
             sessionOwner: 'native',
             contract: 2,
             seq: 7,
-            session: { userId: 'u1' },
+            session: snapshot,
         });
     });
 

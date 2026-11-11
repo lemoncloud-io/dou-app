@@ -1,53 +1,40 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
 import { useUidInCloud } from './useUidInCloud';
 
-const mockUids: Record<string, string | null> = {};
-const mockSessionListeners = new Set<() => void>();
-jest.mock('@chatic/session/store', () => ({
-    getUidInCloud: (cid: string) => mockUids[cid] ?? null,
-    subscribeSessionSignal: (listener: () => void) => {
-        mockSessionListeners.add(listener);
-        return () => mockSessionListeners.delete(listener);
-    },
-}));
-jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
+const session = fakeSessionView();
 
 beforeEach(() => {
-    resetBackgroundClouds();
-    mockSessionListeners.clear();
-    for (const key of Object.keys(mockUids)) delete mockUids[key];
+    session.set({ uidByCloud: {} });
+    initAppRuntime({ ...coreEngine, session });
 });
+
+afterEach(() => resetRuntimeEngine());
 
 describe('useUidInCloud', () => {
     it('answers with the uid the account has in that cloud', () => {
-        mockUids['cloud-a'] = 'uid-a';
+        session.set({ uidByCloud: { 'cloud-a': 'uid-a' } });
 
         const { result } = renderHook(() => useUidInCloud('cloud-a'));
 
         expect(result.current).toBe('uid-a');
     });
 
-    it('follows a session change', () => {
-        const { result } = renderHook(() => useUidInCloud('cloud-a'));
+    it('is null for a cloud the account has no uid in', () => {
+        const { result } = renderHook(() => useUidInCloud('cloud-z'));
 
-        act(() => {
-            mockUids['cloud-a'] = 'uid-a';
-            mockSessionListeners.forEach(listener => listener());
-        });
-
-        expect(result.current).toBe('uid-a');
+        expect(result.current).toBeNull();
     });
 
-    it("follows a cloud's first tokens landing, which is no session signal", () => {
+    it('follows a change of the session', () => {
         const { result } = renderHook(() => useUidInCloud('cloud-b'));
         expect(result.current).toBeNull();
 
-        act(() => {
-            mockUids['cloud-b'] = 'uid-b';
-            backgroundClouds.invalidate();
-        });
+        act(() => session.set({ uidByCloud: { 'cloud-b': 'uid-b' } }));
 
         expect(result.current).toBe('uid-b');
     });

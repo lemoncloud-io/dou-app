@@ -1,7 +1,8 @@
 # ADR-0309: The phone shell may own the session, settled once per launch
 
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `feat/runtime-bridge-contract` (the contract
-> only — no shell offers yet)
+> only — no shell offers yet); `refactor/session-reads-via-engine` (the session snapshot, read through
+> the engine)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
@@ -10,6 +11,8 @@
 > not sent); `libs/runtime-core/src/bridge/` (`RUNTIME_CONTRACT_VERSION`, the handshake, errors across
 > the bridge)
 > · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
+> · Amends: [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) — its first Alternative:
+> the session's state joins the engine one reader group at a time, the core engine first
 
 ## Context
 

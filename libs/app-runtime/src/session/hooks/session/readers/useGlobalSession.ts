@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
-import { subscribeSessionSignal, getGlobalSessionContext } from '@chatic/session';
+import { getGlobalSessionContext, subscribeSession } from '../../../sessionReads';
 
 /**
  * Subscribes to the assembled global session context.
  */
 export const useGlobalSession = () =>
-    useSyncExternalStore(subscribeSessionSignal, getGlobalSessionContext, getGlobalSessionContext);
+    useSyncExternalStore(subscribeSession, getGlobalSessionContext, getGlobalSessionContext);

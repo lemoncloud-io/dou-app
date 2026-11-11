@@ -1,8 +1,9 @@
-# session — bringing the relay session up, keeping it there, and keeping its credentials fresh
+# session — bringing the relay session up, keeping it there, keeping its credentials fresh, and reading it
 
 `session/` holds the relay session's own lifecycle, with no React in it: bringing the session up once
 at boot, keeping a visitor who has none signed in as a guest, and keeping the relay and cloud
-credentials from lapsing while the app sits still. The session's state — its stores,
+credentials from lapsing while the app sits still. It also holds the session as screens read it: a
+snapshot without tokens. The session's state — its stores,
 its signal, the derived contexts — is `@chatic/session`'s; logging in and out is `@chatic/auth`'s
 (`relaySession`). This controller only decides **when** to call them.
 
@@ -17,8 +18,13 @@ session/
 ├── sessionController.ts      createSessionController — initialize, isReady, the guest keep-alive
 ├── relayCredentialGuard.ts   RelayCredentialGuard — refreshes the relay credential before it lapses
 ├── cloudCredentialGuard.ts   CloudCredentialGuard — re-issues each cloud's tokens before they lapse
-└── foreground.ts             ForegroundSignal and its holder, filled when the runtime is built
+├── foreground.ts             ForegroundSignal and its holder, filled when the runtime is built
+├── snapshot.ts               SessionSnapshot and SessionView — the session as screens read it
+└── sessionView.ts            createCoreSessionView — that view over this process's stores
 ```
+
+`testing/sessionView.ts` (`@chatic/runtime-core/testing/sessionView`) is a fake view for tests of
+anything that reads the session through the engine.
 
 The connection host starts the session controller; an app starts the two guards with its own policy
 (`runtime.session.useSessionStalenessGuard` / `useCloudCredentialGuard` in app-runtime).
@@ -134,6 +140,46 @@ here: the session controller, the two credential guards (`checkOnVisible`), and 
 ([docs/push](../push/README.md)). A phone shell's own return to the foreground is a
 bridge message, not this signal; an app that listens for it (apps/web's `useAppForeground`) calls the
 guards' `check` itself.
+
+### The session view
+
+`engine.session` is how the React surface reads the session — every reader app-runtime publishes
+(`useGlobalSession`, `getUidInCloud`, `isPairedSession` and the rest) goes through it. It is a
+`SessionView { snapshot(), subscribe(listener) }`, and the snapshot is a `SessionSnapshot`:
+
+| Part              | Holds                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `context`         | the relay and cloud halves, the identity and the active server — `GlobalSessionContext` without tokens |
+| `auth`            | `isInitialized`, `isAuthenticated`, `error`                                                            |
+| `activeUser`      | the active token's user fields (the profile's synchronous seed)                                        |
+| `relayUser`       | the relay token's user fields (the account's own profile)                                              |
+| `committedSiteId` | the place the session is really on                                                                     |
+| `uidByCloud`      | the uid this account has in each cloud it has one in (`getUidsInClouds`)                               |
+| `pairing`         | `isPairedSession`, `isInOwnCloudSession`, the paired clouds and their names                            |
+
+**No token, and nothing but JSON.** `identityToken`, `delegationToken` and `cloudToken` stay in the
+stores, and an error is its message. On the phone the shell's runtime hands a page this same value,
+so a page that does not own the session never holds a credential; the core engine gives the page the
+same shape so the readers cannot come to depend on a token.
+
+**The same object until it changes, part by part.** `useSyncExternalStore` compares by identity, so
+`snapshot()` returns the same object until something it reads moves, and each part keeps its identity
+until that part changes: `context` and `auth` follow the store's own cached contexts (rebuilt on each
+session signal), the identity inside `context` follows the store's identity state, and the parts the
+stores rebuild on every read (the user fields, the uid map, the pairing) are kept while they read the
+same. A new paired cloud name is a new snapshot whose `context` is the old one.
+
+**What it re-reads on.** The core view (`createCoreSessionView`, one per engine) marks itself stale on
+the session signal — as an invalidator, so before any listener reads — and on the sources that move
+without one: the background clouds, the cloud store's token cache and recorded identities
+(`cloudStore.subscribeUidSources` — a cloud re-issued into the cache for another account changes its
+uid and raises no session signal), and the paired clouds (the list and the names). `subscribe` hears
+all of them. A read that throws leaves the view stale, so the next call reads again.
+
+**What a read costs.** Every reader — `useSessionAuth` as much as `useGlobalSession` — goes through the
+one snapshot, so the first read after a change builds all of it: the context (which needs the relay's
+endpoint resolvers), the uid map (which reads the token cache) and the pairing. That is why the engine
+has to be handed over, and the stores wired, before the first render — which every entry point does.
 
 ## What not to do
 
