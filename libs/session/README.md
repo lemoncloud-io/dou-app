@@ -143,7 +143,7 @@ which uid this account has in each cloud and outlives the tokens. It is what a r
 cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
 `getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
 successful switch and decides which clouds keep a background socket session when there are more of
-them than the cap ([app-runtime docs/connection/](../app-runtime/docs/connection/README.md#background-slots)). The reclaim records —
+them than the cap ([runtime-core docs/connection/](../runtime-core/docs/connection/README.md#background-slots)). The reclaim records —
 `getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
 cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
 `delegate-cloud` once per account rather than on every trigger

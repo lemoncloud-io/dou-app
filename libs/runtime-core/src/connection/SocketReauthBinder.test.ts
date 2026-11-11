@@ -1,14 +1,9 @@
-import { render } from '@testing-library/react';
-
 import { SocketReauthBinder } from './SocketReauthBinder';
 import { reauthenticateActiveSocket } from '@chatic/auth/socket/reauthenticateActiveSocket';
 import type { RuntimeSocketSlots } from './types';
 import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
+import type { ISocketManager } from '@chatic/transport';
 import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
-
-jest.mock('@chatic/transport/socket/runtime', () => ({
-    getSocketManager: jest.fn().mockReturnValue({ id: 'manager' }),
-}));
 
 jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
@@ -17,6 +12,14 @@ jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
 const mockedReauth = reauthenticateActiveSocket as jest.MockedFunction<typeof reauthenticateActiveSocket>;
 
 const delegate = { getAuthRegistration: jest.fn() } as unknown as SocketSessionDelegate;
+const manager = { id: 'manager' } as unknown as ISocketManager;
+
+/** A watcher that has seen `slots` once; `pass` hands it the next ones. */
+const start = (slots: RuntimeSocketSlots) => {
+    const reauth = new SocketReauthBinder(manager);
+    reauth.apply(slots, delegate);
+    return { pass: (next: RuntimeSocketSlots) => reauth.apply(next, delegate) };
+};
 
 // The identity token lives on each slot (RuntimeSocketSlot.identityToken), never on a shared field —
 // SocketReauthBinder watches each slot independently.
@@ -41,31 +44,29 @@ const withCloud = (
 describe('SocketReauthBinder', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    it('does not re-authenticate on first mount', () => {
-        render(<SocketReauthBinder slots={relayOnly('guest-token')} delegate={delegate} />);
+    it('does not re-authenticate on its first pass', () => {
+        start(relayOnly('guest-token'));
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 
     it('re-authenticates when the identity token changes on the same socket', () => {
-        const { rerender } = render(<SocketReauthBinder slots={relayOnly('guest-token')} delegate={delegate} />);
-        rerender(<SocketReauthBinder slots={relayOnly('social-token')} delegate={delegate} />);
+        const { pass } = start(relayOnly('guest-token'));
+        pass(relayOnly('social-token'));
         expect(mockedReauth).toHaveBeenCalledTimes(1);
         expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, slot: RELAY_SLOT }));
     });
 
     it('does NOT re-authenticate when the socket also changed (reboot handles register)', () => {
-        const { rerender } = render(
-            <SocketReauthBinder slots={relayOnly('guest-token', 'wss://relay')} delegate={delegate} />
-        );
+        const { pass } = start(relayOnly('guest-token', 'wss://relay'));
         // token AND socket url both change → SocketBinder reboots + bootstrap re-registers
-        rerender(<SocketReauthBinder slots={relayOnly('cloud-token', 'wss://cloud')} delegate={delegate} />);
+        pass(relayOnly('cloud-token', 'wss://cloud'));
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 
     it('does not re-authenticate when the token is unchanged', () => {
-        const { rerender } = render(<SocketReauthBinder slots={relayOnly('guest-token')} delegate={delegate} />);
-        // a re-render with the same identity token (e.g. sid-only change) must not re-auth
-        rerender(<SocketReauthBinder slots={relayOnly('guest-token')} delegate={delegate} />);
+        const { pass } = start(relayOnly('guest-token'));
+        // a pass with the same identity token (e.g. sid-only change) must not re-auth
+        pass(relayOnly('guest-token'));
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 
@@ -78,40 +79,24 @@ describe('SocketReauthBinder', () => {
         // The actual invariant is this: a switch commits a different cid, and the cid is the slot's
         // key, so SocketBinder boots the incoming cloud as a new slot and tears the outgoing one down
         // — there's no live connection left to reauthenticate, whatever the two clouds' wss hosts.
-        const { rerender } = render(
-            <SocketReauthBinder slots={withCloud('cloud-a-token', 'cloud-a')} delegate={delegate} />
-        );
-        rerender(<SocketReauthBinder slots={withCloud('cloud-b-token', 'cloud-b')} delegate={delegate} />);
+        const { pass } = start(withCloud('cloud-a-token', 'cloud-a'));
+        pass(withCloud('cloud-b-token', 'cloud-b'));
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 
     it('클라우드 활성 중 relay 토큰이 바뀌면 relay kind로 재인증한다 (#5 배경 슬롯 승격)', () => {
         // guest→social promotion while a cloud slot is the active socket: the cloud slot is unchanged,
         // only the (background) relay token swaps — the old active-only binder missed this entirely.
-        const { rerender } = render(
-            <SocketReauthBinder
-                slots={withCloud('cloud-token', 'cloud-a', 'wss://cloud', 'guest-relay')}
-                delegate={delegate}
-            />
-        );
-        rerender(
-            <SocketReauthBinder
-                slots={withCloud('cloud-token', 'cloud-a', 'wss://cloud', 'social-relay')}
-                delegate={delegate}
-            />
-        );
+        const { pass } = start(withCloud('cloud-token', 'cloud-a', 'wss://cloud', 'guest-relay'));
+        pass(withCloud('cloud-token', 'cloud-a', 'wss://cloud', 'social-relay'));
         expect(mockedReauth).toHaveBeenCalledTimes(1);
         expect(mockedReauth).toHaveBeenCalledWith(expect.objectContaining({ delegate, slot: RELAY_SLOT }));
     });
 
     it('does NOT re-authenticate a different-wss cloud switch (SocketBinder reboots that slot)', () => {
-        const { rerender } = render(
-            <SocketReauthBinder slots={withCloud('cloud-a-token', 'cloud-a', 'wss://cloud-a')} delegate={delegate} />
-        );
+        const { pass } = start(withCloud('cloud-a-token', 'cloud-a', 'wss://cloud-a'));
         // wss differs → the cloud slot's reboot signature changes → reboot handles register.
-        rerender(
-            <SocketReauthBinder slots={withCloud('cloud-b-token', 'cloud-b', 'wss://cloud-b')} delegate={delegate} />
-        );
+        pass(withCloud('cloud-b-token', 'cloud-b', 'wss://cloud-b'));
         expect(mockedReauth).not.toHaveBeenCalled();
     });
 });

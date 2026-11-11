@@ -30,3 +30,7 @@ export type { ClearLocalCachesResult } from './data/clearLocalCaches';
 export { requestSyncCursorReset } from './data/syncCursorWatermark';
 export { createChatOutbox } from './data/outbox';
 export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } from './data/outbox';
+
+// the connections, kept in line with the session
+export { createConnectionController } from './connection/connectionController';
+export type { ConnectionController, ConnectionControllerOptions } from './connection/connectionController';

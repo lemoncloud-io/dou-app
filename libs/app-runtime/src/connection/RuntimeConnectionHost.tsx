@@ -1,43 +1,55 @@
-import React from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 
 // Concrete path, not the session barrel: the boot gate is a runtime internal (Decision 6) —
 // the same convention `useRelaySessionKeepAlive` already follows below.
 import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
 // Guest keep-alive is a runtime behavior, not an app surface (ADR-0076 Decision 6).
 import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
-import { SocketBinder } from './SocketBinder';
-import { SocketReauthBinder } from './SocketReauthBinder';
-import { useBackgroundCloudTokens } from './hooks/useBackgroundCloudTokens';
-import { useBackgroundReceive } from './hooks/useBackgroundReceive';
-import { useSocketSessionDelegate } from './hooks/useSocketSessionDelegate';
-import { useRuntimeSocketSlots } from './hooks/useRuntimeSocketSlots';
-import type { RuntimeSocketSlots } from './types';
+import { useConnectionController } from './hooks/useConnectionController';
+import type { ConnectionController } from '@chatic/runtime-core';
 
 export interface RuntimeHostProps {
-    /**
-     * Override for the slots the host would derive itself. Normally OMITTED — every app used to
-     * repeat `const binding = useRuntimeBinding()` and hand it straight back down, which is why the
-     * host derives them now (ADR-0076 G5). Kept for tests and for a host that must inject slots.
-     */
-    slots?: RuntimeSocketSlots;
     children?: React.ReactNode;
 }
+
+/**
+ * Binds the sockets for as long as it is mounted. A component of its own, rendered before the
+ * children, so that its effects run before any of theirs in the same commit — the order the two binder
+ * components it replaced gave them:
+ *
+ * - on mount, the socket half starts, and its first pass binds before a child's effect runs;
+ * - on every later change, the controller announces the due pass, this component re-renders in the
+ *   same commit as the screens that read the same change, and its effect runs the pass before theirs.
+ *   Without it the pass would run in the controller's own microtask, after React had already committed
+ *   the children and run their effects against the active slot the change was about to move.
+ */
+const ConnectionSockets = ({ controller }: { controller: ConnectionController }) => {
+    const passVersion = useSyncExternalStore(
+        controller.subscribeSocketPass,
+        controller.getSocketPassVersion,
+        controller.getSocketPassVersion
+    );
+    useEffect(() => controller.startSockets(), [controller]);
+    useEffect(() => controller.flushSockets(), [controller, passVersion]);
+    return null;
+};
 
 /**
  * The one connection host. Both exported hosts are this component with one switch flipped.
  *
  * It is the SINGLE session init driver: `useRelaySessionInit` runs `initializeRelaySession` once
  * and gates the whole connection subtree until ready — replacing the old separate
- * `TransportBootstrap`, which ran a duplicate initialization. The socket session delegate AND the socket slots are owned here, so an app passes
- * nothing but its children; socket lifecycle + SDK re-auth are handled by `SocketBinder` +
- * `bootstrapSocketConnection` (which wires `onTokenRefresh` → `commitRefreshedToken`, re-minting the
- * AWS/HTTP signing credentials) and `SocketReauthBinder`.
+ * `TransportBootstrap`, which ran a duplicate initialization. What keeps the connections in line with
+ * the session is not here: it is runtime-core's connection controller, which this host only starts
+ * and stops. An app passes nothing but its children.
  *
- * The socket only connects once the relay slot carries an identity token, so mounting before login
- * is inert.
+ * - The controller's background half (the background clouds' tokens and receive loops) starts on
+ *   mount, before the session is ready, as it always has: before a relay session there is nothing to
+ *   prepare or receive for.
+ * - Its socket half starts once the session is ready. The socket only connects once the relay slot
+ *   carries an identity token, so mounting before login is inert.
  */
 const ConnectionHost = ({
-    slots,
     children,
     guestKeepAlive,
 }: RuntimeHostProps & {
@@ -52,16 +64,9 @@ const ConnectionHost = ({
     guestKeepAlive: boolean;
 }) => {
     const isSessionReady = useRelaySessionInit();
-    const delegate = useSocketSessionDelegate();
-    const derivedSlots = useRuntimeSocketSlots();
-    const activeSlots = slots ?? derivedSlots;
+    const controller = useConnectionController();
     useRelaySessionKeepAlive(guestKeepAlive);
-    // Background clouds' tokens are prepared from the derived relay slot, not an injected one: an
-    // override is for tests and hosts that bind their own slots, which have nothing to prepare.
-    useBackgroundCloudTokens(!!derivedSlots.relay && !slots);
-    // Keyed on the injected override only, not on the relay slot: a loop exists per bound slot, so
-    // before login there is simply nothing to receive for.
-    useBackgroundReceive(!slots);
+    useEffect(() => controller.startBackground(), [controller]);
 
     if (!isSessionReady) {
         return null;
@@ -69,8 +74,7 @@ const ConnectionHost = ({
 
     return (
         <>
-            <SocketBinder slots={activeSlots} delegate={delegate} />
-            <SocketReauthBinder slots={activeSlots} delegate={delegate} />
+            <ConnectionSockets controller={controller} />
             {children}
         </>
     );

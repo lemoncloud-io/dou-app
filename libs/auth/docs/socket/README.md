@@ -309,7 +309,7 @@ A background slot signs with its cloud's cached entry, so that entry has two own
 the slot is bound, and never both at once:
 
 - **Not bound yet** — [`BackgroundCloudTokens`](../../src/socket/backgroundCloudTokens.ts),
-  driven from the connection host. It issues (`delegate-cloud` + `exchange-token`, cache bypassed)
+  driven by runtime-core's connection controller (its background half, which the host starts). It issues (`delegate-cloud` + `exchange-token`, cache bypassed)
   when the entry is missing or has less than one refresh cycle left, and the slot is derived only once
   `isBackgroundCloudReady` says the entry is good. Booting on a nearly lapsed entry and re-issuing
   under it would leave the socket registered with one token and signing with another.

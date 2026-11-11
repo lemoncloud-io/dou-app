@@ -50,14 +50,16 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 
 ## Scope
 
-**In** — the React session surface, the host and the binders that decide which socket slots exist (relay, the committed cloud, and a
-background slot per other joined cloud), the hooks a screen registers sync targets with, the repository graph and cache-storage routing, the offline chat outbox, device-token
+**In** — the React session surface, the host that starts runtime-core's connection controller and the hooks that read connection state,
+the hooks a screen registers sync targets with, the repository graph and cache-storage routing, the offline chat outbox, device-token
 registration, the user issue report and the log-batch upload, and the boot call that wires them.
 
 **Out** — the session's state: the three stores, their signal, the derived contexts and the scope
 ([`libs/session`](../session/README.md)); the socket manager and its slots, and the HTTP manager
 and its routes ([`libs/transport`](../transport/README.md)); the sync manager, the app's sync plans and
-the receive loops that keep the clouds off screen current ([`libs/sync`](../sync/README.md)); the
+the receive loops that keep the clouds off screen current ([`libs/sync`](../sync/README.md)); which socket slots exist
+(relay, the committed cloud, and a background slot per other joined cloud) and the binders that keep them
+([runtime-core docs/connection](../runtime-core/docs/connection/README.md)); the
 login/logout/switch use cases, device pairing, socket authentication wiring and credential renewal
 ([`libs/auth`](../auth/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
@@ -78,7 +80,7 @@ flowchart TD
 
     App["apps/*"]:::ext
     Init["@chatic/runtime-core · createRuntime<br/><i>initAppRuntime — the boot wiring</i>"]:::root
-    Host["connection/<br/><i>RuntimeConnectionHost + 2 binders</i>"]:::root
+    Host["connection/<br/><i>RuntimeConnectionHost → runtime-core's connection controller</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
     Auth["@chatic/auth<br/><i>login · sign · renew · expiry · pairing</i>"]:::sess
@@ -161,6 +163,7 @@ are read on every call — the graph is still built lazily — and both throw a 
 sequenceDiagram
     participant App as apps/* entry
     participant Host as RuntimeConnectionHost
+    participant C as connection controller (runtime-core)
     participant B as SocketBinder
     participant M as SocketManager
     participant A as client.auth (SDK)
@@ -170,8 +173,9 @@ sequenceDiagram
     App->>App: initAppRuntime({ data })
     App->>Host: mount
     Host->>Host: useRelaySessionInit — gate the subtree
-    Host->>Host: useRuntimeSocketSlots — derive relay, cloud and background slots
-    Host->>B: slots + per-slot delegate
+    Host->>C: startSockets() — once the gate opens
+    C->>C: deriveSocketSlots — relay, cloud and background slots
+    C->>B: apply(slots, delegate) — again on every slot signal, once per burst
     B->>M: bootstrapSocketConnection({ manager, config, delegate })
     M->>A: ensure(config) — slot keyed by config.cid, attaches AUTH_OPTIONS
     B->>A: subscribe onAuthState · onTokenRefresh
@@ -196,7 +200,7 @@ libs/app-runtime/src/
 ├── facade.ts         the seven groups, assembled from group barrels
 ├── init.ts           initAppRuntime — `createRuntime` from @chatic/runtime-core, under the name apps know
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
+├── connection/       10 files — the host and 8 hooks; the controller it starts is @chatic/runtime-core's
 ├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
@@ -233,7 +237,8 @@ runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } }); 
 import { runtime } from '@chatic/app-runtime';
 
 export const App = () => (
-    // The host derives its own socket slots and owns the auth delegate. An app passes only children.
+    // The host starts the connection controller, which derives the slots and owns the auth delegate.
+    // An app passes only children.
     <runtime.connection.RuntimeConnectionHost>
         <MainLayout />
     </runtime.connection.RuntimeConnectionHost>
@@ -284,13 +289,11 @@ apps/*/src/main.tsx
   └─ render
        └─ <RuntimeConnectionHost>
             ├─ useRelaySessionInit()      gate: renders null until the session is ready
-            ├─ useSocketSessionDelegate() per-slot seed · sign · writeback
-            ├─ useRuntimeSocketSlots()    session → { relay?, cloud?, background[] } slot configs
+            ├─ useConnectionController()  runtime-core's createConnectionController, one per host
             ├─ useRelaySessionKeepAlive() guest login when no session exists (host-dependent)
-            ├─ useBackgroundCloudTokens() issues a background cloud's tokens before its slot boots
-            ├─ useBackgroundReceive()     a receive loop for every bound slot that is not the active one
-            ├─ <SocketBinder>             reconciles every slot + the active pointer; calls getSyncManager() first
-            └─ <SocketReauthBinder>       re-auths a slot whose identity token changed
+            ├─ controller.startBackground()  on mount: background clouds' tokens + receive loops
+            └─ <ConnectionSockets>        once ready: controller.startSockets() — getSyncManager(),
+                                          then derive the slots, SocketBinder + SocketReauthBinder
 ```
 
 Nothing in `initAppRuntime` touches the network. Endpoints are injected as **functions**, so a
@@ -406,14 +409,14 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                         | What it covers                                                                                                                     |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                 |
-| [docs/connection/](./docs/connection/README.md)                | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                 |
-| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                       |
-| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [runtime-core docs/data/](../runtime-core/docs/data/README.md)           |
-| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
-| [docs/push/](./docs/push/README.md)                            | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
+| Folder                                                         | What it covers                                                                                                                                                                           |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                                                                       |
+| [docs/connection/](./docs/connection/README.md)                | The host that starts runtime-core's connection controller, and the connection-state hooks — the controller is [runtime-core docs/connection/](../runtime-core/docs/connection/README.md) |
+| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                                             |
+| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [runtime-core docs/data/](../runtime-core/docs/data/README.md)                                                                 |
+| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                                       |
+| [docs/push/](./docs/push/README.md)                            | Device-token registration — the delegate contract, the once-per-install record, the triggers                                                                                             |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).

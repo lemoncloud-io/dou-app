@@ -494,7 +494,7 @@ change.
 - **No second barrel (`internal.ts`) and no subpath export.** No lib in the repo exposes any subpath
   other than `.` and `./package.json`, so that would be a new pattern, and it's unnecessary — internal
   consumers already have a convention of importing concrete module paths
-  ([`useSocketSessionDelegate.ts`](../../libs/app-runtime/src/connection/hooks/useSocketSessionDelegate.ts)
+  (`useSocketSessionDelegate.ts`, since removed,
   bypassing the barrel to reach `../socket/auth/sessionDelegate` directly is the precedent). The
   definition of "internal" is simply **not in `index.ts`**, and `public-surface.test.ts`'s single
   `EXPECTED` list locks that in place.

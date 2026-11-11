@@ -7,7 +7,7 @@ and knows when the signing credential has lapsed. It was cut out of `@chatic/app
 above `@chatic/session` (ADR-0253): it reads the session, and nothing in app-runtime.
 
 Which slots should exist, who logs a slot in, and what a cloud switch does are not here. Those are
-app-runtime's — the React host and the binders in its `connection/` — and the authentication wiring
+runtime-core's — the connection controller, which app-runtime's host starts — and the authentication wiring
 and the sync runtimes are [`@chatic/auth`](../auth/README.md)'s and [`@chatic/sync`](../sync/README.md)'s.
 
 ## Who imports it

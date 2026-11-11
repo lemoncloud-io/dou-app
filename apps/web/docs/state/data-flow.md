@@ -8,8 +8,9 @@ own: how the runtime boots, and the triggers that decide _when_ a screen's data 
 ## 1. Bootstrap — `RuntimeConnectionHost`
 
 `app/runtime/AppRuntime.tsx` wraps the whole app in `runtime.connection.RuntimeConnectionHost`. The
-host owns session-init gating, relay keep-alive, and mounting `SocketBinder` /
-`SocketReauthBinder` — the app never mounts init, keep-alive or token-refresh by hand.
+host owns session-init gating and relay keep-alive, and starts runtime-core's connection controller,
+which drives `SocketBinder` / `SocketReauthBinder` — the app never mounts init, keep-alive or
+token-refresh by hand.
 
 ```tsx
 export const AppRuntime = () => (
@@ -27,7 +28,8 @@ refresh and reconnect re-auth are the SDK's `ClientSocketAuth`, and an identity 
 socket (guest → social promotion) is `SocketReauthBinder`.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md),
-[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md).
+[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md),
+[libs/runtime-core/docs/connection/](../../../../libs/runtime-core/docs/connection/README.md).
 
 ## 2. Reading connection and session state
 

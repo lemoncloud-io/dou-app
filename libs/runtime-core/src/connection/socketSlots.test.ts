@@ -1,28 +1,20 @@
-import { act, renderHook } from '@testing-library/react';
+import { deriveSocketSlots, hasRelaySlot } from './socketSlots';
+import { getCommittedCloudId, getSocketSlotContext } from '@chatic/session/store';
 
-import { backgroundClouds } from '@chatic/transport/socket/backgroundClouds';
-import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
-import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
-import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';
-
-jest.mock('../../session/hooks/app/useDynamicDeviceId', () => ({
-    useDynamicDeviceId: jest.fn(),
-}));
 // Both are runtime-internal and off the session barrel (ADR-0076 Decision 6), so the mock is at the
-// concrete module. `getSocketSlotContext` is the NARROW snapshot this hook reads — it carries relay
-// and cloud only, matching the three signals it subscribes to (ADR-0076 E5). The committed cloud id
+// concrete module. `getSocketSlotContext` is the NARROW snapshot this derivation reads — it carries
+// relay and cloud only, matching the three signals the controller re-derives on (ADR-0076 E5). The committed cloud id
 // is distinct from the SELECTED `cloud.cloudId` in that snapshot.
 // The background half reads the app's cloud list, the token cache and the manager — all covered by
 // `backgroundSlots.test.ts`. Here it is a seam: which configs it hands back, and whether it is asked.
 const mockReadyBackgroundConfigs = jest.fn((_deviceId: string): unknown[] => []);
-jest.mock('../utils/backgroundSlots', () => ({
+jest.mock('./backgroundSlots', () => ({
     readyBackgroundConfigs: (deviceId: string) => mockReadyBackgroundConfigs(deviceId),
 }));
 
 jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: jest.fn(),
     getSocketSlotContext: jest.fn(),
-    sessionSignal: { subscribe: jest.fn(() => () => undefined) },
 }));
 
 const RELAY = { wss: 'wss://relay.chatic.com', identityToken: 'relay-token', siteId: null, isAuthenticated: true };
@@ -32,10 +24,11 @@ beforeEach(() => {
     (getCommittedCloudId as jest.Mock).mockReturnValue('my-cloud-id');
 });
 
-describe('useRuntimeSocketSlots', () => {
+const DEVICE = 'test-device-id';
+
+describe('deriveSocketSlots', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        (useDynamicDeviceId as jest.Mock).mockReturnValue({ deviceId: 'test-device-id' });
     });
 
     it('cloud active: relay + cloud slots both present (relay is always-on)', () => {
@@ -56,9 +49,9 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: 'user-123' },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
-        // The cache scope is no longer this hook's output — `deriveSelectedContext` owns that formula
+        // The cache scope is no longer this derivation's output — `deriveSelectedContext` owns that formula
         // and `selectedContext.test.ts` pins it (ADR-0076 G5).
         // relay carries identityToken (SocketReauthBinder watches it for a same-connection
         // guest→social swap); the cloud slot does NOT — a cloud change reboots the socket (wss URL
@@ -102,7 +95,7 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: 'user-123' },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
         // The slot stays consistent with the outgoing cloud — url and cid point at the same cloud
         expect(result.current.cloud?.config).toMatchObject({
@@ -127,7 +120,7 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: 'user-456' },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
         expect(result.current).toEqual({
             relay: { config: relayConfig, identityToken: 'relay-token' },
@@ -150,7 +143,7 @@ describe('useRuntimeSocketSlots', () => {
             },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
         expect(result.current).toEqual({
             relay: { config: relayConfig, identityToken: 'relay-token' },
@@ -167,14 +160,13 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: null },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
         expect(result.current.relay).toBeUndefined();
         expect(result.current.cloud).toBeUndefined();
     });
 
     it('no deviceId: no slots', () => {
-        (useDynamicDeviceId as jest.Mock).mockReturnValue({ deviceId: null });
         (getSocketSlotContext as jest.Mock).mockReturnValue({
             activeServer: { kind: 'relay', siteId: null, wss: null, identityToken: null },
             relay: RELAY,
@@ -182,7 +174,7 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: null },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(null) };
 
         expect(result.current).toEqual({ background: [] });
     });
@@ -202,31 +194,12 @@ describe('useRuntimeSocketSlots', () => {
             identity: { userId: 'user-789' },
         });
 
-        const { result } = renderHook(() => useRuntimeSocketSlots());
+        const result = { current: deriveSocketSlots(DEVICE) };
 
         // The cid pre-applies to the selected cloud (covered by `selectedContext.test.ts`) while the
         // cloud SOCKET stays absent (relay-only) until the target's tokens commit.
         expect(result.current.relay).toBeDefined();
         expect(result.current.cloud).toBeUndefined();
-    });
-
-    // ADR-0076 E5. `identity` is deliberately absent: none of the inputs above move on it, and boot
-    // alone emits it twice (`setSessionIdentityState`) with every login adding one. Subscribing to it
-    // meant a re-render plus a fresh-but-equal slots object handed to both binders each time. The
-    // pairing that keeps this safe is the NARROW snapshot (`getSocketSlotContext`, relay+cloud only):
-    // a future reader that needs identity cannot reach it without widening this list too.
-    it('세션 시그널 중 슬롯이 실제로 읽는 세 종류만 구독한다 (identity 제외)', () => {
-        (getSocketSlotContext as jest.Mock).mockReturnValue({
-            relay: RELAY,
-            cloud: { cloudId: 'default', wss: null, identityToken: null, isActive: false },
-        });
-
-        renderHook(() => useRuntimeSocketSlots());
-
-        expect(sessionSignal.subscribe).toHaveBeenCalledWith(
-            ['relay:token', 'cloud:token', 'selection'],
-            expect.any(Function)
-        );
     });
 
     describe('background slots', () => {
@@ -241,7 +214,7 @@ describe('useRuntimeSocketSlots', () => {
             const config = { url: 'wss://a', deviceId: 'test-device-id', wssType: 'cloud', cid: 'cloud-a' };
             mockReadyBackgroundConfigs.mockReturnValue([config]);
 
-            const { result } = renderHook(() => useRuntimeSocketSlots());
+            const result = { current: deriveSocketSlots(DEVICE) };
 
             expect(mockReadyBackgroundConfigs).toHaveBeenCalledWith('test-device-id');
             expect(result.current.background).toEqual([{ config }]);
@@ -254,23 +227,29 @@ describe('useRuntimeSocketSlots', () => {
             });
             mockReadyBackgroundConfigs.mockReturnValue([{ config: {} }]);
 
-            const { result } = renderHook(() => useRuntimeSocketSlots());
+            const result = { current: deriveSocketSlots(DEVICE) };
 
             expect(result.current.background).toEqual([]);
             expect(mockReadyBackgroundConfigs).not.toHaveBeenCalled();
         });
+    });
+});
 
-        it('re-derives when the background store announces — the app list or the token cache moved', () => {
-            relayOnly();
-            mockReadyBackgroundConfigs.mockReturnValue([]);
-            const { result } = renderHook(() => useRuntimeSocketSlots());
-            expect(result.current.background).toEqual([]);
+describe('hasRelaySlot', () => {
+    it('is true with a device id and a relay token', () => {
+        (getSocketSlotContext as jest.Mock).mockReturnValue({ relay: RELAY, cloud: { isActive: false } });
 
-            const config = { url: 'wss://a', deviceId: 'test-device-id', wssType: 'cloud', cid: 'cloud-a' };
-            mockReadyBackgroundConfigs.mockReturnValue([config]);
-            act(() => backgroundClouds.invalidate());
+        expect(hasRelaySlot(DEVICE)).toBe(true);
+    });
 
-            expect(result.current.background).toEqual([{ config }]);
+    it('is false before the relay has a token, or without a device id', () => {
+        (getSocketSlotContext as jest.Mock).mockReturnValue({
+            relay: { ...RELAY, identityToken: null },
+            cloud: { isActive: false },
         });
+        expect(hasRelaySlot(DEVICE)).toBe(false);
+
+        (getSocketSlotContext as jest.Mock).mockReturnValue({ relay: RELAY, cloud: { isActive: false } });
+        expect(hasRelaySlot(null)).toBe(false);
     });
 });
