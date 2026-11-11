@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-11-11] - root@0.153.0, @chatic/desktop-web@0.56.0
+
+### Features
+
+- (desktop-web) set one notification level for a whole cloud
+- (desktop-web) give a new channel its place's notification level
+- (desktop-web) set one notification level for a whole place
+
+### Bug Fixes
+
+- (desktop-web) write a place level only in the session's own place
+- (desktop-web) skip channels with no join of mine in place levels
+
+### Documentation
+
+- (desktop-web) document place and cloud notification levels
+
 ## [2026-11-11] - No version updates
 
 ### Refactor
