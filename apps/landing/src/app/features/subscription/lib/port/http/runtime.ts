@@ -1,5 +1,5 @@
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webForegroundPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
 import { config, createWebEnvAdapter } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';
 
@@ -30,6 +30,7 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
     runtime.boot.initAppRuntime({
         storage: { secret: tabStore, plain: tabStore, device: deviceStore },
         transport: webTransportPorts(),
+        foreground: webForegroundPorts(),
         auth: webAuthPorts(),
         cache: webLocalCachePorts(tabStore),
     });

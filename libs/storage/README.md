@@ -129,6 +129,7 @@ runtime.boot.initAppRuntime({
     transport: webTransportPorts(), // from @chatic/runtime-web
     auth: webAuthPorts(), // from @chatic/runtime-web
     cache: webLocalCachePorts(stores.webSession), // from @chatic/runtime-web: a tab's invited clouds
+    foreground: webForegroundPorts(), // from @chatic/runtime-web
 });
 ```
 

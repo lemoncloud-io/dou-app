@@ -235,7 +235,7 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     });
 
     it('[로그아웃 회귀] 디바이스 식별 저장소를 건드리지 않는다 — 로그아웃 후 같은 디바이스 유저로 복귀하는 전제', async () => {
-        // The post-logout recovery (useRelaySessionKeepAlive → loginRelayGuestByDevice) returns the
+        // The post-logout recovery (the guest keep-alive → loginRelayGuestByDevice) returns the
         // SAME device user only because the persisted device id survives the promotion; web-core's
         // loginRelayByToken test pins delegatorId the same way.
         localStorage.setItem('chatic-device-id', 'device-1');

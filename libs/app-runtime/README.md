@@ -172,7 +172,7 @@ sequenceDiagram
     App->>App: config.init() · logging wiring
     App->>App: initAppRuntime({ data })
     App->>Host: mount
-    Host->>Host: useRelaySessionInit — gate the subtree
+    Host->>Host: session.initialize() — gate the subtree until isReady()
     Host->>C: startSockets() — once the gate opens
     C->>C: deriveSocketSlots — relay, cloud and background slots
     C->>B: apply(slots, delegate) — again on every slot signal, once per burst
@@ -269,13 +269,14 @@ apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage, transport, auth, cache, signedOutKeyPrefixes?, data? })
+  ├─ initAppRuntime({ storage, transport, auth, cache, foreground, signedOutKeyPrefixes?, data? })
   │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required
   │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
   │    │  authPlatform.configure()        the address and the way home at logout — required (webAuthPorts() in a page)
   │    │  localCachePlatform.configure()  where the cache's rows live — required (webLocalCachePorts(tab) in a page)
+  │    │  foregroundPlatform.configure()  whether the app is in front of the user — required (webForegroundPorts() in a page)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
@@ -288,10 +289,10 @@ apps/*/src/main.tsx
   │    └─ attachConfigStateLog()          one boot line naming every overridden setting
   └─ render
        └─ <RuntimeConnectionHost>
-            ├─ useRelaySessionInit()      gate: renders null until the session is ready
-            ├─ useConnectionController()  runtime-core's createConnectionController, one per host
-            ├─ useRelaySessionKeepAlive() guest login when no session exists (host-dependent)
-            ├─ controller.startBackground()  on mount: background clouds' tokens + receive loops
+            ├─ useHostControllers()       runtime-core's session + connection controllers, one each per host
+            ├─ session.initialize()       gate: renders null until session.isReady()
+            ├─ session.startGuestKeepAlive()  guest login when no session exists (RuntimeConnectionHost only)
+            ├─ connection.startBackground()  on mount: background clouds' tokens + receive loops
             └─ <ConnectionSockets>        once ready: controller.startSockets() — getSyncManager(),
                                           then derive the slots, SocketBinder + SocketReauthBinder
 ```
@@ -313,7 +314,7 @@ A wiring with no owner belongs to the composition root.
 it there.** Each of the calls above that hands a
 package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
 `configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `authPlatform.configure`,
-`localCachePlatform.configure`, `configureDataRuntime`,
+`localCachePlatform.configure`, `foregroundPlatform.configure`, `configureDataRuntime`,
 `authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
 site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
 in the assembly would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside that file;
@@ -336,10 +337,10 @@ outlived the tab. The entry point hands the result out and constructs nothing it
 ### 1. Cold boot as a guest
 
 `initAppRuntime` injects the endpoint resolvers and registers credential recovery; no network. The
-host awaits `useRelaySessionInit`, which blocks the subtree until the session is initialized —
-it reads the stored session's existence, it does not refresh it. With no relay token,
-`useRelaySessionKeepAlive` runs one device-based guest login (a `Coalescer` keeps a re-render from
-firing a second). The token commits, `SocketBinder` boots the relay slot, and the slot reaches
+host waits on its session controller's `initialize()`, which blocks the subtree until the session is
+initialized — it reads the stored session's existence, it does not refresh it. With no relay token,
+the controller's guest keep-alive runs one device-based guest login (a `Coalescer` keeps an edge that
+arrives mid-attempt from firing a second). The token commits, `SocketBinder` boots the relay slot, and the slot reaches
 `verified` once `device.save:ok` opens the gate and `auth.update` is acknowledged.
 
 ### 2. Waking up with a lapsed relay credential

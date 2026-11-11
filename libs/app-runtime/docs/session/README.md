@@ -27,13 +27,14 @@ in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 | `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                                               |
 | `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                                               |
 | `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo`                        |
-| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                       |
+| `hooks/app/`             | 3     | `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                                                                            |
 | `hooks/pairing/`         | 6     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairedCloudNames` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks) |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
-derives from `useGlobalSession`. Twenty-one of these 24 are on the package barrel; the three that are not
-are `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package) and
-`useRelaySessionInit` / `useRelaySessionKeepAlive`, which belong to the host rather than to an app.
+derives from `useGlobalSession`. Twenty-one of these 22 are on the package barrel; the one that is not
+is `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package). The session's
+init and guest keep-alive are no longer hooks: they are runtime-core's session controller, which the
+connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
 `useRuntimeProfile` is on the barrel but reached by concrete path, because
 `hooks/session/index.ts` publishes only the other four readers.
 

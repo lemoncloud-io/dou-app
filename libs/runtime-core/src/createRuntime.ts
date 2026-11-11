@@ -5,6 +5,7 @@ import { configureDataRuntime, getDataManager, getRepositories } from './data/ru
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { runtimeStores } from './storage/runtimeStores';
 import { localCachePlatform } from './data/localCachePlatform';
+import { foregroundPlatform } from './session/foreground';
 import { credentialRecovery, transportPlatform } from '@chatic/transport';
 import {
     authPlatform,
@@ -94,6 +95,8 @@ export const createRuntime = (config: RuntimeConfig): void => {
     authPlatform.configure(config.auth);
     // Where the cache's rows live, before the data graph — built lazily, on first repository access.
     localCachePlatform.configure(config.cache);
+    // The foreground edge, before the host starts the session's background retries.
+    foregroundPlatform.configure(config.foreground);
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
     // The plain store is the web storage lemon used to write in each environment.

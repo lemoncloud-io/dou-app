@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webForegroundPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { configureAppStores } from './app/storage';
@@ -63,6 +63,7 @@ const startApp = (): void => {
     runtime.boot.initAppRuntime({
         storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
         transport: webTransportPorts(),
+        foreground: webForegroundPorts(),
         auth: webAuthPorts(),
         // The cache's tab-lifetime store holds a window's invited clouds — a cache, which must hear a failed
         // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.

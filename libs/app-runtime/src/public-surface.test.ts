@@ -17,7 +17,7 @@ import * as api from './index';
  * are erased at runtime and do not appear in `GROUPS` — those lists hold the value exports only, and a
  * type a call site cannot do without is checked by the compiler instead (the last test). Internal wiring
  * (socket auth bootstrap/reauth, the connection controller, raw session actions, `useSyncTarget`,
- * `useConnectionController`) can therefore never leak back into the barrel unnoticed.
+ * `useHostControllers`) can therefore never leak back into the barrel unnoticed.
  */
 const GROUPS: Record<string, readonly string[]> = {
     // What an app entry point touches once — the boot call, env constants, platform probe, transport.

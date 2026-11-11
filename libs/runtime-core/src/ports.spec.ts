@@ -13,20 +13,21 @@ const storage = {} as RuntimePorts['storage'];
 const transport = {} as TransportPlatformPorts;
 const auth = {} as AuthPlatformPorts;
 const cache = {} as LocalCachePorts;
+const foreground = {} as RuntimePorts['foreground'];
 
 const isTrue = <T extends true>(): T => true as T;
 const isFalse = <T extends false>(): T => false as T;
 
 describe('RuntimePorts', () => {
     it('accepts an object that fills every port', () => {
-        const ports: RuntimePorts = { storage, transport, auth, cache };
-        expect(Object.keys(ports)).toEqual(['storage', 'transport', 'auth', 'cache']);
+        const ports: RuntimePorts = { storage, transport, auth, cache, foreground };
+        expect(Object.keys(ports)).toEqual(['storage', 'transport', 'auth', 'cache', 'foreground']);
     });
 
     it('refuses an object that leaves a port out', () => {
-        // @ts-expect-error — `cache` is missing.
-        const ports: RuntimePorts = { storage, transport, auth };
-        expect(ports).toEqual({ storage, transport, auth });
+        // @ts-expect-error — `foreground` is missing.
+        const ports: RuntimePorts = { storage, transport, auth, cache };
+        expect(ports).toEqual({ storage, transport, auth, cache });
     });
 
     it('declares no optional port', () => {

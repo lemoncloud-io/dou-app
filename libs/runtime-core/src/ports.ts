@@ -3,6 +3,7 @@ import type { LocalCachePorts } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
+import type { ForegroundSignal } from './session/foreground';
 import type { RuntimeStorePorts } from './storage/runtimeStores';
 
 /**
@@ -37,6 +38,8 @@ export interface RuntimePorts {
     auth: AuthPlatformPorts;
     /** Where the cache's rows live: each domain's store, the search across clouds, the metrics. */
     cache: LocalCachePorts;
+    /** Whether the app is in front of the user — the edge the session's background retries wait for. */
+    foreground: ForegroundSignal;
 }
 
 /** The keys of `T` a caller may leave out. */

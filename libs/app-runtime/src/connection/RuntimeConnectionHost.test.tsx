@@ -6,20 +6,30 @@ import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost'
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
-import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
 
-// The boot gate comes from its concrete module (the session barrel does not sell it), so it gets its
-// own mock — ready unless a test says otherwise.
-jest.mock('../session/hooks/app/useRelaySessionInit', () => ({
-    useRelaySessionInit: jest.fn().mockReturnValue(true),
+// The session controller is runtime-core's and has its own tests; here it is a fake whose readiness
+// the test sets, so the host's gate and the ONE difference between the two hosts — whether the guest
+// keep-alive starts — are observable.
+let mockReady = true;
+const mockReadyListeners = new Set<() => void>();
+const mockInitialize = jest.fn(() => Promise.resolve());
+const mockStopKeepAlive = jest.fn();
+const mockKeepAlive = jest.fn(() => mockStopKeepAlive);
+jest.mock('@chatic/runtime-core/session/sessionController', () => ({
+    createSessionController: () => ({
+        initialize: () => mockInitialize(),
+        isReady: () => mockReady,
+        subscribeReady: (listener: () => void) => {
+            mockReadyListeners.add(listener);
+            return () => mockReadyListeners.delete(listener);
+        },
+        startGuestKeepAlive: () => mockKeepAlive(),
+    }),
 }));
-
-// Mocked at its concrete path (the host's own import) so the ONE difference between the two hosts is
-// observable as an argument.
-const mockKeepAlive = jest.fn();
-jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
-    useRelaySessionKeepAlive: (enabled: boolean) => mockKeepAlive(enabled),
-}));
+const setReady = (ready: boolean): void => {
+    mockReady = ready;
+    act(() => mockReadyListeners.forEach(listener => listener()));
+};
 
 // The device id the host hands the controller: the page's own id, unless the shell injected one.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
@@ -69,7 +79,6 @@ jest.mock('@chatic/session/store', () => ({
 
 const mockedBootstrap = bootstrapSocketConnection as jest.MockedFunction<typeof bootstrapSocketConnection>;
 const mockedSlotContext = getSocketSlotContext as jest.MockedFunction<typeof getSocketSlotContext>;
-const mockedInit = useRelaySessionInit as jest.MockedFunction<typeof useRelaySessionInit>;
 const mockedCommitted = getCommittedCloudId as jest.MockedFunction<typeof getCommittedCloudId>;
 
 const signedIn = {
@@ -83,7 +92,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockedBootstrap.mockResolvedValue(jest.fn());
     mockedSlotContext.mockReturnValue(signedIn);
-    mockedInit.mockReturnValue(true);
+    mockReady = true;
     mockedCommitted.mockReturnValue(null);
 });
 
@@ -100,13 +109,13 @@ describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
     it('RuntimeConnectionHost는 게스트를 살려 둔다', () => {
         render(<RuntimeConnectionHost />);
 
-        expect(mockKeepAlive).toHaveBeenCalledWith(true);
+        expect(mockKeepAlive).toHaveBeenCalledTimes(1);
     });
 
     it('RuntimeAuthHost는 살려 두지 않는다 — 명시 로그인 전까지 세션이 없어야 하는 표면', () => {
         render(<RuntimeAuthHost />);
 
-        expect(mockKeepAlive).toHaveBeenCalledWith(false);
+        expect(mockKeepAlive).not.toHaveBeenCalled();
     });
 });
 
@@ -129,15 +138,15 @@ describe('RuntimeConnectionHost', () => {
     });
 
     it('binds nothing before the session is ready, but runs the background half from mount', () => {
-        mockedInit.mockReturnValue(false);
+        mockReady = false;
 
-        const { rerender } = render(<RuntimeConnectionHost />);
+        render(<RuntimeConnectionHost />);
 
+        expect(mockInitialize).toHaveBeenCalledTimes(1);
         expect(mockedBootstrap).not.toHaveBeenCalled();
         expect(mockStartReceive).toHaveBeenCalledTimes(1);
 
-        mockedInit.mockReturnValue(true);
-        rerender(<RuntimeConnectionHost />);
+        setReady(true);
 
         expect(mockedBootstrap).toHaveBeenCalledWith(expect.objectContaining({ config: relayConfig }));
         expect(mockStartReceive).toHaveBeenCalledTimes(1);
@@ -194,7 +203,7 @@ describe('RuntimeConnectionHost', () => {
             return null;
         };
         // The session gate opens after the first render, so the controller subscribes after `Above`.
-        mockedInit.mockReturnValue(false);
+        mockReady = false;
         const tree = () => (
             <Above>
                 <RuntimeConnectionHost>
@@ -202,9 +211,8 @@ describe('RuntimeConnectionHost', () => {
                 </RuntimeConnectionHost>
             </Above>
         );
-        const { rerender } = render(tree());
-        mockedInit.mockReturnValue(true);
-        rerender(tree());
+        render(tree());
+        setReady(true);
         expect(activeSeenByChild).toEqual([null]);
 
         mockedCommitted.mockReturnValue('cloud-a');
@@ -220,7 +228,7 @@ describe('RuntimeConnectionHost', () => {
 
     // desktop-web runs under StrictMode: mount → unmount → mount. The second mount re-bootstraps on
     // the same clients, the first mount's boots detach themselves, and nothing is torn down.
-    it('survives StrictMode: one receive loop left running, no socket destroyed', async () => {
+    it('survives StrictMode: one receive loop and one keep-alive left running, no socket destroyed', async () => {
         const detachBoots: jest.Mock[] = [];
         mockedBootstrap.mockImplementation(() => {
             const detach = jest.fn();
@@ -240,5 +248,28 @@ describe('RuntimeConnectionHost', () => {
         expect(detachBoots).toHaveLength(2);
         expect(detachBoots.map(detach => detach.mock.calls.length)).toEqual([1, 0]);
         expect(getSocketManager().destroy).not.toHaveBeenCalled();
+        // The session controller is asked twice and stopped once; the controller itself makes the second
+        // init and the second guest login join the first (its own tests pin that).
+        expect(mockInitialize).toHaveBeenCalledTimes(2);
+        expect(mockKeepAlive).toHaveBeenCalledTimes(2);
+        expect(mockStopKeepAlive).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts the guest keep-alive after the init, and stops it on unmount', () => {
+        const order: string[] = [];
+        mockInitialize.mockImplementationOnce(() => {
+            order.push('init');
+            return Promise.resolve();
+        });
+        mockKeepAlive.mockImplementationOnce(() => {
+            order.push('keep-alive');
+            return mockStopKeepAlive;
+        });
+
+        const { unmount } = render(<RuntimeConnectionHost />);
+        expect(order).toEqual(['init', 'keep-alive']);
+
+        unmount();
+        expect(mockStopKeepAlive).toHaveBeenCalledTimes(1);
     });
 });

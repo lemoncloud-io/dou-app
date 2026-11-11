@@ -142,7 +142,7 @@ const ShellUnreadSync = () => {
 /**
  * Runtime layer — assembles the declarative `runtime.connection.RuntimeAuthHost` (transport bootstrap,
  * socket lifecycle and re-auth from the session's own socket slots). Session readiness is owned by
- * that host, which is the single web-core init driver (`useRelaySessionInit`) and builds
+ * that host, which is the single web-core init driver (runtime-core's session controller) and builds
  * its own socket session delegate internally — apps no longer inject one. The desktop notification /
  * unread / connection runners self-gate on socket verification.
  *

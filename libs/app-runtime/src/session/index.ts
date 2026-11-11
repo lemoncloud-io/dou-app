@@ -50,7 +50,7 @@ export type { LogoutOptions } from '@chatic/auth';
 // The invite login answer `useSwitchCloudSession().switchCloud` can enter a cloud with.
 export type { InviteLoginEntry } from '@chatic/auth';
 // Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
-// `useLoginRelaySocial` · `useSwitchCloudSession` · `useRelaySessionInit`), and Decision 6's rule is
+// `useLoginRelaySocial` · `useSwitchCloudSession`, and the host's session controller), and Decision 6's rule is
 // "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the
 // logout-callback registry have no hook because their callers are not React (an OAuth redirect
 // page's effect, a log uploader's module init).

@@ -1,11 +1,6 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 
-// Concrete path, not the session barrel: the boot gate is a runtime internal (Decision 6) —
-// the same convention `useRelaySessionKeepAlive` already follows below.
-import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
-// Guest keep-alive is a runtime behavior, not an app surface (ADR-0076 Decision 6).
-import { useRelaySessionKeepAlive } from '../session/hooks/app/useRelaySessionKeepAlive';
-import { useConnectionController } from './hooks/useConnectionController';
+import { useHostControllers } from './hooks/useHostControllers';
 import type { ConnectionController } from '@chatic/runtime-core';
 
 export interface RuntimeHostProps {
@@ -37,11 +32,14 @@ const ConnectionSockets = ({ controller }: { controller: ConnectionController })
 /**
  * The one connection host. Both exported hosts are this component with one switch flipped.
  *
- * It is the SINGLE session init driver: `useRelaySessionInit` runs `initializeRelaySession` once
- * and gates the whole connection subtree until ready — replacing the old separate
- * `TransportBootstrap`, which ran a duplicate initialization. What keeps the connections in line with
- * the session is not here: it is runtime-core's connection controller, which this host only starts
- * and stops. An app passes nothing but its children.
+ * It is the SINGLE session init driver: it initialises the relay session once and gates the whole
+ * connection subtree until ready — replacing the old separate `TransportBootstrap`, which ran a
+ * duplicate initialization. What does the work is not here: runtime-core's session controller (the
+ * init, the guest keep-alive) and connection controller (the sockets, the background clouds), which
+ * this host only starts and stops. An app passes nothing but its children.
+ *
+ * Its effects start, in this order: the session's init, the guest keep-alive (one host only), the
+ * connections' background half — the order the hooks they replaced ran in.
  *
  * - The controller's background half (the background clouds' tokens and receive loops) starts on
  *   mount, before the session is ready, as it always has: before a relay session there is nothing to
@@ -63,9 +61,12 @@ const ConnectionHost = ({
      */
     guestKeepAlive: boolean;
 }) => {
-    const isSessionReady = useRelaySessionInit();
-    const controller = useConnectionController();
-    useRelaySessionKeepAlive(guestKeepAlive);
+    const { session, connection: controller } = useHostControllers();
+    const isSessionReady = useSyncExternalStore(session.subscribeReady, session.isReady, session.isReady);
+    useEffect(() => {
+        void session.initialize();
+    }, [session]);
+    useEffect(() => (guestKeepAlive ? session.startGuestKeepAlive() : undefined), [session, guestKeepAlive]);
     useEffect(() => controller.startBackground(), [controller]);
 
     if (!isSessionReady) {

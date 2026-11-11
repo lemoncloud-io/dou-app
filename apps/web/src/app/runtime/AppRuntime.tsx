@@ -33,9 +33,9 @@ import { useSocketWakeRecovery } from './useSocketWakeRecovery';
  * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
  * socket session delegate is now owned by app-runtime (no delegate prop).
  *
- * Session readiness: `runtime.connection.RuntimeConnectionHost` is the SINGLE web-core init driver (`useRelaySessionInit` →
- * `initializeRelaySession`) and gates its subtree until ready; `SessionBackgroundRunner` inside it
- * runs the background guest login when the relay session is absent. `AppReadyGate` then holds the UI
+ * Session readiness: `runtime.connection.RuntimeConnectionHost` is the SINGLE web-core init driver (its session controller →
+ * `initializeRelaySession`) and gates its subtree until ready, and its session controller's guest
+ * keep-alive logs a guest in when the relay session is absent. `AppReadyGate` then holds the UI
  * until the profile is ready so it never renders profile-less.
  */
 export const AppRuntime = () => {
