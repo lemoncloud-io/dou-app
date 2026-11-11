@@ -4,6 +4,13 @@
 
 ### Bug Fixes
 
+- (session) keep a cloud token while its identity token is valid, not its absent credential
+- (auth,app-runtime) refuse a cloud token that names another user, not commit it (ADR-0310)
+
+## [2026-11-11] - No version updates
+
+### Bug Fixes
+
 - (web,runtime-core) match invited clouds by the guest id too, not the relay uid alone
 
 ## [2026-11-11] - No version updates
