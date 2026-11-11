@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (auth,runtime-web,app-runtime) open the session's address as platform ports
+
 ## [2026-11-10] - No version updates
 
 ### Refactor
