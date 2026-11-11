@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-core,runtime-web,app-runtime) start the react surface from an engine (ADR-0308)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
 - (runtime-core,app-runtime) register push tokens and prime chat rooms outside react
 
 ## [2026-11-11] - No version updates
