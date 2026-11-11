@@ -1,7 +1,8 @@
 # settings
 
 The Settings page (`src/app/features/settings/`): notifications, the mini apps and the About section,
-with the Account entries on top. Appearance and language are not on the page; they live in the popup below.
+with the Account entries on top. Its notification controls are this device's own; one level for a whole place or cloud
+is set from that place's or cloud's settings ([notifications](../chat/notifications.md#place-and-cloud-levels)). Appearance and language are not on the page; they live in the popup below.
 
 In the desktop app, where device pairing is on and the session did not itself come from a pairing,
 the Account entry is followed by **Approve web sign-in**, which opens the approval screen

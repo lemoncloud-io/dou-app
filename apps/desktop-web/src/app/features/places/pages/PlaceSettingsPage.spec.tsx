@@ -46,6 +46,15 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({
     useAuthorNames: () => new Map([['u9', 'June']]),
 }));
 
+// The place's notification level reads the channel list and writes joins; its hook has its own spec.
+const placeNotify = vi.hoisted(() => ({
+    mode: null as string | null,
+    exceptions: 0,
+    isHere: true,
+    setMode: vi.fn(),
+}));
+vi.mock('../../../shared/hooks/usePlaceNotify', () => ({ usePlaceNotify: () => placeNotify }));
+
 // The dialogs bring their own runtime wiring; here only whether this route mounts them matters.
 vi.mock('../../chat/components/EditPlaceDialog', () => ({
     EditPlaceDialog: () => <div data-testid="edit-place-dialog" />,
@@ -84,6 +93,9 @@ describe('PlaceSettingsPage', () => {
         cleanup();
         vi.clearAllMocks();
         sessionSel.siteId = 'p1';
+        placeNotify.mode = null;
+        placeNotify.exceptions = 0;
+        placeNotify.isHere = true;
         useEditPlaceProfileDialogStore.getState().close();
     });
 
@@ -135,6 +147,43 @@ describe('PlaceSettingsPage', () => {
         renderAt('p2');
 
         expect(screen.queryByText('Edit this place')).toBeNull();
+    });
+
+    it("sets the place's notification level from its section", () => {
+        placeNotify.mode = 'all';
+        renderAt('p1');
+
+        const group = screen.getByRole('radiogroup', { name: "This place's notifications" });
+        expect(screen.getByRole('radio', { name: 'All messages' }).getAttribute('aria-checked')).toBe('true');
+        fireEvent.click(screen.getByRole('radio', { name: 'Off' }));
+
+        expect(group).toBeTruthy();
+        expect(placeNotify.setMode).toHaveBeenCalledWith('none');
+    });
+
+    it('leads from the exception count to the channels of the place', () => {
+        placeNotify.mode = 'none';
+        placeNotify.exceptions = 2;
+        renderAt('p1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Channels set differently: 2' }));
+
+        expect(navProbe.path).toBe('/places/p1/channels');
+    });
+
+    it('shows no exception row when every channel follows the place', () => {
+        placeNotify.mode = 'none';
+        renderAt('p1');
+
+        expect(screen.queryByText(/Channels set differently/)).toBeNull();
+    });
+
+    it('says a level chosen for another place reaches it when it is opened', () => {
+        placeNotify.isHere = false;
+        renderAt('p1');
+
+        expect(screen.getByText(/You're in another place/)).toBeTruthy();
+        expect(screen.queryByText('Applies to every channel in this place.')).toBeNull();
     });
 
     it('opens the channel manager from its entry', () => {
