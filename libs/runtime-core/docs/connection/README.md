@@ -29,7 +29,8 @@ connection/
 ### The controller
 
 ```ts
-const controller = createConnectionController({ deviceId: () => currentDeviceId() });
+// `engine` is the RuntimeEngine createRuntime returned (README § The engine).
+const controller = engine.connectionController({ deviceId: () => currentDeviceId() });
 const stopBackground = controller.startBackground(); // from the moment the host exists
 const stopSockets = controller.startSockets(); // once the session is initialised
 ```

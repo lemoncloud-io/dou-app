@@ -6,7 +6,7 @@ describe('runtimeStores', () => {
     beforeEach(() => runtimeStores.reset());
 
     it('refuses the device store before an entry point configures it, and names the fix', () => {
-        expect(() => runtimeStores.device()).toThrow(/initAppRuntime/);
+        expect(() => runtimeStores.device()).toThrow(/createRuntime/);
     });
 
     it('serves what the entry point configured, and a second configure replaces it', () => {

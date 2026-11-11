@@ -42,7 +42,7 @@ class AuthPlatform implements IAuthPlatform {
         if (!this.configured) {
             throw new Error(
                 '[auth] the platform ports were used before any were configured — the entry point has to pass ' +
-                    '`auth` to initAppRuntime() before a session ends or the boot reads the logout flag.'
+                    '`auth` to createRuntime() before a session ends or the boot reads the logout flag.'
             );
         }
         return this.configured;

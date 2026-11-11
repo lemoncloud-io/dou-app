@@ -227,7 +227,7 @@ there rather than hand that cache's baseline to another cloud.
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
 Before it leaves, it also clears the web log pipeline and telemetry policy keys, and — inside a shell that keeps a device vault — empties the vault and waits for
 the shell to confirm it. On the next boot the vault is emptied once more before it is read, and
-`initAppRuntime` reads the `logout=1` flag and sweeps the log keys again
+`createRuntime` reads the `logout=1` flag and sweeps the log keys again
 (`libs/auth/src/session/storage/logoutStorageSweep.ts`) — because the actor that decides to log out and the
 code that can safely clear storage run in two different page lifetimes. The order and the reasons are
 in [libs/auth docs/session](../../../../libs/auth/docs/session/README.md).

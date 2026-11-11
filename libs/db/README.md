@@ -88,7 +88,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["LocalDataSource × 9<br/>@chatic/data"]:::ext
-    LF["webLocalCachePorts<br/>@chatic/runtime-web"]:::ext
+    LF["webLocalCachePorts (via createWebRuntime)<br/>@chatic/runtime-web"]:::ext
     Ports["ports/<br/><i>CacheStorage · IIndexedDB · search · metrics · policy</i><br/>@chatic/data"]:::ext
 
     Base["BaseDbAdapter<br/><i>scope · loadMany · clearByChannelId defaults</i>"]:::eng
@@ -324,7 +324,7 @@ the partition an operation touches is the one it was captured for, not whichever
 DataManager                                  @chatic/app-runtime
   └─ createLocalDataSources()                data/factories/localFactory.ts — over localCachePlatform.ports()
        ├─ route(type)                        once per domain per session — the routing decision, made by the platform
-       ├─ storage(type, route, provider)     webLocalCachePorts, @chatic/runtime-web:
+       ├─ storage(type, route, provider)     webLocalCachePorts (filled by createWebRuntime), @chatic/runtime-web:
        │                                     new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
        │                                     | new WebStorageAdapter(tab, …) (invited clouds in a plain tab)
        │    └─ getSharedDatabase()           one IndexedDBDatabase, shared by every web-backed adapter

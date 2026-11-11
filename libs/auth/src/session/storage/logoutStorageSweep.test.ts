@@ -60,7 +60,7 @@ describe('logoutStorageSweeper', () => {
     it('fails the boot when the platform was never wired, instead of skipping the sweep in silence', () => {
         jest.isolateModules(() => {
             const fresh = jest.requireActual<typeof SweepModule>('./logoutStorageSweep');
-            expect(() => fresh.logoutStorageSweeper.sweep()).toThrow(/initAppRuntime/);
+            expect(() => fresh.logoutStorageSweeper.sweep()).toThrow(/createRuntime/);
         });
     });
 

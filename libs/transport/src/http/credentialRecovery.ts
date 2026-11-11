@@ -42,5 +42,5 @@ class CredentialRecoveryRegistry implements ICredentialRecoveryRegistry {
     }
 }
 
-/** The process-wide registry. app-runtime's `initAppRuntime()` installs the implementation at boot. */
+/** The process-wide registry. runtime-core's `createRuntime()` installs the implementation at boot. */
 export const credentialRecovery: ICredentialRecoveryRegistry = new CredentialRecoveryRegistry();

@@ -6,6 +6,8 @@ import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { runtimeStores } from './storage/runtimeStores';
 import { localCachePlatform } from './data/localCachePlatform';
 import { foregroundPlatform } from './session/foreground';
+import { coreEngine } from './engine';
+import type { RuntimeEngine } from './engine';
 import { credentialRecovery, transportPlatform } from '@chatic/transport';
 import {
     authPlatform,
@@ -24,7 +26,8 @@ import type { RuntimePorts } from './ports';
 
 /**
  * What the runtime is assembled from: the platform's ports, every one required, and the app's own
- * policies. `@chatic/app-runtime` publishes it to apps as `AppRuntimeConfig`.
+ * policies. A web app does not write one itself: `createWebRuntime` in `@chatic/runtime-web` fills the
+ * ports and passes the app's policies through.
  */
 export interface RuntimeConfig extends RuntimePorts {
     /**
@@ -45,8 +48,10 @@ let booted = false;
 
 /**
  * Assembles the runtime from the platform's ports — the one place that wires the core packages
- * together. An app reaches it through `@chatic/app-runtime`'s `initAppRuntime`, once from its entry
- * point, before render. It returns nothing: the packages it wires are process-wide, one per launch.
+ * together. A web app reaches it through `createWebRuntime` in `@chatic/runtime-web`, once from its
+ * entry point, before render, and hands the engine it returns to `@chatic/app-runtime`'s
+ * `initAppRuntime(engine)`. The packages it wires are process-wide, one per launch; the engine it
+ * returns is how the React surface starts its lifecycle work on them.
  *
  * ## Why this exists
  *
@@ -76,12 +81,9 @@ let booted = false;
  * still reported: a duplicate boot means two entry paths believe they own it, which is how the
  * pre-ADR-0070 tree ended up initializing the transport twice.
  */
-export const createRuntime = (config: RuntimeConfig): void => {
+export const createRuntime = (config: RuntimeConfig): RuntimeEngine => {
     if (booted) {
-        logger.warn(
-            'WEB_CORE',
-            '[createRuntime] called more than once (initAppRuntime); the runtime is already booted'
-        );
+        logger.warn('WEB_CORE', '[createRuntime] called more than once; the runtime is already booted');
     }
     booted = true;
 
@@ -153,4 +155,7 @@ export const createRuntime = (config: RuntimeConfig): void => {
     // unwired it degrades to a single "nothing is overridden" line rather than failing — the
     // resolver simply has nothing to report yet.
     attachConfigStateLog();
+
+    // The engine the React surface starts its lifecycle work from — this process's core implementations.
+    return coreEngine;
 };

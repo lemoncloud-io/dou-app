@@ -21,7 +21,7 @@ import type { ILogoutStorageSweeper } from './types';
  * and whatever else moved in under `@` later; the app's own keys are now named instead
  * (`signedOutAppKeys.util.ts`).
  *
- * **Where it runs.** From `initAppRuntime`, before any wiring that can read a token.
+ * **Where it runs.** From `createRuntime`, before any wiring that can read a token.
  */
 class LogoutStorageSweeper implements ILogoutStorageSweeper {
     sweep(): void {

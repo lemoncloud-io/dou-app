@@ -45,7 +45,7 @@ hooks that share them depend on this package anyway.
 1. **The use cases are the only writers of the session.** `@chatic/session`'s barrel sells the raw
    stores so that this package can write them; nothing above writes a store directly.
 2. **No server call bypasses a repository.** Login, token exchange and site selection go through
-   the `AuthRepository`, which `initAppRuntime()` hands down (`authRepositorySource`) because the
+   the `AuthRepository`, which `createRuntime()` hands down (`authRepositorySource`) because the
    graph that holds it is assembled in app-runtime.
 3. **Nothing here refreshes a credential or builds an `auth.update` packet.** The SDK's auth
    controller owns both; app-runtime's `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` walk
@@ -61,9 +61,9 @@ hooks that share them depend on this package anyway.
    process has neither. So `AuthPlatformPorts` ([`platform.ts`](./src/platform.ts)) has two:
    `currentSearch()` — the address's query string, which the boot sweep and `preserveUrl` read — and
    `leaveToHome(params)` — the navigation at the end of `clearAndRedirect`. In a page
-   (`webAuthPorts()` from `@chatic/runtime-web`) they are `location.search` and
+   (filled by `createWebRuntime` in `@chatic/runtime-web`) they are `location.search` and
    `location.replace('/?<params>')`. Used before it is configured, `authPlatform.ports()` throws and
-   names `initAppRuntime`; the boot sweep reads it outside its storage `try`, so a missing wiring fails
+   names `createRuntime`; the boot sweep reads it outside its storage `try`, so a missing wiring fails
    the boot rather than skipping the sweep.
 
     The user agent the socket signature is computed over is **not** an auth port: it is the transport's

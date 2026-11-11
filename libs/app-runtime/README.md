@@ -43,7 +43,7 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
 8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
-9. **Boot is an explicit call.** `initAppRuntime()` runs the wiring that used to happen as an import side effect, where it was invisible in the entry point and a tree-shake could move or drop it.
+9. **Boot is an explicit call.** The entry point builds the runtime (`createWebRuntime(...)` in a page, which runs runtime-core's `createRuntime`) and hands the engine to `initAppRuntime(engine)` — the wiring that used to happen as an import side effect, where it was invisible in the entry point and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
 11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — the three here, and those of the packages below, whose barrels re-export theirs wholesale, so a value put there would leak onto them. Value constants go in `constants.ts`, pure helpers in `utils/`.
 12. **There are no value import cycles.** [`importCycleAbsence.test.ts`](./src/importCycleAbsence.test.ts) re-measures the tree on every run rather than trusting a lint path.
@@ -79,7 +79,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["apps/*"]:::ext
-    Init["@chatic/runtime-core · createRuntime<br/><i>initAppRuntime — the boot wiring</i>"]:::root
+    Init["@chatic/runtime-core · createRuntime<br/><i>the boot wiring; returns the engine initAppRuntime takes</i>"]:::root
     Host["connection/<br/><i>RuntimeConnectionHost → runtime-core's connection controller</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
@@ -152,10 +152,10 @@ imports React — and this package importing a platform adapter such as `@chatic
 are in [`@chatic/runtime-core`](../runtime-core/README.md#layers).
 
 The repository graph is assembled in `data/`, above the two packages that read it. So it is **handed
-down at boot** instead of imported: `initAppRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
+down at boot** instead of imported: `createRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
 accessor for the `AuthRepository`, and `@chatic/sync`'s `syncDataGraph` one for the scoped graphs. Both
 are read on every call — the graph is still built lazily — and both throw a message naming
-`initAppRuntime()` when nothing was handed in.
+`createRuntime()` when nothing was handed in.
 
 ### Booting one slot
 
@@ -170,7 +170,7 @@ sequenceDiagram
     participant S as @chatic/session
 
     App->>App: config.init() · logging wiring
-    App->>App: initAppRuntime({ data })
+    App->>App: initAppRuntime(createWebRuntime({ storage, cacheTab, data }))
     App->>Host: mount
     Host->>Host: session.initialize() — gate the subtree until isReady()
     Host->>C: startSockets() — once the gate opens
@@ -198,7 +198,7 @@ device is registered on that connection, and the SDK sends both on the same `con
 libs/app-runtime/src/
 ├── index.ts          public barrel — one export, `runtime`
 ├── facade.ts         the seven groups, assembled from group barrels
-├── init.ts           initAppRuntime — `createRuntime` from @chatic/runtime-core, under the name apps know
+├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       10 files — the host and 8 hooks; the controller it starts is @chatic/runtime-core's
 ├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
@@ -206,11 +206,10 @@ libs/app-runtime/src/
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
 ├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
 ├── report/           5 files — user issue report + log-batch upload
-├── storage/          1 file — resolveStorageStores (an app's stores, chosen once)
 └── utils/            1 file — isNativeApp
 ```
 
-81 source files, 49 test files, about 4,900 lines of non-test code — the assembly and the graph moved to `@chatic/runtime-core`.
+68 source files, 37 test files, about 3,300 lines of non-test code — the assembly, the graph and the lifecycle work moved to `@chatic/runtime-core`.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s
@@ -218,7 +217,7 @@ Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `Sock
 [`socket/types.ts`](../auth/src/socket/types.ts); `IDataManager` and `CacheAssemblyOptions` in
 [`data/types.ts`](../runtime-core/src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
 [`types.ts`](../sync/src/types.ts). The `boot` group is a **file**,
-`boot.ts`, not a directory — booting is not an engine, so the logic stays in whichever module owns
+`boot.ts`, not a directory — booting is not one of the runtime's parts, so the logic stays in whichever module owns
 each piece. `config/` and `utils/` have no `index.ts` at all: they are not facade groups
 and in-package callers reach them by concrete path.
 
@@ -229,8 +228,11 @@ Two calls and one component. Everything else is a hook.
 ```ts
 // apps/*/src/main.tsx — once, before render.
 import { runtime } from '@chatic/app-runtime';
+import { createWebRuntime } from '@chatic/runtime-web';
 
-runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } }); // `data` is optional
+runtime.boot.initAppRuntime(
+    createWebRuntime({ storage, cacheTab, data: { cache: { maxChatsPerChannel: 1000 } } }) // `data` is optional
+);
 ```
 
 ```tsx
@@ -265,18 +267,18 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageStores()               every store the app keeps state in, chosen once (apps/web, apps/desktop-web; admin still builds its own)
+  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; admin and landing build their own)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage, transport, auth, cache, foreground, signedOutKeyPrefixes?, data? })
-  │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order
+  ├─ createWebRuntime({ storage, cacheTab, signedOutKeyPrefixes?, data? })   @chatic/runtime-web — fills the page's ports
+  │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order; returns the engine
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required
-  │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
-  │    │  authPlatform.configure()        the address and the way home at logout — required (webAuthPorts() in a page)
-  │    │  localCachePlatform.configure()  where the cache's rows live — required (webLocalCachePorts(tab) in a page)
-  │    │  foregroundPlatform.configure()  whether the app is in front of the user — required (webForegroundPorts() in a page)
+  │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required
+  │    │  authPlatform.configure()        the address and the way home at logout — required
+  │    │  localCachePlatform.configure()  where the cache's rows live — required
+  │    │  foregroundPlatform.configure()  whether the app is in front of the user — required
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
@@ -287,9 +289,10 @@ apps/*/src/main.tsx
   │    ├─ authRepositorySource.provide()  the repository graph, handed down to auth
   │    │  syncDataGraph.provide()         … and to sync (accessors — nothing is built yet)
   │    └─ attachConfigStateLog()          one boot line naming every overridden setting
+  ├─ initAppRuntime(engine)               hands the React surface the engine it starts its work from
   └─ render
        └─ <RuntimeConnectionHost>
-            ├─ useHostControllers()       runtime-core's session + connection controllers, one each per host
+            ├─ useHostControllers()       the engine's session + connection controllers, one each per host
             ├─ session.initialize()       gate: renders null until session.isReady()
             ├─ session.startGuestKeepAlive()  guest login when no session exists (RuntimeConnectionHost only)
             ├─ connection.startBackground()  on mount: background clouds' tokens + receive loops
@@ -297,12 +300,15 @@ apps/*/src/main.tsx
                                           then derive the slots, SocketBinder + SocketReauthBinder
 ```
 
-Nothing in `initAppRuntime` touches the network. Endpoints are injected as **functions**, so a
+Nothing in `createRuntime` touches the network. Endpoints are injected as **functions**, so a
 deeplink override captured after boot still applies, and the transport is built on first use. The
 call is idempotent (a second one warns), and it must sit between two boundaries: **after** the app's
 logging wiring, because it logs; **before** anything that can read the session, because
 `relayStore.getBackend()` throws rather than guessing when its resolvers are missing — a loud
-failure that names `initAppRuntime()` beats a request going out with an empty host.
+failure that names `createRuntime()` beats a request going out with an empty host. A hook or host that
+asks for the engine before `initAppRuntime(engine)` throws the same way, and so does a test that renders
+one: it hands over an engine first — `initAppRuntime(coreEngine)` from `@chatic/runtime-core/engine`, or a
+fake one whose members are `jest.fn` when the point is what the surface asks the engine for.
 
 Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and
@@ -324,7 +330,7 @@ through `runtime.boot`. What an app sets up for itself before the runtime (`conf
 storage adapter, the log context) and the reaction it registers through
 `runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
-**Choosing the stores.** `resolveStorageStores()` (the `boot` group) is the one place an app's storage
+**Choosing the stores.** `resolveStorageStores()` (`@chatic/runtime-web`) is the one place an app's storage
 stores are chosen and built — the storage counterpart of the web cache's `resolveCacheBackend`. It reads
 three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
 and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
@@ -336,7 +342,7 @@ outlived the tab. The entry point hands the result out and constructs nothing it
 
 ### 1. Cold boot as a guest
 
-`initAppRuntime` injects the endpoint resolvers and registers credential recovery; no network. The
+`createRuntime` injects the endpoint resolvers and registers credential recovery; no network. The
 host waits on its session controller's `initialize()`, which blocks the subtree until the session is
 initialized — it reads the stored session's existence, it does not refresh it. With no relay token,
 the controller's guest keep-alive runs one device-based guest login (a `Coalescer` keeps an edge that
@@ -401,7 +407,7 @@ target after a 30-second grace, so a route change and back does not restart it.
 
 Two ways, and only one is reversible. A user logout calls `logoutSession()`, which notifies both
 slots' sockets with `auth.logout()` and then tears the local session down and redirects with
-`?logout=1` — the flag the next document's `initAppRuntime` reads to sweep the storage. The other is
+`?logout=1` — the flag the next document's `createRuntime` reads to sweep the storage. The other is
 terminal: the SDK exhausts `maxFailures` and reports `expired`, and
 `RelayCredentialRenewer.onTerminalExpiry()` waits through two 30-second confirmation rounds — while
 offline it does not judge at all — before logging out, because `expired` also means "three failures

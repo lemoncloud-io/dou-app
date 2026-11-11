@@ -40,8 +40,8 @@ describe('session storage ports', () => {
         // A fresh holder, not the shared one: other cases here configure that one.
         const unconfigured = new SessionStores();
 
-        expect(() => unconfigured.of('secret')).toThrow(/'secret'.*initAppRuntime/);
-        expect(() => unconfigured.of('plain')).toThrow(/'plain'.*initAppRuntime/);
+        expect(() => unconfigured.of('secret')).toThrow(/'secret'.*createRuntime/);
+        expect(() => unconfigured.of('plain')).toThrow(/'plain'.*createRuntime/);
     });
 
     it('puts the credentials in the secret port and everything else in the plain port, under the same names', () => {

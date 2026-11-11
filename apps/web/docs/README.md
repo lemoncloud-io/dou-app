@@ -114,8 +114,8 @@ Source comments in this app are English. So are these documents.
 ## Notes for implementers
 
 - **`main.tsx` is ordered by contract, not by taste.** The log listeners are attached before
-  anything can log, `config.init()` precedes every lazy setting read, and `runtime.boot`
-  `initAppRuntime()` precedes every session read. Each boundary carries a comment saying what breaks
+  anything can log, `config.init()` precedes every lazy setting read, and building the runtime
+  (`createWebRuntime`, handed to `runtime.boot.initAppRuntime`) precedes every session read. Each boundary carries a comment saying what breaks
   if a line moves across it. Read those before inserting anything.
 - **`app/utils/index.ts` deliberately excludes the modules that read `import.meta.env`.** Import
   those by concrete path (`app/utils/webVitals`), or the barrel becomes unloadable under the test

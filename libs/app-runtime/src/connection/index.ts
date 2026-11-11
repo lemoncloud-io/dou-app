@@ -3,7 +3,7 @@
 // React layer only: the hosts and their hooks. Credential recovery used to be wired from
 // here as an import side effect — using `RuntimeConnectionHost` was enough to get it — and the cost
 // was a boot step that no entry point mentioned and that an import reshuffle could move or drop. It
-// now lives in `initAppRuntime`, which is also where the wiring's ordering is stated.
+// now lives in runtime-core's `createRuntime`, which is also where the wiring's ordering is stated.
 //
 // `useHostControllers` and `deriveConnectivity` are NOT here: they are the host's own parts, and
 // it reaches them by concrete path. The binders and the slot derivation are not even in this package —

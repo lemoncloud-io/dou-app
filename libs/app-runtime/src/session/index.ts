@@ -1,7 +1,7 @@
 // The session hub (ADR-0070 Decision 1) — the single surface for session state, auth use-cases and the
 // session hooks. `store` is the SSoT and is passive; `auth` holds the use-cases; `hooks` is the
-// React surface. Env wiring is NOT an import side effect — `initAppRuntime()` runs
-// `store/configure.ts` from the app entry point (ADR-0070 Step 5).
+// React surface. Env wiring is NOT an import side effect — runtime-core's `createRuntime()` runs
+// `store/configure.ts`, called from the app's entry point.
 //
 // **This barrel publishes the APP surface only** (ADR-0076 Decision 6). It used to `export *` the store,
 // the services and the hooks, which put 27 runtime-internal symbols on the package's public API —

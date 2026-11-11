@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom/client';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webForegroundPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
+import { createWebRuntime, readStorageEnvironment, resolveStorageStores } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { configureAppStores } from './app/storage';
@@ -18,8 +18,8 @@ import App from './app/app';
 // in what it injected, and the `device`/`tab` stores the app's own features and the runtime write
 // through. Reads only what the shell injected, so it is safe this early. The late-vault mark is off:
 // only apps/web writes it, after its own mobile handshake; the desktop shell always injects its list.
-const stores = runtime.boot.resolveStorageStores({
-    ...runtime.boot.readStorageEnvironment(),
+const stores = resolveStorageStores({
+    ...readStorageEnvironment(),
     lateVaultConfirmed: false,
 });
 configureAppStores({ device: stores.device, tab: stores.tab, plain: stores.plain });
@@ -57,19 +57,18 @@ const startApp = (): void => {
     // useChats LOAD_MORE_SIZE is 50); evicted history comes back from the server via
     // refreshList(cursorNo).
     //
-    // Set HERE and not in the engine: web storage serves every non-native client, so a limit living in
-    // libs/app-runtime would also truncate apps/web in a browser and apps/admin.
+    // Set HERE and not in the shared runtime: web storage serves every non-native client, so a limit
+    // living in libs/runtime-core would also truncate apps/web in a browser and apps/admin.
     // Must run before render — the runtime builds its cache storages once, on first repository access.
-    runtime.boot.initAppRuntime({
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
-        transport: webTransportPorts(),
-        foreground: webForegroundPorts(),
-        auth: webAuthPorts(),
-        // The cache's tab-lifetime store holds a window's invited clouds — a cache, which must hear a failed
-        // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        cache: webLocalCachePorts(stores.webSession),
-        data: { cache: { maxChatsPerChannel: 1000 } },
-    });
+    runtime.boot.initAppRuntime(
+        createWebRuntime({
+            storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
+            // The cache's tab-lifetime store holds a window's invited clouds — a cache, which must hear a
+            // failed write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
+            cacheTab: stores.webSession,
+            data: { cache: { maxChatsPerChannel: 1000 } },
+        })
+    );
 
     // Reading preferences go onto the document root before the first paint. The store hydrates from
     // the device store (localStorage) synchronously, so a reader who picked a larger size never sees

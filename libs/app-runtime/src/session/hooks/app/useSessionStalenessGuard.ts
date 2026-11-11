@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { RelayCredentialGuard } from '@chatic/runtime-core';
 import type { SessionStalenessPolicy } from '@chatic/runtime-core';
+
+import { runtimeEngine } from '../../../init';
 
 export type { SessionStalenessPolicy } from '@chatic/runtime-core';
 
 /**
- * Keeps the relay HTTP signing credentials fresh — runtime-core's `RelayCredentialGuard`, started for
+ * Keeps the relay HTTP signing credentials fresh — the engine's relay credential guard, started for
  * as long as the calling component is mounted. The probe, the triggers and why the guard never ends a
  * session are documented there; this hook only starts it, re-arms it when the policy's triggers change,
  * and hands back a stable `check` for a trigger the guard cannot know about (apps/web fires it on
@@ -16,7 +17,7 @@ export type { SessionStalenessPolicy } from '@chatic/runtime-core';
  * them at runtime but `enabled`.
  */
 export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): { check: () => Promise<void> } => {
-    const [guard] = useState(() => new RelayCredentialGuard(policy));
+    const [guard] = useState(() => runtimeEngine().relayCredentialGuard(policy));
     // The committed policy, for the next probe — in an effect, so a render React throws away leaves
     // nothing behind. Declared before the start effect, which therefore starts with it.
     useEffect(() => guard.setPolicy(policy));

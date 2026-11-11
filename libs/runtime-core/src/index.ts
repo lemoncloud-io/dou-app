@@ -7,6 +7,7 @@
 // assembly
 export { createRuntime } from './createRuntime';
 export type { RuntimeConfig } from './createRuntime';
+export type { CredentialGuard, PushRegistrar, RuntimeEngine } from './engine';
 export type { RuntimePorts } from './ports';
 export type { RuntimeStorePorts } from './storage/runtimeStores';
 export type { ForegroundSignal } from './session/foreground';
@@ -33,23 +34,17 @@ export { createChatOutbox } from './data/outbox';
 export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } from './data/outbox';
 
 // the connections, kept in line with the session
-export { createConnectionController } from './connection/connectionController';
 export type { ConnectionController, ConnectionControllerOptions } from './connection/connectionController';
 
 // the relay session's own lifecycle: boot, and the guest keep-alive
-export { createSessionController } from './session/sessionController';
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
 
 // the credential guards an app starts with its own policy
-export { RelayCredentialGuard } from './session/relayCredentialGuard';
 export type { SessionStalenessPolicy } from './session/relayCredentialGuard';
-export { CloudCredentialGuard } from './session/cloudCredentialGuard';
 export type { CloudCredentialPolicy } from './session/cloudCredentialGuard';
 
 // push registration, which an app starts with its shell's delegate
-export { PushRegistration } from './push/pushRegistration';
 export type { DeviceTokenDelegate, PushDeviceIds, PushRegistrationOptions } from './push/pushRegistration';
 
 // a chat room primed for its first render
-export { primeChatRoom } from './sync/primeChatRoom';
 export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';

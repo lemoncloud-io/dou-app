@@ -8,13 +8,7 @@ import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/brid
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import {
-    setNativeCacheSupport,
-    webAuthPorts,
-    webForegroundPorts,
-    webLocalCachePorts,
-    webTransportPorts,
-} from '@chatic/runtime-web';
+import { LATE_VAULT_MARK, createWebRuntime, resolveStorageStores, setNativeCacheSupport } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
@@ -82,7 +76,7 @@ reportRunIdJoin();
 // session's secret and plain ports, the device vault when the shell keeps one, and the `device`/`tab`
 // stores the app's own features and the runtime write through. Reads only what the shell injected and
 // the tab's own mark, so it is safe this early; the features take their stores from here on.
-const stores = runtime.boot.resolveStorageStores();
+const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
 
 // `vite-ui-theme` is the durable, cross-app theme key (five apps' pre-paint scripts and
@@ -131,7 +125,7 @@ if (vault) {
  * marked and reloaded once, and the next boot takes the vault from the start.
  */
 const adoptLateVault = (): void => {
-    stores.webSession.set(runtime.boot.LATE_VAULT_MARK, '1');
+    stores.webSession.set(LATE_VAULT_MARK, '1');
     window.location.reload();
 };
 
@@ -166,20 +160,21 @@ const startApp = (): void => {
     // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
     // cache only on the relay scope, so a cloud partition never receives the default place row
     //. It must land before the data runtime is lazily created on first repository access.
-    runtime.boot.initAppRuntime({
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
-        transport: webTransportPorts(),
-        foreground: webForegroundPorts(),
-        auth: webAuthPorts(),
-        // The cache's tab-lifetime store holds a tab's invited clouds — a cache, which must hear a failed
-        // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        cache: webLocalCachePorts(stores.webSession),
-        // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
-        signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
-        data: {
-            repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
-        },
-    });
+    runtime.boot.initAppRuntime(
+        createWebRuntime({
+            storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
+            // The cache's tab-lifetime store holds a tab's invited clouds — a cache, which must hear a
+            // failed write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
+            cacheTab: stores.webSession,
+            // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
+            signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
+            data: {
+                repositories: {
+                    user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' },
+                },
+            },
+        })
+    );
 
     // A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
     // next account on this device never opens a room onto them.

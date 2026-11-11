@@ -8,7 +8,7 @@ import { getSyncManager } from '@chatic/sync';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
-import { primeChatRoom } from '@chatic/runtime-core';
+import { runtimeEngine } from '../../../init';
 import { slotKeyOf } from '@chatic/transport';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
@@ -60,7 +60,7 @@ export interface ChatSyncState {
 }
 
 /**
- * Primes the room for its first render — runtime-core's `primeChatRoom`, which aligns the chat plan's
+ * Primes the room for its first render — the engine's `primeChatRoom`, which aligns the chat plan's
  * baseline to the cache and fetches a first page only when the cache is cold. This hook decides when:
  * once `cid`'s slot is verified, and again after that slot's auth or reconnect, whichever slot is
  * active. A warm room's sync is `useForegroundChatRefresh`'s in the web, which marks the same trace
@@ -82,9 +82,13 @@ const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
-        void primeChatRoom(cid, channelId, { cancelled: () => cancelled }).then(outcome => {
-            if (!cancelled && outcome !== 'cancelled') setSettled({ scope: `${cid}:${channelId}`, status: outcome });
-        });
+        void runtimeEngine()
+            .primeChatRoom(cid, channelId, { cancelled: () => cancelled })
+            .then(outcome => {
+                if (!cancelled && outcome !== 'cancelled') {
+                    setSettled({ scope: `${cid}:${channelId}`, status: outcome });
+                }
+            });
         return () => {
             cancelled = true;
         };

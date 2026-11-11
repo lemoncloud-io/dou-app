@@ -11,7 +11,7 @@ describe('foregroundPlatform', () => {
     };
 
     it('throws when read before the entry point configured it — there is no default', () => {
-        expect(() => load().foregroundPlatform.ports()).toThrow(/initAppRuntime/);
+        expect(() => load().foregroundPlatform.ports()).toThrow(/createRuntime/);
     });
 
     it('hands back the signal it was last configured with', () => {

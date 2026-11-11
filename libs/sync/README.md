@@ -38,7 +38,7 @@ libs/sync/src/                        12 source files, 9 tests
 ├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
 ├── refusedChannels.ts                 what the server refused, for a room to read
 ├── roomFeed.ts                        fetchRoomFeed · prefetchRoomFeed — one chat.feed per room entry, 2s reuse
-├── dataGraph.ts                       syncDataGraph — the scoped repository graphs, handed down by initAppRuntime()
+├── dataGraph.ts                       syncDataGraph — the scoped repository graphs, handed down by createRuntime()
 ├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
 ├── unrefTimer.ts                      keeps a pending timer from holding a Node process (and jest) open
 └── index.ts                           the package barrel
@@ -129,7 +129,7 @@ is a request or two.
 (`syncDataGraph.get().getScopedRepositories(cid)`), under that graph's context: that cloud, and the uid
 this account has there. Not the selected cloud's graph: a frame from a slot is data of that slot's
 cloud whatever the screen is showing. The graph is assembled in app-runtime's `data/`, a package above
-this one, so `initAppRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
+this one, so `createRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
 sync importing `data/runtime` ([Layers](../app-runtime/README.md#layers)). See
 [runtime-core docs/data/](../runtime-core/docs/data/README.md#scoped-repository-graphs) for what a scoped
 graph is.

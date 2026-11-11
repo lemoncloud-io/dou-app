@@ -6,6 +6,13 @@ import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost'
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import type { RuntimeEngine } from '@chatic/runtime-core';
+import { initAppRuntime, resetRuntimeEngine } from '../init';
+
+// The hooks start their work from the engine the entry point hands over; these use the core one.
+beforeEach(() => initAppRuntime(coreEngine));
+afterEach(() => resetRuntimeEngine());
 
 // The session controller is runtime-core's and has its own tests; here it is a fake whose readiness
 // the test sets, so the host's gate and the ONE difference between the two hosts — whether the guest
@@ -271,5 +278,29 @@ describe('RuntimeConnectionHost', () => {
 
         unmount();
         expect(mockStopKeepAlive).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks the engine it was handed for both controllers, with the resolved device id', () => {
+        const session = {
+            initialize: jest.fn(() => Promise.resolve()),
+            isReady: () => false,
+            subscribeReady: () => () => undefined,
+            startGuestKeepAlive: jest.fn(() => () => undefined),
+        };
+        const connection = { startBackground: jest.fn(() => () => undefined) };
+        const engine = {
+            sessionController: jest.fn(() => session),
+            connectionController: jest.fn(() => connection),
+        };
+        initAppRuntime(engine as unknown as RuntimeEngine);
+
+        render(<RuntimeConnectionHost />);
+
+        expect(engine.sessionController).toHaveBeenCalledTimes(1);
+        expect(engine.connectionController).toHaveBeenCalledTimes(1);
+        const [{ deviceId }] = engine.sessionController.mock.calls[0] as unknown as [{ deviceId: () => string }];
+        expect(deviceId()).toBe('device-1');
+        expect(session.initialize).toHaveBeenCalledTimes(1);
+        expect(connection.startBackground).toHaveBeenCalledTimes(1);
     });
 });

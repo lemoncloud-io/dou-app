@@ -6,7 +6,7 @@ import type { KeyValueStore } from '@chatic/storage';
  * - `device` — survives closing the tab: the sync cursor watermark. Tolerant: the watermark is a
  *   convenience, so a full or blocked storage costs the value, not the boot.
  *
- * The entry point hands it over in `initAppRuntime({ storage })`, from the same `resolveStorageStores`
+ * The entry point hands it over in `createWebRuntime({ storage })`, from the same `resolveStorageStores`
  * call that built the session's stores. **There is no default**: reading it before then throws, like
  * the session's own ports — a default would be one platform's storage. (The tab-lifetime store a page
  * keeps its invited clouds in belongs to the web cache, `webLocalCachePorts(tab)` in
@@ -23,7 +23,7 @@ export const runtimeStores = {
         if (!ports) {
             throw new Error(
                 "[runtime-core] the runtime's device store was used before it was configured — the entry point " +
-                    'has to pass `storage.device` to initAppRuntime().'
+                    'has to pass `storage.device` to createRuntime().'
             );
         }
         return ports.device;

@@ -1,5 +1,5 @@
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webForegroundPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
+import { createWebRuntime } from '@chatic/runtime-web';
 import { config, createWebEnvAdapter } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';
 
@@ -27,13 +27,12 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
     });
     // This site runs in a browser tab and nowhere else, so the session lives in this tab's storage, as
     // every other per-tab state here does.
-    runtime.boot.initAppRuntime({
-        storage: { secret: tabStore, plain: tabStore, device: deviceStore },
-        transport: webTransportPorts(),
-        foreground: webForegroundPorts(),
-        auth: webAuthPorts(),
-        cache: webLocalCachePorts(tabStore),
-    });
+    runtime.boot.initAppRuntime(
+        createWebRuntime({
+            storage: { secret: tabStore, plain: tabStore, device: deviceStore },
+            cacheTab: tabStore,
+        })
+    );
     runtime.session.authFailureReaction.register(() => undefined);
 };
 

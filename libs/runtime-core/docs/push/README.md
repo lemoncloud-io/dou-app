@@ -47,7 +47,8 @@ interface DeviceTokenDelegate {
     nativeRecordMirror?: NativeRecordMirror; // a durable home for the record (mobile only)
 }
 
-const registration = new PushRegistration({ delegate: () => latestDelegate, deviceIds: () => ids });
+// `engine` is the RuntimeEngine createRuntime returned (README § The engine).
+const registration = engine.pushRegistration({ delegate: () => latestDelegate, deviceIds: () => ids });
 const stop = registration.start();
 registration.notifyForeground(); // for a foreground signal the port does not carry
 ```
@@ -70,7 +71,7 @@ is the only thing limiting call volume.
 
 ### The record lives in two tiers
 
-- **Web tier** — the session's plain store (`sessionStores`), which each app's entry point chooses: `localStorage` inside a shell, `sessionStorage` in a browser. It is read from `initAppRuntime` on. **Synchronous**, so the foreground-return path can decide without a bridge round trip.
+- **Web tier** — the session's plain store (`sessionStores`), which each app's entry point chooses: `localStorage` inside a shell, `sessionStorage` in a browser. It is read from `createRuntime` on. **Synchronous**, so the foreground-return path can decide without a bridge round trip.
 - **Native tier** — only when the shell supplies a `nativeRecordMirror`. It survives a WebView cache wipe, and it is **asynchronous**, so it is hydrated once, after the registration starts. A read that finds the web tier empty and the native tier populated backfills the web tier.
 
 Hydration runs **after** the foreground fast path and **in parallel with** the token fetch. After,

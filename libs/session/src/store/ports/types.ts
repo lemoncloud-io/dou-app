@@ -24,7 +24,7 @@ export type PortName = keyof SessionStoragePorts;
 /** Which store backs each session port, as the entry point configured it. */
 export interface ISessionStores {
     /**
-     * Points the session at its stores. Called by `initAppRuntime` with what the entry point passed,
+     * Points the session at its stores. Called by `createRuntime` with what the entry point passed,
      * before anything reads the session. Assignment, so a second call (HMR) replaces rather than
      * accumulates.
      */
