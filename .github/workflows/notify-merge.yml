@@ -1,0 +1,27 @@
+name: Notify merge
+
+# Posts a card to the team's DoU channel when a pull request is merged — the DoU counterpart of
+# a Slack `/github subscribe` merge notification. A closed-but-unmerged PR posts nothing.
+on:
+    pull_request:
+        types: [closed]
+
+permissions: {}
+
+jobs:
+    notify:
+        if: github.event.pull_request.merged
+        runs-on: ubuntu-latest
+        steps:
+            - uses: lemoncloud-io/actions/notify-dou@v1
+              with:
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  title: '${{ github.event.repository.name }} #${{ github.event.pull_request.number }} 머지'
+                  text: ${{ github.event.pull_request.title }}
+                  fields: |
+                      작성자=${{ github.event.pull_request.user.login }}
+                      머지=${{ github.event.pull_request.merged_by.login }}
+                      브랜치=${{ github.event.pull_request.head.ref }} → ${{ github.event.pull_request.base.ref }}
+                      PR=${{ github.event.pull_request.html_url }}
