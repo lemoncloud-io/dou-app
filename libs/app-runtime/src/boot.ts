@@ -14,8 +14,8 @@ export type { AppRuntimeConfig } from './init';
 // The option types `AppRuntimeConfig.data` is made of. `DataRepositoriesOptions` lives in
 // `@chatic/data`, and re-exporting it here is the point of a facade: an app configuring the runtime
 // should not have to import the package the runtime assembles.
-export type { DataRuntimeConfig } from './data/runtime';
-export type { CacheAssemblyOptions } from './data/types';
+export type { DataRuntimeConfig } from '@chatic/runtime-core';
+export type { CacheAssemblyOptions } from '@chatic/runtime-core';
 export type { DataRepositoriesOptions } from '@chatic/data';
 
 // `ENV`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT`/`LANGUAGE_KEY` used to re-export the sole `import.meta`

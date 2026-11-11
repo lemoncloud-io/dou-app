@@ -1,6 +1,6 @@
 # outbox — state writes that reach the server when the socket can carry them
 
-> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-14 · Overview in the [lib README](../../README.md) · Canonical code: [outbox/](../../src/outbox/) · The runtime half in [libs/app-runtime data](../../../app-runtime/docs/data/README.md#the-state-outbox-transport)
+> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-14 · Overview in the [lib README](../../README.md) · Canonical code: [outbox/](../../src/outbox/) · The runtime half in [libs/app-runtime data](../../../runtime-core/docs/data/README.md#the-state-outbox-transport)
 
 A **state write** sets one piece of state to a value: my read cursor in a room, my notification
 setting for it, the name I gave it. Sending the same value twice is harmless and only the latest value

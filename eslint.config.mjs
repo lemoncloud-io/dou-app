@@ -151,9 +151,12 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *
  * - `layer:core-lib` — session, transport, sync, auth, data. Platform-neutral. They know nothing
  *   above them: no runtime assembly, no adapter, no React surface, and no UI framework at all.
- * - `layer:runtime-core` — `@chatic/runtime-core`, which collects the ports. It sits on the core
- *   libs and on nothing else. This is an allow-list, not a deny-list, so a dependency it gains
- *   later has to be tagged on purpose rather than slipping in untagged.
+ * - `layer:foundation` — logger, config, perf, http, storage, bridge-messages: what the core libs
+ *   and the assembly are built on. They depend on one another and on nothing else.
+ * - `layer:runtime-core` — `@chatic/runtime-core`, which collects the ports and assembles the
+ *   runtime from them. It sits on the core libs and the foundation and on nothing else. This is an
+ *   allow-list, not a deny-list, so a dependency it gains later has to be tagged on purpose rather
+ *   than slipping in untagged.
  * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`).
  *   Nothing in the runtime depends on them; they never reach up into the React surface, and a port
  *   is not UI, so no React either.
@@ -175,8 +178,14 @@ const runtimeLayerConstraints = [
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
+        // An allow-list too: runtime-core's own allow-list checks its direct dependencies only, so a
+        // foundation package that took an untagged one would carry it into the assembly unseen.
+        sourceTag: 'layer:foundation',
+        onlyDependOnLibsWithTags: ['layer:foundation'],
+    },
+    {
         sourceTag: 'layer:runtime-core',
-        onlyDependOnLibsWithTags: ['layer:core-lib'],
+        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:foundation'],
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
@@ -216,7 +225,7 @@ const RUNTIME_WIRING = {
         { object: 'authRepositorySource', name: 'provide' },
         { object: 'syncDataGraph', name: 'provide' },
     ],
-    allowedFiles: ['libs/app-runtime/src/init.ts'],
+    allowedFiles: ['libs/runtime-core/src/createRuntime.ts'],
 };
 
 const STORAGE_MESSAGE =
@@ -428,6 +437,11 @@ export default [
                             message:
                                 'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
                         },
+                        {
+                            name: '@chatic/runtime-core',
+                            message:
+                                'Boot the runtime with `runtime.boot.initAppRuntime` and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                        },
                     ],
                     patterns: [
                         {
@@ -454,6 +468,11 @@ export default [
                             group: ['@chatic/transport/*'],
                             message:
                                 'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
+                        },
+                        {
+                            group: ['@chatic/runtime-core/*'],
+                            message:
+                                'Boot the runtime with `runtime.boot.initAppRuntime` and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                 },

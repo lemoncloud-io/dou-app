@@ -8,11 +8,11 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { getRepositories } from '../data/runtime';
+import { getRepositories } from '@chatic/runtime-core';
 import { uploadLogBatch } from './logBatch';
 import type { LogEntry } from '@chatic/bridges';
 
-jest.mock('../data/runtime', () => ({ getRepositories: jest.fn() }));
+jest.mock('@chatic/runtime-core/data/runtime', () => ({ getRepositories: jest.fn() }));
 
 const execute = jest.fn();
 

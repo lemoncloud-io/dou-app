@@ -1,5 +1,11 @@
 /**
- * The boot contract. What is worth testing here is not that `initAppRuntime` calls three functions —
+ * @jest-environment jsdom
+ *
+ * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
+ * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.
+ */
+/**
+ * The boot contract. What is worth testing here is not that `createRuntime` calls three functions —
  * it is the two things that changed when the import side effects were removed:
  *
  *  1. A session read WITHOUT the call fails loudly and names the fix. Before, importing the session
@@ -30,10 +36,10 @@ jest.mock('@chatic/logger', () => ({
 
 const load = async () => {
     jest.resetModules();
-    const init = await import('./init');
+    const init = await import('./createRuntime');
     // Reached through the package barrel, the way a consumer reads it — not the raw store file. Not a
     // dynamic `import()`: Nx reads one as a lazy-loaded dependency and then rejects every static import
-    // of the package. After `resetModules` this loads the same fresh copy `./init` just did.
+    // of the package. After `resetModules` this loads the same fresh copy `./createRuntime` just did.
     const store = jest.requireActual<typeof Session>('@chatic/session');
     return { ...init, ...store };
 };
@@ -63,7 +69,7 @@ const transport = () =>
 /** A jsdom page's auth ports — what every case here is indifferent to. */
 const authPorts = () => jest.requireActual<typeof AuthTesting>('@chatic/auth/testing/platform').fakeAuthPorts();
 
-describe('initAppRuntime', () => {
+describe('createRuntime', () => {
     beforeEach(() => {
         mockWarn.mockClear();
         mockInfo.mockClear();
@@ -78,33 +84,33 @@ describe('initAppRuntime', () => {
     });
 
     it('boots the session store — the same read succeeds afterwards', async () => {
-        const { initAppRuntime, getActiveServerContext } = await load();
+        const { createRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(() => getActiveServerContext()).not.toThrow();
     });
 
     it('hands the transport its platform — before boot, opening a socket or reading the link throws', async () => {
-        const { initAppRuntime } = await load();
-        // The same fresh copy `./init` just loaded, through the package barrel.
+        const { createRuntime } = await load();
+        // The same fresh copy `./createRuntime` just loaded, through the package barrel.
         const { transportPlatform } = jest.requireActual<typeof TransportLib>('@chatic/transport');
         const ports = transport();
 
         expect(() => transportPlatform.ports()).toThrow(/initAppRuntime/);
-        initAppRuntime({ storage: memoryStorage(), transport: ports, auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: ports, auth: authPorts(), cache: cachePorts() });
 
         expect(transportPlatform.ports()).toBe(ports);
     });
 
     it('hands auth its platform before the boot sweep reads the logout flag', async () => {
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
         const { authPlatform } = jest.requireActual<typeof AuthLib>('@chatic/auth');
         const currentSearch = jest.fn(() => '');
         const ports = { ...authPorts(), currentSearch };
 
         expect(() => authPlatform.ports()).toThrow(/initAppRuntime/);
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: ports, cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: ports, cache: cachePorts() });
 
         expect(authPlatform.ports()).toBe(ports);
         // The sweep is what read it, during boot.
@@ -115,10 +121,10 @@ describe('initAppRuntime', () => {
         jest.resetModules();
         const configureDataRuntime = jest.fn();
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
-        const { initAppRuntime } = await import('./init');
+        const { createRuntime } = await import('./createRuntime');
 
         const data = { cache: { maxChatsPerChannel: 1000 } };
-        initAppRuntime({
+        createRuntime({
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
@@ -136,7 +142,7 @@ describe('initAppRuntime', () => {
         const getRepositories = jest.fn(() => ({ auth }));
         const getDataManager = jest.fn(() => manager);
         jest.doMock('./data/runtime', () => ({ configureDataRuntime: jest.fn(), getRepositories, getDataManager }));
-        const { initAppRuntime } = await import('./init');
+        const { createRuntime } = await import('./createRuntime');
         // Not `await import(…)`: Nx would then call the package lazy-loaded and fail every static import
         // of it. After `resetModules`, `requireActual` returns the same fresh copy.
         const { authRepositorySource } = jest.requireActual<typeof AuthRepository>(
@@ -144,7 +150,7 @@ describe('initAppRuntime', () => {
         );
         const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         // Boot only installs the accessors; the graph is still built on first use.
         expect(getRepositories).not.toHaveBeenCalled();
@@ -157,9 +163,9 @@ describe('initAppRuntime', () => {
         jest.resetModules();
         const configureDataRuntime = jest.fn();
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
-        const { initAppRuntime } = await import('./init');
+        const { createRuntime } = await import('./createRuntime');
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         // Passing `{}` through would trip the runtime's own late-registration warning for nothing.
         expect(configureDataRuntime).not.toHaveBeenCalled();
@@ -168,11 +174,11 @@ describe('initAppRuntime', () => {
     it('turns a pending cache-clear request into the cursor watermark before the data runtime exists', async () => {
         const storage = memoryStorage();
         storage.device.set('chatic.syncCursors.resetPending', '1');
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
         const before = Date.now();
 
-        initAppRuntime({ storage, transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage, transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
         expect(storage.device.get('chatic.syncCursors.resetPending')).toBeNull();
@@ -182,10 +188,10 @@ describe('initAppRuntime', () => {
         const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
         const device = new MemoryStore();
         device.set('chatic.syncCursors.resetPending', '1');
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
 
-        initAppRuntime({
+        createRuntime({
             storage: { secret: new MemoryStore(), plain: new MemoryStore(), device },
             transport: transport(),
             auth: authPorts(),
@@ -203,9 +209,9 @@ describe('initAppRuntime', () => {
         plain.set('@chatic/web.log.pending.tab-1', '[]');
         plain.set('@chatic/config.ui.theme', '"dark"');
         window.history.replaceState({}, '', '/?logout=1');
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
 
-        initAppRuntime({
+        createRuntime({
             storage: { secret: new MemoryStore(), plain, device: new MemoryStore() },
             transport: transport(),
             auth: authPorts(),
@@ -218,10 +224,10 @@ describe('initAppRuntime', () => {
     });
 
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
-        const { initAppRuntime, getActiveServerContext } = await load();
+        const { createRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockWarn).toHaveBeenCalledWith('WEB_CORE', expect.stringContaining('more than once'));
         // The wiring is assignment, not accumulation: the second call leaves a working runtime.
@@ -229,9 +235,9 @@ describe('initAppRuntime', () => {
     });
 
     it('does not warn on the first call', async () => {
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockWarn).not.toHaveBeenCalled();
     });
@@ -241,9 +247,9 @@ describe('initAppRuntime', () => {
     // feature is simply absent, with no failing screen to notice. The registry is unwired here,
     // which is the point: the anchor line still goes out.
     it('records the config boot state', async () => {
-        const { initAppRuntime } = await load();
+        const { createRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
 
         expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
             overrides: [],

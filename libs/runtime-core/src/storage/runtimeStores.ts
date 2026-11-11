@@ -22,7 +22,7 @@ export const runtimeStores = {
     device(): KeyValueStore {
         if (!ports) {
             throw new Error(
-                "[app-runtime] the runtime's device store was used before it was configured — the entry point " +
+                "[runtime-core] the runtime's device store was used before it was configured — the entry point " +
                     'has to pass `storage.device` to initAppRuntime().'
             );
         }

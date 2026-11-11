@@ -61,7 +61,7 @@ jest.mock('@chatic/session/store', () => ({
     getSocketSlotContext: jest.fn(),
 }));
 
-jest.mock('../data/runtime', () => {
+jest.mock('@chatic/runtime-core/data/runtime', () => {
     const mockDataManager = { getRepositories: jest.fn(), getContext: jest.fn() };
     return { getDataManager: jest.fn().mockReturnValue(mockDataManager) };
 });

@@ -3,11 +3,11 @@ import { act, renderHook } from '@testing-library/react';
 import type { ChatAttachmentSource, SendImagePorts, SendImageResult } from '@chatic/data';
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
-import { getCloudRepositories, runInCloud } from '../cloudChat';
+import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
 import { useSendImages } from './useSendImages';
 
 // Its own file, so the tracer's per-minute cap starts empty: the main suite's sends would use it up.
-jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
 
 const mockSendImageMessage = jest.fn();
 jest.mock('@chatic/data', () => ({

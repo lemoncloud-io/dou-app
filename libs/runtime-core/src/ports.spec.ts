@@ -1,7 +1,6 @@
 import type { AllRequired, OptionalKeys, RuntimePorts } from './ports';
 import type { AuthPlatformPorts } from '@chatic/auth';
 import type { LocalCachePorts } from '@chatic/data';
-import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
 /**
@@ -10,7 +9,7 @@ import type { TransportPlatformPorts } from '@chatic/transport';
  * handed `false`, fails there. Jest transpiles each file on its own without type-checking, so the
  * `expect` calls below prove nothing by themselves — they give each check a name in the report.
  */
-const storage = {} as SessionStoragePorts;
+const storage = {} as RuntimePorts['storage'];
 const transport = {} as TransportPlatformPorts;
 const auth = {} as AuthPlatformPorts;
 const cache = {} as LocalCachePorts;

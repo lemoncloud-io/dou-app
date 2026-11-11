@@ -2,7 +2,7 @@
 
 > Where `webLocalCachePorts(tab)` (`src/localCache/`) puts each cache domain in a web page. The
 > runtime asks the port once per domain per session and keys its sync cursors on the answers; that
-> assembly side is [app-runtime's data doc](../../../app-runtime/docs/data/README.md).
+> assembly side is [runtime-core's data doc](../../../runtime-core/docs/data/README.md).
 
 Three stores exist for a cached row. Inside a native shell there is the app's SQLite, reached over the
 bridge, which survives the OS clearing WebView data. Everywhere else — and sometimes inside the shell
@@ -74,7 +74,7 @@ either.
 Moving that domain's storage at all requires writing a migration bridge **first**. The
 web-to-native one was removed once it had run for weeks and exhausted its active users. The move to
 `sessionStorage` below ships with its own, for the same reason. See
-[app-runtime's data doc](../../../app-runtime/docs/data/README.md#invited-clouds) for what else defends
+[runtime-core's data doc](../../../runtime-core/docs/data/README.md#invited-clouds) for what else defends
 the domain.
 
 The other domains are safe to move because the server refills them. `invite` is one of them because
@@ -158,6 +158,6 @@ deploy alone — and it is a stopgap with the durability cost above.
 
 ## Further reading
 
-- [app-runtime's data doc](../../../app-runtime/docs/data/README.md) — the assembly that asks for this verdict, and the invited-cloud defences
+- [runtime-core's data doc](../../../runtime-core/docs/data/README.md) — the assembly that asks for this verdict, and the invited-cloud defences
 - [`libs/db`](../../../db/README.md) — the adapters behind `web`, `native` and `session`
 - [`libs/data`](../../../data/README.md) — the cache partition key, and the sync-cursor data source that reads the fingerprint

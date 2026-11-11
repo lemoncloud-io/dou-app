@@ -6,7 +6,7 @@ import { useSessionSelection } from '../../session';
 import { usePairedCloudIds } from '../../session/hooks/pairing/usePairedSession';
 import { useRuntimeSocketState } from '../../connection/hooks/useRuntimeSocketState';
 import { useSlotVerified } from '../../connection/hooks/useSlotVerified';
-import { syncPairedCloudName } from '../pairedCloudName';
+import { syncPairedCloudName } from '@chatic/runtime-core';
 import { useRuntimeRepositories } from './useRuntimeRepositories';
 
 /**

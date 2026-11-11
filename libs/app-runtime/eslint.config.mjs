@@ -54,6 +54,11 @@ export default [
                             group: ['@chatic/auth/*'],
                             message: 'Import @chatic/auth through its barrel. Deep paths are for test mocks only.',
                         },
+                        {
+                            group: ['@chatic/runtime-core/*'],
+                            message:
+                                'Import @chatic/runtime-core through its barrel. Deep paths are for test mocks only.',
+                        },
                     ],
                 },
             ],

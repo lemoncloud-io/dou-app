@@ -193,6 +193,6 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 
 - [auth docs/socket/](../../../auth/docs/socket/README.md) — what `recover()` actually runs, and why relay answers for every route
 - [`libs/session`](../../../session/README.md) — `credentialFreshness`, the source of `isStale`
-- [docs/data/](../../../app-runtime/docs/data/README.md) — the data sources built over these gateways
+- [docs/data/](../../../runtime-core/docs/data/README.md) — the data sources built over these gateways
 - [`libs/http`](../../../http/README.md) — the executor, retry, bypass and error classification
 - [`libs/config`](../../../config/README.md) — where the three endpoints come from

@@ -1,0 +1,153 @@
+import { logger } from '@chatic/logger';
+
+import { attachConfigStateLog } from './config/configStateLog';
+import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
+import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
+import { runtimeStores } from './storage/runtimeStores';
+import { localCachePlatform } from './data/localCachePlatform';
+import { credentialRecovery, transportPlatform } from '@chatic/transport';
+import {
+    authPlatform,
+    authRepositorySource,
+    dropLemonLeftovers,
+    logoutStorageSweeper,
+    credentialRenewers,
+    signedOutAppKeys,
+} from '@chatic/auth';
+import { configureSessionStore, sessionStores } from '@chatic/session';
+import { syncDataGraph } from '@chatic/sync';
+
+import type { HttpRoute } from '@chatic/http';
+import type { DataRuntimeConfig } from './data/runtime';
+import type { RuntimePorts } from './ports';
+
+/**
+ * What the runtime is assembled from: the platform's ports, every one required, and the app's own
+ * policies. `@chatic/app-runtime` publishes it to apps as `AppRuntimeConfig`.
+ */
+export interface RuntimeConfig extends RuntimePorts {
+    /**
+     * Repository and cache-assembly policies, applied before the data runtime is lazily built on
+     * first repository access — e.g. apps/web's relay-only embedded-`$site` persistence, desktop-web's
+     * per-channel chat cap.
+     */
+    data?: DataRuntimeConfig;
+    /**
+     * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
+     * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
+     * store at sign-out and once more on the `?logout=1` boot. Left out, a sign-out takes none.
+     */
+    signedOutKeyPrefixes?: readonly string[];
+}
+
+let booted = false;
+
+/**
+ * Assembles the runtime from the platform's ports — the one place that wires the core packages
+ * together. An app reaches it through `@chatic/app-runtime`'s `initAppRuntime`, once from its entry
+ * point, before render. It returns nothing: the packages it wires are process-wide, one per launch.
+ *
+ * ## Why this exists
+ *
+ * The wiring below used to run as an **import side effect**: loading the `session` barrel ran
+ * `configureSessionStore()`, and loading `connection` registered the credential recovery. That made
+ * boot a consequence of which module someone happened to import first — invisible in the entry
+ * point, impossible to order against the app's own setup, and silently skippable by a tree-shake or
+ * an import reshuffle. ADR-0070 Step 5 named the replacement and left it as follow-up work; this is it.
+ *
+ * ## The ordering contract
+ *
+ * Two boundaries, and the call belongs between them:
+ *
+ * - **After the app's logging/bridge wiring.** The log hub's listeners must exist before anything
+ *   logs, and this call can log (the duplicate-boot warning below, and `configureDataRuntime`'s
+ *   late-registration warning). apps/web states the same rule for its own collectors.
+ * - **Before anything that can read the session.** `relayStore` throws rather than guessing when its
+ *   endpoint resolvers are missing, so a read before this call is a loud failure, not a silent empty
+ *   host. That is deliberate: the failure names this function.
+ *
+ * Nothing here touches the network. Endpoint resolution is injected as *functions*, so a deeplink
+ * override captured after boot still applies, and the transport is built lazily on first use.
+ *
+ * ## Idempotency
+ *
+ * Safe to call twice (HMR, a remount) — the wiring is assignment, not accumulation. A second call is
+ * still reported: a duplicate boot means two entry paths believe they own it, which is how the
+ * pre-ADR-0070 tree ended up initializing the transport twice.
+ */
+export const createRuntime = (config: RuntimeConfig): void => {
+    if (booted) {
+        logger.warn(
+            'WEB_CORE',
+            '[createRuntime] called more than once (initAppRuntime); the runtime is already booted'
+        );
+    }
+    booted = true;
+
+    // The session's stores, before anything below can read or sweep the session.
+    const { secret, plain, device } = config.storage;
+    sessionStores.configure({ secret, plain });
+    runtimeStores.configure({ device });
+    // The platform the sockets and the link verdict read, before anything below can open one.
+    transportPlatform.configure(config.transport);
+    // The address, before the sweep below reads its logout flag.
+    authPlatform.configure(config.auth);
+    // Where the cache's rows live, before the data graph — built lazily, on first repository access.
+    localCachePlatform.configure(config.cache);
+
+    // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
+    // The plain store is the web storage lemon used to write in each environment.
+    dropLemonLeftovers(sessionStores.of('plain'));
+
+    // Before the sweep below, which takes what these name.
+    signedOutAppKeys.register(config.signedOutKeyPrefixes ?? []);
+
+    // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
+    // FIRST, because everything below may end up reading a token, and this is what drops the ones
+    // belonging to the account that just signed out.
+    logoutStorageSweeper.sweep();
+
+    // A cache clear on the previous page asked for this: every sync cursor saved before now is
+    // retired, including one an in-flight sync wrote after the clear. Before anything can read a
+    // cursor — no repository exists yet, and none may until the lines below have run.
+    applyPendingSyncCursorReset();
+
+    // Env → relay endpoint resolvers. Next, because everything below may end up reading the session.
+    configureSessionStore();
+    // Teaches the HTTP transport how to re-mint a lapsed signing credential.
+    //
+    // **Every route recovers the same way, because relay is the only credential that signs.** A relay
+    // token has no parent to mint a new one from, so its only recovery is `auth.refresh` through the
+    // socket that owns it (ADR-0070 invariant 1); `oauth`/`iap` sign with that same credential — their
+    // hosts have none of their own — so they take the same path (ADR-0076 Decision 3). The `cloud` branch
+    // that used to be here is gone with the route: nothing signs with the cloud credential any more,
+    // so no failed request can blame it. Cloud re-issue is still real — it belongs to the guard that
+    // watches the cloud SOCKET (`useCloudCredentialGuard` → `renewCloudSession`), not to HTTP.
+    //
+    // **Wired here rather than in a module of its own.** The two wirings above and below delegate to
+    // the module that OWNS the thing being configured (the store, the data runtime). This one owns
+    // nothing: it joins the HTTP registry to the socket renewers, and the registry deliberately
+    // imports nothing at runtime so the two sides never meet (see the transport's `http/credentialRecovery.ts`). A
+    // wiring with no owner belongs to the composition root, which is this function — it used to sit
+    // in `connection/` only because that folder happened to be downstream of both.
+    credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());
+
+    if (config.data) {
+        configureDataRuntime(config.data);
+    }
+
+    // Hands the repository graph down to the two layers that read it but sit below where it is
+    // assembled: the auth use cases and the sync plans. Same reasoning as the credential recovery
+    // above — the graph is built from the socket manager and the session, so the layers beside those
+    // cannot import it, and the wiring belongs to the root. Accessors, not instances: the graph is
+    // still built lazily on first access, and nothing here builds it.
+    authRepositorySource.provide(() => getRepositories().auth);
+    syncDataGraph.provide(getDataManager);
+
+    // Records this device's effective settings in the logs (ADR-0079 Decision 16). Last, because the
+    // boot line should describe the registry as the app will actually run with it, and unconditional
+    // because every app that boots the runtime also boots the config registry. With the registry
+    // unwired it degrades to a single "nothing is overridden" line rather than failing — the
+    // resolver simply has nothing to report yet.
+    attachConfigStateLog();
+};

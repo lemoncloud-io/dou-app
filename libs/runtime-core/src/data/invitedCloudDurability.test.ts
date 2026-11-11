@@ -1,3 +1,9 @@
+/**
+ * @jest-environment jsdom
+ *
+ * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
+ * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.
+ */
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
@@ -10,8 +16,8 @@ jest.mock('./runtime', () => ({
     getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
 }));
 const mockRelayUser: { current: { uid: string } | null } = { current: { uid: 'account-b' } };
-jest.mock('../session', () => ({
-    useSessionSelection: jest.fn(),
+jest.mock('@chatic/session', () => ({
+    ...jest.requireActual('@chatic/session'),
     getRelaySessionUser: () => mockRelayUser.current,
     getIdentityContext: () => ({ delegatorId: null }),
 }));

@@ -24,8 +24,8 @@ import {
 } from '@chatic/data';
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '../cloudChat';
-import { beginMediaSendTiming, type MediaSendTiming } from '../mediaSendTrace';
+import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
+import { beginMediaSendTiming, type MediaSendTiming } from '@chatic/runtime-core';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
 

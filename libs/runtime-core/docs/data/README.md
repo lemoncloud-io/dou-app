@@ -1,0 +1,340 @@
+# data — assembling the repository graph
+
+[`libs/data`](../../../data/README.md) has no opinion about which storage engine backs a cache, which
+socket a gateway talks to, or what the current cache scope is. This folder supplies all three: it
+builds the three data-source bundles, injects the scope, and hands the result to `createRepositories`.
+The output is what `useRuntimeRepositories()` returns.
+
+It lives in `@chatic/runtime-core` because it is the runtime's assembly, the same on every platform:
+`createRuntime` (`src/createRuntime.ts`) wires it, and what each platform answers — the cache's
+stores, the socket, the session's storage — comes in through the ports. The React hooks over the
+graph stay in `@chatic/app-runtime`.
+
+It owns nothing about _reading_ data. Streams, merges and cursors are the data layer's; sync timing
+is [libs/sync](../../../sync/README.md)'s.
+
+## Layout
+
+```text
+libs/runtime-core/src/data/        16 source files, 13 tests
+├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
+├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
+├── types.ts                      IDataManager · CacheAssemblyOptions
+├── localCachePlatform.ts         the holder of the platform's cache ports, configured at boot
+├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
+├── invitedCloudAcceptance.ts     whose acceptance an invited cloud row records
+├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── pairedCloudName.ts            syncPairedCloudName — a paired cloud's name, kept outside the cloud cache
+├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
+├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
+├── outbox.ts                     the offline chat outbox — a machine, not a policy
+├── mediaSendTrace.ts             beginMediaSendTiming · createMediaSendTracer — the chat_send_media sample
+└── factories/                    socketFactory · localFactory · httpFactory ·
+                                  outboxFactory — the state outbox's transport, one outbox for every graph · setStateOutboxObserver
+```
+
+The `data` group of the `runtime` facade (`index.ts`) and the hooks (`hooks/`) are the React
+surface's, in `libs/app-runtime/src/data/`.
+
+Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
+filled in a page by `webLocalCachePorts(tab)` from `@chatic/runtime-web`, which holds the routing
+(`resolveCacheBackend`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
+bridge adapters and a tab's invited-cloud import; see [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
+The entry point passes the ports to `initAppRuntime({ cache })` (`createRuntime` here), and `localCachePlatform.ports()`
+throws until it has.
+
+## Responsibilities
+
+### `DataManager` — the app graph, and a graph per cloud
+
+```ts
+interface IDataManager {
+    getRepositories(): DataRepositories; // the app graph — follows the selection
+    getContext(): DataContext;
+    getScopedRepositories(cid: string): DataRepositories; // pinned to one cloud
+    getScopedContext(cid: string): DataContext;
+}
+```
+
+**`ensure(context)` and `destroy()` are gone.** They had already become no-ops once the scope moved
+to read-time derivation, and a method that accepts a context while ignoring it invites a caller to
+believe pushing one works. Clearing the _session_ is the logout path's job; the scope follows it.
+`RuntimeDataBinder`, which used to push that context on every session render, was deleted with them —
+so there is no mount point left to revive it from. Reviving the commit brings back the render lag
+where an observer subscribed under a stale cid and never received the post-commit write.
+
+The constructor builds everything once, in order: the socket data sources, the local ones (with the
+app's cache options), the HTTP ones, an `ActiveScope`, and then the repositories with that scope as
+their `DataContextProvider`. `getSocketManager()` is resolved **per call, never captured** — the
+runtime is assembled lazily, so holding an instance from construction time either pins a manager that
+does not exist yet or misses a rebuild.
+
+**Local data sources receive only the selected scope**, without `socketCid`. Their job is to build a
+cache partition key (`${type}:${cid}:${uid}:${id}`); deciding whether a write belongs to the cloud the
+socket is actually attached to is the repository layer's, and that is what `ActiveScope.getContext()`
+splices `socketCid` in for.
+
+### Scoped repository graphs
+
+`getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
+kept for the session. It exists for work that belongs to a cloud other than — or independently of —
+the selected one: the sync plans, each writing its slot's frames; the background receive loops, each
+asking its cloud's delta ([libs/sync](../../../sync/README.md#background-receive)); chat prime's cache read
+and first page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
+
+| Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
+| ------------- | ------------------------------------------- | ----------------------------------------------------------------- |
+| Context       | `ActiveScope`: selected cloud + session uid | `{ cid, uid: getUidInCloud(cid), socketCid: cid }`, read per call |
+| Socket        | the active facade                           | `getScopedClient(slotKeyOf(cid))` — that cloud's slot only        |
+| Local sources | built once in the constructor               | **the same instances**                                            |
+| HTTP sources  | built once in the constructor               | the same instances                                                |
+
+**The local sources are shared, not copied**, because an observer is registered on a data-source
+instance: a write through a scoped graph has to reach the instance a screen subscribed through, or
+the screen never wakes. The partition is not the instance's to decide either way — every operation
+picks its storage from the context it runs under, so one shared instance serves every cloud's
+partition. That holds only where the repository hands its context down: a shared local source left
+to itself falls back to the **selected** cloud. `SyncMetaRepository` did not, and a cursor written
+through cloud A's graph while B was selected landed in B's partition; it now names its graph's
+`cid`/`uid` on every call, and a new repository over a shared local source has to do the same.
+
+**`socketCid` is the cloud itself**, because every socket call the graph makes goes through that
+cloud's slot; `acceptsAnswer` therefore never refuses an answer on a scoped graph. The uid is the one
+this account has in that cloud, read live — it can land after the graph exists, and a context with no
+uid names no partition, so the graph's cache operations are no-ops until it does.
+
+Two things it deliberately is not:
+
+- **Not the app graph when `cid` is the active cloud.** Handing the app graph back would make the active slot's frames follow the selection again during a switch, which is what the scoped graph exists to stop.
+- **Not evicted when the cloud's slot goes.** It is one small object per cloud visited, like the storage-per-partition memo underneath, and nothing in it is tied to one socket: its socket client resolves the slot on each call. Repository-instance state is its own — the only such state is the channel leave guard, and a background receive loop's `syncChannels` does read it. A leave made through the app graph is therefore not seen by that cloud's scoped graph: a loop delta already in flight when the user leaves a room can write the room back until the next delta prunes it. The window is one request long, and it opens only for a cloud that just stopped being a background one — the user has to be in it to leave a room — so the guard is not shared.
+
+HTTP still follows the committed session on both graphs; nothing that writes through a scoped graph
+calls it.
+
+### Writes addressed to a cloud
+
+A chat send is two moments on the app graph: the optimistic row's partition is read when the call
+starts, and the socket when the request goes out, after that row has been written. Both follow the
+selection, so a switch landing between them left the row in the cloud the user pressed send in and
+sent the message to the one they moved to — and nothing refused it, because `sendChat` has no
+`acceptsAnswer` check to fail. When the outgoing cloud's slot was then torn down, the request died
+with it.
+
+`runInCloud(cid, work)` (`data/cloudChat.ts`) names the cloud once, up front, and runs `work`
+against that cloud's graph. It is internal to this lib: the shells reach it only through the two
+sends built on it. `data.sendChatInCloud(cid, payload)` is the text send, and the image send (a row,
+an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence
+([image-send.md](../../../app-runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs):
+
+- It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
+- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../../../app-runtime/docs/connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
+
+A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not
+open one for it: at the moment of the press the cloud on screen always has a slot, so an unbound one
+means the session is not ready, and a failed row the user can retry says so better than a message
+that sits pending.
+
+Reactions, edits, deletes and read markers still go through the app graph. They are the same shape
+of write, and moving them is the same change made again.
+
+### The three factories
+
+Each returns only the interfaces a repository consumes; no gateway instance escapes.
+
+- **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth, invite and cloud gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
+- **`httpFactory`** builds five HTTP data sources over the gateways in [transport docs/http/](../../../transport/docs/http/README.md): auth, user, cloud, subscription, report.
+- **`localFactory`** wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta` — over the platform's cache ports: it asks `route(type)` once per domain per session, builds each with `storage(type, route, …)`, and hands the routes to `routed()` once, which in a page logs **one line per boot** naming the domains a phone shell could not hold.
+
+`localFactory` also records a **routing fingerprint** from the routes it was given, which is what stops
+a sync cursor outliving the storage it described; see
+[runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
+
+### Boot policy
+
+```ts
+initAppRuntime({ data: { repositories, cache } });
+```
+
+`configureDataRuntime` registers the app's policy **before** the runtime singleton is built. Calls
+**merge** per key, so one app can register `repositories` and another `cache` without either knowing
+about the other. A call that arrives after the runtime exists is **ignored with a warning** rather
+than throwing or rebuilding — the graph is assembled once in a constructor, so there is nothing to
+apply it to.
+
+`CacheAssemblyOptions` has exactly one field, `maxChatsPerChannel`. Unset means unbounded, which is
+what every client did before and still does unless it opts in. It only bites on web storage; inside a
+native shell chat always routes to SQLite.
+
+### The hooks
+
+The React hooks over this graph — `useRuntimeRepositories`, `useGlobalCacheSearch`, the cloud-name
+syncs, `useSendImages` — are not here: they are the React surface's, in
+[app-runtime docs/data](../../../app-runtime/docs/data/README.md).
+
+### The offline outbox
+
+`createChatOutbox(options)` is a **machine, and activation is the app's opt-in** — `apps/web` never
+constructs one, so this export cannot change behaviour by existing.
+
+```ts
+interface ChatOutbox {
+    start(): void;
+    stop(): void; // deactivates; the queue is kept
+    setReady(cid: string, ready: boolean): void; // pass whether that cloud's slot is verified
+    enqueue(input: OutboxEnqueueInput): void; // { id, cid, channelId, payload }
+    remove(id: string): void;
+    pending(cid?: string): readonly OutboxEntry[];
+    flush(): Promise<void>;
+}
+```
+
+The guarantee is **at-least-once, in order, per channel** — not exactly-once, because the wire carries
+no idempotency key. What shapes the rest:
+
+- **An entry carries the cloud it was written in**, because its failed row sits in that cloud's partition and its channel id means nothing anywhere else. Queues are keyed by `(cid, channelId)`, and readiness is per cloud: one cloud's socket being down holds back its own queue and no other. A cloud with no slot keeps its entries until it has one — the outbox never opens a socket to resend.
+
+- **One attempt per ready transition.** That is structural, not a setting: there is no attempt counter and no backoff timer, so a flapping connection cannot turn into a send storm.
+- **Queues are per channel within a cloud**, each with its own promise chain, and concurrent drains collapse into one.
+- **Dequeue is by identity, never by position** — an entry removed while a drain is in flight must not shift the one being sent.
+- **`hasLanded` is asymmetric.** `true` is strong; `false` only means "could not find it", so the entry is resent.
+- **A failed send retires the entry** and leaves the row marked failed, where the user can retry it deliberately.
+
+### The state outbox transport
+
+State writes — a read cursor, a room's notification setting, my name for a room — go local first and
+through the state outbox in `@chatic/data` ([libs/data outbox](../../../data/docs/outbox/README.md)).
+That lib decides what is sent and how values combine; when it goes out is the connection's lifecycle,
+which is this package's, so `factories/outboxFactory.ts` supplies it as the outbox's transport and
+`DataManager` builds **one outbox for every graph** — the app graph and each cloud's — passed in through
+`createRepositories`' options. A value set in either graph is the same queued value.
+
+| Transport need                      | What supplies it                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| whether a cloud can carry a request | that cloud's own slot, `subscribeSlotVerified(slotKeyOf(cid))` — never the active slot's |
+| where a write goes                  | `getScopedRepositories(cid)`: the graph whose socket is that cloud's slot                |
+| keeping the socket during a send    | `backgroundClouds.hold(cid)` — it keeps a bound slot, it does not open one               |
+| whose write it is                   | `getUidInCloud(cid)`; a write another account made is dropped                            |
+| what a refusal is                   | a 4xx other than 408, 429 or 499 (`isOutboxRefusal`)                                     |
+| retry timing                        | 2 s, 5 s, 15 s while the slot looks ready, then the next ready transition                |
+
+Which sockets exist bounds when a write can go: the relay always, the committed cloud, and up to five
+background clouds. A write to a cloud with no slot (past the cap, or no usable tokens) waits until
+that cloud's socket opens; its local half is already on screen.
+
+The outbox is also built with this package's observer (`runtimeOutboxObserver`), which hands each
+settled wait to whoever `setStateOutboxObserver` named — one process-wide slot, shared by every outbox
+`createRuntimeOutbox` builds — the web's `state_outbox` trace — as a
+`StateOutboxSample`: the cloud id becomes `kind` (relay / cloud), the durations whole milliseconds on
+the page's monotonic clock. With no observer set, no wait is timed. A wait that began on a hidden page,
+or that the page was hidden during, is not handed over: it would time the OS suspending the page, not
+a wait anyone sat through. A wait settling after its observer was removed or replaced is dropped, so
+stopping stops at once. An observer that throws is logged, never passed on to the outbox.
+
+### Invited clouds
+
+An invited cloud is the one domain with no server list API: if the row leaves the cache there is
+nothing to restore it from.
+
+Where the row lives follows the device user that can enter it. In a plain browser tab that user is the
+tab's guest, kept in `sessionStorage`, so the row is kept there too and ends with the tab
+([runtime-web docs/cache](../../../runtime-web/docs/cache/README.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
+has the routing and the one-time import from IndexedDB). Inside the mobile shell it is native SQLite;
+inside the desktop shell, IndexedDB.
+
+Two functions defend it, both best-effort and both idempotent:
+
+- `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list. It does nothing for `RELAY_CLOUD_ID`: the relay is never an invited cloud and `delegate-cloud` has no answer for it but a 404. A push names the relay `'#'`; its reader translates that before calling here.
+- `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it. The read goes to the relay, which holds the name the owner set; the invited cloud's own server keeps a copy that renames no longer reach.
+
+A row may carry `acceptedBy`, the device users that accepted the cloud on this device, which apps/web
+and desktop-web read to keep one device user's invited cloud out of another's list
+([apps/web invite](../../../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)). A
+row this module rebuilds (`recoverInvitedCloudIfMissing`) is recorded under the signed-in user
+(`getAcceptorId`: the relay uid, falling back to the `delegatorId`) — the delegation just succeeded
+for that user — so it is not listed for another account on the device. `withAcceptor` and
+`isAcceptedBy` (strict: an unattributed row is nobody's) are the shared helpers.
+
+The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
+OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the
+single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
+answers exist with no way to tell which is right.
+
+### Paired clouds' names
+
+A cloud a guest browser entered through a device pairing ("this cloud only") is neither owned nor
+invited: it is not in the relay catalog, it has no row in the cloud cache, and the approval names only
+its id. Its name is read by `syncPairedCloudName(cloud, cid)`, driven by `usePairedCloudNameSync()` once
+the active cloud is on the paired-cloud list and both its socket and the relay are verified. It runs in
+a plain browser tab too — pairing is a browser feature — and once per entered cloud; a failure is
+silent and waits for the next entry.
+
+- The read is `cloud.getCloud({ id }, { cache: false })`. The relay answers a non-owner, a paired guest
+  included, with a minimal `{ id, name, status }` view.
+- **It never writes the cloud cache.** Every row there is classified `owner` or `invited`. A plain
+  `getCloud` would create an `owner` row for a cloud the cache has never seen — and the screens treat
+  a non-invited cloud as one the user owns; an `invited` row would list the cloud as invited, with a
+  background socket and unread counts attached. A third `cloudType` would have to be ignored by every
+  reader of the cache, native ones included through the bridge's cache model.
+- The name goes into `@chatic/auth`'s `PairedCloudStore` instead, beside the paired-cloud list, in the
+  session key `chatic-paired-cloud-names`. It is dropped with the cloud (an ended pairing, a logout),
+  so it cannot outlive the approval it came with. Screens read it through
+  `runtime.session.usePairedCloudNames()`, below a cached name when one exists.
+
+### Clearing the cache
+
+`clearLocalCaches()` is the settings screen's "clear cache". It empties the local cache of every cloud
+this device holds a partition for and leaves sessions and tokens alone — it is not a logout.
+
+- **Which clouds.** The relay, every cloud in the recorded identity map (`getRecordedCloudIds`), and the committed cloud. A partition is keyed by the uid the account has in that cloud, and `recordCloudIdentity` stores one for every cloud a token was ever minted for, so that map reaches clouds that are neither on screen nor in any catalog. Each is cleared through its scoped graph, under its own uid. Rows left by an account the device is no longer signed in to are out of reach: no identity names their uid, so nothing names the partition.
+- **Which domains.** Everything the server refills for what is on screen: `channel`, `chat`, `join`, `place` (`site`), `profile`, `user`. `chat` qualifies although rows before a room's `joinedNo` are never served again, because they were never shown either — the join-window gate hides them — and `join` is cleared and refilled with it. Two are kept because the cache is the only copy — `cloud` (`invitecloud`, above) and `invite`, whose `dismissedAt` only this device writes. Clearing it would bring back every dismissed invite.
+- **Cursors last, and again on the next boot.** `syncMeta` is cleared per cloud once that cloud's data clears have settled: a cursor over an emptied store makes the next sync fetch only the delta and never fill the gap. That still leaves a sync that read its `since` before the clear and answers after it — it saves a fresh cursor over the empty store, and the 60-second poll then keeps that cursor's TTL alive for as long as the app is open. So the sweep also calls `requestSyncCursorReset()`, and the next boot's `initAppRuntime` turns that into a watermark: every cursor saved before that boot reads as 0, a full re-sync (`syncCursorWatermark`). The old page stamps its cursors before it unloads, so the watermark is always later than the one the race writes. It is a watermark rather than a second sweep at boot because a sweep there would build the data runtime before the native shell has reported which cache types it can store, and fix the routing wrongly for the session.
+- **Not kept.** An unsent chat (`chat_no: 0`) lives only in the `chat` slot and goes with it. The sweep does not pick rows out of a domain to save it, and apps/web's settings row does not warn about it either — losing unsent messages is the accepted price of a one-tap clear.
+- **Failures are counted, not thrown.** One domain's clear failing does not stop the rest; the result carries the count and the caller decides. apps/web reloads on a clean sweep and stays put with an error on a partial one, so a retry can repeat it.
+
+## Usage
+
+```ts
+// React
+const { channel, chat } = runtime.data.useRuntimeRepositories();
+
+// Outside React — the same graph, resolved synchronously
+const repos = getRepositories();
+
+// One cloud's graph, whichever cloud is selected
+const cloudA = runtime.data.getCloudRepositories('cloud-a');
+
+// A chat send, to the cloud of the row the user pressed send in
+await runtime.data.sendChatInCloud(channel.cid, { channelId: channel.id, content });
+```
+
+Everything else about using a repository — subscribing with `observe*`, refreshing, writing —
+belongs to [`libs/data`](../../../data/README.md).
+
+### What not to do
+
+- **Do not add a direct-gateway escape hatch.** Every read and write goes through a repository, and gateway instances stay inside `data/` and `http/`.
+- **Do not revive `ensure`/`destroy` on `DataManager`.** The scope is derived at read time; a setter that ignores its argument is worse than no setter.
+- **Do not capture `getSocketManager()` at construction.** Resolve it per call.
+- **Do not put a routing branch in a factory, an adapter or an app.** The platform's `route()` is the one decision point (`resolveCacheBackend` in a page), and a second one drifts from it invisibly.
+- **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
+- **Do not send a chat through `useRuntimeRepositories().chat.sendChat`.** It follows the selection, and a switch in flight splits the write across two clouds. Use `sendChatInCloud` with the cloud of the row on screen.
+- **Do not give the chat outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm. The state outbox may have one because its writes are idempotent and collapsed to one per key ([libs/data outbox](../../../data/docs/outbox/README.md#the-machine)).
+- **Do not build a second state outbox.** Every graph has to share the one `DataManager` builds, or a value set in the app graph and the same key set in a cloud's graph would be two queued values racing each other.
+
+## Notes for implementers and tests
+
+- The factories are stateless functions — receive, assemble, return. Module-level mutable state is allowed only for the runtime singletons; the one physical shared resource, the IndexedDB connection, lives with the web cache ports in `@chatic/runtime-web`.
+- `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty and reports no routes, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to go through the ports (`localFactory.test.ts` configures fake ones).
+- `setNativeCacheSupport` (from `@chatic/runtime-web`) must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made.
+- `@chatic/data` builds one storage per `(cid, uid)` partition, on first use, so the factory also runs after assembly. `createLocalDataSources` therefore asks `route()` the first time it builds a type and reuses the answer for every later partition — without that, a partition first reached after a late handshake would put `invite` on SQLite while the rest of the session, and the next boot, read IndexedDB (ADR-0112).
+- The type × environment routing matrix is asserted where the routing lives, in `@chatic/runtime-web`'s `localCache/routing.spec.ts`.
+
+## Further reading
+
+- [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md) — where a cache type lands, and the version negotiation behind it
+- [app-runtime docs/data](../../../app-runtime/docs/data/README.md) — the hooks over this graph, and `useSendImages`
+- [app-runtime docs/session/](../../../app-runtime/docs/session/README.md) — the session's React surface
+- [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over
+- [libs/sync](../../../sync/README.md) — what writes into these repositories without a screen asking
+- [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines

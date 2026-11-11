@@ -9,7 +9,7 @@ let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-p';
 let pairedCloudIds: string[] = ['cloud-p'];
 
-jest.mock('../pairedCloudName', () => ({
+jest.mock('@chatic/runtime-core/data/pairedCloudName', () => ({
     syncPairedCloudName: (...args: unknown[]) => syncPairedCloudName(...(args as [])),
 }));
 jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: () => ({ cloud }) }));

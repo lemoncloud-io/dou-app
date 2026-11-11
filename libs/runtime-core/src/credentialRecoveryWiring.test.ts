@@ -1,4 +1,10 @@
 /**
+ * @jest-environment jsdom
+ *
+ * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
+ * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.
+ */
+/**
  * One recovery for every route, because relay owns the only credential that signs. `oauth`/`iap`
  * hosts have none of their own, so they recover the same way.
  *
@@ -6,7 +12,7 @@
  * credential, so no failed request can blame it. Cloud re-issue is still real — it belongs to
  * `useCloudCredentialGuard`, which watches the cloud SOCKET, not to HTTP recovery.
  *
- * Driven through `initAppRuntime()` rather than a `configureCredentialRecovery()` of its own: the
+ * Driven through `createRuntime()` rather than a `configureCredentialRecovery()` of its own: the
  * wiring has no owning module (it joins the HTTP registry to the socket renewers), so it lives in the
  * composition root and the boot call is the only way to install it. That is also the contract worth
  * testing — a registry left unregistered is the SAFE state, so the thing that can silently break is
@@ -16,7 +22,7 @@ import { MemoryStore } from '@chatic/storage';
 import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { fakeAuthPorts } from '@chatic/auth/testing/platform';
-import { initAppRuntime } from './init';
+import { createRuntime } from './createRuntime';
 
 const mockRequestSessionRefresh = jest.fn();
 
@@ -46,9 +52,9 @@ describe('부팅 전', () => {
     });
 });
 
-describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
+describe('after createRuntime — the credential recovery wiring', () => {
     beforeAll(() => {
-        initAppRuntime({
+        createRuntime({
             storage: { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() },
             transport: fakeTransportPorts(),
             auth: fakeAuthPorts(),

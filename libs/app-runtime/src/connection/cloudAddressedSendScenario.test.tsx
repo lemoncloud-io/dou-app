@@ -25,7 +25,7 @@ import { resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { getCommittedCloudId } from '@chatic/session/store';
-import { sendChatInCloud } from '../data/cloudChat';
+import { sendChatInCloud } from '@chatic/runtime-core';
 import type { RuntimeSocketSlots } from './types';
 
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
@@ -48,7 +48,7 @@ jest.mock('@chatic/session/store/stores', () => ({
 jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 60 * 60_000 },
 }));
-jest.mock('../data/runtime', () => ({
+jest.mock('@chatic/runtime-core/data/runtime', () => ({
     getDataManager: () => ({
         getScopedRepositories: (cid: string) => ({
             chat: {

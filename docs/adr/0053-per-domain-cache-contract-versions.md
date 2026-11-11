@@ -81,7 +81,7 @@ domain refills from a server resync. **This premise is false for exactly one typ
 
 `invitecloud` has no server list API, making it **the one type where the cache itself is
 authoritative**
-([invitedCloudDurability.ts:56](../../libs/app-runtime/src/data/invitedCloudDurability.ts) —
+([invitedCloudDurability.ts:56](../../libs/runtime-core/src/data/invitedCloudDurability.ts) —
 _"the only local-only cache type (no server list API)"_). Moving its storage does not leave rows
 unfilled — it makes them **vanish.** The one recovery path is
 `issueCloudDelegationToken(cloudId)`, but that `cloudId` lived inside the row that was lost, and
@@ -203,9 +203,9 @@ exhausted the active-user tail.
 
 **Removed** — `migrateInvitedCloudsIntoNativeStore`, `useInvitedCloudMigration`, `SEED_FLAG_KEY` and
 `hasSeeded`/`markSeeded`
-([invitedCloudDurability.ts](../../libs/app-runtime/src/data/invitedCloudDurability.ts)) ·
+([invitedCloudDurability.ts](../../libs/runtime-core/src/data/invitedCloudDurability.ts)) ·
 `createWebInviteCloudStorage`
-([localFactory.ts:70](../../libs/app-runtime/src/data/factories/localFactory.ts) — since its only
+([localFactory.ts:70](../../libs/runtime-core/src/data/factories/localFactory.ts) — since its only
 consumer disappears, ADR-0051 Decision 1's "keep it" is reversed here) · the barrel export
 ([index.ts:59](../../libs/app-runtime/src/index.ts)) · the call site
 ([InvitedCloudDurabilityRunner.tsx:28](../../apps/web/src/app/runtime/InvitedCloudDurabilityRunner.tsx)) ·
