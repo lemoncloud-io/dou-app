@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Features
+
+- (web/channels) offer me last in the @ list, not leave me out
+
+## [2026-11-11] - No version updates
+
 ### Refactor
 
 - (auth,runtime-web,app-runtime) open the session's address as platform ports
