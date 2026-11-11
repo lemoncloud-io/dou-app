@@ -36,6 +36,12 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
+const toast = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    toast,
+}));
+
 import '../../../i18n';
 
 import { useNotificationPrefsStore } from '../stores';
@@ -94,5 +100,16 @@ describe('usePlaceNotifyInheritance', () => {
 
         expect(updateJoin).not.toHaveBeenCalled();
         expect(useNotificationPrefsStore.getState().placeNotify['c1:p2']).toBeUndefined();
+    });
+
+    it('raises no toast for a refused write nobody asked for', async () => {
+        updateJoin.mockRejectedValue(new Error('refused'));
+        mount();
+
+        emit([channel('G2', 'p1')]);
+        await act(async () => undefined);
+
+        expect(updateJoin).toHaveBeenCalledTimes(1);
+        expect(toast).not.toHaveBeenCalled();
     });
 });

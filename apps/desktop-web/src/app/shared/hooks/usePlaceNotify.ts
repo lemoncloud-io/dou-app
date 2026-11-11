@@ -23,7 +23,6 @@ import { useChannels } from './useChannels';
 export const usePlaceNotifyApply = () => {
     const { t } = useTranslation();
     const { setChannelNotify } = useDesktopChannelMutations();
-    const myUid = runtime.session.useSessionIdentity().userId ?? null;
 
     return useCallback(
         (
@@ -37,7 +36,7 @@ export const usePlaceNotifyApply = () => {
             if (remember) store.setPlaceNotify(key, mode, ids);
             else store.addPlaceKnown(key, ids);
 
-            const writes = placeNotifyWrites(channels, store, mode, myUid);
+            const writes = placeNotifyWrites(channels, store, mode);
             const delivered = writes.map(write => {
                 store.setChannelNotify(write.channelId, write.notify);
                 return setChannelNotify(write);
@@ -48,7 +47,7 @@ export const usePlaceNotifyApply = () => {
                 return refused;
             });
         },
-        [myUid, setChannelNotify, t]
+        [setChannelNotify, t]
     );
 };
 

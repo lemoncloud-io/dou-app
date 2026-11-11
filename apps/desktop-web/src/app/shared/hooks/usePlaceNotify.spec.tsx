@@ -99,6 +99,17 @@ describe('usePlaceNotify', () => {
         expect(written().some(payload => (payload as { channelId: string }).channelId === 'S1')).toBe(false);
     });
 
+    it('skips a channel with no join of mine, and does not mark it known', async () => {
+        listed.channels = [group('G1'), { id: 'U1', stereo: 'group' } as unknown as DomainChannel];
+        const { result } = renderHook(() => usePlaceNotify('p1'));
+
+        await act(async () => result.current.setMode('none'));
+
+        expect(written()).toEqual([{ channelId: 'G1', userId: 'cloud-me', notify: 'none' }]);
+        expect(useNotificationPrefsStore.getState().channelNotify.U1).toBeUndefined();
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p1'].known).toEqual(['G1']);
+    });
+
     it('sends nothing for channels already at the chosen level', async () => {
         useNotificationPrefsStore.setState({ channelNotify: { G1: 'none' } });
         const { result } = renderHook(() => usePlaceNotify('p1'));

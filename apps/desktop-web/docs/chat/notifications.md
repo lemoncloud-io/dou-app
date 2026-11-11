@@ -21,6 +21,11 @@ devices follow those channel records. A cloud level is the same write for every 
 - A 1:1 has no "mentions only" (see the channel settings), so a place set to mentions only leaves
   its 1:1s at all messages.
 - My notes-to-self room is listed in every place and never notifies, so a place level skips it.
+- A listed channel with no join row of mine (`$join.userId`) is skipped and not counted as known:
+  my account id is not the id my join is filed under outside the relay, so there is nothing safe to
+  write yet. It takes the place level once its join arrives.
+- A write the inheritance runner makes on its own is not announced when refused; only a level the
+  person chose raises the failure toast.
 - A channel already at the chosen level is not written again.
 - A refused batch raises one toast (`place.settings.notify.failed`), not one per channel or place.
 

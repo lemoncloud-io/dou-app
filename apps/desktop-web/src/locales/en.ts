@@ -711,7 +711,7 @@ export const en = {
     'cloud.hub.placesHint': 'Open one to manage it.',
     'cloud.hub.notifications': 'Notifications',
     'cloud.hub.notify.title': "This cloud's notifications",
-    'cloud.hub.notify.hint': 'Applies to every place and channel in this cloud.',
+    'cloud.hub.notify.hint': 'Applies to every place in this cloud.',
     'cloud.hub.notify.switchHint': 'Switch to this cloud to set its notifications.',
     'cloud.hub.nameLabel': 'Cloud name',
     'cloud.hub.save': 'Save',

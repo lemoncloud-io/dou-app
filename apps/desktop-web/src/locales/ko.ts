@@ -716,7 +716,7 @@ export const ko: EnTranslation = {
     'cloud.hub.placesHint': '하나를 열어서 관리해요.',
     'cloud.hub.notifications': '알림',
     'cloud.hub.notify.title': '이 클라우드 알림',
-    'cloud.hub.notify.hint': '이 클라우드의 모든 플레이스와 채널에 적용돼요.',
+    'cloud.hub.notify.hint': '이 클라우드의 모든 플레이스에 적용돼요.',
     'cloud.hub.notify.switchHint': '이 클라우드로 전환하면 알림을 한 번에 설정할 수 있어요.',
     'cloud.hub.nameLabel': '클라우드 이름',
     'cloud.hub.save': '저장',

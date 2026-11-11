@@ -41,7 +41,11 @@ export const usePlaceNotifyInheritance = () => {
                 if (!pref) return;
                 const known = new Set(pref.known);
                 const fresh = placeNotifyTargets(channels).filter(channel => !known.has(channel.id ?? ''));
-                if (fresh.length > 0) void applyRef.current(key, fresh, pref.mode, { remember: false });
+                // Nobody asked for this write, so a refusal is not announced: the channel keeps its
+                // level on this device, and the person sees the server's on the channel itself.
+                if (fresh.length > 0) {
+                    void applyRef.current(key, fresh, pref.mode, { remember: false, announce: false });
+                }
             });
         });
         return () => {
