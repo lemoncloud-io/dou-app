@@ -205,8 +205,13 @@ describe('buildMentionCandidates', () => {
             everyoneLabel: '전체',
         });
 
-    it('puts everyone first, then the other members by name, without me', () => {
-        expect(build(['u3', 'me', 'u2']).map(row => row.id)).toEqual([EVERYONE_CANDIDATE_ID, 'u2', 'u3']);
+    // My name sorts before `u3`'s here, so this also checks I go last rather than by name.
+    it('puts everyone first, then the other members by name, then me', () => {
+        expect(build(['u3', 'me', 'u2']).map(row => row.id)).toEqual([EVERYONE_CANDIDATE_ID, 'u2', 'u3', 'me']);
+    });
+
+    it('offers me when the query matches my name', () => {
+        expect(filterMentionCandidates(build(['u2', 'me']), '나').map(row => row.id)).toEqual(['me']);
     });
 
     it('labels a member by their name and carries their photo', () => {
