@@ -1,9 +1,4 @@
-// connection/types.ts — the socket slots the host derives and the binders consume.
-//
-// This file was `runtime/types.ts` until the `runtime/` module was dissolved (its six hooks belonged
-// to `data`, `connection` and `session` by consumer intent, and `runtime/` was not one of the
-// engines in libs/app-runtime/README.md's table). `SessionProfile` moved with its hook, to
-// `session/hooks/session/readers/useRuntimeProfile.ts`.
+// connection/types.ts — the socket slots the controller derives and the binders consume.
 
 import type { SocketBindingConfig } from '@chatic/transport';
 
@@ -26,12 +21,12 @@ export interface RuntimeSocketSlot {
  *
  * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
  * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
- * it from the store (ADR-0076 Decision 1), so the field was a duplicate that could only agree or silently
+ * it from the store, so the field was a duplicate that could only agree or silently
  * disagree. What is left is exactly the socket slots, which is what the name now says.
  */
 export interface RuntimeSocketSlots {
     relay?: RuntimeSocketSlot;
     cloud?: RuntimeSocketSlot;
-    /** Optional so a host injecting slots (tests, `RuntimeHostProps.slots`) can leave it out. */
+    /** Optional so a test handing the binder its slots can leave it out. */
     background?: RuntimeSocketSlot[];
 }

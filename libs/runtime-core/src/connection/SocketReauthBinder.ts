@@ -1,16 +1,9 @@
-import { useEffect, useRef } from 'react';
-
-import { getSocketManager, slotKeyOf } from '@chatic/transport';
-import type { SocketKind } from '@chatic/transport';
+import { slotKeyOf } from '@chatic/transport';
+import type { ISocketManager, SocketKind } from '@chatic/transport';
 import { reauthenticateActiveSocket } from '@chatic/auth';
 import type { SocketSessionDelegate } from '@chatic/auth';
 import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
-import { socketRebootKey } from './utils/socketRebootKey';
-
-export interface SocketReauthBinderProps {
-    slots: RuntimeSocketSlots;
-    delegate: SocketSessionDelegate;
-}
+import { socketRebootKey } from './socketRebootKey';
 
 /**
  * Only the RELAY slot is watched, and that is now a stated invariant rather than an accident.
@@ -56,12 +49,14 @@ const emptySnapshot = (): SlotSnapshot => ({ reboot: '', token: '' });
  * writeback also changes the token but must NOT trigger re-auth) live in reauthenticateActiveSocket,
  * which no-ops when the token already matches the SDK's.
  */
-export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBinderProps) => {
-    const socketManager = getSocketManager();
-    const prevRef = useRef<Partial<Record<SocketKind, SlotSnapshot>>>({ relay: emptySnapshot() });
-    const hasMountedRef = useRef(false);
+export class SocketReauthBinder {
+    private readonly prev: Partial<Record<SocketKind, SlotSnapshot>> = { relay: emptySnapshot() };
+    private seeded = false;
 
-    useEffect(() => {
+    constructor(private readonly manager: ISocketManager) {}
+
+    /** Compares `slots` with the previous pass and re-authenticates a slot whose identity moved in place. */
+    apply(allSlots: RuntimeSocketSlots, delegate: SocketSessionDelegate): void {
         const slots: Partial<Record<SocketKind, RuntimeSocketSlot | undefined>> = {
             relay: allSlots.relay,
         };
@@ -71,11 +66,11 @@ export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBi
             token: slots[kind]?.identityToken ?? '',
         });
 
-        // First render: the sockets are freshly bootstrapped (or absent). Seed the refs and skip.
-        if (!hasMountedRef.current) {
-            hasMountedRef.current = true;
+        // First pass: the sockets are freshly bootstrapped (or absent). Seed the snapshots and skip.
+        if (!this.seeded) {
+            this.seeded = true;
             for (const kind of SLOT_KINDS) {
-                prevRef.current[kind] = snapshotOf(kind);
+                this.prev[kind] = snapshotOf(kind);
             }
             return;
         }
@@ -83,8 +78,8 @@ export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBi
         for (const kind of SLOT_KINDS) {
             const slot = slots[kind];
             const next = snapshotOf(kind);
-            const prev = prevRef.current[kind] ?? emptySnapshot();
-            prevRef.current[kind] = next;
+            const prev = this.prev[kind] ?? emptySnapshot();
+            this.prev[kind] = next;
 
             const socketChanged = prev.reboot !== next.reboot;
             const tokenChanged = prev.token !== next.token;
@@ -97,14 +92,10 @@ export const SocketReauthBinder = ({ slots: allSlots, delegate }: SocketReauthBi
 
             if (!slot) continue;
             void reauthenticateActiveSocket({
-                manager: socketManager,
+                manager: this.manager,
                 delegate,
                 slot: slotKeyOf(slot.config.cid),
             });
         }
-        // Deps are the slots (the configs + tokens actually read) plus the stable manager and
-        // delegate; the per-slot refs above absorb re-runs that are not a real identity change.
-    }, [allSlots, socketManager, delegate]);
-
-    return null;
-};
+    }
+}

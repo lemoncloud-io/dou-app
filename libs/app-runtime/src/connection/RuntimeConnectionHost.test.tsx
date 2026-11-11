@@ -1,84 +1,91 @@
-import { render, waitFor } from '@testing-library/react';
-import { MemoryStore } from '@chatic/storage';
+import { StrictMode, useEffect, useSyncExternalStore } from 'react';
+import type { ReactNode } from 'react';
+import { act, render } from '@testing-library/react';
 
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
-import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
-import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
-import { getSocketSlotContext } from '@chatic/session/store';
-import { useBackgroundReceive } from './hooks/useBackgroundReceive';
-import { sessionStores } from '@chatic/session/store/ports';
+import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { useRelaySessionInit } from '../session/hooks/app/useRelaySessionInit';
 
-// The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
-// gets its own mock — gate returns ready so children render.
+// The boot gate comes from its concrete module (the session barrel does not sell it), so it gets its
+// own mock — ready unless a test says otherwise.
 jest.mock('../session/hooks/app/useRelaySessionInit', () => ({
     useRelaySessionInit: jest.fn().mockReturnValue(true),
 }));
 
 // Mocked at its concrete path (the host's own import) so the ONE difference between the two hosts is
-// observable as an argument. The real hook ran here before, incidentally — nothing asserted it, and
-// it only reached the store snapshot the `@chatic/session/store` mock below already supplies.
+// observable as an argument.
 const mockKeepAlive = jest.fn();
 jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
     useRelaySessionKeepAlive: (enabled: boolean) => mockKeepAlive(enabled),
 }));
 
-// The host derives its own slots now (ADR-0076 G5), so `useRuntimeSocketSlots` runs even when a
-// test passes `slots` explicitly. The device id is one of its two inputs; the other is the narrow
-// session snapshot, overridden on `@chatic/session/store` below. Mocked at the hook's CONCRETE path
-// because that is what the slots hook imports — the session barrel publishes it outward only.
+// The device id the host hands the controller: the page's own id, unless the shell injected one.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
-    useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),
+    readSessionDeviceId: () => 'device-1',
+    resolveDeviceIds: (sessionDeviceId: string) => ({ deviceId: sessionDeviceId }),
 }));
 
-// SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.
-// SocketReauthBinder calls reauthenticateActiveSocket on same-socket identity changes.
+// What the controller drives, stubbed where it would reach a server. The controller itself is real:
+// these tests are about the host starting and stopping it at the right moments.
 jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
     bootstrapSocketConnection: jest.fn().mockResolvedValue(jest.fn()),
 }));
 jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
-
+jest.mock('@chatic/auth/socket/backgroundCloudTokens', () => ({
+    BackgroundCloudTokens: jest.fn().mockImplementation(() => ({ sync: jest.fn(), dispose: jest.fn() })),
+}));
+jest.mock('@chatic/runtime-core/connection/backgroundSlots', () => ({
+    currentBackgroundSelection: () => [],
+    readyBackgroundConfigs: () => [],
+    liveBackgroundReadiness: {},
+}));
 jest.mock('@chatic/transport/socket/runtime', () => {
-    const mockManager = { destroy: jest.fn(), setActiveSlot: jest.fn(), getSlotKeys: jest.fn(() => []) };
+    const mockManager = {
+        destroy: jest.fn(),
+        setActiveSlot: jest.fn(),
+        getSlotKeys: jest.fn(() => []),
+        subscribeSlotClients: jest.fn(() => () => undefined),
+    };
     return { getSocketManager: jest.fn().mockReturnValue(mockManager) };
 });
-// Sync has its own creation point now (`@chatic/sync`'s runtime.ts); SocketBinder reaches it directly.
-jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
-// Background clouds' token preparation has its own tests; the host's job here is only the sockets.
-jest.mock('./hooks/useBackgroundCloudTokens', () => ({ useBackgroundCloudTokens: jest.fn() }));
-// The receive loops have their own tests too; here only whether the host turns them on.
-jest.mock('./hooks/useBackgroundReceive', () => ({ useBackgroundReceive: jest.fn() }));
+const mockStopReceive = jest.fn();
+const mockStartReceive = jest.fn(() => mockStopReceive);
+jest.mock('@chatic/sync/runtime', () => ({
+    getSyncManager: jest.fn(),
+    startBackgroundReceive: () => mockStartReceive(),
+}));
 
-// SPREAD the real module: `useRelaySessionKeepAlive` (mounted by this host, from its concrete path)
-// reaches `useSessionAuth` → `subscribeSessionSignal` + `getSessionAuthSnapshot`, which live here. A
-// narrow mock leaves those undefined and `useSyncExternalStore` fails with "getSnapshot is not a
-// function" — a crash three frames away from the mock that caused it.
+// SPREAD the real module: the keep-alive and init hooks are mocked, but the session barrel still
+// re-exports the rest of the store and a narrow mock would leave those undefined.
 jest.mock('@chatic/session/store', () => ({
     ...jest.requireActual('@chatic/session/store'),
     getCommittedCloudId: jest.fn().mockReturnValue(null),
     getSocketSlotContext: jest.fn(),
 }));
 
-jest.mock('@chatic/runtime-core/data/runtime', () => {
-    const mockDataManager = { getRepositories: jest.fn(), getContext: jest.fn() };
-    return { getDataManager: jest.fn().mockReturnValue(mockDataManager) };
-});
-
 const mockedBootstrap = bootstrapSocketConnection as jest.MockedFunction<typeof bootstrapSocketConnection>;
 const mockedSlotContext = getSocketSlotContext as jest.MockedFunction<typeof getSocketSlotContext>;
-const mockedDeviceId = useDynamicDeviceId as jest.MockedFunction<typeof useDynamicDeviceId>;
+const mockedInit = useRelaySessionInit as jest.MockedFunction<typeof useRelaySessionInit>;
+const mockedCommitted = getCommittedCloudId as jest.MockedFunction<typeof getCommittedCloudId>;
 
-/** No relay token, no cloud → the derived slots are empty, so an explicit prop is what boots. */
-const noSession = {
-    relay: { wss: 'wss://relay', identityToken: null },
+const signedIn = {
+    relay: { wss: 'wss://relay', identityToken: 'relay-token' },
     cloud: { cloudId: 'default', wss: null, identityToken: null, isActive: false },
 } as never;
 
-const cloudSlots = {
-    cloud: { config: { url: 'wss://test.com', deviceId: 'device-1', wssType: 'cloud' as const, cid: 'my-cloud' } },
-};
+const relayConfig = { url: 'wss://relay', deviceId: 'device-1', wssType: 'relay', cid: 'default' };
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockedBootstrap.mockResolvedValue(jest.fn());
+    mockedSlotContext.mockReturnValue(signedIn);
+    mockedInit.mockReturnValue(true);
+    mockedCommitted.mockReturnValue(null);
+});
 
 /**
  * The two hosts are one component with a single switch flipped. That switch is these two cases —
@@ -89,17 +96,7 @@ const cloudSlots = {
  * to pass the prop it would silently get a guest session. That regression has no symptom on
  * screen, so the test is the only line of defense.
  */
-// The host derives its slots from the session's real stores (the recent clouds), which need a store.
-beforeEach(() => sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() }));
-
 describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockedBootstrap.mockResolvedValue(jest.fn());
-        mockedDeviceId.mockReturnValue({ deviceId: 'device-1' } as never);
-        mockedSlotContext.mockReturnValue(noSession);
-    });
-
     it('RuntimeConnectionHost는 게스트를 살려 둔다', () => {
         render(<RuntimeConnectionHost />);
 
@@ -114,90 +111,134 @@ describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
 });
 
 describe('RuntimeConnectionHost', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockedBootstrap.mockResolvedValue(jest.fn());
-        mockedDeviceId.mockReturnValue({ deviceId: 'device-1' } as never);
-        mockedSlotContext.mockReturnValue(noSession);
-    });
-
-    it('데이터 스코프를 밀어 넣지 않고 소켓만 부팅한다 (delegate prop 없이)', async () => {
-        render(
-            <RuntimeConnectionHost slots={cloudSlots}>
-                <div>Children</div>
-            </RuntimeConnectionHost>
-        );
-
-        // The data scope is no longer pushed in here — ActiveScope reads it from session/store
-        // (ADR-0070 Decision 7). This is the change that removed the bug where a downstream hook
-        // subscribed with a stale cid because the push ran in an effect. The push API itself is
-        // gone now (no `ensure` on IDataManager), so the type system enforces that fact.
-        await waitFor(() => {
-            // The delegate is created internally and passed through to bootstrap.
-            expect(mockedBootstrap).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    config: cloudSlots.cloud.config,
-                    delegate: expect.objectContaining({ getAuthRegistration: expect.any(Function) }),
-                })
-            );
-        });
-    });
-
-    it('tears down the socket when the slots lose that kind', async () => {
-        const { rerender } = render(
-            <RuntimeConnectionHost slots={cloudSlots}>
-                <div>Children</div>
-            </RuntimeConnectionHost>
-        );
-
-        await waitFor(() => {
-            expect(mockedBootstrap).toHaveBeenCalledTimes(1);
-        });
-        // The binder tears down what the MANAGER holds, so the stub has to report the booted slot.
-        const socketManager = getSocketManager();
-        (socketManager.getSlotKeys as jest.Mock).mockReturnValue(['my-cloud']);
-
-        rerender(
-            <RuntimeConnectionHost slots={{}}>
-                <div>Children</div>
-            </RuntimeConnectionHost>
-        );
-
-        await waitFor(() => {
-            expect(socketManager.destroy).toHaveBeenCalledWith('my-cloud');
-        });
-    });
-
-    // The point of G5: an app mounts the host and passes NOTHING. Before this, all four apps ran
-    // `const binding = useRuntimeBinding()` and handed it straight back down — four copies of one
-    // line whose only job was to move a value the host could read itself.
-    it('slots prop 없이도 세션에서 슬롯을 스스로 파생해 부팅한다', async () => {
-        mockedSlotContext.mockReturnValue({
-            relay: { wss: 'wss://relay', identityToken: 'relay-token' },
-            cloud: { cloudId: 'default', wss: null, identityToken: null, isActive: false },
-        } as never);
-
+    // An app mounts the host and passes NOTHING: the slots come from the session, the delegate from
+    // the controller.
+    it('binds the slots it derives from the session, with a delegate of its own', () => {
         render(
             <RuntimeConnectionHost>
                 <div>Children</div>
             </RuntimeConnectionHost>
         );
 
-        await waitFor(() => {
-            expect(mockedBootstrap).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    config: { url: 'wss://relay', deviceId: 'device-1', wssType: 'relay', cid: 'default' },
-                })
-            );
-        });
+        expect(mockedBootstrap).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: relayConfig,
+                delegate: expect.objectContaining({ getAuthRegistration: expect.any(Function) }),
+            })
+        );
     });
 
-    it('receives for the background clouds of the slots it derives, and not for slots handed in', () => {
+    it('binds nothing before the session is ready, but runs the background half from mount', () => {
+        mockedInit.mockReturnValue(false);
+
+        const { rerender } = render(<RuntimeConnectionHost />);
+
+        expect(mockedBootstrap).not.toHaveBeenCalled();
+        expect(mockStartReceive).toHaveBeenCalledTimes(1);
+
+        mockedInit.mockReturnValue(true);
+        rerender(<RuntimeConnectionHost />);
+
+        expect(mockedBootstrap).toHaveBeenCalledWith(expect.objectContaining({ config: relayConfig }));
+        expect(mockStartReceive).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts binding before the children's effects run", () => {
+        const seenByChild: number[] = [];
+        const Child = () => {
+            useEffect(() => {
+                seenByChild.push(mockedBootstrap.mock.calls.length);
+            }, []);
+            return null;
+        };
+
+        render(
+            <RuntimeConnectionHost>
+                <Child />
+            </RuntimeConnectionHost>
+        );
+
+        expect(seenByChild).toEqual([1]);
+    });
+
+    it('stops both halves on unmount: the receive loops end and every boot is detached', async () => {
+        const detachBoot = jest.fn();
+        mockedBootstrap.mockResolvedValue(detachBoot);
         const { unmount } = render(<RuntimeConnectionHost />);
-        expect(useBackgroundReceive).toHaveBeenLastCalledWith(true);
+        await act(async () => undefined);
+
         unmount();
 
-        render(<RuntimeConnectionHost slots={cloudSlots} />);
-        expect(useBackgroundReceive).toHaveBeenLastCalledWith(false);
+        expect(mockStopReceive).toHaveBeenCalledTimes(1);
+        expect(detachBoot).toHaveBeenCalledTimes(1);
+    });
+
+    // The scenario the in-commit flush exists for: something above the host already listens to the
+    // session, so React schedules its render before the controller hears the signal. The screens then
+    // commit — and run their effects — in that render. The pass has to have moved the active slot by
+    // the time they do.
+    it("moves the active slot before the children's effects on a later change too", async () => {
+        const subscribeCloud = (listener: () => void) => sessionSignal.subscribe(['cloud:token'], listener);
+        const readSlots = () => getSocketSlotContext();
+        const Above = ({ children }: { children: ReactNode }) => {
+            useSyncExternalStore(subscribeCloud, readSlots);
+            return <>{children}</>;
+        };
+        const activeSeenByChild: unknown[] = [];
+        const Child = () => {
+            const slots = useSyncExternalStore(subscribeCloud, readSlots);
+            useEffect(() => {
+                const calls = (getSocketManager().setActiveSlot as jest.Mock).mock.calls;
+                activeSeenByChild.push(calls[calls.length - 1]?.[0]);
+            }, [slots]);
+            return null;
+        };
+        // The session gate opens after the first render, so the controller subscribes after `Above`.
+        mockedInit.mockReturnValue(false);
+        const tree = () => (
+            <Above>
+                <RuntimeConnectionHost>
+                    <Child />
+                </RuntimeConnectionHost>
+            </Above>
+        );
+        const { rerender } = render(tree());
+        mockedInit.mockReturnValue(true);
+        rerender(tree());
+        expect(activeSeenByChild).toEqual([null]);
+
+        mockedCommitted.mockReturnValue('cloud-a');
+        mockedSlotContext.mockReturnValue({
+            relay: { wss: 'wss://relay', identityToken: 'relay-token' },
+            cloud: { cloudId: 'cloud-a', wss: 'wss://cloud-a', identityToken: 'cloud-token', isActive: true },
+        } as never);
+        act(() => sessionSignal.emit('cloud:token'));
+        await act(async () => undefined);
+
+        expect(activeSeenByChild).toEqual([null, 'cloud-a']);
+    });
+
+    // desktop-web runs under StrictMode: mount → unmount → mount. The second mount re-bootstraps on
+    // the same clients, the first mount's boots detach themselves, and nothing is torn down.
+    it('survives StrictMode: one receive loop left running, no socket destroyed', async () => {
+        const detachBoots: jest.Mock[] = [];
+        mockedBootstrap.mockImplementation(() => {
+            const detach = jest.fn();
+            detachBoots.push(detach);
+            return Promise.resolve(detach);
+        });
+
+        render(
+            <StrictMode>
+                <RuntimeConnectionHost />
+            </StrictMode>
+        );
+        await act(async () => undefined);
+
+        expect(mockStartReceive).toHaveBeenCalledTimes(2);
+        expect(mockStopReceive).toHaveBeenCalledTimes(1);
+        expect(detachBoots).toHaveLength(2);
+        expect(detachBoots.map(detach => detach.mock.calls.length)).toEqual([1, 0]);
+        expect(getSocketManager().destroy).not.toHaveBeenCalled();
     });
 });

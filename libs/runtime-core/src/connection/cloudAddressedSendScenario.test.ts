@@ -11,12 +11,11 @@
  */
 import { transportPlatform } from '@chatic/transport/platform';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
-import { render } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketBinder } from './SocketBinder';
-import { readyBackgroundConfigs } from './utils/backgroundSlots';
+import { readyBackgroundConfigs } from './backgroundSlots';
 import { SocketManager } from '@chatic/transport/socket/SocketManager';
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import type { SocketBindingConfig } from '@chatic/transport/socket/types';
@@ -25,15 +24,14 @@ import { resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { getCommittedCloudId } from '@chatic/session/store';
-import { sendChatInCloud } from '@chatic/runtime-core';
+import { sendChatInCloud } from '../data/cloudChat';
 import type { RuntimeSocketSlots } from './types';
 
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({ bootstrapSocketConnection: jest.fn() }));
 jest.mock('@chatic/session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('@chatic/session/store/stores', () => ({
@@ -48,7 +46,7 @@ jest.mock('@chatic/session/store/stores', () => ({
 jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 60 * 60_000 },
 }));
-jest.mock('@chatic/runtime-core/data/runtime', () => ({
+jest.mock('../data/runtime', () => ({
     getDataManager: () => ({
         getScopedRepositories: (cid: string) => ({
             chat: {
@@ -89,7 +87,7 @@ const config = (cid: string, wssType: 'relay' | 'cloud' = 'cloud'): SocketBindin
     cid,
 });
 
-/** The slots as `useRuntimeSocketSlots` derives them: relay, the committed cloud, then the selection. */
+/** The slots as `deriveSocketSlots` derives them: relay, the committed cloud, then the selection. */
 const deriveSlots = (): RuntimeSocketSlots => {
     const committed = mockedCommitted();
     return {
@@ -119,13 +117,15 @@ describe('a send addressed to its cloud, across a switch', () => {
         mockedCommitted.mockReturnValue('cloud-a');
     });
 
-    const renderBinder = () => {
-        const view = render(<SocketBinder slots={deriveSlots()} delegate={delegate} />);
-        return () => view.rerender(<SocketBinder slots={deriveSlots()} delegate={delegate} />);
+    /** A binder that has applied the derived slots; the returned function derives and applies again. */
+    const startBinder = () => {
+        const binder = new SocketBinder(manager);
+        binder.apply(deriveSlots(), delegate);
+        return () => binder.apply(deriveSlots(), delegate);
     };
 
     it("keeps A's socket through the switch to B, and the ack arrives on it", async () => {
-        const reconcile = renderBinder();
+        const reconcile = startBinder();
         const clientA = manager.getClient(slotKeyOf('cloud-a'))!;
 
         const sent = sendChatInCloud('cloud-a', { channelId: 'ch-1', content: 'hello' });
@@ -149,7 +149,7 @@ describe('a send addressed to its cloud, across a switch', () => {
     });
 
     it('control: without the hold, the same switch tears A down under the send', () => {
-        const reconcile = renderBinder();
+        const reconcile = startBinder();
         const clientA = manager.getClient(slotKeyOf('cloud-a'))!;
 
         void manager.getScopedClient(slotKeyOf('cloud-a')).request('chat.send', { channelId: 'ch-1' });

@@ -15,12 +15,17 @@ libs/runtime-core/src/
 ├── createRuntime.ts    the assembly: every wiring call, in order
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
-└── data/               the repository graph — see docs/data/
+├── data/               the repository graph — see docs/data/
+└── connection/         the connection controller: session → socket slots — see docs/connection/
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. They boot it through `@chatic/app-runtime`'s `initAppRuntime`,
 which is `createRuntime` under the name they know, and read it through `runtime`. The graph's React
 hooks stay there too; [docs/data](./docs/data/README.md) covers the graph itself.
+
+The connections live here for the same reason: `createConnectionController` keeps the sockets in line
+with the session — the slots, the binders, the background clouds' tokens and receive loops — without
+React, and app-runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
 
 ## Purpose
 

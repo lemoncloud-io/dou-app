@@ -1,28 +1,14 @@
-import { StrictMode } from 'react';
-import { render } from '@testing-library/react';
-
 import { SocketBinder } from './SocketBinder';
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
-import { getSocketManager } from '@chatic/transport/socket/runtime';
-import type { SlotKey, SocketBindingConfig } from '@chatic/transport/socket/types';
+import type { ISocketManager, SlotKey, SocketBindingConfig } from '@chatic/transport/socket/types';
 import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
-}));
-
-jest.mock('@chatic/transport/socket/runtime', () => ({
-    getSocketManager: jest.fn(),
-}));
-
-// The binder reaches the sync engine so it exists before slots bind; the assertion here is only that
-// a slot boots, so the engine itself is stubbed.
-jest.mock('@chatic/sync/runtime', () => ({
-    getSyncManager: jest.fn(),
 }));
 
 jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
@@ -39,7 +25,6 @@ jest.mock('@chatic/auth/socket/logoutSession', () => ({
 }));
 
 const mockedBootstrap = bootstrapSocketConnection as jest.MockedFunction<typeof bootstrapSocketConnection>;
-const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 
 const delegate = { getAuthRegistration: jest.fn() } as unknown as SocketSessionDelegate;
 
@@ -83,20 +68,22 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         mockHasLiveJoinedSession.mockReturnValue(false);
         mockNotifySocketLogout.mockImplementation((key: SlotKey) => fake.log.push(`signed off ${key}`));
         fake = makeManager();
-        mockedGetManager.mockReturnValue(fake.manager as never);
     });
 
     const configsBooted = () => mockedBootstrap.mock.calls.map(call => call[0].config);
-    const renderBinder = (slots: RuntimeSocketSlots) => {
-        const view = render(<SocketBinder slots={slots} delegate={delegate} />);
+    /** A binder that has applied `slots`; `pass` applies the next slots, `stop` detaches every boot. */
+    const startBinder = (slots: RuntimeSocketSlots) => {
+        const binder = new SocketBinder(fake.manager as unknown as ISocketManager);
+        binder.apply(slots, delegate);
         return {
-            ...view,
-            rerender: (next: RuntimeSocketSlots) => view.rerender(<SocketBinder slots={next} delegate={delegate} />),
+            binder,
+            rerender: (next: RuntimeSocketSlots) => binder.apply(next, delegate),
+            unmount: () => binder.detachAll(),
         };
     };
 
     it('relay-only: boots relay, points the facade at relay, tears nothing down', () => {
-        renderBinder({ relay: relaySlot });
+        startBinder({ relay: relaySlot });
 
         expect(configsBooted()).toEqual([relaySlot.config]);
         expect(fake.manager.setActiveSlot).toHaveBeenCalledWith(null);
@@ -104,13 +91,13 @@ describe('SocketBinder (one reconciler for every slot)', () => {
     });
 
     it('cloud committed: boots relay and the cloud, then points the facade at the cloud', () => {
-        renderBinder({ relay: relaySlot, cloud: cloudA });
+        startBinder({ relay: relaySlot, cloud: cloudA });
 
         expect(fake.log).toEqual([`bound ${RELAY_SLOT}`, `bound ${A}`, `active ${A}`]);
     });
 
     it('a cloud switch reads bound B → active B → torn down A, and never reboots relay', () => {
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         fake.log.length = 0;
         mockedBootstrap.mockClear();
 
@@ -125,7 +112,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
     // the cloud, B is a different slot whatever its URL.
     it('a switch to a cloud on the same wss host is an ordinary switch — no error, B gets its own slot', () => {
         const sameHostB = { config: { ...cloudB.config, url: cloudA.config.url } };
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         fake.log.length = 0;
 
         rerender({ relay: relaySlot, cloud: sameHostB });
@@ -135,7 +122,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
     });
 
     it('leaving a cloud points the facade back at relay before the cloud is torn down', () => {
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         fake.log.length = 0;
         mockedBootstrap.mockClear();
 
@@ -150,13 +137,13 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         const C = slotKeyOf('cloud-c');
 
         it('boots every background cloud beside the committed one, and keeps the facade on the committed', () => {
-            renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB, cloudC] });
+            startBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB, cloudC] });
 
             expect(fake.log).toEqual([`bound ${RELAY_SLOT}`, `bound ${B}`, `bound ${C}`, `bound ${A}`, `active ${A}`]);
         });
 
         it('A→B with B in the background moves the pointer only: nothing bound, nothing torn down', () => {
-            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB] });
+            const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA, background: [cloudB] });
             fake.log.length = 0;
             mockedBootstrap.mockClear();
 
@@ -169,7 +156,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         });
 
         it('going home keeps a background cloud bound and moves the facade to relay', () => {
-            const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+            const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
             fake.log.length = 0;
             mockedBootstrap.mockClear();
 
@@ -180,7 +167,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         });
 
         it('a cloud dropped from the background list is torn down', () => {
-            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA, cloudB] });
+            const { rerender } = startBinder({ relay: relaySlot, background: [cloudA, cloudB] });
             fake.log.length = 0;
 
             rerender({ relay: relaySlot, background: [cloudB] });
@@ -190,7 +177,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
         it('signs a cloud off before tearing it down when it still has a live session — pushed past the cap', () => {
             mockHasLiveJoinedSession.mockImplementation(cid => cid === 'cloud-a');
-            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA, cloudB] });
+            const { rerender } = startBinder({ relay: relaySlot, background: [cloudA, cloudB] });
             fake.log.length = 0;
 
             rerender({ relay: relaySlot, background: [cloudB] });
@@ -200,7 +187,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         });
 
         it('tears down without signing off a cloud that has no live session — left, or already expired', () => {
-            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA] });
+            const { rerender } = startBinder({ relay: relaySlot, background: [cloudA] });
             fake.log.length = 0;
 
             rerender({ relay: relaySlot });
@@ -210,7 +197,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
         it('signs nothing off when the relay goes too — the account logout already notified every slot', () => {
             mockHasLiveJoinedSession.mockReturnValue(true);
-            const { rerender } = renderBinder({ relay: relaySlot, background: [cloudA] });
+            const { rerender } = startBinder({ relay: relaySlot, background: [cloudA] });
 
             rerender({});
 
@@ -220,14 +207,14 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         it('should both name one cloud, the committed config is the one that binds', () => {
             const stale = { config: { ...cloudA.config, url: 'wss://stale' } };
 
-            renderBinder({ relay: relaySlot, cloud: cloudA, background: [stale] });
+            startBinder({ relay: relaySlot, cloud: cloudA, background: [stale] });
 
             expect(configsBooted()).toEqual([relaySlot.config, cloudA.config]);
         });
     });
 
     it('a re-render with equal slots boots nothing', () => {
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         mockedBootstrap.mockClear();
 
         rerender({ relay: { ...relaySlot }, cloud: { config: { ...cloudA.config } } });
@@ -246,7 +233,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
             fake.bound.add(slotKeyOf(config.cid));
             return Promise.resolve(firstCleanup);
         });
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         await Promise.resolve();
         mockedBootstrap.mockClear();
 
@@ -262,13 +249,14 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         // A remount forgets what the previous mount booted; the manager does not.
         fake.bound.add(A);
 
-        renderBinder({ relay: relaySlot });
+        startBinder({ relay: relaySlot });
 
         expect(fake.manager.destroy).toHaveBeenCalledWith(A);
         expect(fake.manager.destroy).not.toHaveBeenCalledWith(RELAY_SLOT);
     });
 
-    it('StrictMode: the first boot detaches itself, the second is kept, and no socket is destroyed', async () => {
+    it('a stop and a restart: the first boot detaches itself, the second is kept, and no socket is destroyed', async () => {
+        // React StrictMode's mount → unmount → mount of the host does exactly this to the controller.
         const cleanups: jest.Mock[] = [];
         mockedBootstrap.mockImplementation(({ config }) => {
             fake.bound.add(slotKeyOf(config.cid));
@@ -277,29 +265,62 @@ describe('SocketBinder (one reconciler for every slot)', () => {
             return Promise.resolve(cleanup);
         });
 
-        const { unmount } = render(
-            <StrictMode>
-                <SocketBinder slots={{ relay: relaySlot, cloud: cloudA }} delegate={delegate} />
-            </StrictMode>
-        );
+        startBinder({ relay: relaySlot, cloud: cloudA }).unmount();
+        const second = startBinder({ relay: relaySlot, cloud: cloudA });
         await Promise.resolve();
 
-        // Two mounts → two boots per slot. The first mount's boots resolve after it was unmounted.
+        // Two starts → two boots per slot. The first start's boots resolve after it was stopped.
         expect(cleanups).toHaveLength(4);
         expect(cleanups.slice(0, 2).map(c => c.mock.calls.length)).toEqual([1, 1]);
         expect(cleanups.slice(2).map(c => c.mock.calls.length)).toEqual([0, 0]);
         expect(fake.manager.destroy).not.toHaveBeenCalled();
         expect(fake.manager.setActiveSlot).toHaveBeenLastCalledWith(A);
 
-        unmount();
+        second.unmount();
         expect(cleanups.slice(2).map(c => c.mock.calls.length)).toEqual([1, 1]);
         expect(fake.manager.destroy).not.toHaveBeenCalled();
+    });
+
+    it('a pass after a stop reconciles again, even with the slots it last saw', () => {
+        const { binder } = startBinder({ relay: relaySlot });
+        binder.detachAll();
+        mockedBootstrap.mockClear();
+
+        binder.apply({ relay: relaySlot }, delegate);
+
+        expect(configsBooted()).toEqual([relaySlot.config]);
+    });
+
+    it('a reconcile that throws halfway is run again by the next pass with the same slots', () => {
+        fake.manager.setActiveSlot.mockImplementationOnce(() => {
+            throw new Error('facade broke');
+        });
+        const binder = new SocketBinder(fake.manager as unknown as ISocketManager);
+        expect(() => binder.apply({ relay: relaySlot, cloud: cloudA }, delegate)).toThrow('facade broke');
+
+        binder.apply({ relay: relaySlot, cloud: cloudA }, delegate);
+
+        // The first call threw; the second pass made it again instead of skipping the slots as done.
+        expect(fake.manager.setActiveSlot).toHaveBeenCalledTimes(2);
+        expect(fake.manager.setActiveSlot).toHaveBeenLastCalledWith(A);
+    });
+
+    it('a new delegate re-boots every slot', () => {
+        const { binder } = startBinder({ relay: relaySlot });
+        mockedBootstrap.mockClear();
+        const other = { getAuthRegistration: jest.fn() } as unknown as SocketSessionDelegate;
+
+        binder.apply({ relay: relaySlot }, other);
+
+        expect(mockedBootstrap).toHaveBeenCalledWith(
+            expect.objectContaining({ config: relaySlot.config, delegate: other })
+        );
     });
 
     it('reports a failed bootstrap with the slot it was for', async () => {
         mockedBootstrap.mockRejectedValueOnce(new Error('boom'));
 
-        renderBinder({ relay: relaySlot });
+        startBinder({ relay: relaySlot });
         await Promise.resolve();
         await Promise.resolve();
 
@@ -316,7 +337,7 @@ describe('SocketBinder (one reconciler for every slot)', () => {
             return Promise.resolve(jest.fn());
         });
         mockedBootstrap.mockRejectedValueOnce(new Error('a cloud config cannot bind the relay slot'));
-        const { rerender } = renderBinder({ relay: relaySlot, cloud: cloudA });
+        const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
         await Promise.resolve();
         await Promise.resolve();
         expect(logger.error).toHaveBeenCalledWith(

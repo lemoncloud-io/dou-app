@@ -6,25 +6,21 @@
  */
 import { transportPlatform } from '@chatic/transport/platform';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
-import { render } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketBinder } from './SocketBinder';
 import { SocketManager } from '@chatic/transport/socket/SocketManager';
 import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
-import { getSocketManager } from '@chatic/transport/socket/runtime';
 import type { SocketBindingConfig } from '@chatic/transport/socket/types';
 import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({ bootstrapSocketConnection: jest.fn() }));
 
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;
@@ -59,28 +55,29 @@ describe('background slots through the real manager and binder', () => {
         jest.clearAllMocks();
         mockedCreate.mockImplementation(() => makeClient());
         manager = new SocketManager();
-        (getSocketManager as jest.Mock).mockReturnValue(manager);
         (bootstrapSocketConnection as jest.Mock).mockImplementation(({ manager: m, config }) => {
             m.ensure(config);
             return Promise.resolve(jest.fn());
         });
     });
 
-    const renderBinder = (slots: RuntimeSocketSlots) => {
-        const view = render(<SocketBinder slots={slots} delegate={delegate} />);
-        return (next: RuntimeSocketSlots) => view.rerender(<SocketBinder slots={next} delegate={delegate} />);
+    /** A binder that has applied `slots`; the returned function applies the next ones. */
+    const startBinder = (slots: RuntimeSocketSlots) => {
+        const binder = new SocketBinder(manager);
+        binder.apply(slots, delegate);
+        return (next: RuntimeSocketSlots) => binder.apply(next, delegate);
     };
 
     it('A→B→A between two kept clouds reuses both clients and creates none', () => {
-        const rerender = renderBinder({ relay, cloud: slot('cloud-a'), background: [slot('cloud-b')] });
+        const pass = startBinder({ relay, cloud: slot('cloud-a'), background: [slot('cloud-b')] });
         const clientA = manager.getClient(slotKeyOf('cloud-a'));
         const clientB = manager.getClient(slotKeyOf('cloud-b'));
         expect(mockedCreate).toHaveBeenCalledTimes(3);
 
-        rerender({ relay, cloud: slot('cloud-b'), background: [slot('cloud-a')] });
+        pass({ relay, cloud: slot('cloud-b'), background: [slot('cloud-a')] });
         expect(manager.getClient()).toBe(clientB);
 
-        rerender({ relay, cloud: slot('cloud-a'), background: [slot('cloud-b')] });
+        pass({ relay, cloud: slot('cloud-a'), background: [slot('cloud-b')] });
         expect(manager.getClient()).toBe(clientA);
 
         expect(mockedCreate).toHaveBeenCalledTimes(3);
@@ -89,10 +86,10 @@ describe('background slots through the real manager and binder', () => {
     });
 
     it('going home leaves the cloud connected and the facade on relay', () => {
-        const rerender = renderBinder({ relay, cloud: slot('cloud-a') });
+        const pass = startBinder({ relay, cloud: slot('cloud-a') });
         const clientA = manager.getClient(slotKeyOf('cloud-a'));
 
-        rerender({ relay, background: [slot('cloud-a')] });
+        pass({ relay, background: [slot('cloud-a')] });
 
         expect(manager.getClient()).toBe(manager.getClient(slotKeyOf('default')));
         expect(manager.getClient(slotKeyOf('cloud-a'))).toBe(clientA);
@@ -100,10 +97,10 @@ describe('background slots through the real manager and binder', () => {
     });
 
     it('a cloud not kept in the background is still torn down on a switch, as before', () => {
-        const rerender = renderBinder({ relay, cloud: slot('cloud-a') });
+        const pass = startBinder({ relay, cloud: slot('cloud-a') });
         const clientA = manager.getClient(slotKeyOf('cloud-a'));
 
-        rerender({ relay, cloud: slot('cloud-b') });
+        pass({ relay, cloud: slot('cloud-b') });
 
         expect(manager.getSlotKeys()).not.toContain('cloud-a');
         expect(clientA?.destroy).toHaveBeenCalled();

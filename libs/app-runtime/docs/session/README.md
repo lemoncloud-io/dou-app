@@ -137,7 +137,7 @@ Old names still appear in source comments and in sibling modules' docs.
 | `RelayCore` · `CloudCore` · `IdentityCore` | `IRelayStore` · `ICloudStore` · `IIdentityStore` |
 | `logoutRelaySession()`                     | `relaySession.clearAndRedirect()`                |
 | `logoutCloudSession()` (the store half)    | `cloudSession.clearStores()`                     |
-| `RuntimeBinding` / `useRuntimeBinding`     | `RuntimeSocketSlots` / `useRuntimeSocketSlots`   |
+| `RuntimeBinding` / `useRuntimeBinding`     | `RuntimeSocketSlots` / `deriveSocketSlots`       |
 
 The last two rows are the same change: the global names `logoutSession` and `logoutCloudSession` now
 belong exclusively to the [socket-notifying versions](../../../auth/docs/socket/README.md#ending-a-session), because
@@ -146,6 +146,6 @@ those are the ones an app should reach for.
 ## Further reading
 
 - [`@chatic/auth`](../../../auth/README.md) — the use cases, pairing, and staying authenticated on every socket
-- [docs/connection/](../connection/README.md#how-a-slot-is-derived) — how `useRuntimeSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
+- [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#how-a-slot-is-derived) — how `deriveSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
 - [runtime-core docs/data/](../../../runtime-core/docs/data/README.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

@@ -127,7 +127,7 @@ an upload, then the send) runs inside one `runInCloud` so the hold covers the wh
 ([image-send.md](../../../app-runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs):
 
 - It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
-- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../../../app-runtime/docs/connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
 - The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
 
 A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not

@@ -1,14 +1,14 @@
 // The `connection` facade group — the host an app mounts, and the socket state it can read.
 //
-// React layer only: hosts, slot binders, and their hooks. Credential recovery used to be wired from
+// React layer only: the hosts and their hooks. Credential recovery used to be wired from
 // here as an import side effect — using `RuntimeConnectionHost` was enough to get it — and the cost
 // was a boot step that no entry point mentioned and that an import reshuffle could move or drop. It
 // now lives in `initAppRuntime`, which is also where the wiring's ordering is stated.
 //
-// The binders (`SocketBinder` · `SocketReauthBinder`), `useSocketSessionDelegate`,
-// `useRuntimeSocketSlots` and `deriveConnectivity` are NOT here. They are the host's own parts: it
-// reaches them by concrete path, and no app has ever mounted one (ADR-0076 Decision 6). This barrel used
-// to `export *` the two binders, which put them on the package's public API by accident.
+// `useConnectionController` and `deriveConnectivity` are NOT here: they are the host's own parts, and
+// it reaches them by concrete path. The binders and the slot derivation are not even in this package —
+// they are runtime-core's connection controller, which the host starts. This barrel used to
+// `export *` the two binders, which put them on the package's public API by accident.
 
 // Both hosts live in one module: they are the same component with guest keep-alive on/off.
 export { RuntimeConnectionHost, RuntimeAuthHost } from './RuntimeConnectionHost';

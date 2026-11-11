@@ -1,19 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { logger } from '@chatic/logger';
 
-import { logger } from '@chatic/bridges';
-
-import { getSocketManager, hasLiveJoinedSession, RELAY_SLOT, kindOf, slotKeyOf } from '@chatic/transport';
+import { hasLiveJoinedSession, RELAY_SLOT, kindOf, slotKeyOf } from '@chatic/transport';
 import type { ISocketManager, SlotKey, SocketBindingConfig } from '@chatic/transport';
-import { getSyncManager } from '@chatic/sync';
 import { bootstrapSocketConnection, notifySocketLogout } from '@chatic/auth';
 import type { SocketSessionDelegate } from '@chatic/auth';
 import type { RuntimeSocketSlots } from './types';
-import { socketRebootKey } from './utils/socketRebootKey';
-
-export interface SocketBinderProps {
-    slots: RuntimeSocketSlots;
-    delegate: SocketSessionDelegate;
-}
+import { socketRebootKey } from './socketRebootKey';
 
 /** One slot this binder has booted, and how to detach that boot's SDK subscriptions. */
 interface BootedSlot {
@@ -41,14 +33,14 @@ const desiredSlotsOf = (slots: RuntimeSocketSlots): DesiredSlots => {
 };
 
 /**
- * What the reconcile effect is keyed on: each desired slot's key and reboot key, and the slot to make
- * active. The slots object is fresh on every session mutation, so keying on this string keeps benign
- * re-renders from re-running the effect. The live configs are read from a ref.
+ * What a reconcile is keyed on: each desired slot's key and reboot key, and the slot to make active.
+ * The slots object is fresh on every derivation, so comparing this string keeps a pass that changed
+ * nothing from reconciling again.
  *
  * The active slot has to be in it on its own. A switch between two clouds that both hold a slot —
  * one committed, one in the background — leaves the set of slots and every reboot key exactly as they
- * were; only which of them is active moves. Keyed on the set alone, that switch never re-ran the
- * effect and the facade stayed on the cloud the user had left.
+ * were; only which of them is active moves. Keyed on the set alone, that switch never reconciled and
+ * the facade stayed on the cloud the user had left.
  */
 const slotsSignature = (slots: RuntimeSocketSlots): string => {
     const desired = desiredSlotsOf(slots);
@@ -81,8 +73,8 @@ const detach = (booted: BootedSlot): void => {
  * time the pointer moves; the active client goes from A straight to B either way, never via relay.
  *
  * Step 3 reads the MANAGER's slots, not only the ones this binder remembers booting. The remembered
- * set is cleared on unmount (see below), so a remount that asks for fewer slots would otherwise leave
- * the missing ones bound with nothing left to tear them down.
+ * set is cleared when the binder stops (see `detachAll`), so a restart that asks for fewer slots would
+ * otherwise leave the missing ones bound with nothing left to tear them down.
  *
  * A cloud slot torn down while its session is still good — the cloud is still in the app's list, so
  * it was pushed past the cap rather than left — is told `auth.logout` first, while its client is
@@ -148,49 +140,45 @@ const reconcileSlots = (
  * Boots the sockets the session asks for — a relay slot (always-on once a relay token exists), a
  * cloud slot (present only while a cloud session is committed) and a background slot per other
  * cloud the account belongs to — and keeps the active facade pointed at the cloud slot when there
- * is one. One reconcile effect owns every slot, so the order across
- * slots is decided in one place (see `reconcileSlots`) instead of falling out of which of two
- * independent effects React happened to run first.
+ * is one. One reconcile owns every slot, so the order across slots is decided in one place (see
+ * `reconcileSlots`) instead of falling out of which of two independent passes happened to run first.
  *
  * A slot is identified by its key — the cloud it serves — plus its reboot key `url|deviceId|wssType`.
  * A different cloud is therefore always a different slot, whatever its URL, and a cloud moving
  * between background and committed is the SAME slot: its key and reboot key do not change, so the
- * client and its connection are reused. The identity token is not
- * part of either, because a refresh must not reboot a healthy socket.
+ * client and its connection are reused. The identity token is not part of either, because a refresh
+ * must not reboot a healthy socket.
  *
- * Unmount detaches every boot's SDK subscriptions and forgets them, but does not destroy the sockets
- * — the same as before. That is what StrictMode's mount → unmount → mount relies on: the second
- * mount re-bootstraps each slot, `ensure` finds the config unchanged and reuses the client, and the
- * first boot's late resolution detaches itself.
+ * `detachAll` detaches every boot's SDK subscriptions and forgets them, but does not destroy the
+ * sockets. That is what a stop followed by a start relies on — React StrictMode's mount → unmount →
+ * mount of the host is one: the next binder re-bootstraps each slot, `ensure` finds the config
+ * unchanged and reuses the client, and the first boot's late resolution detaches itself.
  */
-export const SocketBinder = ({ slots, delegate }: SocketBinderProps) => {
-    const socketManager = getSocketManager();
-    // The sync engine must exist BEFORE a slot binds: it attaches a device runtime per bound slot,
-    // and that runtime owns the slot's connect-driven `device.save` (whose `:ok` is what opens the
-    // bootstrap's auth gate). Render runs before the binding effects below, so naming it here is the
-    // guarantee. It used to be luck — the first repository read built the DataManager, which built
-    // the socket runtime, which built the sync manager (see `@chatic/sync`'s runtime.ts).
-    getSyncManager();
+export class SocketBinder {
+    private readonly booted = new Map<SlotKey, BootedSlot>();
+    /** The signature and delegate of the last reconcile; `null` until the first one. */
+    private last: { signature: string; delegate: SocketSessionDelegate } | null = null;
 
-    const bootedRef = useRef(new Map<SlotKey, BootedSlot>());
-    const slotsRef = useRef(slots);
-    slotsRef.current = slots;
-    const signature = slotsSignature(slots);
+    constructor(private readonly manager: ISocketManager) {}
 
-    useEffect(() => {
-        reconcileSlots(socketManager, bootedRef.current, desiredSlotsOf(slotsRef.current), delegate);
-        // Keyed on the signature (not the slots object) so benign re-renders do not re-run this.
-        // `slots` is read via slotsRef (a ref, so it needs no dependency entry).
-    }, [signature, socketManager, delegate]);
+    /**
+     * Reconciles the manager with `slots`, unless nothing that decides a slot moved since the last pass.
+     *
+     * The pass is remembered only once the reconcile has gone through. A reconcile that throws halfway
+     * leaves the manager partly reconciled, and the next pass with the same slots has to run it again
+     * rather than skip it as done.
+     */
+    apply(slots: RuntimeSocketSlots, delegate: SocketSessionDelegate): void {
+        const signature = slotsSignature(slots);
+        if (this.last && this.last.signature === signature && this.last.delegate === delegate) return;
+        reconcileSlots(this.manager, this.booted, desiredSlotsOf(slots), delegate);
+        this.last = { signature, delegate };
+    }
 
-    // Unmount only — a dependency change must not detach slots the reconcile is about to keep.
-    useEffect(() => {
-        const booted = bootedRef.current;
-        return () => {
-            for (const current of booted.values()) detach(current);
-            booted.clear();
-        };
-    }, []);
-
-    return null;
-};
+    /** Detaches every boot and forgets it; the sockets stay up. */
+    detachAll(): void {
+        for (const current of this.booted.values()) detach(current);
+        this.booted.clear();
+        this.last = null;
+    }
+}

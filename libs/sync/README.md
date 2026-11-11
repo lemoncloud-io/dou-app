@@ -269,7 +269,7 @@ announcement. The reason is the consumer: a list filters out rooms whose place i
 so a message into a place the cache has not learned yet would be in storage and on no screen, and
 the mark waiting on the announcement would come off with nothing to show for it. A kick folded into
 a run already in flight, or into a pending push debounce, keeps its kind. The listener set
-lives outside the receiver, so a subscriber keeps hearing across the connection host restarting the
+lives outside the receiver, so a subscriber keeps hearing across the connection controller restarting the
 receiver, and a listener that throws is logged rather than reported as a failed delta.
 
 ### Handing a cloud over

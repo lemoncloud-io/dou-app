@@ -29,12 +29,24 @@ declare global {
  * <= 0.15.x) and the bare device id (>= 0.16.0), so it cannot be trusted.
  */
 export const useDynamicDeviceId = () => {
-    // The page's own id, in the session's plain port. Read-or-made and stored in one step, so a second
-    // caller in the same render gets the same id rather than making its own.
-    const [sessionDeviceId] = useState(() => identityStore.getOrMakeDeviceId(() => uuidv4()));
+    const [sessionDeviceId] = useState(readSessionDeviceId);
+    return { ...resolveDeviceIds(sessionDeviceId), isReady: true };
+};
+
+/**
+ * The page's own id, in the session's plain port. Read-or-made and stored in one step, so a second
+ * caller gets the same id rather than making its own.
+ */
+export const readSessionDeviceId = (): string => identityStore.getOrMakeDeviceId(() => uuidv4());
+
+/**
+ * The resolution `useDynamicDeviceId` describes, outside React — for the connection controller, which
+ * reads it on every pass. The shell's injected ids win over the page's own; they are read from
+ * `window` each call, as the hook reads them on each render.
+ */
+export const resolveDeviceIds = (sessionDeviceId: string) => {
     const [compositeBareId, compositeFirebaseId] = (window.CHATIC_APP_DEVICE_ID ?? '').split(':');
     const deviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || compositeBareId || sessionDeviceId;
     const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || compositeFirebaseId || undefined;
-
-    return { deviceId, firebaseInstallationId, isReady: true };
+    return { deviceId, firebaseInstallationId };
 };

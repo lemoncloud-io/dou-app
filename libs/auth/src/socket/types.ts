@@ -2,8 +2,8 @@ import type { SlotKey } from '@chatic/transport';
 import type { AuthRegistration } from '../session/sessionAuthAdapter';
 
 /**
- * Bridges the SDK AuthController to the session. Built here (`sessionDelegate.ts`) and mounted by
- * app-runtime (connection/hooks/useSocketSessionDelegate), which wires it to the session's per-server helpers.
+ * Bridges the SDK AuthController to the session. Built here (`sessionDelegate.ts`) and handed to the
+ * binders by runtime-core's connection controller, which wires it to the session's per-server helpers.
  * EVERY method is keyed by the socket's slot — the cloud it serves — so slots that bootstrap
  * independently each seed/sign/write-back/expire against their OWN server, never the global active
  * one (multi-socket-design.md §6-6, §7). It used to be keyed by kind (`relay | cloud`), which could

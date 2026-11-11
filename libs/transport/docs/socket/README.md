@@ -4,15 +4,15 @@
 exists; the **committed cloud**, on only while a cloud session is active; and a **background** slot
 for every other cloud the account belongs to, up to five. The manager sets no limit on cloud slots —
 how many there are is the binder's input, and which clouds get one is a policy of its own
-([background slots](../../../app-runtime/docs/connection/README.md#background-slots)). Almost everything that talks to a
+([background slots](../../../runtime-core/docs/connection/README.md#background-slots)). Almost everything that talks to a
 socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
 the slot its owner points it at (`setActiveSlot`) — the committed cloud's, when there is one — and to
 relay otherwise. Only slot lifecycle, and the handful of things that must reach one specific server,
 address a slot — by its `SlotKey`, the cloud id it serves.
 
-This is the manager's side. The React layer that turns session state into slots and drives them is
-app-runtime's `connection/` — [its doc](../../../app-runtime/docs/connection/README.md) covers the
-host, the slot derivation and the binders.
+This is the manager's side. What turns session state into slots and drives them is runtime-core's
+connection controller — [its doc](../../../runtime-core/docs/connection/README.md) covers the
+controller, the slot derivation and the binders.
 
 ## Layout
 
@@ -107,7 +107,7 @@ destroys it and builds a new client. Two rules hold there:
   session needs — the committed cloud's and the background ones.
 - **A config cannot claim the other server.** A config whose `wssType` disagrees with `kindOf(cid)`
   throws. The case it exists for is a cloud config that fell back to the relay's cid, which would
-  otherwise replace the relay socket with a cloud one. `useRuntimeSocketSlots` no longer produces
+  otherwise replace the relay socket with a cloud one. `deriveSocketSlots` no longer produces
   that fallback: with no committed cloud there is no cloud slot, and it warns.
 
 ### The active slot is a pointer
@@ -439,7 +439,7 @@ skips one failed attempt at most, but here it could log the user out over a dead
 
 ## Further reading
 
-- [docs/connection/](../../../app-runtime/docs/connection/README.md) — the host, the slot derivation and the two binders that drive this manager
+- [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md) — the controller, the slot derivation and the two binders that drive this manager
 - [auth docs/socket/](../../../auth/docs/socket/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
 - [libs/sync](../../../sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
 - [`libs/data`](../../../data/README.md) — the gateways that bind to the active facade, and the relay-pinned ones
