@@ -166,6 +166,8 @@ describe('MessageFiles', () => {
                 wrapper,
             });
             const audio = voiceOf('a');
+            // The bar shows once it has been played; before that the card reads the length.
+            fireEvent.play(audio);
             const seek = screen.getByRole('slider', { name: 'Playback position of song.mp3' }) as HTMLInputElement;
             expect(seek.disabled).toBe(true);
 
@@ -185,8 +187,9 @@ describe('MessageFiles', () => {
                 wrapper,
             });
             fireEvent.error(voiceOf('a'));
-            expect(screen.getByText("Couldn't play this file")).toBeTruthy();
-            expect((screen.getByRole('button', { name: 'Play song.mp3' }) as HTMLButtonElement).disabled).toBe(true);
+            // The play button gives way to a plain mark: there is nothing to press.
+            expect(screen.getByText(/^Couldn't play this file/)).toBeTruthy();
+            expect(screen.queryByRole('button', { name: 'Play song.mp3' })).toBeNull();
             fireEvent.click(screen.getByRole('button', { name: 'Save song.mp3' }));
             expect(downloadImage).toHaveBeenCalledWith({ url: 'https://s/a', name: 'song.mp3' });
         });

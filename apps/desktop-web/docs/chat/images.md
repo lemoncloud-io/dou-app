@@ -144,11 +144,26 @@ lists them under the images:
   without one.
 - **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text
   file or HTML page's name also opens it in the document viewer (below).
-- **A voice file** (M4A, MP3, WAV, OGG) plays in its card: the kind icon is a play/pause button and
-  the size line a seek bar with `0:01 / 0:02` (the time played alone while the header names no
-  length). It streams from the signed address, reading only the header (`preload="metadata"`) until
-  it is played, so a feed of voice files costs a few kilobytes each. Not the document viewer: a
-  full-window dialog around one small player is a lot of window for a clip of seconds.
+- **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`, Figma "음성 파일 · 데스크탑
+  ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
+  alone while the header names no length, and `h:mm:ss` from an hour. Once played the line is a
+  seek bar with `0:01 / 0:02` (the time played alone without a length), and a speed button steps
+  1x → 1.5x → 2x → 1x. The button spins while the first press waits for sound. It streams from the
+  signed address, reading only the header (`preload="metadata"`) until it is played, so a feed of
+  voice files costs a few kilobytes each.
+    - Download and a "More" menu end the card. The menu holds Download, Reply in thread (not inside
+      the thread panel) and, on your own message, Delete file — which deletes the whole message, as
+      an image's does, after the same confirm.
+    - A name too long for the line gives way in the stem and keeps its extension in view; the whole
+      name is in the hint.
+    - **Being sent**, the button is a ring filling with the bytes sent (`useImageSendProgress`, by
+      slot) and the line reads `Uploading 42% · 17 MB`; a spinner until the bytes are counted. There
+      is no cancel: the send has no way to stop an upload in flight. **Not sent**, the card is red
+      and says so; Retry and Delete stay on the message's own failed line, so they are not offered
+      twice.
+    - **Cannot be played** (the address failed, or the browser cannot decode it): the button gives
+      way to a plain mark and the line reads `Couldn't play this file · 17 MB`; download and the menu
+      stay. If that happens while it plays, a toast says so too — the card may be out of sight.
     - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
       tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
       at the card's speed, and a file paused for another keeps its place. The element is never put in
@@ -159,9 +174,8 @@ lists them under the images:
       media in the capture phase on the document, while at least one view holds a voice file.
     - The last view of a file letting go stops it: a card that leaves the page stops its playback
       unless the detail dialog still holds the file, and leaving the conversation stops what played
-      there. An address the player cannot load — past its signature, say — turns the bar into
-      "Couldn't play this file" and leaves the save button; a re-signed address starts over clean.
-- **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
+      there. A re-signed address is a new file to the player and starts over clean.
+- **Being sent**, a video or document is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
 - **When only some files go**, the message is sent with those, and the rest follow it as a failed

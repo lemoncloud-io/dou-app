@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
+import i18next from 'i18next';
+
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
 /** The speeds the rate button steps through, wrapping back to the first. */
 export const PLAYBACK_RATES = [1, 1.5, 2] as const;
 
@@ -13,8 +17,6 @@ export interface VoiceSnapshot {
     duration: number | undefined;
     /** The address could not be played — past its signature, or a format the browser cannot decode. */
     failed: boolean;
-    /** Whether `failed` came after playback had started, so the failure interrupted the listener. */
-    failedWhilePlaying: boolean;
     rate: number;
 }
 
@@ -33,7 +35,6 @@ const INITIAL: VoiceSnapshot = {
     time: 0,
     duration: undefined,
     failed: false,
-    failedWhilePlaying: false,
     rate: 1,
 };
 
@@ -96,7 +97,13 @@ const create = (src: string): Entry => {
         timeupdate: () => update(entry, { time: audio.currentTime }),
         durationchange: () => update(entry, { duration: Number.isFinite(audio.duration) ? audio.duration : undefined }),
         ratechange: () => update(entry, { rate: audio.playbackRate }),
-        error: () => update(entry, { playing: false, loading: false, failed: true, failedWhilePlaying: entry.started }),
+        error: () => {
+            update(entry, { playing: false, loading: false, failed: true });
+            // Said once, by the player — not by each view of the file, of which there can be several (the
+            // feed and the thread, the card and the dialog). Only when it broke off someone listening: a
+            // file that cannot be played before anyone pressed play says so on its card alone.
+            if (entry.started) toast({ variant: 'destructive', description: i18next.t('chat.voice.playFailedToast') });
+        },
     };
     Object.entries(handlers).forEach(([type, handler]) => audio.addEventListener(type, handler));
     entry.detach = () =>

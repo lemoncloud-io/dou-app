@@ -1,7 +1,16 @@
 import { act, cleanup, fireEvent, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
 import { useVoicePlayback, voiceElementFor } from './voicePlayback';
+
+import '../../../../../i18n';
+
+vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    toast: vi.fn(),
+}));
 
 // jsdom implements no playback: `play()` only logs. These stand in for the element's own methods,
 // and the tests fire the events a browser would.
@@ -9,6 +18,7 @@ let play: ReturnType<typeof vi.spyOn>;
 let pause: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
+    vi.mocked(toast).mockClear();
     play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
         Object.defineProperty(this, 'paused', { configurable: true, value: false });
         fireEvent.play(this);
@@ -127,20 +137,26 @@ describe('useVoicePlayback', () => {
         expect(voiceElementFor('https://s/a')).toBeUndefined();
     });
 
-    it('says a failure interrupted the listener only when it came after playback started', () => {
+    it('says once that playback broke off, however many views show the file, and not before it played', () => {
         const idle = renderHook(() => useVoicePlayback('https://s/a'));
         act(() => {
             fireEvent.error(elementOf('https://s/a'));
         });
         expect(idle.result.current.failed).toBe(true);
-        expect(idle.result.current.failedWhilePlaying).toBe(false);
+        expect(toast).not.toHaveBeenCalled();
 
-        const playing = renderHook(() => useVoicePlayback('https://s/b'));
-        act(() => playing.result.current.toggle());
+        const card = renderHook(() => useVoicePlayback('https://s/b'));
+        renderHook(() => useVoicePlayback('https://s/b'));
+        act(() => card.result.current.toggle());
         act(() => {
             fireEvent.error(elementOf('https://s/b'));
         });
-        expect(playing.result.current.failedWhilePlaying).toBe(true);
-        expect(playing.result.current.playing).toBe(false);
+        expect(card.result.current.playing).toBe(false);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "This file can't be played" }));
+
+        // A view that arrives after the failure shows it, and says nothing more.
+        renderHook(() => useVoicePlayback('https://s/b'));
+        expect(toast).toHaveBeenCalledTimes(1);
     });
 });

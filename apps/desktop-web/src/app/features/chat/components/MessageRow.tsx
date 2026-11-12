@@ -644,7 +644,13 @@ export const MessageRow = memo(
                                     )}
                                     {/* Videos and documents under the images; the grid and viewer take images only. */}
                                     {message.id && !message.hidden && !isEditing && (
-                                        <MessageFiles message={message} author={author} />
+                                        <MessageFiles
+                                            message={message}
+                                            author={author}
+                                            canDelete={group.isMine}
+                                            onDeleteMessage={() => message.id && deleteMessage(message.id)}
+                                            onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
+                                        />
                                     )}
                                     {/* `failure &&` first: an unsent message has no id, and
                                         `undefined === undefined` drew this line with no failure. */}

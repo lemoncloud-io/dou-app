@@ -57,6 +57,8 @@ export interface ChatFile {
     contentType?: string;
     /** The signed original. Empty while sending, when failed, or when the address is not one to load. */
     url: string;
+    /** A pending slot's place in its message — where the send's progress for it is kept. */
+    slot?: number;
     isUploading?: boolean;
     isFailed?: boolean;
 }
@@ -89,6 +91,7 @@ export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): C
                     ...(slot.localSize !== undefined ? { size: slot.localSize } : {}),
                     ...(slot.localContentType ? { contentType: slot.localContentType } : {}),
                     url: '',
+                    slot: index,
                     isUploading: slot.localStatus === 'sending',
                     isFailed: slot.localStatus === 'failed',
                 },
