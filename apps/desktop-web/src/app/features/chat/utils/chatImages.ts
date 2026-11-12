@@ -206,7 +206,8 @@ export interface AttachmentValidation<T> {
      * Every refused file with its reason, in incoming order. Counts per reason were all a toast could
      * say; the dialog that replaced it names each file, so a reader knows which ones to fix.
      */
-    refused: { file: T; reason: AttachmentRejection }[];
+    /** `max` is the ceiling it went over: bytes for `too-large`, files for `limit`. */
+    refused: { file: T; reason: AttachmentRejection; max?: number }[];
 }
 
 /**
@@ -230,9 +231,9 @@ export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'last
     const accepted: T[] = [];
     const refused: AttachmentValidation<T>['refused'] = [];
     for (const file of incoming) {
-        const reason = refusalOf(file, seen, isFolder);
-        if (reason) {
-            refused.push({ file, reason });
+        const refusal = refusalOf(file, seen, isFolder);
+        if (refusal) {
+            refused.push({ file, ...refusal });
             continue;
         }
         seen.add(attachmentKey(file));
@@ -245,15 +246,16 @@ const refusalOf = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type
     file: T,
     seen: ReadonlySet<string>,
     isFolder: (file: T) => boolean
-): AttachmentRejection | undefined => {
-    if (isFolder(file)) return 'folder';
-    if (file.size === 0) return 'empty';
+): { reason: AttachmentRejection; max?: number } | undefined => {
+    if (isFolder(file)) return { reason: 'folder' };
+    if (file.size === 0) return { reason: 'empty' };
     const format = chatAttachmentFormat(file);
-    if (!format) return 'unsupported';
-    if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) return 'too-large';
-    if (isChatAttachmentNameTooLong(format.name)) return 'name-too-long';
-    if (seen.has(attachmentKey(file))) return 'duplicate';
-    if (seen.size >= MAX_ATTACHMENTS) return 'limit';
+    if (!format) return { reason: 'unsupported' };
+    const maxBytes = CHAT_ATTACHMENT_MAX_BYTES[format.kind];
+    if (file.size > maxBytes) return { reason: 'too-large', max: maxBytes };
+    if (isChatAttachmentNameTooLong(format.name)) return { reason: 'name-too-long' };
+    if (seen.has(attachmentKey(file))) return { reason: 'duplicate' };
+    if (seen.size >= MAX_ATTACHMENTS) return { reason: 'limit', max: MAX_ATTACHMENTS };
     return undefined;
 };
 

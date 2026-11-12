@@ -16,7 +16,7 @@ import {
 
 import { useUnsendableFilesStore, type RefusedFile } from '../../hooks';
 import { formatFileSize } from '../../utils';
-import { FileName } from './VoiceCard';
+import { FileName } from './FileName';
 
 /**
  * "Some files can't be sent" (Figma "보낼 수 없는 파일"): every file a pick, drop or paste could not take,
@@ -26,7 +26,7 @@ import { FileName } from './VoiceCard';
 export const UnsendableFilesHost = () => {
     const { t } = useTranslation();
     const request = useUnsendableFilesStore(s => s.request);
-    const close = () => useUnsendableFilesStore.setState({ request: null });
+    const close = useUnsendableFilesStore(s => s.close);
     if (!request) return null;
     const { refused, restCount, onUploadRest } = request;
     const hasUnsupported = refused.some(file => file.reason === 'unsupported');

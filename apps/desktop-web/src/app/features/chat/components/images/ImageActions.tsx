@@ -25,8 +25,7 @@ interface ImageActionsProps {
 
 const BUTTON = 'focus-ring flex h-9 w-9 items-center justify-center rounded-md transition-colors ease-tactile';
 
-const OVERLAY_BUTTON =
-    'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
+const OVERLAY_BUTTON = 'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
 
 /**
  * Save, copy and delete for one image.
@@ -63,10 +62,7 @@ export const ImageActions = ({ onDownload, onCopy, onDelete, variant = 'plain', 
                         <button
                             type="button"
                             aria-label={t('chat.more')}
-                            className={cn(
-                                OVERLAY_BUTTON,
-                                'hover:bg-foreground/[0.08] data-[state=open]:bg-foreground/[0.08]'
-                            )}
+                            className={cn(OVERLAY_BUTTON, 'hover:bg-foreground/[0.08] data-[state=open]:bg-foreground/[0.08]')}
                         >
                             <MoreVertical size={16} aria-hidden />
                         </button>

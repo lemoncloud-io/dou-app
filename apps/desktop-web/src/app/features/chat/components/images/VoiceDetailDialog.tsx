@@ -35,7 +35,7 @@ const SKIP_SECONDS = 15;
 const HINT_DELAY = 500;
 const BAR_COUNT = 48;
 
-interface VoiceDetailDialogProps {
+export interface VoiceDetailDialogProps {
     src: string;
     name: string;
     size?: number;
@@ -76,6 +76,11 @@ export const VoiceDetailDialog = ({
     onDelete,
 }: VoiceDetailDialogProps) => {
     const { t } = useTranslation();
+    // Every action that leaves the dialog — to the feed, a thread, a confirm — closes it first.
+    const thenClose = (action: () => void) => () => {
+        onClose();
+        action();
+    };
     const voice = useVoicePlayback(src);
     const { playing, loading, time, duration, failed, rate } = voice;
     const contentRef = useRef<HTMLDivElement>(null);
@@ -137,10 +142,7 @@ export const VoiceDetailDialog = ({
                                     <span aria-hidden>·</span>
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            onClose();
-                                            onShowInChat();
-                                        }}
+                                        onClick={thenClose(onShowInChat)}
                                         className="focus-ring truncate rounded-sm hover:text-foreground hover:underline"
                                     >
                                         {t('chat.file.showInChat')}
@@ -169,35 +171,20 @@ export const VoiceDetailDialog = ({
                         </HeaderHint>
                         <DropdownMenuContent align="end" className="w-44 shadow-overlay">
                             {onShowInChat && (
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        onClose();
-                                        onShowInChat();
-                                    }}
-                                    className="cursor-pointer py-2"
-                                >
+                                <DropdownMenuItem onClick={thenClose(onShowInChat)} className="cursor-pointer py-2">
                                     <MessagesSquare size={16} aria-hidden />
                                     {t('chat.file.showInChat')}
                                 </DropdownMenuItem>
                             )}
                             {onReply && (
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        onClose();
-                                        onReply();
-                                    }}
-                                    className="cursor-pointer py-2"
-                                >
+                                <DropdownMenuItem onClick={thenClose(onReply)} className="cursor-pointer py-2">
                                     <MessageSquareReply size={16} aria-hidden />
                                     {t('chat.file.replyInThread')}
                                 </DropdownMenuItem>
                             )}
                             {onDelete && (
                                 <DropdownMenuItem
-                                    onClick={() => {
-                                        onClose();
-                                        onDelete();
-                                    }}
+                                    onClick={thenClose(onDelete)}
                                     className="cursor-pointer py-2 text-destructive focus:text-destructive"
                                 >
                                     <Trash2 size={16} aria-hidden />

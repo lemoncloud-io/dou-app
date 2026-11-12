@@ -5,7 +5,7 @@ import i18next from 'i18next';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 /** The speeds the rate button steps through, wrapping back to the first. */
-export const PLAYBACK_RATES = [1, 1.5, 2] as const;
+const PLAYBACK_RATES = [1, 1.5, 2] as const;
 
 export interface VoiceSnapshot {
     playing: boolean;
@@ -56,18 +56,17 @@ const update = (entry: Entry, patch: Partial<VoiceSnapshot>) => {
  * in the page; any audio or video in the page starting pauses the voice files. Videos among
  * themselves are left as they were.
  */
-const pauseVoicesFor = (event: Event) => {
-    const started = event.target;
-    if (!(started instanceof HTMLMediaElement)) return;
+const pauseOtherVoices = (started: HTMLMediaElement) =>
     entries.forEach(entry => {
         if (entry.audio !== started && !entry.audio.paused) entry.audio.pause();
     });
+
+const pauseVoicesFor = (event: Event) => {
+    if (event.target instanceof HTMLMediaElement) pauseOtherVoices(event.target);
 };
 
 const pauseEverythingBut = (started: HTMLMediaElement) => {
-    entries.forEach(entry => {
-        if (entry.audio !== started && !entry.audio.paused) entry.audio.pause();
-    });
+    pauseOtherVoices(started);
     document.querySelectorAll<HTMLMediaElement>('audio, video').forEach(media => {
         if (media !== started && !media.paused) media.pause();
     });

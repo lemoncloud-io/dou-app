@@ -1,15 +1,9 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
 
-import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormat, type ChatUploadKind } from '@chatic/data';
+import { chatAttachmentFormat, type ChatUploadKind } from '@chatic/data';
 
-import {
-    MAX_ATTACHMENTS,
-    attachmentKey,
-    validateAttachments,
-    type AttachmentRejection,
-    type ChatImage,
-} from '../utils';
+import { attachmentKey, validateAttachments, type AttachmentRejection, type ChatImage } from '../utils';
 
 /** A picked file waiting in the composer tray. */
 export interface ComposerAttachment extends ChatImage {
@@ -39,7 +33,8 @@ export interface RefusedFile {
  */
 export const useUnsendableFilesStore = create<{
     request: { refused: RefusedFile[]; restCount: number; onUploadRest?: () => void } | null;
-}>(() => ({ request: null }));
+    close: () => void;
+}>(set => ({ request: null, close: () => set({ request: null }) }));
 
 /**
  * Every conversation's tray, outside the pane that shows it, so leaving the channel or the page and
@@ -114,11 +109,7 @@ export const useImageAttachments = (scopeKey: string) => {
             }
             useUnsendableFilesStore.setState({
                 request: {
-                    refused: refused.map(({ file, reason }) => ({
-                        name: file.name,
-                        reason,
-                        max: ceilingOf(file, reason),
-                    })),
+                    refused: refused.map(({ file, reason, max }) => ({ name: file.name, reason, max })),
                     restCount: accepted.length,
                     onUploadRest: accepted.length > 0 ? add : undefined,
                 },
@@ -141,10 +132,4 @@ export const useImageAttachments = (scopeKey: string) => {
     );
 
     return { attachments, addFiles, remove, clear };
-};
-
-const ceilingOf = (file: File, reason: AttachmentRejection): number | undefined => {
-    if (reason === 'limit') return MAX_ATTACHMENTS;
-    const kind = chatAttachmentFormat(file)?.kind;
-    return reason === 'too-large' && kind ? CHAT_ATTACHMENT_MAX_BYTES[kind] : undefined;
 };

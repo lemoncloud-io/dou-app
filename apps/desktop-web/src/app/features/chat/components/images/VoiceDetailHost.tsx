@@ -2,20 +2,10 @@ import { useState } from 'react';
 import { create } from 'zustand';
 
 import { DeleteFileConfirm } from './DeleteFileConfirm';
-import type { ImageAuthor } from './ImageViewer';
-import { VoiceDetailDialog } from './VoiceDetailDialog';
+import { VoiceDetailDialog, type VoiceDetailDialogProps } from './VoiceDetailDialog';
 
-export interface VoiceDetailRequest {
-    src: string;
-    name: string;
-    size?: number;
-    author: ImageAuthor;
-    onSave: () => void;
-    onShowInChat?: () => void;
-    onReply?: () => void;
-    /** Deletes the message, unasked: the host asks first, since the row that would may be gone. */
-    onDelete?: () => void;
-}
+/** What the dialog shows and offers; the host supplies the close. */
+export type VoiceDetailRequest = Omit<VoiceDetailDialogProps, 'onClose'>;
 
 /**
  * The open voice detail, outside the feed row that asked for it. A row is unmounted when the feed's
