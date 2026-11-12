@@ -262,22 +262,19 @@ export const en = {
         'Only a banner for a message that mentions you directly. @everyone, DMs, muted channels, snoozed time and other clouds stay quiet. Nothing appears while macOS Focus is on.',
     'snooze.activeQuietMention': 'Quiet hours — only mentions that name me',
     'chat.attach.countLabel': '{{count}} of {{max}} files attached',
-    'chat.attach.rejected.limit_one': 'Up to {{max}} files per message, so {{count}} was not added.',
-    'chat.attach.rejected.limit_other': 'Up to {{max}} files per message, so {{count}} were not added.',
-    'chat.attach.rejected.duplicate_one': '{{count}} file was already attached.',
-    'chat.attach.rejected.duplicate_other': '{{count}} files were already attached.',
-    'chat.attach.rejected.unsupported_one':
-        "{{count}} file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, ZIP archives and audio files (M4A, MP3, WAV, OGG) can be attached.",
-    'chat.attach.rejected.unsupported_other':
-        "{{count}} files weren't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, ZIP archives and audio files (M4A, MP3, WAV, OGG) can be attached.",
-    'chat.attach.rejected.too-large_one':
-        '{{count}} file was too large. Images can be up to {{image}}, videos {{video}}, and documents, ZIP archives and audio files {{file}}.',
-    'chat.attach.rejected.too-large_other':
-        '{{count}} files were too large. Images can be up to {{image}}, videos {{video}}, and documents, ZIP archives and audio files {{file}}.',
-    'chat.attach.rejected.name-too-long_one':
-        "{{count}} file wasn't added because its name is too long. Shorten the name and try again.",
-    'chat.attach.rejected.name-too-long_other':
-        "{{count}} files weren't added because their names are too long. Shorten the names and try again.",
+    'chat.attach.refused.title': "Some files can't be sent",
+    'chat.attach.refused.description': "These files weren't attached.",
+    'chat.attach.refused.uploadRest_one': 'Upload the other {{count}}',
+    'chat.attach.refused.uploadRest_other': 'Upload the other {{count}}',
+    'chat.attach.refused.folder': 'Folders can’t be sent',
+    'chat.attach.refused.empty': 'Empty file',
+    'chat.attach.refused.unsupported': 'Format not supported',
+    'chat.attach.refused.too-large': 'Too large · up to {{max}}',
+    'chat.attach.refused.name-too-long': 'Name too long · shorten it and try again',
+    'chat.attach.refused.duplicate': 'Already attached',
+    'chat.attach.refused.limit': 'Over {{max}} files per message',
+    'chat.attach.refused.formats':
+        'Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, ZIP archives and audio files (M4A, MP3, WAV, OGG) can be attached.',
     'chat.thread.close': 'Close thread',
     'chat.thread.replyAction': 'Reply in thread',
     'chat.thread.replyCount_one': '{{count}} reply',

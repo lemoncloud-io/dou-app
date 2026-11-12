@@ -272,22 +272,19 @@ export const ko: EnTranslation = {
         '나를 직접 멘션한 글에만 배너가 떠요. @전체·DM·끔 채널·일시 중지 중·다른 클라우드는 조용히 넘어가요. macOS 집중 모드가 켜져 있으면 뜨지 않아요.',
     'snooze.activeQuietMention': '방해 금지 시간 — 나를 직접 멘션한 글만 알림',
     'chat.attach.countLabel': '파일 {{max}}개 중 {{count}}개 첨부됨',
-    'chat.attach.rejected.limit_one': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',
-    'chat.attach.rejected.limit_other': '메시지 하나에 파일은 최대 {{max}}개라 {{count}}개는 추가하지 않았어요.',
-    'chat.attach.rejected.duplicate_one': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
-    'chat.attach.rejected.duplicate_other': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
-    'chat.attach.rejected.unsupported_one':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일, 음성 파일(M4A, MP3, WAV, OGG)만 첨부할 수 있어요.',
-    'chat.attach.rejected.unsupported_other':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일, 음성 파일(M4A, MP3, WAV, OGG)만 첨부할 수 있어요.',
-    'chat.attach.rejected.too-large_one':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서·ZIP 압축 파일·음성 파일은 {{file}}까지 보낼 수 있어요.',
-    'chat.attach.rejected.too-large_other':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서·ZIP 압축 파일·음성 파일은 {{file}}까지 보낼 수 있어요.',
-    'chat.attach.rejected.name-too-long_one':
-        '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
-    'chat.attach.rejected.name-too-long_other':
-        '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
+    'chat.attach.refused.title': '보낼 수 없는 파일이 있습니다',
+    'chat.attach.refused.description': '아래 파일은 첨부하지 않았어요.',
+    'chat.attach.refused.uploadRest_one': '나머지 {{count}}개 올리기',
+    'chat.attach.refused.uploadRest_other': '나머지 {{count}}개 올리기',
+    'chat.attach.refused.folder': '폴더는 보낼 수 없어요',
+    'chat.attach.refused.empty': '빈 파일',
+    'chat.attach.refused.unsupported': '지원하지 않는 형식',
+    'chat.attach.refused.too-large': '용량 초과 · 최대 {{max}}',
+    'chat.attach.refused.name-too-long': '이름이 너무 길어요 · 줄여서 다시 시도해 주세요',
+    'chat.attach.refused.duplicate': '이미 첨부한 파일',
+    'chat.attach.refused.limit': '메시지당 최대 {{max}}개 초과',
+    'chat.attach.refused.formats':
+        '이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일, 음성 파일(M4A, MP3, WAV, OGG)만 첨부할 수 있어요.',
     'chat.thread.close': '스레드 닫기',
     'chat.thread.replyAction': '스레드에 답글 달기',
     'chat.thread.replyCount_one': '답글 {{count}}개',

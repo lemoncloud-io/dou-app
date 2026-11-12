@@ -191,24 +191,30 @@ export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>
     `${file.name}:${file.size}:${file.lastModified}`;
 
 /** Why a file in a drop or pick was refused. */
-export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large' | 'name-too-long';
-
-/** How many files each reason refused; a reason that refused nothing is absent. */
-export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
+export type AttachmentRejection =
+    | 'folder'
+    | 'empty'
+    | 'unsupported'
+    | 'too-large'
+    | 'name-too-long'
+    | 'duplicate'
+    | 'limit';
 
 export interface AttachmentValidation<T> {
     accepted: T[];
     /**
-     * Every refusal, counted. Only the first used to be kept, so a drop of nine into a
-     * tray of two said "up to 10" and never that one of the nine was left out.
+     * Every refused file with its reason, in incoming order. Counts per reason were all a toast could
+     * say; the dialog that replaced it names each file, so a reader knows which ones to fix.
      */
-    rejected: AttachmentRejections;
+    refused: { file: T; reason: AttachmentRejection }[];
 }
 
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * A format the server does not take is refused outright, and so is a file over its
+ * A folder (`isFolder`: only a drop can carry one, and only the drop can tell) and an empty file are
+ * refused first — the server takes neither, and a folder's name would otherwise read as an unknown
+ * format. A format the server does not take is refused outright, and so is a file over its
  * kind's size limit (the server would refuse it only after the whole transfer), and so is a
  * name over the server's byte limit, measured as it will be sent. A file
  * already in the tray (or twice in this batch) is a duplicate, and whatever would push
@@ -217,41 +223,38 @@ export interface AttachmentValidation<T> {
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
     existingKeys: readonly string[],
-    incoming: readonly T[]
+    incoming: readonly T[],
+    isFolder: (file: T) => boolean = () => false
 ): AttachmentValidation<T> => {
     const seen = new Set(existingKeys);
     const accepted: T[] = [];
-    const rejected: AttachmentRejections = {};
-    const reject = (reason: AttachmentRejection) => {
-        rejected[reason] = (rejected[reason] ?? 0) + 1;
-    };
+    const refused: AttachmentValidation<T>['refused'] = [];
     for (const file of incoming) {
-        const format = chatAttachmentFormat(file);
-        if (!format) {
-            reject('unsupported');
+        const reason = refusalOf(file, seen, isFolder);
+        if (reason) {
+            refused.push({ file, reason });
             continue;
         }
-        if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
-            reject('too-large');
-            continue;
-        }
-        if (isChatAttachmentNameTooLong(format.name)) {
-            reject('name-too-long');
-            continue;
-        }
-        const key = attachmentKey(file);
-        if (seen.has(key)) {
-            reject('duplicate');
-            continue;
-        }
-        if (seen.size >= MAX_ATTACHMENTS) {
-            reject('limit');
-            continue;
-        }
-        seen.add(key);
+        seen.add(attachmentKey(file));
         accepted.push(file);
     }
-    return { accepted, rejected };
+    return { accepted, refused };
+};
+
+const refusalOf = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
+    file: T,
+    seen: ReadonlySet<string>,
+    isFolder: (file: T) => boolean
+): AttachmentRejection | undefined => {
+    if (isFolder(file)) return 'folder';
+    if (file.size === 0) return 'empty';
+    const format = chatAttachmentFormat(file);
+    if (!format) return 'unsupported';
+    if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) return 'too-large';
+    if (isChatAttachmentNameTooLong(format.name)) return 'name-too-long';
+    if (seen.has(attachmentKey(file))) return 'duplicate';
+    if (seen.size >= MAX_ATTACHMENTS) return 'limit';
+    return undefined;
 };
 
 export interface ImageGridLayout {

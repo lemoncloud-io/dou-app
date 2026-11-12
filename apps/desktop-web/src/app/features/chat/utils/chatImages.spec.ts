@@ -16,21 +16,43 @@ import {
 const file = (name: string, type = 'image/png', size = 10) => ({ name, type, size, lastModified: 1 });
 const image = (i: number): ChatImage => ({ id: `i${i}`, name: `${i}.png`, url: `blob:${i}` });
 
+/** The refusals counted by reason, as these cases were first written against. */
+const validate = (...args: Parameters<typeof validateAttachments>) => {
+    const result = validateAttachments(...args);
+    const rejected: Partial<Record<string, number>> = {};
+    for (const { reason } of result.refused) rejected[reason] = (rejected[reason] ?? 0) + 1;
+    return { ...result, rejected };
+};
+
 describe('validateAttachments', () => {
+    it('refuses a folder and an empty file before judging their format', () => {
+        const folder = file('Recordings', '', 0);
+        const result = validate(
+            [],
+            [folder, file('blank.pdf', 'application/pdf', 0), file('a.png')],
+            f => f === folder
+        );
+        expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
+        expect(result.refused.map(({ file: f, reason }) => [f.name, reason])).toEqual([
+            ['Recordings', 'folder'],
+            ['blank.pdf', 'empty'],
+        ]);
+    });
+
     it('accepts supported images in order', () => {
-        const result = validateAttachments([], [file('a.png'), file('b.jpg', 'image/jpeg')]);
+        const result = validate([], [file('a.png'), file('b.jpg', 'image/jpeg')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png', 'b.jpg']);
         expect(result.rejected).toEqual({});
     });
 
     it('refuses a format the server does not take, keeping the rest', () => {
-        const result = validateAttachments([], [file('a.7z', 'application/x-7z-compressed'), file('a.png')]);
+        const result = validate([], [file('a.7z', 'application/x-7z-compressed'), file('a.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ unsupported: 1 });
     });
 
     it('takes videos and documents beside images, an untyped HWP included', () => {
-        const result = validateAttachments(
+        const result = validate(
             [],
             [file('clip.mp4', 'video/mp4'), file('a.pdf', 'application/pdf'), file('보고서.hwp', '')]
         );
@@ -40,7 +62,7 @@ describe('validateAttachments', () => {
 
     // macOS types a voice memo `audio/x-m4a`; each goes as a document the receiver saves.
     it('takes audio files as documents, in each format the server keeps', () => {
-        const result = validateAttachments(
+        const result = validate(
             [],
             [
                 file('memo.m4a', 'audio/x-m4a'),
@@ -55,14 +77,14 @@ describe('validateAttachments', () => {
 
     // The server keeps no AAC or WebM audio, so those are refused before an upload can fail.
     it('refuses audio in a format the server does not keep', () => {
-        const result = validateAttachments([], [file('clip.aac', 'audio/aac'), file('voice.webm', 'audio/webm')]);
+        const result = validate([], [file('clip.aac', 'audio/aac'), file('voice.webm', 'audio/webm')]);
         expect(result.accepted).toEqual([]);
         expect(result.rejected).toEqual({ unsupported: 2 });
     });
 
     // Chromium on Windows types a `.zip` as `application/x-zip-compressed`.
     it('takes a ZIP archive, however the system typed it', () => {
-        const result = validateAttachments(
+        const result = validate(
             [],
             [file('a.zip', 'application/zip'), file('b.zip', 'application/x-zip-compressed'), file('c.zip', '')]
         );
@@ -73,7 +95,7 @@ describe('validateAttachments', () => {
     // The server refuses these with a 413 after the whole transfer; the tray says so before it starts.
     it('refuses a file over its kind’s limit', () => {
         const MiB = 1024 * 1024;
-        const result = validateAttachments(
+        const result = validate(
             [],
             [
                 file('big.png', 'image/png', 21 * MiB),
@@ -87,7 +109,7 @@ describe('validateAttachments', () => {
 
     it('holds a ZIP archive to the document limit, to the byte', () => {
         const limit = 50 * 1024 * 1024;
-        const result = validateAttachments(
+        const result = validate(
             [],
             [file('fits.zip', 'application/zip', limit), file('over.zip', 'application/zip', limit + 1)]
         );
@@ -100,7 +122,7 @@ describe('validateAttachments', () => {
         it('refuses a long Hangul name that fits in characters', () => {
             const name = `${'가'.repeat(84)}.png`;
             expect(name.length).toBeLessThan(255);
-            const result = validateAttachments([], [file(name), file('a.png')]);
+            const result = validate([], [file(name), file('a.png')]);
             expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
             expect(result.rejected).toEqual({ 'name-too-long': 1 });
         });
@@ -109,12 +131,12 @@ describe('validateAttachments', () => {
             const ok = [`${'a'.repeat(251)}.png`, `${'가'.repeat(83)}ab.png`, `${'😀'.repeat(62)}abc.png`];
             const long = [`${'a'.repeat(252)}.png`, `${'가'.repeat(83)}abc.png`, `${'😀'.repeat(62)}abcd.png`];
             expect(
-                validateAttachments(
+                validate(
                     [],
                     ok.map(name => file(name))
                 ).rejected
             ).toEqual({});
-            const result = validateAttachments(
+            const result = validate(
                 [],
                 long.map(name => file(name))
             );
@@ -125,18 +147,18 @@ describe('validateAttachments', () => {
         // The name that goes up carries the extension a document without one is given.
         it('measures the name as it is sent, with an added extension', () => {
             const pdf = (name: string) => file(name, 'application/pdf');
-            expect(validateAttachments([], [pdf('a'.repeat(251))]).rejected).toEqual({});
-            expect(validateAttachments([], [pdf('a'.repeat(252))]).rejected).toEqual({ 'name-too-long': 1 });
+            expect(validate([], [pdf('a'.repeat(251))]).rejected).toEqual({});
+            expect(validate([], [pdf('a'.repeat(252))]).rejected).toEqual({ 'name-too-long': 1 });
         });
 
         it('measures a decomposed name composed, as the server does', () => {
             const name = `${'가'.repeat(83)}.png`.normalize('NFD');
-            expect(validateAttachments([], [file(name)]).rejected).toEqual({});
+            expect(validate([], [file(name)]).rejected).toEqual({});
         });
 
         it('does not take a place in the tray', () => {
             const existing = Array.from({ length: MAX_ATTACHMENTS - 1 }, (_, i) => `k${i}`);
-            const result = validateAttachments(existing, [file(`${'가'.repeat(90)}.png`), file('a.png')]);
+            const result = validate(existing, [file(`${'가'.repeat(90)}.png`), file('a.png')]);
             expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
             expect(result.rejected).toEqual({ 'name-too-long': 1 });
         });
@@ -145,15 +167,15 @@ describe('validateAttachments', () => {
     // A re-pick of a file already in the tray, and the same file twice in one drop.
     it('refuses duplicates against the tray and within the batch', () => {
         const a = file('a.png');
-        expect(validateAttachments([attachmentKey(a)], [a]).rejected).toEqual({ duplicate: 1 });
-        const batch = validateAttachments([], [a, a]);
+        expect(validate([attachmentKey(a)], [a]).rejected).toEqual({ duplicate: 1 });
+        const batch = validate([], [a, a]);
         expect(batch.accepted).toHaveLength(1);
         expect(batch.rejected).toEqual({ duplicate: 1 });
     });
 
     it('keeps the first files up to the limit and flags the overflow', () => {
         const existing = Array.from({ length: MAX_ATTACHMENTS - 1 }, (_, i) => `k${i}`);
-        const result = validateAttachments(existing, [file('a.png'), file('b.png')]);
+        const result = validate(existing, [file('a.png'), file('b.png')]);
         expect(result.accepted.map(f => f.name)).toEqual(['a.png']);
         expect(result.rejected).toEqual({ limit: 1 });
     });
@@ -166,7 +188,7 @@ describe('validateAttachments', () => {
             ['d.hwp', ''],
         ];
         const picked = Array.from({ length: 12 }, (_, i) => file(`${i}-${kinds[i % 4][0]}`, kinds[i % 4][1]));
-        const result = validateAttachments([], picked);
+        const result = validate([], picked);
         expect(result.accepted.map(f => f.name)).toEqual(picked.slice(0, 10).map(f => f.name));
         expect(result.rejected).toEqual({ limit: 2 });
     });
@@ -174,7 +196,7 @@ describe('validateAttachments', () => {
     // Only the first refusal used to be reported, so a mixed drop hid the rest of what it left out.
     it('counts every refusal by reason', () => {
         const existing = Array.from({ length: MAX_ATTACHMENTS - 2 }, (_, i) => `k${i}`);
-        const result = validateAttachments(existing, [
+        const result = validate(existing, [
             file('x.heic', 'image/heic'),
             file('a.png'),
             file('a.png'),

@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
@@ -17,7 +17,15 @@ const song = (): ComposerAttachment => {
     return { id: 'song', key: 'song', name: file.name, url: 'blob:song.mp3', file, kind: 'file', size: file.size };
 };
 
-afterEach(cleanup);
+// jsdom implements no playback; the tile's player pauses when it unmounts.
+let pause: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+    pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+});
+afterEach(() => {
+    cleanup();
+    pause.mockRestore();
+});
 
 describe('voice file in the composer tray', () => {
     it('says it is a voice file, and how long once that is known', () => {
@@ -33,7 +41,6 @@ describe('voice file in the composer tray', () => {
     });
 
     it('turns to the clock once it plays', () => {
-        const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         render(<ComposerAttachments attachments={[song()]} onRemove={vi.fn()} />, { wrapper });
         const audio = voiceElementFor('blob:song.mp3') as HTMLAudioElement;
         Object.defineProperty(audio, 'duration', { configurable: true, value: 125 });
@@ -44,8 +51,6 @@ describe('voice file in the composer tray', () => {
             fireEvent.timeUpdate(audio);
         });
         expect(screen.getByText('0:30')).toBeTruthy();
-        cleanup();
-        pause.mockRestore();
     });
 });
 

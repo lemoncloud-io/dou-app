@@ -25,9 +25,12 @@ Components are in `features/chat/components/images/`, and the tray state is in
   clipboard) also carries its text, and that text goes into the message as plain text. A file copied
   in Finder or Explorer carries only its own name as `text/plain`, and that is not inserted.
 
-Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which counts
-refusals by reason:
+Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which gives
+each refused file its reason, checked in this order:
 
+- `folder`: a dropped folder. It arrives among the files as an empty, typeless file named like the
+  folder; `useFileDrop` reads the drop's entries to tell it apart (only a drop can carry one).
+- `empty`: a file of zero bytes, of any kind. The server refuses one when its upload completes.
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX, TXT and HTML
   (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. HTML is the one format
@@ -42,8 +45,8 @@ refusals by reason:
   those four extensions goes up as that document, never as an archive. A video or document whose
   extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
   saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
-  it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
-  server refuses when its upload completes, passes the tray and its upload fails.
+  it is sent as `application/zip`. Nothing reads an archive's bytes here; an empty one is refused
+  as `empty` above.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
   documents, archives and audio 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `name-too-long`: the name as it will be sent (a document without an extension is given its
@@ -56,9 +59,12 @@ refusals by reason:
   batch.
 - `limit`: over `MAX_ATTACHMENTS` (10).
 
-The hook reports every reason in **one toast**. An unsupported file uses the destructive tone; a limit
-or a duplicate is only information. This was a blocking dialog that named only the first reason, so
-a mixed drop never said what else it left out.
+A batch with any refusal adds nothing yet. `UnsendableFilesHost` (mounted once beside the panes; the
+tray hook writes the batch to `useUnsendableFilesStore`) opens "Some files can't be sent" with every
+refused file by name and its reason — the size ceiling for `too-large`, the ten for `limit` — and the
+supported formats when one was `unsupported`. "Upload the other n" adds what fits; Cancel adds
+nothing; when nothing fits there is only Confirm. A toast that counted refusals by reason came
+before it: it said how many but not which, and added the rest unasked.
 
 ## The tray
 
@@ -150,8 +156,8 @@ lists them under the images:
 - **Two or more** videos, documents or voice files are headed "2 attachments ▾ | Download all". The
   count folds the list away and back; Download all saves each file there is something to load for,
   one after another, as the image grid's does.
-- **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`, Figma "음성 파일 · 데스크탑
-  ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
+- **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`,
+  Figma "음성 파일 · 데스크탑 ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
   alone while the header names no length, and `h:mm:ss` from an hour. Once played the line is a
   seek bar with `0:01 / 0:02` (the time played alone without a length), and a speed button steps
   1x → 1.5x → 2x → 1x. The button spins while the first press waits for sound. It streams from the
