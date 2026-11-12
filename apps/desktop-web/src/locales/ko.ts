@@ -200,6 +200,8 @@ export const ko: EnTranslation = {
     'chat.file.download': '다운로드',
     'chat.file.more': '{{name}} 더보기',
     'chat.file.moreHint': '더보기',
+    'chat.file.groupTitle_one': '{{count}}개의 첨부 파일',
+    'chat.file.groupTitle_other': '{{count}}개의 첨부 파일',
     'chat.file.replyInThread': '스레드에서 답글',
     'chat.voice.uploading': '업로드 중',
     'chat.voice.uploadingPercent': '업로드 중 {{percent}}%',

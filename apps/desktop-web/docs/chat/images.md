@@ -144,6 +144,9 @@ lists them under the images:
   without one.
 - **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text
   file or HTML page's name also opens it in the document viewer (below).
+- **Two or more** videos, documents or voice files are headed "2 attachments ▾ | Download all". The
+  count folds the list away and back; Download all saves each file there is something to load for,
+  one after another, as the image grid's does.
 - **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`, Figma "음성 파일 · 데스크탑
   ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
   alone while the header names no length, and `h:mm:ss` from an hour. Once played the line is a

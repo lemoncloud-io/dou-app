@@ -190,6 +190,8 @@ export const en = {
     'chat.file.download': 'Download',
     'chat.file.more': 'More actions for {{name}}',
     'chat.file.moreHint': 'More',
+    'chat.file.groupTitle_one': '{{count}} attachment',
+    'chat.file.groupTitle_other': '{{count}} attachments',
     'chat.file.replyInThread': 'Reply in thread',
     'chat.voice.uploading': 'Uploading',
     'chat.voice.uploadingPercent': 'Uploading {{percent}}%',

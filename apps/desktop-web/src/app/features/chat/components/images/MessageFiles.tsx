@@ -1,12 +1,22 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AlertCircle, Download, FileText, Film } from 'lucide-react';
+import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
+import { cn } from '@chatic/lib/utils';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ConfirmDialog } from '../../../channels';
-import { canPreview, downloadImage, formatFileSize, isVoiceFile, toChatFiles, type ChatFile } from '../../utils';
+import {
+    canPreview,
+    downloadImage,
+    downloadImages,
+    formatFileSize,
+    isVoiceFile,
+    toChatFiles,
+    type ChatFile,
+} from '../../utils';
 import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
@@ -33,17 +43,54 @@ interface MessageFilesProps {
  * A message's videos and documents, under its images. A video plays in place; a document is a card
  * with its name, size and a save button; a PDF or text file also opens in the viewer, and a voice file
  * plays in its card. Neither is drawn as an image tile: a PDF in an `<img>` is a broken picture.
+ *
+ * Two or more are headed "n attachments ▾ | Download all" (Figma "음성 파일 · 데스크탑 ③"): the count folds
+ * the list away, and the download saves every file there is something to load for, one after another.
  */
 export const MessageFiles = ({ message, author, canDelete, onDeleteMessage, onReply }: MessageFilesProps) => {
     const { t } = useTranslation();
     const { id, upload$$ } = message;
     const files = useMemo(() => (id && upload$$?.length ? toChatFiles(id, upload$$) : []), [id, upload$$]);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
+    const [isFolded, setFolded] = useState(false);
     const requestDelete = canDelete && onDeleteMessage ? () => setConfirmingDelete(true) : undefined;
     if (files.length === 0) return null;
+    const listId = `files-${id}`;
+    const downloadAll = () =>
+        downloadImages(
+            files.filter(file => file.url).map(file => ({ url: file.url, name: file.name ?? 'file' })),
+            () => toast({ variant: 'destructive', description: t('chat.file.saveFailed') })
+        );
     return (
         <>
-            <ul className="mt-2 flex max-w-[368px] flex-col gap-2">
+            {files.length > 1 && (
+                <div className="mt-2 flex items-center gap-2 text-caption text-muted-foreground">
+                    <button
+                        type="button"
+                        onClick={() => setFolded(folded => !folded)}
+                        aria-expanded={!isFolded}
+                        aria-controls={listId}
+                        className="focus-ring tactile flex items-center gap-0.5 rounded-sm hover:text-foreground"
+                    >
+                        {t('chat.file.groupTitle', { count: files.length })}
+                        <ChevronDown
+                            size={14}
+                            aria-hidden
+                            className={cn('transition-transform ease-tactile', isFolded && '-rotate-90')}
+                        />
+                    </button>
+                    <span aria-hidden className="h-3 w-px bg-hairline" />
+                    <button
+                        type="button"
+                        onClick={downloadAll}
+                        className="focus-ring tactile flex items-center gap-1 rounded-sm hover:text-foreground"
+                    >
+                        <Download size={13} aria-hidden />
+                        {t('chat.image.downloadAll')}
+                    </button>
+                </div>
+            )}
+            <ul id={listId} hidden={isFolded} className="mt-2 flex max-w-[368px] flex-col gap-2">
                 {files.map(file => (
                     <li key={file.id}>
                         <FileItem
