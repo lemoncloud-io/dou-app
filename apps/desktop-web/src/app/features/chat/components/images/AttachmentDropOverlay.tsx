@@ -2,7 +2,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Paperclip } from 'lucide-react';
 
-import { MAX_ATTACHMENTS } from '../../utils';
+import { CHAT_ATTACHMENT_MAX_BYTES } from '@chatic/data';
+
+import { MAX_ATTACHMENTS, VOICE_EXTENSIONS, formatFileSize } from '../../utils';
 
 /**
  * Shown over the conversation while files are dragged in (Figma "#image drag over"): a
@@ -25,6 +27,13 @@ export const AttachmentDropOverlay = () => {
             </span>
             <p className="text-headline font-semibold text-foreground">{t('chat.attach.dropTitle')}</p>
             <p className="text-callout text-label">{t('chat.attach.dropHint', { count: MAX_ATTACHMENTS })}</p>
+            {/* Voice files are documents to the server, but the feed plays them; the drop zone says so. */}
+            <p className="text-caption text-description">
+                {t('chat.attach.dropVoiceHint', {
+                    extensions: VOICE_EXTENSIONS.join(', '),
+                    size: formatFileSize(CHAT_ATTACHMENT_MAX_BYTES.file),
+                })}
+            </p>
         </div>
     );
 };

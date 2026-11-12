@@ -1,4 +1,4 @@
-import { chatAttachmentFormat } from '@chatic/data';
+import { chatAttachmentExtension, chatAttachmentFormat } from '@chatic/data';
 
 import type { ChatFile } from './chatImages';
 
@@ -9,11 +9,18 @@ const PREVIEWS: Readonly<Record<string, FilePreview>> = {
     'application/pdf': 'pdf',
     'text/plain': 'text',
     'text/html': 'html',
-    'audio/mpeg': 'audio',
+    // In the order the drop zone names them: m4a, the phone recorder's, first.
     'audio/mp4': 'audio',
+    'audio/mpeg': 'audio',
     'audio/wav': 'audio',
     'audio/ogg': 'audio',
 };
+
+/** The extensions of the voice files the feed plays — "m4a, mp3, wav, ogg" in the drop zone. */
+export const VOICE_EXTENSIONS: readonly string[] = Object.keys(PREVIEWS)
+    .filter(type => PREVIEWS[type] === 'audio')
+    .map(type => chatAttachmentExtension(type))
+    .filter((extension): extension is string => !!extension);
 
 /**
  * Whether a sent file opens in the viewer, and as what. A PDF, a text file or an HTML page is drawn, a

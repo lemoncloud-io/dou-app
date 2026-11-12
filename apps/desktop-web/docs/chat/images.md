@@ -18,7 +18,9 @@ Components are in `features/chat/components/images/`, and the tray state is in
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
   the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/data`: every type and every
   extension, because a picker that does not know HWP's type only offers the file by its extension.
-- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it, and says files.
+- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it: "Drop images and
+  files here to upload", the ten-per-message limit, and a line saying voice files (the extensions and
+  the 50 MB document ceiling, both read from the same tables the send uses) play right in the chat.
 - **Paste:** pasted files join the tray. A rich copy (Excel, Word: `text/html` or `text/rtf` on the
   clipboard) also carries its text, and that text goes into the message as plain text. A file copied
   in Finder or Explorer carries only its own name as `text/plain`, and that is not inserted.
@@ -77,7 +79,8 @@ tile is only a 92px crop or a name: an image or a video in the image viewer's fr
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
 and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
 plain tile. A voice file opens nothing: its tile is a play/pause button that plays the picked file
-from the tray's object URL, with the clock in place of the size once it starts and a bar along the
+from the tray's object URL. Before it plays it reads `Voice file · 0:42` (the length once the file's
+header is read) rather than a size; the clock takes its place once it starts and a bar along the
 bottom edge. It shares the feed's one-sound-at-a-time rule (below). A file the browser cannot decode
 turns the tile plain — not a button, so nothing to focus — and says "Couldn't play this file" in
 place of the size. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the

@@ -190,12 +190,15 @@ const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
     // no focus, and its label would hide the error from a screen reader.
     const Tile = failed ? 'div' : 'button';
     const started = time > 0 || playing;
-    // The clock once it has started; before that the size, like any other file.
+    // The clock once it has started; before that what it is and how long (Figma "음성 파일 · 0:42"), the
+    // length as soon as the file's header has been read.
     const caption = failed
         ? t('chat.file.playFailed')
         : started
           ? formatPlaybackTime(time)
-          : formatFileSize(attachment.size);
+          : [t('chat.voice.chip'), duration === undefined ? undefined : formatPlaybackTime(duration)]
+                .filter(Boolean)
+                .join(' · ');
 
     return (
         <Tile
