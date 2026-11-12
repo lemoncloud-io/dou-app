@@ -9,7 +9,7 @@ import { canPreview, downloadImage, formatFileSize, formatPlaybackTime, toChatFi
 import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
-import { useInlineAudio } from './useInlineAudio';
+import { useVoicePlayback } from './voicePlayback';
 import { Hint, toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
@@ -129,7 +129,7 @@ const SaveButton = ({ name, onSave }: { name: string; onSave: () => void }) => {
  */
 const AudioCard = ({ src, name, saveButton }: { src: string; name: string; saveButton: ReactNode }) => {
     const { t } = useTranslation();
-    const { audioProps, playing, time, duration, failed, toggle, seek } = useInlineAudio(src);
+    const { playing, time, duration, failed, toggle, seek } = useVoicePlayback(src);
     // A length still unknown (or zero) is a bar at rest: nothing to seek through yet.
     const max = duration || 1;
     const position = duration ? Math.min(time, duration) : 0;
@@ -141,7 +141,6 @@ const AudioCard = ({ src, name, saveButton }: { src: string; name: string; saveB
 
     return (
         <div className="flex items-center gap-3 rounded-2xl border border-hairline bg-muted px-3 py-2.5">
-            <audio {...audioProps} />
             <button
                 type="button"
                 onClick={toggle}

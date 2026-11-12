@@ -9,7 +9,7 @@ import type { ComposerAttachment } from '../../hooks';
 import { MAX_ATTACHMENTS, formatFileSize, formatPlaybackTime } from '../../utils';
 import { ComposerPreview, canPreviewAttachment, isAudioAttachment } from './ComposerPreview';
 import { ImageSpinner } from './ImageSpinner';
-import { useInlineAudio } from './useInlineAudio';
+import { useVoicePlayback } from './voicePlayback';
 import { Hint, hoverReveal } from '../../../../shared';
 
 interface ComposerAttachmentsProps {
@@ -183,7 +183,7 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
  */
 const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
     const { t } = useTranslation();
-    const { audioProps, playing, time, duration, failed, toggle } = useInlineAudio(attachment.url);
+    const { playing, time, duration, failed, toggle } = useVoicePlayback(attachment.url);
     const name = attachment.name;
     const PlayIcon = playing ? Pause : Play;
     // A file it cannot play is a plain tile, like a document nothing opens: a disabled button takes
@@ -209,7 +209,6 @@ const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
                 !failed && 'focus-ring'
             )}
         >
-            <audio {...audioProps} />
             <div className="flex h-full w-full flex-col justify-between p-2.5">
                 <span
                     className={cn(

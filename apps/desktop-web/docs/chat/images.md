@@ -149,13 +149,18 @@ lists them under the images:
   length). It streams from the signed address, reading only the header (`preload="metadata"`) until
   it is played, so a feed of voice files costs a few kilobytes each. Not the document viewer: a
   full-window dialog around one small player is a lot of window for a clip of seconds.
-    - **One sound at a time.** A voice file starting — card or tray tile — pauses every other audio
-      or video in the window, and any audio or video starting pauses a voice file. Videos among
-      themselves are left alone. `play` does not bubble, so `useInlineAudio` listens for it in the
-      capture phase on the document, while at least one voice file is mounted.
-    - A card that leaves the page stops its own playback. An address the player cannot load — past
-      its signature, say — turns the bar into "Couldn't play this file" and leaves the save button; a
-      re-signed address starts over clean.
+    - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
+      tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
+      at the card's speed, and a file paused for another keeps its place. The element is never put in
+      the document: moving a playing element from one host to another would pause it.
+    - **One sound at a time.** A voice file starting pauses every other voice file and every audio or
+      video in the window, and any audio or video in the page starting pauses the voice files. Videos
+      among themselves are left alone. `play` does not bubble, so the store listens for the page's
+      media in the capture phase on the document, while at least one view holds a voice file.
+    - The last view of a file letting go stops it: a card that leaves the page stops its playback
+      unless the detail dialog still holds the file, and leaving the conversation stops what played
+      there. An address the player cannot load — past its signature, say — turns the bar into
+      "Couldn't play this file" and leaves the save button; a re-signed address starts over clean.
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.

@@ -9,6 +9,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import { downloadImage } from '../../utils';
 import type * as Utils from '../../utils';
 import { MessageFiles } from './MessageFiles';
+import { voiceElementFor } from './voicePlayback';
 
 import '../../../../../i18n';
 
@@ -96,7 +97,8 @@ describe('MessageFiles', () => {
         // jsdom implements no playback: `play()` only logs. These stand in for the element's own methods.
         const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
-        const audioOf = (container: HTMLElement, index = 0) => container.querySelectorAll('audio')[index];
+        // The player is shared by every view of a file and lives outside the document.
+        const voiceOf = (id: string) => voiceElementFor(`https://s/${id}`) as HTMLAudioElement;
 
         beforeEach(() => {
             play.mockClear();
@@ -105,10 +107,10 @@ describe('MessageFiles', () => {
 
         // It used to open a full-window dialog around one small native player.
         it('plays in its card, streamed from its address, without opening the viewer', () => {
-            const { container } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
+            render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
             });
-            const audio = audioOf(container);
+            const audio = voiceOf('a');
             expect(audio.getAttribute('src')).toBe('https://s/a');
             expect(audio.getAttribute('preload')).toBe('metadata');
 
@@ -131,9 +133,9 @@ describe('MessageFiles', () => {
                 <MessageFiles author={author} message={sent([song('a', 'one.mp3'), song('b', 'two.mp3'), clip])} />,
                 { wrapper }
             );
-            const one = sounding(audioOf(container, 0));
+            const one = sounding(voiceOf('a'));
             const video = sounding(container.querySelector('video') as HTMLVideoElement);
-            fireEvent.play(audioOf(container, 1));
+            fireEvent.play(voiceOf('b'));
             expect(pause.mock.contexts).toEqual(expect.arrayContaining([one, video]));
             expect(pause).toHaveBeenCalledTimes(2);
         });
@@ -143,27 +145,27 @@ describe('MessageFiles', () => {
                 <MessageFiles author={author} message={sent([song('a', 'one.mp3'), clip])} />,
                 { wrapper }
             );
-            const one = sounding(audioOf(container, 0));
+            const one = sounding(voiceOf('a'));
             fireEvent.play(container.querySelector('video') as HTMLVideoElement);
             expect(pause.mock.contexts).toEqual([one]);
         });
 
         // Its length unknown, the clock reads the time played alone rather than "0:12 / 0:00".
         it('shows only the time played while its length is unknown', () => {
-            const { container } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
+            render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
             });
-            const audio = audioOf(container);
+            const audio = voiceOf('a');
             Object.defineProperty(audio, 'currentTime', { configurable: true, value: 12 });
             fireEvent.timeUpdate(audio);
             expect(screen.getByText('0:12')).toBeTruthy();
         });
 
         it('seeks once its length is known, and shows the clock', () => {
-            const { container } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
+            render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
             });
-            const audio = audioOf(container);
+            const audio = voiceOf('a');
             const seek = screen.getByRole('slider', { name: 'Playback position of song.mp3' }) as HTMLInputElement;
             expect(seek.disabled).toBe(true);
 
@@ -179,10 +181,10 @@ describe('MessageFiles', () => {
 
         // A signed address past its time answers 403, and the button would do nothing.
         it('says it could not be played, and still offers to save it', () => {
-            const { container } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
+            render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
             });
-            fireEvent.error(audioOf(container));
+            fireEvent.error(voiceOf('a'));
             expect(screen.getByText("Couldn't play this file")).toBeTruthy();
             expect((screen.getByRole('button', { name: 'Play song.mp3' }) as HTMLButtonElement).disabled).toBe(true);
             fireEvent.click(screen.getByRole('button', { name: 'Save song.mp3' }));
@@ -191,17 +193,16 @@ describe('MessageFiles', () => {
 
         // The failure belonged to the expired address; the re-signed one gets its own chance.
         it('plays again once its address is re-signed', () => {
-            const { container, rerender } = render(
-                <MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />,
-                { wrapper }
-            );
-            fireEvent.error(audioOf(container));
+            const { rerender } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
+                wrapper,
+            });
+            fireEvent.error(voiceOf('a'));
             rerender(
                 <MessageFiles author={author} message={sent([{ ...song('a', 'song.mp3'), orgUrl: 'https://s/a2' }])} />
             );
             expect(screen.queryByText("Couldn't play this file")).toBeNull();
             expect((screen.getByRole('button', { name: 'Play song.mp3' }) as HTMLButtonElement).disabled).toBe(false);
-            expect(audioOf(container).getAttribute('src')).toBe('https://s/a2');
+            expect(voiceOf('a2').getAttribute('src')).toBe('https://s/a2');
         });
     });
 
