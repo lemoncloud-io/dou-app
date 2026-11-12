@@ -7,3 +7,4 @@ export * from './ImageTile';
 export * from './ImageViewer';
 export * from './MessageFiles';
 export * from './MessageImages';
+export * from './VoiceDetailHost';

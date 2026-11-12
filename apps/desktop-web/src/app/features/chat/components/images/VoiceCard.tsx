@@ -37,6 +37,8 @@ interface VoiceCardProps {
     onReply?: () => void;
     /** Asks to delete the message the file came with. Absent where the reader cannot delete it. */
     onDelete?: () => void;
+    /** Opens the voice detail dialog. */
+    onOpen?: () => void;
 }
 
 const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
@@ -53,7 +55,7 @@ const ICON_BUTTON =
  * failed line carries Retry and Delete. A file the browser cannot decode becomes a plain card that still
  * saves, and if it breaks off while playing the player raises a toast — the card alone may be out of sight.
  */
-export const VoiceCard = ({ file, name, messageId, onSave, onReply, onDelete }: VoiceCardProps) => {
+export const VoiceCard = ({ file, name, messageId, onSave, onReply, onDelete, onOpen }: VoiceCardProps) => {
     const { t } = useTranslation();
     const size = file.size !== undefined ? formatFileSize(file.size) : undefined;
 
@@ -70,7 +72,17 @@ export const VoiceCard = ({ file, name, messageId, onSave, onReply, onDelete }: 
         );
     }
 
-    return <VoicePlayer src={file.url} name={name} size={size} onSave={onSave} onReply={onReply} onDelete={onDelete} />;
+    return (
+        <VoicePlayer
+            src={file.url}
+            name={name}
+            size={size}
+            onSave={onSave}
+            onReply={onReply}
+            onDelete={onDelete}
+            onOpen={onOpen}
+        />
+    );
 };
 
 /**
@@ -110,6 +122,7 @@ const VoicePlayer = ({
     onSave,
     onReply,
     onDelete,
+    onOpen,
 }: {
     src: string;
     name: string;
@@ -117,6 +130,7 @@ const VoicePlayer = ({
     onSave: () => void;
     onReply?: () => void;
     onDelete?: () => void;
+    onOpen?: () => void;
 }) => {
     const { t } = useTranslation();
     const voice = useVoicePlayback(src);
@@ -139,7 +153,15 @@ const VoicePlayer = ({
 
     const PlayIcon = playing ? Pause : Play;
     return (
-        <div className={CARD}>
+        // The rest of the card opens the detail too (Figma: the bubble outside play opens it). Not a
+        // control of its own: the name button is the way in by keyboard, and a click that lands on any
+        // control inside is that control's.
+        <div
+            className={cn(CARD, onOpen && 'cursor-pointer')}
+            onClick={event => {
+                if (onOpen && !(event.target as HTMLElement).closest('button, input, a, [role="menu"]')) onOpen();
+            }}
+        >
             <button
                 type="button"
                 onClick={voice.toggle}
@@ -158,7 +180,7 @@ const VoicePlayer = ({
                 )}
             </button>
             <div className="min-w-0 flex-1">
-                <FileName name={name} />
+                <FileName name={name} onOpen={onOpen} />
                 {started ? (
                     <SeekBar name={name} time={time} duration={duration} onSeek={voice.seek} />
                 ) : (
@@ -300,14 +322,29 @@ const Meta = ({ parts, tone }: { parts: readonly (string | undefined)[]; tone?: 
  * A file name on one line that, when it does not fit, gives way in the stem and keeps its extension —
  * "팀 회의 1107_최종본_전체녹….m4a" still says it is a voice file. The whole name is in the hint.
  */
-export const FileName = ({ name, className }: { name: string; className?: string }) => {
+export const FileName = ({ name, onOpen }: { name: string; onOpen?: () => void }) => {
+    const { t } = useTranslation();
     const { stem, extension } = splitFileName(name);
+    const parts = (
+        <>
+            <span className="truncate">{stem}</span>
+            {extension && <span className="shrink-0">{extension}</span>}
+        </>
+    );
     return (
         <Hint label={name} delayDuration={500}>
-            <p className={cn('flex min-w-0 text-callout font-medium text-foreground', className)}>
-                <span className="truncate">{stem}</span>
-                {extension && <span className="shrink-0">{extension}</span>}
-            </p>
+            {onOpen ? (
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    aria-label={t('chat.voice.openDetail', { name })}
+                    className="focus-ring flex min-w-0 max-w-full rounded-sm text-left text-callout font-medium text-foreground hover:underline"
+                >
+                    {parts}
+                </button>
+            ) : (
+                <p className="flex min-w-0 text-callout font-medium text-foreground">{parts}</p>
+            )}
         </Hint>
     );
 };

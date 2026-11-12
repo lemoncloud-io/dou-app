@@ -103,6 +103,8 @@ interface MessageRowProps {
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
+    /** Takes the channel's feed to a message ("Show in chat"). Only the channel's own feed passes it. */
+    onShowMessage?: (message: DomainChat) => void;
     /** Lowercased names that count as "me" in a message — my mentions render highlighted. */
     selfNamesOf?: (message: DomainChat) => string[];
     /** Resolves an @mention to a member, so the mention opens their profile. */
@@ -225,6 +227,7 @@ export const MessageRow = memo(
         reactorName,
         threadMeta,
         onOpenThread,
+        onShowMessage,
         selfNamesOf,
         resolveMention,
         mentionables,
@@ -650,6 +653,7 @@ export const MessageRow = memo(
                                             canDelete={group.isMine}
                                             onDeleteMessage={() => message.id && deleteMessage(message.id)}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
+                                            onShowInChat={onShowMessage && (() => onShowMessage(message))}
                                         />
                                     )}
                                     {/* `failure &&` first: an unsent message has no id, and

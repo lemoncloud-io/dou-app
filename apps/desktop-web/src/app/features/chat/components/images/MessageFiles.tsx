@@ -7,7 +7,6 @@ import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { ConfirmDialog } from '../../../channels';
 import {
     canPreview,
     downloadImage,
@@ -17,10 +16,12 @@ import {
     toChatFiles,
     type ChatFile,
 } from '../../utils';
+import { DeleteFileConfirm } from './DeleteFileConfirm';
 import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
 import { VoiceCard } from './VoiceCard';
+import { useVoiceDetailStore } from './VoiceDetailHost';
 import { Hint, toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
@@ -37,6 +38,11 @@ interface MessageFilesProps {
     onDeleteMessage?: () => void;
     /** Opens this message's thread. Absent inside the thread panel. */
     onReply?: () => void;
+    /**
+     * Takes the channel's feed to this message. Offered only where the feed can land it — the channel's
+     * own feed — not in a thread, the threads page or Saved.
+     */
+    onShowInChat?: () => void;
 }
 
 /**
@@ -47,7 +53,14 @@ interface MessageFilesProps {
  * Two or more are headed "n attachments ▾ | Download all" (Figma "음성 파일 · 데스크탑 ③"): the count folds
  * the list away, and the download saves every file there is something to load for, one after another.
  */
-export const MessageFiles = ({ message, author, canDelete, onDeleteMessage, onReply }: MessageFilesProps) => {
+export const MessageFiles = ({
+    message,
+    author,
+    canDelete,
+    onDeleteMessage,
+    onReply,
+    onShowInChat,
+}: MessageFilesProps) => {
     const { t } = useTranslation();
     const { id, upload$$ } = message;
     const files = useMemo(() => (id && upload$$?.length ? toChatFiles(id, upload$$) : []), [id, upload$$]);
@@ -99,18 +112,15 @@ export const MessageFiles = ({ message, author, canDelete, onDeleteMessage, onRe
                             messageId={id}
                             onReply={onReply}
                             onDelete={requestDelete}
+                            deleteMessage={canDelete ? onDeleteMessage : undefined}
+                            onShowInChat={onShowInChat}
                         />
                     </li>
                 ))}
             </ul>
             {confirmingDelete && (
-                <ConfirmDialog
-                    open
-                    onOpenChange={open => !open && setConfirmingDelete(false)}
-                    title={t('chat.deleteConfirm.title')}
-                    description={t('chat.deleteConfirm.noPreview')}
-                    confirmLabel={t('chat.image.delete')}
-                    variant="danger"
+                <DeleteFileConfirm
+                    onCancel={() => setConfirmingDelete(false)}
                     onConfirm={() => {
                         setConfirmingDelete(false);
                         onDeleteMessage?.();
@@ -127,12 +137,21 @@ const FileItem = ({
     messageId,
     onReply,
     onDelete,
+    deleteMessage,
+    onShowInChat,
 }: {
     file: ChatFile;
     author: ImageAuthor;
     messageId: string | undefined;
     onReply?: () => void;
+    /** Asks this row's confirm, then deletes. */
     onDelete?: () => void;
+    /**
+     * Deletes the message without asking. The detail dialog takes this one and its host asks: the
+     * dialog outlives the row, and the row's confirm goes with the row.
+     */
+    deleteMessage?: () => void;
+    onShowInChat?: () => void;
 }) => {
     const { t } = useTranslation();
     const name = file.name ?? t(file.kind === 'video' ? 'chat.attach.previewVideo' : 'chat.attach.previewFile');
@@ -143,6 +162,7 @@ const FileItem = ({
     const preview = canPreview(file);
     const canOpen = preview !== null;
     const [isViewing, setIsViewing] = useState(false);
+    const openDetail = useVoiceDetailStore(s => s.open);
     const save = () =>
         void downloadImage({ url: file.url, name: saveName }).catch((error: unknown) =>
             toastFailure(t('chat.file.saveFailed'), error)
@@ -158,6 +178,21 @@ const FileItem = ({
                 onSave={save}
                 onReply={onReply}
                 onDelete={onDelete}
+                onOpen={
+                    file.url
+                        ? () =>
+                              openDetail({
+                                  src: file.url,
+                                  name,
+                                  size: file.size,
+                                  author,
+                                  onSave: save,
+                                  onShowInChat,
+                                  onReply,
+                                  onDelete: deleteMessage,
+                              })
+                        : undefined
+                }
             />
         );
     }

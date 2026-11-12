@@ -16,6 +16,7 @@ import {
     useSelectedChannelStore,
     useViewportNarrow,
 } from '../../../shared';
+import { VoiceDetailHost } from './images';
 
 interface DesktopLayoutProps {
     rail: ReactNode;
@@ -241,6 +242,8 @@ export const DesktopLayout = ({
                             }}
                         />
                     )}
+                    {/* A voice file's detail, outside the feed rows so it outlives the row it came from. */}
+                    <VoiceDetailHost />
                     {/* In a compact window the rails are part of the drawer. One dialog holds
                         them and the channel list, so a reader told that the dialog is modal
                         can still reach the cloud and place tiles. It is hidden rather than

@@ -88,6 +88,8 @@ interface MessageListProps {
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
+    /** "Show in chat" from a voice file's detail. Only the channel's own feed passes it. */
+    onShowMessage?: (message: DomainChat) => void;
     /**
      * Scroll a specific message into view + flash it (saved-item / search jump).
      * `restore` puts it back at the top of the view without the flash (a return trip).
@@ -180,6 +182,7 @@ export const MessageList = ({
     openAtBottom,
     threadMeta,
     onOpenThread,
+    onShowMessage,
     jumpTarget,
     onJumpConsumed,
     onReadingPosition,
@@ -990,6 +993,7 @@ export const MessageList = ({
                                     onDiscard={onDiscard}
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
+                                    onShowMessage={onShowMessage}
                                     selfNamesOf={selfNamesOf}
                                     resolveMention={resolveMention}
                                     mentionables={mentionables}

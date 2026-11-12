@@ -167,6 +167,24 @@ lists them under the images:
     - **Cannot be played** (the address failed, or the browser cannot decode it): the button gives
       way to a plain mark and the line reads `Couldn't play this file · 17 MB`; download and the menu
       stay. If that happens while it plays, a toast says so too — the card may be out of sight.
+    - **The detail dialog** (`VoiceDetailDialog`, Figma "음성 파일 · 데스크탑 ⑦⑧") opens from the
+      name, or a click anywhere on the card outside its controls. It shows the sender and time with
+      "Show in chat", a bar pattern that fills as it plays, the name with `2:05 · 17 MB · m4a`, the seek
+      bar with the time played and the time left, the speed, fifteen seconds back and forward, and
+      play. Space plays and pauses, ←/→ move fifteen seconds and Esc closes, wherever focus is inside;
+      Space on a focused button is not also a click. The header's download, More and close carry hints
+      that wait half a second and open below. More holds Show in chat (closes the dialog and jumps the
+      feed to the message, centred and flashed — `useMessageJumpStore`), Reply in thread and Delete
+      file. Show in chat is offered only from the channel's own feed (`ChatPane` passes it down as
+      `onShowMessage`): the thread panel, the threads page and Saved have no feed to land it in. The
+      dialog is mounted once beside the panes (`VoiceDetailHost`, a small store the card writes to), not
+      inside the row: the feed unmounts rows that leave its window, and a dialog in one would close and
+      stop the file with it. For the same reason the host asks before Delete file, rather than the
+      row's own confirm. Opening it puts focus on the dialog itself, not a control — every control
+      carries a hint, and a hint opened by that focus would take the first Esc. The bars are a pattern drawn from the name, not the file's waveform: drawing that would
+      fetch the whole file before it plays, and the card streams it. Link copy, forward and "Show in
+      Finder" from the design are not offered: the server has no member-only link or forward, and the
+      shell does not say where a download landed.
     - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
       tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
       at the card's speed, and a file paused for another keeps its place. The element is never put in
