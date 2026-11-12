@@ -103,7 +103,9 @@ export const MessageFiles = ({
                     </button>
                 </div>
             )}
-            <ul id={listId} hidden={isFolded} className="mt-2 flex max-w-[368px] flex-col gap-2">
+            {/* `flex` only while open: a utility's display beats the `[hidden]` reset, so the two together
+                never fold. */}
+            <ul id={listId} hidden={isFolded} className={cn('mt-2 max-w-[368px] flex-col gap-2', !isFolded && 'flex')}>
                 {files.map(file => (
                     <li key={file.id}>
                         <FileItem
