@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-11-13] - root@0.155.0, @chatic/desktop-web@0.57.0
+
+### Features
+
+- (desktop-web) give images and documents the voice file's menu
+- (desktop-web) copy a link to a voice file and forward it
+- (desktop-web) draw the voice file's own waveform in its dialog
+- (desktop-web) call a voice-only message a voice file
+- (desktop-web) cancel a file upload from its card
+- (desktop) say when a download ends and show it in Finder
+- (desktop-web) name each file that can't be sent in a dialog
+- (desktop-web) show voice length in the tray and voice in the drop zone
+- (desktop-web) open a voice file in a detail dialog
+- (desktop-web) head two or more files with a count and download all
+- (desktop-web) redesign the voice card with length, speed and menu
+
+### Bug Fixes
+
+- (desktop-web) lift a toast with an action over an open dialog
+- (desktop-web) paint the waveform fill when the dialog opens mid-file
+- (desktop-web) fill the voice waveform smoothly as it plays
+- (desktop-web) close file dialogs with home, notify saves anywhere
+- (desktop-web) keep message links to known clouds, forward anywhere
+- (desktop-web) fold the attachment list for real
+
+### Refactor
+
+- (desktop-web) tidy the deeplink decode and download batch
+- (desktop-web) tidy the voice and attachment changes
+- (desktop-web) share one voice player per file across views
+
 ## [2026-11-13] - root@0.154.2, @chatic/landing@0.18.1
 
 ### Bug Fixes
