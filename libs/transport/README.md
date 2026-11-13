@@ -62,15 +62,15 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    them (`TransportPlatformPorts`, in [`platform.ts`](./src/platform.ts)) and the runtime's assembly
    hands them over before the first socket:
 
-    | Port           | Read by                                                                                                                 | In a web page (`@chatic/runtime-web`)                     |
-    | -------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips                                             | `navigator.onLine` and the window's online/offline events |
-    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`; auth's socket signature, for its user agent | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
-    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                                                            | `new WebSocket(url, protocols)`                           |
+    | Port           | Read by                                                                                                                 | In a web page (`@chatic/runtime-web`)                     | In React Native (`@chatic/runtime-mobile`)                                             |
+    | -------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips                                             | `navigator.onLine` and the window's online/offline events | NetInfo's `isConnected`, online until it reports and when it cannot tell               |
+    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`; auth's socket signature, for its user agent | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    | `Platform.OS` and the user agent the app passes in                                     |
+    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                                                            | `new WebSocket(url, protocols)`                           | `new WebSocket(url, protocols, { headers: { 'User-Agent': … } })` with that user agent |
 
     Used before it is configured, `transportPlatform.ports()` throws and names `createRuntime`. A
     page's `WebSocket` and `navigator` do not exist in a native process, or answer wrongly there —
-    React Native's `WebSocket` sends no User-Agent, and the server checks a refreshed token against the
+    React Native's `WebSocket` does not send the app's User-Agent, and the server checks a refreshed token against the
     handshake's — so a fallback would hide the missing wiring until a device. What a port answers is
     data; what it means stays here (the platform and label in `devicePlatform.ts`, the link rule in
     `linkState.ts`).
