@@ -4,6 +4,12 @@
 
 ### Features
 
+- (runtime-mobile,mobile,runtime-core,logger) boot the session runtime in the phone app
+
+## [2026-11-13] - No version updates
+
+### Features
+
 - (web/channels) add the room's mention and latest-message jump pills
 
 ## [2026-11-13] - root@0.156.0, @chatic/web@0.88.0
