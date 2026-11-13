@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] - root@0.154.0, @chatic/landing@0.18.0
+
+### Features
+
+- (landing) open the account surface on app.chatic.io for production builds, won only (ADR-0311)
+
 ## [2026-11-13] - No version updates
 
 ### Refactor
