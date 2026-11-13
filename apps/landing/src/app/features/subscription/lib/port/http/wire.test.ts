@@ -11,6 +11,7 @@ import {
     toIssue,
     toPaymentMethod,
     toSubscription,
+    webSubscriptionOf,
 } from './wire';
 
 // The dev stage's web products as `GET /products/0/plans?platform=portone` lists them.
@@ -250,6 +251,21 @@ describe('the account', () => {
         expect(billingSourceOf({ platform: 'google', status: 'expired' })).toBe('none');
         expect(billingSourceOf({ platform: 'portone', status: 'pending' })).toBe('web');
         expect(billingSourceOf(undefined)).toBe('none');
+    });
+});
+
+describe('webSubscriptionOf', () => {
+    const record = (platform: string) => ({ id: `U1:${platform}`, platform, status: 'active' as const });
+
+    it("is the record the membership carries when a payment provider's", () => {
+        expect(webSubscriptionOf({ platform: 'portone', $subscription: record('portone') })).toEqual(record('portone'));
+        expect(webSubscriptionOf({ platform: 'stripe', $subscription: record('stripe') })).toEqual(record('stripe'));
+    });
+
+    it("is nothing for a store's record, no record or no membership", () => {
+        expect(webSubscriptionOf({ platform: 'apple', $subscription: record('apple') })).toBeUndefined();
+        expect(webSubscriptionOf({ platform: 'portone' })).toBeUndefined();
+        expect(webSubscriptionOf(undefined)).toBeUndefined();
     });
 });
 

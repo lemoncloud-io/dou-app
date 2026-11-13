@@ -1,8 +1,8 @@
 /**
  * The shapes the subscription screens draw.
  *
- * There is no web subscription server yet, so these are defined by what the screens need rather than
- * by a server DTO. The port implementation maps whatever the server returns into these; a field the
+ * These are defined by what the screens need rather than by the server's views. The HTTP port maps
+ * what the server returns into these (`lib/port/http/wire.ts`); a field the
  * server cannot supply is a change to this file, not a workaround in a screen. The app's
  * `MembershipView` is not reused: web billing carries payment methods, invoices and billing emails
  * the app's model has no place for.
