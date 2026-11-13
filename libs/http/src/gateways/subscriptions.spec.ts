@@ -227,15 +227,9 @@ describe('createSubscriptionHttpGateway', () => {
     });
 
     describe('web subscription — {relay}/subscriptions/0/*', () => {
-        it('reads the subscription and the cards with GET', async () => {
+        it('reads the cards with GET', async () => {
             executeSignedRelayRequest.mockResolvedValue({});
             const gateway = createSubscriptionHttpGateway(exec);
-
-            await gateway.mySubscription();
-            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
-                method: 'GET',
-                baseURL: 'https://relay.test/subscriptions/0/mine',
-            });
 
             await gateway.subscriptionCards();
             expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({

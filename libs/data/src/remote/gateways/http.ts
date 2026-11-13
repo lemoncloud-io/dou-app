@@ -56,7 +56,6 @@ export type SubscriptionHttpDomainGateway = Pick<
     | 'refundSubscriptionByAdmin'
     | 'adminClouds'
     // the web subscription, billed through the payment provider
-    | 'mySubscription'
     | 'subscriptionCards'
     | 'issueBillingKey'
     | 'startSubscription'
