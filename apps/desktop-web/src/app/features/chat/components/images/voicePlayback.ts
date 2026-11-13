@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import i18next from 'i18next';
 
@@ -219,4 +219,36 @@ export const useVoicePlayback = (src: string): VoicePlayback => {
     }, [src]);
 
     return { ...snapshot, toggle, seek, skip, cycleRate };
+};
+
+/**
+ * Keeps `--seek-progress` on an element in step with the file as it plays, every frame. The player's
+ * own `timeupdate` comes about four times a second, which moves a fill in visible steps; while the
+ * file plays, the element's style is written straight from the audio's clock instead, outside React.
+ * Paused or stopped, it shows `played` (0–1) as the state has it.
+ */
+export const useSmoothProgress = <T extends HTMLElement>(src: string, playing: boolean, played: number) => {
+    const ref = useRef<T>(null);
+    // A playing file is painted from its clock; the state's ratio lags it and would pull the fill back.
+    const settled = playing ? -1 : played;
+    useEffect(() => {
+        const element = ref.current;
+        if (!element) return;
+        const paint = (ratio: number) =>
+            element.style.setProperty('--seek-progress', `${Math.min(1, Math.max(0, ratio)) * 100}%`);
+        if (!playing) {
+            paint(settled);
+            return;
+        }
+        const audio = voiceElementFor(src);
+        if (!audio) return;
+        let frame = 0;
+        const step = () => {
+            if (Number.isFinite(audio.duration) && audio.duration > 0) paint(audio.currentTime / audio.duration);
+            frame = requestAnimationFrame(step);
+        };
+        step();
+        return () => cancelAnimationFrame(frame);
+    }, [src, playing, settled]);
+    return ref;
 };

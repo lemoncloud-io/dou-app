@@ -1,4 +1,4 @@
-import { useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactElement } from 'react';
+import { useMemo, useRef, type KeyboardEvent, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -28,7 +28,7 @@ import {
 
 import { formatFileSize, formatPlaybackTime, splitFileName } from '../../utils';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';
-import { useVoicePlayback } from './voicePlayback';
+import { useSmoothProgress, useVoicePlayback } from './voicePlayback';
 import { useWaveform } from './voiceWaveform';
 import { Hint } from '../../../../shared';
 
@@ -101,6 +101,8 @@ export const VoiceDetailDialog = ({
     const max = duration || 1;
     const position = duration ? Math.min(time, duration) : 0;
     const played = duration ? position / duration : 0;
+    // The waveform's fill and the seek bar read `--seek-progress` from here, moved every frame while it plays.
+    const progressRef = useSmoothProgress<HTMLDivElement>(src, playing, played);
     const remaining = duration === undefined ? undefined : `-${formatPlaybackTime(duration - position)}`;
     const meta = [
         duration === undefined ? undefined : formatPlaybackTime(duration),
@@ -229,18 +231,14 @@ export const VoiceDetailDialog = ({
                     </HeaderHint>
                 </header>
 
-                <div className="flex flex-col items-center gap-6 px-8 pb-6 pt-10">
-                    <div aria-hidden className="flex h-[88px] items-center gap-[3px]">
-                        {bars.map((height, index) => (
-                            <span
-                                key={index}
-                                className={cn(
-                                    'w-[3px] rounded-full transition-colors',
-                                    index / bars.length < played ? 'bg-foreground' : 'bg-foreground/20'
-                                )}
-                                style={{ height: `${height}%` }}
-                            />
-                        ))}
+                <div ref={progressRef} className="flex flex-col items-center gap-6 px-8 pb-6 pt-10">
+                    {/* Drawn twice, the played copy clipped to the progress: the fill moves through a bar
+                        rather than turning whole bars over one at a time. */}
+                    <div aria-hidden className="relative h-[88px]">
+                        <WaveBars bars={bars} className="bg-foreground/20" />
+                        <div className="absolute inset-0 [clip-path:inset(0_calc(100%-var(--seek-progress,0%))_0_0)]">
+                            <WaveBars bars={bars} className="bg-foreground" />
+                        </div>
                     </div>
                     <div className="flex w-full min-w-0 flex-col items-center gap-1 text-center">
                         <DialogTitle className="w-full truncate text-title font-bold text-foreground">
@@ -260,7 +258,6 @@ export const VoiceDetailDialog = ({
                             onChange={event => voice.seek(event.currentTarget.valueAsNumber)}
                             aria-label={t('chat.file.seek', { name })}
                             aria-valuetext={`${formatPlaybackTime(position)} / ${formatPlaybackTime(duration ?? 0)}`}
-                            style={{ '--seek-progress': `${played * 100}%` } as CSSProperties}
                             className="seek-slider focus-ring w-full cursor-pointer disabled:cursor-default"
                         />
                         <div className="flex justify-between text-caption tabular-nums text-description">
@@ -332,6 +329,14 @@ const HeaderHint = ({ label, children }: { label: string; children: ReactElement
     <Hint label={label} side="bottom" delayDuration={HINT_DELAY}>
         {children}
     </Hint>
+);
+
+const WaveBars = ({ bars, className }: { bars: number[]; className: string }) => (
+    <div className="flex h-full items-center gap-[3px]">
+        {bars.map((height, index) => (
+            <span key={index} className={cn('w-[3px] rounded-full', className)} style={{ height: `${height}%` }} />
+        ))}
+    </div>
 );
 
 /**
