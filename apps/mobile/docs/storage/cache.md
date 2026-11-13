@@ -10,10 +10,12 @@ SQLite, and the WebView-facing cache service that answers the web client's cache
 | SQLite | `src/app/database/sqlite` | Structured records — one table per cache domain, plus upload task state |
 | MMKV   | `src/app/database/mmkv`   | Small key-value state — preferences, config, the log upload queue       |
 
-The runtime the app can run the session in has two MMKV files of its own, `chatic-runtime-plain` and
-`chatic-runtime-device` (`services/runtime/runtimeStorageFiles.ts`). They hold the runtime's stores as
-plain strings and are never opened through `MmkvStorage`, which JSON-encodes and shares the app's
-default file — see [`@chatic/runtime-mobile`](../../../../libs/runtime-mobile/README.md#the-stores-and-the-cache).
+The runtime the app can run the session in has three MMKV files of its own
+(`services/runtime/runtimeStorageFiles.ts`): `chatic-runtime-plain` and `chatic-runtime-device` hold its
+stores as plain strings, and `chatic-runtime-mode` holds only which side owns the session
+([../runtime/README.md](../runtime/README.md)). None is opened through `MmkvStorage`, which JSON-encodes
+and shares the app's default file — see
+[`@chatic/runtime-mobile`](../../../../libs/runtime-mobile/README.md#the-stores-and-the-cache).
 
 ```bash
 grep -c "TABLES\." apps/mobile/src/app/database/sqlite/tables.ts

@@ -132,7 +132,8 @@ bundle, which nothing writes any more, and whatever else later moved in under `@
 
 An app or desktop shell that keeps a vault lists it in `window.CHATIC_APP_STORAGE_MEDIA`. Its entry
 point then builds a `nativeSecure` store for the session's secret port and awaits
-`secretStorageMigration.prepare` (app-facing as `runtime.boot.prepareSecretStorage`) before the runtime
+`secretStorageMigration.prepare` (as runtime-core's `prepareSecretStorage`, app-facing as
+`runtime.boot.prepareSecretStorage`; the phone app's own runtime runs the same step) before the runtime
 boots. It loads the vault and moves the four tokens out of the origin's `localStorage`, where they
 lived before, deleting the web copy only once the shell confirmed the vault holds them:
 

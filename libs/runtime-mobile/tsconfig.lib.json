@@ -34,6 +34,9 @@
             "path": "../bridge-messages/tsconfig.lib.json"
         },
         {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
             "path": "../runtime-core/tsconfig.lib.json"
         },
         {

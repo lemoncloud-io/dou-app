@@ -113,26 +113,27 @@ is always `info`, its tag is `perf.<name>` or `usage.<name>`, and it is built on
 
 ## Occurrence-time context
 
-Sixteen fields ride on every entry, logs and statistics alike, captured when the entry is dispatched.
+Seventeen fields ride on every entry, logs and statistics alike, captured when the entry is dispatched.
 
-| Field           | What it is                                                                                                                       |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `runId`         | App-run (process) identifier — the primary axis for exploring stored logs                                                        |
-| `uid`           | User id, guest or signed-in                                                                                                      |
-| `cid`           | Cloud id                                                                                                                         |
-| `sid`           | Site id                                                                                                                          |
-| `appVersion`    | Native app version                                                                                                               |
-| `webVersion`    | Web bundle version — deployed independently of the app, so a separate axis                                                       |
-| `route`         | The screen at the time of the log — the actual path, not a route template                                                        |
-| `os`            | Device OS                                                                                                                        |
-| `osVersion`     | Device OS version                                                                                                                |
-| `model`         | Device model name                                                                                                                |
-| `sessionId`     | Usage session — a return after more than 30 minutes in the background starts a new one. Set by the web's telemetry session       |
-| `platform`      | `ios` · `android` · `web`                                                                                                        |
-| `host`          | `app` (WebView or native) · `browser` (the standalone web)                                                                       |
-| `network`       | Connection type at the time                                                                                                      |
-| `locale`        | UI locale                                                                                                                        |
-| `routeTemplate` | The route template the screen matched (`/channels/:id/room`) — the screen axis statistics group by. Absent when no route matched |
+| Field           | What it is                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `runId`         | App-run (process) identifier — the primary axis for exploring stored logs                                                                                                      |
+| `uid`           | User id, guest or signed-in                                                                                                                                                    |
+| `cid`           | Cloud id                                                                                                                                                                       |
+| `sid`           | Site id                                                                                                                                                                        |
+| `appVersion`    | Native app version                                                                                                                                                             |
+| `webVersion`    | Web bundle version — deployed independently of the app, so a separate axis                                                                                                     |
+| `route`         | The screen at the time of the log — the actual path, not a route template                                                                                                      |
+| `os`            | Device OS                                                                                                                                                                      |
+| `osVersion`     | Device OS version                                                                                                                                                              |
+| `model`         | Device model name                                                                                                                                                              |
+| `sessionId`     | Usage session — a return after more than 30 minutes in the background starts a new one. Set by the web's telemetry session                                                     |
+| `platform`      | `ios` · `android` · `web`                                                                                                                                                      |
+| `host`          | `app` (WebView or native) · `browser` (the standalone web)                                                                                                                     |
+| `network`       | Connection type at the time                                                                                                                                                    |
+| `locale`        | UI locale                                                                                                                                                                      |
+| `routeTemplate` | The route template the screen matched (`/channels/:id/room`) — the screen axis statistics group by. Absent when no route matched                                               |
+| `sessionOwner`  | Which side holds the session this run — `web` (the page) or `native` (the phone app's runtime). Only on entries the app's native side dispatched; the page's are not restamped |
 
 **They are stamped at dispatch and never at send.** A queue that survives a logout, a cloud switch
 or an app update and drains days later would otherwise label every entry it holds with the values

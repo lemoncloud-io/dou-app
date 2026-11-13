@@ -46,7 +46,7 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 ## Design principles
 
 1. **The core imports nothing.** `package.json` declares `dependencies: {}` and no file imports a workspace package or a third-party one. `createLogId` re-implements UUID v4 by hand rather than pull `uuid` in. Platform behaviour arrives as a listener or as an implementation of a port.
-2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Sixteen context fields ride on the entry itself so they survive the bridge and any copy.
+2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Seventeen context fields ride on the entry itself so they survive the bridge and any copy.
 3. **An entry that crossed a runtime boundary is not restamped.** `ingestLogEntry` publishes as-is. The single exception is `id`, backfilled only when absent, because an entry without one can be uploaded but never acknowledged.
 4. **The hub is the only way to see an entry.** There is no ring buffer and no console fallback. A listener sees what is published after it subscribes and nothing else, which makes wiring order part of the contract.
 5. **Reading the store never empties it.** `peek` hands back the same entries until `ack` releases them. A destructive read loses exactly the entries of a process that died mid-send.
@@ -265,7 +265,7 @@ See [docs/observations/](./docs/observations/README.md).
 
 | Folder                                              | What it covers                                                                                                                                       |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the sixteen context fields, the four levels, tags and areas, the third argument                           |
+| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the seventeen context fields, the four levels, tags and areas, the third argument                         |
 | [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host                                       |
 | [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**                            |
 | [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, fingerprints and partial display, the three output shapes, where an unmasked value can still escape |

@@ -179,8 +179,11 @@ absorbs all three spellings on the read side.
   under `ios/Chatic.xcodeproj/xcshareddata/xcschemes/` has one before relying on this doc.
 - `apps/mobile/.env` used to hold dev settings on iOS. Anyone with dev values still sitting in
   `.env` should move them to `.env.dev`, then recreate `.env` from `.env.example`.
-- `VITE_WS_ENDPOINT` in `.env.example` is unused — kept only so the file's shape matches
-  `.env.dev`/`.env.prod`.
+- `VITE_PROJECT`, `VITE_HOST`, `VITE_OAUTH_ENDPOINT`, `VITE_SOCIAL_OAUTH_ENDPOINT`,
+  `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT` and `VITE_WS_ENDPOINT` are read only by the app's own
+  session runtime, on a launch set to run it ([../runtime/README.md](../runtime/README.md)). Every
+  other launch ignores them, and a build without them leaves the session to the page; copy them from
+  the web app's env of the same stage to run it.
 
 ## Further reading
 
