@@ -1,4 +1,5 @@
-import type { LoginUserBody } from '@lemoncloud/chatic-backend-api';
+import type { LoginUserBody, UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
+import { createUserGateway } from '@lemoncloud/chatic-sockets-lib';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
 import {
@@ -29,6 +30,7 @@ import type {
     SessionAccountView,
 } from '@chatic/auth';
 import { patchRelaySessionUser } from '@chatic/session';
+import { RELAY_SLOT, getSocketManager } from '@chatic/transport';
 
 import { getRepositories } from '../data/runtime';
 
@@ -80,6 +82,13 @@ export interface SessionCommands {
 
     /** Writes fields of the account's own profile into the relay session. */
     patchRelayUser(patch: Record<string, unknown>): Promise<void>;
+    /**
+     * The account's own profile as the relay has it (`user.profile` on the relay slot), whichever cloud
+     * is active — not the active session's, which inside a cloud is that cloud's user.
+     */
+    fetchAccountProfile(): Promise<UserProfile$>;
+    /** Updates the account's own profile on the relay (`user.update`) and answers with the server's echo. */
+    updateAccountProfile(patch: { name?: string; photo?: string }): Promise<UserView>;
 
     /** Claims a pairing this device asked for. A relay approval's session comes back as a handle. */
     claimPairing(pairingId: string): Promise<PairingClaimAnswer>;
@@ -99,6 +108,14 @@ export interface SessionCommands {
  * `switchCloudSession(cloudId, null)` would destructure `null` and throw.
  */
 const given = <T>(value: T | null | undefined): T | undefined => value ?? undefined;
+
+/**
+ * `user.*` pinned to the relay slot. Account screens need the relay account whichever cloud is active,
+ * and not through a repository: a repository's cache is read under the live scope, so a relay row
+ * written while a cloud is active would not be read back. The scoped client resolves its slot on each
+ * call, and the command rejects when the relay slot is not bound.
+ */
+const relayAccount = () => createUserGateway(getSocketManager().getScopedClient(RELAY_SLOT) as never);
 
 /**
  * The commands of the core engine: each runs the core packages' own use case, in this process.
@@ -129,6 +146,8 @@ export const createCoreSessionCommands = (): SessionCommands => ({
     logoutCloud: () => logoutCloudSession(),
 
     patchRelayUser: async patch => patchRelaySessionUser(patch),
+    fetchAccountProfile: async () => relayAccount().profile<UserProfile$>(),
+    updateAccountProfile: async patch => relayAccount().update<UserView>(patch as never),
 
     claimPairing: async pairingId => holdPairingClaim(await getRepositories().pairing.claimPairing(pairingId)),
     applyPairingSession: sessionHandle => applyPairingSession(sessionHandle),

@@ -8,11 +8,12 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { getRepositories } from '@chatic/runtime-core';
 import { uploadLogBatch } from './logBatch';
 import type { LogEntry } from '@chatic/bridges';
 
-jest.mock('@chatic/runtime-core/data/runtime', () => ({ getRepositories: jest.fn() }));
+// The page's graph, as the engine hands it over.
+const getRepositories = jest.fn();
+jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
 
 const execute = jest.fn();
 
@@ -30,7 +31,7 @@ const httpError = (status: number): unknown => Object.assign(new Error(`HTTP ${s
 beforeEach(() => {
     jest.clearAllMocks();
     execute.mockResolvedValue(undefined);
-    (getRepositories as jest.Mock).mockReturnValue({ report: { uploadLogBatch: execute } });
+    getRepositories.mockReturnValue({ report: { uploadLogBatch: execute } });
 });
 
 describe('uploadLogBatch — 전송 경로', () => {
@@ -71,7 +72,7 @@ describe('uploadLogBatch — 전송 경로', () => {
         // avoided, so strip comments before looking for real usage.
         const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
-        expect(code).toContain('getRepositories');
+        expect(code).toContain('runtimeData().repositories()');
         expect(code).not.toMatch(
             /buildSignedRequest|buildRequest|executeSignedRelayRequest|executeRelayRequest|executeCloudRequest|withNetworkLog/
         );

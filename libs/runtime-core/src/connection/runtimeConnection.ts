@@ -30,8 +30,9 @@ export interface RuntimeConnection {
      */
     waitUntilVerified(slot?: SlotKey | null, timeoutMs?: number): Promise<boolean>;
     /**
-     * A request on one named slot, whichever slot is active — for work that belongs to one server
-     * (the relay account's profile while a cloud is on screen). Throws when that slot is not bound.
+     * A request on one named slot, whichever slot is active — for work that belongs to one server.
+     * Throws when that slot is not bound. Not on the React surface: the relay account's profile, its
+     * one use there, is the session commands `fetchAccountProfile` / `updateAccountProfile`.
      *
      * It does not cross the bridge: a request of any type is not a domain result. It works only where
      * the runtime runs in the page's own process.

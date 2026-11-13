@@ -11,13 +11,11 @@ import {
     reconnectSocket,
     recoverSocketsOnResume,
     recoverUnverifiedSockets,
-    requestOnSlot,
     waitUntilVerified,
 } from './connectionCommands';
 
 const members = {
     waitUntilVerified: jest.fn(async () => true),
-    requestOnSlot: jest.fn(async () => ({ id: 'me' })),
     onServerEvent: jest.fn(() => jest.fn()),
     onServerMessage: jest.fn(() => jest.fn()),
     observeRequests: jest.fn(),
@@ -50,14 +48,12 @@ describe("the sockets the app drives outside React, through the engine's connect
         ]);
     });
 
-    it('sends on a slot, and hears its pushes and every frame', async () => {
+    it("hears a slot's pushes and every frame", () => {
         const listener = jest.fn();
 
-        await expect(requestOnSlot('default' as never, 'user.profile')).resolves.toEqual({ id: 'me' });
         onServerEvent('join.sync', listener, { slot: 'default' as never });
         onServerMessage(listener);
 
-        expect(members.requestOnSlot).toHaveBeenCalledWith('default', 'user.profile', undefined, undefined);
         expect(members.onServerEvent).toHaveBeenCalledWith('join.sync', listener, { slot: 'default' });
         expect(members.onServerMessage).toHaveBeenCalledWith(listener);
     });

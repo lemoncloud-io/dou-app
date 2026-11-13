@@ -1,5 +1,9 @@
-import type { DataRepositories } from '@chatic/data';
+import type { PageRepositories } from '@chatic/runtime-core';
 
-import { getDataManager } from '@chatic/runtime-core';
+import { runtimeData } from '../dataCommands';
 
-export const useRuntimeRepositories = (): DataRepositories => getDataManager().getRepositories();
+/**
+ * The repositories of the session's live scope, through the engine: the same object on every render,
+ * without the token issuers or the graph's lifecycle.
+ */
+export const useRuntimeRepositories = (): PageRepositories => runtimeData().repositories();

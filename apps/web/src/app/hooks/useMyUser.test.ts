@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
 import { useIsAccountGuest, useMyUser } from './useMyUser';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -15,11 +14,10 @@ jest.mock('@chatic/app-runtime', () => ({
             useGlobalSession: jest.fn(),
             getRelaySessionUser: jest.fn(),
             patchRelaySessionUser: jest.fn(),
+            fetchAccountProfile: (...args: unknown[]) => profileMock(...args),
         },
     },
 }));
-
-jest.mock('../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
 
 const profileMock = jest.fn();
 
@@ -31,7 +29,6 @@ beforeEach(() => {
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ session: 1 });
     (runtime.session.getRelaySessionUser as jest.Mock).mockReturnValue({ id: 'relay-uid', name: 'Relay Me' });
     profileMock.mockResolvedValue({ $user: { name: 'Server Me' } });
-    (getRelayAccountGateway as jest.Mock).mockReturnValue({ profile: profileMock });
 });
 
 describe('useMyUser', () => {
@@ -94,7 +91,7 @@ describe('useMyUser', () => {
         expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
     });
 
-    // The scoped relay client throws SYNCHRONOUSLY on an unbound slot (no silent fallback), and the
+    // The relay account's read throws SYNCHRONOUSLY on an unbound slot (no silent fallback), and the
     // slot can go away between render and effect. A sync throw here used to escape the effect.
     it('survives the relay slot vanishing between render and effect', async () => {
         profileMock.mockImplementation(() => {
@@ -105,16 +102,6 @@ describe('useMyUser', () => {
 
         await waitFor(() => expect(profileMock).toHaveBeenCalled());
         expect(runtime.session.patchRelaySessionUser).not.toHaveBeenCalled();
-        expect(result.current).toMatchObject({ name: 'Relay Me' });
-    });
-
-    it('survives the gateway itself being unavailable', async () => {
-        (getRelayAccountGateway as jest.Mock).mockImplementation(() => {
-            throw new Error('[SocketManager] no relay slot bound');
-        });
-
-        const { result } = renderHook(() => useMyUser());
-
         expect(result.current).toMatchObject({ name: 'Relay Me' });
     });
 

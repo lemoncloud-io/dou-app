@@ -22,19 +22,11 @@ export const getRuntimeSocketState = (): SocketState => readConnection().active;
 
 /**
  * Resolves `true` once `slot` is verified — the active slot when none is named — or `false` when
- * `timeoutMs` passes first. Never rejects. Anything pinned to one slot (`requestOnSlot`) waits on that
- * slot: the active slot is a cloud's whenever a cloud is on screen.
+ * `timeoutMs` passes first. Never rejects. Work pinned to one slot waits on that slot: the active
+ * slot is a cloud's whenever a cloud is on screen.
  */
 export const waitUntilVerified = (slot?: SlotKey | null, timeoutMs?: number): Promise<boolean> =>
     runtimeConnection().waitUntilVerified(slot ?? null, timeoutMs);
-
-/** A request on one named slot, whichever is active. Throws when that slot is not bound. */
-export const requestOnSlot = <T = unknown>(
-    slot: SlotKey,
-    type: string,
-    data?: unknown,
-    options?: { timeoutMs?: number }
-): Promise<T> => runtimeConnection().requestOnSlot<T>(slot, type, data, options);
 
 /** Hears the server's pushes of one `type`, from one named slot or whichever is active. */
 export const onServerEvent = <T = unknown>(

@@ -1,3 +1,5 @@
+import type { UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
+
 import { isRefusedForEndedPairing } from '@chatic/auth';
 import type {
     InviteLogin,
@@ -81,3 +83,13 @@ export const forgetRefusedPairedCloud = (cloudId: string, error: unknown): boole
     fireAndLog('endPairedCloud', sessionCommands().endPairedCloud(cloudId));
     return true;
 };
+
+/**
+ * The account's own profile as the relay has it, whichever cloud is active — not the active session's,
+ * which inside a cloud is that cloud's user. Account screens read it; it carries no token.
+ */
+export const fetchAccountProfile = (): Promise<UserProfile$> => sessionCommands().fetchAccountProfile();
+
+/** Updates the account's own profile on the relay and answers with the server's echo. */
+export const updateAccountProfile = (patch: { name?: string; photo?: string }): Promise<UserView> =>
+    sessionCommands().updateAccountProfile(patch);

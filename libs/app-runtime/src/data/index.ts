@@ -5,11 +5,15 @@
 // to `data`, `connection` or `session` by consumer intent. It was dissolved once the facade made
 // that mismatch explicit: the hooks now sit in the module whose group publishes them.
 
+// Every data read and write goes through the engine (`./dataCommands`, `runtimeEngine().data`), never
+// the data manager: on the phone the repositories may live in another process. The page's graph has
+// no token issuers (`PageRepositories`).
 export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
+export type { PageRepositories } from '@chatic/runtime-core';
 // Writes addressed to a named cloud rather than the selected one: the chat send and any longer write
 // (both keep that cloud's socket for as long as they are in flight), and the graph a resend queue
 // reads its cloud through.
-export { getCloudRepositories, sendChatInCloud, waitForCloudSocket } from '@chatic/runtime-core';
+export { getCloudRepositories, sendChatInCloud, waitForCloudSocket } from './dataCommands';
 // Image messages: one send sequence for every shell, addressed to the room's cloud like the chat send.
 export { useSendImages } from './hooks/useSendImages';
 // How far an unsent attachment message's slots have gone — page memory, never the cache row.
@@ -25,32 +29,33 @@ export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheS
 
 // Native cache instrumentation read/reset — the debug overlay's only view into the platform cache's
 // metrics module (ADR-0070 Decision 5); it never imports the engine lib directly.
-export { getCacheMetricsSource } from '@chatic/runtime-core';
+export { getCacheMetricsSource } from './dataCommands';
 
 // Invited-cloud durability: the name sync hook plus the two non-React halves an app runs on a
 // deeplink accept.
 export { useInvitedCloudNameSync } from './hooks/useInvitedCloudNameSync';
-export { getAcceptorId, isAcceptedBy, withAcceptor } from '@chatic/runtime-core';
-export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from '@chatic/runtime-core';
+export { getAcceptorId } from './dataCommands';
+export { isAcceptedBy, withAcceptor } from '@chatic/runtime-core';
+export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './dataCommands';
 
 // Paired-cloud name: a cloud entered through a pairing has no cache row, so its name is read once per
 // entry and kept beside the paired-cloud list.
 export { usePairedCloudNameSync } from './hooks/usePairedCloudNameSync';
-export { syncPairedCloudName } from '@chatic/runtime-core';
+export { syncPairedCloudName } from './dataCommands';
 
 // The settings screen's "clear cache": every known cloud's partition, minus what only this device holds.
-export { clearLocalCaches } from '@chatic/runtime-core';
+export { clearLocalCaches } from './dataCommands';
 export type { ClearLocalCachesResult } from '@chatic/runtime-core';
 // The same next-boot cursor retirement, for a clear that does not go through `clearLocalCaches` —
 // the debug panel's Storage screen empties the native cache and the WebView's storage wholesale.
-export { requestSyncCursorReset } from '@chatic/runtime-core';
+export { requestSyncCursorReset } from './dataCommands';
 
 // The clouds query key — apps invalidate it right after login. The rest of the REST hooks went down
 // to the app layer (ADR-0070 Decision 5); this key stays because the runtime is what invalidates it.
 export { cloudsKeys } from './hooks/queryKeys';
 
 // How each state write reached the server, for the web's `state_outbox` perf samples.
-export { setStateOutboxObserver } from '@chatic/runtime-core';
+export { setStateOutboxObserver } from './dataCommands';
 export type { StateOutboxSample } from '@chatic/runtime-core';
 
 // The offline outbox MACHINE only; activation is the app's opt-in. apps/web never constructs one —

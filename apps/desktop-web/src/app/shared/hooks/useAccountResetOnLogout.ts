@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import type { ICloudRepository } from '@chatic/data';
 import { deviceStore, plainStore } from '../../storage';
 
 import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';
@@ -31,7 +30,7 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
 ] as const;
 
 /** The cloud cache minus its invited rows — those carry the endpoints a later switch needs. */
-const clearAllButInvitedClouds = async (cloud: ICloudRepository): Promise<void> => {
+const clearAllButInvitedClouds = async (cloud: runtime.data.PageRepositories['cloud']): Promise<void> => {
     const rows = (await cloud.cacheReadList())?.list ?? [];
     await Promise.all(
         rows.filter(row => row.id && row.cloudType !== 'invited').map(row => cloud.cacheDelete(row.id as string))

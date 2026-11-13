@@ -41,6 +41,19 @@ export type { ConnectionSnapshot, RuntimeConnection } from './connection/runtime
 // the sync engine as screens drive it
 export type { RuntimeSync } from './sync/runtimeSync';
 
+// the data as screens read and write it: the page's repository graph, without the token issuers
+export type { RuntimeData } from './data/runtimeData';
+export type { PageAuthRepository, PagePairingRepository, PageRepositories } from './data/pageRepositories';
+export { PAGE_REPOSITORY_REFUSED, TOKEN_ISSUING_AUTH_METHODS } from './data/pageRepositories';
+export {
+    DATA_CALL_METHODS,
+    DATA_STREAMS,
+    DATA_TARGET,
+    REPOSITORY_CALL_METHODS,
+    REPOSITORY_METHODS,
+    REPOSITORY_STREAMS,
+} from './bridge/repositories';
+
 // the session as screens read it: a snapshot without tokens
 export type {
     ActiveServerView,

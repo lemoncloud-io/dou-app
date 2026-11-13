@@ -24,7 +24,11 @@ import {
 } from '@chatic/data';
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
+// The send holds the room's cloud socket across its writes and uploads, with work that is a function —
+// which cannot cross the bridge, and neither can the files. Sending media is the runtime's own, in
+// this process, until it is a command of its own.
+import { runInCloud } from '@chatic/runtime-core';
+import { getCloudRepositories } from '../dataCommands';
 import { beginMediaSendTiming, type MediaSendTiming } from '@chatic/runtime-core';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';

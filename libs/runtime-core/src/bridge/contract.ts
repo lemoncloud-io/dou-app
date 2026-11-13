@@ -86,6 +86,8 @@ const sessionCommandMethods: Record<keyof SessionCommands, true> = {
     logout: true,
     logoutCloud: true,
     patchRelayUser: true,
+    fetchAccountProfile: true,
+    updateAccountProfile: true,
     claimPairing: true,
     applyPairingSession: true,
     preparePairedCloudEntry: true,
@@ -118,10 +120,10 @@ const connectionMembers: Record<keyof RuntimeConnection, Crossing> = {
     snapshot: 'view',
     subscribe: 'view',
     waitUntilVerified: 'call',
-    // A raw request of any type, and every frame: neither is a domain result. The relay account's
-    // profile reads and writes, the one use of the request in a page that may be mirrored, become
-    // domain calls before the page mirrors a runtime in another process; the frames feed a desktop
-    // debug log, and the desktop shell never runs the runtime itself.
+    // A raw request of any type, and every frame: neither is a domain result. The page does not use
+    // the request — the relay account's profile is the session commands `fetchAccountProfile` and
+    // `updateAccountProfile` — and the frames feed a desktop debug log, where the desktop shell never
+    // runs the runtime itself.
     requestOnSlot: 'local',
     onServerEvent: 'stream',
     onServerMessage: 'local',
@@ -148,6 +150,13 @@ const syncMembers: Record<keyof RuntimeSync, Crossing> = {
     registerTarget: 'stream',
     updateLocalSnapshot: 'call',
     listTargets: 'call',
+    refreshBackgroundClouds: 'call',
+    onBackgroundDelta: 'stream',
+    // A refusal is part of what the page mirrors: it reads it synchronously, as a room renders.
+    isChannelRefused: 'view',
+    subscribeRefusedChannels: 'view',
+    fetchRoomFeed: 'call',
+    prefetchRoomFeed: 'call',
 };
 
 /** The sync methods a `RuntimeCall` may name. */

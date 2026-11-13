@@ -2,9 +2,7 @@ import { useEffect, useMemo } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainUser } from '@chatic/data';
-import type { LinkedAccountsView, UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
-
-import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
+import type { LinkedAccountsView, UserView } from '@lemoncloud/chatic-backend-api';
 
 /**
  * The account profile as account screens read it. The socials-api `DomainUser` type only declares
@@ -73,16 +71,15 @@ export const useMyUser = (): MyUser | null => {
     useEffect(() => {
         if (!isRelayVerified) return;
         let cancelled = false;
-        // The call sits inside try/catch, not just a `.catch()` on the promise: a request pinned to
-        // a slot (`runtime.connection.requestOnSlot`) resolves its slot OUTSIDE the promise chain and
-        // throws SYNCHRONOUSLY when the slot is unbound (deliberate, so an unbound slot can never fall
-        // back silently). `isRelayVerified` makes that rare, not impossible: the slot can be torn down
+        // The call sits inside try/catch: the relay account's read (`runtime.session.fetchAccountProfile`)
+        // fails when the relay slot is unbound (deliberate, so an unbound slot can never fall back
+        // silently), and whether that arrives as a throw or a rejection, the catch below takes it. `isRelayVerified` makes that rare, not impossible: the slot can be torn down
         // between this render and this effect (a relay reconnect, a logout), and a synchronous throw
         // there escapes the effect and takes the screen down instead of just skipping a refresh. The
         // token value is already on screen, so skipping IS the recovery.
         void (async () => {
             try {
-                const response = await getRelayAccountGateway().profile<UserProfile$>();
+                const response = await runtime.session.fetchAccountProfile();
                 if (cancelled) return;
                 // `user.profile` answers with a UserProfile$ wrapper ($user + $site); tolerate a flat
                 // user view, same as UserSocketDataSource does. `$site` is deliberately ignored here —

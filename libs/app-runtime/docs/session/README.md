@@ -46,7 +46,9 @@ keeps each part the same object is [runtime-core docs/session/](../../../runtime
 
 The commands go through the engine as well: the action, login and pairing hooks and the non-React
 commands (`logoutSession`, `clearSiteSelection`, `patchRelaySessionUser`, the phone and invite logins,
-`createCredentialsByProvider`, `forgetRefusedPairedCloud`) call `runtimeEngine().commands`, in
+`createCredentialsByProvider`, `forgetRefusedPairedCloud`, and the relay account's profile —
+`fetchAccountProfile`, `updateAccountProfile`, read and written on the relay slot whichever cloud is
+active) call `runtimeEngine().commands`, in
 [`sessionCommands.ts`](../../src/session/sessionCommands.ts). A command resolves once the session view
 shows its change, so a screen that awaits one and then reads the session reads the new one. Those whose
 caller does not wait — `clearSiteSelection`, `patchRelaySessionUser`, `cancelPhoneLogin`,

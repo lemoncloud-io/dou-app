@@ -198,7 +198,7 @@ goes through it. `SessionCommands` lists them:
 | Signing in  | `loginUser` · `loginBySocialToken` · `loginGuestByDevice` · `loginByOAuthCode` · `confirmPhoneLogin` · `retryPhoneLogin` · `cancelPhoneLogin` · `loginWithInviteCode` · `forgetInviteLogin` |
 | Moving      | `switchCloud` · `switchSite` · `clearSiteSelection`                                                                                                                                         |
 | Leaving     | `logout` · `logoutCloud`                                                                                                                                                                    |
-| The account | `patchRelayUser`                                                                                                                                                                            |
+| The account | `patchRelayUser` · `fetchAccountProfile` · `updateAccountProfile`                                                                                                                           |
 | Pairing     | `claimPairing` · `applyPairingSession` · `preparePairedCloudEntry` · `checkPairedClouds` · `endPairedCloud`                                                                                 |
 
 **A command answers what the screen needs next, never a token.** A login answers the account's fields
@@ -207,7 +207,9 @@ handle whose token the runtime keeps, which the next command (`switchCloud`, `ap
 names. Whatever else a command changed, the session view shows.
 
 **It resolves once the session view shows its change.** A screen that awaits a switch and then reads
-the session reads the session it switched to. The core commands get that for free: they write this
+the session reads the session it switched to. (The relay account's profile commands change no session
+view: `updateAccountProfile` answers with the server's echo, and the screen patches the session with
+`patchRelayUser`.) The core commands get that for free: they write this
 process's stores, and the view marks itself stale on the write. A runtime in another process has to
 hold a command's answer back until the snapshot carrying the change has arrived.
 
@@ -219,7 +221,11 @@ functions, so such a command still writes the stores before it returns, as the s
 **What is not a command.** Calls that change no session — an alias lookup, an invite's details,
 registering a user from the admin console — are reads of the auth repository, and stay with the
 repositories. So does asking for a pairing code: only the claim, which can carry a session, is a
-command.
+command. The one read kept among the commands is the relay account's own profile
+(`fetchAccountProfile`, with its write `updateAccountProfile`): account screens need it on the relay
+slot whichever cloud is active, and not through a repository, whose cache is read under the live scope
+and would not read a relay row back while a cloud is on screen. Both reject when the relay slot is not
+bound.
 
 ## What not to do
 

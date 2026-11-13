@@ -119,7 +119,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const { switchSite } = useSiteSwitch();
     // Cloud repository for invited-cloud recovery (see the switch block below); chat for
     // resolving whether a notified message is a thread reply (see `hopToThread`).
-    const { cloud, chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
+    const { chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
     // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
@@ -294,7 +294,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically. Relay-backed, so it runs after the handshake gate.
                     if (cid && !isRelayPush && runtime.boot.isNativeApp()) {
-                        await runtime.data.recoverInvitedCloudIfMissing(cloud, cid);
+                        await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }
                     // Cloud transition first (it clears the selected site), then site, then route.
@@ -329,7 +329,6 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             switchCloud,
             logoutCloudSession,
             switchSite,
-            cloud,
             channelRepository,
             toast,
             t,

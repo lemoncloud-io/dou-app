@@ -35,7 +35,7 @@ describe('CacheMetricsScreen', () => {
     afterEach(() => restoreLanguage());
 
     it('아직 호출이 없으면 빈 상태를 보여준다', () => {
-        metrics.mockReturnValue({ totalOps: 0, operations: {} });
+        metrics.mockResolvedValue({ totalOps: 0, operations: {} });
 
         render(<CacheMetricsScreen />);
 
@@ -45,8 +45,8 @@ describe('CacheMetricsScreen', () => {
     // The whole point of this screen is that sort order is by cumulative time (count × avg), not
     // average — a fast but frequently-called call must rank above a slow but rare one for the
     // observer re-fetch pattern to stand out.
-    it('평균이 아니라 누적 시간 순으로 정렬한다', () => {
-        metrics.mockReturnValue({
+    it('평균이 아니라 누적 시간 순으로 정렬한다', async () => {
+        metrics.mockResolvedValue({
             totalOps: 201,
             operations: {
                 'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 }, // slow but rare → cumulative 300
@@ -55,6 +55,8 @@ describe('CacheMetricsScreen', () => {
         });
 
         render(<CacheMetricsScreen />);
+        // The counts are read through the runtime, which answers asynchronously.
+        await screen.findByText('load:channel');
 
         const rows = dataRows();
         expect(within(rows[0]).getByText('load:channel')).toBeInTheDocument();
@@ -62,8 +64,8 @@ describe('CacheMetricsScreen', () => {
         expect(within(rows[1]).getByText('loadAll:chat')).toBeInTheDocument();
     });
 
-    it('총 호출 수와 누적 시간을 합산해 보여준다', () => {
-        metrics.mockReturnValue({
+    it('총 호출 수와 누적 시간을 합산해 보여준다', async () => {
+        metrics.mockResolvedValue({
             totalOps: 201,
             operations: {
                 'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 },
@@ -73,14 +75,14 @@ describe('CacheMetricsScreen', () => {
 
         render(<CacheMetricsScreen />);
 
-        expect(screen.getByText(/201 total calls/)).toBeInTheDocument();
+        expect(await screen.findByText(/201 total calls/)).toBeInTheDocument();
         expect(screen.getByText(/1,300ms cumulative/)).toBeInTheDocument();
     });
 
     it('renders the Korean table when the app language is Korean', () => {
         restoreLanguage();
         restoreLanguage = setDebugLanguageForTests('ko');
-        metrics.mockReturnValue({ totalOps: 0, operations: {} });
+        metrics.mockResolvedValue({ totalOps: 0, operations: {} });
 
         render(<CacheMetricsScreen />);
 

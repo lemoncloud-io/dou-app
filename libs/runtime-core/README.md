@@ -51,6 +51,7 @@ surface starts its lifecycle work from, instead of making it itself:
 | `commands`                                                      | what a screen does to the session: sign in and out, switch, pair |
 | `connection`                                                    | the sockets as screens read and drive them                       |
 | `sync`                                                          | the sync engine as screens drive it: targets and baselines       |
+| `data`                                                          | the page's repository graphs, and the work done on them          |
 | `sessionController(options)`                                    | the relay session's boot and the guest keep-alive                |
 | `connectionController(options)`                                 | the sockets kept in line with the session, the background clouds |
 | `relayCredentialGuard(policy)` · `cloudCredentialGuard(policy)` | the two credential guards an app starts with its own policy      |
@@ -63,17 +64,18 @@ reach them only through the engine it was handed. A runtime that runs elsewhere 
 with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
 do not know which engine they were given.
 
-`session`, `commands`, `connection` and `sync` are the members that are not factories: the core engine
+`session`, `commands`, `connection`, `sync` and `data` are the members that are not factories: the core engine
 keeps one session view over this process's stores ([docs/session](./docs/session/README.md#the-session-view)),
 and every session reader app-runtime publishes reads through it; `commands` run this process's use cases
 ([docs/session](./docs/session/README.md#the-commands)), and every session command app-runtime
 publishes runs through them; `connection` reads and drives this process's socket manager
 ([docs/connection](./docs/connection/README.md#the-sockets-as-screens-read-them)) and `sync` its sync
-manager, and app-runtime reaches neither manager any other way.
+manager, and app-runtime reaches neither manager any other way; `data` hands over the page's view of
+this process's repository graphs, without the token issuers ([docs/data](./docs/data/README.md#the-pages-graph)).
 
-What is **not** in the engine yet: the repository graph and the cloud-addressed writes. Those still come straight from the core
-packages (through this barrel). They join the engine with the engine that needs them — a page that does
-not run the core cannot read its stores directly.
+Everything the React surface reads or drives goes through the engine. What still runs in the page's own
+process only is sending media (`runInCloud` with its work and files) — see
+[app-runtime docs/data](../app-runtime/docs/data/README.md).
 
 ## The runtime across the bridge
 

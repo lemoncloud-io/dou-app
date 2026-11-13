@@ -10,7 +10,7 @@ import { readConnection, subscribeConnection } from '../connectionCommands';
  *
  * `useRuntimeSocketState().isVerified` tracks the active slot (the one `setActiveSlot` names, else relay)
  * — it cannot express "relay is up" while a cloud slot is active, or vice versa. Anything gating a
- * request pinned to one slot (`requestOnSlot`, e.g. the relay-only invite gateway) must gate on this
+ * request pinned to one slot (e.g. the relay account's profile, read on the relay slot) must gate on this
  * instead, or it races the wrong slot's handshake.
  */
 export const useSlotVerified = (slot: SlotKey): boolean => {

@@ -28,16 +28,18 @@ export const CacheMetricsScreen = () => {
     const strings = useCacheMetricsStrings();
     const [rows, setRows] = useState<Row[]>([]);
     const [totalOps, setTotalOps] = useState(0);
+    const [snapshot, setSnapshot] = useState<unknown>(null);
 
-    // The screen doesn't import @chatic/db directly — it only sees the port instance wired up by
-    // app-runtime (ADR-0070 decision 5).
+    // The screen doesn't import @chatic/db directly — it only sees the counts through the runtime, which
+    // reads them where the cache is (another process on the phone), so a read answers asynchronously.
     const metricsSource = useMemo(() => runtime.data.getCacheMetricsSource(), []);
 
-    const read = useCallback(() => {
-        const { totalOps: ops, operations } = metricsSource.read();
-        setTotalOps(ops);
+    const read = useCallback(async () => {
+        const next = await metricsSource.read();
+        setSnapshot(next);
+        setTotalOps(next.totalOps);
         setRows(
-            Object.entries(operations)
+            Object.entries(next.operations)
                 .map(([key, stat]) => ({ key, ...stat, totalMs: stat.count * stat.avgMs }))
                 .sort((a, b) => b.totalMs - a.totalMs)
         );
@@ -45,14 +47,14 @@ export const CacheMetricsScreen = () => {
 
     // Instrumentation is module state, so it doesn't fire events — poll only while this is open.
     useEffect(() => {
-        read();
-        const id = setInterval(read, REFRESH_MS);
+        void read();
+        const id = setInterval(() => void read(), REFRESH_MS);
         return () => clearInterval(id);
     }, [read]);
 
-    const onReset = () => {
-        metricsSource.reset();
-        read();
+    const onReset = async () => {
+        await metricsSource.reset();
+        await read();
     };
 
     const grandTotalMs = rows.reduce((sum, row) => sum + row.totalMs, 0);
@@ -65,7 +67,7 @@ export const CacheMetricsScreen = () => {
                     <span className="text-[13px] font-semibold text-foreground">{strings.title}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <CopyButton value={() => JSON.stringify(metricsSource.read(), null, 2)} />
+                    <CopyButton value={() => JSON.stringify(snapshot, null, 2)} />
                     <button
                         type="button"
                         onClick={onReset}

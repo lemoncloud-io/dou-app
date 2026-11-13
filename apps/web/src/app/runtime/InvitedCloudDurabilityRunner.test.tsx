@@ -48,12 +48,12 @@ beforeEach(() => {
 describe('InvitedCloudDurabilityRunner', () => {
     it('recovers the cloud a foreground push names', () => {
         receive('cloud_1');
-        expect(recoverMock).toHaveBeenCalledWith(cloudRepository, 'cloud_1');
+        expect(recoverMock).toHaveBeenCalledWith('cloud_1');
     });
 
     it('reads a cid flattened onto the push data too', () => {
         deliver({ cid: 'cloud_1' });
-        expect(recoverMock).toHaveBeenCalledWith(cloudRepository, 'cloud_1');
+        expect(recoverMock).toHaveBeenCalledWith('cloud_1');
     });
 
     it("does not ask delegate-cloud for a relay-origin push's '#'", () => {
@@ -84,12 +84,12 @@ describe('InvitedCloudDurabilityRunner', () => {
         receive('cloud_1');
         receive('cloud_1');
         receive('cloud_2');
-        expect(recoverMock.mock.calls.map(([, cid]) => cid)).toEqual(['cloud_1', 'cloud_2']);
+        expect(recoverMock.mock.calls.map(([cid]) => cid)).toEqual(['cloud_1', 'cloud_2']);
 
         // Once the first settles, a later push for the same cloud is checked again.
         await act(async () => settle());
         receive('cloud_1');
-        expect(recoverMock.mock.calls.map(([, cid]) => cid)).toEqual(['cloud_1', 'cloud_2', 'cloud_1']);
+        expect(recoverMock.mock.calls.map(([cid]) => cid)).toEqual(['cloud_1', 'cloud_2', 'cloud_1']);
     });
 
     it('lets a cloud be recovered again after a recovery that failed', async () => {

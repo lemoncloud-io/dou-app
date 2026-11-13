@@ -3,16 +3,14 @@ import { renderHook } from '@testing-library/react';
 import { usePairedCloudNameSync } from './usePairedCloudNameSync';
 
 const syncPairedCloudName = jest.fn(() => Promise.resolve());
-const cloud = { id: 'cloud-repo' };
 let isVerified = true;
 let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-p';
 let pairedCloudIds: string[] = ['cloud-p'];
 
-jest.mock('@chatic/runtime-core/data/pairedCloudName', () => ({
+jest.mock('../dataCommands', () => ({
     syncPairedCloudName: (...args: unknown[]) => syncPairedCloudName(...(args as [])),
 }));
-jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: () => ({ cloud }) }));
 jest.mock('../../connection/hooks/useRuntimeSocketState', () => ({
     useRuntimeSocketState: () => ({ isVerified }),
 }));
@@ -37,7 +35,7 @@ describe('usePairedCloudNameSync', () => {
         rerender();
 
         expect(syncPairedCloudName).toHaveBeenCalledTimes(1);
-        expect(syncPairedCloudName).toHaveBeenCalledWith(cloud, 'cloud-p');
+        expect(syncPairedCloudName).toHaveBeenCalledWith('cloud-p');
     });
 
     it('waits for the relay and the active socket before reading', () => {
@@ -62,7 +60,7 @@ describe('usePairedCloudNameSync', () => {
 
         pairedCloudIds = ['cloud-p'];
         rerender();
-        expect(syncPairedCloudName).toHaveBeenCalledWith(cloud, 'cloud-p');
+        expect(syncPairedCloudName).toHaveBeenCalledWith('cloud-p');
     });
 
     it('reads again for the next paired cloud entered, not in a loop for the same one', () => {
@@ -73,10 +71,7 @@ describe('usePairedCloudNameSync', () => {
         rerender();
         rerender();
 
-        expect(syncPairedCloudName.mock.calls).toEqual([
-            [cloud, 'cloud-p'],
-            [cloud, 'cloud-q'],
-        ]);
+        expect(syncPairedCloudName.mock.calls).toEqual([['cloud-p'], ['cloud-q']]);
     });
 
     it('reads again when the cloud is entered again after leaving it', () => {

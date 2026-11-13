@@ -28,7 +28,6 @@ const inflight = new Set<string>();
  * record, and an invited row for one would mislabel it. No-op in a plain browser.
  */
 export const usePushInvitedCloudRecovery = (): void => {
-    const { cloud } = runtime.data.useRuntimeRepositories();
     const owned = useOwnedCloudIds();
 
     useEffect(() => {
@@ -40,11 +39,11 @@ export const usePushInvitedCloudRecovery = (): void => {
             if (!cid || cid === RELAY_CLOUD_ID || owned.has(cid) || inflight.has(cid)) return;
             inflight.add(cid);
             void runtime.data
-                .recoverInvitedCloudIfMissing(cloud, cid)
+                .recoverInvitedCloudIfMissing(cid)
                 .catch(() => undefined)
                 .finally(() => {
                     inflight.delete(cid);
                 });
         });
-    }, [cloud, owned]);
+    }, [owned]);
 };
