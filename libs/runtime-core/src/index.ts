@@ -34,8 +34,12 @@ export { requestSyncCursorReset } from './data/syncCursorWatermark';
 export { createChatOutbox } from './data/outbox';
 export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } from './data/outbox';
 
-// the connections, kept in line with the session
+// the connections, kept in line with the session, and the sockets as screens read and drive them
 export type { ConnectionController, ConnectionControllerOptions } from './connection/connectionController';
+export type { ConnectionSnapshot, RuntimeConnection } from './connection/runtimeConnection';
+
+// the sync engine as screens drive it
+export type { RuntimeSync } from './sync/runtimeSync';
 
 // the session as screens read it: a snapshot without tokens
 export type {
@@ -71,8 +75,15 @@ export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoo
 export {
     RUNTIME_CONTRACT_VERSION,
     RUNTIME_CONTRACTS,
+    CONNECTION_CALL_METHODS,
+    CONNECTION_LOCAL_MEMBERS,
+    CONNECTION_STREAMS,
+    CONNECTION_TARGET,
     SESSION_COMMANDS_TARGET,
     SESSION_COMMAND_METHODS,
+    SYNC_CALL_METHODS,
+    SYNC_STREAMS,
+    SYNC_TARGET,
     answerRuntimeHello,
     chooseRuntimeContract,
     readRuntimeOffer,

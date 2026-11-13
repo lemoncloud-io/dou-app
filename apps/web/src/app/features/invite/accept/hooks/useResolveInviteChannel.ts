@@ -170,16 +170,17 @@ export const useResolveInviteChannel = () => {
             let stopWatching = (): void => undefined;
             const viaPush = new Promise<{ channelId: string; source: InviteChannelSource }>(resolve => {
                 if (!inviterId) return;
-                stopWatching = runtime.connection
-                    .getSocketManager()
-                    .getScopedClient(runtime.connection.RELAY_SLOT)
-                    .onType<JoinPush>('join.sync', message => {
+                stopWatching = runtime.connection.onServerEvent<JoinPush>(
+                    'join.sync',
+                    message => {
                         if (isInviterJoinToNewRoom(message.data, inviterId)) {
                             // Before the resolve, so a probe loop between two awaits sees it at once.
                             settled = true;
                             resolve({ channelId: message.data.channelId, source: 'push' });
                         }
-                    });
+                    },
+                    { slot: runtime.connection.RELAY_SLOT }
+                );
             });
 
             try {

@@ -9,7 +9,7 @@ import { renderHook, waitFor } from '@testing-library/react';
  * `profile.sync` (the old `channel.sync-site-profile` is a request name only, never pushed), so a
  * subscription to anything else leaves a peer's nick/photo edit waiting for the next poll.
  */
-const mockOnType = vi.fn<(type: string, listener: (message: unknown) => void) => () => void>();
+const mockOnServerEvent = vi.fn<(type: string, listener: (message: unknown) => void) => () => void>();
 const mockSyncProfiles = vi.fn();
 const mockGetSyncedAt = vi.fn();
 const mockSetSyncedAt = vi.fn();
@@ -27,7 +27,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedSiteId: 'site-1' }),
         },
         connection: {
-            getSocketManager: () => ({ onType: mockOnType }),
+            onServerEvent: (type: string, listener: (message: unknown) => void) => mockOnServerEvent(type, listener),
         },
     },
 }));
@@ -35,11 +35,11 @@ vi.mock('@chatic/app-runtime', () => ({
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 
 /** The listener the hook registered for `type`, or undefined when it never subscribed to it. */
-const listenerFor = (type: string) => mockOnType.mock.calls.find(([t]) => t === type)?.[1];
+const listenerFor = (type: string) => mockOnServerEvent.mock.calls.find(([t]) => t === type)?.[1];
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mockOnType.mockReturnValue(vi.fn());
+    mockOnServerEvent.mockReturnValue(vi.fn());
     mockGetSyncedAt.mockResolvedValue(100);
     mockSyncProfiles.mockResolvedValue({ syncedAt: 200 });
 });
@@ -74,7 +74,7 @@ describe('useRealtimeProfileSync', () => {
 
     it('unsubscribes from the socket and the window on unmount', () => {
         const off = vi.fn();
-        mockOnType.mockReturnValue(off);
+        mockOnServerEvent.mockReturnValue(off);
 
         const { unmount } = renderHook(() => useRealtimeProfileSync());
         unmount();

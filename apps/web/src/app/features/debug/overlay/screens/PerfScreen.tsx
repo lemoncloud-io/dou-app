@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { CopyButton } from '../../components/CopyButton';
 import { Row } from '../../components/Row';
@@ -18,26 +17,40 @@ const readUsedHeapMb = (): number | null => {
 };
 
 // All values are computed web-side by the MetricsCollector; this tab only renders
-// the snapshot plus a 1s poll of the live sync target registry.
+// the snapshot plus a 1s poll of the live sync target registry. The registry is read
+// asynchronously, so the list starts empty and fills in with the first answer.
 export const PerfScreen = () => {
     const strings = usePerfScreenStrings();
     const metrics = useRuntimeMetrics();
     const socketState = runtime.connection.useRuntimeSocketState();
-    const [targets, setTargets] = useState<Array<SyncTargetDescriptor & { cid: string }>>([]);
+    const [targets, setTargets] = useState<runtime.sync.SyncTargetListing[]>([]);
     const [longTasks, setLongTasks] = useState<LongTaskStats>(getLongTaskStats());
     const [vitals, setVitals] = useState<Record<string, VitalSample>>({});
     const [usedHeapMb, setUsedHeapMb] = useState<number | null>(null);
 
     useEffect(() => {
+        let latest = 0;
+        let active = true;
         const poll = () => {
-            setTargets(runtime.sync.getSyncManager().listTargets());
+            // An answer that lands after a newer poll started, or after unmount, is dropped; a failed
+            // read keeps the last list.
+            const seq = ++latest;
+            runtime.sync.listSyncTargets().then(
+                next => {
+                    if (active && seq === latest) setTargets(next);
+                },
+                () => undefined
+            );
             setLongTasks(getLongTaskStats());
             setVitals(getVitals());
             setUsedHeapMb(readUsedHeapMb());
         };
         poll();
         const id = setInterval(poll, 1000);
-        return () => clearInterval(id);
+        return () => {
+            active = false;
+            clearInterval(id);
+        };
     }, []);
 
     const sinceSec =

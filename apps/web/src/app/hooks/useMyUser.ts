@@ -73,10 +73,10 @@ export const useMyUser = (): MyUser | null => {
     useEffect(() => {
         if (!isRelayVerified) return;
         let cancelled = false;
-        // The call sits inside try/catch, not just a `.catch()` on the promise: the scoped client
-        // resolves its slot OUTSIDE the promise chain and throws SYNCHRONOUSLY when the slot is
-        // unbound (SocketManager.getScopedClient — deliberate, so an unbound slot can never fall back
-        // silently). `isRelayVerified` makes that rare, not impossible: the slot can be torn down
+        // The call sits inside try/catch, not just a `.catch()` on the promise: a request pinned to
+        // a slot (`runtime.connection.requestOnSlot`) resolves its slot OUTSIDE the promise chain and
+        // throws SYNCHRONOUSLY when the slot is unbound (deliberate, so an unbound slot can never fall
+        // back silently). `isRelayVerified` makes that rare, not impossible: the slot can be torn down
         // between this render and this effect (a relay reconnect, a logout), and a synchronous throw
         // there escapes the effect and takes the screen down instead of just skipping a refresh. The
         // token value is already on screen, so skipping IS the recovery.

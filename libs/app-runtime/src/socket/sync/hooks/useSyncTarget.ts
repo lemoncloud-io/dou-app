@@ -4,11 +4,11 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { getSyncManager } from '@chatic/sync';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
 import { runtimeEngine } from '../../../init';
+import { registerSyncTarget } from '../syncCommands';
 import { slotKeyOf } from '@chatic/transport';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
@@ -44,7 +44,7 @@ export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string)
 
     useEffect(() => {
         if (!target) return;
-        return getSyncManager().register(target, { cid: targetCid });
+        return registerSyncTarget(target, { cid: targetCid });
         // key captures every field we re-register on; target is read once per key.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key, targetCid, uid]);

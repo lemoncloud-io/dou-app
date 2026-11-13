@@ -18,12 +18,12 @@ libs/runtime-core/src/
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
-├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`) — not on the barrel
-├── connection/         the connection controller: session → socket slots — see docs/connection/
+├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) — not on the barrel
+├── connection/         the connection controller: session → socket slots; the sockets as screens read them — see docs/connection/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view and the commands — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors — see docs/bridge/
-└── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/)
+└── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/); the sync engine as screens drive it (docs/connection/)
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
@@ -47,6 +47,8 @@ surface starts its lifecycle work from, instead of making it itself:
 | --------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `session`                                                       | the session as screens read it: a snapshot without tokens        |
 | `commands`                                                      | what a screen does to the session: sign in and out, switch, pair |
+| `connection`                                                    | the sockets as screens read and drive them                       |
+| `sync`                                                          | the sync engine as screens drive it: targets and baselines       |
 | `sessionController(options)`                                    | the relay session's boot and the guest keep-alive                |
 | `connectionController(options)`                                 | the sockets kept in line with the session, the background clouds |
 | `relayCredentialGuard(policy)` · `cloudCredentialGuard(policy)` | the two credential guards an app starts with its own policy      |
@@ -59,14 +61,15 @@ reach them only through the engine it was handed. A runtime that runs elsewhere 
 with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
 do not know which engine they were given.
 
-`session` and `commands` are the two members that are not factories: the core engine keeps one session
-view over this process's stores ([docs/session](./docs/session/README.md#the-session-view)), and every
-session reader app-runtime publishes reads through it; `commands` run this process's use cases
+`session`, `commands`, `connection` and `sync` are the members that are not factories: the core engine
+keeps one session view over this process's stores ([docs/session](./docs/session/README.md#the-session-view)),
+and every session reader app-runtime publishes reads through it; `commands` run this process's use cases
 ([docs/session](./docs/session/README.md#the-commands)), and every session command app-runtime
-publishes runs through them.
+publishes runs through them; `connection` reads and drives this process's socket manager
+([docs/connection](./docs/connection/README.md#the-sockets-as-screens-read-them)) and `sync` its sync
+manager, and app-runtime reaches neither manager any other way.
 
-What is **not** in the engine yet: the connection state the screens read, the repository graph, the
-cloud-addressed writes. Those still come straight from the core
+What is **not** in the engine yet: the repository graph and the cloud-addressed writes. Those still come straight from the core
 packages (through this barrel). They join the engine with the engine that needs them — a page that does
 not run the core cannot read its stores directly.
 

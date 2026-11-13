@@ -268,9 +268,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             try {
                 if (needsSwitch) {
                     // Gate the switch on the base handshake so we do not switch over a half-open socket.
-                    const verified = await runtime.connection
-                        .getSocketManager()
-                        .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                    const verified = await runtime.connection.waitUntilVerified(null, HANDSHAKE_WAIT_TIMEOUT_MS);
                     if (!verified && isCloudMainPush) {
                         // Landing would show the cloud already open as the one the push named.
                         logger.warn('ROUTER', 'Socket not verified for a cloud-ready push; staying put', { cid });

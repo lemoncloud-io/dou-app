@@ -8,7 +8,7 @@ import { useMyJoins } from './useMyJoins';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
-            getSyncManager: jest.fn(),
+            registerSyncTarget: jest.fn(),
         },
         data: {
             useRuntimeRepositories: jest.fn(),
@@ -46,7 +46,9 @@ beforeEach(() => {
         cid === 'cloud-a' ? 'u1' : cid === 'cloud-b' ? 'u9' : null
     );
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
-    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerJoin: registerJoinMock });
+    (runtime.sync.registerSyncTarget as jest.Mock).mockImplementation((...args: unknown[]) =>
+        registerJoinMock(...args)
+    );
     registerJoinMock.mockReturnValue(jest.fn());
 });
 
@@ -71,8 +73,8 @@ describe('useMyJoins — 구독 join 목록', () => {
 
         renderHook(() => useMyJoins([channel('c1'), channel('c2')]));
 
-        expect(registerJoinMock).toHaveBeenCalledWith('c1@u1', undefined, { cid: 'cloud-a' });
-        expect(registerJoinMock).toHaveBeenCalledWith('c2@u1', undefined, { cid: 'cloud-a' });
+        expect(registerJoinMock).toHaveBeenCalledWith({ type: 'join', id: 'c1@u1' }, { cid: 'cloud-a' });
+        expect(registerJoinMock).toHaveBeenCalledWith({ type: 'join', id: 'c2@u1' }, { cid: 'cloud-a' });
     });
 
     it('미인증(isVerified=false)이면 join 동기화를 등록하지 않는다', () => {
@@ -124,7 +126,7 @@ describe('useMyJoins — 구독 join 목록', () => {
         rerender();
 
         expect(dispose).toHaveBeenCalledTimes(1);
-        expect(registerJoinMock).toHaveBeenLastCalledWith('c1@u9', undefined, { cid: 'cloud-b' });
+        expect(registerJoinMock).toHaveBeenLastCalledWith({ type: 'join', id: 'c1@u9' }, { cid: 'cloud-b' });
     });
 
     it('re-registers when the uid in the same cloud changes (an account change)', () => {
@@ -135,7 +137,7 @@ describe('useMyJoins — 구독 join 목록', () => {
         rerender();
 
         expect(registerJoinMock).toHaveBeenCalledTimes(2);
-        expect(registerJoinMock).toHaveBeenLastCalledWith('c1@u2', undefined, { cid: 'cloud-a' });
+        expect(registerJoinMock).toHaveBeenLastCalledWith({ type: 'join', id: 'c1@u2' }, { cid: 'cloud-a' });
     });
 
     it('registers nothing while the account has no uid in the selected cloud', () => {

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, verifiedSlots: new Set<string>() }));
-const registerJoin = vi.fn();
+const registerSyncTarget = vi.fn();
 const joinObservers = vi.hoisted(() => new Map<string, (result: { list: DomainJoin[] } | null) => void>());
 
 vi.mock('@chatic/app-runtime', () => ({
@@ -24,7 +24,7 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: { useCloudVerified: (cid: string) => session.verifiedSlots.has(cid) },
         session: { useUidInCloud: (cid: string) => session.uids[cid] ?? null },
-        sync: { getSyncManager: () => ({ registerJoin }) },
+        sync: { registerSyncTarget: (...args: unknown[]) => registerSyncTarget(...args) },
     },
 }));
 
@@ -37,8 +37,8 @@ const join = (userId: string, chatNo: number, extra: Partial<DomainJoin> = {}): 
 
 const emitJoins = (joins: DomainJoin[]) => act(() => joinObservers.get('C1')?.({ list: joins }));
 
-let registrations: { id: string; cid?: string; disposed: boolean }[] = [];
-const liveJoins = () => registrations.filter(entry => !entry.disposed).map(entry => entry.id);
+let registrations: { type: string; id: string; cid?: string; disposed: boolean }[] = [];
+const liveJoins = () => registrations.filter(entry => entry.type === 'join' && !entry.disposed).map(entry => entry.id);
 
 describe('useChannelReadCounts', () => {
     beforeEach(() => {
@@ -46,13 +46,15 @@ describe('useChannelReadCounts', () => {
         session.verifiedSlots = new Set(['cloud-a']);
         joinObservers.clear();
         registrations = [];
-        registerJoin.mockReset().mockImplementation((id: string, _interval?: number, options?: { cid?: string }) => {
-            const entry = { id, cid: options?.cid, disposed: false };
-            registrations.push(entry);
-            return () => {
-                entry.disposed = true;
-            };
-        });
+        registerSyncTarget
+            .mockReset()
+            .mockImplementation((target: { type: string; id: string }, options?: { cid?: string }) => {
+                const entry = { type: target.type, id: target.id, cid: options?.cid, disposed: false };
+                registrations.push(entry);
+                return () => {
+                    entry.disposed = true;
+                };
+            });
     });
 
     it('splits the active members other than the author by whether their cursor reached the message', () => {

@@ -15,20 +15,14 @@ const channelMocks = {
 };
 
 type PushHandler = (message: any) => void;
-type MessageHandler = (event: { message: unknown }) => void;
-type ClientCallback = (client: unknown) => void;
+type MessageHandler = (message: unknown) => void;
 
-const managerMocks = {
+// `onServerMessage` hears every frame on the active slot; the runtime keeps it attached across
+// reconnects, so the mock just keeps the latest listener.
+const connectionMocks = {
     onMessageHandler: null as MessageHandler | null,
-    clientCallback: null as ClientCallback | null,
-    onMessage: vi.fn((handler: MessageHandler) => {
-        managerMocks.onMessageHandler = handler;
-        return () => undefined;
-    }),
-    subscribeClient: vi.fn((callback: ClientCallback) => {
-        managerMocks.clientCallback = callback;
-        // A live client from the start, like the running app.
-        callback({ id: 'client-1' });
+    onServerMessage: vi.fn((handler: MessageHandler) => {
+        connectionMocks.onMessageHandler = handler;
         return () => undefined;
     }),
 };
@@ -37,7 +31,7 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
-        connection: { getSocketManager: () => managerMocks },
+        connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) },
     },
 }));
 
@@ -58,7 +52,7 @@ const emitPush = (deeplink: string | undefined) => {
 
 const emitSocketFrame = (message: unknown) => {
     act(() => {
-        managerMocks.onMessageHandler?.({ message });
+        connectionMocks.onMessageHandler?.(message);
     });
 };
 
@@ -85,8 +79,7 @@ describe('useRefreshOnPush', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
-        managerMocks.onMessageHandler = null;
-        managerMocks.clientCallback = null;
+        connectionMocks.onMessageHandler = null;
     });
 
     afterEach(() => {

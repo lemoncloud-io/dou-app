@@ -13,8 +13,9 @@ and the sync runtimes are [`@chatic/auth`](../auth/README.md)'s and [`@chatic/sy
 ## Who imports it
 
 `@chatic/app-runtime` and the modules cut from it that sit above this one. **Apps do not**: they reach sockets and HTTP
-through `runtime` — `runtime.connection.getSocketManager()`, `runtime.boot.webTransport`,
-`runtime.session.authFailureReaction` — which publishes the parts an app is meant to hold.
+through `runtime` — the sockets as `runtime.connection` reads and drives them through the engine,
+`runtime.boot.webTransport`, `runtime.session.authFailureReaction` — which publishes the parts an app is
+meant to hold. The socket manager itself is not among them.
 
 Production code imports the barrel only. A test in app-runtime may name a file —
 `jest.mock('@chatic/transport/socket/runtime', …)` — because a mock has to replace the module every

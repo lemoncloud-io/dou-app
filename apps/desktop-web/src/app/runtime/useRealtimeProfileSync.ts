@@ -46,9 +46,7 @@ export const useRealtimeProfileSync = (): void => {
             }
         };
 
-        const offBroadcast = runtime.connection
-            .getSocketManager()
-            .onType(PROFILE_SYNC_TYPE, () => void pullProfileDelta());
+        const offBroadcast = runtime.connection.onServerEvent(PROFILE_SYNC_TYPE, () => void pullProfileDelta());
         const onFocus = () => void pullProfileDelta();
         window.addEventListener('focus', onFocus);
 

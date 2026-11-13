@@ -38,7 +38,7 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
 2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug. The socket and HTTP ones live in [`@chatic/transport`](../transport/README.md) and the sync one in [`@chatic/sync`](../sync/README.md), the packages below this one.
 3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk this package's source and every package cut from it, and fail on the string: [`refreshAbsence.test.ts`](./src/refreshAbsence.test.ts) and [`authUpdateAbsence.test.ts`](./src/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
-4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `@chatic/auth` go through `AuthRepository` (ADR-0036). There is no direct-gateway escape hatch.
+4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `@chatic/auth` go through `AuthRepository` (ADR-0036). The one exception is the relay account's profile: account screens read and write it on the relay slot whichever cloud is active, through `runtime.connection.requestOnSlot`, because a repository's cache is read under the live scope and would not read a relay row back while a cloud is on screen (apps/web/docs/feature/place/relay-default-place-scoping.md §6). It is local to the page's own runtime, and becomes a domain call before a page mirrors a runtime in another process.
 5. **The three scope views are never collapsed.** `selected` flips optimistically, `bound` is observed from the live socket, `committed` follows the token. Their disagreement _is_ optimistic cloud switching; merging them brings back cross-cloud cache poisoning.
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
@@ -203,16 +203,16 @@ libs/app-runtime/src/
 ├── facade.ts         the seven groups, assembled from group barrels
 ├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── connection/       10 files — the host and 8 hooks; the controller it starts is @chatic/runtime-core's
+├── connection/       11 files — the host, 8 hooks and the sockets outside React (`connectionCommands.ts`), through the engine; the controller it starts is @chatic/runtime-core's
 ├── session/          35 files — the React surface (32 under hooks/), the readers (`sessionReads.ts`) and the commands (`sessionCommands.ts`) through the engine, and the `session` group; the use cases are @chatic/auth
-├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
+├── socket/           3 files — the `sync` group, its hooks and the sync engine outside React (`syncCommands.ts`), through the engine; the managers stay in their own packages
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
 ├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
 ├── report/           5 files — user issue report + log-batch upload
 └── utils/            1 file — isNativeApp
 ```
 
-69 source files, 39 test files, about 3,300 lines of non-test code — the assembly, the graph and the lifecycle work moved to `@chatic/runtime-core`.
+72 source files, 43 test files, about 3,500 lines of non-test code — the assembly, the graph and the lifecycle work moved to `@chatic/runtime-core`.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s

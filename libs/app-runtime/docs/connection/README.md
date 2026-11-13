@@ -1,8 +1,10 @@
 # connection — the host and the connection-state hooks
 
 `connection/` is the React layer over the runtime's connections. It holds the host an app mounts
-once, which starts and stops runtime-core's connection controller, and hooks that read the socket
-manager's state. What keeps the sockets in line with the session — the slot derivation, the two
+once, which starts and stops runtime-core's connection controller, hooks that read the sockets' state,
+and the functions that drive the sockets outside React. Both go through the engine
+(`runtimeEngine().connection`, in `connectionCommands.ts`), never the socket manager: on the phone the
+sockets may live in another process. What keeps the sockets in line with the session — the slot derivation, the two
 binders, background slots and write holds — is not here: it is runtime-core's, with no React in it,
 so that the native process can run it too ([runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md)).
 
@@ -11,6 +13,7 @@ so that the native process can run it too ([runtime-core docs/connection/](../..
 ```text
 connection/
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
+├── connectionCommands.ts          the sockets outside React, through the engine
 └── hooks/                         useHostControllers · useRuntimeSocketState · useSlotVerified ·
                                    useCloudVerified · useVerifiedClouds · useConnectivity ·
                                    useBackgroundClouds · useReclaimOwnedClouds
@@ -58,7 +61,9 @@ the safeguard.
 
 `useBackgroundClouds(cids)` and `useReclaimOwnedClouds(cids, alsoInvited)` are how an app hands the
 runtime what only the app can see: which clouds the account belongs to, and which owned clouds are
-cached as invited. The background slots built from them are described in
+cached as invited. They pass them to the engine (`setBackgroundClouds`, `setOwnedClouds`); when to
+re-issue an owned cloud held as an invitee — on a list change, and on each cloud token commit — is
+the engine's. The background slots built from them are described in
 [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#background-slots).
 
 ### Reading connection state
@@ -70,6 +75,30 @@ cached as invited. The background slots built from them are described in
 | `useCloudVerified(cid)`   | The same, named by cloud id — a missing id is the relay                     |
 | `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them        |
 | `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
+
+The hooks read one snapshot, the engine's (`active`, the active slot's socket, and `verifiedSlots`,
+every bound slot that is verified, in slot order), which keeps the same objects until something in it
+changes.
+
+### Outside React
+
+| Function                                                  | Does                                                                                            |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `getRuntimeSocketState()`                                 | the active slot's socket at the moment of the call — a click, a timer                           |
+| `waitUntilVerified(slot?, timeoutMs?)`                    | `true` once that slot (the active one when none is named) is verified; `false` on timeout       |
+| `requestOnSlot(slot, type, data?, options?)`              | a request on one named slot, whichever is active — the relay account while a cloud is on screen |
+| `onServerEvent(type, listener, { slot? })`                | the server's pushes of one type, from one slot or the active one                                |
+| `onServerMessage(listener)`                               | every frame the active slot receives, across reconnects                                         |
+| `observeSocketRequests(observer)`                         | every settled request, for a sampled timing                                                     |
+| `getSlotStatuses()`                                       | every bound slot's status (async) — a debug screen's, not a gate                                |
+| `reconnectSocket()`                                       | closes the active socket so it redials — a wake kick                                            |
+| `recoverUnverifiedSockets()` · `recoverSocketsOnResume()` | recover the slots that are not verified; on resume, ping the verified ones too                  |
+
+The socket manager is not on the surface any more: everything an app did with it is one of these.
+`requestOnSlot` and `onServerMessage` are not domain results, so they never cross the bridge: they work
+only where the runtime runs in the page's own process. The relay account's profile reads and writes —
+the one place a page that may mirror a runtime uses `requestOnSlot` — have to become domain calls before
+the page mirrors one.
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
@@ -84,7 +113,7 @@ has been attempted yet. When the link counts as down is the transport's rule:
 ### What not to do
 
 - **Do not keep connections in line with the session from a hook.** That is the controller's job, in runtime-core; a hook here reads state or hands the runtime what only the app knows.
-- **Do not take a raw `ClientSocketV2` and hold it** in a hook. Clients are rebuilt on every config change; [the socket doc](../../../transport/docs/socket/README.md#what-not-to-do) has the rest of the manager's rules.
+- **Do not reach for the socket manager.** It is not on the surface; on the phone it is not in the page's process at all. What a screen needs from the sockets is above.
 
 ## Further reading
 

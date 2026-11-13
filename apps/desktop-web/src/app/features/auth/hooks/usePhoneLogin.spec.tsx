@@ -9,7 +9,7 @@ const rt = vi.hoisted(() => ({
     retryPhoneLogin: vi.fn(),
     cancelPhoneLogin: vi.fn(),
     error: vi.fn(),
-    waitUntilSlotVerified: vi.fn(),
+    waitUntilVerified: vi.fn(),
 }));
 
 const ui = vi.hoisted(() => ({ language: 'en' }));
@@ -19,7 +19,7 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'relay',
-            getSocketManager: () => ({ waitUntilSlotVerified: rt.waitUntilSlotVerified }),
+            waitUntilVerified: rt.waitUntilVerified,
         },
         data: {
             useRuntimeRepositories: () => ({
@@ -73,7 +73,7 @@ describe('usePhoneLogin', () => {
         rt.retryPhoneLogin.mockReset().mockResolvedValue({ isNew: false });
         rt.cancelPhoneLogin.mockReset();
         rt.error.mockReset();
-        rt.waitUntilSlotVerified.mockReset().mockResolvedValue(true);
+        rt.waitUntilVerified.mockReset().mockResolvedValue(true);
         ui.language = 'en';
     });
 
@@ -126,7 +126,7 @@ describe('usePhoneLogin', () => {
         rt.isAuthenticated = false;
         const order: string[] = [];
         rt.loginGuest.mockImplementation(async () => void order.push('register'));
-        rt.waitUntilSlotVerified.mockImplementation(async () => {
+        rt.waitUntilVerified.mockImplementation(async () => {
             order.push('verified');
             return true;
         });
@@ -141,7 +141,7 @@ describe('usePhoneLogin', () => {
         expect(rt.loginGuest).toHaveBeenCalledWith('device-1');
         // The send waits for the relay socket to authenticate the new device, or the first one fails.
         expect(order).toEqual(['register', 'verified', 'send']);
-        expect(rt.waitUntilSlotVerified).toHaveBeenCalledWith('relay', expect.any(Number));
+        expect(rt.waitUntilVerified).toHaveBeenCalledWith('relay', expect.any(Number));
     });
 
     it('sends nothing for a number that is not a mobile number', async () => {

@@ -36,12 +36,6 @@ import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
-// Debug frame log: start recording inbound socket envelopes for the whole session, so the
-// debug page opens onto a buffer that was already filling. Module-scope (not an effect) —
-// it binds through subscribeClient and is idempotent per client, and must not be tied to a
-// component's lifetime.
-startSocketFrameLog();
-
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
@@ -159,6 +153,15 @@ const ShellUnreadSync = () => {
  * the revoke from the person it happened to.
  */
 export const DesktopRuntime = () => {
+    // Debug frame log: start recording inbound socket envelopes for the whole session, so the debug
+    // page opens onto a buffer that was already filling. From an effect, not at import: it reads the
+    // runtime engine, which exists only once the entry point has called `initAppRuntime`, and this
+    // module is imported before that. It is started once for the app's life (the store guards a
+    // second call) and deliberately not stopped on unmount.
+    useEffect(() => {
+        startSocketFrameLog();
+    }, []);
+
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
     // return from sleep). Nothing else refreshes them at boot and the SDK's first writeback is a
     // refresh cycle (5min) away, so without this every relay-signed request — the

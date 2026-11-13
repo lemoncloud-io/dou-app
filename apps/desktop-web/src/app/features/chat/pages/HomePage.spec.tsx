@@ -41,7 +41,7 @@ vi.mock('@chatic/app-runtime', () => {
             },
             connection: {
                 useRuntimeSocketState: () => ({ isVerified: socketState.isVerified }),
-                getSocketManager: () => ({ waitUntilVerified: async () => true }),
+                waitUntilVerified: async () => true,
             },
         },
     };

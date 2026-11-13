@@ -77,9 +77,24 @@ So are the session commands. A `RuntimeCall` names them with the target `session
 (`SESSION_COMMANDS_TARGET`) and one of `SESSION_COMMAND_METHODS` — the allow-list the shell dispatches
 against, keyed by every member of `SessionCommands`, so a command added there and left out of the list
 does not compile. The arguments are the command's own, in order; the result is what it resolves with
-([docs/session](../session/README.md#the-commands)). The other call targets and the events are added
-to the contract one at a time, each with the change that first moves a screen's reads or calls behind
-the engine — where the core engine is a first implementation to check it against.
+([docs/session](../session/README.md#the-commands)).
+
+The sockets and the sync engine are two more targets, `connection` (`CONNECTION_TARGET`) and `sync`
+(`SYNC_TARGET`). Each member says how it crosses, keyed by every member of `RuntimeConnection` and
+`RuntimeSync` so a new one cannot be left out: a **view** is mirrored with its snapshot (the connection's
+`snapshot` and `subscribe`); a **call** is one `RuntimeCall` (`CONNECTION_CALL_METHODS`,
+`SYNC_CALL_METHODS`); a **stream** is a `RuntimeSubscribe` whose events the page hears until it
+unsubscribes (`CONNECTION_STREAMS` — a server push type, every frame, request samples; `SYNC_STREAMS` —
+a target registration, which stands while its stream is open); a **local** member does not cross at
+all (`CONNECTION_LOCAL_MEMBERS`). What crosses is a domain result — a socket request of any type and
+every raw frame are not, so `requestOnSlot` and `onServerMessage` are local: they work only where the
+runtime runs in the page's own process. The relay account's profile reads and writes, the one use of
+`requestOnSlot` in a page that may mirror a runtime, become domain calls before it does; the frames feed
+a desktop debug log, and the desktop shell never runs the runtime itself
+([docs/connection](../connection/README.md#the-sockets-as-screens-read-them)).
+
+The repositories are added to the contract with the change that moves them behind the engine — where
+the core engine is a first implementation to check it against.
 
 ## The messages
 
@@ -135,7 +150,7 @@ where the session is, before the error reaches the page.
 
 ## Where it lives
 
-| File                     | Holds                                                                                                                                                                                          |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge/contract.ts` | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS` |
-| `src/bridge/errors.ts`   | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                            |
+| File                     | Holds                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge/contract.ts` | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
+| `src/bridge/errors.ts`   | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |

@@ -34,6 +34,16 @@ mount, turning a visible 403 storm into an invisible dead sync.
 The generic `useSyncTarget` is not on the package barrel: every app consumer picks one of the three
 named targets. The three wrappers reach it in the same file.
 
+### Registering outside a screen's own mount
+
+A registration that is not one screen's target — a list of rooms, a set of joins — goes through
+`runtime.sync.registerSyncTarget(target, { cid })`, which returns its drop. `updateSyncSnapshot` tells
+the sync engine the baseline the cache already holds, and `listSyncTargets()` (async) lists the targets
+for a debug screen. All three, and the hooks, go through the engine (`runtimeEngine().sync`, in
+`syncCommands.ts`), never the sync manager, which is not on the surface. The group's other functions
+— `refreshBackgroundClouds`, `subscribeBackgroundDeltas`, the refused-channel reads and the room feed —
+still come straight from `@chatic/sync`; they move behind the engine with the repositories.
+
 ### Priming a room
 
 `ChatSyncPlan.run` is a no-op — chat is event-driven — so registering a chat target loads nothing by
