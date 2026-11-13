@@ -70,6 +70,17 @@
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
     --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
+    /* Notifications · place chips · jump pills (Figma 5774:29146) */
+    --point-orange: 35 100% 50%; /* #FF9500 - Figma Colors/Orange, mention chip + mention jump pill */
+    --alert-red: 350 100% 62%; /* #FF3B5C - unread dot, destructive action button */
+    --chip-ink: 226 46% 20%; /* #1C274C - selected place chip, jump pill, selection check; same in dark */
+    --chip-surface: 0 0% 97%; /* #F8F8F8 - unselected place chip */
+    --chip-border: 192 18% 91%; /* #E3EBED - filter chip outline */
+    --tab-idle: 226 6% 57%; /* #8C8F99 - unselected count tab, filter chip text */
+    --action-soft: 204 23% 96%; /* #F2F5F7 - secondary action button fill */
+    --notify-name: 220 3% 14%; /* #222325 - BK_900, notification sender */
+    --notify-ink: 220 5% 24%; /* #3B3D40 - BK_800, notification body + location */
+    --notify-muted: 216 3% 64%; /* #9FA2A7 - BK_500, notification context phrase */
     --code-inline: 20 90% 36%; /* #AE4009 — inline code text, mirrors apps/web */
     /* ui-kit's dialog, alert-dialog and sheet scrims (bg-overlay/80); mirrors apps/web. */
     --overlay: 220 20% 10%;
@@ -129,6 +140,16 @@
     --verified: 211 100% 50%;
     --point-blue: 215 90% 56%; /* #2A7EF4 — same */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */
+    --point-orange: 35 100% 50%; /* #FF9500 - same */
+    --alert-red: 350 100% 62%; /* #FF3B5C - same */
+    --chip-ink: 226 46% 20%; /* #1C274C - same, white text stays on it */
+    --chip-surface: 0 0% 13%; /* raised chip on dark bg */
+    --chip-border: 0 0% 23%; /* #3A3C40 */
+    --tab-idle: 216 3% 50%; /* dimmed tab text on dark bg */
+    --action-soft: 0 0% 15%; /* tile fill on dark bg */
+    --notify-name: 0 0% 96%;
+    --notify-ink: 0 0% 85%;
+    --notify-muted: 216 3% 50%;
     --code-inline: 32 80% 54%; /* #E8902C — lifted for the dark ground */
     --overlay: 0 0% 0%;
 }

@@ -123,9 +123,9 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 63 icons · 7 assets</i>"]:::res
+    C["composites × 63<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    F["foundations × 41<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    R["resources<br/><i>tokens.css · 69 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
@@ -167,15 +167,15 @@ flowchart TD
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
-│   ├── styles/tokens.css   134 lines of HSL channels, light + `.dark`
-│   ├── icons/              63 exports: lucide aliases + Figma-exported glyphs
+│   ├── styles/tokens.css   155 lines of HSL channels, light + `.dark`
+│   ├── icons/              69 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   11 groups, 38 components
-│   avatar(7) · button(9) · input(8) · badge(6) · brand(2) ·
+├── foundations/   12 groups, 41 components
+│   avatar(7) · button(9) · input(8) · badge(7) · brand(2) · chip(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 60 components
-    chat(17) · list(6) · media(9) · overlay(6) · section(4) · header(3) ·
-    layout(4) · subscription(7) · feedback(2) · navigation(2)
+└── composites/    10 groups, 63 components
+    chat(18) · list(7) · media(9) · overlay(6) · section(4) · header(3) ·
+    layout(4) · subscription(7) · feedback(2) · navigation(3)
 ```
 
 Ten files are internal — used across a group but absent from every barrel, so grepping the public

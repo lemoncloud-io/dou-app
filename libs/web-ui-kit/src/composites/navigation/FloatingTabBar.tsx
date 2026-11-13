@@ -21,6 +21,14 @@ export interface FloatingTabBarItem {
      * count with context; without it, "{label}, {count}". i18n-agnostic.
      */
     badgeLabel?: string;
+    /**
+     * A red dot on the icon's corner instead of a count — "something new here" without a number
+     * (the notifications tab, Figma 5780:17172). Ignored while `badge` is above zero.
+     */
+    dot?: boolean;
+    /** Accessible announcement for the dot (e.g. a localized "New notifications"); folded into the
+     *  tab's name like `badgeLabel`. Without it the dot is not announced. */
+    dotLabel?: string;
     /** Whether this tab is the active destination. */
     active?: boolean;
 }
@@ -113,7 +121,12 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                     // otherwise hide the badge text from screen readers. The tab's name always leads:
                     // an unselected tab shows no text, so the label is the only thing that says
                     // which tab a "5 unread" belongs to.
-                    const ariaLabel = showBadge ? `${item.label}, ${item.badgeLabel ?? badgeText}` : item.label;
+                    const showDot = !showBadge && !!item.dot;
+                    const ariaLabel = showBadge
+                        ? `${item.label}, ${item.badgeLabel ?? badgeText}`
+                        : showDot && item.dotLabel
+                          ? `${item.label}, ${item.dotLabel}`
+                          : item.label;
                     return (
                         <button
                             key={item.key}
@@ -155,6 +168,15 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                                     </>
                                 ) : (
                                     item.icon
+                                )}
+                                {showDot && (
+                                    // On the glyph's own top-right corner, so it rides with the icon
+                                    // whether the tab is a bare icon or the selected capsule.
+                                    <span
+                                        aria-hidden="true"
+                                        data-dot
+                                        className="absolute -right-0.5 -top-0.5 size-[7px] rounded-full bg-alert-red"
+                                    />
                                 )}
                             </span>
                             {/* The label is on every tab and folds to nothing on the unselected ones.

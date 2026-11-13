@@ -1,5 +1,6 @@
 export * from './button';
 export * from './badge';
+export * from './chip';
 export * from './input';
 export * from './text';
 export * from './checkbox';

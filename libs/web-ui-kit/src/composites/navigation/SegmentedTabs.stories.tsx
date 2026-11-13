@@ -45,3 +45,43 @@ const ThreeTabsDemo = () => {
 
 export const TwoTabs: Story = { render: () => <TwoTabsDemo /> };
 export const ThreeTabs: Story = { render: () => <ThreeTabsDemo /> };
+
+/** The home's conversation tabs: inline, with counts and the new-chat button at the end. */
+const InlineCountsDemo = () => {
+    const [value, setValue] = useState('all');
+    return (
+        <SegmentedTabs
+            variant="inline"
+            items={[
+                { id: 'all', label: '전체', count: 12 },
+                { id: 'group', label: '그룹 대화', count: 8 },
+                { id: 'dm', label: '1:1 대화', count: 4 },
+            ]}
+            value={value}
+            onChange={setValue}
+            trailing={<span className="size-6 rounded-full border border-foreground" aria-label="new chat" />}
+        />
+    );
+};
+
+/** The notification tabs: five inline tabs whose counts are unread notifications, zero hidden. */
+const NotificationTabsDemo = () => {
+    const [value, setValue] = useState('all');
+    return (
+        <SegmentedTabs
+            variant="inline"
+            items={[
+                { id: 'all', label: '전체', count: 4 },
+                { id: 'group', label: '그룹 대화', count: 3 },
+                { id: 'dm', label: '1:1 대화', count: 1 },
+                { id: 'thread', label: '스레드', count: 1 },
+                { id: 'mention', label: '멘션', count: 0 },
+            ]}
+            value={value}
+            onChange={setValue}
+        />
+    );
+};
+
+export const InlineWithCounts: Story = { render: () => <InlineCountsDemo /> };
+export const NotificationTabs: Story = { render: () => <NotificationTabsDemo /> };
