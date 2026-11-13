@@ -2,6 +2,12 @@
 
 ## [2026-11-13] - No version updates
 
+### Features
+
+- (runtime-mobile,db,mobile) build the native runtime's stores and cache on the app's storage
+
+## [2026-11-13] - No version updates
+
 ### Bug Fixes
 
 - (desktop) hide mini apps on prod, align quiet-hours mention switch
