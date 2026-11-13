@@ -6,10 +6,11 @@ import { ROUTES } from '../../../../routes/paths';
 import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
 import { Badge, Banner, Button, Card } from '../../components/ui';
 import { useBillingInfo, usePreviewCheckout } from '../../hooks';
-import { currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
+import { billableIn, currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { useManagementScreens } from '../../lib/screens';
 import { EMPTY_PAYER, type PayerDraft, payerOf } from '../../lib/payer';
+import { useForeignBilling } from '../../lib/port';
 import { cn, formatDate, formatMoney } from '../../utils';
 import {
     BILLING_COUNTRY_OPTIONS,
@@ -43,7 +44,9 @@ const CARD_TITLE = 'text-sm font-bold text-ink';
  * currency (won for Korea, US dollars for any other country), so until it is chosen the summary shows no
  * amount and the payer is not asked for; once it is, the summary is priced in its currency and, for
  * Korea only, the payer fields appear. Which payment provider that means is the port's business, and
- * the page never names one.
+ * the page never names one. A build that bills in Korea only (`useForeignBilling` false — production,
+ * until the server has dollar products there) stops any other country at a notice: no amount, no
+ * consents and no way on.
  *
  * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
  * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
@@ -55,17 +58,20 @@ export const CheckoutPage = (): JSX.Element => {
     // Back from W-05, what was settled here comes back in the navigation state and fills the form in
     // again: the country, the payer and the consents — given already, or W-05 would not have opened.
     const location = useLocation();
-    const [returned] = useState(() => checkoutDetailsOf(location.state));
+    const foreignBilling = useForeignBilling();
+    const [returned] = useState(() => checkoutDetailsOf(location.state, foreignBilling));
     const { loading, error, retry, target: plan, route } = usePlanRoute();
     const [country, setCountry] = useState(returned?.country ?? '');
     const [countryMissing, setCountryMissing] = useState(false);
+    // A country this build cannot bill: chosen, but nothing is priced or asked for after it.
+    const blocked = !!country && !billableIn(country, foreignBilling);
     const countryField = useRef<HTMLSelectElement>(null);
     // The account and the trial come from a preview in won; the amounts from one in the country's currency,
     // once there is a country. A failure of the second stays in the summary, so another country can be picked.
     const base = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
     const pricedPreview = usePreviewCheckout(
-        route === 'checkout' && country ? plan?.id : undefined,
-        country ? currencyOfCountry(country) : undefined
+        route === 'checkout' && country && !blocked ? plan?.id : undefined,
+        country && !blocked ? currencyOfCountry(country) : undefined
     );
     const { emails: management } = useManagementScreens();
     // The billing-email screens are hidden: nothing here reads the billing emails then.
@@ -96,9 +102,9 @@ export const CheckoutPage = (): JSX.Element => {
     const emailAddress = management ? billingEmail?.address : account.email;
     const needsPayer = !!country && payerRequiredIn(country);
     // The amounts are the country's only once its own preview is in, not the one before it.
-    const priced = !!country && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
+    const priced = !!country && !blocked && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
     const preview = { data: priced && pricedPreview.data ? pricedPreview.data : base.data };
-    const ready = canContinueCheckout({ country, email: emailAddress, payer, consents });
+    const ready = canContinueCheckout({ country, email: emailAddress, payer, consents, foreignBilling });
 
     const onContinue = () => {
         if (!country) {
@@ -135,8 +141,8 @@ export const CheckoutPage = (): JSX.Element => {
             summary={
                 // A block, not a flex column: the summary's own `self-start` would shrink it to its content.
                 <div className="space-y-3">
-                    <CheckoutSummary preview={preview.data} priced={priced} />
-                    {country && pricedPreview.isError && (
+                    <CheckoutSummary preview={preview.data} priced={priced} unpricedHint={!blocked} />
+                    {country && !blocked && pricedPreview.isError && (
                         <Banner
                             tone="danger"
                             title={t('subscription.common.error.unknown')}
@@ -247,10 +253,15 @@ export const CheckoutPage = (): JSX.Element => {
                         {t('subscription.checkout.billing.countryMissing')}
                     </p>
                 )}
-                {country && (
+                {country && !blocked && (
                     <p className="text-sm font-semibold text-ink">
                         {t(`subscription.checkout.billing.currency.${currencyOfCountry(country)}`)}
                     </p>
+                )}
+                {blocked && (
+                    <Banner tone="info" title={t('subscription.checkout.billing.outsideKorea.title')}>
+                        {t('subscription.checkout.billing.outsideKorea.body')}
+                    </Banner>
                 )}
                 <p className="text-xs font-medium leading-normal text-mute">
                     {t('subscription.checkout.billing.countryNote')}
@@ -274,65 +285,74 @@ export const CheckoutPage = (): JSX.Element => {
                 </Card>
             )}
 
-            <Card className={cn(CARD, 'gap-3')}>
-                <label className="flex items-center gap-2 text-sm font-medium text-ink">
-                    <input
-                        type="checkbox"
-                        className="checkbox-lime"
-                        checked={allConsented(consents)}
-                        onChange={event => setConsents(setAllConsents(event.target.checked))}
-                    />
-                    {t('subscription.checkout.consent.all')}
-                </label>
-                <div className="flex flex-col gap-3 border-t border-line pt-3 md:border-0 md:pt-2">
-                    {CONSENTS.map(key => (
-                        <div key={key} className="flex items-center gap-2 text-sm font-medium text-ink">
-                            <input
-                                id={`consent-${key}`}
-                                type="checkbox"
-                                className="checkbox-lime"
-                                aria-required
-                                checked={consents[key]}
-                                onChange={event => setConsents({ ...consents, [key]: event.target.checked })}
-                            />
-                            <label htmlFor={`consent-${key}`} className="flex items-center gap-2">
-                                {t(`subscription.checkout.consent.${key}`)}
-                                <span className="text-xs font-semibold text-[#c1292e]">
-                                    {t('subscription.checkout.consent.required')}
-                                </span>
-                            </label>
-                            {key !== 'autoRenew' && (
-                                <Link
-                                    to={key === 'terms' ? ROUTES.policy.terms : ROUTES.policy.privacy}
-                                    target="_blank"
-                                    className="ml-auto text-xs font-medium text-mute underline"
-                                >
-                                    {t('subscription.checkout.consent.view')}
-                                </Link>
-                            )}
-                        </div>
-                    ))}
-                </div>
-                {priced && (
-                    <p className="rounded-2xl bg-note px-4 py-3 text-[13px] font-medium leading-normal text-[#666b78]">
-                        {withTrial
-                            ? t('subscription.checkout.consent.noticeTrial', {
-                                  date: formatDate(preview.data.firstChargeAt),
-                                  day: Number(preview.data.firstChargeAt.slice(8, 10)),
-                                  price: money(preview.data.plan.monthly),
-                              })
-                            : t('subscription.checkout.consent.noticePaid', {
-                                  day: Number(preview.data.firstChargeAt.slice(8, 10)),
-                                  price: money(preview.data.plan.monthly),
-                              })}
-                    </p>
-                )}
-            </Card>
+            {!blocked && (
+                <Card className={cn(CARD, 'gap-3')}>
+                    <label className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <input
+                            type="checkbox"
+                            className="checkbox-lime"
+                            checked={allConsented(consents)}
+                            onChange={event => setConsents(setAllConsents(event.target.checked))}
+                        />
+                        {t('subscription.checkout.consent.all')}
+                    </label>
+                    <div className="flex flex-col gap-3 border-t border-line pt-3 md:border-0 md:pt-2">
+                        {CONSENTS.map(key => (
+                            <div key={key} className="flex items-center gap-2 text-sm font-medium text-ink">
+                                <input
+                                    id={`consent-${key}`}
+                                    type="checkbox"
+                                    className="checkbox-lime"
+                                    aria-required
+                                    checked={consents[key]}
+                                    onChange={event => setConsents({ ...consents, [key]: event.target.checked })}
+                                />
+                                <label htmlFor={`consent-${key}`} className="flex items-center gap-2">
+                                    {t(`subscription.checkout.consent.${key}`)}
+                                    <span className="text-xs font-semibold text-[#c1292e]">
+                                        {t('subscription.checkout.consent.required')}
+                                    </span>
+                                </label>
+                                {key !== 'autoRenew' && (
+                                    <Link
+                                        to={key === 'terms' ? ROUTES.policy.terms : ROUTES.policy.privacy}
+                                        target="_blank"
+                                        className="ml-auto text-xs font-medium text-mute underline"
+                                    >
+                                        {t('subscription.checkout.consent.view')}
+                                    </Link>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    {priced && (
+                        <p className="rounded-2xl bg-note px-4 py-3 text-[13px] font-medium leading-normal text-[#666b78]">
+                            {withTrial
+                                ? t('subscription.checkout.consent.noticeTrial', {
+                                      date: formatDate(preview.data.firstChargeAt),
+                                      day: Number(preview.data.firstChargeAt.slice(8, 10)),
+                                      price: money(preview.data.plan.monthly),
+                                  })
+                                : t('subscription.checkout.consent.noticePaid', {
+                                      day: Number(preview.data.firstChargeAt.slice(8, 10)),
+                                      price: money(preview.data.plan.monthly),
+                                  })}
+                        </p>
+                    )}
+                </Card>
+            )}
 
             {/* Without a country the button stays pressable, so pressing it can say what is missing. */}
-            <Button size="lg" className="w-full max-md:h-[54px]" disabled={!!country && !ready} onClick={onContinue}>
-                {t('subscription.checkout.details.next')}
-            </Button>
+            {!blocked && (
+                <Button
+                    size="lg"
+                    className="w-full max-md:h-[54px]"
+                    disabled={!!country && !ready}
+                    onClick={onContinue}
+                >
+                    {t('subscription.checkout.details.next')}
+                </Button>
+            )}
 
             {changingEmail && billingEmail && (
                 <BillingEmailChangeDialog

@@ -64,6 +64,13 @@ describe('checkout details', () => {
         expect(checkoutDetailsOf({ checkout: { country: 'US' } })).toEqual({ country: 'US' });
         expect(checkoutDetailsOf({ checkout: { country: 'ZZ' } })).toBeUndefined();
     });
+
+    it('refuses a country outside Korea where the build bills in Korea only', () => {
+        const payer = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+        expect(checkoutDetailsOf({ checkout: { country: 'US' } }, false)).toBeUndefined();
+        expect(checkoutDetailsOf({ checkout: { country: 'OTHER' } }, false)).toBeUndefined();
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', payer } }, false)).toEqual({ country: 'KR', payer });
+    });
 });
 
 describe('checkout readiness', () => {
@@ -86,6 +93,14 @@ describe('checkout readiness', () => {
         expect(canContinueCheckout({ country: 'US', payer: none, consents: allIn })).toBe(true);
         expect(canContinueCheckout({ country: 'OTHER', payer: none, consents: allIn })).toBe(true);
         expect(canContinueCheckout({ country: 'US', payer: none, consents: NO_CONSENTS })).toBe(false);
+    });
+
+    it('does not continue outside Korea where the build bills in Korea only', () => {
+        const none = { name: '', phone: '' };
+        expect(canContinueCheckout({ country: 'US', payer: none, consents: allIn, foreignBilling: false })).toBe(false);
+        expect(canContinueCheckout({ country: 'OTHER', payer: none, consents: allIn, foreignBilling: false })).toBe(
+            false
+        );
     });
 
     it('stops without a verified email or with any consent missing', () => {

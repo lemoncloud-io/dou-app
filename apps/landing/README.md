@@ -5,9 +5,11 @@
 `/policy/*` URLs an app store listing and the app's own My Page both cite, and the `/s/*` + `/i`
 bounce page that sends an invite link into the installed app or into the web app — with no session,
 no data layer and no backend call of its own. Its **account surface**, `/subscription/*`, is where a
-signed-in account holder buys and manages a subscription outside the stores; it is open only on
-local and dev hosts with a build that carries the subscription server's addresses, and runs against
-that server (see [Two surfaces](#two-surfaces) and [The server](#the-server)) —
+signed-in account holder buys and manages a subscription outside the stores; it is open on local and
+dev hosts, and on `app.chatic.io` with a production build, wherever the build carries the subscription
+server's addresses, and runs against that server (see [Two surfaces](#two-surfaces) and
+[The server](#the-server)) — in production it bills in won only (see
+[Billing outside Korea](#billing-outside-korea)) —
 except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
 [Plans before checkout opens](#plans-before-checkout-opens)).
 
@@ -83,7 +85,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `/policy/child`, `/s/...` and `/i?t=...` are cited by store listings, `public/sitemap.xml` and links already
    sent to people. Renaming one breaks something this repo cannot see. `/policy/refund` joins them
    the day it is linked, `/subscription/plans` already has — it is the price page a payment provider
-   reviews — and the other `/subscription` paths join the day the account surface opens.
+   reviews — and the other `/subscription` paths join on the public launch, when they are first linked
+   from outside (principle 10).
 5. **The English copy names the product's objects the way the app does.** Cloud, place, chat room
    and Self Chat are the nouns the app's own English interface uses, and the four feature cards
    render app screenshots (`assets/src/images/landing_en_*.png`) carrying those same words — a
@@ -112,15 +115,17 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    as every other app's server calls do: the session runtime and the payment SDKs are imported there
    and nowhere else (ADR-0248, ADR-0262).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountOpen` is
-    false (every host but `localhost`, `127.0.0.1` and `-dev` ones, and any build without the server's
-    addresses) its routes are not registered,
+    false (every host but `localhost`, `127.0.0.1`, `-dev` ones and `app.chatic.io` served by a
+    production build, and any build without the server's addresses) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
-    "Sign in". It goes in no sitemap, email or outside link before then. **The plans page is the one
+    "Sign in", which therefore shows on the production host too. Opening it there is not the public
+    launch: it goes in no sitemap, email or outside link until that launch is decided on its own
+    (ADR-0311). **The plans page is the one
     exception**: it is registered on every host, because a payment provider reviews the prices on the
     live site before any payment can be taken. Where the gate is shut it runs on the catalog port —
     the published plans, no session, nothing to buy — and offers the store links in place of
     checkout. It is linked from the home header's "View plans" everywhere and given to the provider's
-    review; it goes in the sitemap only when checkout opens.
+    review; it goes in the sitemap only at the public launch.
 
 Principles 1, 2, 7 and 9 are checked by the boundary commands in [Layering](#layering); 10 by the
 route table test.
@@ -315,14 +320,14 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 
 ## Two surfaces
 
-|                  | Public surface                                                                        | Account surface                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                                                                    |
-| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple (W-01: any visitor)                                              |
-| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                                                            |
-| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                                                                 |
-| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                                                   |
-| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts with the server's addresses (`isSubscriptionAccountOpen`); W-01 on every host |
+|                  | Public surface                                                                        | Account surface                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                                                                                                                        |
+| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple (W-01: any visitor)                                                                                                  |
+| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                                                                                                                |
+| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                                                                                                                     |
+| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                                                                                                       |
+| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts, and `app.chatic.io` with a production build — each with the server's addresses (`isSubscriptionAccountOpen`); W-01 on every host |
 
 **The billing-email screens are hidden** — W-16 and the email step W-24 — until their server exists
 (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes are not
@@ -351,8 +356,9 @@ Retrying a failed payment has no server, so W-12 does not offer to charge the ov
 server; the screen tests still cover the offer against the fake server.
 
 Every screen below runs on the server, and only where the build has its addresses (see
-[The server](#the-server)); there is no in-page stand-in for it (ADR-0264). None is open on the production
-host yet except W-01, which runs there, and wherever the addresses are missing, on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
+[The server](#the-server)); there is no in-page stand-in for it (ADR-0264). On the production host they
+open only for a production build (ADR-0311); elsewhere where the gate is shut, and wherever the addresses
+are missing, only W-01 runs, on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
 Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
 table below is their key. `W-23`, the desktop-only notice, is retired: every screen is laid out for a phone too.
 
@@ -429,8 +435,8 @@ a sign-in it does not know, so W-02b is reached by the screen tests alone today.
 
 ### Plans before checkout opens
 
-Where `isSubscriptionAccountOpen` is false — the production host, or a build without the server's
-addresses — the route table mounts `SubscriptionRoutes` at `/subscription/plans` alone, with
+Where `isSubscriptionAccountOpen` is false — a host the gate shuts (for example a CDN origin
+address, or the production host served by a dev build), or a build without the server's addresses — the route table mounts `SubscriptionRoutes` at `/subscription/plans` alone, with
 `account={false}`. `createPortSetup` then returns the catalog port (`lib/catalogPort.ts`): `getSession`
 answers no session, `listPlans` answers `lib/catalog.ts`, and every other method rejects as it would for
 a visitor. No server port is created there, so nothing reads `?sandbox` or session storage either.
@@ -449,10 +455,10 @@ exactly this catalog, and a price changes there together with the stores' prices
 dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
 won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
 charges is decided by its billing country, not by the language. Where the account surface opens, the
-catalog port is not used; it remains wherever the gate is shut — the production host, and a build
+catalog port is not used; it remains wherever the gate is shut — a host the gate shuts, and a build
 without the server's addresses.
 
-One cost is accepted: the production visitor to this page downloads the whole account-surface
+One cost is accepted: a visitor to this page where the gate is shut downloads the whole account-surface
 chunk, though only the plans page runs there.
 
 ### The server
@@ -470,7 +476,7 @@ W-06's upgrade line then says what the plan allows and nothing about a charge, s
 it cannot tell "charged" from "nothing charged". Where the copy promised
 the undo — the list's status line, the cancel confirmation, W-14's notice for an ending subscription —
 a `…NoUndo` line says only what holds. Without the addresses there is no account surface at all — only
-the plans page, as on the production host — and nothing stands in for the server (ADR-0264).
+the plans page, as on any host the gate shuts — and nothing stands in for the server (ADR-0264).
 
 The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
 the web app — read in `config/subscriptionServer.ts` and nowhere else; the session runtime takes the
@@ -504,13 +510,24 @@ names the country and the currency and never a provider — the last boundary co
   it reads the won window's. The dialog is not modal, so the card's 3-D Secure overlay can take clicks,
   and nothing closes it while a confirmation runs. The keys come from the `issue` answer only and are
   never stored or logged.
+- **Won only in production.** A production build (`VITE_ENV=PROD`) bills in Korea only: the server has
+  no production dollar products yet. W-08 stops any other billing country at a notice ("paying from
+  outside Korea is not available yet", no provider named) — no currency line, no amount, no consents and
+  no way on — and W-05 sends a dollar checkout handed to it back to W-08 (`billableIn`, read through
+  `useForeignBilling`, which `createPortSetup` sets from the build). W-01 still shows dollar prices to a
+  reader of any other language; what is charged is the billing country's. No production subscription is
+  billed in dollars, so W-12 and W-14's dollar paths are not reached there. Every other build bills both,
+  and the decision to open dollars in production is a later one (ADR-0311).
 - **After the checkout.** A subscription stays with its provider: a plan change, a card added and the
   plans it is offered are all in its currency, and W-12's add-card dialog shows its billing country as
   fixed. W-08 itself only opens for a first subscription.
-- **Not done.** Consent is shown and required but not recorded; India-issued cards register but will be
-  refused monthly (no e-mandate without the provider's own subscriptions); how tax applies to a dollar
-  price is not settled, so a dollar price carries no VAT note (won prices still say VAT is included); the
-  dollar products exist on the dev stage only. ADR-0262 records the decision and these costs.
+- **Not done.** Consent is shown and required but not recorded. India-issued cards register but will be
+  refused monthly (no e-mandate without the provider's own subscriptions), so India is not in the country
+  list on any stage; a reader there can still pick "another country" and name India in the dollar card
+  field, which only the production build's won-only rule shuts. How tax applies to a dollar price is not
+  settled, so a dollar price carries no VAT note (won prices still say VAT is included). The dollar
+  products exist on the dev stage only. ADR-0262 records the decision and these costs, ADR-0311 the
+  won-only production.
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
@@ -597,11 +614,12 @@ page has no in-memory stand-in for the server any more (ADR-0264).
   switch, which reloads the page, and the renewal period of the next start: a month (the product's),
   `10m`, `1h` or `1d` — so a trial ending, a monthly charge and a cancelled subscription expiring can be
   watched in minutes. While on, a "Sandbox payments — no real charge" banner sits over every page.
-- **Only where the account surface is open, and never on a production build.** The switch exists only
-  on a server tab, which exists only where `isSubscriptionAccountOpen` is true; on the production
-  host the catalog port runs and `?sandbox` is ignored. A build whose addresses are production's
-  (`VITE_ENV=PROD`) has no sandbox either, even on `localhost`. The server does not refuse the query on
-  production, so not sending it there is the first defence. `?sandbox` is taken out of the address once
+- **Only where the account surface is open, and never on the production host or a production build.**
+  The switch exists only on a server tab, which exists only where `isSubscriptionAccountOpen` is true.
+  Even there `createPortSetup` ignores `?sandbox` on `app.chatic.io`, whatever the build, and in a build
+  whose addresses are production's (`VITE_ENV=PROD`), whatever the host — `localhost` included; no
+  switch, no banner, no query (ADR-0311). The server does not refuse the query on production, so not
+  sending it there is the first defence. `?sandbox` is taken out of the address once
   read; the tab's stored choice is the one that counts.
 - **What carries it.** The HTTP port adds `?sandbox` to the six payer-scoped calls — `issue`, `start`, the
   card list, adding a card, choosing the default and removing one — and to every card call, since the
@@ -770,8 +788,10 @@ unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs 
 The public pages read nothing from the `.env` but the `DEV` flag in `src/app/config/stage.ts`;
 environment selection there is done by sniffing the hostname for `-dev`, which is what picks the
 `chatic-dev` URL scheme, the `io.chatic.dou.dev` package id and the dev web origin. The account
-surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`). They are the web
-app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
+surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`), and `VITE_ENV`,
+read by `stage.ts` for the production-host gate and by `lib/createPortSetup.ts` for the sandbox and
+dollar checkout (the sandbox is also shut on the production host by its name alone). The four
+addresses are the web app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
 app's relay session, so its OAuth, relay and socket addresses must be the web app's. Without the four
 addresses a build opens the plans page alone, on the catalog port.
 
@@ -866,13 +886,16 @@ not trigger.
   against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 617 tests
+    npx nx test @chatic/landing   # 656 tests
     ```
 
-- **The account-surface gate is the hostname, and then the addresses.** `isSubscriptionAccountEnabled`
-  is true on `localhost`, `127.0.0.1` and any host containing `-dev`, whatever the build mode — a dev
-  build served from `app.chatic.io` still keeps the pages shut — and `isSubscriptionAccountOpen` also
-  needs the build's server addresses: a worktree with no `.env` shows the plans page alone. In tests the host gate is open (jsdom's
+- **The account-surface gate is the hostname and the build, and then the addresses.**
+  `isSubscriptionAccountEnabled` is true on `localhost`, `127.0.0.1` and any host containing `-dev`,
+  whatever the build, and on exactly `app.chatic.io` for a build with `VITE_ENV=PROD` — a dev build served
+  from `app.chatic.io` still keeps the pages shut, because it carries the dev server's addresses and would
+  sign production's visitors in to the dev server and take their payments there; a production build
+  under any other name stays shut too —
+  and `isSubscriptionAccountOpen` also needs the build's server addresses: a worktree with no `.env` shows the plans page alone. In tests the host gate is open (jsdom's
   `localhost`) but the addresses depend on a local `.env`, which CI has none of, so a test never reads
   the real value: the route table test builds both sides with `createAppRoutes`, and the header test
   sets the gate itself. To see the shut side in a browser, serve the
@@ -929,7 +952,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 617 tests pass; in CI
+npx nx test @chatic/landing                               # 656 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

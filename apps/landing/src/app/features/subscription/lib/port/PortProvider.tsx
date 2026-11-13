@@ -27,6 +27,7 @@ interface PortContextValue {
     port: SubscriptionPort;
     clock: Clock;
     supports: PortSupports;
+    foreignBilling: boolean;
 }
 
 const PortContext = createContext<PortContextValue | null>(null);
@@ -35,13 +36,18 @@ export const PortProvider = ({
     port,
     clock = systemClock,
     supports = everything,
+    foreignBilling = true,
     children,
 }: {
     port: SubscriptionPort;
     clock?: Clock;
     supports?: PortSupports;
+    /** See `useForeignBilling`. */
+    foreignBilling?: boolean;
     children: ReactNode;
-}): JSX.Element => <PortContext.Provider value={{ port, clock, supports }}>{children}</PortContext.Provider>;
+}): JSX.Element => (
+    <PortContext.Provider value={{ port, clock, supports, foreignBilling }}>{children}</PortContext.Provider>
+);
 
 const usePortContext = (): PortContextValue => {
     const value = useContext(PortContext);
@@ -56,3 +62,10 @@ export const useToday = (): Date => usePortContext().clock.now();
 
 /** See `PortSupports`. */
 export const useSupports = (): PortSupports => usePortContext().supports;
+
+/**
+ * Whether a checkout may be billed outside Korea, in dollars. Like `supports`, it says what the server
+ * behind the port can take: a production build has no dollar products there yet, so W-08 stops any other
+ * billing country at a notice (`billableIn`).
+ */
+export const useForeignBilling = (): boolean => usePortContext().foreignBilling;

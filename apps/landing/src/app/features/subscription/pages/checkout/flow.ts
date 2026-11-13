@@ -1,5 +1,5 @@
 import { ROUTES } from '../../../../routes/paths';
-import { isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
+import { billableIn, isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { addDays } from '../../lib/calendar';
 import { changeKindOf } from '../../lib/changeKindOf';
 import { type PayerDraft, isPayerComplete } from '../../lib/payer';
@@ -44,7 +44,8 @@ export const setAllConsents = (value: boolean): Consents => ({ terms: value, pri
 /**
  * The checkout continues only once a billing country is chosen and every consent is given; where the
  * country is billed in won, also once the payer is filled in and there is an address for the card
- * company. Elsewhere there is no payer to ask for — the card field asks for what it needs itself.
+ * company. Elsewhere there is no payer to ask for — the card field asks for what it needs itself — and
+ * where the build bills in Korea only (`foreignBilling` false), no other country goes on at all.
  */
 export const canContinueCheckout = (input: {
     /** Empty until the reader picks one: nothing is chosen for them. */
@@ -53,8 +54,11 @@ export const canContinueCheckout = (input: {
     email?: string;
     payer: PayerDraft;
     consents: Consents;
+    /** Whether the build may bill outside Korea; true when omitted. */
+    foreignBilling?: boolean;
 }): boolean =>
     isBillingCountry(input.country) &&
+    billableIn(input.country, input.foreignBilling ?? true) &&
     (!payerRequiredIn(input.country) || (!!input.email && isPayerComplete(input.payer))) &&
     allConsented(input.consents);
 
@@ -96,9 +100,14 @@ const isPayer = (value: unknown): value is Payer => {
     );
 };
 
-export const checkoutDetailsOf = (state: unknown): CheckoutDetails | undefined => {
+/**
+ * The details W-08 handed on, if they are whole. `foreignBilling` false (a production build) refuses a
+ * country outside Korea here too, so a state W-08 would not have produced cannot open a payment window.
+ */
+export const checkoutDetailsOf = (state: unknown, foreignBilling = true): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
     if (!details || typeof details.country !== 'string' || !isBillingCountry(details.country)) return undefined;
+    if (!billableIn(details.country, foreignBilling)) return undefined;
     // A country billed in won cannot go on without its payer.
     if (payerRequiredIn(details.country) && !isPayer(details.payer)) return undefined;
     return {
