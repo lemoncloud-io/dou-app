@@ -138,9 +138,9 @@ folding sections before; the heading above keeps its old words because other doc
 `useHomeChannels` slices the place's rooms with `isInPlaceList`, and `HomePage` splits that slice by
 kind — `channelKindOf(stereo)`, the same rule every other 1:1 decision reads, so a group with two
 members stays a group. Every tab is the same `ChannelList`, under the place's sort
-(`channelSortMethod`) and pins (`pinnedChannelIds`). The relay lists the same way: its self chat and
-its 1:1s go under All and 1:1, and its Groups tab is empty — its 1:1s are reached by phone number and
-a group room lives in a cloud of one's own. The lists that
+(`channelSortMethod`) and pins (`pinnedChannelIds`). The relay has no group rooms, so its row has one
+tab, `대화`, over its self chat and its 1:1s, and its ＋ goes straight to the phone-number contact
+form. The lists that
 read the same slice are unchanged: the invite candidates, the place's room management (where a 1:1's
 bulk action is "leave", `removalActionFor`) and the place detail screen.
 

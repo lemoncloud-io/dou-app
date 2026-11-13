@@ -53,8 +53,8 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; a
-cloud's place row (`PlaceChipRow`); the room list — one list under the tabs All / Groups / 1:1 with the
-create ＋ at the end of the tab row, the same on the relay and in a cloud — with its previews, unread
+cloud's place row (`PlaceChipRow`); the room list — one list under the tabs All / Groups / 1:1 (the
+relay: one Chats tab) with the create ＋ at the end of the tab row — with its previews, unread
 badges and each row's unread mentions and thread replies from the device's notification inbox; the rows' swipe actions (pin, mute, leave or delete); pull-to-refresh on
 the body; the cloud-switcher sheet; the place counts and cloud unread marks; the three app-global
 runners that home exports.
@@ -129,10 +129,10 @@ The labels are the **product** nouns, not the domain's. Both homes list the plac
 list under three tabs — `전체` / `All`, `그룹 대화` / `Groups`, `1:1 대화` / `1:1` — each with the
 number of rooms it holds (withheld while the rooms are still arriving). All and 1:1 lead with the
 notes-to-self room — a cloud's belongs to the account, the relay's is one of its place's rooms; see
-[dm-and-self-chat.md](../channels/dm-and-self-chat.md). The relay has no group rooms of its own, so
-its Groups tab is empty, its ＋ starts a 1:1 through the phone-number contact form and offers group
-creation only as the upsell to the unpaid, and its sent 1:1 invites wait above its rooms under All
-and 1:1. The tab is
+[dm-and-self-chat.md](../channels/dm-and-self-chat.md). The relay has no group rooms, so its row has
+one tab, `대화` / `Chats`, over every room (the tab store does not carry a cloud's tab over); its ＋
+goes straight to the phone-number contact form for a 1:1 and offers no group entry; and its sent 1:1
+invites wait above its rooms. The tab is
 held in `useHomeChatTabStore`, in memory: coming back from a room lands on the tab that was left,
 and a relaunch starts on All. An empty tab says only that its kind is empty; an empty All is the
 place's own empty state (create a room, or rooms arrive by invitation). `채널` is what

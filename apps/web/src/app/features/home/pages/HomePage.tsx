@@ -236,9 +236,11 @@ export const HomePage = () => {
     const dmSectionRooms = useMemo(() => [...cloudSelfChannels, ...placeDms], [cloudSelfChannels, placeDms]);
     // Both homes list their rooms under three tabs — every room, the group rooms, the 1:1s — in one
     // list rather than folding sections (Figma 5953:30555). "All" and 1:1 lead with the notes-to-self
-    // room. The relay has no group rooms of its own; its group tab says so, and its ＋ offers the
-    // upsell, as its list's popover always did.
-    const chatTab = useHomeChatTabStore(state => state.tab);
+    // room. The relay has no group rooms, so it draws the same row with one tab, "Chats".
+    // The relay has no group rooms, so its row has one tab and is always on it — a tab picked in a
+    // cloud does not carry over.
+    const storedChatTab = useHomeChatTabStore(state => state.tab);
+    const chatTab: HomeChatTab = isDefaultCloud ? 'all' : storedChatTab;
     const setChatTab = useHomeChatTabStore(state => state.setTab);
     const allRooms = useMemo(() => [...dmSectionRooms, ...placeGroups], [dmSectionRooms, placeGroups]);
     const roomsByTab: Record<HomeChatTab, typeof allRooms> = { all: allRooms, group: placeGroups, dm: dmSectionRooms };
@@ -389,15 +391,9 @@ export const HomePage = () => {
     };
 
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
-    // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
+    // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners). The
+    // relay offers no group entry at all: it has no group rooms.
     const handleCreateGroup = () => {
-        // On relay the entry exists ONLY as an upsell (ChannelList shows it there while unpaid), so
-        // it never reaches the create dialog — and the relay place's own channel count must not
-        // turn that upsell into a cap toast.
-        if (isDefaultCloud) {
-            setIsSubscriptionRequiredOpen(true);
-            return;
-        }
         // A room belongs to the ACTIVE place, and `createChannel` falls back to an empty sid when
         // there is none — which writes a room into a scope no list reads. The Chat section does not
         // render without a selected place, so this is not reachable from the UI today; it is here
@@ -596,26 +592,31 @@ export const HomePage = () => {
                     <>
                         <SegmentedTabs
                             variant="inline"
-                            items={[
-                                { id: 'all', label: t('homePage.tabs.all'), count: tabCount(allRooms) },
-                                { id: 'group', label: t('homePage.tabs.group'), count: tabCount(placeGroups) },
-                                { id: 'dm', label: t('homePage.tabs.dm'), count: tabCount(dmSectionRooms) },
-                            ]}
+                            items={
+                                isDefaultCloud
+                                    ? [{ id: 'all', label: t('homePage.tabs.chats'), count: tabCount(allRooms) }]
+                                    : [
+                                          { id: 'all', label: t('homePage.tabs.all'), count: tabCount(allRooms) },
+                                          {
+                                              id: 'group',
+                                              label: t('homePage.tabs.group'),
+                                              count: tabCount(placeGroups),
+                                          },
+                                          { id: 'dm', label: t('homePage.tabs.dm'), count: tabCount(dmSectionRooms) },
+                                      ]
+                            }
                             value={chatTab}
                             onChange={id => {
+                                if (id === chatTab) return;
                                 haptics.play('selection');
                                 setChatTab(id as HomeChatTab);
                             }}
                             trailing={
                                 isDefaultCloud ? (
-                                    // The relay: a 1:1 is reached by phone number, and a group room lives in
-                                    // a cloud of one's own, so its entry is the upsell, for the unpaid only.
+                                    // The relay's one way to start a room: a 1:1, reached by phone number.
                                     <ChannelCreateMenu
-                                        showOneOnOneCreate={!isChannelSectionLoading}
-                                        onCreateOneOnOne={handleCreateOneOnOne}
-                                        showGroupCreate={!isChannelSectionLoading && planTier === 'free'}
-                                        onCreateGroup={handleCreateGroup}
-                                        isPro={planTier !== 'free'}
+                                        onCreate={isChannelSectionLoading ? undefined : handleCreateOneOnOne}
+                                        createLabel={t('channelList.createDirect')}
                                     />
                                 ) : (
                                     <ChannelCreateMenu

@@ -248,8 +248,10 @@ jest.mock('../components', () => ({
         </div>
     ),
     // The cloud home's ＋: one button per entry it would offer, so "no handler, no entry" reads the same.
-    ChannelCreateMenu: ({ showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
+    ChannelCreateMenu: ({ onCreate, showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
         <>
+            {/* One direct action (the relay's 1:1) or the popover's 1:1 entry — the same start either way. */}
+            {onCreate && <button data-testid="start-dm" onClick={onCreate} />}
             {showOneOnOneCreate && onCreateOneOnOne && <button data-testid="start-dm" onClick={onCreateOneOnOne} />}
             {showGroupCreate && onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
         </>
@@ -413,21 +415,29 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 
-    // The relay's self chat is one of its place's rooms: it goes with the 1:1s and leads them, and
-    // the group tab — the relay has no group rooms of its own — is empty.
-    it('lists its self chat with the 1:1s, under All and 1:1, and nothing under Groups', () => {
+    // The relay has no group rooms: its row keeps one tab, its rooms all under it, self chat first.
+    it('draws one tab over every room, led by the self chat', () => {
         homeChannels = [
             { id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' },
             { id: 'r-self', stereo: 'self', cid: 'default', sid: '0000' },
         ];
         render(<HomePage />);
 
+        expect(screen.getByTestId('tab-all')).toHaveAttribute('data-count', '2');
+        expect(screen.queryByTestId('tab-group')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('tab-dm')).not.toBeInTheDocument();
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'true');
-        expect(screen.getByTestId('tab-dm')).toHaveAttribute('data-count', '2');
-        fireEvent.click(screen.getByTestId('tab-group'));
-        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', '');
-        expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
+    });
+
+    // A tab picked in a cloud does not carry over: the relay's one tab is always the open one.
+    it('stays on its one tab whatever a cloud left in the tab store', () => {
+        useHomeChatTabStore.setState({ tab: 'group' });
+        homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('chat-tabs')).toHaveAttribute('data-value', 'all');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm');
     });
 
     // On relay a 1:1 is reached by phone number, so the tab row's ＋ goes to the contact form.
@@ -438,11 +448,10 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
     });
 
-    // A group room lives in a cloud of one's own: on the relay its entry is the upsell, so a
-    // subscriber, who already has that, is not offered it.
-    it('offers group creation as the upsell to the unpaid only', () => {
+    // The relay has no group rooms, so its ＋ offers none — not even as an upsell.
+    it('offers no group creation, paid or not', () => {
         const { unmount } = render(<HomePage />);
-        expect(screen.getByTestId('create-group')).toBeInTheDocument();
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
         unmount();
 
         membership = { isValid: true };
@@ -941,15 +950,11 @@ describe('HomePage — tier', () => {
 
 // On relay, "그룹 방 만들기" is an upsell-only entry point — it always leads to a subscription prompt, regardless of channel count.
 describe('HomePage — 그룹 방 만들기', () => {
-    it('중계에선 구독 유도 다이얼로그를 띄우고 생성 다이얼로그로 가지 않는다', () => {
+    it('offers no group entry on the relay, which has no group rooms', () => {
         selectedCloudId = 'default';
         render(<HomePage />);
-        fireEvent.click(screen.getByTestId('create-group'));
 
-        expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
-        expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
-        // The limit-reached toast doesn't block the relay upsell path.
-        expect(toastMock).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 
     it('구독한 클라우드에선 생성 다이얼로그를 연다', () => {

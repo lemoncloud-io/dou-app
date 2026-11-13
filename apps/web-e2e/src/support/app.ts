@@ -58,5 +58,5 @@ export const myTab = (page: Page) => page.getByRole('navigation').getByRole('but
 export const roomRow = (page: Page, title: string) =>
     page.getByRole('button', { name: new RegExp(`^(MY )?${title}(\\s|$)`) });
 
-/** Home, drawn: its room list's tabs are there — "All" is the first, on the relay and in a cloud alike. */
-export const home = (page: Page) => page.getByRole('tab', { name: /^All\b/ });
+/** Home, drawn: its room list's first tab is there — "All" in a cloud, "Chats" on the relay. */
+export const home = (page: Page) => page.getByRole('tab', { name: /^(All|Chats)\b/ });

@@ -709,7 +709,8 @@
         "tabs": {
             "all": "All",
             "group": "Groups",
-            "dm": "1:1"
+            "dm": "1:1",
+            "chats": "Chats"
         },
         "findMe": "Looking for you {{count}}"
     },
