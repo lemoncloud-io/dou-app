@@ -3,16 +3,18 @@
 The session's state lives in [`@chatic/session`](../../../session/README.md), and the use cases that
 write it, device pairing and the socket authentication live in [`@chatic/auth`](../../../auth/README.md).
 This folder holds what React reads and drives them through: the hooks under `session/hooks/`, the
-readers in `session/sessionReads.ts`, and the `session` facade group in `session/index.ts`. The readers
-go through the engine (`runtimeEngine().session`, runtime-core) and never touch the stores; the
-commands still run `hooks → @chatic/auth → @chatic/session`. Every edge runs one way, never back.
+readers in `session/sessionReads.ts`, the commands in `session/sessionCommands.ts`, and the `session`
+facade group in `session/index.ts`. Both go through the engine — the readers through
+`runtimeEngine().session`, the commands through `runtimeEngine().commands` (runtime-core) — and neither
+touches the stores or the use cases. Every edge runs one way, never back.
 
 ## Layout
 
 ```text
-session/                              34 source files, 16 tests
-├── hooks/    32 files · 15 tests  the React surface: app · auth · actions · readers · pairing
+session/                              35 source files, 18 tests
+├── hooks/    32 files · 16 tests  the React surface: app · auth · actions · readers · pairing
 ├── sessionReads.ts                the readers and the getters, through `runtimeEngine().session`
+├── sessionCommands.ts             the commands the app calls, through `runtimeEngine().commands`
 └── index.ts                       the `session` facade group
 ```
 
@@ -41,6 +43,20 @@ has none — so `getGlobalSessionContext()` has no `identityToken`, `delegationT
 and an error is its message. The core engine reads this process's stores; what it holds and how it
 keeps each part the same object is [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-session-view).
 `useSessionSelection` derives from `useGlobalSession`.
+
+The commands go through the engine as well: the action, login and pairing hooks and the non-React
+commands (`logoutSession`, `clearSiteSelection`, `patchRelaySessionUser`, the phone and invite logins,
+`createCredentialsByProvider`, `forgetRefusedPairedCloud`) call `runtimeEngine().commands`, in
+[`sessionCommands.ts`](../../src/session/sessionCommands.ts). A command resolves once the session view
+shows its change, so a screen that awaits one and then reads the session reads the new one. Those whose
+caller does not wait — `clearSiteSelection`, `patchRelaySessionUser`, `cancelPhoneLogin`,
+`forgetInviteLogin` — stay synchronous to the screen and log a failure instead of throwing it.
+`forgetRefusedPairedCloud` still answers at once whether it ended the cloud: it reads the refusal
+itself and whether the cloud is a paired one from the session view, and leaves the ending to the
+engine's `endPairedCloud`. What stays in the page: the mutation keys (`SWITCH_*`), so `useIsMutating`
+still sees a switch, and the `cloud_switch` trace, taken around the command by `useSwitchCloudSession`.
+The calls that change no session — `useFindAlias`, `useVerifyAlias`, `useInviteInfo`, the two
+`useRegisterUser*` — still call `@chatic/auth`; they move with the repositories.
 
 The commands keep tokens out of the screen the same way. A login answers with the account's fields,
 not its token: `useLogin`, `useLoginRelaySocial` and `useLoginRelayGuestByDevice` resolve with a
@@ -84,7 +100,11 @@ Neither ends a session. The relay guard used to take a teardown policy (`onTeard
 
 ### The pairing hooks
 
-`usePairingRequest` drives the code screen's request-and-poll loop, and `useIsPairedSession` /
+`usePairingRequest` drives the code screen's request-and-poll loop. Its claim is the engine's
+`claimPairing`, which keeps a relay approval's session token and answers with a handle that
+`applyPairingSession` signs in with; a cloud approval is prepared by `preparePairedCloudEntry` and then
+entered with the screen's own `switchCloud`, so the switch keeps its trace and its in-flight key.
+`useIsPairedSession` /
 `usePairedCloudIds` / `usePairedCloudNames` read the pairing checks and the paired clouds' names; what they read is
 [`@chatic/auth`'s pairing doc](../../../auth/docs/pairing/README.md). Two hooks carry policy of their own:
 
@@ -95,7 +115,8 @@ Neither ends a session. The relay guard used to take a teardown policy (`onTeard
   next renewal anyway, so nothing may hold a logout hostage.
 - **`usePairedCloudCheck(onEnded)`** re-checks each paired cloud at mount, every ten minutes and when the
   app calls `check` (apps/web does on foreground return) by re-issuing its tokens through the relay's
-  delegation (`pairedCloudSessions.checkAll`). A cloud server knows nothing of the relay's pairings, so
+  delegation (the engine's `checkPairedClouds`, which also drops a guest-era list once the device has
+  signed in to an account of its own). A cloud server knows nothing of the relay's pairings, so
   a cloud session can outlive a revoked approval while it renews itself; the delegation does know, and
   refuses. A cloud that ended is already torn down and off the list when `onEnded` hears it, and the app
   says so and signs the device out — the approval was its sign-in. Nothing runs before the session has

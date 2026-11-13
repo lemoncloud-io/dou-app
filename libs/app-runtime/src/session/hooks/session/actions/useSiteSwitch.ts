@@ -3,18 +3,18 @@ import { useCallback } from 'react';
 
 import { SWITCH_SITE_MUTATION_KEY } from '../../mutationKeys';
 
-import { switchSite } from '@chatic/auth';
+import { sessionCommands } from '../../../sessionCommands';
 
 /**
- * Switches the active site via the socket (SDK `auth.switch`, owned by `@chatic/auth`'s
- * `switchSite`). Thin react-query wrapper: exposes `isSwitching` and registers under the
+ * Switches the active site through the engine's `switchSite` command (SDK `auth.switch`). Thin
+ * react-query wrapper: exposes `isSwitching` and registers under the
  * shared `SWITCH_SITE_MUTATION_KEY` so the global in-flight observer (useBackgroundSync) can pause
- * periodic sync during a switch. Optimistic sid pre-apply + rollback live in `switchSite`.
+ * periodic sync during a switch. Optimistic sid pre-apply + rollback live in the command.
  */
 export const useSiteSwitch = () => {
     const mutation = useMutation({
         mutationKey: SWITCH_SITE_MUTATION_KEY,
-        mutationFn: (siteId: string) => switchSite(siteId),
+        mutationFn: (siteId: string) => sessionCommands().switchSite(siteId),
     });
 
     // Key the memo on the stable mutateAsync (react-query memoizes it) rather than the whole mutation

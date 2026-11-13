@@ -8,6 +8,7 @@ import { getSocketManager, slotKeyOf } from '@chatic/transport';
 import { isExchangeInFlight, issueCloudTokens, reissueCloudTokens } from '../session/cloudTokens';
 import { cloudStore } from '@chatic/session';
 import { pairedClouds } from './pairedClouds';
+import { isRelayGuest } from './pairedSession';
 import { pairingErrorReason, pairingErrorStatus } from './pairingRequestFlow';
 
 /** How often a paired cloud is re-checked while the app runs. */
@@ -80,17 +81,6 @@ export class PairedCloudSessions {
     }
 
     /**
-     * Ends a paired cloud whose delegation the relay refused over an ended pairing — the approval was
-     * revoked, or the approver signed out — so the switch sheet stops offering it. Anything else (the
-     * network, a server hiccup, another 403) leaves it for the next try. Returns whether it ended.
-     */
-    forgetRefused(cloudId: string, error: unknown): boolean {
-        if (!this.has(cloudId) || !isRefusedForEndedPairing(error)) return false;
-        this.end(cloudId);
-        return true;
-    }
-
-    /**
      * Re-issues a paired cloud's tokens through the relay's delegation and carries the session along, the
      * way a credential renewal does: the socket serving the cloud re-registers with the new tokens, and
      * the committed cloud is brought back to the selected place if the re-issue landed it on another one.
@@ -111,7 +101,9 @@ export class PairedCloudSessions {
     }
 
     /**
-     * Enters a cloud a pairing approved, as the account that approved it, and remembers it.
+     * Readies a cloud a pairing approved for entering as the account that approved it, and remembers it.
+     * The caller then switches to it its own way — the code screen's switch, which carries the switch's
+     * trace and its in-flight key.
      *
      * The relay's delegation answers for the approver, so that is who this browser is in the cloud. A
      * switch, though, replays the tokens this tab already holds for the cloud when it has any — and a tab
@@ -119,6 +111,10 @@ export class PairedCloudSessions {
      * stayed itself until the next re-issue swapped it for the approver mid-session, with nothing on
      * screen to say so. So the tokens are re-issued first; the switch then finds the approval's tokens in
      * the cache.
+     *
+     * Changing who this tab is in the cloud is the point here, and an exchange refuses to move a cloud
+     * off the uid recorded for it. So the tab's own uid is forgotten before the re-issue, which records
+     * the approver's.
      *
      * An exchange for the cloud already on the wire (a renewal) began before the approval and answers for
      * whoever this tab was then, and a re-issue would join it rather than start its own. It is let finish
@@ -129,17 +125,13 @@ export class PairedCloudSessions {
      * approval stands — even through an invite of the tab's own — so whatever the switch does, the cloud
      * has to be one the check watches and the sheet offers. A switch that fails leaves it there to retry.
      *
-     * Throws when the re-issue or the switch does, so the code screen can say the approval was lost.
+     * Throws when the re-issue does, so the code screen can say the approval was lost.
      */
-    async enter(cloudId: string, switchCloud: (cloudId: string) => Promise<unknown>): Promise<void> {
+    async prepareEntry(cloudId: string): Promise<void> {
         await this.deps.settleExchangeInFlight(cloudId);
-        // Changing who this tab is in the cloud is the point here, and an exchange refuses to move a cloud
-        // off the uid recorded for it. So the tab's own uid is forgotten first; the re-issue records the
-        // approver's.
         this.deps.dropIdentity(cloudId);
         await this.reissue(cloudId);
         this.deps.clouds.add(cloudId);
-        await switchCloud(cloudId);
     }
 
     /**
@@ -194,6 +186,29 @@ export const pairedCloudSessions = new PairedCloudSessions({
     tearDown: cloudId => credentialRenewers.forSlot(slotKeyOf(cloudId)).onTerminalExpiry(),
 });
 
-/** `pairedCloudSessions.forgetRefused`, as the session barrel publishes it. */
-export const forgetRefusedPairedCloud = (cloudId: string, error: unknown): boolean =>
-    pairedCloudSessions.forgetRefused(cloudId, error);
+/**
+ * The paired-cloud round a running app makes: every paired cloud re-checked, and the ones that ended
+ * returned. A device that has since signed in to an account of its own enters clouds through that
+ * account, so the list it kept as a guest no longer describes it: each cloud on it is ended instead, and
+ * nothing is reported as ended. Ended, not just cleared off the list: that also forgets the approver's
+ * uid recorded for the cloud, which would otherwise make the account's own entry into the cloud look
+ * like a change of user, and be refused as one.
+ */
+export const checkPairedClouds = async (): Promise<string[]> => {
+    if (pairedCloudSessions.list().length === 0) return [];
+    if (!isRelayGuest()) {
+        pairedCloudSessions.list().forEach(cloudId => pairedCloudSessions.end(cloudId));
+        return [];
+    }
+    return pairedCloudSessions.checkAll();
+};
+
+/**
+ * Ends a paired cloud the caller already knows is over (a delegation refused for an ended pairing).
+ * Returns whether it was a paired cloud — one that is not has nothing to end.
+ */
+export const endPairedCloud = (cloudId: string): boolean => {
+    if (!pairedCloudSessions.has(cloudId)) return false;
+    pairedCloudSessions.end(cloudId);
+    return true;
+};

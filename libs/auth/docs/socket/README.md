@@ -200,7 +200,8 @@ Two situations reach it, and only one is watched automatically:
 **A cloud _switch_ is in neither list.** The cid is the slot's key, so a switch either lands on a
 cloud with no slot — `SocketBinder` boots it fresh and it registers from scratch — or on a cloud whose
 background slot is already up. In the second case the switch commits **the tokens that slot
-registered with**, as they are: `useSwitchCloudSession` tells `cloudSession.switchTo` the slot is
+registered with**, as they are: [`switchCloudSession`](../../src/socket/switchCloudSession.ts) — the
+selection's switch, runtime-core's `switchCloud` command — tells `cloudSession.switchTo` the slot is
 live, and the switch reads the cache margin-blind instead of re-issuing a token it would otherwise
 consider too close to expiry. The committed store then holds exactly what the socket signs with, so
 there is nothing to re-authenticate either way. A lapsing token on that slot is the credential

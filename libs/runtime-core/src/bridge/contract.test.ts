@@ -1,4 +1,12 @@
-import { answerRuntimeHello, chooseRuntimeContract, readRuntimeOffer, settleRuntimeHello } from './contract';
+import {
+    SESSION_COMMANDS_TARGET,
+    SESSION_COMMAND_METHODS,
+    answerRuntimeHello,
+    chooseRuntimeContract,
+    readRuntimeOffer,
+    settleRuntimeHello,
+} from './contract';
+import { createCoreSessionCommands } from '../session/commands';
 import type { RuntimeHelloHost } from './contract';
 import { emptySessionSnapshot } from '../testing/sessionView';
 
@@ -124,5 +132,13 @@ describe('settleRuntimeHello', () => {
         ['no session', answered({ ...taken, session: undefined })],
     ])('settles nothing for %s, so the page asks again', (_label, outcome) => {
         expect(settleRuntimeHello(outcome as never, [1])).toEqual({ sessionOwner: null });
+    });
+});
+
+describe('the session commands a runtime call may name', () => {
+    it('are every command the core engine runs, each once, under the session target', () => {
+        expect([...SESSION_COMMAND_METHODS].sort()).toEqual(Object.keys(createCoreSessionCommands()).sort());
+        expect(new Set(SESSION_COMMAND_METHODS).size).toBe(SESSION_COMMAND_METHODS.length);
+        expect(SESSION_COMMANDS_TARGET).toBe('session');
     });
 });

@@ -1,5 +1,6 @@
-import type { PairingClaimView, PairingRequestView, PairingTarget } from '@chatic/http';
-import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
+import type { PairingRequestView, PairingTarget } from '@chatic/http';
+
+import type { PairingClaimAnswer } from './pairingClaims';
 
 /**
  * Where a code request stands, as the code screen draws it.
@@ -25,9 +26,10 @@ export type PairingRequestState =
 
 export interface PairingRequestFlowDeps {
     request(): Promise<PairingRequestView>;
-    claim(pairingId: string): Promise<PairingClaimView>;
-    /** Applies a relay approval's session — app-runtime's `usePairingRequest` passes `applySessionToken`. Throws when it cannot. */
-    applySession(session: UserTokenView): Promise<void>;
+    /** Claims the pairing. A relay approval's session comes back as a handle; the runtime keeps the token. */
+    claim(pairingId: string): Promise<PairingClaimAnswer>;
+    /** Signs in with the relay approval's session the handle stands for. Throws when it cannot. */
+    applySession(sessionHandle: string): Promise<void>;
     /** Enters a cloud approval as a guest — the cloud switch, plus remembering the cloud. Throws on failure. */
     enterCloud(cloudId: string): Promise<void>;
     onChange(state: PairingRequestState): void;
@@ -132,15 +134,15 @@ export class PairingRequestFlow {
         this.set({ phase: 'expired', code });
     }
 
-    private async finish(answer: Extract<PairingClaimView, { status: 'approved' }>): Promise<void> {
+    private async finish(answer: Extract<PairingClaimAnswer, { status: 'approved' }>): Promise<void> {
         this.set({ phase: 'applying', target: answer.target });
         try {
             if (answer.target.type === 'cloud') {
                 if (!answer.target.cloudId) throw new Error('a cloud approval without a cloudId');
                 await this.deps.enterCloud(answer.target.cloudId);
             } else {
-                if (!answer.session) throw new Error('a relay approval without its session');
-                await this.deps.applySession(answer.session);
+                if (!answer.sessionHandle) throw new Error('a relay approval without its session');
+                await this.deps.applySession(answer.sessionHandle);
             }
             this.set({ phase: 'done', target: answer.target, approverName: answer.approver?.name });
         } catch {
@@ -158,7 +160,7 @@ export class PairingRequestFlow {
 
         const mine = this.generation;
         this.busy = true;
-        let answer: PairingClaimView | null = null;
+        let answer: PairingClaimAnswer | null = null;
         let error: unknown = null;
         try {
             answer = await this.deps.claim(pairing.pairingId);

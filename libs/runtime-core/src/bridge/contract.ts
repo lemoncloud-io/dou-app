@@ -5,6 +5,7 @@ import type {
     RuntimeWireValue,
 } from '@chatic/bridge-messages';
 
+import type { SessionCommands } from '../session/commands';
 import type { SessionSnapshot } from '../session/snapshot';
 
 /**
@@ -62,6 +63,39 @@ export interface SessionSnapshotWire {
     seq: number;
     session: SessionSnapshot;
 }
+
+/** The `target` a `RuntimeCall` names for a session command. */
+export const SESSION_COMMANDS_TARGET = 'session';
+
+// Keyed by every command, so a command added to `SessionCommands` and left out here does not compile.
+const sessionCommandMethods: Record<keyof SessionCommands, true> = {
+    loginUser: true,
+    loginBySocialToken: true,
+    loginGuestByDevice: true,
+    loginByOAuthCode: true,
+    confirmPhoneLogin: true,
+    retryPhoneLogin: true,
+    cancelPhoneLogin: true,
+    loginWithInviteCode: true,
+    forgetInviteLogin: true,
+    switchCloud: true,
+    switchSite: true,
+    clearSiteSelection: true,
+    logout: true,
+    logoutCloud: true,
+    patchRelayUser: true,
+    claimPairing: true,
+    applyPairingSession: true,
+    preparePairedCloudEntry: true,
+    checkPairedClouds: true,
+    endPairedCloud: true,
+};
+
+/**
+ * The session commands a `RuntimeCall` to `SESSION_COMMANDS_TARGET` may name — the allow-list the shell
+ * dispatches against. The arguments are the command's own, in order; the answer is what it resolves with.
+ */
+export const SESSION_COMMAND_METHODS = Object.keys(sessionCommandMethods) as readonly (keyof SessionCommands)[];
 
 /** What the shell knows when a page says hello. */
 export interface RuntimeHelloHost {

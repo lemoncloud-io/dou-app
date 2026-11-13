@@ -2,9 +2,10 @@
 
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `fix/invited-cloud-identity-guard`
 > · Scope: `libs/auth/src/session/cloudTokens.ts` (`CloudIdentityChangedError`, the check and the
-> refusal memo in `exchange`); `libs/auth/src/pairing/pairedCloudSessions.ts` (`enter` forgets the
-> recorded uid first); `libs/app-runtime/src/session/hooks/pairing/usePairedCloudCheck.ts` (a guest
-> that signs in ends its paired clouds); `libs/session/src/store/cloudStore.ts` and `expiry.ts`
+> refusal memo in `exchange`); `libs/auth/src/pairing/pairedCloudSessions.ts` (`prepareEntry`, once
+> `enter`, forgets the recorded uid first; `checkPairedClouds` — once in
+> `libs/app-runtime/src/session/hooks/pairing/usePairedCloudCheck.ts` — has a guest that signs in end
+> its paired clouds); `libs/session/src/store/cloudStore.ts` and `expiry.ts`
 > (`getCachedCloudTokens` measures an entry by its identity token)
 > · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md),
 > [libs/auth docs/pairing](../../libs/auth/docs/pairing/README.md) and
@@ -54,8 +55,8 @@ compared a fresh token against it.
    was checked on dev, so an empty invitee cannot arrive as an owner.
 3. **No recorded uid, no check.** A first entry, or an entry after a sign-out (which clears the map),
    takes any answer.
-4. **Flows that change the user on purpose forget the recorded uid first.** A pairing's `enter`
-   replaces the tab's own invite identity with the approver's. A guest that signs in to an account
+4. **Flows that change the user on purpose forget the recorded uid first.** A pairing's entry
+   (`prepareEntry`) replaces the tab's own invite identity with the approver's. A guest that signs in to an account
    ends its paired clouds (`end`, not a bare `clear`), so the approver's uid does not stay behind. An
    invite login's answer is committed without an exchange, so accepting an invite again still sets
    the user.

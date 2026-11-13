@@ -51,6 +51,9 @@ export type {
     SessionView,
 } from './session/snapshot';
 
+// everything a screen does to the session, and the commands a runtime call may name
+export type { SessionCommands } from './session/commands';
+
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
 
@@ -68,6 +71,8 @@ export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoo
 export {
     RUNTIME_CONTRACT_VERSION,
     RUNTIME_CONTRACTS,
+    SESSION_COMMANDS_TARGET,
+    SESSION_COMMAND_METHODS,
     answerRuntimeHello,
     chooseRuntimeContract,
     readRuntimeOffer,

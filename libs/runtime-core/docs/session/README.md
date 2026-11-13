@@ -1,11 +1,12 @@
-# session — bringing the relay session up, keeping it there, keeping its credentials fresh, and reading it
+# session — bringing the relay session up, keeping it there, keeping its credentials fresh, reading it, and changing it
 
 `session/` holds the relay session's own lifecycle, with no React in it: bringing the session up once
 at boot, keeping a visitor who has none signed in as a guest, and keeping the relay and cloud
-credentials from lapsing while the app sits still. It also holds the session as screens read it: a
-snapshot without tokens. The session's state — its stores,
-its signal, the derived contexts — is `@chatic/session`'s; logging in and out is `@chatic/auth`'s
-(`relaySession`). This controller only decides **when** to call them.
+credentials from lapsing while the app sits still. It also holds the session as screens read it — a
+snapshot without tokens — and as screens change it: the commands. The session's state — its stores,
+its signal, the derived contexts — is `@chatic/session`'s; logging in and out, switching and pairing
+are `@chatic/auth`'s use cases. The controller only decides **when** to call them, and the commands
+only run them for a screen.
 
 The connection host in `@chatic/app-runtime` makes one controller and starts it
 ([app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md)); the native runtime
@@ -20,11 +21,13 @@ session/
 ├── cloudCredentialGuard.ts   CloudCredentialGuard — re-issues each cloud's tokens before they lapse
 ├── foreground.ts             ForegroundSignal and its holder, filled when the runtime is built
 ├── snapshot.ts               SessionSnapshot and SessionView — the session as screens read it
-└── sessionView.ts            createCoreSessionView — that view over this process's stores
+├── sessionView.ts            createCoreSessionView — that view over this process's stores
+└── commands.ts               SessionCommands and createCoreSessionCommands — what a screen does to it
 ```
 
 `testing/sessionView.ts` (`@chatic/runtime-core/testing/sessionView`) is a fake view for tests of
-anything that reads the session through the engine.
+anything that reads the session through the engine; `testing/sessionCommands.ts` is its counterpart
+for the commands — each command a test does not pass rejects, naming itself.
 
 The connection host starts the session controller; an app starts the two guards with its own policy
 (`runtime.session.useSessionStalenessGuard` / `useCloudCredentialGuard` in app-runtime).
@@ -180,6 +183,40 @@ all of them. A read that throws leaves the view stale, so the next call reads ag
 one snapshot, so the first read after a change builds all of it: the context (which needs the relay's
 endpoint resolvers), the uid map (which reads the token cache) and the pairing. That is why the engine
 has to be handed over, and the stores wired, before the first render — which every entry point does.
+
+### The commands
+
+`engine.commands` is how the React surface changes the session — every command app-runtime publishes
+(`logoutSession`, `confirmPhoneLogin`, `clearSiteSelection`, …) and every action, login and pairing hook
+goes through it. `SessionCommands` lists them:
+
+| Group       | Commands                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signing in  | `loginUser` · `loginBySocialToken` · `loginGuestByDevice` · `loginByOAuthCode` · `confirmPhoneLogin` · `retryPhoneLogin` · `cancelPhoneLogin` · `loginWithInviteCode` · `forgetInviteLogin` |
+| Moving      | `switchCloud` · `switchSite` · `clearSiteSelection`                                                                                                                                         |
+| Leaving     | `logout` · `logoutCloud`                                                                                                                                                                    |
+| The account | `patchRelayUser`                                                                                                                                                                            |
+| Pairing     | `claimPairing` · `applyPairingSession` · `preparePairedCloudEntry` · `checkPairedClouds` · `endPairedCloud`                                                                                 |
+
+**A command answers what the screen needs next, never a token.** A login answers the account's fields
+(`SessionAccountView`); a phone login `{ isNew }`; an invite login and a relay pairing approval a
+handle whose token the runtime keeps, which the next command (`switchCloud`, `applyPairingSession`)
+names. Whatever else a command changed, the session view shows.
+
+**It resolves once the session view shows its change.** A screen that awaits a switch and then reads
+the session reads the session it switched to. The core commands get that for free: they write this
+process's stores, and the view marks itself stale on the write. A runtime in another process has to
+hold a command's answer back until the snapshot carrying the change has arrived.
+
+**Plain data, and asynchronous, throughout.** A command may cross the bridge, so its arguments and its
+answer are JSON and every one returns a promise — even one that is synchronous in the core (dropping a
+handle, a profile patch), whose throw then becomes a rejection. The core commands are `async`
+functions, so such a command still writes the stores before it returns, as the synchronous call did.
+
+**What is not a command.** Calls that change no session — an alias lookup, an invite's details,
+registering a user from the admin console — are reads of the auth repository, and stay with the
+repositories. So does asking for a pairing code: only the claim, which can carry a session, is a
+command.
 
 ## What not to do
 

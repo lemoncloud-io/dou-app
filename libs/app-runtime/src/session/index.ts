@@ -32,11 +32,6 @@ export {
     // Whether a storage key is one of the session's own. The debug storage screen groups keys by it;
     // the session declares its keys, so nothing outside keeps a second copy of the list.
     isSessionKey,
-    // The account-profile write; `getRelaySessionUser` above is its read. Kept public because the
-    // local cache does not answer this question — its physical key is `${type}:${cid}:${uid}:${id}` and
-    // the repositories read it under the live scope, so while a cloud is active the relay `user` row is
-    // out of their reach (apps/web/docs/feature/mypage/README.md). apps/web uses both.
-    patchRelaySessionUser,
 } from '@chatic/session';
 export type {
     ActiveServerView,
@@ -48,24 +43,34 @@ export type {
     SessionUserView,
 } from '@chatic/runtime-core';
 
-// --- auth use-cases (non-React) -----------------------------------------------------------------
+// --- session commands (non-React) ------------------------------------------------------------------
+// Through the engine (`./sessionCommands`), never the core packages: on the phone the session may live
+// in another process. The hooks below wrap the same commands for React.
 export type { LogoutOptions } from '@chatic/auth';
 // An invite login as a screen holds it — a handle, never the token — which `switchCloud` enters with,
 // `forgetInviteLogin` drops when the screen will not, and `INVITE_LOGIN_UNKNOWN` is the switch's refusal
 // of a handle the runtime does not hold. A login's answer is `SessionAccountView`, the account without its token.
 export type { InviteLogin, SessionAccountView } from '@chatic/auth';
-export { INVITE_LOGIN_UNKNOWN, forgetInviteLogin } from '@chatic/auth';
+export { INVITE_LOGIN_UNKNOWN } from '@chatic/auth';
+export { forgetInviteLogin } from './sessionCommands';
 // Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
 // `useLoginRelaySocial` · `useSwitchCloudSession`, and the host's session controller), and Decision 6's rule is
 // "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the
 // logout-callback registry have no hook because their callers are not React (an OAuth redirect
 // page's effect, a log uploader's module init).
-export { createCredentialsByProvider, registerSessionLogoutCallback } from '@chatic/auth';
-// Invite login/lookup — ordinary auth actions; the module they live in is what stays off the barrel.
-export { fetchInviteInfoWithCode, registerUserWithInviteCode } from '@chatic/auth';
+export { createCredentialsByProvider } from './sessionCommands';
+export { registerSessionLogoutCallback } from '@chatic/auth';
+// Invite login and lookup. The lookup changes no session, so it is not a command.
+export { registerUserWithInviteCode } from './sessionCommands';
+export { fetchInviteInfoWithCode } from '@chatic/auth';
 // Empties the place selection without a switch — for a cloud whose last place the user just left,
 // where there is nothing to switch to. Not a hook: the caller already decides when, in an effect.
-export { clearSiteSelection } from '@chatic/auth';
+export { clearSiteSelection } from './sessionCommands';
+// The account-profile write; `getRelaySessionUser` above is its read. Kept public because the
+// local cache does not answer this question — its physical key is `${type}:${cid}:${uid}:${id}` and
+// the repositories read it under the live scope, so while a cloud is active the relay `user` row is
+// out of their reach (apps/web/docs/feature/mypage/README.md). apps/web uses both.
+export { patchRelaySessionUser } from './sessionCommands';
 
 // --- React surface --------------------------------------------------------------------------------
 export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
@@ -106,7 +111,8 @@ export {
 } from './hooks/pairing';
 export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
 export { isInOwnCloudSession, isPairedSession } from './sessionReads';
-export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from '@chatic/auth';
+export { forgetRefusedPairedCloud } from './sessionCommands';
+export { isRefusedForEndedPairing } from '@chatic/auth';
 export { deviceDisplayName, pairingClientOf } from '@chatic/auth';
 export { classifyPairingError } from '@chatic/auth';
 export type { PairingApprovalError } from '@chatic/auth';
@@ -122,21 +128,14 @@ export type { PairingRequestState } from '@chatic/auth';
 // handed to the screen — and the retry of a switch that failed after the code was spent. Consumed by
 // the phone-verification flows of apps/web and desktop-web, which `cancelPhoneLogin` when they close. The
 // three codes are what they throw with.
-export {
-    PHONE_LOGIN_NOTHING_PENDING,
-    PHONE_LOGIN_NO_TOKEN,
-    PHONE_LOGIN_SWITCH_FAILED,
-    cancelPhoneLogin,
-    confirmPhoneLogin,
-    retryPhoneLogin,
-} from '@chatic/auth';
+export { PHONE_LOGIN_NOTHING_PENDING, PHONE_LOGIN_NO_TOKEN, PHONE_LOGIN_SWITCH_FAILED } from '@chatic/auth';
+export { cancelPhoneLogin, confirmPhoneLogin, retryPhoneLogin } from './sessionCommands';
 export type { PhoneLoginResult } from '@chatic/auth';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)
-// before the local store teardown, which is why it and not the `session/auth` primitive is the
-// public name (ADR-0076 Decision 7). The cloud half is reached through `useLogoutCloudSession`, so the raw
-// `logoutCloudSession` stays internal (Decision 6); admin's `useRelaySessionGuard` is the one non-React
-// caller of this one.
-export { logoutSession } from '@chatic/auth';
+// before the local store teardown, which is why it and not the store's teardown primitive is the
+// public name. The cloud half is reached through `useLogoutCloudSession`;
+// admin's `useRelaySessionGuard` is the one non-React caller of this one.
+export { logoutSession } from './sessionCommands';
 // The session user's profile, assembled from the user repository + the live session context.
 export { useRuntimeProfile } from './hooks/session/readers/useRuntimeProfile';
 export type { SessionProfile } from './hooks/session/readers/useRuntimeProfile';

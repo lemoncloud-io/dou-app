@@ -6,6 +6,8 @@ import { CloudCredentialGuard } from './session/cloudCredentialGuard';
 import type { CloudCredentialPolicy } from './session/cloudCredentialGuard';
 import { RelayCredentialGuard } from './session/relayCredentialGuard';
 import type { SessionStalenessPolicy } from './session/relayCredentialGuard';
+import { createCoreSessionCommands } from './session/commands';
+import type { SessionCommands } from './session/commands';
 import { createSessionController } from './session/sessionController';
 import { createCoreSessionView } from './session/sessionView';
 import type { SessionView } from './session/snapshot';
@@ -40,12 +42,15 @@ export interface PushRegistrar {
  * this process. A runtime that runs elsewhere (the native process, with the page mirroring it) supplies
  * the same members backed by that process; the surface does not know which it was given.
  *
- * The session's state is in it (`session`), without tokens. Not in it yet: the session's commands and
- * the connection state the screens read, which still come straight from the core packages.
+ * The session is in it — its state (`session`, without tokens) and everything a screen does to it
+ * (`commands`). Not in it yet: the connection state the screens read and the repositories, which still
+ * come straight from the core packages.
  */
 export interface RuntimeEngine {
     /** The session as screens read it — a snapshot without tokens, and its changes. */
     session: SessionView;
+    /** What a screen does to the session — signing in and out, switching, a pairing's steps. */
+    commands: SessionCommands;
     /** The relay session's boot and the guest keep-alive. */
     sessionController(options: SessionControllerOptions): SessionController;
     /** The sockets kept in line with the session, and the background clouds. */
@@ -67,6 +72,7 @@ export interface RuntimeEngine {
  */
 export const coreEngine: RuntimeEngine = {
     session: createCoreSessionView(),
+    commands: createCoreSessionCommands(),
     sessionController: options => createSessionController(options),
     connectionController: options => createConnectionController(options),
     relayCredentialGuard: policy => new RelayCredentialGuard(policy),
