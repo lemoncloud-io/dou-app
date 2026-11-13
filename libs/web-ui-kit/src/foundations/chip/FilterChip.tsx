@@ -21,8 +21,9 @@ export interface FilterChipProps {
 }
 
 /**
- * Filter chip — the outlined pill the notification screens filter and select with (Figma "안 읽은
- * 알림만" 6021:18509 · 6021:20524, quick select 6032:20696, the find-me sheet's tabs 6027:21740).
+ * Filter chip — the outlined pill the notification screens filter and select with: the unread-only
+ * toggle (Figma "안 읽은 알림만", 6021:18509 · 6021:20524), quick select (6032:20696) and the find-me
+ * sheet's tabs (6027:21740).
  * Off is an outline on the page; on is the navy fill with white text.
  *
  * A toggle, so it reports `aria-pressed`. Stateless and i18n-agnostic.
