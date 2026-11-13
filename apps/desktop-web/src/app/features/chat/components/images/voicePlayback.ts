@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import i18next from 'i18next';
 
@@ -228,11 +228,12 @@ export const useVoicePlayback = (src: string): VoicePlayback => {
  * Paused or stopped, it shows `played` (0–1) as the state has it.
  */
 export const useSmoothProgress = <T extends HTMLElement>(src: string, playing: boolean, played: number) => {
-    const ref = useRef<T>(null);
+    // A callback ref, not an object one: the element sits in a dialog portal, which mounts it a render
+    // after the dialog's first, and an effect keyed on a ref object would never see it arrive.
+    const [element, setElement] = useState<T | null>(null);
     // A playing file is painted from its clock; the state's ratio lags it and would pull the fill back.
     const settled = playing ? -1 : played;
     useEffect(() => {
-        const element = ref.current;
         if (!element) return;
         const paint = (ratio: number) =>
             element.style.setProperty('--seek-progress', `${Math.min(1, Math.max(0, ratio)) * 100}%`);
@@ -249,6 +250,6 @@ export const useSmoothProgress = <T extends HTMLElement>(src: string, playing: b
         };
         step();
         return () => cancelAnimationFrame(frame);
-    }, [src, playing, settled]);
-    return ref;
+    }, [element, src, playing, settled]);
+    return setElement;
 };

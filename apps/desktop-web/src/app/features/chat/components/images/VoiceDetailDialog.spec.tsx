@@ -9,7 +9,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import { MessageFiles } from './MessageFiles';
 import { VoiceDetailDialog } from './VoiceDetailDialog';
 import { useVoiceDetailStore, VoiceDetailHost } from './VoiceDetailHost';
-import { voiceElementFor } from './voicePlayback';
+import { useVoicePlayback, voiceElementFor } from './voicePlayback';
 
 import '../../../../../i18n';
 
@@ -135,6 +135,43 @@ describe('VoiceDetailDialog', () => {
         const { onSave } = renderDialog();
         fireEvent.click(screen.getByRole('button', { name: 'Download' }));
         expect(onSave).toHaveBeenCalledTimes(1);
+    });
+});
+
+// The card holds the player before the dialog opens; the dialog mounts in a portal a render later.
+describe('its fill when opened partway through', () => {
+    const Card = () => {
+        useVoicePlayback(SRC);
+        return null;
+    };
+    const fill = () => {
+        let element: HTMLElement | null = screen.getByRole('slider');
+        while (element && !element.style.getPropertyValue('--seek-progress')) element = element.parentElement;
+        return element?.style.getPropertyValue('--seek-progress');
+    };
+    const at = (seconds: number) => {
+        const audio = voiceElementFor(SRC) as HTMLAudioElement;
+        audio.currentTime = seconds;
+        act(() => {
+            fireEvent.timeUpdate(audio);
+        });
+    };
+
+    it('shows where a paused file stands', () => {
+        render(<Card />);
+        lengthOf(100);
+        at(40);
+        renderDialog();
+        expect(fill()).toBe('40%');
+    });
+
+    it('follows a file that is playing from where it is', async () => {
+        render(<Card />);
+        lengthOf(100);
+        act(() => void (voiceElementFor(SRC) as HTMLAudioElement).play());
+        at(40);
+        renderDialog();
+        await vi.waitFor(() => expect(fill()).toBe('40%'));
     });
 });
 

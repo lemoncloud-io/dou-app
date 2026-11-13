@@ -33,7 +33,7 @@ const OVERLAY_BUTTON =
     'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
 
 /**
- * Save, copy and delete for one image.
+ * Save, copy, delete and — on the tile — reply, copy link and forward for one image.
  *
  * `plain` (the viewer) shows three icon buttons. `overlay` (the tile in the feed)
  * follows the design: Download, then a "More" menu holding Copy, then Reply in thread, Copy link and
