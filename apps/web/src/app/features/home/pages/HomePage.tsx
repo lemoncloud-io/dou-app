@@ -163,8 +163,8 @@ export const HomePage = () => {
     // `membership` starts out `undefined` while the query is in flight. Without a guard, a
     // membership-only PRO user (no owned cloud yet) would flash FREE for a beat before flipping to
     // PRO once the fetch resolves. While that fetch is pending and we have no cloud-based fallback,
-    // leave the tier undecided (`undefined`) instead of guessing FREE: the header and the profile
-    // menu draw a pill-sized placeholder for that window, and PRO-gated UI below treats "undecided"
+    // leave the tier undecided (`undefined`) instead of guessing FREE: the profile menu draws a
+    // pill-sized placeholder for that window, and PRO-gated UI below treats "undecided"
     // as PRO-optimistic (not FREE) — the server remains the final authority on any gated action
     // either way.
     // FREE needs BOTH sources to have answered, since either one alone can make it PRO. So the
@@ -333,7 +333,7 @@ export const HomePage = () => {
     // Tier readout for the profile menu (Figma 3108:25868). DoU Home is pinned to FREE: what a
     // subscription buys is a cloud of one's OWN, so the relay stays the free home even for a paying
     // account — only a cloud reads `planTier`. Undecided (membership or catalog still in flight) shows a
-    // placeholder of the pill's size, exactly like the header pill.
+    // placeholder of the pill's size rather than a guess.
     const menuTier = isDefaultCloud ? 'free' : planTier;
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -484,8 +484,9 @@ export const HomePage = () => {
                         {t('homePage.menuPlaceInvite')}
                     </DropdownMenuItem>
                 )}
-                {/* A readout, not a control: the header pill is the one place that routes to
-                    subscription, so this stays a non-interactive span outside the menu items. */}
+                {/* A readout, not a control: subscription is reached from MY, so this stays a
+                    non-interactive span outside the menu items. The header carries no tier pill —
+                    the home redesign (Figma 5953:30571) dropped it. */}
                 <div className="flex items-center px-4 py-1.5">
                     {menuTier ? (
                         <SubscriptionBadge tier={menuTier} size="xs" />
@@ -519,9 +520,6 @@ export const HomePage = () => {
             <AppHeader
                 kind={isDefaultCloud ? 'no-cloud' : 'cloud'}
                 name={cloudName}
-                planTier={planTier}
-                planLoading={isTierUndecided}
-                onPlanClick={() => navigate(ROUTES.subscription.root)}
                 loading={isCloudHeaderLoading}
                 loadingLabel={t('homePage.loadingCloud')}
                 onSearch={handleSearch}

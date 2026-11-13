@@ -170,12 +170,14 @@ matters for the invite: the server files it under the site the session is on, so
 invite (the relay, a place they do not own, a guest) or has not opted in. The rule and the page behind it — the room invite's contact invite, bound to the place — belong to
 [invite](../invite/place-invite.md).
 
-**The tier pill** (header, and the profile menu on a cloud) is FREE or PRO: PRO when the membership
-is valid **or** the catalog holds an active cloud. PRO is final the moment either source says so,
-but FREE needs both to have answered, since either could still make it PRO. Until then the tier is
-undecided and both surfaces hold a pulsing placeholder of the pill's size
-(`SubscriptionBadgeSkeleton`; `AppHeader`'s `planLoading`) — not a guessed FREE that flips, and not an
-empty slot the pill later pops into. A failed catalog fetch counts as answered here, so the tier
+**The tier** is read in the profile menu — FREE on the relay always, the account's tier on a cloud.
+The header carries no tier pill: the home redesign (Figma `5953:30571`) draws only search and the
+profile there, on both homes, and subscription is reached from MY. The tier is FREE or PRO: PRO when
+the membership is valid **or** the catalog holds an active cloud. PRO is final the moment either
+source says so, but FREE needs both to have answered, since either could still make it PRO. Until
+then the tier is undecided and the menu holds a pulsing placeholder of the pill's size
+(`SubscriptionBadgeSkeleton`) — not a guessed FREE that flips, and not an empty slot the pill later
+pops into. A failed catalog fetch counts as answered here, so the tier
 falls back to membership alone rather than pulsing forever.
 
 The membership half reads the server's `isValid`, which [subscription](../subscription/README.md)
@@ -304,7 +306,7 @@ A pull adds **no fetch of its own**. It asks, sooner, for what the screen would 
   the request goes through a registered handler rather than a second copy of the hook. A pull made
   while an earlier one is still running joins it.
 - `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
-  tier pill, which the background sync does not own. The catalog is asked only with a session,
+  the tier, which the background sync does not own. The catalog is asked only with a session,
   because its query is disabled without one and `refetch` does not honour that. For a guest
   account neither reaches the relay: both hooks answer a guest themselves (no owned clouds, no
   membership), so a guest's pull refreshes them without a request.

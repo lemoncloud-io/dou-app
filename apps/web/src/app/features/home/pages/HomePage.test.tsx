@@ -863,9 +863,22 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     });
 });
 
-describe('HomePage — header tier pill', () => {
+// The tier is read in the profile menu on a cloud; the header carries no pill since the home redesign.
+describe('HomePage — tier', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
+    });
+
+    it('draws no tier pill in the header, on a cloud or on the relay', () => {
+        membership = { isValid: true };
+        const { unmount } = render(<HomePage />);
+        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-tier', '');
+        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-loading', 'false');
+        unmount();
+
+        selectedCloudId = 'default';
+        render(<HomePage />);
+        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-tier', '');
     });
 
     it('stays undecided while membership is in flight', () => {
@@ -873,9 +886,7 @@ describe('HomePage — header tier pill', () => {
         isMembershipLoading = true;
         render(<HomePage />);
 
-        const header = screen.getByTestId('header');
-        expect(header).toHaveAttribute('data-plan-tier', '');
-        expect(header).toHaveAttribute('data-plan-loading', 'true');
+        expect(screen.getByTestId('tier-badge-skeleton')).toBeInTheDocument();
     });
 
     it('stays undecided while the cloud catalog is pending, even with an invalid membership in hand', () => {
@@ -885,7 +896,7 @@ describe('HomePage — header tier pill', () => {
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
         render(<HomePage />);
 
-        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-loading', 'true');
+        expect(screen.getByTestId('tier-badge-skeleton')).toBeInTheDocument();
     });
 
     it('settles on PRO as soon as membership says so, without waiting for the catalog', () => {
@@ -893,9 +904,7 @@ describe('HomePage — header tier pill', () => {
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
         render(<HomePage />);
 
-        const header = screen.getByTestId('header');
-        expect(header).toHaveAttribute('data-plan-tier', 'pro');
-        expect(header).toHaveAttribute('data-plan-loading', 'false');
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
     it('settles on PRO from an active cloud while membership is still in flight', () => {
@@ -904,7 +913,7 @@ describe('HomePage — header tier pill', () => {
         catalog = { clouds: [{ id: 'cloud-1', status: 'active' }], hasCloudCatalog: true, isPendingClouds: false };
         render(<HomePage />);
 
-        expect(screen.getByTestId('header')).toHaveAttribute('data-plan-tier', 'pro');
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
     it('settles on membership alone when the first catalog fetch failed, instead of pulsing forever', () => {
@@ -914,17 +923,13 @@ describe('HomePage — header tier pill', () => {
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: false };
         render(<HomePage />);
 
-        const header = screen.getByTestId('header');
-        expect(header).toHaveAttribute('data-plan-tier', 'free');
-        expect(header).toHaveAttribute('data-plan-loading', 'false');
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('free');
     });
 
     it('settles on FREE only once both sources have answered and neither is PRO', () => {
         render(<HomePage />);
 
-        const header = screen.getByTestId('header');
-        expect(header).toHaveAttribute('data-plan-tier', 'free');
-        expect(header).toHaveAttribute('data-plan-loading', 'false');
+        expect(screen.getByTestId('tier-badge')).toHaveTextContent('free');
     });
 });
 
