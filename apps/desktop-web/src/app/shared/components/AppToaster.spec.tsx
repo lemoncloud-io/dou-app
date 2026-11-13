@@ -1,6 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { toast, useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import i18n from '../../../i18n';
@@ -48,6 +49,21 @@ describe('AppToaster', () => {
             expect(viewport().className).toContain('z-toast');
 
             act(() => void toast({ variant: 'destructive', title: 'Could not join' }));
+            expect(viewport().className).toContain('z-alert');
+        });
+
+        // "Saved · Show in Finder" from the image viewer: its button is no use under the dim.
+        it('lifts a toast with an action raised in the dialog', () => {
+            render(<AppToaster />);
+            document.body.style.pointerEvents = 'none';
+
+            act(
+                () =>
+                    void toast({
+                        description: 'Saved',
+                        action: (<button type="button">Show</button>) as unknown as ToastActionElement,
+                    })
+            );
             expect(viewport().className).toContain('z-alert');
         });
 

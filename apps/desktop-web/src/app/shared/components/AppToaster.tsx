@@ -42,22 +42,23 @@ export const AppToaster = () => {
     useEffect(() => setToastLimit(3), []);
     const { toasts } = useToast();
     // An error raised while a modal dialog is open is that dialog's failure, so it has to clear the
-    // dim. Radix disables pointer events on the body while a modal is open, which is the signal read
-    // here, once per toast. An error from before the dialog stays under it: Radix gives an older
-    // toast no pointer events while the modal is open, so lifted it would cover the dialog's title
-    // with a close button that cannot be pressed.
+    // dim. So does a toast with an action raised then — "Saved · Show in Finder" from the image
+    // viewer's save — whose button cannot be pressed under the dim. Radix disables pointer events on
+    // the body while a modal is open, which is the signal read here, once per toast. One from before
+    // the dialog stays under it: Radix gives an older toast no pointer events while the modal is open,
+    // so lifted it would cover the dialog's title with a button that cannot be pressed.
     const seenIds = useRef(new Set<string>());
-    const [dialogErrorIds, setDialogErrorIds] = useState<ReadonlySet<string>>(() => new Set());
+    const [liftedIds, setLiftedIds] = useState<ReadonlySet<string>>(() => new Set());
     useEffect(() => {
         const modalOpen = document.body.style.pointerEvents === 'none';
         const live = new Set(toasts.map(toast => toast.id));
         const lifted = toasts.filter(
-            toast => !seenIds.current.has(toast.id) && toast.variant === 'destructive' && modalOpen
+            toast => !seenIds.current.has(toast.id) && (toast.variant === 'destructive' || !!toast.action) && modalOpen
         );
         seenIds.current = live;
-        setDialogErrorIds(prev => new Set([...[...prev].filter(id => live.has(id)), ...lifted.map(toast => toast.id)]));
+        setLiftedIds(prev => new Set([...[...prev].filter(id => live.has(id)), ...lifted.map(toast => toast.id)]));
     }, [toasts]);
-    const showsError = toasts.some(toast => toast.open !== false && dialogErrorIds.has(toast.id));
+    const lifts = toasts.some(toast => toast.open !== false && liftedIds.has(toast.id));
 
     return (
         <ToastProvider duration={TOAST_DURATION_MS} swipeDirection="up">
@@ -108,12 +109,12 @@ export const AppToaster = () => {
                 working in: a "channel created" toast from the previous step sat on top of the
                 next dialog's title. No position avoids that in a short window, where a dialog
                 fills the height, so the toast goes under the dim instead of beside it. It is
-                still announced by its live region. An error raised while the dialog is open is
-                the exception: it is that dialog's failure, so while one shows the viewport rises
-                to `z-alert`, over the dim. */}
+                still announced by its live region. An error or a toast with an action raised
+                while the dialog is open is the exception: it belongs to that dialog, so while one
+                shows the viewport rises to `z-alert`, over the dim. */}
             {/* Radix names the region in English unless told; `{hotkey}` is its own placeholder. */}
             <ToastViewport
-                className={cn('absolute top-3', showsError ? 'z-alert' : 'z-toast')}
+                className={cn('absolute top-3', lifts ? 'z-alert' : 'z-toast')}
                 label={t('common.toastRegion')}
             />
         </ToastProvider>
