@@ -4,6 +4,12 @@
 
 ### Features
 
+- (runtime-mobile,mobile) build the runtime from react native's ports, not booted yet
+
+## [2026-11-13] - No version updates
+
+### Features
+
 - (web/notifications) derive the notification inbox on the device (ADR-0312)
 
 ## [2026-11-13] - No version updates
