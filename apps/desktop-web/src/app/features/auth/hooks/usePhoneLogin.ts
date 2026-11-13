@@ -154,9 +154,7 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
             // The code goes over the relay socket, which a fresh registration has only just started to
             // authenticate: sent before that handshake ends, the first send fails. Never rejects; on a
             // timeout the send goes anyway and the server's answer is what the person sees.
-            await runtime.connection
-                .getSocketManager()
-                .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, RELAY_VERIFY_TIMEOUT_MS);
+            await runtime.connection.waitUntilVerified(runtime.connection.RELAY_SLOT, RELAY_VERIFY_TIMEOUT_MS);
             const sent = await auth.sendPhoneCode(wirePhone, { mode: 'login', countryCode: country });
             setExpiredAt(sent.expiredAt);
             setResendAt(Date.now() + PHONE_RESEND_COOLDOWN_MS);

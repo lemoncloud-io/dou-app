@@ -5,7 +5,9 @@ import type {
     RuntimeWireValue,
 } from '@chatic/bridge-messages';
 
+import type { RuntimeConnection } from '../connection/runtimeConnection';
 import type { SessionCommands } from '../session/commands';
+import type { RuntimeSync } from '../sync/runtimeSync';
 import type { SessionSnapshot } from '../session/snapshot';
 
 /**
@@ -96,6 +98,62 @@ const sessionCommandMethods: Record<keyof SessionCommands, true> = {
  * dispatches against. The arguments are the command's own, in order; the answer is what it resolves with.
  */
 export const SESSION_COMMAND_METHODS = Object.keys(sessionCommandMethods) as readonly (keyof SessionCommands)[];
+
+/**
+ * How a member of a target crosses: `view` is mirrored with the snapshot it reads, `call` is one
+ * `RuntimeCall`, `stream` is a `RuntimeSubscribe` whose events the page hears until it unsubscribes.
+ * `local` does not cross at all: what crosses is a domain result, never a raw socket request or frame,
+ * so such a member works only where the runtime runs in the page's own process.
+ */
+type Crossing = 'view' | 'call' | 'stream' | 'local';
+
+const membersCrossing = <T>(members: Record<keyof T, Crossing>, crossing: Crossing): readonly (keyof T)[] =>
+    (Object.keys(members) as (keyof T)[]).filter(member => members[member] === crossing);
+
+/** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the sockets. */
+export const CONNECTION_TARGET = 'connection';
+
+// Keyed by every member, so one added to `RuntimeConnection` and left out here does not compile.
+const connectionMembers: Record<keyof RuntimeConnection, Crossing> = {
+    snapshot: 'view',
+    subscribe: 'view',
+    waitUntilVerified: 'call',
+    // A raw request of any type, and every frame: neither is a domain result. The relay account's
+    // profile reads and writes, the one use of the request in a page that may be mirrored, become
+    // domain calls before the page mirrors a runtime in another process; the frames feed a desktop
+    // debug log, and the desktop shell never runs the runtime itself.
+    requestOnSlot: 'local',
+    onServerEvent: 'stream',
+    onServerMessage: 'local',
+    observeRequests: 'stream',
+    slotStatuses: 'call',
+    reconnect: 'call',
+    recoverUnverified: 'call',
+    recoverOnResume: 'call',
+    setBackgroundClouds: 'call',
+    setOwnedClouds: 'call',
+};
+
+/** The connection methods a `RuntimeCall` may name. */
+export const CONNECTION_CALL_METHODS = membersCrossing<RuntimeConnection>(connectionMembers, 'call');
+/** The connection streams a `RuntimeSubscribe` may name: a server push type, request samples. */
+export const CONNECTION_STREAMS = membersCrossing<RuntimeConnection>(connectionMembers, 'stream');
+/** The connection members that never cross: they work only with the runtime in the page's process. */
+export const CONNECTION_LOCAL_MEMBERS = membersCrossing<RuntimeConnection>(connectionMembers, 'local');
+
+/** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the sync engine. */
+export const SYNC_TARGET = 'sync';
+
+const syncMembers: Record<keyof RuntimeSync, Crossing> = {
+    registerTarget: 'stream',
+    updateLocalSnapshot: 'call',
+    listTargets: 'call',
+};
+
+/** The sync methods a `RuntimeCall` may name. */
+export const SYNC_CALL_METHODS = membersCrossing<RuntimeSync>(syncMembers, 'call');
+/** The sync streams a `RuntimeSubscribe` may name: a registration stands while its stream is open. */
+export const SYNC_STREAMS = membersCrossing<RuntimeSync>(syncMembers, 'stream');
 
 /** What the shell knows when a page says hello. */
 export interface RuntimeHelloHost {

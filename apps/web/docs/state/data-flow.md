@@ -100,11 +100,13 @@ reconnect catch-up run for as long as it is on screen:
 
 - Fixed single id: `runtime.sync.useChatSync(channelId)`, `useChannelSync(channelId)`,
   `usePlaceSync(placeId)`.
-- Dynamic list: `runtime.sync.getSyncManager().registerChannel(id)` / `registerPlace(id)` /
-  `registerProfile(id)` / `registerJoin(id)`, called per id and disposed on cleanup —
-  `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts` is the
-  deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
-  Pass the cloud as the third argument (`registerJoin(id, undefined, { cid })`) whenever the caller
+- Dynamic list: `runtime.sync.registerSyncTarget({ type, id })` with `type` one of `channel`,
+  `place`, `profile`, `join` or `chat` (and an optional `intervalMs`), called per id and disposed on
+  cleanup — `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts`
+  is the deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
+  It goes through the runtime engine, never a sync manager the app holds: on the phone the sync
+  engine may live in another process. Pass the cloud as the second argument
+  (`registerSyncTarget({ type: 'join', id }, { cid })`) whenever the caller
   knows it, and build any `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`: without a cloud
   the target lands on whichever cloud is selected when the effect runs, and the session uid is only
   the committed cloud's. Gate the effect on that cloud's own slot,
@@ -114,8 +116,7 @@ reconnect catch-up run for as long as it is on screen:
 ```tsx
 useEffect(() => {
     if (siteIds.length === 0) return;
-    const sync = runtime.sync.getSyncManager();
-    const disposers = siteIds.map(id => sync.registerPlace(id, undefined, { cid }));
+    const disposers = siteIds.map(id => runtime.sync.registerSyncTarget({ type: 'place', id }, { cid }));
     return () => disposers.forEach(d => d());
 }, [siteIdsKey, cid]);
 ```

@@ -1,12 +1,21 @@
 import {
+    CONNECTION_CALL_METHODS,
+    CONNECTION_LOCAL_MEMBERS,
+    CONNECTION_STREAMS,
+    CONNECTION_TARGET,
     SESSION_COMMANDS_TARGET,
     SESSION_COMMAND_METHODS,
+    SYNC_CALL_METHODS,
+    SYNC_STREAMS,
+    SYNC_TARGET,
     answerRuntimeHello,
     chooseRuntimeContract,
     readRuntimeOffer,
     settleRuntimeHello,
 } from './contract';
 import { createCoreSessionCommands } from '../session/commands';
+import { createCoreRuntimeConnection } from '../connection/runtimeConnection';
+import { createCoreRuntimeSync } from '../sync/runtimeSync';
 import type { RuntimeHelloHost } from './contract';
 import { emptySessionSnapshot } from '../testing/sessionView';
 
@@ -140,5 +149,30 @@ describe('the session commands a runtime call may name', () => {
         expect([...SESSION_COMMAND_METHODS].sort()).toEqual(Object.keys(createCoreSessionCommands()).sort());
         expect(new Set(SESSION_COMMAND_METHODS).size).toBe(SESSION_COMMAND_METHODS.length);
         expect(SESSION_COMMANDS_TARGET).toBe('session');
+    });
+});
+
+describe('the sockets and the sync engine across the bridge', () => {
+    it("list every member of the core engine's connection once — calls, streams, local ones, the view's two", () => {
+        const listed = [
+            ...CONNECTION_CALL_METHODS,
+            ...CONNECTION_STREAMS,
+            ...CONNECTION_LOCAL_MEMBERS,
+            'snapshot',
+            'subscribe',
+        ];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeConnection()).sort());
+        expect(new Set(listed).size).toBe(listed.length);
+        expect(CONNECTION_STREAMS).toEqual(['onServerEvent', 'observeRequests']);
+        // What crosses is a domain result: a raw request and every frame stay in the runtime's process.
+        expect(CONNECTION_LOCAL_MEMBERS).toEqual(['requestOnSlot', 'onServerMessage']);
+        expect(CONNECTION_TARGET).toBe('connection');
+    });
+
+    it("list every member of the core engine's sync once — a registration is a stream", () => {
+        expect([...SYNC_CALL_METHODS, ...SYNC_STREAMS].sort()).toEqual(Object.keys(createCoreRuntimeSync()).sort());
+        expect(SYNC_STREAMS).toEqual(['registerTarget']);
+        expect(SYNC_TARGET).toBe('sync');
     });
 });

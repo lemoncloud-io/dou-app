@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
-            getSyncManager: jest.fn(),
+            updateSyncSnapshot: jest.fn(),
             fetchRoomFeed: jest.fn(),
         },
         data: {
@@ -39,7 +39,7 @@ const mockUseAppForeground = useAppForeground as jest.Mock;
 
 const cacheReadList = jest.fn();
 const fetchRoomFeed = runtime.sync.fetchRoomFeed as jest.Mock;
-const updateLocalSnapshot = jest.fn();
+const updateSyncSnapshot = jest.fn();
 
 const setVerified = (isVerified: boolean) =>
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
@@ -62,7 +62,9 @@ beforeEach(() => {
     cacheReadList.mockResolvedValue({ list: [] });
     fetchRoomFeed.mockResolvedValue({ fetchedCount: 0, latestNo: 0, total: 0 });
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { cacheReadList } });
-    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ updateLocalSnapshot });
+    (runtime.sync.updateSyncSnapshot as jest.Mock).mockImplementation((...args: unknown[]) =>
+        updateSyncSnapshot(...args)
+    );
     setVerified(true);
     setSelectedCloud('cloud-a');
 });
@@ -75,7 +77,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(updateLocalSnapshot).toHaveBeenCalledWith(
+        expect(updateSyncSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'ch-1' },
             { id: 'ch-1', lastNo: 7, minNo: 0, messages: [] },
             { cid: 'cloud-a' }
@@ -90,7 +92,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(updateLocalSnapshot).not.toHaveBeenCalled();
+        expect(updateSyncSnapshot).not.toHaveBeenCalled();
         expect(fetchRoomFeed).not.toHaveBeenCalled();
     });
 
@@ -151,7 +153,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(updateLocalSnapshot).toHaveBeenCalledWith(expect.anything(), expect.anything(), { cid: 'cloud-b' });
+        expect(updateSyncSnapshot).toHaveBeenCalledWith(expect.anything(), expect.anything(), { cid: 'cloud-b' });
     });
 
     it('does not push a baseline or fetch when the selection left the cloud during the cache read', async () => {
@@ -165,7 +167,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        expect(updateLocalSnapshot).not.toHaveBeenCalled();
+        expect(updateSyncSnapshot).not.toHaveBeenCalled();
         expect(fetchRoomFeed).not.toHaveBeenCalled();
     });
 });

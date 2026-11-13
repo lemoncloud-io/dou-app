@@ -56,22 +56,22 @@ so that the room, settings, the home list and place channel management cannot di
 The read path is always `repository.observe*` — a subscription to the local cache, never a fetch.
 Keeping the cache fresh is a second, separate act:
 
-| Hook                 | Observes                                             | Registers                                                                         |
-| -------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                                          |
-| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                                             |
-| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                                            |
-| `useJoinPositions`   | nothing                                              | `sync.registerJoin` on `<channelId>@<userId>`, per member                         |
-| `useChannelProfiles` | `profile.observeList({ sid })`                       | `sync.registerProfile` on `<sid>@<userId>`, per active member with a profile here |
-| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                                      |
+| Hook                 | Observes                                             | Registers                                                                          |
+| -------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                                           |
+| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                                              |
+| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                                             |
+| `useJoinPositions`   | nothing                                              | a `join` sync target on `<channelId>@<userId>`, per member                         |
+| `useChannelProfiles` | `profile.observeList({ sid })`                       | a `profile` sync target on `<sid>@<userId>`, per active member with a profile here |
+| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                                       |
 
 Both registrars register with an explicit `{ cid }`: `useJoinPositions` takes the room's cloud from
 its caller (the channel row's `cid`), `useChannelProfiles` uses the selected cloud — the one its
 observation reads. A target registered without a cloud lands on whichever cloud is selected when the
 effect runs, and during a switch that is not necessarily the cloud the screen is showing.
 
-`registerJoin` and `registerProfile` are refcounted by key, so the room re-registering my own join
-dedups with whatever the home surface already holds.
+Both kinds of target (`runtime.sync.registerSyncTarget`) are refcounted by key, so the room
+re-registering my own join dedups with whatever the home surface already holds.
 
 ### An open room follows the channel record, not only its push
 
@@ -124,7 +124,7 @@ read mark, a notification setting, a room name) are the exception: the repositor
 outbox, which does its own waiting (§ Reads advance in two stages). Which socket depends on where the
 call goes:
 
-- A sync target registered for a named cloud (`registerJoin`, `registerProfile`) runs on that
+- A sync target registered for a named cloud (a `join` or `profile` target) runs on that
   cloud's own slot, so it waits for that slot — `runtime.connection.useCloudVerified(cid)`, which
   reads a missing id as the relay.
 - A call through the app graph (`syncChannelUsers`, a `refreshList`) goes out on the active slot, so

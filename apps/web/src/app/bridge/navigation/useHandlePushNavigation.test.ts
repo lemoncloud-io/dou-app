@@ -22,7 +22,7 @@ const channelCacheRead = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
-            getSocketManager: jest.fn(),
+            waitUntilVerified: jest.fn(),
         },
         boot: {
             isNativeApp: jest.fn(() => false),
@@ -117,7 +117,9 @@ beforeEach(() => {
     (useLogoutCloudSession as jest.Mock).mockReturnValue({ logoutCloudSession });
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     waitUntilVerified.mockResolvedValue(true);
-    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
+    (runtime.connection.waitUntilVerified as jest.Mock).mockImplementation((...args: unknown[]) =>
+        waitUntilVerified(...args)
+    );
     (pendingNavigationStore.register as jest.Mock).mockImplementation((handler: typeof captured) => {
         captured = handler;
         return unregister;

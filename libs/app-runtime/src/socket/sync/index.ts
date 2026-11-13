@@ -1,10 +1,14 @@
-// The `sync` facade group — the three registration hooks a screen mounts, and the manager handle.
+// The `sync` facade group — the three registration hooks a screen mounts, and the sync engine as the
+// app drives it outside them.
 //
 // `useSyncTarget` (the generic these three wrap) is deliberately NOT here: every app consumer picks
 // one of the three named targets, and the generic is the runtime's own seam (ADR-0076 Decision 6 removed
 // exactly this category — a public symbol with zero app callers).
 export { useChatSync, useChannelSync, usePlaceSync } from './hooks/useSyncTarget';
-export { getSyncManager } from '@chatic/sync';
+// Through the engine (`./syncCommands`), never the sync manager: a registration that is not a screen's
+// own mount (a list of rooms, a set of joins), the cache's baseline, and the debug listing.
+export { listSyncTargets, registerSyncTarget, updateSyncSnapshot } from './syncCommands';
+export type { SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 // The foreground kick for the clouds the user is not looking at — the receive loops themselves are
 // started by the connection host, not by an app.
 export { refreshBackgroundClouds } from '@chatic/sync';

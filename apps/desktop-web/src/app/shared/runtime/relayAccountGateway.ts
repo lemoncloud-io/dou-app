@@ -19,27 +19,30 @@ import { runtime } from '@chatic/app-runtime';
  * is what makes the app-level version work, so this gateway only ever moves
  * data in and out of that token.
  *
- * Built once and reused: `getScopedClient` resolves its slot lazily on every
- * call, so the instance survives relay slot teardown/rebuild. It THROWS when
- * no relay slot is bound — callers must gate on
- * `useSlotVerified(RELAY_SLOT)` rather than firing hopefully.
+ * Built once and reused: every call goes through `requestOnSlot(RELAY_SLOT, …)`,
+ * which resolves the slot when the request is made, so the instance survives
+ * relay slot teardown/rebuild. It THROWS when no relay slot is bound — callers
+ * must gate on `useSlotVerified(RELAY_SLOT)` rather than firing hopefully.
  *
- * The `as any` on the scoped client mirrors socketFactory: `ScopedSocketClient`
- * is the request/send subset the gateways actually use, but the factory's
- * parameter is typed as the full client.
+ * The client handed to `createUserGateway` carries `request` only: that is the
+ * one member the user gateway calls, while the factory's parameter is typed as
+ * the full socket client — hence the cast.
  */
 let cachedGateway: ReturnType<typeof createUserGateway> | null = null;
 
+const relayClient = {
+    request: (type: string, data?: unknown, options?: { timeoutMs?: number }) =>
+        runtime.connection.requestOnSlot(runtime.connection.RELAY_SLOT, type, data, options),
+};
+
 export const getRelayAccountGateway = (): ReturnType<typeof createUserGateway> => {
     if (!cachedGateway) {
-        cachedGateway = createUserGateway(
-            runtime.connection.getSocketManager().getScopedClient(runtime.connection.RELAY_SLOT) as any
-        );
+        cachedGateway = createUserGateway(relayClient as unknown as Parameters<typeof createUserGateway>[0]);
     }
     return cachedGateway;
 };
 
-/** Test seam: drops the memoized gateway so a fresh socket manager mock is picked up. */
+/** Test seam: drops the memoized gateway between tests. */
 export const resetRelayAccountGateway = (): void => {
     cachedGateway = null;
 };

@@ -240,9 +240,10 @@ export const useRelayInvites = (state?: InviteState, options: RelayInvitesOption
      */
     const refetch = useCallback(async (): Promise<{ data?: MyInviteView[] }> => {
         if (!isRelayVerified) {
-            const verified = await runtime.connection
-                .getSocketManager()
-                .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, REFETCH_VERIFY_TIMEOUT_MS);
+            const verified = await runtime.connection.waitUntilVerified(
+                runtime.connection.RELAY_SLOT,
+                REFETCH_VERIFY_TIMEOUT_MS
+            );
             if (!verified) return { data: query.data };
         }
         return query.refetch();

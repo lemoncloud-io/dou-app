@@ -142,11 +142,12 @@ What works instead is app-level and touches no cache:
   (`UserTokenView extends UserView`, so it carries `name` / `photo` / `email` / `link$`). `useMyUser`
   re-reads it on every session signal; the store hands back a fresh context object on each notify,
   which is the re-render trigger. There is no cache to invalidate and no flash on first paint.
-- **Write** — `getRelayAccountGateway()` builds a `user` gateway over `getScopedClient('relay')`,
-  pinned to the relay slot rather than following the active facade. The response is patched back
+- **Write** — `getRelayAccountGateway()` builds a `user` gateway whose requests go through
+  `runtime.connection.requestOnSlot(RELAY_SLOT, …)`, pinned to the relay slot rather than following
+  the active facade. The response is patched back
   into the stored token, and patching the token **is** the update path: every reader sees it at once
   and the next cold start seeds from it.
-- **Gating** — the scoped client throws rather than falling back when no relay slot is bound, so
+- **Gating** — a request pinned to the relay slot throws rather than falling back when no relay slot is bound, so
   callers must wait on `useSlotVerified(RELAY_SLOT)`. Firing before the relay handshake is what
   produced `503 SOCKET NOT CONNECTED` elsewhere in the app.
 

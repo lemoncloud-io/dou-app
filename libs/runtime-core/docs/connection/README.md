@@ -1,4 +1,4 @@
-# connection — the controller, the slots it derives, and the binders
+# connection — the controller, the slots it derives, the binders, and the sockets as screens read them
 
 `connection/` keeps the socket manager in line with the session, with no React in it. From the
 session's state the **connection controller** derives which slots should exist — relay, the committed
@@ -7,8 +7,8 @@ also keeps the background clouds' tokens ready and their receive loops running. 
 its slots, the active facade and their contract are `@chatic/transport`'s:
 [its socket doc](../../../transport/docs/socket/README.md).
 
-The React side is a host that starts and stops the controller, and hooks that read the manager's
-state: [app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md).
+The React side is a host that starts and stops the controller, and hooks that read the sockets
+through the engine's `connection` (below): [app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md).
 
 ## Layout
 
@@ -21,8 +21,12 @@ connection/
 ├── types.ts                   RuntimeSocketSlot · RuntimeSocketSlots
 ├── socketRebootKey.ts         the identity key both binders must agree on
 ├── backgroundSlots.ts         the live reads behind background slots
-└── slotSignals.ts             the session signals the slot derivation re-reads on
+├── slotSignals.ts             the session signals the slot derivation re-reads on
+└── runtimeConnection.ts       RuntimeConnection · createCoreRuntimeConnection — the sockets as screens read them
 ```
+
+`testing/connection.ts` (`@chatic/runtime-core/testing/connection`) is fake sockets for a test of anything
+that reads or drives them through the engine.
 
 ## Usage
 
@@ -217,6 +221,34 @@ because a refresh must not reboot a healthy socket.
 `SocketReauthBinder` watches each slot's `identityToken` and calls `reauthenticateActiveSocket` when
 it moves **and a reboot is not already happening**, since a reboot re-registers anyway. Its first pass
 only records what it saw. Each pass runs the binder first and the re-auth second, over the same slots.
+
+### The sockets as screens read them
+
+`engine.connection` (`RuntimeConnection`) is everything the React surface asks of the sockets; app-runtime
+reaches the socket manager no other way. Its snapshot is plain data — `active`, the active slot's socket
+state, and `verifiedSlots`, every bound slot that is verified, in slot order — and keeps the same objects
+until something in it changes: `active` is the manager's own snapshot, and the verified list is rebuilt
+only when the set differs. It re-reads on the active slot's changes, on each slot's verified changes,
+and once more after a slot's teardown has finished (a teardown is announced while the slot is still
+bound). Every subscriber shares one subscription to the manager, attached with the first and let go
+with the last, so a socket event costs one pass however many screens read the sockets. A request
+observer (`observeRequests`) returns its stop; a newer one replaces it.
+
+The rest, by how each would cross the bridge (the contract lists them):
+
+| Crossing | Members                                                                                                                                 |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| call     | `waitUntilVerified` · `slotStatuses` · `reconnect` · `recoverUnverified` · `recoverOnResume` · `setBackgroundClouds` · `setOwnedClouds` |
+| stream   | `onServerEvent` (one type, from one slot or the active one) · `observeRequests` (request samples)                                       |
+| local    | `requestOnSlot` (a request of any type) · `onServerMessage` (every frame) — never cross: what crosses is a domain result                |
+
+`setOwnedClouds` keeps the lists and re-issues an owned cloud held as an invitee on a list change and
+again on each cloud token commit (`cloud:token`) — an invite entry can be committed after the catalog
+arrived, and no list change follows it. `requestOnSlot` is what the relay account's screens use while a
+cloud is on screen: they do not go through a repository, whose cache is read under the live scope.
+
+The sync engine has the same seam, `engine.sync` (`RuntimeSync`, `sync/runtimeSync.ts`): a target
+registration that stands until it is dropped, the cache's baseline, and the targets for a debug screen.
 
 ### What not to do
 

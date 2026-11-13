@@ -5,7 +5,8 @@
 > the engine); `refactor/token-free-login` (the commands: a one-step phone login, invite logins behind
 > handles, login answers without `Token`); `refactor/session-commands-via-engine` (the session commands,
 > run through the engine and named in the contract; a pairing approval's session held like an invite
-> login's)
+> login's); `refactor/connection-via-engine` (the sockets and the sync engine through the engine, their
+> calls and streams named in the contract)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`

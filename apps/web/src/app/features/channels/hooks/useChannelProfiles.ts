@@ -79,12 +79,16 @@ export const useChannelProfiles = (
     useEffect(() => {
         if (!sid || !isVerified || activeMemberIds.length === 0) return;
 
-        const sync = runtime.sync.getSyncManager();
         const disposers: Array<() => void> = [];
         let disposed = false;
         const register = (userId: string) => {
             if (disposed) return;
-            disposers.push(sync.registerProfile(`${sid}@${userId}`, syncIntervalMs, { cid }));
+            disposers.push(
+                runtime.sync.registerSyncTarget(
+                    { type: 'profile', id: `${sid}@${userId}`, intervalMs: syncIntervalMs },
+                    { cid }
+                )
+            );
         };
 
         void (async () => {

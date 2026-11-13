@@ -13,7 +13,7 @@ import * as api from './index';
  * grouping a contract instead of a comment — moving a symbol between groups is a breaking change for
  * every call site, so it has to be a deliberate edit to this file.
  *
- * Type-only exports (`SessionProfile` · `ISocketManager` · `DeviceTokenDelegate` · the option types)
+ * Type-only exports (`SessionProfile` · `SlotStatus` · `DeviceTokenDelegate` · the option types)
  * are erased at runtime and do not appear in `GROUPS` — those lists hold the value exports only, and a
  * type a call site cannot do without is checked by the compiler instead (the last test). Internal wiring
  * (socket auth bootstrap/reauth, the connection controller, raw session actions, `useSyncTarget`,
@@ -91,14 +91,21 @@ const GROUPS: Record<string, readonly string[]> = {
         'useUidInCloud',
         'useVerifyAlias',
     ],
-    // Hosts + socket state reads + wake recovery + the background-cloud and owned-cloud lists.
+    // Hosts + socket state reads + waits, slot requests and pushes + wake recovery + the background-cloud
+    // and owned-cloud lists — all through the engine; the socket manager itself is not sold.
     connection: [
         'RELAY_SLOT',
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
-        'getSocketManager',
+        'getRuntimeSocketState',
+        'getSlotStatuses',
+        'observeSocketRequests',
+        'onServerEvent',
+        'onServerMessage',
+        'reconnectSocket',
         'recoverSocketsOnResume',
         'recoverUnverifiedSockets',
+        'requestOnSlot',
         'useBackgroundClouds',
         'useCloudVerified',
         'useConnectivity',
@@ -106,6 +113,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useRuntimeSocketState',
         'useSlotVerified',
         'useVerifiedClouds',
+        'waitUntilVerified',
     ],
     // Repository · cache tier · outbox.
     data: [
@@ -134,12 +142,14 @@ const GROUPS: Record<string, readonly string[]> = {
     ],
     sync: [
         'fetchRoomFeed',
-        'getSyncManager',
         'isChannelRefused',
+        'listSyncTargets',
         'prefetchRoomFeed',
         'refreshBackgroundClouds',
+        'registerSyncTarget',
         'subscribeBackgroundDeltas',
         'subscribeRefusedChannels',
+        'updateSyncSnapshot',
         'useChannelSync',
         'useChatSync',
         'usePlaceSync',

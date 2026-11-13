@@ -35,16 +35,26 @@ export { useBackgroundClouds } from './hooks/useBackgroundClouds';
 // The clouds the account owns, so one held as an invitee on this device is re-issued as the owner.
 export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
 
-// Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
-// `useSocketWakeRecovery`; desktop-web keeps its local variant). `recoverSocketsOnResume` also pings
-// the slots that read verified, so a connection left half-open by a suspension is found on resume.
-export { recoverSocketsOnResume, recoverUnverifiedSockets } from '@chatic/auth';
-export type { RecoverUnverifiedSocketsDeps } from '@chatic/auth';
-// Injection seam for the relay-refresh primitive. The primitive itself stays internal: apps ask for
-// freshness through `session.useSessionStalenessGuard`, never by calling it (ADR-0070 invariants 1·2).
-export type { RequestRelaySessionRefreshDeps } from '@chatic/auth';
-
-// The manager handle — for a debug/lab surface that drives the socket directly.
-export { getSocketManager } from '@chatic/transport';
-export type { ISocketManager, SlotStatus, SocketRequestSample } from '@chatic/transport';
+// The sockets outside React, through the engine (`./connectionCommands`) — never the socket manager,
+// which on the phone may live in another process:
+// - `getRuntimeSocketState` reads the active socket at the moment of a click or a timer;
+// - `waitUntilVerified` gates work on a slot's handshake, `requestOnSlot` sends on one named slot;
+// - `onServerEvent` / `onServerMessage` hear the server's pushes and every frame;
+// - `observeSocketRequests` times requests, `getSlotStatuses` lists the slots for a debug screen;
+// - `reconnectSocket`, `recoverUnverifiedSockets` and `recoverSocketsOnResume` are the wake kicks an
+//   app makes on its own foreground signal (`recoverSocketsOnResume` also pings the slots that read
+//   verified, so a connection left half-open by a suspension is found on resume).
+export {
+    getRuntimeSocketState,
+    getSlotStatuses,
+    observeSocketRequests,
+    onServerEvent,
+    onServerMessage,
+    reconnectSocket,
+    recoverSocketsOnResume,
+    recoverUnverifiedSockets,
+    requestOnSlot,
+    waitUntilVerified,
+} from './connectionCommands';
+export type { SlotKey, SlotStatus, SocketRequestSample } from '@chatic/transport';
 export type { SocketCloseReason } from '@chatic/transport';

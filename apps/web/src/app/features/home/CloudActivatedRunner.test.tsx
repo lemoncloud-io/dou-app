@@ -13,7 +13,7 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQ
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { cloudsKeys: { all: ['clouds'] } },
-        connection: { RELAY_SLOT: 'default', getSocketManager: jest.fn() },
+        connection: { RELAY_SLOT: 'default', onServerEvent: jest.fn() },
     },
 }));
 // Echo keys so assertions target the key. `t` is here for the CARD (it translates its own "now"
@@ -25,7 +25,7 @@ jest.mock('react-i18next', () => ({
 
 const mockInvalidate = jest.fn();
 const mockExists = jest.fn();
-const onSlotType = jest.fn();
+const onServerEvent = runtime.connection.onServerEvent as jest.Mock;
 const unsubscribe = jest.fn();
 const toastCustom = toast.custom as jest.Mock;
 
@@ -37,7 +37,7 @@ let lastUnmount: (() => void) | undefined;
 const mount = (): Handler => {
     const { unmount } = render(<CloudActivatedRunner />);
     lastUnmount = unmount;
-    return onSlotType.mock.calls[onSlotType.mock.calls.length - 1][2];
+    return onServerEvent.mock.calls[onServerEvent.mock.calls.length - 1][1];
 };
 
 /** Renders the JSX the runner handed to `toast.custom`. */
@@ -49,8 +49,7 @@ const renderToastContent = () => {
 beforeEach(() => {
     jest.clearAllMocks();
     mockExists.mockReturnValue(true);
-    onSlotType.mockReturnValue(unsubscribe);
-    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ onSlotType });
+    onServerEvent.mockReturnValue(unsubscribe);
 });
 
 describe('CloudActivatedRunner', () => {
@@ -59,7 +58,7 @@ describe('CloudActivatedRunner', () => {
     it('relay 슬롯에 cloud.activated를 구독한다', () => {
         mount();
 
-        expect(onSlotType).toHaveBeenCalledWith('default', 'cloud.activated', expect.any(Function));
+        expect(onServerEvent).toHaveBeenCalledWith('cloud.activated', expect.any(Function), { slot: 'default' });
     });
 
     it('언마운트 시 구독을 해지한다', () => {

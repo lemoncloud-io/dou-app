@@ -321,8 +321,9 @@ is, a minute is the latency to plan for.
 
 ### Registering outside React
 
-The screens register through the hooks in app-runtime. Outside React, `getSyncManager().register*`
-registers and returns the dispose:
+The screens register through the hooks in app-runtime, and an app registers outside them through
+`runtime.sync.registerSyncTarget`, which goes through the engine to the manager's `register`. Inside the
+runtime, `getSyncManager().register*` registers and returns the dispose:
 
 ```ts
 const off = getSyncManager().registerChannel(channelId, undefined, { cid: 'cloud-a' });

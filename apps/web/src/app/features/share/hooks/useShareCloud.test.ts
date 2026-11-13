@@ -13,7 +13,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useSwitchCloudSession: () => ({ switchCloud: mockSwitchCloud }),
             useSiteSwitch: () => ({ switchSite: mockSwitchSite }),
         },
-        connection: { getSocketManager: () => ({ waitUntilVerified: mockWaitUntilVerified }) },
+        connection: { waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args) },
     },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));

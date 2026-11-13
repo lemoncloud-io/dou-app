@@ -51,7 +51,7 @@ export const useSocketWedgeReload = (): void => {
         if (!hasVerifiedRef.current || !isAuthenticated) return;
 
         const timer = setTimeout(() => {
-            if (runtime.connection.getSocketManager().getSnapshot().isVerified) return; // recovered meanwhile
+            if (runtime.connection.getRuntimeSocketState().isVerified) return; // recovered meanwhile
 
             const lastReloadAt = readReloadAt();
             if (lastReloadAt && Date.now() - lastReloadAt < RELOAD_GUARD_MS) return;

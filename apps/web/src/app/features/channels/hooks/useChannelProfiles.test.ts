@@ -14,7 +14,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useCloudVerified: jest.fn(),
         },
         sync: {
-            getSyncManager: jest.fn(),
+            registerSyncTarget: jest.fn(),
         },
         session: {
             useSessionSelection: jest.fn(),
@@ -27,7 +27,7 @@ jest.mock('@chatic/app-runtime', () => ({
 const observeList = jest.fn();
 const cacheReadList = jest.fn();
 const refreshItem = jest.fn();
-const registerProfile = jest.fn();
+const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 
 const profile = (userId: string, fields: Partial<DomainProfile> = {}): DomainProfile =>
     ({ userId, ...fields }) as unknown as DomainProfile;
@@ -48,7 +48,7 @@ const setSelectedCloud = (cid: string) => {
 
 beforeEach(() => {
     jest.clearAllMocks();
-    registerProfile.mockReturnValue(() => undefined);
+    registerSyncTarget.mockReturnValue(() => undefined);
     seedObserve([]);
     cacheReadList.mockResolvedValue({ list: [] });
     refreshItem.mockResolvedValue(null);
@@ -58,7 +58,6 @@ beforeEach(() => {
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
     setSelectedCloud('cloud-a');
     (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me');
-    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerProfile });
 });
 
 describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
@@ -77,11 +76,17 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(2));
         // Default interval is 20s — member count / interval is directly the request rate, so a
         // 5s interval in a 20-person room would have meant 4 requests per second.
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
-        expect(registerProfile).toHaveBeenCalledWith('s1@u2', 20_000, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledWith(
+            { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
+            { cid: 'cloud-a' }
+        );
+        expect(registerSyncTarget).toHaveBeenCalledWith(
+            { type: 'profile', id: 's1@u2', intervalMs: 20_000 },
+            { cid: 'cloud-a' }
+        );
     });
 
     it('캐시에 없는 멤버만 refreshItem으로 즉시 부트스트랩한다', async () => {
@@ -101,7 +106,12 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
             renderHook(() => useChannelProfiles('s1', ['u1']));
 
-            await waitFor(() => expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' }));
+            await waitFor(() =>
+                expect(registerSyncTarget).toHaveBeenCalledWith(
+                    { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
+                    { cid: 'cloud-a' }
+                )
+            );
         }
     );
 
@@ -114,8 +124,11 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         await waitFor(() => expect(refreshItem).toHaveBeenCalledWith('s1@u2'));
         // Let the rejected read settle: a registration it was going to make has been made by then.
         await act(async () => undefined);
-        expect(registerProfile).toHaveBeenCalledTimes(1);
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledTimes(1);
+        expect(registerSyncTarget).toHaveBeenCalledWith(
+            { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
+            { cid: 'cloud-a' }
+        );
     });
 
     it('registers every member when the cache cannot be read', async () => {
@@ -123,7 +136,7 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(2));
         expect(refreshItem).not.toHaveBeenCalled();
     });
 
@@ -137,13 +150,13 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         unmount();
         await act(async () => resolveRefresh(null));
 
-        expect(registerProfile).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     it('sid가 없으면 구독/등록하지 않는다', () => {
         renderHook(() => useChannelProfiles(null, ['u1']));
         expect(observeList).not.toHaveBeenCalled();
-        expect(registerProfile).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     it('isVerified가 false면 등록하지 않는다', () => {
@@ -151,15 +164,15 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         renderHook(() => useChannelProfiles('s1', ['u1']));
 
-        expect(registerProfile).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     it('언마운트 시 등록한 sync를 해제한다', async () => {
         const dispose = jest.fn();
-        registerProfile.mockReturnValue(dispose);
+        registerSyncTarget.mockReturnValue(dispose);
 
         const { unmount } = renderHook(() => useChannelProfiles('s1', ['u1']));
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(1));
 
         unmount();
         expect(dispose).toHaveBeenCalledTimes(1);
@@ -172,17 +185,22 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         expect(runtime.connection.useCloudVerified).toHaveBeenCalledWith('cloud-b');
         expect(runtime.session.useUidInCloud).toHaveBeenCalledWith('cloud-b');
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-b' }));
+        await waitFor(() =>
+            expect(registerSyncTarget).toHaveBeenCalledWith(
+                { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
+                { cid: 'cloud-b' }
+            )
+        );
     });
 
     it('re-registers when the uid in the cloud changes', async () => {
         const { rerender } = renderHook(() => useChannelProfiles('s1', ['u1']));
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(1));
 
         (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me-again');
         rerender();
 
-        await waitFor(() => expect(registerProfile).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(2));
     });
 
     it('does not bootstrap members when the selection moved during the cache read', async () => {
@@ -198,6 +216,9 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
 
         expect(refreshItem).not.toHaveBeenCalled();
         // Registered unread — the poll is all that is left to find the member with.
-        expect(registerProfile).toHaveBeenCalledWith('s1@u1', 20_000, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledWith(
+            { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
+            { cid: 'cloud-a' }
+        );
     });
 });

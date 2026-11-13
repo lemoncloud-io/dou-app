@@ -233,7 +233,7 @@ const startApp = (): void => {
     // Times every socket request of a sampled run (a different tenth of runs from the bridge's), per
     // request type, so the server's answer time can be read apart from what the screens add to it.
     observeSocketRequests({
-        manager: runtime.connection.getSocketManager(),
+        observe: runtime.connection.observeSocketRequests,
         runId: readInjectedRunId(),
         isHeld: webPerfTraces.isHeld,
     });

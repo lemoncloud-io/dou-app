@@ -8,7 +8,8 @@ import { useChatSyncRegistration } from './useChatSyncRegistration';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
-            getSyncManager: jest.fn(),
+            registerSyncTarget: jest.fn(),
+            updateSyncSnapshot: jest.fn(),
         },
         session: {
             useSessionSelection: jest.fn(),
@@ -26,7 +27,7 @@ jest.mock('@chatic/app-runtime', () => ({
 }));
 
 const registerChat = jest.fn();
-const updateLocalSnapshot = jest.fn();
+const updateSyncSnapshot = jest.fn();
 const observeLastList = jest.fn();
 const refreshList = jest.fn();
 
@@ -58,15 +59,18 @@ beforeEach(() => {
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
     select('cloud-a');
     (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me');
-    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerChat, updateLocalSnapshot });
+    (runtime.sync.registerSyncTarget as jest.Mock).mockImplementation((...args: unknown[]) => registerChat(...args));
+    (runtime.sync.updateSyncSnapshot as jest.Mock).mockImplementation((...args: unknown[]) =>
+        updateSyncSnapshot(...args)
+    );
 });
 
 describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', () => {
     it('채널마다 chat 타깃을 등록한다', () => {
         renderHook(() => useChatSyncRegistration([channel('c1'), channel('c2')]));
 
-        expect(registerChat).toHaveBeenCalledWith('c1', undefined, { cid: 'cloud-a' });
-        expect(registerChat).toHaveBeenCalledWith('c2', undefined, { cid: 'cloud-a' });
+        expect(registerChat).toHaveBeenCalledWith({ type: 'chat', id: 'c1' }, { cid: 'cloud-a' });
+        expect(registerChat).toHaveBeenCalledWith({ type: 'chat', id: 'c2' }, { cid: 'cloud-a' });
     });
 
     it('언마운트하면 등록을 모두 해제한다', () => {
@@ -102,7 +106,7 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
 
         emitRows([row('c1', 12)]);
 
-        expect(updateLocalSnapshot).toHaveBeenCalledWith(
+        expect(updateSyncSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'c1' },
             { id: 'c1', lastNo: 12 },
             { cid: 'cloud-a' }
@@ -155,7 +159,7 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         select('cloud-b');
         rerender();
 
-        expect(registerChat).toHaveBeenLastCalledWith('c1', undefined, { cid: 'cloud-b' });
+        expect(registerChat).toHaveBeenLastCalledWith({ type: 'chat', id: 'c1' }, { cid: 'cloud-b' });
         expect(observeLastList).toHaveBeenCalledTimes(2);
     });
 
@@ -170,10 +174,10 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
             rerender();
         });
 
-        expect(updateLocalSnapshot).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+        expect(updateSyncSnapshot).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), {
             cid: 'cloud-b',
         });
-        expect(updateLocalSnapshot).toHaveBeenCalledWith(
+        expect(updateSyncSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'c1' },
             { id: 'c1', lastNo: 12 },
             { cid: 'cloud-a' }

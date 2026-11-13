@@ -11,7 +11,7 @@ const resolveChannel = jest.fn();
 const setPendingChannel = jest.fn();
 const enterStack = jest.fn();
 const toast = jest.fn();
-const waitUntilSlotVerified = jest.fn();
+const mockWaitUntilVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
 /** The RELAY account's role. A deeplink usually lands in a fresh device session, so guest is the default. */
@@ -34,7 +34,7 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'default',
-            getSocketManager: () => ({ waitUntilSlotVerified }),
+            waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args),
         },
         data: {
             // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
@@ -101,7 +101,7 @@ const mount = () => renderHook(() => useRelayInviteFlow(CODE));
 
 beforeEach(() => {
     jest.clearAllMocks();
-    waitUntilSlotVerified.mockResolvedValue(true);
+    mockWaitUntilVerified.mockResolvedValue(true);
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
     rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
@@ -170,7 +170,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     /** Pins the handshake open so a test can assert nothing was sent while it is pending. */
     const holdHandshake = () => {
         let release: (verified: boolean) => void = () => undefined;
-        waitUntilSlotVerified.mockReturnValue(
+        mockWaitUntilVerified.mockReturnValue(
             new Promise<boolean>(resolve => {
                 release = resolve;
             })
@@ -183,7 +183,7 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
         const { result } = mount();
 
         // Reproduces a cold boot: nothing must go out before the handshake finishes.
-        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalledWith('default', 10_000));
+        await waitFor(() => expect(mockWaitUntilVerified).toHaveBeenCalledWith('default', 10_000));
         expect(getInvite).not.toHaveBeenCalled();
         expect(result.current.phase).toBe('loading');
 
@@ -194,13 +194,13 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     it('active 슬롯이 아니라 relay 슬롯을 기다린다', async () => {
         mount();
 
-        // If a cloud session is up, active is cloud — gating on waitUntilVerified would not wait for relay.
-        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalled());
-        expect(waitUntilSlotVerified.mock.calls[0][0]).toBe('default');
+        // If a cloud session is up, active is cloud — gating on the active slot would not wait for relay.
+        await waitFor(() => expect(mockWaitUntilVerified).toHaveBeenCalled());
+        expect(mockWaitUntilVerified.mock.calls[0][0]).toBe('default');
     });
 
     it('핸드셰이크가 타임아웃해도 조회는 시도한다 (best-effort)', async () => {
-        waitUntilSlotVerified.mockResolvedValue(false);
+        mockWaitUntilVerified.mockResolvedValue(false);
         const { result } = mount();
 
         await waitFor(() => expect(result.current.phase).toBe('review'));
@@ -231,7 +231,7 @@ describe('useRelayInviteFlow — relay socket closed under a request', () => {
         await waitFor(() => expect(result.current.phase).toBe('review'));
         expect(getInvite).toHaveBeenCalledTimes(2);
         // The retry waited for the relay to verify again, not just the entry's own wait.
-        expect(waitUntilSlotVerified).toHaveBeenCalledTimes(2);
+        expect(mockWaitUntilVerified).toHaveBeenCalledTimes(2);
         expect(loggerError).not.toHaveBeenCalled();
         expect(loggerWarn).toHaveBeenCalledWith(
             'INVITE',
@@ -258,7 +258,7 @@ describe('useRelayInviteFlow — relay socket closed under a request', () => {
 
     it('does not send the read again when the relay did not come back within the wait', async () => {
         getInvite.mockRejectedValueOnce(socketClosed());
-        waitUntilSlotVerified.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+        mockWaitUntilVerified.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
         const { result } = mount();
 
         await waitFor(() => expect(result.current.notice).toBe('generic'));
@@ -271,19 +271,19 @@ describe('useRelayInviteFlow — relay socket closed under a request', () => {
 
         await waitFor(() => expect(result.current.notice).toBe('notFound'));
         expect(getInvite).toHaveBeenCalledTimes(1);
-        expect(waitUntilSlotVerified).toHaveBeenCalledTimes(1);
+        expect(mockWaitUntilVerified).toHaveBeenCalledTimes(1);
     });
 
     it('sends nothing more once the flow is gone while the retry waits for the relay', async () => {
         getInvite.mockRejectedValueOnce(socketClosed());
         let release: (verified: boolean) => void = () => undefined;
-        waitUntilSlotVerified.mockResolvedValueOnce(true).mockReturnValueOnce(
+        mockWaitUntilVerified.mockResolvedValueOnce(true).mockReturnValueOnce(
             new Promise<boolean>(resolve => {
                 release = resolve;
             })
         );
         const { unmount } = mount();
-        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(mockWaitUntilVerified).toHaveBeenCalledTimes(2));
 
         unmount();
         await act(async () => release(true));

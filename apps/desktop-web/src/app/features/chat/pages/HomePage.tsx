@@ -112,7 +112,7 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 // rolls the selection back — stranding the notification target unopened. Wait for the base
 // handshake first; on timeout fire anyway (best-effort, no worse than an immediate switch).
 const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
-    await runtime.connection.getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+    await runtime.connection.waitUntilVerified(null, HANDSHAKE_WAIT_TIMEOUT_MS);
     doSwitch();
 };
 
