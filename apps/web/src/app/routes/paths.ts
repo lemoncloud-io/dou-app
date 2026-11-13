@@ -37,6 +37,9 @@ export const ROUTES = {
     // ── Main entry (Private) ─────────────────────────────────────
     home: '/',
 
+    // ── Notifications (Private) — the bottom nav's middle tab ─────
+    notifications: '/notifications',
+
     // ── Channel (Private) ────────────────────────────────────────
     channels: {
         root: '/channels',

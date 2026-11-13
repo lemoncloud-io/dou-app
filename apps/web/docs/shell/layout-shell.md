@@ -14,13 +14,13 @@ own nav.
 
 | Layer                              | Owns                                                                           |
 | ---------------------------------- | ------------------------------------------------------------------------------ |
-| `UnifiedLayout` (apps/web)         | whether the nav shows, the unread total it is fed                              |
-| `BottomNavigation` (apps/web)      | the 2-tab route set, active-tab matching, navigation on select                 |
+| `UnifiedLayout` (apps/web)         | whether the nav shows, the unread total and notification dot it is fed         |
+| `BottomNavigation` (apps/web)      | the 3-tab route set, active-tab matching, navigation on select                 |
 | `FloatingTabBar` (libs/web-ui-kit) | stateless rendering — pill, icons, badge, floating position, safe-area padding |
 
 `FloatingTabBar` knows nothing about `react-router` or the app's routes: everything it draws comes
 in as props (`items`, `onSelect`). `BottomNavigation` is the adapter that connects those props to
-`ROUTES.home` / `ROUTES.mypage.root` and `useLocation()`.
+`ROUTES.home` / `ROUTES.notifications` / `ROUTES.mypage.root` and `useLocation()`.
 
 ```ts
 // libs/web-ui-kit — no react-router import
@@ -31,6 +31,8 @@ export interface FloatingTabBarItem {
     activeIcon?: React.ReactNode;
     badge?: number; // > 0 shows it; above badgeMax (default 999) clamps to "+999"
     badgeLabel?: string; // aria-label becomes "{label}, {badgeLabel}" — the name always leads
+    dot?: boolean; // a red dot on the icon instead of a count; a count wins when both are set
+    dotLabel?: string;
     active?: boolean;
 }
 ```
@@ -40,8 +42,13 @@ export interface FloatingTabBarItem {
 The selected tab is a tinted capsule holding its filled icon and its name; every other tab is its line
 icon alone, so an unselected tab is named for screen readers by its `aria-label` only. `BottomNavigation`
 passes each tab both glyphs (`icon`, `activeIcon`: `IconNavChat`/`IconNavChatSolid`,
-`IconNavMy`/`IconNavMySolid` from the kit). The pill hugs its tabs: four would land on the design's
-343px, and the two tabs there are today make a narrower pill centred over the column.
+`IconNavBell`/`IconNavBellSolid`, `IconNavMy`/`IconNavMySolid` from the kit). The tabs are chat,
+notifications and MY; the design's fourth, mini apps, waits for its own design. The pill hugs its
+tabs: four would land on the design's 343px, and three make a narrower pill centred over the column.
+
+The notifications tab carries a dot, not a count, while the inbox where the session is holds an unread
+item (`hasUnreadInScope(useScopedNotifications())`, worked out in `UnifiedLayout` like the chat
+count).
 
 The unread badge hangs off the icon's top-right corner on an icon-only tab, and moves to the
 capsule's own corner when its tab is selected, since the name starts right under where it would
@@ -67,15 +74,15 @@ overlay (sheets, dialogs, the snackbar) would then draw beneath it. ADR-0286 has
 flowchart TD
     A[UnifiedLayout render] --> U[useActiveCloudUnreads]
     A --> B{pathname in BOTTOM_NAV_PATHS?}
-    B -- "'/' or '/mypage'" --> C[BottomNavigation unreadTotal]
+    B -- "'/', '/notifications' or '/mypage'" --> C[BottomNavigation unreadTotal, dot]
     B -- anything else --> D[Outlet only]
     C --> H[FloatingTabBar]
     U -- unreadTotal --> C
 ```
 
 `BOTTOM_NAV_PATHS` (`UnifiedLayout.tsx`) is an exact-match whitelist of `[ROUTES.home,
-ROUTES.mypage.root]` — a detail page, an edit screen, or a chat room hides the nav by not being on
-the list, not by an exclusion rule. Adding a third tab destination means adding it here.
+ROUTES.notifications, ROUTES.mypage.root]` — a detail page, an edit screen, or a chat room hides the
+nav by not being on the list, not by an exclusion rule. Adding a tab destination means adding it here.
 
 A second, unrelated whitelist — `MAIN_VARIANT_PATHS` (currently just `/`) — picks the container's
 scroll model (`min-h-dvh`, page scroll vs. a fixed `h-dvh` detail shell). The two lists answer

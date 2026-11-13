@@ -7,11 +7,14 @@ import { useHandlePushNavigation } from '../../bridge';
 import {
     useActiveCloudUnreads,
     useBackHandler,
+    useScopedNotifications,
     useDeviceSync,
     useInAppPushMessage,
     useOpenPendingInviteChannel,
 } from '../../hooks';
 import { ROUTES } from '../../routes/paths';
+import { useBottomNavSuppression } from '../../stores/useBottomNavSuppression';
+import { hasUnreadInScope } from '../../utils/notifications';
 import { BottomNavigation } from '../components';
 
 const MAIN_VARIANT_PATHS = ['/'];
@@ -23,7 +26,7 @@ const isMainVariant = (pathname: string): boolean =>
 
 // Main tab destinations that surface the floating bottom nav. Detail/edit/room
 // screens are intentionally absent — the nav hides there. Exact match only.
-const BOTTOM_NAV_PATHS: string[] = [ROUTES.home, ROUTES.mypage.root];
+const BOTTOM_NAV_PATHS: string[] = [ROUTES.home, ROUTES.notifications, ROUTES.mypage.root];
 
 const shouldShowBottomNav = (pathname: string): boolean => BOTTOM_NAV_PATHS.includes(pathname);
 
@@ -43,12 +46,16 @@ export const UnifiedLayout = (): JSX.Element => {
 
     // Own the bottom-nav unread badge here (the layout that renders the nav), rather than inside
     // the nav component. The native app-icon badge is a separate concern owned by UnreadBadgeRunner.
-    const showBottomNav = shouldShowBottomNav(pathname);
+    // A tab screen may take the nav away for a moment (the notifications tab while selecting).
+    const isNavSuppressed = useBottomNavSuppression(state => state.suppressed);
+    const showBottomNav = shouldShowBottomNav(pathname) && !isNavSuppressed;
     // A read of the app-wide shared observation, not a subscription. This layout wraps EVERY route,
     // so the cloud-wide channel + per-channel join observers it used to open here made any join
     // write in the cloud re-render the shell — from inside a chat room, for a badge that only shows
     // on home and mypage. Ownership now sits in ActiveCloudDataProvider (see ActiveCloudData).
     const { total: unreadTotal } = useActiveCloudUnreads();
+    // The notifications tab's dot: something unread in the inbox of the cloud and place the session is in.
+    const hasUnreadNotifications = hasUnreadInScope(useScopedNotifications());
 
     return (
         <div
@@ -66,7 +73,9 @@ export const UnifiedLayout = (): JSX.Element => {
             <Outlet />
             {/* The floating bottom nav is owned by the shell and shown only on main
                 tab destinations; pages no longer render it themselves. */}
-            {showBottomNav && <BottomNavigation unreadTotal={unreadTotal} />}
+            {showBottomNav && (
+                <BottomNavigation unreadTotal={unreadTotal} hasUnreadNotifications={hasUnreadNotifications} />
+            )}
         </div>
     );
 };

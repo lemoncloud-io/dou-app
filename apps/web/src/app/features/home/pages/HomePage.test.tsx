@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
 import { useHomeChatTabStore } from '../stores/useHomeChatTabStore';
+import { useFindMeSheetRequest } from '../../../stores/useFindMeSheetRequest';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_PLACES } from '../../../utils';
 
@@ -96,6 +97,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </header>
     ),
     EmptyState: () => <div data-testid="empty-state" />,
+    IconChevronRight: () => <i />,
     ProfileAvatar: () => <img alt="" />,
     // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
     SegmentedTabs: ({ items, value, onChange, trailing }: any) => (
@@ -152,6 +154,8 @@ jest.mock('../../../hooks', () => ({
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
     }),
     useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
+    // The inbox where the session is — what the find-me row counts. Seeded per test.
+    useScopedNotifications: () => scopedNotifications,
     useHomeChannels: () => ({ channels: homeChannels, isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds }),
     // Registration is the one join concern still scoped to home — a no-op here.
@@ -286,6 +290,8 @@ let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
 // section is read from it.
 let activeCloudChannels: unknown[] = [];
+// The notification inbox's items in scope — the find-me row counts the unread mentions and replies.
+let scopedNotifications: unknown[] = [];
 // The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
 // Clouds I am a guest in. The active cloud listed here makes me an invited member, not its owner.
@@ -326,6 +332,7 @@ beforeEach(() => {
     isSwitchingPlace = false;
     isProfileNudgeVisible = false;
     activeCloudChannels = [];
+    scopedNotifications = [];
     homeChannels = [];
     invitedClouds = [];
     selectedSiteId = 'site-1';
@@ -1079,5 +1086,54 @@ describe('HomePage — place profile banner', () => {
         render(<HomePage />);
 
         expect(usePlaceProfileNudge).toHaveBeenLastCalledWith({ nick: 'me' });
+    });
+});
+
+// "Messages looking for you": the unread mentions and replies to me, under the tabs. The row asks the
+// shell for the sheet; it is not drawn while nothing is waiting.
+describe('HomePage — find-me row', () => {
+    const item = (over: Record<string, unknown>) => ({
+        id: String(Math.random()),
+        cloudId: 'cloud-1',
+        channelId: 'c',
+        kind: 'mention',
+        ownerName: 'Sis',
+        content: 'hi',
+        createdAt: 1,
+        read: false,
+        ...over,
+    });
+
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+        useFindMeSheetRequest.setState({ open: false });
+    });
+
+    it('counts unread mentions and replies to me, and nothing else', () => {
+        scopedNotifications = [
+            item({ kind: 'mention' }),
+            item({ kind: 'replyToMine' }),
+            item({ kind: 'reaction' }),
+            item({ kind: 'participatedThread' }),
+            item({ kind: 'mention', read: true }),
+        ];
+        render(<HomePage />);
+
+        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":2}');
+    });
+
+    it('asks for the sheet when tapped', () => {
+        scopedNotifications = [item({})];
+        render(<HomePage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /homePage\.findMe/ }));
+        expect(useFindMeSheetRequest.getState().open).toBe(true);
+    });
+
+    it('is not drawn while nothing is looking for me', () => {
+        scopedNotifications = [item({ kind: 'reaction' })];
+        render(<HomePage />);
+
+        expect(screen.queryByRole('button', { name: /homePage\.findMe/ })).not.toBeInTheDocument();
     });
 });

@@ -158,6 +158,11 @@ on a horizontally scrolling line — the current place filled navy, every place 
 and, for an owner who may add one, a ＋ at its end. With no place selected, the no-place guidance (or
 the loading state) leads, and the account's notes-to-self room still lists below it.
 
+Under the tabs, "나를 찾는 메시지 n ›" / "Looking for you n" counts the unread mentions of me and
+replies to my messages where the session is (`findMe`), and is not drawn at zero. It opens the
+find-me sheet, which the notifications feature owns: home raises `app/stores/useFindMeSheetRequest`,
+and the private shell mounts the sheet's host ([notifications](../notifications/README.md#screens)).
+
 Each cloud row carries, beside its unread count, the unread mentions of me and the unread replies in
 my threads in that room, counted from the device's notification inbox (`useNotificationStore`,
 [notifications](../notifications/README.md)) for the selected cloud only.

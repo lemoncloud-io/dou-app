@@ -123,8 +123,8 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 63<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 41<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    C["composites × 64<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    F["foundations × 42<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 69 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
@@ -170,12 +170,12 @@ libs/web-ui-kit/src/
 │   ├── styles/tokens.css   155 lines of HSL channels, light + `.dark`
 │   ├── icons/              69 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   12 groups, 41 components
-│   avatar(7) · button(9) · input(8) · badge(7) · brand(2) · chip(2) ·
+├── foundations/   12 groups, 42 components
+│   avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 63 components
+└── composites/    10 groups, 64 components
     chat(18) · list(7) · media(9) · overlay(6) · section(4) · header(3) ·
-    layout(4) · subscription(7) · feedback(2) · navigation(3)
+    layout(4) · subscription(7) · feedback(3) · navigation(3)
 ```
 
 Ten files are internal — used across a group but absent from every barrel, so grepping the public

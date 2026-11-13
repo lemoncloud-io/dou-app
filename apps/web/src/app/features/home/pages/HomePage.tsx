@@ -12,6 +12,7 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 import {
     AppHeader,
     EmptyState,
+    IconChevronRight,
     ProfileAvatar,
     PullToRefresh,
     SegmentedTabs,
@@ -33,9 +34,12 @@ import {
     useMenuNavigate,
     useMyProfile,
     useOnboarding,
+    useScopedNotifications,
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
+import { useFindMeSheetRequest } from '../../../stores/useFindMeSheetRequest';
+import { findMe } from '../../../utils/notifications';
 import { useCloudSelfChannels } from '../../channels/hooks';
 import { channelKindOf, isInCloudSelfSection } from '../../channels/lib';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
@@ -237,6 +241,10 @@ export const HomePage = () => {
     const setChatTab = useHomeChatTabStore(state => state.setTab);
     const allRooms = useMemo(() => [...dmSectionRooms, ...placeGroups], [dmSectionRooms, placeGroups]);
     const roomsByTab: Record<HomeChatTab, typeof allRooms> = { all: allRooms, group: placeGroups, dm: dmSectionRooms };
+    // "Messages looking for you": the unread mentions and replies to me where the session is. The
+    // row opens the sheet the notifications feature hosts; it is not drawn when nothing is waiting.
+    const findMeCount = findMe(useScopedNotifications()).length;
+    const requestFindMeSheet = useFindMeSheetRequest(state => state.request);
     // Sent relay invites (ADR-0089 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
@@ -638,6 +646,16 @@ export const HomePage = () => {
                                         />
                                     }
                                 />
+                                {findMeCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={requestFindMeSheet}
+                                        className="flex w-full items-center gap-1 px-4 py-2.5 text-[13px] font-medium leading-[17px] tracking-[-0.26px] text-point-blue"
+                                    >
+                                        {t('homePage.findMe', { count: findMeCount })}
+                                        <IconChevronRight aria-hidden className="size-4" />
+                                    </button>
+                                )}
                                 <ChannelList
                                     bare
                                     channels={roomsByTab[chatTab]}
