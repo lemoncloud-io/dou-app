@@ -101,8 +101,12 @@ jobs:
                     - project: admin
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
+                    # landing reuses WEB_* env secrets, as in deploy-dev.yml and deploy-prod.yml: its
+                    # account surface signs in to the web app's relay session, so every address must
+                    # match the web app's. Only its S3/CloudFront target differs (LANDING_* in the
+                    # deploy step). There are no LANDING_<STAGE>_* env secrets.
                     - project: landing
-                      prefix: LANDING
+                      prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_landing_dev == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
@@ -242,8 +246,12 @@ jobs:
                     - project: admin
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
+                    # landing reuses WEB_* env secrets, as in deploy-dev.yml and deploy-prod.yml: its
+                    # account surface signs in to the web app's relay session, so every address must
+                    # match the web app's. Only its S3/CloudFront target differs (LANDING_* in the
+                    # deploy step). There are no LANDING_<STAGE>_* env secrets.
                     - project: landing
-                      prefix: LANDING
+                      prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_landing_prod == 'true' && 'true' || 'false' }}
         steps:
             - name: Skip if not selected
