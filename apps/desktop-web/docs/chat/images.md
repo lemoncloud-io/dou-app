@@ -128,6 +128,15 @@ images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matc
 the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
 a browser, Chrome may ask once whether the site may download several files.
 
+When a save ends, the desktop app says so (`useDownloadNotices`, mounted once in `DesktopLayout`):
+"Saved song.mp3" with "Show in Finder" ("Show in Explorer" on Windows), and saves that end within a
+few seconds of each other — Download all — share one notice that counts them ("Saved 6 files"), its
+button showing the last. A save that broke off says so; a save dialog dismissed says nothing. Only the
+shell knows where a file landed or whether its dialog was dismissed, so it reports each download its
+page started (`electronAPI.downloads.onDone`) and keeps the finished ones' paths itself: the page
+names one by the id it was told (`reveal(id)`), never by a path, so it can only show what the shell
+saved. A browser has no such notice.
+
 Save and copy fetch the image's bytes (`fetchImage`) rather than pointing an anchor at its address:
 a sent image lives on another origin, where Chromium ignores `download` and navigates instead. That
 fetch skips the HTTP cache on purpose. The viewer, and a tile with no thumbnail, has usually drawn
@@ -191,9 +200,8 @@ lists them under the images:
       stop the file with it. For the same reason the host asks before Delete file, rather than the
       row's own confirm. Opening it puts focus on the dialog itself, not a control — every control
       carries a hint, and a hint opened by that focus would take the first Esc. The bars are a pattern drawn from the name, not the file's waveform: drawing that would
-      fetch the whole file before it plays, and the card streams it. Link copy, forward and "Show in
-      Finder" from the design are not offered: the server has no member-only link or forward, and the
-      shell does not say where a download landed.
+      fetch the whole file before it plays, and the card streams it. Link copy and forward from the design are not offered: the server has no member-only link or
+      forward.
     - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
       tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
       at the card's speed, and a file paused for another keeps its place. The element is never put in

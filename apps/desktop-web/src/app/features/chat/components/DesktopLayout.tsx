@@ -11,6 +11,7 @@ import {
     PANEL_DOCK_WIDTH,
     PanelResizeHandle,
     PanelShellContext,
+    useDownloadNotices,
     useEscapeClose,
     usePanelWidth,
     useSelectedChannelStore,
@@ -127,6 +128,8 @@ export const DesktopLayout = ({
     overlay,
 }: DesktopLayoutProps) => {
     const { t } = useTranslation();
+    // A save the shell finished: "Saved …" and the way to show it.
+    useDownloadNotices();
     const isDrawer = useViewportNarrow();
     const isCompact = useViewportNarrow(COMPACT_SHELL_WIDTH);
     const [isOpen, setIsOpen] = useState(false);
