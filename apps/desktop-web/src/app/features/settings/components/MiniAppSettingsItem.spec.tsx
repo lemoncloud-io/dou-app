@@ -121,6 +121,13 @@ describe('MiniAppSettingsItem', () => {
         expect(screen.queryByText('Mini apps')).toBeNull();
     });
 
+    it.each([['PROD'], ['']])('is absent on a %j build: mini apps are not released to production', async stage => {
+        vi.stubEnv('VITE_ENV', stage);
+        await renderItem();
+
+        expect(screen.queryByText('Mini apps')).toBeNull();
+    });
+
     it('is absent in the Default Cloud, which has no owner and no mini apps', async () => {
         env.activeCloudId = 'default';
         await renderItem();

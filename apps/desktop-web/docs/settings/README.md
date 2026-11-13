@@ -93,7 +93,9 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
   desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
   shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
-  has no owner and no mini apps.
+  has no owner and no mini apps. It is also hidden on production: mini apps are not released there
+  yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV` (a build with no stage hides it
+  too).
 - **Open mini apps.** Everyone in the cloud gets this one row, and it always opens DoU's hub
   (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise). The hub is the
   way in: it lists the cloud's mini apps and, when one is chosen, closes with

@@ -6,8 +6,8 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 import { useNotificationPrefsStore } from '../../../shared';
 
 /**
- * Quiet-hours breakthrough for mentions that name me. Rendered inside the
- * quiet-hours card, and only while quiet hours are set — a switch with no
+ * Quiet-hours breakthrough for mentions that name me. Rendered as the last
+ * row of the notification card, and only while quiet hours are set — a switch with no
  * window to break through would read as a second notification master switch.
  */
 export const QuietHoursMentionSection = () => {
@@ -23,8 +23,8 @@ export const QuietHoursMentionSection = () => {
     const label = t('settings.quietHoursMention');
 
     return (
-        <div className="flex items-center justify-between gap-4 pt-2">
-            <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex items-center justify-between gap-4 px-5 py-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <label htmlFor={switchId} className="w-fit cursor-pointer text-callout font-medium text-foreground">
                     {label}
                 </label>
