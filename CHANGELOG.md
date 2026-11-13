@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] - root@0.154.2, @chatic/landing@0.18.1
+
+### Bug Fixes
+
+- (landing) sign in by the provider's account id, as the apps do, not by its email
+
 ## [2026-11-13] - root@0.154.1, @chatic/web@0.87.1
 
 ### Features
