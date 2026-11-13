@@ -433,6 +433,20 @@ leaves for it; the provider sends it back to `/subscription/login/callback`, who
 relay session the web app uses. Signing out lands on the home page, and the server makes an account for
 a sign-in it does not know, so W-02b is reached by the screen tests alone today.
 
+**The code is exchanged signed, as the desktop app does** (`lib/port/http/signInExchange.ts`). This
+browser's device guest signs in first — one guest per browser, its id kept in the browser's storage —
+and the code goes to `verify-oauth-code` with that session (`linkCurrentSession`). The server then finds
+the user by the provider's own account id, the same user the phone's native sign-in finds, and keeps the
+guest as the session's link. The relay's sessionless exchange (`/oauth/<provider>/token`, which the admin
+console uses) is not used here: it finds the user by the provider's email first, which need not be the
+user the app signs in as — and a subscription bought here would then belong to an account the app does
+not use.
+
+The subscription server takes only a user that is not a guest. An account that began on the phone as a
+device user and later linked Google or Apple is still a guest there, so it signs in here and is then
+refused (`403 … main user only`) when it starts a checkout. That rule is the server's; this site does not
+work around it.
+
 ### Plans before checkout opens
 
 Where `isSubscriptionAccountOpen` is false — a host the gate shuts (for example a CDN origin
@@ -886,7 +900,7 @@ not trigger.
   against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 656 tests
+    npx nx test @chatic/landing   # 660 tests
     ```
 
 - **The account-surface gate is the hostname and the build, and then the addresses.**
@@ -952,7 +966,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 656 tests pass; in CI
+npx nx test @chatic/landing                               # 660 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
