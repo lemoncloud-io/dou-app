@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import {
     Download,
+    Forward,
+    Link2,
     LoaderCircle,
     MessageSquareReply,
     MessagesSquare,
@@ -46,6 +48,10 @@ export interface VoiceDetailDialogProps {
     /** Closes the dialog and takes the feed to the message the file came with. */
     onShowInChat?: () => void;
     onReply?: () => void;
+    /** Copies a link to the message the file came with; the dialog stays open. */
+    onCopyLink?: () => void;
+    /** Closes the dialog and opens the channel picker to send the file again elsewhere. */
+    onForward?: () => void;
     /** Asks to delete the message the file came with. Absent where the reader cannot delete it. */
     onDelete?: () => void;
 }
@@ -75,6 +81,8 @@ export const VoiceDetailDialog = ({
     onSave,
     onShowInChat,
     onReply,
+    onCopyLink,
+    onForward,
     onDelete,
 }: VoiceDetailDialogProps) => {
     const { t } = useTranslation();
@@ -183,6 +191,18 @@ export const VoiceDetailDialog = ({
                                 <DropdownMenuItem onClick={thenClose(onReply)} className="cursor-pointer py-2">
                                     <MessageSquareReply size={16} aria-hidden />
                                     {t('chat.file.replyInThread')}
+                                </DropdownMenuItem>
+                            )}
+                            {onCopyLink && (
+                                <DropdownMenuItem onClick={onCopyLink} className="cursor-pointer py-2">
+                                    <Link2 size={16} aria-hidden />
+                                    {t('chat.file.copyLink')}
+                                </DropdownMenuItem>
+                            )}
+                            {onForward && (
+                                <DropdownMenuItem onClick={thenClose(onForward)} className="cursor-pointer py-2">
+                                    <Forward size={16} aria-hidden />
+                                    {t('chat.file.forward')}
                                 </DropdownMenuItem>
                             )}
                             {onDelete && (

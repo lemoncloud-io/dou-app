@@ -443,6 +443,38 @@ describe('useSendImages', () => {
         unmount();
     });
 
+    it('leaves the room screen’s rows alone when a sender that does not attach unmounts', async () => {
+        mockSendImageMessage.mockResolvedValue(failed);
+        const room = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        await act(() => room.result.current.sendImages(files()));
+        const roomRow = await chat.createPendingImageChat.mock.results[0].value;
+        await waitFor(() => expect(chat.listPendingImageChats).toHaveBeenCalledTimes(1));
+
+        const forward = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1', attach: false }));
+        forward.unmount();
+
+        expect(room.result.current.canRetry(roomRow)).toBe(true);
+        expect(revoked).toHaveLength(0);
+        // Nor does it sweep the room it sends to: only the room's own attach did.
+        expect(chat.listPendingImageChats).toHaveBeenCalledTimes(1);
+        room.unmount();
+    });
+
+    it('keeps a non-attached send’s failed files only while the room’s screen is open', async () => {
+        mockSendImageMessage.mockResolvedValue(failed);
+        const room = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        const forward = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1', attach: false }));
+        await act(() => forward.result.current.sendImages([new File(['a'], 'a.m4a')]));
+        const shown = await chat.createPendingImageChat.mock.results[0].value;
+        expect(room.result.current.canRetry(shown)).toBe(true);
+        room.unmount();
+
+        await act(() => forward.result.current.sendImages([new File(['b'], 'b.m4a')]));
+        const unseen = await chat.createPendingImageChat.mock.results[1].value;
+        expect(forward.result.current.canRetry(unseen)).toBe(false);
+        forward.unmount();
+    });
+
     it('lets a send that is still running finish after unmount, then drops its files', async () => {
         let finish: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementation(() => new Promise(resolve => (finish = resolve)));

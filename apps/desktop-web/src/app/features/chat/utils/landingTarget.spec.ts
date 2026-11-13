@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { landingTarget } from './landingTarget';
+import { landingTarget, openLandingOf } from './landingTarget';
 
 const rows = (...ids: string[]) => ids.map(id => ({ id }));
 
@@ -97,5 +97,16 @@ describe('landingTarget', () => {
                 landingTarget(rows('C1'), { pendingChannelId: null, selectedChannelId: 'gone', placeSettled: false })
             ).toEqual({ kind: 'fallback', channelId: 'C1' });
         });
+    });
+});
+
+describe('openLandingOf', () => {
+    it('opens a reply in its thread, even when the link names the reply', () => {
+        expect(openLandingOf({ rootId: '3', chatNo: 7 })).toEqual({ kind: 'thread', rootId: '3' });
+    });
+
+    it('lands a copied link on its message, and anything else at the latest', () => {
+        expect(openLandingOf({ chatNo: 0 })).toEqual({ kind: 'message', chatNo: 0 });
+        expect(openLandingOf({})).toEqual({ kind: 'latest' });
     });
 });

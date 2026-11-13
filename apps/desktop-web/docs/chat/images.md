@@ -210,8 +210,30 @@ lists them under the images:
       is kept for the next open. A
       decode is kept for the page per address. Until
       it lands, and for good when the browser cannot decode the file, a pattern drawn from the name
-      stands in — playback never waits on it, and the card streams the file on its own. Link copy and forward from the design are not offered: the server has no member-only link or
-      forward.
+      stands in — playback never waits on it, and the card streams the file on its own.
+    - **Copy link**, in the card's More and the dialog's, puts a link to the message on the clipboard:
+      `chatic://message/<cloud>/<place>/<channel>/<chatNo>`, `?root=<root>` for a thread reply, and
+      `chatic-dev:` from the dev channel (the registry's `net.deeplink.desktopProtocol`, the scheme the
+      sign-in hand-off uses). The cloud and place are the ones the reader is in at the click; the Default
+      Cloud, which has no id in the session, is written `default`, the name the home screen switches
+      to. Opened
+      from anywhere on the machine, the shell hands it to the page as it does a notification's link
+      (`parsePushDeeplink`), and the home screen goes to that cloud, place and channel and lands the
+      feed on the message (`requestMessageJump`) rather than at the bottom; a reply opens its thread.
+      The link carries no access of its own — it only resolves for someone already in that channel,
+      which is the member-only link the design asks for without a server link. A message not yet
+      numbered by the server has no link to copy.
+      Opening one may switch the reader's cloud or place without asking, as a notification's click
+      does; a channel the reader is not in is never reached, and the open lapses.
+    - **Forward**, in the same two menus, sends the file again as a new message: the reader picks a
+      channel of the place on screen, the same list as the quick switcher (`ForwardFileDialog`,
+      mounted beside it in `ChannelList`). The server has no forward, so the file is fetched and sent
+      through the usual attachment send to that channel (`useSendImages` keyed to the pick, with
+      `attach: false`: that channel's own screen may be open, and its rows stay that screen's), as the
+      reader's own message. A send runs once however the channel list remounts meanwhile, and the
+      picker closes when the list goes, so a place switch never offers another place's channels. A toast says where it is going once the bytes are in; the row in that
+      channel shows the upload as any send does, and a failed one stays there as failed. A file that
+      will not load is reported and nothing is sent. Other places and clouds are not offered.
     - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
       tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
       at the card's speed, and a file paused for another keeps its place. The element is never put in

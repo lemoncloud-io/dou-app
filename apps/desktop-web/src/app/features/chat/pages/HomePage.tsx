@@ -99,7 +99,7 @@ import {
     pendingRedirectPlace,
 } from '../utils';
 import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
-import { originFor, placeToEnter, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
+import { openLandingOf, originFor, placeToEnter, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -389,7 +389,8 @@ export const HomePage = () => {
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { cloudId, channelId, rootId } = pendingOpen;
+        const { cloudId, channelId } = pendingOpen;
+        const landing = openLandingOf(pendingOpen);
         const activeCloud = activeCloudId ?? 'default';
         const sameCloud = !cloudId || cloudId === activeCloud;
         // A notification is a detour like any other jump, the open channel included:
@@ -397,8 +398,9 @@ export const HomePage = () => {
         recordOrigin(channelId);
         // A reply opens the thread panel, a top-level message lands at the bottom of the feed.
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
-        pendingThreadRef.current = rootId ? { channelId, rootId } : null;
-        pendingOpenAtBottomRef.current = rootId ? null : channelId;
+        pendingThreadRef.current = landing.kind === 'thread' ? { channelId, rootId: landing.rootId } : null;
+        pendingOpenAtBottomRef.current = landing.kind === 'latest' ? channelId : null;
+        pendingJumpRef.current = landing.kind === 'message' ? { channelId, chatNo: landing.chatNo } : null;
         // A 1:1 opens in its own place, and a notification names the place its sender was in — but
         // the room's row is not known until the rows load (an open that remounts HomePage arrives
         // before then). Hold it; the redirect below settles the place once the list is in.
@@ -449,8 +451,11 @@ export const HomePage = () => {
             closeSaved();
             setRoomOpenedHere(true);
             selectChannel(channelId);
-            if (rootId) openThreadNowOrDefer(channelId, rootId);
-            else {
+            if (landing.kind === 'thread') openThreadNowOrDefer(channelId, landing.rootId);
+            else if (landing.kind === 'message') {
+                pendingJumpRef.current = null;
+                requestMessageJump(channelId, landing.chatNo);
+            } else {
                 requestOpenAtBottom(channelId);
                 pendingOpenAtBottomRef.current = null;
             }

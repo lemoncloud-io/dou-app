@@ -8,6 +8,7 @@ import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { useForwardFileStore } from './ForwardFileDialog';
 import { MessageFiles } from './MessageFiles';
 import { voiceElementFor } from './voicePlayback';
 
@@ -18,6 +19,9 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast: vi.fn(),
 }));
 
+const sessionCloud = vi.hoisted(() => ({
+    value: { cloudId: 'cl-1' as string | null, siteId: 'site-1' as string | null },
+}));
 const sendProgress = vi.hoisted(() => ({ value: undefined as readonly (number | undefined)[] | undefined }));
 vi.mock('@chatic/app-runtime', async importOriginal => {
     const original = await importOriginal<typeof AppRuntime>();
@@ -26,6 +30,10 @@ vi.mock('@chatic/app-runtime', async importOriginal => {
         runtime: {
             ...original.runtime,
             data: { ...original.runtime.data, useImageSendProgress: () => sendProgress.value },
+            session: {
+                ...original.runtime.session,
+                getGlobalSessionContext: () => ({ cloud: sessionCloud.value }),
+            },
         },
     };
 });
@@ -140,6 +148,50 @@ describe('a voice card', () => {
         expect(await screen.findByText('Delete this message?')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Delete file' }));
         expect(onDeleteMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('copies a link that opens the app on its message', async () => {
+        const writeText = vi.fn(async () => undefined);
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+        const message = { ...sent([song('a')]), chatNo: 42 } as DomainChat;
+        render(<MessageFiles author={author} message={message} />, { wrapper });
+        await openMore('song.mp3');
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' }));
+        expect(writeText).toHaveBeenCalledWith('chatic://message/cl-1/site-1/ch-1/42');
+        await vi.waitFor(() => expect(toast).toHaveBeenCalledWith({ description: 'Link copied' }));
+    });
+
+    it('opens the forward picker for the file from its menu', async () => {
+        render(<MessageFiles author={author} message={sent([song('a')])} />, { wrapper });
+        await openMore('song.mp3');
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Forward' }));
+        expect(useForwardFileStore.getState().request).toEqual({
+            url: 'https://s/a',
+            name: 'song.mp3',
+            contentType: 'audio/mpeg',
+        });
+        act(() => useForwardFileStore.getState().close());
+    });
+
+    // The Default Cloud has no id in the session; the link names it, so it leaves another cloud for it.
+    it('names the Default Cloud in a link copied there', async () => {
+        sessionCloud.value = { cloudId: null, siteId: null };
+        const writeText = vi.fn(async () => undefined);
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+        render(<MessageFiles author={author} message={{ ...sent([song('a')]), chatNo: 5 } as DomainChat} />, {
+            wrapper,
+        });
+        await openMore('song.mp3');
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Copy link' }));
+        expect(writeText).toHaveBeenCalledWith('chatic://message/default//ch-1/5');
+        sessionCloud.value = { cloudId: 'cl-1', siteId: 'site-1' };
+    });
+
+    // A message the server has not numbered yet has no address to link to.
+    it('offers no link for a message without its number', async () => {
+        render(<MessageFiles author={author} message={sent([song('a')])} />, { wrapper });
+        await openMore('song.mp3');
+        expect(screen.queryByRole('menuitem', { name: 'Copy link' })).toBeNull();
     });
 
     it("offers no delete on someone else's message", async () => {

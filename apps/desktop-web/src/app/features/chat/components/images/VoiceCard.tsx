@@ -5,6 +5,8 @@ import {
     AlertCircle,
     AudioLines,
     Download,
+    Forward,
+    Link2,
     LoaderCircle,
     MessageSquareReply,
     MoreVertical,
@@ -43,6 +45,10 @@ interface VoiceCardProps {
     onOpen?: () => void;
     /** Stops the message's send while the file uploads. */
     onCancelUpload?: () => void;
+    /** Copies a link to the message. Absent for one the server has not numbered yet. */
+    onCopyLink?: () => void;
+    /** Opens the channel picker to send the file again elsewhere. */
+    onForward?: () => void;
 }
 
 const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
@@ -68,6 +74,8 @@ export const VoiceCard = ({
     onDelete,
     onOpen,
     onCancelUpload,
+    onCopyLink,
+    onForward,
 }: VoiceCardProps) => {
     const { t } = useTranslation();
     const size = file.size !== undefined ? formatFileSize(file.size) : undefined;
@@ -98,6 +106,8 @@ export const VoiceCard = ({
             onReply={onReply}
             onDelete={onDelete}
             onOpen={onOpen}
+            onCopyLink={onCopyLink}
+            onForward={onForward}
         />
     );
 };
@@ -143,6 +153,8 @@ const VoicePlayer = ({
     onReply,
     onDelete,
     onOpen,
+    onCopyLink,
+    onForward,
 }: {
     src: string;
     name: string;
@@ -151,13 +163,24 @@ const VoicePlayer = ({
     onReply?: () => void;
     onDelete?: () => void;
     onOpen?: () => void;
+    onCopyLink?: () => void;
+    onForward?: () => void;
 }) => {
     const { t } = useTranslation();
     const voice = useVoicePlayback(src);
     const { playing, loading, time, duration, failed, rate } = voice;
     const started = playing || time > 0;
 
-    const actions = <VoiceActions name={name} onSave={onSave} onReply={onReply} onDelete={onDelete} />;
+    const actions = (
+        <VoiceActions
+            name={name}
+            onSave={onSave}
+            onReply={onReply}
+            onDelete={onDelete}
+            onCopyLink={onCopyLink}
+            onForward={onForward}
+        />
+    );
 
     if (failed) {
         return (
@@ -267,11 +290,15 @@ const VoiceActions = ({
     onSave,
     onReply,
     onDelete,
+    onCopyLink,
+    onForward,
 }: {
     name: string;
     onSave: () => void;
     onReply?: () => void;
     onDelete?: () => void;
+    onCopyLink?: () => void;
+    onForward?: () => void;
 }) => {
     const { t } = useTranslation();
     return (
@@ -303,6 +330,18 @@ const VoiceActions = ({
                         <DropdownMenuItem onClick={onReply} className="cursor-pointer py-2">
                             <MessageSquareReply size={16} aria-hidden />
                             {t('chat.file.replyInThread')}
+                        </DropdownMenuItem>
+                    )}
+                    {onCopyLink && (
+                        <DropdownMenuItem onClick={onCopyLink} className="cursor-pointer py-2">
+                            <Link2 size={16} aria-hidden />
+                            {t('chat.file.copyLink')}
+                        </DropdownMenuItem>
+                    )}
+                    {onForward && (
+                        <DropdownMenuItem onClick={onForward} className="cursor-pointer py-2">
+                            <Forward size={16} aria-hidden />
+                            {t('chat.file.forward')}
                         </DropdownMenuItem>
                     )}
                     {onDelete && (

@@ -34,6 +34,7 @@ import { useDmIdentities, useLastChat } from '../hooks';
 import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
+import { ForwardFileHost } from './images/ForwardFileDialog';
 import { QuickSwitcher, type ElsewhereChannel } from './QuickSwitcher';
 import { SortableSection, type SectionItem } from './SortableSection';
 
@@ -419,6 +420,8 @@ export const ChannelList = ({
     // out of a place with no channels, and it used to be dead exactly there.
     const dialogs = (
         <>
+            {/* Forward from a file's More menu picks from the same channels as the switcher. */}
+            <ForwardFileHost channels={channels} />
             <QuickSwitcher
                 channels={channels}
                 onSelect={onSelect}

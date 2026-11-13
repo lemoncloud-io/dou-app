@@ -302,6 +302,14 @@ const putFor =
     };
 
 /**
+ * How many screens are attached to each room — a room and its thread are two (see `roomKey`). A sender
+ * that does not attach (`attach: false`) reads it when it writes a row: the files are kept for Retry
+ * only while a screen of that room is there to offer it.
+ */
+const attachedScreens = new Map<string, number>();
+const roomKey = (cid: string, channelId: string, parentId?: string) => `${cid}|${channelId}|${parentId ?? ''}`;
+
+/**
  * Bumped on every change a screen renders from (an entry added, dropped, claimed or settled), so
  * `canRetry` is read again. Without it a row re-rendered by the failure write, which lands before
  * the entry stops being in flight, would keep its Retry hidden until something else re-rendered it.
@@ -430,6 +438,13 @@ export interface UseSendImagesInput {
      * the socket is still reconnecting. Without one the sequence starts at once, as before.
      */
     waitForConnection?: (cid: string) => Promise<boolean>;
+    /**
+     * `false` for a sender that is not the room's screen — a forward picked from another channel. It
+     * neither sweeps the room nor drops anything when it unmounts: the room's own screen, which may be
+     * open at the same time, owns those rows. A row it writes keeps its files for Retry only while a
+     * screen of that room is attached. Defaults to `true`.
+     */
+    attach?: boolean;
 }
 
 /** How `sendImages` packs what was picked. */
@@ -471,6 +486,7 @@ export const useSendImages = ({
     onVideoRefused,
     beforeSweep,
     waitForConnection,
+    attach = true,
 }: UseSendImagesInput) => {
     // Whether this screen is still attached. A send that finishes creating its row after the screen
     // left must not park its files in the page map, where no cleanup would ever reach them.
@@ -744,14 +760,14 @@ export const useSendImages = ({
                 thumbnailed: false,
                 inFlight: true,
                 abort: new AbortController(),
-                detached: !attachedRef.current,
+                detached: attach ? !attachedRef.current : !attachedScreens.get(roomKey(cid, channelId, parentId)),
                 inTurn,
                 timing,
             });
             changed();
             return pendingId;
         },
-        [cid, channelId, parentId]
+        [cid, channelId, parentId, attach]
     );
 
     const sendImages = useCallback(
@@ -880,8 +896,12 @@ export const useSendImages = ({
     }, []);
 
     useEffect(() => {
+        // A sender that is not the room's screen leaves the room's rows to that screen.
+        if (!attach) return;
         let active = true;
         attachedRef.current = true;
+        const key = roomKey(cid, channelId, parentId);
+        attachedScreens.set(key, (attachedScreens.get(key) ?? 0) + 1);
         // Back on a screen whose send is still running: its files are wanted again.
         for (const entry of pendingImages.values()) {
             if (entry.cid === cid && entry.channelId === channelId && entry.parentId === parentId) {
@@ -918,6 +938,9 @@ export const useSendImages = ({
         return () => {
             active = false;
             attachedRef.current = false;
+            const left = (attachedScreens.get(key) ?? 1) - 1;
+            if (left > 0) attachedScreens.set(key, left);
+            else attachedScreens.delete(key);
             // Leaving the channel drops its files (they cannot follow the user anywhere else). A send
             // still running keeps its files until it settles, so it can still finish.
             for (const [pendingId, entry] of pendingImages) {
@@ -927,7 +950,7 @@ export const useSendImages = ({
                 else release(pendingId);
             }
         };
-    }, [cid, channelId, parentId]);
+    }, [cid, channelId, parentId, attach]);
 
     return { sendImages, retry, canRetry, discard, cancel };
 };

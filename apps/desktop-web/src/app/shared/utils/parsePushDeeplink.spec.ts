@@ -93,3 +93,43 @@ describe('parsePushDeeplink', () => {
         expect(parsePushDeeplink(undefined)).toBeNull();
     });
 });
+
+describe('parsePushDeeplink — a message link', () => {
+    it('reads cloud, place, channel and message from a copied link', () => {
+        expect(parsePushDeeplink('chatic://message/1000004/site%201/chan%2F1/42')).toEqual({
+            cloudId: '1000004',
+            placeId: 'site 1',
+            channelId: 'chan/1',
+            chatNo: 42,
+        });
+    });
+
+    it('reads the dev channel scheme, an empty cloud and a thread root', () => {
+        expect(parsePushDeeplink('chatic-dev://message//p1/c1/7?root=3')).toEqual({
+            placeId: 'p1',
+            channelId: 'c1',
+            chatNo: 7,
+            rootId: '3',
+        });
+    });
+
+    it('refuses a message link missing its channel or message number', () => {
+        expect(parsePushDeeplink('chatic://message/c/p//7')).toBeNull();
+        expect(parsePushDeeplink('chatic://message/c/p/ch/x')).toBeNull();
+        expect(parsePushDeeplink('chatic://message/c/p/ch')).toBeNull();
+    });
+
+    it('takes a trailing slash, and refuses a malformed escape without throwing', () => {
+        expect(parsePushDeeplink('chatic://message/c/p/ch/7/')).toEqual({
+            cloudId: 'c',
+            placeId: 'p',
+            channelId: 'ch',
+            chatNo: 7,
+        });
+        expect(parsePushDeeplink('chatic://message/%E0/p/ch/7')).toBeNull();
+    });
+
+    it('leaves the sign-in link alone', () => {
+        expect(parsePushDeeplink('chatic://oauth?code=abc&provider=google')).toBeNull();
+    });
+});

@@ -288,6 +288,13 @@ does not sweep.
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.
 
+**A sender that is not the room's screen** passes `attach: false` — desktop's Forward, which sends a
+file into a channel the reader picked rather than the one in front of them. It shares the map with
+that room's screen, which may be open at the same time, so it does neither of the two things an
+attach does: it does not sweep, and unmounting it drops nothing. A row it writes keeps its files only
+while a screen of that room is attached (and so offers Retry); with none, the files are dropped as
+soon as the send settles, the way a left screen's are.
+
 ## Progress — `useImageSendProgress`
 
 `data.useImageSendProgress(pendingId)` says how far an unsent message's slots have gone: one ratio

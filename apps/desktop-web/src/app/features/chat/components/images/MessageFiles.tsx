@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
 
+import { runtime } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -19,15 +20,17 @@ import {
 import { CancelUploadButton } from './CancelUploadButton';
 import { DeleteFileConfirm } from './DeleteFileConfirm';
 import { FileViewer } from './FileViewer';
+import { useForwardFileStore } from './ForwardFileDialog';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
 import { VoiceCard } from './VoiceCard';
 import { useVoiceDetailStore } from './VoiceDetailHost';
+import { buildMessageLink } from '../../utils/messageLink';
 import { Hint, toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
     /** The message the files belong to — they are read from its `upload$$`. */
-    message: Pick<DomainChat, 'id' | 'upload$$'>;
+    message: Pick<DomainChat, 'id' | 'upload$$' | 'chatNo' | 'channelId' | 'parentId'>;
     /** The message's sender and time, for the viewer's header. */
     author: ImageAuthor;
     /** "Delete file" is offered on your own messages only. */
@@ -71,6 +74,27 @@ export const MessageFiles = ({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [isFolded, setFolded] = useState(false);
     const requestDelete = canDelete && onDeleteMessage ? () => setConfirmingDelete(true) : undefined;
+    const { chatNo, channelId, parentId } = message;
+    const copyLink =
+        chatNo != null && channelId
+            ? () => {
+                  // Read on the click: the cloud and place the reader is in now are the message's. The
+                  // Default Cloud has no cloud id in the session; it is named by the sentinel the home
+                  // screen switches to, so the link still leaves another cloud for it.
+                  const { cloud } = runtime.session.getGlobalSessionContext();
+                  const link = buildMessageLink({
+                      cloudId: cloud.cloudId || 'default',
+                      placeId: cloud.siteId ?? '',
+                      channelId,
+                      chatNo,
+                      ...(parentId ? { rootId: parentId } : {}),
+                  });
+                  void navigator.clipboard.writeText(link).then(
+                      () => toast({ description: t('chat.file.linkCopied') }),
+                      (error: unknown) => toastFailure(t('chat.file.copyLinkFailed'), error)
+                  );
+              }
+            : undefined;
     if (files.length === 0) return null;
     const listId = `files-${id}`;
     const downloadAll = () =>
@@ -121,6 +145,7 @@ export const MessageFiles = ({
                             deleteMessage={canDelete ? onDeleteMessage : undefined}
                             onShowInChat={onShowInChat}
                             onCancelUpload={onCancelUpload}
+                            onCopyLink={copyLink}
                         />
                     </li>
                 ))}
@@ -147,6 +172,7 @@ const FileItem = ({
     deleteMessage,
     onShowInChat,
     onCancelUpload,
+    onCopyLink,
 }: {
     file: ChatFile;
     author: ImageAuthor;
@@ -161,6 +187,7 @@ const FileItem = ({
     deleteMessage?: () => void;
     onShowInChat?: () => void;
     onCancelUpload?: () => void;
+    onCopyLink?: () => void;
 }) => {
     const { t } = useTranslation();
     const name = file.name ?? t(file.kind === 'video' ? 'chat.attach.previewVideo' : 'chat.attach.previewFile');
@@ -172,6 +199,15 @@ const FileItem = ({
     const canOpen = preview !== null;
     const [isViewing, setIsViewing] = useState(false);
     const openDetail = useVoiceDetailStore(s => s.open);
+    const openForward = useForwardFileStore(s => s.open);
+    const forward = file.url
+        ? () =>
+              openForward({
+                  url: file.url,
+                  name: saveName,
+                  ...(file.contentType ? { contentType: file.contentType } : {}),
+              })
+        : undefined;
     const save = () =>
         void downloadImage({ url: file.url, name: saveName }).catch((error: unknown) =>
             toastFailure(t('chat.file.saveFailed'), error)
@@ -188,6 +224,8 @@ const FileItem = ({
                 onReply={onReply}
                 onDelete={onDelete}
                 onCancelUpload={onCancelUpload}
+                onCopyLink={onCopyLink}
+                onForward={forward}
                 onOpen={
                     file.url
                         ? () =>
@@ -199,6 +237,8 @@ const FileItem = ({
                                   onSave: save,
                                   onShowInChat,
                                   onReply,
+                                  onCopyLink,
+                                  onForward: forward,
                                   onDelete: deleteMessage,
                               })
                         : undefined
