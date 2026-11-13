@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] - No version updates
+
+### Bug Fixes
+
+- (desktop) hide mini apps on prod, align quiet-hours mention switch
+
 ## [2026-11-13] - root@0.155.0, @chatic/desktop-web@0.57.0
 
 ### Features
