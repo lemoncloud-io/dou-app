@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] - No version updates
+
+### Refactor
+
+- (runtime-core,auth,app-runtime) run the session's commands through the engine
+
 ## [2026-11-11] - No version updates
 
 ### Bug Fixes
