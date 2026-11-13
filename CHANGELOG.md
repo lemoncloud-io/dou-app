@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-13] - No version updates
+
+### Features
+
+- (web-ui-kit) add the notification parts — rows, chips, selection bar and jump pills
+
+### Documentation
+
+- (web-ui-kit) keep the FilterChip's quoted Figma name on one line
+
 ## [2026-11-13] - root@0.154.0, @chatic/landing@0.18.0
 
 ### Features
