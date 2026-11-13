@@ -70,7 +70,7 @@ grep -rn "from '.*features/" apps/web/src/app/{ui,hooks,stores,utils,navigation,
 
 Exactly three places import a feature, and each is a composition root: `app.tsx` mounts `appUpdate`
 and the debug overlay, `routes/` composes each feature's pages into a route table, and
-`runtime/AppRuntime.tsx` mounts the background runners that `home` and `debug` own.
+`runtime/AppRuntime.tsx` mounts the background runners that `home`, `notifications` and `debug` own.
 
 ### Features do not import each other
 

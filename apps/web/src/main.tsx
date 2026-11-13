@@ -19,6 +19,7 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { clearInputLocks } from './app/features/channels/stores/useInputLockStore';
+import { clearNotifications } from './app/features/notifications/stores/useNotificationStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
@@ -181,6 +182,8 @@ const startApp = (): void => {
     runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
     // The same for the rooms whose composer was locked: they are the signed-in person's rooms.
     runtime.session.registerSessionLogoutCallback(clearInputLocks);
+    // And the notification inbox: what was captured for the signed-in person, from their rooms.
+    runtime.session.registerSessionLogoutCallback(clearNotifications);
 
     // Read the previous session's fate — a session that died without a clean
     // pagehide is logged as page-crash. It carries no buffer: the dead
