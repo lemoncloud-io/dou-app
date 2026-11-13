@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-11-13] - root@0.154.1, @chatic/web@0.87.1
+
+### Features
+
+- (web/home,web-ui-kit) match the home header to the redesign — 36px cloud avatar, no tier pill
+- (web/home,web-ui-kit) lay a cloud's home out as a place row and chat tabs, not folding sections
+
+### Refactor
+
+- (web) hold the notification store and its reads app-wide, not in the notifications feature
+
+### Other
+
+- test: (web-e2e) find a cloud's places by their chips, not the old place rows
+
 ## [2026-11-13] - No version updates
 
 ### Refactor
