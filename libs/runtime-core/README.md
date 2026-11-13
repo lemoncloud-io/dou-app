@@ -30,7 +30,9 @@ Apps do not import this package — the root lint refuses it, as it refuses the 
 app builds the runtime through `createWebRuntime(...)` in `@chatic/runtime-web`, which fills the
 page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/app-runtime`'s
 `initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
-app-runtime; [docs/data](./docs/data/README.md) covers the graph itself.
+app-runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
+through `createNativeRuntime(...)` in `@chatic/runtime-mobile`, which fills React Native's ports the
+same way; the mobile app does not boot it yet.
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without
@@ -127,15 +129,18 @@ flowchart TD
     Apps["apps/* entry points"]
     Surface["@chatic/app-runtime<br/><i>layer:react-surface</i>"]
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
+    Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:native</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
     Libs["session · transport · sync · auth · data<br/><i>layer:core-lib</i>"]
     Found["logger · config · perf · http · storage · bridge-messages<br/><i>layer:foundation</i>"]
 
     Apps --> Surface
     Apps --> Web
+    Apps --> Native
     Surface --> Core
     Surface --> Libs
     Web --> Core
+    Native --> Core
     Core --> Libs
     Core --> Found
     Libs --> Found
@@ -149,9 +154,10 @@ flowchart TD
 | `layer:adapter`       | the React surface; React                                                                                  |
 | `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                   |
 | `platform:web`        | React Native                                                                                              |
+| `platform:native`     | a `platform:web` package                                                                                  |
 
-An adapter is not banned React Native by its layer: the native adapter will be made of React Native
-modules, so that is its platform tag's decision.
+An adapter is not banned React Native by its layer: the native adapter, `@chatic/runtime-mobile`, is
+made of React Native modules, so that is its platform tag's decision.
 
 **No page in the core packages either.** session, transport, sync and auth compile without the DOM's
 types, as this package does (Node's stay, for timers, `URL` and `TextEncoder`), and a root lint block
