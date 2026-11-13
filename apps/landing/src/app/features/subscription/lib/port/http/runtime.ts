@@ -5,9 +5,12 @@ import { asDomStorage } from '@chatic/storage';
 
 import { deviceStore, localStore, tabStore } from '../../../../../storage';
 
+import { exchangeSignInCode, readDeviceId } from './signInExchange';
+
 import type { SessionAccess, SubscriptionApi } from './createHttpPort';
 
 let booted = false;
+let engine: ReturnType<typeof createWebRuntime> | undefined;
 
 /**
  * Starts the shared session runtime the way the admin console does, once per page: configuration from
@@ -27,12 +30,11 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
     });
     // This site runs in a browser tab and nowhere else, so the session lives in this tab's storage, as
     // every other per-tab state here does.
-    runtime.boot.initAppRuntime(
-        createWebRuntime({
-            storage: { secret: tabStore, plain: tabStore, device: deviceStore },
-            cacheTab: tabStore,
-        })
-    );
+    engine = createWebRuntime({
+        storage: { secret: tabStore, plain: tabStore, device: deviceStore },
+        cacheTab: tabStore,
+    });
+    runtime.boot.initAppRuntime(engine);
     runtime.session.authFailureReaction.register(() => undefined);
 };
 
@@ -45,9 +47,22 @@ export const subscriptionApi = (): SubscriptionApi => runtime.data.useRuntimeRep
 
 export const relaySession: SessionAccess = {
     user: () => runtime.session.getRelaySessionUser(),
-    exchange: async (provider, code) => {
-        await runtime.session.createCredentialsByProvider(provider, code);
-    },
+    // Signed with this browser's device guest, as the desktop app does — see `exchangeSignInCode`.
+    exchange: (provider, code) =>
+        exchangeSignInCode(
+            {
+                isAuthenticated: () => runtime.session.getIdentityContext().isAuthenticated,
+                loginGuest: deviceId => {
+                    if (!engine) throw new Error('session runtime not booted');
+                    return engine.commands.loginGuestByDevice(deviceId);
+                },
+                exchangeLinked: (provider, code) =>
+                    runtime.session.createCredentialsByProvider(provider, code, { linkCurrentSession: true }),
+            },
+            () => readDeviceId(deviceStore),
+            provider,
+            code
+        ),
     // Clears the session here and lands on the home page (`/?logout=1`); the server keeps no session
     // to end.
     signOut: () => runtime.session.logoutSession(),
