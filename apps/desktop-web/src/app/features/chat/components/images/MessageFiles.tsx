@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
 
-import { runtime } from '@chatic/app-runtime';
 import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -19,14 +18,15 @@ import {
 } from '../../utils';
 import { CancelUploadButton } from './CancelUploadButton';
 import { DeleteFileConfirm } from './DeleteFileConfirm';
+import { FileActions } from './FileActions';
 import { FileViewer } from './FileViewer';
 import { useForwardFileStore } from './ForwardFileDialog';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
+import { useCopyMessageLink } from './useCopyMessageLink';
 import { VoiceCard } from './VoiceCard';
 import { useVoiceDetailStore } from './VoiceDetailHost';
-import { buildMessageLink } from '../../utils/messageLink';
-import { Hint, toastFailure } from '../../../../shared';
+import { toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
     /** The message the files belong to — they are read from its `upload$$`. */
@@ -74,27 +74,7 @@ export const MessageFiles = ({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [isFolded, setFolded] = useState(false);
     const requestDelete = canDelete && onDeleteMessage ? () => setConfirmingDelete(true) : undefined;
-    const { chatNo, channelId, parentId } = message;
-    const copyLink =
-        chatNo != null && channelId
-            ? () => {
-                  // Read on the click: the cloud and place the reader is in now are the message's. The
-                  // Default Cloud has no cloud id in the session; it is named by the sentinel the home
-                  // screen switches to, so the link still leaves another cloud for it.
-                  const { cloud } = runtime.session.getGlobalSessionContext();
-                  const link = buildMessageLink({
-                      cloudId: cloud.cloudId || 'default',
-                      placeId: cloud.siteId ?? '',
-                      channelId,
-                      chatNo,
-                      ...(parentId ? { rootId: parentId } : {}),
-                  });
-                  void navigator.clipboard.writeText(link).then(
-                      () => toast({ description: t('chat.file.linkCopied') }),
-                      (error: unknown) => toastFailure(t('chat.file.copyLinkFailed'), error)
-                  );
-              }
-            : undefined;
+    const copyLink = useCopyMessageLink(message);
     if (files.length === 0) return null;
     const listId = `files-${id}`;
     const downloadAll = () =>
@@ -212,7 +192,6 @@ const FileItem = ({
         void downloadImage({ url: file.url, name: saveName }).catch((error: unknown) =>
             toastFailure(t('chat.file.saveFailed'), error)
         );
-    const saveButton = canSave && <SaveButton name={name} onSave={save} />;
 
     if (isVoiceFile(file)) {
         return (
@@ -290,25 +269,18 @@ const FileItem = ({
                 )}
                 {file.isUploading && onCancelUpload && <CancelUploadButton name={name} onCancel={onCancelUpload} />}
                 {file.isFailed && <AlertCircle size={18} aria-hidden className="shrink-0 text-destructive" />}
-                {saveButton}
+                {canSave && (
+                    <FileActions
+                        name={name}
+                        onSave={save}
+                        onReply={onReply}
+                        onDelete={onDelete}
+                        onCopyLink={onCopyLink}
+                        onForward={forward}
+                    />
+                )}
             </div>
             {isViewing && <FileViewer file={file} author={author} onClose={() => setIsViewing(false)} onSave={save} />}
         </div>
-    );
-};
-
-const SaveButton = ({ name, onSave }: { name: string; onSave: () => void }) => {
-    const { t } = useTranslation();
-    return (
-        <Hint label={t('chat.file.save', { name })}>
-            <button
-                type="button"
-                onClick={onSave}
-                aria-label={t('chat.file.save', { name })}
-                className="focus-ring tactile hit-target flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground transition-colors ease-tactile hover:bg-accent"
-            >
-                <Download size={18} aria-hidden />
-            </button>
-        </Hint>
     );
 };

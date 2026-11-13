@@ -237,4 +237,30 @@ describe('MessageFiles', () => {
         );
         expect(container.innerHTML).toBe('');
     });
+
+    it('gives a document the same More menu as a voice file', async () => {
+        render(
+            <MessageFiles
+                author={author}
+                message={
+                    {
+                        ...sent([
+                            { id: 'f', stereo: 'file', name: 'report.pdf', contentSize: 1536, orgUrl: 'https://s/f' },
+                        ]),
+                        chatNo: 4,
+                    } as DomainChat
+                }
+                onReply={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+        const more = screen.getByRole('button', { name: 'More actions for report.pdf' });
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+        fireEvent.keyDown(more, { key: 'Enter' });
+        expect(await screen.findByRole('menuitem', { name: 'Download' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Reply in thread' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Copy link' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Forward' })).toBeTruthy();
+    });
 });

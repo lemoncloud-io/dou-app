@@ -113,8 +113,9 @@ An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in t
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no
 presence at all.
 
-Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy and
-Delete, as the design draws it. Delete shows only on your own messages. A sent upload has no
+Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy,
+then Reply in thread, Copy link and Forward as every file's menu has them (Forward on a sent upload
+only), and Delete. Delete shows only on your own messages. A sent upload has no
 delete of its own on the server, so Delete there removes the whole message — its text and every
 other image too — and the confirm dialog asks about the message, not the file. The menu renders in a
 portal, so the pointer leaves the tile while it is open; the bar stays pinned visible until the menu
@@ -160,8 +161,10 @@ lists them under the images:
   sent from here carries one: the shared send hook draws a frame 0.5 s in and uploads it as the
   thumbnail, which is what the mobile feed's tiles draw. A video Chromium cannot decode (HEVC) goes
   without one.
-- **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text
-  file or HTML page's name also opens it in the document viewer (below).
+- **A document** is a card with a kind icon, its name and size, and the voice card's Download button
+  and More menu (`FileActions`): Download, Reply in thread, Copy link, Forward and Delete file, so a
+  file offers the same things whatever kind it is. A PDF, text file or HTML page's name also opens it
+  in the document viewer (below).
 - **Two or more** videos, documents or voice files are headed "2 attachments ▾ | Download all". The
   count folds the list away and back; Download all saves each file there is something to load for,
   one after another, as the image grid's does.
@@ -210,8 +213,12 @@ lists them under the images:
       is kept for the next open. A
       decode is kept for the page per address. Until
       it lands, and for good when the browser cannot decode the file, a pattern drawn from the name
-      stands in — playback never waits on it, and the card streams the file on its own.
-    - **Copy link**, in the card's More and the dialog's, puts a link to the message on the clipboard:
+      stands in — playback never waits on it, and the card streams the file on its own. The bars are
+      drawn twice, the played copy clipped to the progress, and while the file plays the progress is
+      written every frame from the audio's clock (`useSmoothProgress`): `timeupdate` comes about four
+      times a second and moved the fill a whole bar at a time.
+    - **Copy link**, in every file's More — the voice card and its dialog, a document's card, an
+      image's tile (`useCopyMessageLink`) — puts a link to the message on the clipboard:
       `chatic://message/<cloud>/<place>/<channel>/<chatNo>`, `?root=<root>` for a thread reply, and
       `chatic-dev:` from the dev channel (the registry's `net.deeplink.desktopProtocol`, the scheme the
       sign-in hand-off uses). The cloud and place are the ones the reader is in at the click; the Default
@@ -229,7 +236,7 @@ lists them under the images:
       lists (`opensIntoKnownCloud`); one naming another cloud is refused with a toast rather than
       looked up — once the cloud list has loaded: a link that arrives first, as on a cold start,
       waits for it. A message number past the safe integer range is not a link at all.
-    - **Forward**, in the same two menus, sends the file again as a new message: the reader picks a
+    - **Forward**, in the same menus, sends the file again as a new message: the reader picks a
       channel of the place on screen, the same list as the quick switcher (`ForwardFileDialog`,
       mounted by the home screen, not the channel list, which a compact window unmounts with its
       drawer). The server has no forward, so the file is fetched and sent

@@ -17,6 +17,9 @@ interface ImageTileProps {
     onDownload: () => void;
     onCopy: () => void;
     onDelete?: () => void;
+    onReply?: () => void;
+    onCopyLink?: () => void;
+    onForward?: () => void;
     className?: string;
 }
 
@@ -29,7 +32,18 @@ interface ImageTileProps {
  * be a disabled button, which a screen reader skips, so the upload, and its failure,
  * had no presence at all.
  */
-export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onDelete, className }: ImageTileProps) => {
+export const ImageTile = ({
+    image,
+    overflow = 0,
+    onOpen,
+    onDownload,
+    onCopy,
+    onDelete,
+    onReply,
+    onCopyLink,
+    onForward,
+    className,
+}: ImageTileProps) => {
     const { t } = useTranslation();
     const hasOverflow = overflow > 0;
     const isUploading = !!image.isUploading;
@@ -95,6 +109,9 @@ export const ImageTile = ({ image, overflow = 0, onOpen, onDownload, onCopy, onD
                     onDownload={onDownload}
                     onCopy={onCopy}
                     onDelete={onDelete}
+                    onReply={onReply}
+                    onCopyLink={onCopyLink}
+                    onForward={onForward}
                     variant="overlay"
                     className={cn('absolute right-2 top-2', hoverReveal('tile'))}
                 />

@@ -1,34 +1,16 @@
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-    AlertCircle,
-    AudioLines,
-    Download,
-    Forward,
-    Link2,
-    LoaderCircle,
-    MessageSquareReply,
-    MoreVertical,
-    Pause,
-    Play,
-    Trash2,
-} from 'lucide-react';
+import { AlertCircle, AudioLines, LoaderCircle, Pause, Play } from 'lucide-react';
 
 import { runtime } from '@chatic/app-runtime';
 import { cn } from '@chatic/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { formatFileSize, formatPlaybackTime, type ChatFile } from '../../utils';
 import { CancelUploadButton } from './CancelUploadButton';
+import { FileActions } from './FileActions';
 import { FileName } from './FileName';
 import { useVoicePlayback } from './voicePlayback';
-import { Hint } from '../../../../shared';
 
 interface VoiceCardProps {
     file: ChatFile;
@@ -53,9 +35,6 @@ interface VoiceCardProps {
 
 const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
 const ROUND = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full';
-const ICON_BUTTON =
-    'focus-ring tactile hit-target flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-foreground/[0.08] hover:text-foreground data-[state=open]:bg-foreground/[0.08]';
-
 /**
  * A voice file in the feed (Figma "음성 파일 · 데스크탑 ③④"): a round play button, the name, and under
  * it the length and size until it is played, then a seek bar with the clock. Once played it offers the
@@ -172,7 +151,7 @@ const VoicePlayer = ({
     const started = playing || time > 0;
 
     const actions = (
-        <VoiceActions
+        <FileActions
             name={name}
             onSave={onSave}
             onReply={onReply}
@@ -282,80 +261,6 @@ const SeekBar = ({
             />
             <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{clock}</span>
         </div>
-    );
-};
-
-const VoiceActions = ({
-    name,
-    onSave,
-    onReply,
-    onDelete,
-    onCopyLink,
-    onForward,
-}: {
-    name: string;
-    onSave: () => void;
-    onReply?: () => void;
-    onDelete?: () => void;
-    onCopyLink?: () => void;
-    onForward?: () => void;
-}) => {
-    const { t } = useTranslation();
-    return (
-        <>
-            <Hint label={t('chat.file.download')}>
-                <button
-                    type="button"
-                    onClick={onSave}
-                    aria-label={t('chat.file.save', { name })}
-                    className={ICON_BUTTON}
-                >
-                    <Download size={16} aria-hidden />
-                </button>
-            </Hint>
-            <DropdownMenu modal={false}>
-                <Hint label={t('chat.file.moreHint')}>
-                    <DropdownMenuTrigger asChild>
-                        <button type="button" aria-label={t('chat.file.more', { name })} className={ICON_BUTTON}>
-                            <MoreVertical size={16} aria-hidden />
-                        </button>
-                    </DropdownMenuTrigger>
-                </Hint>
-                <DropdownMenuContent align="end" className="w-44 shadow-overlay">
-                    <DropdownMenuItem onClick={onSave} className="cursor-pointer py-2">
-                        <Download size={16} aria-hidden />
-                        {t('chat.file.download')}
-                    </DropdownMenuItem>
-                    {onReply && (
-                        <DropdownMenuItem onClick={onReply} className="cursor-pointer py-2">
-                            <MessageSquareReply size={16} aria-hidden />
-                            {t('chat.file.replyInThread')}
-                        </DropdownMenuItem>
-                    )}
-                    {onCopyLink && (
-                        <DropdownMenuItem onClick={onCopyLink} className="cursor-pointer py-2">
-                            <Link2 size={16} aria-hidden />
-                            {t('chat.file.copyLink')}
-                        </DropdownMenuItem>
-                    )}
-                    {onForward && (
-                        <DropdownMenuItem onClick={onForward} className="cursor-pointer py-2">
-                            <Forward size={16} aria-hidden />
-                            {t('chat.file.forward')}
-                        </DropdownMenuItem>
-                    )}
-                    {onDelete && (
-                        <DropdownMenuItem
-                            onClick={onDelete}
-                            className="cursor-pointer py-2 text-destructive focus:text-destructive"
-                        >
-                            <Trash2 size={16} aria-hidden />
-                            {t('chat.image.delete')}
-                        </DropdownMenuItem>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </>
     );
 };
 
