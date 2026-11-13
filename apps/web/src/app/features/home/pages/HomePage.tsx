@@ -635,7 +635,10 @@ export const HomePage = () => {
                                         { id: 'dm', label: t('homePage.tabs.dm'), count: tabCount(dmSectionRooms) },
                                     ]}
                                     value={chatTab}
-                                    onChange={id => setChatTab(id as HomeChatTab)}
+                                    onChange={id => {
+                                        haptics.play('selection');
+                                        setChatTab(id as HomeChatTab);
+                                    }}
                                     trailing={
                                         <ChannelCreateMenu
                                             showOneOnOneCreate={canStartCloudDm}
@@ -649,8 +652,11 @@ export const HomePage = () => {
                                 {findMeCount > 0 && (
                                     <button
                                         type="button"
-                                        onClick={requestFindMeSheet}
-                                        className="flex w-full items-center gap-1 px-4 py-2.5 text-[13px] font-medium leading-[17px] tracking-[-0.26px] text-point-blue"
+                                        onClick={() => {
+                                            haptics.play('selection');
+                                            requestFindMeSheet();
+                                        }}
+                                        className="flex w-full items-center gap-1 px-4 py-2.5 text-[13px] font-medium leading-[17px] tracking-[-0.26px] text-point-blue duration-200 animate-in fade-in-0 slide-in-from-top-1 active:opacity-70 motion-reduce:animate-none"
                                     >
                                         {t('homePage.findMe', { count: findMeCount })}
                                         <IconChevronRight aria-hidden className="size-4" />

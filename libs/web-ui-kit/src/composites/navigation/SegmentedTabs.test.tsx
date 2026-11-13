@@ -147,4 +147,12 @@ describe('SegmentedTabs — 포커스', () => {
         fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
         expect(onChange).toHaveBeenCalledWith('contact');
     });
+
+    it("grows only the active tab's underline in the inline variant", () => {
+        render(<SegmentedTabs variant="inline" items={ITEMS} value="contact" onChange={jest.fn()} />);
+
+        const underline = (name: string) => screen.getByRole('tab', { name }).querySelector('[data-underline]');
+        expect(underline('연락처')).toHaveClass('scale-x-100');
+        expect(underline('플레이스')).toHaveClass('scale-x-0');
+    });
 });

@@ -1,15 +1,23 @@
 import '@testing-library/jest-dom';
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import { BOTTOM_NAV_TOAST_LIFT, BottomNavigation } from './BottomNavigation';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
+const mockHaptic = jest.fn();
+jest.mock('../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 // The bar is the kit's; here it lists its items so the set of tabs and their marks can be read.
 jest.mock('@chatic/web-ui-kit', () => ({
-    FloatingTabBar: ({ items }: { items: { key: string; label: string; dot?: boolean; active?: boolean }[] }) => (
+    FloatingTabBar: ({
+        items,
+        onSelect,
+    }: {
+        items: { key: string; label: string; dot?: boolean; active?: boolean }[];
+        onSelect: (key: string) => void;
+    }) => (
         <nav>
             {items.map(item => (
                 <span
@@ -17,6 +25,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
                     data-key={item.key}
                     data-dot={String(!!item.dot)}
                     data-active={String(!!item.active)}
+                    onClick={() => onSelect(item.key)}
                 >
                     {item.label}
                 </span>
@@ -121,6 +130,21 @@ describe('BottomNavigation', () => {
             </MemoryRouter>
         );
         expect(screen.getByText('bottomNav.notifications')).toHaveAttribute('data-active', 'true');
+        unmount();
+    });
+
+    it('ticks when the bar moves to another tab, and stays quiet on a re-tap of the open one', () => {
+        mockHaptic.mockClear();
+        const { unmount } = render(
+            <MemoryRouter initialEntries={['/']}>
+                <BottomNavigation />
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByText('bottomNav.chat'));
+        expect(mockHaptic).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByText('bottomNav.notifications'));
+        expect(mockHaptic).toHaveBeenCalledWith('selection');
         unmount();
     });
 });

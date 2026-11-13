@@ -46,6 +46,8 @@ passes each tab both glyphs (`icon`, `activeIcon`: `IconNavChat`/`IconNavChatSol
 notifications and MY; the design's fourth, mini apps, waits for its own design. The pill hugs its
 tabs: four would land on the design's 343px, and three make a narrower pill centred over the column.
 
+Moving to another tab plays the shell's selection haptic; a tap on the tab already open plays nothing.
+
 The notifications tab carries a dot, not a count, while the inbox where the session is holds an unread
 item (`hasUnreadInScope(useScopedNotifications())`, worked out in `UnifiedLayout` like the chat
 count).

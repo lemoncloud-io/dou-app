@@ -4,6 +4,7 @@ import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useNavigateWithTransition } from '@chatic/shared';
 
+import { haptics } from '../../../bridge/haptics';
 import { ROUTES } from '../../../routes/paths';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
 import type { NotificationItem } from '../../../utils/notifications';
@@ -28,7 +29,13 @@ export const useNotificationActions = () => {
     };
 
     const undoAction = (onUndo: () => void) => (
-        <ToastAction altText={t('notifications.inbox.undo')} onClick={onUndo}>
+        <ToastAction
+            altText={t('notifications.inbox.undo')}
+            onClick={() => {
+                haptics.play('selection');
+                onUndo();
+            }}
+        >
             {t('notifications.inbox.undo')}
         </ToastAction>
     );
@@ -36,6 +43,7 @@ export const useNotificationActions = () => {
     const markRead = (ids: readonly string[]) => {
         const changed = useNotificationStore.getState().markRead(ids);
         if (changed.length === 0) return;
+        haptics.play('success');
         toast({
             title: t('notifications.inbox.markedRead', { count: changed.length }),
             duration: NOTIFICATION_UNDO_MS,
@@ -46,6 +54,7 @@ export const useNotificationActions = () => {
     const remove = (ids: readonly string[]) => {
         const removed = useNotificationStore.getState().remove(ids);
         if (removed.length === 0) return;
+        haptics.play('success');
         toast({
             title: t('notifications.inbox.deleted', { count: removed.length }),
             duration: NOTIFICATION_UNDO_MS,

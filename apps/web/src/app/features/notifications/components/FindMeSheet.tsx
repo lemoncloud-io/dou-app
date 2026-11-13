@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { BottomSheet, FilterChip } from '@chatic/web-ui-kit';
 
+import { haptics } from '../../../bridge/haptics';
 import { useScopedNotifications } from '../../../hooks';
 import { MENTION_KINDS, findMe, type NotificationItem } from '../../../utils/notifications';
 import { useNotificationActions } from '../hooks';
@@ -46,7 +47,10 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
                             label={t(`notifications.findMe.filters.${id}`)}
                             count={count(id)}
                             selected={filter === id}
-                            onClick={() => setFilter(id)}
+                            onClick={() => {
+                                if (filter !== id) haptics.play('selection');
+                                setFilter(id);
+                            }}
                         />
                     ))}
                 </div>

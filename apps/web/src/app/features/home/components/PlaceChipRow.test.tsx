@@ -10,6 +10,8 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 jest.mock('@chatic/app-runtime', () => ({ runtime: { sync: { usePlaceSync: () => undefined } } }));
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 
 const place = (over: Record<string, unknown>) => ({ id: 'p1', name: 'Sunny Place', stereo: 'site', ...over }) as any;
 
@@ -105,5 +107,16 @@ describe('PlaceChipRow', () => {
             />
         );
         expect(screen.queryByRole('button', { name: 'placeList.addPlace' })).not.toBeInTheDocument();
+    });
+
+    it('ticks when the fill moves to another place, not on a tap of the current one', () => {
+        mockHaptic.mockClear();
+        const places = [place({ id: 'p1', name: 'Family' }), place({ id: 'p2', name: 'Work' })];
+        render(<PlaceChipRow places={places} selectedPlaceId="p1" isLoading={false} onSelectPlace={jest.fn()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Family' }));
+        expect(mockHaptic).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Work' }));
+        expect(mockHaptic).toHaveBeenCalledWith('selection');
     });
 });

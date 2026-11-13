@@ -10,6 +10,7 @@ import {
     SelectionActionBar,
 } from '@chatic/web-ui-kit';
 
+import { haptics } from '../../../bridge/haptics';
 import { useScopedNotifications } from '../../../hooks';
 import { useBottomNavSuppression } from '../../../stores/useBottomNavSuppression';
 import { BottomNavSpacer } from '../../../ui/components';
@@ -59,10 +60,22 @@ export const NotificationsPage = () => {
     const tabUnread = inTab.some(item => !item.read);
     const tabLabel = (id: NotificationTab) => t(`notifications.inbox.tabs.${id}`);
 
-    const onPress = (item: NotificationItem) => (selection.active ? selection.toggle(item.id) : actions.open(item));
+    // Haptics: a tick for every toggle and switch, a firmer tap as a long press commits to selection
+    // mode, a warning as the delete confirm opens; the actions play their own success.
+    const tick = () => haptics.play('selection');
+    const onPress = (item: NotificationItem) => {
+        if (!selection.active) return actions.open(item);
+        tick();
+        selection.toggle(item.id);
+    };
     const onLongPress = (item: NotificationItem) => {
-        if (selection.active) selection.toggle(item.id);
-        else selection.enter(item.id);
+        if (selection.active) {
+            tick();
+            selection.toggle(item.id);
+            return;
+        }
+        haptics.play('impact');
+        selection.enter(item.id);
     };
 
     const selectedIds = selection.selectedItems.map(item => item.id);
@@ -98,10 +111,16 @@ export const NotificationsPage = () => {
         <div className="flex h-screen flex-col overflow-hidden bg-background">
             <header className="flex min-h-[calc(var(--safe-top,0px)+4rem)] shrink-0 items-center px-4 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)]">
                 {selection.active ? (
-                    <div className="relative flex w-full items-center justify-center">
+                    <div
+                        key="selecting"
+                        className="relative flex w-full items-center justify-center duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+                    >
                         <button
                             type="button"
-                            onClick={selection.exit}
+                            onClick={() => {
+                                tick();
+                                selection.exit();
+                            }}
                             className="absolute left-0 text-[15px] font-semibold text-description"
                         >
                             {t('notifications.inbox.cancel')}
@@ -111,14 +130,20 @@ export const NotificationsPage = () => {
                         </h1>
                     </div>
                 ) : (
-                    <div className="flex w-full items-center justify-between">
+                    <div
+                        key="browsing"
+                        className="flex w-full items-center justify-between duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+                    >
                         <h1 className="text-[28px] font-bold leading-[25px] tracking-[-0.5px] text-brand-ink dark:text-foreground">
                             {t('notifications.inbox.title')}
                         </h1>
                         {hasAnything && (
                             <button
                                 type="button"
-                                onClick={() => selection.enter()}
+                                onClick={() => {
+                                    tick();
+                                    selection.enter();
+                                }}
                                 className="text-[15px] font-semibold text-description"
                             >
                                 {t('notifications.inbox.select')}
@@ -132,29 +157,44 @@ export const NotificationsPage = () => {
                 variant="inline"
                 items={NOTIFICATION_TABS.map(id => ({ id, label: tabLabel(id), count: counts[id] }))}
                 value={tab}
-                onChange={id => setTab(id as NotificationTab)}
+                onChange={id => {
+                    tick();
+                    setTab(id as NotificationTab);
+                }}
             />
 
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {hasAnything &&
                     (selection.active ? (
-                        <div className="flex gap-1.5 px-4 py-2">
+                        <div
+                            key="quick"
+                            className="flex gap-1.5 px-4 py-2 duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+                        >
                             {QUICK_SELECTIONS.map(quick => (
                                 <FilterChip
                                     key={quick}
                                     label={t(`notifications.inbox.quick.${quick}`)}
                                     selected={selection.pressedQuick === quick}
-                                    onClick={() => selection.quickSelect(quick)}
+                                    onClick={() => {
+                                        tick();
+                                        selection.quickSelect(quick);
+                                    }}
                                 />
                             ))}
                         </div>
                     ) : (
-                        <div className="flex items-center justify-between px-4 py-2">
+                        <div
+                            key="filter"
+                            className="flex items-center justify-between px-4 py-2 duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+                        >
                             <FilterChip
                                 check
                                 label={t('notifications.inbox.unreadOnly')}
                                 selected={unreadOnly}
-                                onClick={() => setUnreadOnly(on => !on)}
+                                onClick={() => {
+                                    tick();
+                                    setUnreadOnly(on => !on);
+                                }}
                             />
                             <button
                                 type="button"
@@ -169,7 +209,10 @@ export const NotificationsPage = () => {
 
                 {empty ??
                     groups.map(group => (
-                        <section key={group.dayStart}>
+                        <section
+                            key={group.dayStart}
+                            className="duration-200 animate-in fade-in-0 motion-reduce:animate-none"
+                        >
                             <h2 className="px-4 pb-1.5 pt-3.5 text-[12px] leading-[14px] text-description">
                                 {formatDayHeading(group.day, group.dayStart, t, locale)}
                             </h2>
@@ -199,7 +242,10 @@ export const NotificationsPage = () => {
                     destructive={{
                         label: t('notifications.inbox.delete', { count: selectedIds.length }),
                         disabled: selectedIds.length === 0,
-                        onClick: () => setConfirmDelete(true),
+                        onClick: () => {
+                            haptics.play('warning');
+                            setConfirmDelete(true);
+                        },
                     }}
                 />
             )}

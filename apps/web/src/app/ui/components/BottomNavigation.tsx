@@ -13,6 +13,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { haptics } from '../../bridge/haptics';
 import { ROUTES } from '../../routes/paths';
 import { useKeyboardOpen } from '../hooks/useKeyboardOpen';
 
@@ -77,5 +78,11 @@ export const BottomNavigation = ({ unreadTotal = 0, hasUnreadNotifications = fal
         },
     ];
 
-    return <FloatingTabBar items={items} onSelect={key => navigate(key, { replace: true })} />;
+    // A tick as the bar snaps to another tab; re-tapping the tab already open plays nothing.
+    const select = (key: string) => {
+        if (!items.find(item => item.key === key)?.active) haptics.play('selection');
+        navigate(key, { replace: true });
+    };
+
+    return <FloatingTabBar items={items} onSelect={select} />;
 };

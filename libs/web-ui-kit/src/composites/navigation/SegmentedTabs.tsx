@@ -100,7 +100,7 @@ export const SegmentedTabs = ({
                 <button key={item.id} {...common} className="flex shrink-0 flex-col items-center gap-2 pt-2">
                     <span
                         className={cn(
-                            'flex items-center gap-1 whitespace-nowrap text-[14px] leading-normal tracking-[-0.28px]',
+                            'flex items-center gap-1 whitespace-nowrap text-[14px] leading-normal tracking-[-0.28px] transition-colors duration-200 motion-reduce:transition-none',
                             isActive ? 'text-foreground' : 'font-medium text-tab-idle'
                         )}
                     >
@@ -109,7 +109,16 @@ export const SegmentedTabs = ({
                             <span className={cn('font-medium', isActive && 'text-nav-ink')}>{item.count}</span>
                         )}
                     </span>
-                    <span aria-hidden className={cn('h-0.5 w-full', isActive ? 'bg-foreground' : 'bg-transparent')} />
+                    {/* The underline grows out from the tab's centre as it is picked, and shrinks back
+                        on the tab left — the row reads as moving its mark, not swapping it. */}
+                    <span
+                        aria-hidden
+                        data-underline={isActive}
+                        className={cn(
+                            'h-0.5 w-full origin-center bg-foreground transition-transform duration-200 ease-out motion-reduce:transition-none',
+                            isActive ? 'scale-x-100' : 'scale-x-0'
+                        )}
+                    />
                 </button>
             );
         }

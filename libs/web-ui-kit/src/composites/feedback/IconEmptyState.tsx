@@ -23,7 +23,13 @@ export interface IconEmptyStateProps {
  * screen with nothing in it.
  */
 export const IconEmptyState = ({ icon, title, description, actionLabel, onAction, className }: IconEmptyStateProps) => (
-    <div className={cn('flex w-full flex-col items-center gap-2 px-8 pb-10 pt-[150px] text-center', className)}>
+    <div
+        className={cn(
+            'flex w-full flex-col items-center gap-2 px-8 pb-10 pt-[150px] text-center',
+            'duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none',
+            className
+        )}
+    >
         <span aria-hidden className="flex size-16 items-center justify-center rounded-full bg-action-soft text-nav-ink">
             {icon}
         </span>

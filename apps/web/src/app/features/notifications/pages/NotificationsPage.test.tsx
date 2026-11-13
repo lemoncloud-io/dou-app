@@ -30,6 +30,8 @@ jest.mock('../../../hooks', () => ({
     },
 }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => null }));
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 
 const now = Date.now();
 const item = (over: Partial<NotificationItem>): NotificationItem => ({
@@ -150,5 +152,39 @@ describe('NotificationsPage', () => {
         fireEvent.click(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.mention/ }));
         expect(screen.getByText(/^notifications\.inbox\.empty\.tab:/)).toBeInTheDocument();
         expect(screen.getByText('notifications.inbox.empty.tabHint.mention')).toBeInTheDocument();
+    });
+
+    it('plays an impact as a long press commits to selection, then ticks per toggle, warns at delete and succeeds after', () => {
+        jest.useFakeTimers();
+        seed(item({ id: 'a', content: 'first' }), item({ id: 'b', content: 'second' }));
+        render(<NotificationsPage />);
+
+        const row = rowByContent('first');
+        fireEvent.pointerDown(row, { clientX: 1, clientY: 1 });
+        act(() => jest.advanceTimersByTime(600));
+        fireEvent.pointerUp(row);
+        jest.useRealTimers();
+        expect(mockHaptic).toHaveBeenLastCalledWith('impact');
+
+        fireEvent.click(rowByContent('second'));
+        expect(mockHaptic).toHaveBeenLastCalledWith('selection');
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":2}' }));
+        expect(mockHaptic).toHaveBeenLastCalledWith('warning');
+
+        fireEvent.click(
+            within(screen.getByRole('alertdialog')).getByRole('button', {
+                name: 'notifications.inbox.deleteConfirm.confirm',
+            })
+        );
+        expect(mockHaptic).toHaveBeenLastCalledWith('success');
+    });
+
+    it('opens an item without a haptic of its own — the page change is the feedback', () => {
+        seed(item({ id: 'a', content: 'open me' }));
+        render(<NotificationsPage />);
+
+        fireEvent.click(rowByContent('open me'));
+        expect(mockHaptic).not.toHaveBeenCalled();
     });
 });

@@ -175,7 +175,7 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                                     <span
                                         aria-hidden="true"
                                         data-dot
-                                        className="absolute -right-0.5 -top-0.5 size-[7px] rounded-full bg-alert-red"
+                                        className="absolute -right-0.5 -top-0.5 size-[7px] rounded-full bg-alert-red duration-200 animate-in fade-in-0 zoom-in-50 motion-reduce:animate-none"
                                     />
                                 )}
                             </span>

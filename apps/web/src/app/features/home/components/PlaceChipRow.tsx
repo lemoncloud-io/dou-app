@@ -5,6 +5,7 @@ import type { DomainPlace } from '@chatic/data';
 
 import { IconPlus, ImageAvatar, PlaceChip } from '@chatic/web-ui-kit';
 
+import { haptics } from '../../../bridge/haptics';
 import { resolvePlaceDisplayName } from '../../../utils';
 
 interface PlaceChipItemProps {
@@ -30,7 +31,15 @@ const PlaceChipItem = ({ place, isSelected, isSwitching, unreadCount, onSelectPl
             unreadLabel={t('bottomNav.unread', { count: unread })}
             selected={isSelected}
             // A switch already under way owns the session; a second tap would race it.
-            onClick={isSwitching ? undefined : () => onSelectPlace(place.id)}
+            onClick={
+                isSwitching
+                    ? undefined
+                    : () => {
+                          // A tick as the row moves its fill to another place; the current one stays quiet.
+                          if (!isSelected) haptics.play('selection');
+                          onSelectPlace(place.id);
+                      }
+            }
         />
     );
 };

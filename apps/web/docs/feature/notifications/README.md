@@ -168,6 +168,15 @@ Reading an item anywhere takes it off the sheet; it stays in the tab. Home's row
 `app/stores/useFindMeSheetRequest`, and the private shell mounts `FindMeSheetHost` to answer, since
 home may not import this feature. The sheet has no selection mode.
 
+**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter and quick-select
+chips, a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
+as a long press commits to selection mode; a warning as the delete confirm opens; success once a mark
+read or a delete has gone through, and a tick for "Undo". Opening an item plays nothing — the page
+change is the feedback. Motion comes from the kit parts (the underline growing under a tab, the check
+column sliding in, the action bar rising where the nav was, a row's ground easing between unread,
+read and picked) plus fades as the header and the chip rows swap with selection mode; every one of
+them is off under `prefers-reduced-motion`.
+
 Avatars are the default person glyph for now: an item keeps its author's id and name, not a photo.
 
 ## Limits

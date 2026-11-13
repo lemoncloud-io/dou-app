@@ -32,6 +32,8 @@ export const JumpPill = ({ variant, label, onClick, className }: JumpPillProps) 
             onClick={onClick}
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-[20px] py-2 pl-3 pr-3.5 text-[13px] font-bold leading-4 tracking-[-0.26px] transition-transform active:scale-95',
+                // It floats up into place over the list when it appears.
+                'duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-95 motion-reduce:animate-none',
                 isMention
                     ? 'border border-point-orange bg-background text-point-orange shadow-[0_4px_12px_0_rgba(0,0,0,0.12)]'
                     : 'bg-chip-ink text-white shadow-[0_4px_12px_0_rgba(0,0,0,0.15)]',

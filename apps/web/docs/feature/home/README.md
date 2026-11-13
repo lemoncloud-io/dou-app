@@ -158,6 +158,10 @@ on a horizontally scrolling line — the current place filled navy, every place 
 and, for an owner who may add one, a ＋ at its end. With no place selected, the no-place guidance (or
 the loading state) leads, and the account's notes-to-self room still lists below it.
 
+Switching a tab or a place plays the selection haptic (not on a tap of the one already open), as
+does opening the find-me sheet; the chips ease their colours and sink a little when pressed, and the
+tab's underline grows out from its centre.
+
 Under the tabs, "나를 찾는 메시지 n ›" / "Looking for you n" counts the unread mentions of me and
 replies to my messages where the session is (`findMe`), and is not drawn at zero. It opens the
 find-me sheet, which the notifications feature owns: home raises `app/stores/useFindMeSheetRequest`,
