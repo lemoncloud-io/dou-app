@@ -80,6 +80,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
     DateDivider: () => null,
     DefaultAvatar: () => null,
     FloatingDateChip: () => null,
+    JumpPill: ({ label, onClick }: { label: string; onClick: () => void }) => (
+        <button data-testid="jump-pill" onClick={onClick}>
+            {label}
+        </button>
+    ),
     ImageAvatar: () => null,
     SystemNotice: () => null,
     // The field and the send button, and what the room tells the button: enough to drive the send.
@@ -209,6 +214,8 @@ jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
 }));
+// The pill the room draws over its list, if any — set per test.
+let mockJumpPill: { variant: 'mention' | 'latest'; count: number; onClick: () => void } | null = null;
 jest.mock('../hooks', () => ({
     useStartDm: () => mockUseStartDm(),
     useRoomOpenTrace: () => undefined,
@@ -251,6 +258,8 @@ jest.mock('../hooks', () => ({
         fillGap: mockFillGap,
         revalidateAround: jest.fn(),
     }),
+    // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
+    useRoomJumpPills: () => ({ pill: mockJumpPill, checkInView: jest.fn() }),
     useChatScroll: (args: Record<string, unknown>) => {
         mockChatScrollArgs = args;
         return { containerRef: { current: null }, handleScroll: jest.fn() };
@@ -311,6 +320,26 @@ beforeEach(() => {
     mockSetInputLocked.mockReset();
     mockAttachReady = false;
     (toast as jest.Mock).mockClear();
+    mockJumpPill = null;
+});
+
+describe('ChannelRoomPage — jump pills', () => {
+    it('draws no pill when there is nothing to jump to', () => {
+        render(<ChannelRoomPage />);
+
+        expect(screen.queryByTestId('jump-pill')).not.toBeInTheDocument();
+    });
+
+    it('draws the pill the room asks for, labelled with its count, and runs it on a tap', () => {
+        const onClick = jest.fn();
+        mockJumpPill = { variant: 'mention', count: 2, onClick };
+        render(<ChannelRoomPage />);
+
+        const pill = screen.getByTestId('jump-pill');
+        expect(pill).toHaveTextContent('chat.jump.mentions');
+        fireEvent.click(pill);
+        expect(onClick).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('ChannelRoomPage — the input lock', () => {

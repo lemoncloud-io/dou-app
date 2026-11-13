@@ -1309,6 +1309,10 @@
             "unlock": "Unlock input",
             "locked": "Input locked",
             "unlocked": "Input unlocked"
+        },
+        "jump": {
+            "mentions": "Mentions {{count}}",
+            "latest": "Latest {{count}}"
         }
     },
     "search": {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Direct path, not the `../../../hooks` barrel: that barrel re-exports hooks which pull in
 // `@chatic/app-runtime` -> `@chatic/web-core`'s config module, which reads `import.meta.env` —
@@ -128,6 +128,9 @@ export const useChatScroll = ({
     // end of every commit that changes the list. Reading the element during the commit instead is wrong
     // in Blink: its scroll anchoring has already moved scrollTop by the height of the row that just
     // arrived, so a reader 30px from the bottom would look as if they were reading history.
+    // Whether the reader is away from the newest messages — the room's "latest messages" shortcut
+    // shows only then. State, not just `readingHistoryRef`, so the room re-renders when it flips.
+    const [isAwayFromBottom, setIsAwayFromBottom] = useState(false);
     const lastScrollTopRef = useRef(0);
     const lastScrollAtRef = useRef(0);
     // The offset this hook last assigned itself. Its scroll event is not the reader moving the list,
@@ -140,7 +143,9 @@ export const useChatScroll = ({
         const el = containerRef.current;
         if (!el) return;
         lastScrollTopRef.current = el.scrollTop;
-        if (readingHistoryRef) readingHistoryRef.current = Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX;
+        const away = Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX;
+        if (readingHistoryRef) readingHistoryRef.current = away;
+        setIsAwayFromBottom(away);
         anchorRef.current = null;
         // Only a real layout engine can answer this, and only a real one needs the anchor.
         if (typeof document.elementFromPoint !== 'function') return;
@@ -174,6 +179,7 @@ export const useChatScroll = ({
                     lastScrollTopRef.current = 0;
                     assignedTopRef.current = 0;
                     if (readingHistoryRef) readingHistoryRef.current = false;
+                    setIsAwayFromBottom(false);
                     containerRef.current.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
                 }
             });
@@ -324,7 +330,7 @@ export const useChatScroll = ({
         checkLoadMore();
     }, [restorationOnScroll, containerRef, captureView, checkLoadMore]);
 
-    return { containerRef, handleScroll: handleScrollEvent };
+    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom };
 };
 
 /** Whether `id` is in the list, scanned from the end — where a message that was the latest still sits. */

@@ -20,6 +20,7 @@ import {
     DefaultAvatar,
     FloatingDateChip,
     ImageAvatar,
+    JumpPill,
     MessageInput,
     type MessageInputProps,
     SystemNotice,
@@ -75,6 +76,7 @@ import {
     useMessageJump,
     useReactions,
     useReadMarker,
+    useRoomJumpPills,
     useRoomOpenTrace,
     useRoomSyncTrace,
     useStartDm,
@@ -665,7 +667,12 @@ export const ChannelRoomPage = () => {
 
     // Scrolling (following new messages to the bottom, holding a reader in history in place,
     // resize/focus correction, prefetching older pages) is owned by useChatScroll.
-    const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
+    const {
+        containerRef: messagesEndRef,
+        handleScroll: handleChatScroll,
+        isAwayFromBottom,
+        scrollToBottom: scrollChatToBottom,
+    } = useChatScroll({
         messages,
         hasMore,
         isLoadingMore,
@@ -749,10 +756,21 @@ export const ChannelRoomPage = () => {
         floatingHideTimerRef.current = window.setTimeout(() => setShowFloatingDate(false), 1200);
     }, [messagesEndRef]);
 
+    // The floating shortcuts over the list: the reader's unread mentions here, or the messages that
+    // arrived while they read history (Figma 6002:40133 · 6002:41749). See useRoomJumpPills.
+    const { pill: jumpPill, checkInView: checkMentionsInView } = useRoomJumpPills({
+        channelId: stableChannelId,
+        messages,
+        containerRef: messagesEndRef,
+        isAwayFromBottom,
+        scrollToBottom: scrollChatToBottom,
+    });
+
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();
         handleFloatingDateScroll();
-    }, [handleChatScroll, handleFloatingDateScroll]);
+        checkMentionsInView();
+    }, [handleChatScroll, handleFloatingDateScroll, checkMentionsInView]);
 
     // Clear the pending hide timer on unmount.
     useEffect(() => {
@@ -1542,6 +1560,24 @@ export const ChannelRoomPage = () => {
                 >
                     <FloatingDateChip label={floatingDate} visible={showFloatingDate && !!floatingDate} />
                 </div>
+
+                {jumpPill && (
+                    // Centred over the list, just above the composer.
+                    <div
+                        className="pointer-events-none absolute inset-x-0 flex justify-center"
+                        style={{ bottom: composerHeight + 16 }}
+                    >
+                        <JumpPill
+                            key={jumpPill.variant}
+                            variant={jumpPill.variant}
+                            label={t(jumpPill.variant === 'mention' ? 'chat.jump.mentions' : 'chat.jump.latest', {
+                                count: jumpPill.count,
+                            })}
+                            onClick={jumpPill.onClick}
+                            className="pointer-events-auto"
+                        />
+                    </div>
+                )}
             </div>
 
             <div
