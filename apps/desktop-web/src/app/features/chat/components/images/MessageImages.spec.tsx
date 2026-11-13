@@ -96,4 +96,28 @@ describe('MessageImages', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete file' }));
         expect(onDeleteMessage).toHaveBeenCalledTimes(1);
     });
+
+    it('offers reply, copy link and forward on a sent image, as every file does', async () => {
+        render(
+            <MessageImages
+                message={
+                    {
+                        ...sent([{ id: 'u1', status: 'stored', orgUrl: 'https://s/o1' }] as DomainChat['upload$$']),
+                        chatNo: 3,
+                    } as DomainChat
+                }
+                canDelete={false}
+                author={author}
+                onReply={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+        const more = screen.getByRole('button', { name: 'More actions' });
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+        fireEvent.keyDown(more, { key: 'Enter' });
+        expect(await screen.findByRole('menuitem', { name: 'Reply in thread' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Copy link' })).toBeTruthy();
+        expect(screen.getByRole('menuitem', { name: 'Forward' })).toBeTruthy();
+    });
 });

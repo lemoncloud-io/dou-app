@@ -24,6 +24,11 @@ class FakeRequest {
     send(body: unknown) {
         this.body = body;
     }
+    aborted = false;
+    abort() {
+        this.aborted = true;
+        this.onabort?.();
+    }
 }
 
 const setup = () => {
@@ -127,5 +132,28 @@ describe('xhrPut', () => {
 
         await result;
         expect(request.upload.onprogress).toBeNull();
+    });
+
+    it('aborts the PUT when its signal fires, and ends it as a system failure', async () => {
+        const { request, put } = setup();
+        const controller = new AbortController();
+
+        const result = put(target, file, 'slot-0/original', undefined, controller.signal);
+        controller.abort();
+
+        await expect(result).resolves.toEqual({ kind: 'no-response', reason: 'system' });
+        expect(request.aborted).toBe(true);
+    });
+
+    it('does not start a PUT whose signal already fired', async () => {
+        const { request, put } = setup();
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(put(target, file, 'slot-0/original', undefined, controller.signal)).resolves.toEqual({
+            kind: 'no-response',
+            reason: 'system',
+        });
+        expect(request.body).toBeUndefined();
     });
 });

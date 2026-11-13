@@ -84,6 +84,7 @@ vi.mock('../components', () => {
         CreatePlaceDialog: Null,
         DesktopLayout: Null,
         EditPlaceDialog: Null,
+        ForwardFileHost: Null,
         OnboardingDialog: Null,
         NavRail: Null,
         NavSidebar: Null,

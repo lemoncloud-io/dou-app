@@ -1,5 +1,6 @@
 export * from './AttachButton';
 export * from './AttachmentDropOverlay';
+export * from './ForwardFileDialog';
 export * from './ComposerAttachments';
 export * from './ImageActions';
 export * from './ImageSpinner';
@@ -7,3 +8,5 @@ export * from './ImageTile';
 export * from './ImageViewer';
 export * from './MessageFiles';
 export * from './MessageImages';
+export * from './VoiceDetailHost';
+export * from './UnsendableFilesDialog';

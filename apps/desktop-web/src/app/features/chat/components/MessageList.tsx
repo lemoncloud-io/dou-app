@@ -76,6 +76,8 @@ interface MessageListProps {
     canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
+    /** Stops an attachment message's send while it uploads. */
+    onCancelUpload?: (message: DomainChat) => void;
     /** Fetch older history when the reader scrolls near the top. */
     onLoadOlder?: () => void;
     hasMore?: boolean;
@@ -88,6 +90,8 @@ interface MessageListProps {
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
     /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
+    /** "Show in chat" from a voice file's detail. Only the channel's own feed passes it. */
+    onShowMessage?: (message: DomainChat) => void;
     /**
      * Scroll a specific message into view + flash it (saved-item / search jump).
      * `restore` puts it back at the top of the view without the flash (a return trip).
@@ -173,6 +177,7 @@ export const MessageList = ({
     onRetry,
     canRetry,
     onDiscard,
+    onCancelUpload,
     onLoadOlder,
     hasMore,
     isLoadingOlder,
@@ -180,6 +185,7 @@ export const MessageList = ({
     openAtBottom,
     threadMeta,
     onOpenThread,
+    onShowMessage,
     jumpTarget,
     onJumpConsumed,
     onReadingPosition,
@@ -988,8 +994,10 @@ export const MessageList = ({
                                     onRetry={onRetry}
                                     canRetry={canRetry}
                                     onDiscard={onDiscard}
+                                    onCancelUpload={onCancelUpload}
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
+                                    onShowMessage={onShowMessage}
                                     selfNamesOf={selfNamesOf}
                                     resolveMention={resolveMention}
                                     mentionables={mentionables}

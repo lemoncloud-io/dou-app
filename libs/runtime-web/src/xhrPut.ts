@@ -32,8 +32,13 @@ const readProviderCode = (body: string): string | undefined => /<Code>([^<]+)<\/
  */
 export const createXhrPut =
     (createRequest: () => XMLHttpRequest = () => new XMLHttpRequest()): PutPort =>
-    (target, file, _label, onProgress) =>
+    (target, file, _label, onProgress, signal) =>
         new Promise<PutResult>(resolve => {
+            // Cancelled before it started (the sender gave up while it waited its turn).
+            if (signal?.aborted) {
+                resolve({ kind: 'no-response', reason: 'system' });
+                return;
+            }
             const request = createRequest();
             request.open('PUT', target.url);
             request.timeout = putTimeoutMs(file.size);
@@ -50,6 +55,7 @@ export const createXhrPut =
             request.ontimeout = () => resolve({ kind: 'no-response', reason: 'network' });
             request.onabort = () => resolve({ kind: 'no-response', reason: 'system' });
             if (onProgress) request.upload.onprogress = event => onProgress(event.loaded);
+            signal?.addEventListener('abort', () => request.abort(), { once: true });
             request.send(file);
         });
 

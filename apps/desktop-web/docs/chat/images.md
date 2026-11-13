@@ -18,14 +18,19 @@ Components are in `features/chat/components/images/`, and the tray state is in
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
   the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/data`: every type and every
   extension, because a picker that does not know HWP's type only offers the file by its extension.
-- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it, and says files.
+- **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it: "Drop images and
+  files here to upload", the ten-per-message limit, and a line saying voice files (the extensions and
+  the 50 MB document ceiling, both read from the same tables the send uses) play right in the chat.
 - **Paste:** pasted files join the tray. A rich copy (Excel, Word: `text/html` or `text/rtf` on the
   clipboard) also carries its text, and that text goes into the message as plain text. A file copied
   in Finder or Explorer carries only its own name as `text/plain`, and that is not inserted.
 
-Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which counts
-refusals by reason:
+Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.ts`), which gives
+each refused file its reason, checked in this order:
 
+- `folder`: a dropped folder. It arrives among the files as an empty, typeless file named like the
+  folder; `useFileDrop` reads the drop's entries to tell it apart (only a drop can carry one).
+- `empty`: a file of zero bytes, of any kind. The server refuses one when its upload completes.
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX, TXT and HTML
   (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. HTML is the one format
@@ -40,8 +45,8 @@ refusals by reason:
   those four extensions goes up as that document, never as an archive. A video or document whose
   extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
   saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
-  it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
-  server refuses when its upload completes, passes the tray and its upload fails.
+  it is sent as `application/zip`. Nothing reads an archive's bytes here; an empty one is refused
+  as `empty` above.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
   documents, archives and audio 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `name-too-long`: the name as it will be sent (a document without an extension is given its
@@ -54,9 +59,12 @@ refusals by reason:
   batch.
 - `limit`: over `MAX_ATTACHMENTS` (10).
 
-The hook reports every reason in **one toast**. An unsupported file uses the destructive tone; a limit
-or a duplicate is only information. This was a blocking dialog that named only the first reason, so
-a mixed drop never said what else it left out.
+A batch with any refusal adds nothing yet. `UnsendableFilesHost` (mounted once beside the panes; the
+tray hook writes the batch to `useUnsendableFilesStore`) opens "Some files can't be sent" with every
+refused file by name and its reason — the size ceiling for `too-large`, the ten for `limit` — and the
+supported formats when one was `unsupported`. "Upload the other n" adds what fits; Cancel adds
+nothing; when nothing fits there is only Confirm. A toast that counted refusals by reason came
+before it: it said how many but not which, and added the rest unasked.
 
 ## The tray
 
@@ -77,7 +85,8 @@ tile is only a 92px crop or a name: an image or a video in the image viewer's fr
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
 and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
 plain tile. A voice file opens nothing: its tile is a play/pause button that plays the picked file
-from the tray's object URL, with the clock in place of the size once it starts and a bar along the
+from the tray's object URL. Before it plays it reads `Voice file · 0:42` (the length once the file's
+header is read) rather than a size; the clock takes its place once it starts and a bar along the
 bottom edge. It shares the feed's one-sound-at-a-time rule (below). A file the browser cannot decode
 turns the tile plain — not a button, so nothing to focus — and says "Couldn't play this file" in
 place of the size. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the
@@ -104,8 +113,9 @@ An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in t
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no
 presence at all.
 
-Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy and
-Delete, as the design draws it. Delete shows only on your own messages. A sent upload has no
+Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy,
+then Reply in thread, Copy link and Forward as every file's menu has them (Forward on a sent upload
+only), and Delete. Delete shows only on your own messages. A sent upload has no
 delete of its own on the server, so Delete there removes the whole message — its text and every
 other image too — and the confirm dialog asks about the message, not the file. The menu renders in a
 portal, so the pointer leaves the tile while it is open; the bar stays pinned visible until the menu
@@ -118,6 +128,15 @@ with no dialog, and a name already there gets a number ("image (1).png"). The sh
 images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matching extension skips
 the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
 a browser, Chrome may ask once whether the site may download several files.
+
+When a save ends, the desktop app says so (`useDownloadNotices`, mounted once at the app root, so a save that ends on Settings or Profile is told too):
+"Saved song.mp3" with "Show in Finder" ("Show in Explorer" on Windows), and saves that end within a
+few seconds of each other — Download all — share one notice that counts them ("Saved 6 files"), its
+button showing the last. A save that broke off says so; a save dialog dismissed says nothing. Only the
+shell knows where a file landed or whether its dialog was dismissed, so it reports each download its
+page started (`electronAPI.downloads.onDone`) and keeps the finished ones' paths itself: the page
+names one by the id it was told (`reveal(id)`), never by a path, so it can only show what the shell
+saved. A browser has no such notice.
 
 Save and copy fetch the image's bytes (`fetchImage`) rather than pointing an anchor at its address:
 a sent image lives on another origin, where Chromium ignores `download` and navigates instead. That
@@ -142,21 +161,103 @@ lists them under the images:
   sent from here carries one: the shared send hook draws a frame 0.5 s in and uploads it as the
   thumbnail, which is what the mobile feed's tiles draw. A video Chromium cannot decode (HEVC) goes
   without one.
-- **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text
-  file or HTML page's name also opens it in the document viewer (below).
-- **A voice file** (M4A, MP3, WAV, OGG) plays in its card: the kind icon is a play/pause button and
-  the size line a seek bar with `0:01 / 0:02` (the time played alone while the header names no
-  length). It streams from the signed address, reading only the header (`preload="metadata"`) until
-  it is played, so a feed of voice files costs a few kilobytes each. Not the document viewer: a
-  full-window dialog around one small player is a lot of window for a clip of seconds.
-    - **One sound at a time.** A voice file starting — card or tray tile — pauses every other audio
-      or video in the window, and any audio or video starting pauses a voice file. Videos among
-      themselves are left alone. `play` does not bubble, so `useInlineAudio` listens for it in the
-      capture phase on the document, while at least one voice file is mounted.
-    - A card that leaves the page stops its own playback. An address the player cannot load — past
-      its signature, say — turns the bar into "Couldn't play this file" and leaves the save button; a
-      re-signed address starts over clean.
-- **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
+- **A document** is a card with a kind icon, its name and size, and the voice card's Download button
+  and More menu (`FileActions`): Download, Reply in thread, Copy link, Forward and Delete file, so a
+  file offers the same things whatever kind it is. A PDF, text file or HTML page's name also opens it
+  in the document viewer (below).
+- **Two or more** videos, documents or voice files are headed "2 attachments ▾ | Download all". The
+  count folds the list away and back; Download all saves each file there is something to load for,
+  one after another, as the image grid's does.
+- **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`,
+  Figma "음성 파일 · 데스크탑 ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
+  alone while the header names no length, and `h:mm:ss` from an hour. Once played the line is a
+  seek bar with `0:01 / 0:02` (the time played alone without a length), and a speed button steps
+  1x → 1.5x → 2x → 1x. The button spins while the first press waits for sound. It streams from the
+  signed address, reading only the header (`preload="metadata"`) until it is played, so a feed of
+  voice files costs a few kilobytes each.
+    - Download and a "More" menu end the card. The menu holds Download, Reply in thread (not inside
+      the thread panel) and, on your own message, Delete file — which deletes the whole message, as
+      an image's does, after the same confirm.
+    - A name too long for the line gives way in the stem and keeps its extension in view; the whole
+      name is in the hint.
+    - **Being sent**, the button is a ring filling with the bytes sent (`useImageSendProgress`, by
+      slot) and the line reads `Uploading 42% · 17 MB`; a spinner until the bytes are counted. An X
+      beside it cancels the send (a document's card has the same X): the send is the whole message's,
+      so every file in it stops, and the message goes from the feed instead of turning failed. Files
+      already uploaded stay on the server, unreferenced. **Not sent**, the card is red
+      and says so; Retry and Delete stay on the message's own failed line, so they are not offered
+      twice.
+    - **Cannot be played** (the address failed, or the browser cannot decode it): the button gives
+      way to a plain mark and the line reads `Couldn't play this file · 17 MB`; download and the menu
+      stay. If that happens while it plays, a toast says so too — the card may be out of sight.
+    - **The detail dialog** (`VoiceDetailDialog`, Figma "음성 파일 · 데스크탑 ⑦⑧") opens from the
+      name, or a click anywhere on the card outside its controls. It shows the sender and time with
+      "Show in chat", the waveform as bars that fill as it plays, the name with `2:05 · 17 MB · m4a`, the seek
+      bar with the time played and the time left, the speed, fifteen seconds back and forward, and
+      play. Space plays and pauses, ←/→ move fifteen seconds and Esc closes, wherever focus is inside;
+      Space on a focused button is not also a click. The header's download, More and close carry hints
+      that wait half a second and open below. More holds Show in chat (closes the dialog and jumps the
+      feed to the message, centred and flashed — `useMessageJumpStore`), Reply in thread and Delete
+      file. Show in chat is offered only from the channel's own feed (`ChatPane` passes it down as
+      `onShowMessage`): the thread panel, the threads page and Saved have no feed to land it in. The
+      dialog is mounted once beside the panes (`VoiceDetailHost`, a small store the card writes to), not
+      inside the row: the feed unmounts rows that leave its window, and a dialog in one would close and
+      stop the file with it. For the same reason the host asks before Delete file, rather than the
+      row's own confirm. Opening it puts focus on the dialog itself, not a control — every control
+      carries a hint, and a hint opened by that focus would take the first Esc. The bars are the file's own waveform (`voiceWaveform.ts`):
+      once the dialog opens it fetches the file and decodes it with Web Audio, each bar the loudest
+      sample of its slice, the loudest at full height. It waits for the player's length and decodes
+      only a file of ten minutes or less and 10 MB or less, the bytes counted as they arrive: a decode
+      holds every sample at the file's own rate first, so its memory follows the length, and a
+      low-bitrate hour would be gigabytes. Closing the dialog does not stop a load under way; its result
+      is kept for the next open. A
+      decode is kept for the page per address. Until
+      it lands, and for good when the browser cannot decode the file, a pattern drawn from the name
+      stands in — playback never waits on it, and the card streams the file on its own. The bars are
+      drawn twice, the played copy clipped to the progress, and while the file plays the progress is
+      written every frame from the audio's clock (`useSmoothProgress`): `timeupdate` comes about four
+      times a second and moved the fill a whole bar at a time.
+    - **Copy link**, in every file's More — the voice card and its dialog, a document's card, an
+      image's tile (`useCopyMessageLink`) — puts a link to the message on the clipboard:
+      `chatic://message/<cloud>/<place>/<channel>/<chatNo>`, `?root=<root>` for a thread reply, and
+      `chatic-dev:` from the dev channel (the registry's `net.deeplink.desktopProtocol`, the scheme the
+      sign-in hand-off uses). The cloud and place are the ones the reader is in at the click; the Default
+      Cloud, which has no id in the session, is written `default`, the name the home screen switches
+      to. Opened
+      from anywhere on the machine, the shell hands it to the page as it does a notification's link
+      (`parsePushDeeplink`), and the home screen goes to that cloud, place and channel and lands the
+      feed on the message (`requestMessageJump`) rather than at the bottom; a reply opens its thread.
+      The link carries no access of its own — it only resolves for someone already in that channel,
+      which is the member-only link the design asks for without a server link. A message not yet
+      numbered by the server has no link to copy.
+      Opening one may switch the reader's cloud or place without asking, as a notification's click
+      does; a channel the reader is not in is never reached, and the open lapses. Anything on the
+      machine can open the scheme, so a link only moves the reader to a cloud this device already
+      lists (`opensIntoKnownCloud`); one naming another cloud is refused with a toast rather than
+      looked up — once the cloud list has loaded: a link that arrives first, as on a cold start,
+      waits for it. A message number past the safe integer range is not a link at all.
+    - **Forward**, in the same menus, sends the file again as a new message: the reader picks a
+      channel of the place on screen, the same list as the quick switcher (`ForwardFileDialog`,
+      mounted by the home screen, not the channel list, which a compact window unmounts with its
+      drawer). The server has no forward, so the file is fetched and sent
+      through the usual attachment send to that channel (`useSendImages` keyed to the pick, with
+      `attach: false`: that channel's own screen may be open, and its rows stay that screen's), as the
+      reader's own message. A send runs once however the host remounts meanwhile, and the picker
+      closes when the home screen goes. A toast says where it is going once the bytes are in; the row in that
+      channel shows the upload as any send does, and a failed one stays there as failed. A file that
+      will not load is reported and nothing is sent. Other places and clouds are not offered.
+    - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray
+      tile — drives the same player (`voicePlayback.ts`), so the dialog picks up where the card is,
+      at the card's speed, and a file paused for another keeps its place. The element is never put in
+      the document: moving a playing element from one host to another would pause it.
+    - **One sound at a time.** A voice file starting pauses every other voice file and every audio or
+      video in the window, and any audio or video in the page starting pauses the voice files. Videos
+      among themselves are left alone. `play` does not bubble, so the store listens for the page's
+      media in the capture phase on the document, while at least one view holds a voice file.
+    - The last view of a file letting go stops it: a card that leaves the page stops its playback
+      unless the detail dialog still holds the file, and leaving the conversation stops what played
+      there. A re-signed address is a new file to the player and starts over clean.
+- **Being sent**, a video or document is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
 - **When only some files go**, the message is sent with those, and the rest follow it as a failed
@@ -273,9 +374,16 @@ the worker file as it is, and it starts.
 
 A message with attachments and no text still says something in the sidebar row and in the OS
 notification, and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
-"Video" or "2 videos", "File" or "3 files", and "3 attachments" when the kinds differ. It used to
-leave a blank line, and the banner read "Raine:" with nothing after it; after that it said "Photo"
-for a PDF too, because the server now stores videos and documents as well.
+"Video" or "2 videos", "File" or "3 files", "Voice file" or "2 voice files", and "3 attachments"
+when the kinds differ. It used to leave a blank line, and the banner read "Raine:" with nothing after
+it; after that it said "Photo" for a PDF too, because the server now stores videos and documents as well.
+
+Voice is desktop's own wording. The shared kinds have no noun for audio, so on their own a voice memo
+reads as an attachment; here a message whose every slot is a voice file says so (`isVoiceSlot`). It
+decides the way the feed's voice card does — by the slot's type and name, under `audio` or under `file`
+— so an upload stored as `audio` with neither still reads as an attachment, as the feed draws it as a
+plain file. A reply not yet sent (`outgoingMessagePreview`) and a saved card read the same. The push another device sends is worded by
+that device and the server, and is not changed here.
 
 A deleted message reads "Message deleted" in all of these (`sidebar.deletedPreview`): a server that
 records deletes empties the body, which would leave a blank line, and an older one keeps it, which would

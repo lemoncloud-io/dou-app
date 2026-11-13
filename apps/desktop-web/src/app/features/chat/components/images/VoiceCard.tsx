@@ -1,0 +1,309 @@
+import type { CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { AlertCircle, AudioLines, LoaderCircle, Pause, Play } from 'lucide-react';
+
+import { runtime } from '@chatic/app-runtime';
+import { cn } from '@chatic/lib/utils';
+
+import { formatFileSize, formatPlaybackTime, type ChatFile } from '../../utils';
+import { CancelUploadButton } from './CancelUploadButton';
+import { FileActions } from './FileActions';
+import { FileName } from './FileName';
+import { useVoicePlayback } from './voicePlayback';
+
+interface VoiceCardProps {
+    file: ChatFile;
+    /** The name shown and saved under. */
+    name: string;
+    /** The message the file belongs to — where a send in flight keeps its progress. */
+    messageId?: string;
+    onSave: () => void;
+    /** Opens the message's thread. Absent inside the thread panel. */
+    onReply?: () => void;
+    /** Asks to delete the message the file came with. Absent where the reader cannot delete it. */
+    onDelete?: () => void;
+    /** Opens the voice detail dialog. */
+    onOpen?: () => void;
+    /** Stops the message's send while the file uploads. */
+    onCancelUpload?: () => void;
+    /** Copies a link to the message. Absent for one the server has not numbered yet. */
+    onCopyLink?: () => void;
+    /** Opens the channel picker to send the file again elsewhere. */
+    onForward?: () => void;
+}
+
+const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
+const ROUND = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full';
+/**
+ * A voice file in the feed (Figma "음성 파일 · 데스크탑 ③④"): a round play button, the name, and under
+ * it the length and size until it is played, then a seek bar with the clock. Once played it offers the
+ * speed (1x → 1.5x → 2x); download and a "More" menu sit at the end.
+ *
+ * A file on its way shows how much of it has gone; one that was not sent says so, and the message's own
+ * failed line carries Retry and Delete. A file the browser cannot decode becomes a plain card that still
+ * saves, and if it breaks off while playing the player raises a toast — the card alone may be out of sight.
+ */
+export const VoiceCard = ({
+    file,
+    name,
+    messageId,
+    onSave,
+    onReply,
+    onDelete,
+    onOpen,
+    onCancelUpload,
+    onCopyLink,
+    onForward,
+}: VoiceCardProps) => {
+    const { t } = useTranslation();
+    const size = file.size !== undefined ? formatFileSize(file.size) : undefined;
+
+    if (file.isUploading) {
+        return (
+            <UploadingVoice name={name} size={size} messageId={messageId} slot={file.slot} onCancel={onCancelUpload} />
+        );
+    }
+
+    if (file.isFailed || !file.url) {
+        return (
+            <div className={cn(CARD, 'border-destructive/30 bg-destructive/5')}>
+                <span className={cn(ROUND, 'bg-destructive/10 text-destructive')}>
+                    <AlertCircle size={18} aria-hidden />
+                </span>
+                <Body name={name} meta={[t('chat.file.failed')]} tone="destructive" />
+            </div>
+        );
+    }
+
+    return (
+        <VoicePlayer
+            src={file.url}
+            name={name}
+            size={size}
+            onSave={onSave}
+            onReply={onReply}
+            onDelete={onDelete}
+            onOpen={onOpen}
+            onCopyLink={onCopyLink}
+            onForward={onForward}
+        />
+    );
+};
+
+/**
+ * A voice file on its way. Its own component so that only a file being sent subscribes to the send's
+ * progress, which is kept by message and slot.
+ */
+const UploadingVoice = ({
+    name,
+    size,
+    messageId,
+    slot,
+    onCancel,
+}: {
+    name: string;
+    size: string | undefined;
+    messageId: string | undefined;
+    slot: number | undefined;
+    onCancel?: () => void;
+}) => {
+    const { t } = useTranslation();
+    const ratios = runtime.data.useImageSendProgress(messageId);
+    const progress = slot === undefined ? undefined : ratios?.[slot];
+    const percent = progress === undefined ? undefined : Math.round(progress * 100);
+    const status = percent === undefined ? t('chat.voice.uploading') : t('chat.voice.uploadingPercent', { percent });
+    return (
+        <div className={CARD}>
+            <span role="status" aria-label={t('chat.file.uploading', { name })} className={cn(ROUND, 'bg-muted')}>
+                <ProgressRing ratio={progress} />
+            </span>
+            <Body name={name} meta={[status, size]} />
+            {onCancel && <CancelUploadButton name={name} onCancel={onCancel} />}
+        </div>
+    );
+};
+
+const VoicePlayer = ({
+    src,
+    name,
+    size,
+    onSave,
+    onReply,
+    onDelete,
+    onOpen,
+    onCopyLink,
+    onForward,
+}: {
+    src: string;
+    name: string;
+    size: string | undefined;
+    onSave: () => void;
+    onReply?: () => void;
+    onDelete?: () => void;
+    onOpen?: () => void;
+    onCopyLink?: () => void;
+    onForward?: () => void;
+}) => {
+    const { t } = useTranslation();
+    const voice = useVoicePlayback(src);
+    const { playing, loading, time, duration, failed, rate } = voice;
+    const started = playing || time > 0;
+
+    const actions = (
+        <FileActions
+            name={name}
+            onSave={onSave}
+            onReply={onReply}
+            onDelete={onDelete}
+            onCopyLink={onCopyLink}
+            onForward={onForward}
+        />
+    );
+
+    if (failed) {
+        return (
+            <div className={CARD}>
+                <span className={cn(ROUND, 'bg-muted text-muted-foreground')}>
+                    <AudioLines size={18} aria-hidden />
+                </span>
+                <Body name={name} meta={[t('chat.file.playFailed'), size]} />
+                {actions}
+            </div>
+        );
+    }
+
+    const PlayIcon = playing ? Pause : Play;
+    return (
+        // The rest of the card opens the detail too (Figma: the bubble outside play opens it). Not a
+        // control of its own: the name button is the way in by keyboard, and a click that lands on any
+        // control inside is that control's.
+        <div
+            className={cn(CARD, onOpen && 'cursor-pointer')}
+            onClick={event => {
+                if (onOpen && !(event.target as HTMLElement).closest('button, input, a, [role="menu"]')) onOpen();
+            }}
+        >
+            <button
+                type="button"
+                onClick={voice.toggle}
+                aria-label={t(playing ? 'chat.file.pause' : 'chat.file.play', { name })}
+                aria-busy={loading || undefined}
+                className={cn(
+                    ROUND,
+                    'focus-ring tactile bg-muted text-foreground transition-colors ease-tactile hover:bg-accent'
+                )}
+            >
+                {loading ? (
+                    <LoaderCircle size={16} aria-hidden className="animate-spin" />
+                ) : (
+                    // The triangle's weight sits left of its box; a pixel right centres it by eye.
+                    <PlayIcon size={14} aria-hidden fill="currentColor" className={cn(!playing && 'translate-x-px')} />
+                )}
+            </button>
+            <div className="min-w-0 flex-1">
+                <FileName name={name} onOpen={onOpen} />
+                {started ? (
+                    <SeekBar name={name} time={time} duration={duration} onSeek={voice.seek} />
+                ) : (
+                    <Meta parts={[duration === undefined ? undefined : formatPlaybackTime(duration), size]} />
+                )}
+            </div>
+            {started && (
+                <button
+                    type="button"
+                    onClick={voice.cycleRate}
+                    aria-label={t('chat.voice.rate', { rate })}
+                    className="focus-ring tactile shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-caption font-semibold tabular-nums text-foreground transition-colors ease-tactile hover:bg-accent"
+                >
+                    {rate}x
+                </button>
+            )}
+            {actions}
+        </div>
+    );
+};
+
+const SeekBar = ({
+    name,
+    time,
+    duration,
+    onSeek,
+}: {
+    name: string;
+    time: number;
+    duration: number | undefined;
+    onSeek: (seconds: number) => void;
+}) => {
+    const { t } = useTranslation();
+    // A length still unknown (or zero) is a bar at rest: nothing to seek through yet.
+    const max = duration || 1;
+    const position = duration ? Math.min(time, duration) : 0;
+    // A file whose header names no length reads only the time played, not "0:12 / 0:00".
+    const clock =
+        duration === undefined
+            ? formatPlaybackTime(time)
+            : `${formatPlaybackTime(time)} / ${formatPlaybackTime(duration)}`;
+    return (
+        <div className="flex items-center gap-2">
+            <input
+                type="range"
+                min={0}
+                max={max}
+                step="any"
+                value={position}
+                disabled={!duration}
+                onChange={event => onSeek(event.currentTarget.valueAsNumber)}
+                aria-label={t('chat.file.seek', { name })}
+                aria-valuetext={clock}
+                style={{ '--seek-progress': `${(position / max) * 100}%` } as CSSProperties}
+                className="seek-slider focus-ring min-w-0 flex-1 cursor-pointer disabled:cursor-default"
+            />
+            <span className="shrink-0 text-caption tabular-nums text-muted-foreground">{clock}</span>
+        </div>
+    );
+};
+
+const Body = ({ name, meta, tone }: { name: string; meta: readonly (string | undefined)[]; tone?: 'destructive' }) => (
+    <div className="min-w-0 flex-1">
+        <FileName name={name} />
+        <Meta parts={meta} tone={tone} />
+    </div>
+);
+
+/** "2:05 · 17 MB": the parts that are known, in order. */
+const Meta = ({ parts, tone }: { parts: readonly (string | undefined)[]; tone?: 'destructive' }) => {
+    const text = parts.filter(Boolean).join(' · ');
+    if (!text) return null;
+    return (
+        <p className={cn('truncate text-caption tabular-nums', tone ? 'text-destructive' : 'text-muted-foreground')}>
+            {text}
+        </p>
+    );
+};
+
+/** A ring that fills as a file is sent; a spinner while its bytes are not counted yet. */
+const RING_RADIUS = 13;
+
+const ProgressRing = ({ ratio }: { ratio: number | undefined }) => {
+    if (ratio === undefined) {
+        return <LoaderCircle size={18} aria-hidden className="animate-spin text-muted-foreground" />;
+    }
+    const circumference = 2 * Math.PI * RING_RADIUS;
+    return (
+        <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden className="-rotate-90">
+            <circle cx="16" cy="16" r={RING_RADIUS} fill="none" strokeWidth="3" className="stroke-foreground/15" />
+            <circle
+                cx="16"
+                cy="16"
+                r={RING_RADIUS}
+                fill="none"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - ratio)}
+                className="stroke-foreground transition-[stroke-dashoffset] duration-200"
+            />
+        </svg>
+    );
+};

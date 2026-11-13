@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID } from '@chatic/data';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
 import {
@@ -66,6 +68,7 @@ import {
     CreatePlaceDialog,
     DesktopLayout,
     EditPlaceDialog,
+    ForwardFileHost,
     OnboardingDialog,
     NavRail,
     NavSidebar,
@@ -99,7 +102,15 @@ import {
     pendingRedirectPlace,
 } from '../utils';
 import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
-import { originFor, placeToEnter, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
+import {
+    openLandingOf,
+    opensIntoKnownCloud,
+    originFor,
+    placeToEnter,
+    returnRoute,
+    shouldOfferReturn,
+    type ReaderLocation,
+} from '../utils';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -387,18 +398,34 @@ export const HomePage = () => {
     // consumed so returning to home later doesn't re-jump.
     const pendingOpen = usePendingOpenStore(s => s.target);
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
+    const { t: translate } = useTranslation();
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
-        const { cloudId, channelId, rootId } = pendingOpen;
+        const { cloudId, channelId } = pendingOpen;
+        const landing = openLandingOf(pendingOpen);
         const activeCloud = activeCloudId ?? 'default';
+        if (
+            !opensIntoKnownCloud(pendingOpen, {
+                activeCloudId: activeCloud,
+                knownCloudIds: new Set(clouds.map(c => c.id)),
+            })
+        ) {
+            // The cloud list may not be in yet (a link that started the app): wait for it, and judge
+            // the link again once it lands, rather than refuse a cloud the reader has.
+            if (isFetchingClouds) return;
+            toast({ description: translate('chat.file.linkUnavailable') });
+            clearPendingOpen();
+            return;
+        }
         const sameCloud = !cloudId || cloudId === activeCloud;
         // A notification is a detour like any other jump, the open channel included:
         // it moves the reader to the latest or swaps the thread beside it.
         recordOrigin(channelId);
         // A reply opens the thread panel, a top-level message lands at the bottom of the feed.
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
-        pendingThreadRef.current = rootId ? { channelId, rootId } : null;
-        pendingOpenAtBottomRef.current = rootId ? null : channelId;
+        pendingThreadRef.current = landing.kind === 'thread' ? { channelId, rootId: landing.rootId } : null;
+        pendingOpenAtBottomRef.current = landing.kind === 'latest' ? channelId : null;
+        pendingJumpRef.current = landing.kind === 'message' ? { channelId, chatNo: landing.chatNo } : null;
         // A 1:1 opens in its own place, and a notification names the place its sender was in — but
         // the room's row is not known until the rows load (an open that remounts HomePage arrives
         // before then). Hold it; the redirect below settles the place once the list is in.
@@ -449,15 +476,19 @@ export const HomePage = () => {
             closeSaved();
             setRoomOpenedHere(true);
             selectChannel(channelId);
-            if (rootId) openThreadNowOrDefer(channelId, rootId);
-            else {
+            if (landing.kind === 'thread') openThreadNowOrDefer(channelId, landing.rootId);
+            else if (landing.kind === 'message') {
+                pendingJumpRef.current = null;
+                requestMessageJump(channelId, landing.chatNo);
+            } else {
                 requestOpenAtBottom(channelId);
                 pendingOpenAtBottomRef.current = null;
             }
         }
         clearPendingOpen();
-        // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
-    }, [pendingOpen?.nonce]);
+        // Re-fire only on a new notification (nonce), not on selectedPlaceId churn — and once the cloud
+        // list lands, for a link held above until it did.
+    }, [pendingOpen?.nonce, isFetchingClouds]);
 
     // Places the auto-select below has already tried, skipped until the selection settles. A refused
     // switch rolls the selection back to the same unlisted site, so without it every failed switch
@@ -864,6 +895,9 @@ export const HomePage = () => {
 
     return (
         <>
+            {/* Forward from a file's More menu picks from the place's channels, as the switcher does.
+                Here rather than in the channel list, which a compact window unmounts with its drawer. */}
+            <ForwardFileHost channels={channels} />
             <DesktopLayout
                 rail={
                     <>

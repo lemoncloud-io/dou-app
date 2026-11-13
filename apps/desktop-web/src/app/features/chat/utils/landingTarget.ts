@@ -38,3 +38,35 @@ export const landingTarget = (
         rememberedChannelId && isListed(rememberedChannelId) ? rememberedChannelId : (firstUnread ?? channels[0]?.id);
     return target ? { kind: 'fallback', channelId: target } : null;
 };
+
+/**
+ * Where an opened link or notification puts the reader once its channel is on screen: a thread reply
+ * opens its thread; a copied message link lands the feed on that message; anything else opens the
+ * conversation at its latest. Never two of these — a reply is not in the feed.
+ */
+export const openLandingOf = ({
+    rootId,
+    chatNo,
+}: {
+    rootId?: string;
+    chatNo?: number;
+}): { kind: 'thread'; rootId: string } | { kind: 'message'; chatNo: number } | { kind: 'latest' } => {
+    if (rootId) return { kind: 'thread', rootId };
+    if (chatNo != null) return { kind: 'message', chatNo };
+    return { kind: 'latest' };
+};
+
+/**
+ * Whether an open may take the reader to the cloud it names. A copied message link reaches the app
+ * from anywhere on the machine — a web page can open the scheme — so it only moves the reader to a
+ * cloud this device already lists (the home cloud included), never to one it would have to look up.
+ * A notification's target comes from the reader's own pushes and is not held to this.
+ */
+export const opensIntoKnownCloud = (
+    target: { cloudId?: string; chatNo?: number },
+    { activeCloudId, knownCloudIds }: { activeCloudId: string; knownCloudIds: ReadonlySet<string> }
+): boolean => {
+    if (target.chatNo == null) return true;
+    if (!target.cloudId || target.cloudId === activeCloudId) return true;
+    return knownCloudIds.has(target.cloudId);
+};

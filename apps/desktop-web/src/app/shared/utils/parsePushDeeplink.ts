@@ -11,12 +11,25 @@ export interface PushDeeplinkTarget {
      * pushed message would be on no visible surface.
      */
     rootId?: string;
+    /**
+     * The message itself, from a copied message link: the feed lands on it instead of the bottom. A
+     * notification has none — it opens the conversation at its latest.
+     */
+    chatNo?: number;
 }
 
 /**
- * Parse a notification deeplink into an open target. Four formats reach the
+ * A copied message link: `chatic://message/<cloud>/<place>/<channel>/<chatNo>[?root=<rootId>]`, or
+ * `chatic-dev:` from the dev channel. Each segment is URI-encoded; the cloud is empty when it was not
+ * known. Both schemes are read — receiving one is harmless, only the shell decides which it is sent.
+ */
+const MESSAGE_LINK = /^chatic(?:-dev)?:\/\/message\/([^/?#]*)\/([^/?#]*)\/([^/?#]+)\/(\d+)\/?(?:\?root=([^&#]+))?$/;
+
+/**
+ * Parse a notification deeplink into an open target. Five formats reach the
  * OnReceiveNotification listener:
  *
+ * - `chatic://message/…` — a copied message link (`MESSAGE_LINK`), opened from outside the app.
  * - `chatic-open:<placeId>|<channelId>` — same-cloud banners; the target place is
  *   in the active cloud.
  * - `chatic-open:<cloudId>|<placeId>|<channelId>` — cross-cloud banners, carrying
@@ -35,6 +48,26 @@ export interface PushDeeplinkTarget {
 export const parsePushDeeplink = (deeplink: string | undefined | null): PushDeeplinkTarget | null => {
     if (!deeplink) return null;
     const dec = (value: string | undefined): string => (value ? decodeURIComponent(value) : '');
+    const link = MESSAGE_LINK.exec(deeplink);
+    if (link) {
+        // Anything on the machine can open the scheme: a malformed escape is refused, not thrown into
+        // the listeners that share this event.
+        try {
+            const [cloudId, placeId, channelId, chatNo, rootId] = link.slice(1).map(dec);
+            if (!Number.isSafeInteger(Number(chatNo))) return null;
+            return {
+                ...(cloudId ? { cloudId } : {}),
+                placeId,
+                channelId,
+                chatNo: Number(chatNo),
+                ...(rootId ? { rootId } : {}),
+            };
+        } catch {
+            return null;
+        }
+    }
+    // Any other `chatic:` link (sign-in) is not an open target, whatever its query says.
+    if (/^chatic(?:-dev)?:\/\//.test(deeplink)) return null;
     if (deeplink.startsWith('chatic-open:')) {
         const parts = deeplink.slice('chatic-open:'.length).split('|');
         if (parts.length >= 3) {

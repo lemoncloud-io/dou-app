@@ -19,6 +19,7 @@ export * from './useRelayAccount';
 export * from './useReadReceipts';
 export * from './liveReadRegistry';
 export * from './useDesktopNotifications';
+export * from './useDownloadNotices';
 export * from './useSocketWakeRecovery';
 export * from './useSocketWedgeReload';
 export * from './useInboxCapture';

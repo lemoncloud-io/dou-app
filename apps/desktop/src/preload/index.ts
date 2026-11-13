@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
+import { DOWNLOAD_DONE_CHANNEL, DOWNLOAD_REVEAL_CHANNEL, type DownloadDone } from '../main/downloadsContract';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemContract';
 import { DESKTOP_STORAGE_MEDIA } from '../main/secureStorage/constants';
 import { utf8ToBase64 } from './base64';
@@ -81,6 +82,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         get: (): Promise<LaunchAtLoginState> => ipcRenderer.invoke(LOGIN_ITEM_CHANNEL, { action: 'get' }),
         set: (enabled: boolean): Promise<LaunchAtLoginState> =>
             ipcRenderer.invoke(LOGIN_ITEM_CHANNEL, { action: 'set', enabled }),
+    },
+    downloads: {
+        /** Calls `listener` whenever a download the page started ends; returns the unsubscribe. */
+        onDone: (listener: (done: DownloadDone) => void): (() => void) => {
+            const handler = (_event: unknown, done: DownloadDone) => listener(done);
+            ipcRenderer.on(DOWNLOAD_DONE_CHANNEL, handler);
+            return () => ipcRenderer.removeListener(DOWNLOAD_DONE_CHANNEL, handler);
+        },
+        /** Shows a finished download in the file manager; false when the shell no longer has it. */
+        reveal: (id: string): Promise<boolean> => ipcRenderer.invoke(DOWNLOAD_REVEAL_CHANNEL, id),
     },
 });
 

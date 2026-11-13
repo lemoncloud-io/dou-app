@@ -288,6 +288,13 @@ does not sweep.
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.
 
+**A sender that is not the room's screen** passes `attach: false` — desktop's Forward, which sends a
+file into a channel the reader picked rather than the one in front of them. It shares the map with
+that room's screen, which may be open at the same time, so it does neither of the two things an
+attach does: it does not sweep, and unmounting it drops nothing. A row it writes keeps its files only
+while a screen of that room is attached (and so offers Retry); with none, the files are dropped as
+soon as the send settles, the way a left screen's are.
+
 ## Progress — `useImageSendProgress`
 
 `data.useImageSendProgress(pendingId)` says how far an unsent message's slots have gone: one ratio
@@ -307,13 +314,22 @@ It is `undefined` as a whole for a row with nothing moving on this page.
 - **What counts the bytes** is the shell's PUT: `xhr.upload` in the page, the transfer module's
   `running` states inside the app (one per transfer at most every 200 ms).
 
+## Cancel
+
+`cancel(pendingId)` stops a send that is still running and returns whether there was one. A page
+upload's `PUT` is aborted through the `AbortSignal` the put port is handed; a shell transfer cannot be
+stopped mid-file, so it finishes and the send stops at the next step (complete, or the chat send). The
+pending row is then removed from the cache rather than marked failed — the reader asked for the
+message not to be sent, so there is nothing to retry. Uploads already declared stay on the server
+with no message pointing at them; there is no call to take them back.
+
 ## Not done here
 
 - **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`, plus `localName`,
   `localContentType` and `localSize` for a video or document. The tile that draws them,
   the retry and delete buttons and the picker belong to each app's composer. `apps/desktop-web`
-  does not read the progress yet; its tiles still spin.
-- **Cancel, a hash.** Neither is offered or sent.
+  reads the progress on its voice cards only; its other tiles still spin.
+- **A hash.** None is sent.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 
