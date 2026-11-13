@@ -57,4 +57,15 @@ describe('CollapsibleCode', () => {
     it('does not fold the flattened copy', () => {
         expect(blocksToPlainText(fenced(9))).toContain('line 9');
     });
+
+    // The desktop card sets its trace and its toggle a step larger than the phone's; both have to
+    // follow the scale the caller asked for, not only the blocks drawn directly by the message.
+    it.each([
+        ['phone', 'text-[0.8125rem]'],
+        ['desktop', 'text-[0.875rem]'],
+    ] as const)('sizes the trace and its toggle for the %s card', (scale, size) => {
+        render(<BlockKitMessage blocks={fenced(9)} raw="" scale={scale} />);
+        expect(screen.getByText(/line 1/).className).toContain(size);
+        expect(screen.getByRole('button').className).toContain(size);
+    });
 });

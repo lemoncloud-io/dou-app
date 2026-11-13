@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 
-import { BlockKitMessage, type KnownBlock } from '@chatic/block-kit';
+import { BlockKitMessage, takeSourceLink, type KnownBlock } from '@chatic/block-kit';
 
 import type { PayloadParseFailure } from '../payload';
 import { DEVICE_WIDTH, type PreviewDevice } from './DeviceToggle';
@@ -39,6 +39,24 @@ const StaleNotice = ({ failure }: { failure: PayloadParseFailure }) => (
         </p>
     </div>
 );
+
+/**
+ * The body as a channel draws it: the server's `<url|원문 보기>` line becomes the title's link
+ * (`takeSourceLink`), and the card takes the size of the client the toggle names. Without either, a
+ * payload that carries a source would preview its link where no reader sees it, at a size neither
+ * client uses.
+ */
+const PreviewMessage = ({ blocks, raw, device }: Pick<PreviewPaneProps, 'blocks' | 'raw' | 'device'>) => {
+    const { blocks: drawn, sourceUrl } = takeSourceLink(blocks);
+    return (
+        <BlockKitMessage
+            blocks={drawn}
+            raw={raw}
+            scale={device === 'desktop' ? 'desktop' : 'phone'}
+            sourceUrl={sourceUrl}
+        />
+    );
+};
 
 /** Fixed so the preview is stable to compare against; the builder has no clock. */
 const SENDER = { name: 'ReleaseBot', initial: 'R', time: '11:11 PM' };
@@ -103,7 +121,7 @@ export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) 
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-0.5">
-                                    <BlockKitMessage blocks={blocks} raw={raw} />
+                                    <PreviewMessage blocks={blocks} raw={raw} device={device} />
                                 </div>
                             </div>
                         </div>

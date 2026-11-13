@@ -188,6 +188,36 @@ describe('BlockKitMessage', () => {
         });
     });
 
+    // The design draws the card twice, a step larger on desktop. Written-out sizes rather than the
+    // app's tokens, because the callers size the same token names differently.
+    describe('scale', () => {
+        const card: KnownBlock[] = [
+            { type: 'header', text: { type: 'plain_text', text: 'Title' } },
+            { type: 'section', text: { type: 'mrkdwn', text: 'Body' } },
+            { type: 'context', elements: [{ type: 'mrkdwn', text: 'Footer' }] },
+        ];
+        const sizeOf = (text: string) =>
+            (screen.getByText(text).closest('[class*="rem]"]')?.className ?? '').match(/text-\[[\d.]+rem\]/)?.[0];
+
+        it('draws the phone card by default, at the sizes apps/web shipped', () => {
+            draw(card);
+            expect([sizeOf('Title'), sizeOf('Body'), sizeOf('Footer')]).toEqual([
+                'text-[1rem]',
+                'text-[0.875rem]',
+                'text-[0.875rem]',
+            ]);
+        });
+
+        it('draws the desktop card a step larger, keeping the context line at the phone size', () => {
+            render(<BlockKitMessage blocks={card} raw="" scale="desktop" />);
+            expect([sizeOf('Title'), sizeOf('Body'), sizeOf('Footer')]).toEqual([
+                'text-[1.125rem]',
+                'text-[1rem]',
+                'text-[0.875rem]',
+            ]);
+        });
+    });
+
     it('names the block type it could not draw, so the JSON does not read as content', () => {
         draw([{ type: 'unknown', raw: '{"type":"actions"}' }, { type: 'divider' }]);
         expect(screen.getByText(/unsupported block · actions/)).toBeDefined();

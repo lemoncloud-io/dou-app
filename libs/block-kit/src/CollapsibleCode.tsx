@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { useBlockKitLabels } from './blockKitLabels';
+import { useBlockKitScale } from './blockKitScale';
 
 /**
  * How much of a folded block stays visible. Three lines is what the design
@@ -26,12 +27,12 @@ const FOLD_ABOVE = COLLAPSED_LINES + 2;
  * monospace, wrapped rather than scrolled. A phone-width card that scrolls sideways
  * hides the end of every frame line, which is where the file and line number are.
  * The composer's fenced block (`MSG_CODE_BLOCK_CLASS`) keeps its well; that one is
- * code a person pasted into a conversation.
+ * code a person pasted into a conversation. The size is the scale's (`blockKitScale`).
  */
-const FENCE_CLASS = 'block whitespace-pre-wrap break-words text-[0.8125rem] font-medium leading-normal text-label';
+const FENCE_CLASS = 'block whitespace-pre-wrap break-words font-medium text-label';
 
 const TOGGLE_CLASS = cn(
-    'focus-ring mt-2 rounded text-[0.8125rem] font-bold text-label underline-offset-2',
+    'focus-ring mt-2 rounded font-bold text-label underline-offset-2',
     'transition-colors hover:text-foreground hover:underline'
 );
 
@@ -57,15 +58,22 @@ const TOGGLE_CLASS = cn(
  */
 export const CollapsibleCode = ({ text }: { text: string }) => {
     const labels = useBlockKitLabels();
+    const scale = useBlockKitScale();
     const [open, setOpen] = useState(false);
     const lines = text.split('\n');
+    const fence = cn(FENCE_CLASS, scale.fence);
 
-    if (lines.length <= FOLD_ABOVE) return <span className={FENCE_CLASS}>{text}</span>;
+    if (lines.length <= FOLD_ABOVE) return <span className={fence}>{text}</span>;
 
     return (
         <span className="block">
-            <span className={FENCE_CLASS}>{open ? text : lines.slice(0, COLLAPSED_LINES).join('\n')}</span>
-            <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={TOGGLE_CLASS}>
+            <span className={fence}>{open ? text : lines.slice(0, COLLAPSED_LINES).join('\n')}</span>
+            <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                aria-expanded={open}
+                className={cn(TOGGLE_CLASS, scale.toggle)}
+            >
                 {open ? labels.collapseCode : labels.expandCode(lines.length - COLLAPSED_LINES)}
             </button>
         </span>

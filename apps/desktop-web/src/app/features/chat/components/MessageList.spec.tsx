@@ -211,7 +211,50 @@ describe('MessageList', () => {
             screen.getByText(/^TypeError: Cannot read properties of undefined \(reading 'channelId'\)$/)
         ).toBeDefined();
         expect(screen.getByText(/^\{"service":/)).toBeDefined();
-        expect(screen.getAllByText(/원문 보기/).length).toBeGreaterThan(0);
+        expect(screen.getByText(/hello-alarm/)).toBeDefined();
+    });
+
+    // The server writes the sender's report link as the card's last context element; the card
+    // draws it as the title instead, once — a second copy on the last line would offer the same
+    // link twice.
+    it("links a webhook card's title to its report and drops the source line", () => {
+        const webhook = {
+            ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
+            blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
+        } as DomainChat;
+
+        render(<MessageList messages={[webhook]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        const title = screen.getByRole('link', { name: /error-report.*View source/ });
+        expect(title.getAttribute('href')).toBe(WEBHOOK_SEND_ERROR_REPORT.meta.sourceUrl);
+        expect(within(title).getByRole('heading')).toBeDefined();
+        expect(screen.queryByText('원문 보기')).toBeNull();
+        expect(screen.getAllByRole('link', { name: /View source/ })).toHaveLength(1);
+    });
+
+    // A card frames what the blocks draw. A payload where nothing draws falls back to the
+    // message's own text, and a frame around that would make a plain message look like an
+    // integration's card.
+    it('frames a drawable block message as a card, and leaves an undrawable one as text', () => {
+        const drawable = JSON.stringify({ blocks: [{ type: 'section', text: { type: 'mrkdwn', text: 'drawn' } }] });
+        const undrawable = JSON.stringify({ blocks: [{ type: 'actions', elements: [] }] });
+
+        render(
+            <MessageList
+                messages={[message(1, 'ada', drawable), message(2, 'ada', undrawable)]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        const cardOf = (node: HTMLElement) => node.closest('.rounded-\\[10px\\]');
+        expect(cardOf(screen.getByText('drawn'))).not.toBeNull();
+        expect(cardOf(screen.getByText(undrawable))).toBeNull();
     });
 
     // `content` on a `blocks$` message is already the server's plain-text summary

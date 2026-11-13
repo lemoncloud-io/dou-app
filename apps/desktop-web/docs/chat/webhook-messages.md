@@ -13,21 +13,41 @@ structured message: `resolveChatBlocks` prefers the server's `blocks$` field, th
 payload in `content`, and a message with neither is plain text. The subset is the one the server
 produces — `header`, `section` (with `fields`), `divider` and `context`. A block type this build does
 not know is shown as a short `unsupported block` line rather than dropped, so the card still reads.
-Links in the mrkdwn text, including the "view source" link the sender may attach, open in a new window.
+Links in the mrkdwn text open in a new window: the row passes no `onLinkClick`, because the Electron
+shell hands a `_blank` anchor to the OS browser, the same way `RichText`'s links leave. They take
+the `--link` token, which here is also every message link's and the composer's link colour, so a card
+link is this app's blue rather than the purple apps/web gives its card links.
 
-In the message only the heading speaks at full ink; section text, field values and the context line
+A message with at least one drawable block sits in a card: the card surface with a hairline border,
+10px corners and 24px inside it, as wide as what it holds up to the message column — a short alert is a
+small card, a stack trace fills the column. A message whose blocks are all unknown falls back to its
+own text with no card around it; that text is a message, and a frame would make it look like an
+integration's card.
+
+The design draws the card twice, a step larger for the desktop column than for the phone, and this
+app asks for the larger one (`scale="desktop"`): an 18px heading (16px from level 3 down), 16px
+section text and field values, 14px for a stack trace, its fold toggle and the context line, 13px for
+a field's caption. The sizes are written out in
+`@chatic/block-kit` rather than taken from this app's type tokens, which name the same steps as
+apps/web's at different sizes — so a card body reads larger than an ordinary message's 15px, which
+is what the design asks for.
+
+In the card only the heading speaks at full ink; section text, field values and the context line
 are quieter secondary text. Three Slack shapes are read for what they mean rather than literally: a
 field written `*Label*\nvalue` is a small caption over its value, an inline code run is a bordered
 chip in the text's own face (a service name, a version, a status — a value, not code), and a fenced
-run (in practice a stack trace) is wrapped secondary text that folds past five lines. None of this
-touches the composer's own code styles, which are for code a person typed.
+run (in practice a stack trace) is wrapped secondary text that folds past five lines. That last one
+is not monospaced, as the design draws a trace — the cost is that a fence holding column-aligned
+output, a table or pretty-printed JSON, loses its alignment. None of this touches the composer's own
+code styles, which are for code a person typed.
 
-`BlockKitMessage` also takes a `sourceUrl`: the place the whole message can be read in full, such as
-a webhook's report. Slack's `header` has nowhere to carry a URL, so the caller passes it in, and the
-first heading becomes a link to it, drawn as the heading (underlined on hover). Only `http`/`https`
-is linked, and only a plain-text heading carries it. Where the source comes from is `takeSourceLink`: the server writes the sender's
-`meta.sourceUrl` as `<url|원문 보기>`, the last element of the last context line, and that function
-moves it off the line and hands it back. apps/web uses it; this app does not yet.
+When the sender gave a source (its `meta.sourceUrl`, the full report), the card's heading is the
+link to it. The server writes that source as the last element of the card's last context line,
+`<url|원문 보기>`; `takeSourceLink` takes it off that line and the row hands it to `BlockKitMessage` as
+`sourceUrl`, so the heading is drawn as the heading and underlines on hover, with no icon beside it.
+A screen reader hears "View source" (`chat.webhook.openSource`) after the title. Only an `http`/`https`
+address moves, and only onto a plain-text heading; otherwise the link stays where the server put it.
+The move is drawing only: what Copy and Save read (below) is unchanged.
 
 `content` is not the card: for a message with `blocks$` it is the server's plain-text summary, and it
 is what Copy, Save, the delete confirmation and the link unfurl use. Folding the blocks back into text

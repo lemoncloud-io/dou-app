@@ -10,6 +10,7 @@ export * from './resolveChatBlocks';
 export * from './blocksToPlainText';
 export * from './messageClasses';
 export * from './blockKitLabels';
+export * from './blockKitScale';
 export * from './CollapsibleCode';
 export * from './renderMrkdwn';
 export * from './BlockKitMessage';
