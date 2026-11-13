@@ -5,9 +5,11 @@ import {
     isChatAttachmentNameTooLong,
     isPendingUploadSlot,
     uploadSlotKind,
-    type ChatAttachmentKind,
     type DomainChat,
 } from '@chatic/data';
+
+import type { SavedAttachment } from '../../../shared/stores/useSavedItemsStore';
+import { isVoiceSlot } from '../../../shared/utils/messagePreview';
 
 /**
  * One image on a message or in the composer tray.
@@ -158,16 +160,20 @@ export const MAX_VISIBLE_TILES = 4;
  * What a message carries, as a saved item keeps it: the kinds and count, and the first attachment's
  * name and size where it has them. `undefined` when nothing is attached.
  */
-export const savedAttachmentOf = (
-    message: Pick<DomainChat, 'upload$$' | 'uploadIds'>
-): { kind: ChatAttachmentKind; count: number; name?: string; size?: number } | undefined => {
+export const savedAttachmentOf = (message: Pick<DomainChat, 'upload$$' | 'uploadIds'>): SavedAttachment | undefined => {
     const summary = chatAttachmentSummary(message);
     if (!summary) return undefined;
     const first = message.upload$$?.[0];
     if (!first) return summary;
     const name = isPendingUploadSlot(first) ? first.localName : first.name;
     const size = isPendingUploadSlot(first) ? first.localSize : first.contentSize;
-    return { ...summary, ...(name ? { name } : {}), ...(size !== undefined ? { size } : {}) };
+    const voice = message.upload$$?.every(isVoiceSlot);
+    return {
+        ...summary,
+        ...(name ? { name } : {}),
+        ...(size !== undefined ? { size } : {}),
+        ...(voice ? { voice: true as const } : {}),
+    };
 };
 
 /** A size as a person reads it: "820 B", "1.5 KB", "12.3 MB". */

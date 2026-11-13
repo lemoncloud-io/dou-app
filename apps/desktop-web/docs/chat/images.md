@@ -332,9 +332,16 @@ the worker file as it is, and it starts.
 
 A message with attachments and no text still says something in the sidebar row and in the OS
 notification, and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
-"Video" or "2 videos", "File" or "3 files", and "3 attachments" when the kinds differ. It used to
-leave a blank line, and the banner read "Raine:" with nothing after it; after that it said "Photo"
-for a PDF too, because the server now stores videos and documents as well.
+"Video" or "2 videos", "File" or "3 files", "Voice file" or "2 voice files", and "3 attachments"
+when the kinds differ. It used to leave a blank line, and the banner read "Raine:" with nothing after
+it; after that it said "Photo" for a PDF too, because the server now stores videos and documents as well.
+
+Voice is desktop's own wording. The shared kinds have no noun for audio, so on their own a voice memo
+reads as an attachment; here a message whose every slot is a voice file says so (`isVoiceSlot`). It
+decides the way the feed's voice card does — by the slot's type and name, under `audio` or under `file`
+— so an upload stored as `audio` with neither still reads as an attachment, as the feed draws it as a
+plain file. A reply not yet sent (`outgoingMessagePreview`) and a saved card read the same. The push another device sends is worded by
+that device and the server, and is not changed here.
 
 A deleted message reads "Message deleted" in all of these (`sidebar.deletedPreview`): a server that
 records deletes empties the body, which would leave a blank line, and an older one keeps it, which would

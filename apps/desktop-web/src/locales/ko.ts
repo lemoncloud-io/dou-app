@@ -264,6 +264,8 @@ export const ko: EnTranslation = {
     'chat.attach.previewVideoCount': '동영상 {{count}}개',
     'chat.attach.previewFile': '파일',
     'chat.attach.previewFileCount': '파일 {{count}}개',
+    'chat.attach.previewVoice': '음성 파일',
+    'chat.attach.previewVoiceCount': '음성 파일 {{count}}개',
     'chat.attach.previewMixed': '첨부',
     'chat.attach.previewMixedCount': '첨부 {{count}}개',
     'chat.push.fallbackBody': '새 메시지',

@@ -402,6 +402,16 @@ describe('savedAttachmentOf', () => {
         });
     });
 
+    it('marks voice files only, so the card can name them as the sidebar does', () => {
+        const voice = [{ id: 'up-1', status: 'stored', stereo: 'audio', name: 'memo.m4a', contentType: 'audio/mp4' }];
+        expect(savedAttachmentOf({ upload$$: voice as NonNullable<DomainChat['upload$$']> })).toEqual({
+            kind: 'mixed',
+            count: 1,
+            name: 'memo.m4a',
+            voice: true,
+        });
+    });
+
     it('keeps only the count when the message names none, and nothing when nothing is attached', () => {
         expect(savedAttachmentOf({ uploadIds: ['u1', 'u2'] })).toEqual({ kind: 'image', count: 2 });
         expect(savedAttachmentOf({})).toBeUndefined();

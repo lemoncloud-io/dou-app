@@ -254,6 +254,8 @@ export const en = {
     'chat.attach.previewVideoCount': '{{count}} videos',
     'chat.attach.previewFile': 'File',
     'chat.attach.previewFileCount': '{{count}} files',
+    'chat.attach.previewVoice': 'Voice file',
+    'chat.attach.previewVoiceCount': '{{count}} voice files',
     'chat.attach.previewMixed': 'Attachment',
     'chat.attach.previewMixedCount': '{{count}} attachments',
     'chat.push.fallbackBody': 'New message',
