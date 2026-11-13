@@ -1,6 +1,6 @@
 import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 
-import type { NotificationKind } from './notificationModel';
+import type { NotificationKind } from '../../../utils/notifications';
 
 /** How the reader stands to the thread a reply is in. */
 export type ThreadRelation = 'rootMine' | 'participated' | 'none';

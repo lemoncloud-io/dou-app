@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { deviceStore, persistStorageOver } from '../../../storage';
+import { deviceStore, persistStorageOver } from '../storage';
 import {
     addItem,
     markChannelItemsReadUpTo,
@@ -12,9 +12,13 @@ import {
     restoreItems,
     unreadIdsOf,
     type NotificationItems,
-} from '../utils/notificationItems';
-import type { NotificationItem } from '../utils/notificationModel';
-import { rememberThread, type ThreadParticipation, type ThreadParticipations } from '../utils/threadParticipation';
+} from '../utils/notifications/notificationItems';
+import type { NotificationItem } from '../utils/notifications/notificationModel';
+import {
+    rememberThread,
+    type ThreadParticipation,
+    type ThreadParticipations,
+} from '../utils/notifications/threadParticipation';
 
 /** The device storage key. One key for every cloud; each item names its own. */
 export const NOTIFICATIONS_STORAGE_KEY = 'dou.notifications.v1';

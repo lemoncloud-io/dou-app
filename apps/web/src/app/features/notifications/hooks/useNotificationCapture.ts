@@ -16,7 +16,7 @@ import {
 import { useActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
 import { lastChatPreview } from '../../channels/utils/lastChatPreview';
-import { useNotificationStore, useThreadParticipationStore } from '../stores/useNotificationStore';
+import { useNotificationStore, useThreadParticipationStore } from '../../../stores/useNotificationStore';
 import { classifyMessage, keepsMentionsOnly, type ThreadRelation } from '../utils/classify';
 import {
     notificationId,
@@ -25,7 +25,7 @@ import {
     threadRootNo,
     truncatePreview,
     type NotificationItem,
-} from '../utils/notificationModel';
+} from '../../../utils/notifications';
 import { useCurrentPlaceChatFeed, type PlaceChatFeed } from './useCurrentPlaceChatFeed';
 
 type ChatLike = Pick<DomainChat, 'owner$' | 'ownerId' | 'stereo'>;

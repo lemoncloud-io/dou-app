@@ -5,19 +5,25 @@ it is stored, when an item reads as read, and the reads a screen composes it fro
 yet — the inbox screen, the bottom-navigation dot and the home row marks are built on what is
 described here. Why it is derived on the device, and apart from desktop's inbox, is ADR-0312.
 
+The store and the pure reads over it live app-wide — `app/stores/useNotificationStore` and
+`app/utils/notifications` (the item model, the mark/remove/undo operations, thread participation and
+the selectors) — because home and the room read them as well, and a feature may not import another.
+What fills the inbox and keeps it read stays here: the room feed, the capture, the classification and
+the read sync.
+
 There is no notification list on the server. The inbox is **derived on the device**, from the same
 channel records that drive the unread badges, and kept in device storage. What follows from that —
 it starts empty on a new device, and it holds only what this device saw — is in § Limits.
 
 ## Responsibilities
 
-| Question                                                     | Answered by                                              |
-| ------------------------------------------------------------ | -------------------------------------------------------- |
-| Which rooms are watched, and how a new message is noticed    | `hooks/useCurrentPlaceChatFeed`                          |
-| Whether a message becomes an item, and of which kind         | `hooks/useNotificationCapture`, `utils/classify`         |
-| What is stored, the cap, and the mark/remove/undo operations | `stores/useNotificationStore`, `utils/notificationItems` |
-| When a room's items turn read on their own                   | `hooks/useNotificationReadSync`                          |
-| Which items a tab, a filter, a day or a room row shows       | `utils/selectors`                                        |
+| Question                                                     | Answered by                                                                    |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Which rooms are watched, and how a new message is noticed    | `hooks/useCurrentPlaceChatFeed`                                                |
+| Whether a message becomes an item, and of which kind         | `hooks/useNotificationCapture`, `utils/classify`                               |
+| What is stored, the cap, and the mark/remove/undo operations | `app/stores/useNotificationStore`, `app/utils/notifications/notificationItems` |
+| When a room's items turn read on their own                   | `hooks/useNotificationReadSync`                                                |
+| Which items a tab, a filter, a day or a room row shows       | `app/utils/notifications/selectors`                                            |
 
 `NotificationsRunner` mounts the two background hooks once, under `AppRuntime` and inside the shared
 active-cloud observation, so the inbox fills and clears on every route.
@@ -122,7 +128,7 @@ turns read as the cursor moves. When the cursor lands first, the message is left
 
 ## Selectors
 
-Pure functions over a list of items (`utils/selectors`); a screen scopes first and composes the rest.
+Pure functions over a list of items (`app/utils/notifications/selectors`); a screen scopes first and composes the rest.
 
 - `inScope(items, cloudId, placeId)` — the cloud, then the place; an item with no place (a relay 1:1)
   shows in every place of its cloud.
