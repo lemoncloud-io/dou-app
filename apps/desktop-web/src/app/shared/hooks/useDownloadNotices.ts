@@ -32,15 +32,15 @@ export const useDownloadNotices = () => {
                 return;
             }
             const now = Date.now();
-            const joins = batch && now - batch.openedAt < JOIN_MS;
-            const count = joins && batch ? batch.count + 1 : 1;
+            const joining = batch && now - batch.openedAt < JOIN_MS ? batch : null;
+            const count = joining ? joining.count + 1 : 1;
             const props = {
                 description: count > 1 ? t('download.savedCount', { count }) : t('download.saved', { name: done.name }),
                 ...(done.id && { action: revealAction(api, done.id, t) }),
             };
-            if (joins && batch) {
-                batch.notice.update({ ...props, id: batch.notice.id });
-                batch = { ...batch, count };
+            if (joining) {
+                joining.notice.update({ ...props, id: joining.notice.id });
+                joining.count = count;
             } else {
                 const notice = toast({
                     ...props,

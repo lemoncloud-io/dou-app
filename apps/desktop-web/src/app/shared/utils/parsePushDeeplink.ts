@@ -52,20 +52,18 @@ export const parsePushDeeplink = (deeplink: string | undefined | null): PushDeep
     if (link) {
         // Anything on the machine can open the scheme: a malformed escape is refused, not thrown into
         // the listeners that share this event.
-        let parts: string[];
         try {
-            parts = link.map(part => dec(part));
+            const [cloudId, placeId, channelId, chatNo, rootId] = link.slice(1).map(dec);
+            return {
+                ...(cloudId ? { cloudId } : {}),
+                placeId,
+                channelId,
+                chatNo: Number(chatNo),
+                ...(rootId ? { rootId } : {}),
+            };
         } catch {
             return null;
         }
-        const [, cloudId, placeId, channelId, chatNo, rootId] = parts;
-        return {
-            ...(cloudId ? { cloudId } : {}),
-            placeId,
-            channelId,
-            chatNo: Number(chatNo),
-            ...(rootId ? { rootId } : {}),
-        };
     }
     // Any other `chatic:` link (sign-in) is not an open target, whatever its query says.
     if (/^chatic(?:-dev)?:\/\//.test(deeplink)) return null;

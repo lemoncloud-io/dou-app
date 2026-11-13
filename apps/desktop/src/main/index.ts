@@ -1126,10 +1126,11 @@ if (!singleInstanceLock) {
             item.once('done', (_doneEvent, state) => {
                 const savePath = item.getSavePath();
                 if (state === 'cancelled' || !savePath || webContents.isDestroyed()) return;
+                const name = basename(savePath);
                 const done: DownloadDone =
                     state === 'completed'
-                        ? { id: downloadLog.record(savePath), name: basename(savePath), state }
-                        : { name: basename(savePath), state: 'interrupted' };
+                        ? { id: downloadLog.record(savePath), name, state }
+                        : { name, state: 'interrupted' };
                 webContents.send(DOWNLOAD_DONE_CHANNEL, done);
             });
             if (!savesWithoutAsking(item.getFilename(), item.getMimeType())) return;
