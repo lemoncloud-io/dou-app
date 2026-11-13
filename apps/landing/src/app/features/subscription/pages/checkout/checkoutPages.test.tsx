@@ -305,6 +305,55 @@ describe('W-08 checkout', () => {
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null').checkout.payer).toBeUndefined();
     });
 
+    it('stops any country outside Korea at a notice where the build bills in Korea only', async () => {
+        const setup = { ...(await withBillingEmail('?mock=new-trial-used')), foreignBilling: false };
+        renderAt('/subscription/checkout?plan=pro-tier-01', setup);
+
+        await pickCountry('US');
+        expect(await screen.findByText('Paying from outside Korea is not available yet')).toBeTruthy();
+        expect(
+            screen.getByText('For now you can subscribe only with South Korea as the billing country.')
+        ).toBeTruthy();
+        // No currency, no amount, no payer, no consents and no way on.
+        expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
+        expect(screen.queryByText('$6.00')).toBeNull();
+        expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
+        expect(screen.queryByLabelText('Name')).toBeNull();
+        expect(screen.queryByLabelText('Agree to all')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
+
+        // Korea goes on as before.
+        await fillPayer();
+        expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
+        expect(screen.getByText('You pay in Korean won (₩).')).toBeTruthy();
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+    });
+
+    it('sends a dollar checkout handed to W-05 back where the build bills in Korea only', async () => {
+        const setup = { ...(await withBillingEmail('?mock=new')), foreignBilling: false };
+        render(
+            <MemoryRouter
+                initialEntries={[
+                    {
+                        pathname: '/subscription/checkout/payment',
+                        search: '?plan=pro-tier-01',
+                        state: { checkout: { country: 'US' } },
+                    },
+                ]}
+            >
+                <Routes>
+                    <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
+                </Routes>
+                <Where />
+            </MemoryRouter>
+        );
+
+        await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
+        expect(screen.queryByRole('heading', { name: 'Add a payment method' })).toBeNull();
+    });
+
     it('opens filled in again when the reader comes back from W-05', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
         await fillPayer();

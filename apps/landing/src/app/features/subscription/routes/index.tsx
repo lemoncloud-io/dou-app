@@ -99,7 +99,12 @@ export const SubscriptionRoutes = ({
 
     return (
         <QueryClientProvider client={queryClient}>
-            <PortProvider port={setup.port} clock={setup.clock} supports={setup.supports}>
+            <PortProvider
+                port={setup.port}
+                clock={setup.clock}
+                supports={setup.supports}
+                foreignBilling={setup.foreignBilling}
+            >
                 <ToastProvider>
                     <ManagementScreensProvider open={management}>
                         <Host>{account ? <AccountRoutes /> : <CatalogRoutes />}</Host>

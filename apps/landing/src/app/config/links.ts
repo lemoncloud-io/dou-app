@@ -20,7 +20,7 @@ export const COMPANY = {
 } as const;
 
 /** The web app this site hands an invite over to when the reader continues in the browser. */
-export const webConfigFor = ({ isLocalhost, isDevStage }: Stage) => {
+export const webConfigFor = ({ isLocalhost, isDevStage }: Pick<Stage, 'isLocalhost' | 'isDevStage'>) => {
     if (isLocalhost) {
         return {
             domain: 'localhost:5003',

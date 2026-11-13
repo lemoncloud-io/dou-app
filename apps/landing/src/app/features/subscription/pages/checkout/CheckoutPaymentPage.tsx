@@ -15,7 +15,7 @@ import {
 import { currencyOfCountry } from '../../lib/billingCountry';
 import { toIsoDate } from '../../lib/calendar';
 import { clearPendingCheckout, peekPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useForeignBilling, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import {
     type CheckoutDetails,
@@ -63,6 +63,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const completeRegistration = useCompletePaymentMethodRegistration();
     const startCheckout = useStartCheckout();
     const [params] = useSearchParams();
+    const foreignBilling = useForeignBilling();
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
     const [detail, setDetail] = useState<string>();
@@ -91,8 +92,8 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     }, []);
 
     const details =
-        checkoutDetailsOf(location.state) ??
-        (returning ? checkoutDetailsOf({ checkout: returning.details }) : undefined);
+        checkoutDetailsOf(location.state, foreignBilling) ??
+        (returning ? checkoutDetailsOf({ checkout: returning.details }, foreignBilling) : undefined);
     // Priced in the billing country's currency, as W-08 showed it.
     const preview = usePreviewCheckout(
         route === 'checkout' && details ? plan?.id : undefined,
@@ -116,7 +117,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     useEffect(() => {
         if (!returning || resumed.current) return;
         resumed.current = true;
-        const settled = checkoutDetailsOf({ checkout: returning.details });
+        const settled = checkoutDetailsOf({ checkout: returning.details }, foreignBilling);
         if (!settled) return;
         clearPendingCheckout();
         completeRegistration
