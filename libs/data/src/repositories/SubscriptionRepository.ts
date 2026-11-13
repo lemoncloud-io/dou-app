@@ -20,7 +20,6 @@ import type {
     SubscriptionSandboxParams,
     SubscriptionStartBody,
     SubscriptionStartParams,
-    WebSubscriptionMineView,
     WebSubscriptionView,
 } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
@@ -58,11 +57,10 @@ export interface ISubscriptionRepository extends DisposableRepository {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
 
-    /**
-     * The web subscription — one per account, billed through the payment provider rather than a store.
-     * Remote-only like the rest: the landing site's account pages read it and keep no copy.
-     */
-    fetchMySubscription(): Promise<WebSubscriptionMineView>;
+    // The web subscription — one per account, billed through the payment provider rather than a store.
+    // Remote-only like the rest: the landing site's account pages read it and keep no copy. The
+    // subscription itself is read off the membership (`fetchMembershipInfo`), which carries its record.
+
     /** The cards the payment provider holds; `isDefault` marks the one it charges. */
     fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
     /** What the provider's card window opens with, for the product the card is for. */
@@ -151,10 +149,6 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>> {
         return this.requireHttp().fetchAdminClouds(ownerId, params, opts);
-    }
-
-    public async fetchMySubscription(): Promise<WebSubscriptionMineView> {
-        return this.requireHttp().fetchMySubscription();
     }
 
     public async fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]> {

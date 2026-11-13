@@ -77,7 +77,6 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
     const api: SubscriptionApi = {
         fetchPlans: params => route('GET', '/products/0/plans', undefined, params),
         fetchMembershipInfo: () => route('GET', '/memberships/0/mine'),
-        fetchMySubscription: () => route('GET', '/subscriptions/0/mine'),
         fetchSubscriptionCards: query => route('GET', '/subscriptions/0/cards', undefined, query),
         issueBillingKey: (productId, query) => route('POST', '/subscriptions/0/issue', { productId }, query),
         startSubscription: (body, query) => route('POST', '/subscriptions/0/start', body, query),
@@ -125,7 +124,6 @@ const BASE_ROUTES = {
     'GET /products/0/plans': (query: unknown) =>
         (query as { platform?: string })?.platform === 'stripe' ? STRIPE_PLANS : PLANS,
     'GET /memberships/0/mine': { platform: 'portone', status: 'expired', trialUsed: false },
-    'GET /subscriptions/0/mine': {},
     'GET /subscriptions/0/cards': [CARD],
     'POST /subscriptions/0/issue': ISSUE,
 };
@@ -140,6 +138,14 @@ const subscription = (wire: Partial<SubscriptionWire>): SubscriptionWire => ({
     trialUsed: true,
     status: 'active',
     ...wire,
+});
+
+/** The membership as the server answers it, with the subscription record it carries. */
+const membershipOf = (record: SubscriptionWire) => ({
+    platform: record.platform,
+    status: record.status === 'expired' ? 'expired' : 'active',
+    trialUsed: record.trialUsed,
+    $subscription: record,
 });
 
 describe('createHttpPort — session', () => {
@@ -191,15 +197,31 @@ describe('createHttpPort — session', () => {
     });
 
     it('treats a session the server refuses as gone for the rest of the page', async () => {
-        const { port } = setup({
+        // Refused once only: a session read afterwards would succeed if it were asked.
+        let refused = false;
+        const { port, calls } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': () => {
+            'GET /memberships/0/mine': () => {
+                if (refused) return BASE_ROUTES['GET /memberships/0/mine'];
+                refused = true;
                 throw httpError(403);
             },
         });
         const error = await port.listSubscriptions().catch(e => e);
         expect(isPortError(error, 'unauthenticated')).toBe(true);
         expect(await port.getSession()).toBeNull();
+        expect(calls.filter(call => call.path === '/memberships/0/mine')).toHaveLength(1);
+    });
+
+    it('shares a membership read still in flight, and reads again once it has settled', async () => {
+        const { port, calls } = setup({ ...BASE_ROUTES, 'GET /memberships/0/mine': membershipOf(subscription({})) });
+        const reads = () => calls.filter(call => call.path === '/memberships/0/mine').length;
+        const [account, subs] = await Promise.all([port.getSession(), port.listSubscriptions()]);
+        expect(account).toMatchObject({ billingSource: 'web' });
+        expect(subs).toMatchObject([{ id: 'U1:portone' }]);
+        expect(reads()).toBe(1);
+        await port.listSubscriptions();
+        expect(reads()).toBe(2);
     });
 });
 
@@ -228,13 +250,13 @@ describe('createHttpPort — plans and subscription', () => {
     it('lists the plans in the currency of the subscription in force when none is asked for', async () => {
         const { port } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': {
-                subscription: subscription({
+            'GET /memberships/0/mine': membershipOf(
+                subscription({
                     id: 'U1:stripe',
                     platform: 'stripe',
                     productId: 'dou-web-stripe-tier-02_dev',
-                }),
-            },
+                })
+            ),
         });
         expect((await port.listPlans()).map(plan => plan.monthly.currency)).toEqual(Array(5).fill('USD'));
     });
@@ -259,7 +281,7 @@ describe('createHttpPort — plans and subscription', () => {
     it('has one subscription at most, charged to its card', async () => {
         const { port } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /memberships/0/mine': membershipOf(subscription({})),
         });
         expect(await port.listSubscriptions()).toMatchObject([
             { id: 'U1:portone', planId: 'pro-tier-02', status: 'active', defaultPaymentMethodId: 'mock:dev:U1:01' },
@@ -267,6 +289,45 @@ describe('createHttpPort — plans and subscription', () => {
         expect(await port.getSubscription('U1:portone')).toMatchObject({ id: 'U1:portone' });
         expect(isPortError(await port.getSubscription('other').catch(e => e), 'notFound')).toBe(true);
         expect(await setup(BASE_ROUTES).port.listSubscriptions()).toEqual([]);
+    });
+
+    it('reads an account with no membership as one with no subscription', async () => {
+        const { 'GET /memberships/0/mine': _membership, ...routes } = BASE_ROUTES;
+        const { port } = setup(routes);
+        expect(await port.listSubscriptions()).toEqual([]);
+        expect(await port.getSession()).toMatchObject({ billingSource: 'none' });
+    });
+
+    it('leaves out a store record the membership carries: it is not the web subscription', async () => {
+        const { port, calls } = setup({
+            ...BASE_ROUTES,
+            'POST /subscriptions/0/card': CARD,
+            'GET /memberships/0/mine': {
+                platform: 'apple',
+                status: 'active',
+                isValid: true,
+                productId: '#pro-tier-02',
+                validUntil: at('2026-12-01'),
+                trialUsed: false,
+                $subscription: subscription({
+                    id: 'U1:apple',
+                    platform: 'apple',
+                    productId: '#pro-tier-02',
+                    trialUsed: true,
+                }),
+            },
+        });
+        expect(await port.listSubscriptions()).toEqual([]);
+        expect(await port.getSession()).toMatchObject({ billingSource: 'appStore' });
+        expect(isPortError(await port.previewChange('pro-tier-03').catch(e => e), 'conflict')).toBe(true);
+        // The store record's trial flag is not the web's: eligibility reads the membership alone.
+        expect(await port.previewCheckout('pro-tier-01')).toMatchObject({ withTrial: true });
+        // A card added on its own asks for the won provider's first product, not the store's. (The real
+        // server refuses this while the store subscription is in use; what is checked is what is sent.)
+        await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
+        expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
+            productId: 'dou-web-tier-01_dev',
+        });
     });
 
     it('offers the trial to an account that never used one, and charges at once otherwise', async () => {
@@ -367,7 +428,7 @@ describe('createHttpPort — checkout', () => {
         const { port } = setup({
             ...BASE_ROUTES,
             'POST /subscriptions/0/start': () => held,
-            'GET /subscriptions/0/mine': () => ({ subscription: held }),
+            'GET /memberships/0/mine': () => membershipOf(held),
         });
         const attempt = await port.startCheckout({
             planId: 'pro-tier-01',
@@ -480,13 +541,13 @@ describe('createHttpPort — checkout', () => {
         const card = vi.fn(() => ({ ...CARD, id: 'pm_0002', provider: 'stripe' }));
         const { port, calls } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': {
-                subscription: subscription({
+            'GET /memberships/0/mine': membershipOf(
+                subscription({
                     id: 'U1:stripe',
                     platform: 'stripe',
                     productId: 'dou-web-stripe-tier-02_dev',
-                }),
-            },
+                })
+            ),
             'POST /subscriptions/0/issue': STRIPE_ISSUE,
             'POST /subscriptions/0/card': card,
         });
@@ -503,7 +564,7 @@ describe('createHttpPort — checkout', () => {
     it('sends a card added on its own back to the card list', async () => {
         const { port, paymentWindow } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /memberships/0/mine': membershipOf(subscription({})),
             'POST /subscriptions/0/card': () => CARD,
         });
         await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
@@ -528,7 +589,7 @@ describe('createHttpPort — checkout', () => {
         const card = vi.fn(() => CARD);
         const { port } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /memberships/0/mine': membershipOf(subscription({})),
             'POST /subscriptions/0/card': card,
         });
         expect(
@@ -601,7 +662,7 @@ describe('createHttpPort — checkout', () => {
         const { port } = setup({
             ...BASE_ROUTES,
             'POST /subscriptions/0/start': () => held,
-            'GET /subscriptions/0/mine': () => ({ subscription: held }),
+            'GET /memberships/0/mine': () => membershipOf(held),
         });
         const attempt = await port.startCheckout({
             planId: 'pro-tier-01',
@@ -661,7 +722,26 @@ describe('createHttpPort — checkout', () => {
 });
 
 describe('createHttpPort — plan change and cancelling', () => {
-    const ACTIVE = { ...BASE_ROUTES, 'GET /subscriptions/0/mine': { subscription: subscription({}) } };
+    const ACTIVE = { ...BASE_ROUTES, 'GET /memberships/0/mine': membershipOf(subscription({})) };
+
+    it('reads the account and its subscription in one membership read per preview and change', async () => {
+        const { port, calls } = setup({ ...ACTIVE, 'POST /subscriptions/0/change': subscription({}) });
+        // The server's calls each makes, leaving out the catalog, which is read once for the page.
+        const made = async (work: () => Promise<unknown>) => {
+            const from = calls.length;
+            await work();
+            return calls
+                .slice(from)
+                .filter(call => call.path !== '/products/0/plans')
+                .map(call => `${call.method} ${call.path}`);
+        };
+        expect(await made(() => port.previewChange('pro-tier-03'))).toEqual(['GET /memberships/0/mine']);
+        expect(await made(() => port.changePlan('pro-tier-01'))).toEqual([
+            'GET /memberships/0/mine',
+            'POST /subscriptions/0/change',
+        ]);
+        expect(await made(() => port.previewCheckout('pro-tier-01'))).toEqual(['GET /memberships/0/mine']);
+    });
 
     it('estimates an upgrade as the difference for the days left, and charges it', async () => {
         const change = vi.fn(() => subscription({ productId: '#dou-web-tier-03_dev' }));
@@ -701,7 +781,7 @@ describe('createHttpPort — plan change and cancelling', () => {
     it('refuses an upgrade during a trial, as the server does, but lets a trial move down', async () => {
         const { port } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({ status: 'trial' }) },
+            'GET /memberships/0/mine': membershipOf(subscription({ status: 'trial' })),
         });
         expect(await port.previewChange('pro-tier-03')).toMatchObject({ kind: 'upgrade', blocked: 'trialUpgrade' });
         expect(isPortError(await port.changePlan('pro-tier-03').catch(e => e), 'conflict')).toBe(true);
@@ -743,20 +823,20 @@ describe('createHttpPort — cards', () => {
     it("puts beside a subscription the default card of its own provider, not the other provider's", async () => {
         const won = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /memberships/0/mine': membershipOf(subscription({})),
             'GET /subscriptions/0/cards': [DOLLAR_CARD, CARD],
         });
         expect((await won.port.listSubscriptions())[0].defaultPaymentMethodId).toBe(CARD.id);
 
         const dollars = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': {
-                subscription: subscription({
+            'GET /memberships/0/mine': membershipOf(
+                subscription({
                     id: 'U1:stripe',
                     platform: 'stripe',
                     productId: 'dou-web-stripe-tier-02_dev',
-                }),
-            },
+                })
+            ),
             'GET /subscriptions/0/cards': [CARD, DOLLAR_CARD],
         });
         expect((await dollars.port.listSubscriptions())[0]).toMatchObject({
@@ -787,7 +867,7 @@ describe('createHttpPort — cards', () => {
         const card = vi.fn(() => CARD);
         const { port, calls } = setup({
             ...BASE_ROUTES,
-            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /memberships/0/mine': membershipOf(subscription({})),
             'POST /subscriptions/0/card': card,
         });
         expect(await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER })).toMatchObject({
@@ -858,7 +938,7 @@ describe('createHttpPort — sandbox payments', () => {
     // A subscription the mock provider started, then a second card and the calls on both.
     const sandboxRoutes = {
         ...BASE_ROUTES,
-        'GET /subscriptions/0/mine': { subscription: subscription({}) },
+        'GET /memberships/0/mine': membershipOf(subscription({})),
         'POST /subscriptions/0/start': subscription({ status: 'active' }),
         'POST /subscriptions/0/change': subscription({ productId: '#dou-web-tier-03_dev' }),
         'POST /subscriptions/0/cancel': subscription({ status: 'canceling' }),
@@ -911,7 +991,7 @@ describe('createHttpPort — sandbox payments', () => {
         }
         // Each of the six was made at least once, so none passed by being absent.
         for (const path of payerScoped) expect(calls.some(call => call.path === path)).toBe(true);
-        expect(calls.some(call => call.path === '/subscriptions/0/mine')).toBe(true);
+        expect(calls.some(call => call.path === '/memberships/0/mine')).toBe(true);
         expect(calls.some(call => call.path === '/subscriptions/0/cancel')).toBe(true);
     });
 

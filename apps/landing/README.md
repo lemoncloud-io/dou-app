@@ -514,10 +514,27 @@ names the country and the currency and never a provider — the last boundary co
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
-`SubscriptionRepository` (`fetchMySubscription`, `startSubscription`, `cancelSubscription`, …) is what
+`SubscriptionRepository` (`fetchMembershipInfo`, `startSubscription`, `cancelSubscription`, …) is what
 `lib/port/http/runtime.ts` hands the port as its `SubscriptionApi`. What stays in this app is the
 translation into the screens' view types and the rules around the calls (`createHttpPort.ts`,
 `wire.ts`, `errors.ts`).
+
+The subscription has no read of its own. The membership (`GET /memberships/0/mine`) carries the record
+of the platform billing the account as `$subscription`, brought up to date with the payment server's
+missed results first, so one read answers both the account and its subscription (`readMine` in
+`createHttpPort.ts`):
+
+- A call that needs both — W-14's change preview, W-08's checkout preview, a plan change — makes one
+  read and sees both at the same moment.
+- A read still in flight is shared by whoever asks while it is, so a screen that asks for the account
+  and the subscription together sends one request. The server's read is not a plain read — it also
+  re-reads a store receipt and reconciles the account's clouds — so sending it twice at once is waste.
+  Only a read in flight is shared: the next call after it settles reads again, which a poll needs.
+- The read carries no `?platform`. The server answers the record of the platform the membership is on
+  now, which is what the screens want: `?platform=portone` would read nothing for a dollar subscriber
+  and would show an old web record to an account a store bills today.
+- A store's record (`apple`, `google`) comes on the membership too, and is not the web subscription: a
+  store-billed account reads as having none here (`webSubscriptionOf` in `wire.ts`).
 
 What the screens get from the server differs from the tests' fake server in a few places, all in `lib/port/http/wire.ts`:
 
@@ -589,7 +606,7 @@ page has no in-memory stand-in for the server any more (ADR-0264).
 - **What carries it.** The HTTP port adds `?sandbox` to the six payer-scoped calls — `issue`, `start`, the
   card list, adding a card, choosing the default and removing one — and to every card call, since the
   server reads it per call and one card call without it would mix in the payer's real cards. The
-  calls on the subscription itself (`mine`, `change`, `cancel`) and the membership read carry nothing:
+  calls on the subscription itself (`change`, `cancel`) and the membership read carry nothing:
   the server follows the record. `?interval` goes on a sandboxed `start` only. The query is passed
   through the runtime's subscription repository (`libs/data`, `libs/http`), whose payer-scoped calls
   take it as an optional last argument.

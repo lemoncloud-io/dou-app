@@ -74,6 +74,11 @@ export interface MembershipWire {
     isValid?: boolean;
     /** Whether a web subscription started now begins with a trial — the server's `start` rule. */
     trialEligible?: boolean;
+    /**
+     * The subscription record of the membership's current platform, already brought up to date with
+     * the payment server's missed results. A store's record comes here too — `webSubscriptionOf`.
+     */
+    $subscription?: SubscriptionWire;
 }
 
 /**
@@ -163,6 +168,17 @@ export interface CatalogPlan extends Plan {
 /** The server's payment platform as a provider this side knows; anything else is none. */
 export const providerOfPlatform = (platform: string | undefined): PaymentProvider | undefined =>
     platform === 'portone' || platform === 'stripe' ? platform : undefined;
+
+/**
+ * The account's web subscription record, as the membership carries it. The membership carries the
+ * record of whichever platform bills the account, a store's included, and a store's record is not one
+ * these screens draw, change or add a card to — so only a payment provider's is the web subscription.
+ * An account billed by a store has none here, even if it once had one on the web.
+ */
+export const webSubscriptionOf = (membership: MembershipWire | undefined): SubscriptionWire | undefined => {
+    const record = membership?.$subscription;
+    return providerOfPlatform(record?.platform) ? record : undefined;
+};
 
 /** The server prefixes some product ids with `#`; both spellings name the same product. */
 export const bareProductId = (id: string | undefined): string => (id ?? '').replace(/^#/, '');

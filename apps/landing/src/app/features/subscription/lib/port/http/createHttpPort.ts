@@ -26,6 +26,7 @@ import {
     toPaymentMethod,
     toPlan,
     toSubscription,
+    webSubscriptionOf,
     type CardWire,
 } from './wire';
 
@@ -56,8 +57,8 @@ import type {
  */
 export interface SubscriptionApi {
     fetchPlans(params?: Record<string, unknown>): Promise<{ list?: ProductWire[] }>;
+    /** The membership, carrying the subscription record (`$subscription`) — the read of both. */
     fetchMembershipInfo(): Promise<MembershipWire>;
-    fetchMySubscription(): Promise<{ subscription?: SubscriptionWire }>;
     // The payer-scoped calls take the sandbox query (`SandboxQuery`); the calls on the subscription
     // itself take none — the server follows the record.
     fetchSubscriptionCards(query?: SandboxQuery): Promise<CardWire[]>;
@@ -249,13 +250,45 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         return card ? { ...sub, defaultPaymentMethodId: card.id } : sub;
     };
 
-    /** The account's subscription, read against the catalog of the provider that charges it. */
-    const readMine = async (): Promise<{ wire?: SubscriptionWire; sub?: Subscription }> => {
-        const mine = await call(server => server.fetchMySubscription());
-        const wire = mine?.subscription;
+    /** The account's membership, or none for an account that never bought anything. */
+    const fetchMembership = async (): Promise<MembershipWire | undefined> => {
+        try {
+            return await call(server => server.fetchMembershipInfo());
+        } catch (error) {
+            if ((error as SubscriptionPortError).code !== 'notFound') throw error;
+            return undefined;
+        }
+    };
+
+    // One membership read in flight at a time, shared by whoever asks while it is: a screen that asks
+    // for the account and the subscription together sends one request. The server's read is not a
+    // plain read — it settles missed payment results, re-reads a store receipt and reconciles the
+    // account's clouds each time — and two at once would do that twice. Only a read still in flight
+    // is shared; the first call after it settles reads again, so a poll sees each new state.
+    let membershipRead: Promise<MembershipWire | undefined> | undefined;
+    const readMembership = (): Promise<MembershipWire | undefined> => {
+        membershipRead ??= fetchMembership().finally(() => {
+            membershipRead = undefined;
+        });
+        return membershipRead;
+    };
+
+    /**
+     * The account's subscription, read against the catalog of the provider that charges it, beside the
+     * membership it came with. The membership read is the only read of the subscription: the server
+     * carries the record on it, brought up to date the same way, so one call answers both the account
+     * and its subscription, and the two describe the same moment.
+     */
+    const readMine = async (): Promise<{
+        membership?: MembershipWire;
+        wire?: SubscriptionWire;
+        sub?: Subscription;
+    }> => {
+        const membership = await readMembership();
+        const wire = webSubscriptionOf(membership);
         const provider = providerOfPlatform(wire?.platform);
-        if (!wire || !provider) return { wire };
-        return { wire, sub: toSubscription(wire, await loadCatalog(provider)) };
+        if (!wire || !provider) return { membership, wire };
+        return { membership, wire, sub: toSubscription(wire, await loadCatalog(provider)) };
     };
 
     /** The provider of the subscription in force, if there is one. */
@@ -270,25 +303,37 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         return provider ? toSubscription(view, await loadCatalog(provider)) : undefined;
     };
 
-    const getSession = async (): Promise<Account | null> => {
+    /** The signed-in account, from a membership already read. */
+    const accountOf = (membership: MembershipWire | undefined): Account => {
         const user = lost ? null : session.user();
-        if (!user) return null;
-        let membership: MembershipWire | undefined;
-        try {
-            membership = await call(server => server.fetchMembershipInfo());
-        } catch (error) {
-            if ((error as SubscriptionPortError).code === 'unauthenticated') return null;
-            // An account that never bought anything may have no membership to read.
-            if ((error as SubscriptionPortError).code !== 'notFound') throw error;
-        }
+        if (!user) return fail('unauthenticated');
         const provider = storage.getItem(PROVIDER_KEY) === 'apple' ? 'apple' : 'google';
         return toAccount({ user, provider, membership });
     };
 
+    const getSession = async (): Promise<Account | null> => {
+        if (lost || !session.user()) return null;
+        try {
+            return accountOf(await readMembership());
+        } catch (error) {
+            if ((error as SubscriptionPortError).code === 'unauthenticated') return null;
+            throw error;
+        }
+    };
+
     const requireSession = async (): Promise<Account> => (await getSession()) ?? fail('unauthenticated');
 
-    const previewChange = async (planId: PlanId): Promise<ChangePreview> => {
-        const [{ wire, sub }, account] = await Promise.all([readMine(), requireSession()]);
+    type Mine = Awaited<ReturnType<typeof readMine>>;
+
+    /**
+     * What changing to `planId` would do, worked out from a read of the account's subscription, beside
+     * the product it would change to.
+     */
+    const changePreviewOf = async (
+        planId: PlanId,
+        { membership, wire, sub }: Mine
+    ): Promise<{ preview: ChangePreview; target: CatalogPlan }> => {
+        const account = accountOf(membership);
         if (!wire || !sub || (sub.status !== 'trial' && sub.status !== 'active')) {
             return fail('conflict', 'no subscription that can change plan');
         }
@@ -313,8 +358,11 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         if (kind === 'blocked') preview.blocked = 'notAdjacent';
         // The server upgrades a paid period only (409 during a trial); a trial can move down.
         else if (direction === 'upgrade' && sub.status === 'trial') preview.blocked = 'trialUpgrade';
-        return preview;
+        return { preview, target: to };
     };
+
+    const previewChange = async (planId: PlanId): Promise<ChangePreview> =>
+        (await changePreviewOf(planId, await readMine())).preview;
 
     /**
      * What a window's result means: a checkout's card goes with the start that follows, any other card
@@ -342,11 +390,8 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
 
     /** A first subscription to `planId` with `provider`: the trial, if the account may have one, and the charges. */
     const checkoutPreview = async (planId: PlanId, provider: PaymentProvider): Promise<CheckoutPreview> => {
-        const [plan, account, { wire }] = await Promise.all([
-            catalogPlan(planId, provider),
-            requireSession(),
-            readMine(),
-        ]);
+        const [plan, { membership, wire }] = await Promise.all([catalogPlan(planId, provider), readMine()]);
+        const account = accountOf(membership);
         // The server says whether its checkout would start a trial; a server that does not say is read
         // off the trial-used flags, as before.
         const eligible = account.trialEligible ?? (!account.trialUsed && !wire?.trialUsed);
@@ -520,12 +565,10 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         previewChange,
 
         changePlan: async planId => {
-            const preview = await previewChange(planId);
+            const { preview, target } = await changePreviewOf(planId, await readMine());
             if (preview.blocked) return fail('conflict', `change blocked: ${preview.blocked}`);
-            const { sub } = await readMine();
-            const plan = await catalogPlan(planId, sub?.provider ?? 'portone');
             try {
-                const view = await send(server => server.changeSubscription(plan.productId));
+                const view = await send(server => server.changeSubscription(target.productId));
                 if (preview.kind === 'downgrade') {
                     return { scheduled: true as const, effectiveAt: dayOf(view.validUntil) ?? preview.effectiveAt };
                 }

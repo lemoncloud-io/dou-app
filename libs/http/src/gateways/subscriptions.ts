@@ -99,9 +99,10 @@ export interface SubscriptionHttpGateway {
     ): Promise<ListResult<CloudView, AggrResult>>;
 
     // The web subscription — the one billed through the payment provider rather than a store, kept per
-    // account (one at most) on the relay. Every call is scoped to the current session (`0`).
-    /** GET {relay}/subscriptions/0/mine — the account's web subscription, if it has one. */
-    mySubscription(): Promise<WebSubscriptionMineView>;
+    // account (one at most) on the relay. Every call is scoped to the current session (`0`). The
+    // subscription itself is read off the membership (`membership`), which carries its record as
+    // `$subscription` — a field the server package's `MembershipView` does not declare yet, so its
+    // reader (the landing site) types it on its own side.
     // The six payer-scoped calls below take `SubscriptionSandboxParams` (`start` its wider
     // `SubscriptionStartParams`); the calls on the subscription itself take none — the relay follows
     // the subscription record there.
@@ -148,11 +149,6 @@ export interface WebSubscriptionView {
     validUntil?: number;
     autoRenewing?: boolean;
     trialUsed?: boolean;
-}
-
-/** `SubscriptionMineView` — empty when the account has no web subscription. */
-export interface WebSubscriptionMineView {
-    subscription?: WebSubscriptionView;
 }
 
 /** `BillkeyView` — a card the payment provider holds. It carries no expiry. */
@@ -368,12 +364,6 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 method: 'GET',
                 baseURL: `${options?.endpoint || relay()}/clouds/0/list`,
                 params: { ...params, ownerId, view: 'admin', valid: 0 },
-            }),
-
-        mySubscription: () =>
-            exec.executeSignedRelayRequest<WebSubscriptionMineView>({
-                method: 'GET',
-                baseURL: `${relay()}/subscriptions/0/mine`,
             }),
 
         subscriptionCards: params =>
