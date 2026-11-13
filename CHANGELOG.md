@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-11-13] - root@0.156.0, @chatic/web@0.88.0
+
+### Features
+
+- (web/home) give the relay home one Chats tab and a direct 1:1 plus
+- (web) give the relay home the same tabbed room list as a cloud
+- (web) add haptics and motion to the home and notification screens
+- (web) add the notifications tab, the find-me sheet and a 3-tab bottom nav
+
 ## [2026-11-13] - No version updates
 
 ### Features
