@@ -14,6 +14,15 @@ import {
     settleRuntimeHello,
 } from './contract';
 import { createCoreSessionCommands } from '../session/commands';
+import { TOKEN_ISSUING_AUTH_METHODS } from '../data/pageRepositories';
+import { createCoreRuntimeData } from '../data/runtimeData';
+import {
+    DATA_CALL_METHODS,
+    DATA_STREAMS,
+    REPOSITORY_CALL_METHODS,
+    REPOSITORY_METHODS,
+    REPOSITORY_STREAMS,
+} from './repositories';
 import { createCoreRuntimeConnection } from '../connection/runtimeConnection';
 import { createCoreRuntimeSync } from '../sync/runtimeSync';
 import type { RuntimeHelloHost } from './contract';
@@ -170,9 +179,39 @@ describe('the sockets and the sync engine across the bridge', () => {
         expect(CONNECTION_TARGET).toBe('connection');
     });
 
-    it("list every member of the core engine's sync once — a registration is a stream", () => {
-        expect([...SYNC_CALL_METHODS, ...SYNC_STREAMS].sort()).toEqual(Object.keys(createCoreRuntimeSync()).sort());
-        expect(SYNC_STREAMS).toEqual(['registerTarget']);
+    it("list every member of the core engine's sync once — a registration is a stream, refusals a view", () => {
+        const listed = [...SYNC_CALL_METHODS, ...SYNC_STREAMS, 'isChannelRefused', 'subscribeRefusedChannels'];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeSync()).sort());
+        expect(SYNC_STREAMS).toEqual(['registerTarget', 'onBackgroundDelta']);
         expect(SYNC_TARGET).toBe('sync');
+    });
+});
+
+describe('the data across the bridge', () => {
+    it('names every repository method once, and every observe* as a stream', () => {
+        const all = [...REPOSITORY_CALL_METHODS, ...REPOSITORY_STREAMS];
+
+        expect(new Set(all).size).toBe(all.length);
+        expect(REPOSITORY_STREAMS.every(method => method.split('.')[1].startsWith('observe'))).toBe(true);
+        expect(REPOSITORY_CALL_METHODS.some(method => method.split('.')[1].startsWith('observe'))).toBe(false);
+        expect(Object.keys(REPOSITORY_METHODS)).toHaveLength(14);
+    });
+
+    it("has no token issuer, no pairing claim and no lifecycle on the page's graph", () => {
+        const auth = Object.keys(REPOSITORY_METHODS.auth);
+
+        for (const method of TOKEN_ISSUING_AUTH_METHODS.filter(m => m !== 'confirmPhoneCode')) {
+            expect(auth).not.toContain(method);
+        }
+        expect(Object.keys(REPOSITORY_METHODS.pairing)).not.toContain('claimPairing');
+        expect(REPOSITORY_CALL_METHODS.some(method => method.endsWith('.dispose'))).toBe(false);
+    });
+
+    it("list every member of the core engine's data, the graphs themselves being the page's handles", () => {
+        const listed = [...DATA_CALL_METHODS, ...DATA_STREAMS, 'repositories', 'cloudRepositories'];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeData()).sort());
+        expect(DATA_STREAMS).toEqual(['observeStateOutbox']);
     });
 });

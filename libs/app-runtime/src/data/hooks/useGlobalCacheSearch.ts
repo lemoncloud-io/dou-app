@@ -1,16 +1,8 @@
 import { useCallback } from 'react';
 import { globalCacheRefKey } from '@chatic/data';
 import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/data';
-import { getGlobalCacheSearchSource } from '@chatic/runtime-core';
-import { getDataManager } from '@chatic/runtime-core';
 
-const EMPTY_RESULT: GlobalCacheSearchResult = { channels: [], sites: [], chats: [] };
-const EMPTY_CONTEXT: GlobalCacheContext = {
-    channelsByRef: {},
-    sitesByRef: {},
-    joinsByRef: {},
-    lastChatsByRef: {},
-};
+import { runtimeData } from '../dataCommands';
 
 /**
  * Cross-cloud reads over the local cache (see docs/specs/cache/global-cache-search.md):
@@ -18,23 +10,18 @@ const EMPTY_CONTEXT: GlobalCacheContext = {
  * around it (owning channel/place, my read cursor, newest message) — the only supported way to
  * read outside the active cloud, since repositories are scoped to it.
  *
- * `uid` is read from the live data context at call time, not captured at hook-creation time,
- * so a login/logout between renders is reflected without a stale closure.
+ * Through the engine, which reads the account at call time — not captured at hook-creation time — so
+ * a login/logout between renders is reflected without a stale closure. Signed out, both answer empty.
  */
 export const useGlobalCacheSearch = () => {
     const search = useCallback((keyword: string, options?: { cid?: string }): Promise<GlobalCacheSearchResult> => {
-        const { uid } = getDataManager().getContext();
-        if (!uid) return Promise.resolve(EMPTY_RESULT);
-
-        return getGlobalCacheSearchSource().search(keyword, { uid, cid: options?.cid });
+        // The account is the engine's to read, at call time: a sign-in or out between renders counts.
+        return runtimeData().searchCache(keyword, options);
     }, []);
 
     const resolveContext = useCallback(
         (refs: { cids: string[]; channelRefs: GlobalCacheRef[] }): Promise<GlobalCacheContext> => {
-            const { uid } = getDataManager().getContext();
-            if (!uid) return Promise.resolve(EMPTY_CONTEXT);
-
-            return getGlobalCacheSearchSource().resolveContext({ uid, ...refs });
+            return runtimeData().resolveCacheContext(refs);
         },
         []
     );

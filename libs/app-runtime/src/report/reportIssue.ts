@@ -1,6 +1,6 @@
 import { config } from '@chatic/config';
 
-import { getRepositories } from '@chatic/runtime-core';
+import { runtimeData } from '../data/dataCommands';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
 import { isNative } from '@chatic/bridges';
@@ -123,9 +123,10 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
         }
 
         // repository → data source → gateway, like every other data call. Resolved per
-        // call, not captured at module load: this file must stay importable before the data runtime
-        // is configured — same rule `session/auth` follows.
-        await getRepositories().report.submitIssue(body);
+        // call, not captured at module load: this file must stay importable before the entry point
+        // hands the runtime its engine — same rule `session/auth` follows. Through the engine, like
+        // every data call.
+        await runtimeData().repositories().report.submitIssue(body);
     } catch (reportingError) {
         logger.error('ERROR_REPORT', 'Failed to report issue', { error: reportingError });
         throw reportingError;

@@ -88,13 +88,23 @@ unsubscribes (`CONNECTION_STREAMS` — a server push type, every frame, request 
 a target registration, which stands while its stream is open); a **local** member does not cross at
 all (`CONNECTION_LOCAL_MEMBERS`). What crosses is a domain result — a socket request of any type and
 every raw frame are not, so `requestOnSlot` and `onServerMessage` are local: they work only where the
-runtime runs in the page's own process. The relay account's profile reads and writes, the one use of
-`requestOnSlot` in a page that may mirror a runtime, become domain calls before it does; the frames feed
-a desktop debug log, and the desktop shell never runs the runtime itself
+runtime runs in the page's own process. The page does not use the request — the relay account's
+profile is the session commands `fetchAccountProfile` / `updateAccountProfile` — and the frames feed a
+desktop debug log, where the desktop shell never runs the runtime itself
 ([docs/connection](../connection/README.md#the-sockets-as-screens-read-them)).
 
-The repositories are added to the contract with the change that moves them behind the engine — where
-the core engine is a first implementation to check it against.
+The data is a fourth target, `data` (`DATA_TARGET`). A repository method is named `<repository>.<method>`
+— `chat.sendChat` — and, for a cloud's graph rather than the live scope's, takes the cloud id first among
+its arguments. `REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of
+each page repository so a new one cannot be left out: an `observe*` method is a stream whose events are
+its callback's arguments, every other method a call (`REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`).
+The token issuers are not on the page's graph, so they are not in the contract either
+(`confirmPhoneCode` stays, for `link` mode only). The rest of
+`RuntimeData` is listed the same way (`DATA_CALL_METHODS`, `DATA_STREAMS`)
+([docs/data](../data/README.md#the-pages-graph)).
+
+The session commands gained the relay account's profile (`fetchAccountProfile`,
+`updateAccountProfile`) — what pages used to send on the relay slot themselves.
 
 ## The messages
 
@@ -150,7 +160,8 @@ where the session is, before the error reaches the page.
 
 ## Where it lives
 
-| File                     | Holds                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge/contract.ts` | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
-| `src/bridge/errors.ts`   | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
+| File                         | Holds                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge/contract.ts`     | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
+| `src/bridge/errors.ts`       | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
+| `src/bridge/repositories.ts` | `DATA_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                                            |

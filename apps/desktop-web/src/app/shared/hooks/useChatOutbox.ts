@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID, toMentionBody } from '@chatic/data';
-import type { ChatSendPayload, DataRepositories, DomainChat } from '@chatic/data';
+import type { ChatSendPayload, DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 /**
@@ -196,7 +196,7 @@ export const createLandingBatch = (): LandingBatch => {
  */
 export interface CloudOutboxDeps {
     /** The repository graph bound to `cid` — its partition, whichever cloud is selected. */
-    repositoriesOf(cid: string): Pick<DataRepositories, 'chat' | 'channel'>;
+    repositoriesOf(cid: string): Pick<runtime.data.PageRepositories, 'chat' | 'channel'>;
     /** Sends to `cid` over that cloud's socket slot. */
     sendInCloud(cid: string, payload: ChatSendPayload): Promise<unknown>;
     /** The uid this account has in `cid` — every cloud gives it a different one. */

@@ -16,7 +16,7 @@ is [libs/sync](../../../sync/README.md)'s.
 ## Layout
 
 ```text
-libs/runtime-core/src/data/        16 source files, 13 tests
+libs/runtime-core/src/data/        18 source files, 15 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -29,6 +29,8 @@ libs/runtime-core/src/data/        16 source files, 13 tests
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
 ├── mediaSendTrace.ts             beginMediaSendTiming · createMediaSendTracer — the chat_send_media sample
+├── pageRepositories.ts           PageRepositories · pageRepositoriesOf — the graph as a screen has it
+├── runtimeData.ts                RuntimeData · createCoreRuntimeData — the engine's `data`
 └── factories/                    socketFactory · localFactory · httpFactory ·
                                   outboxFactory — the state outbox's transport, one outbox for every graph · setStateOutboxObserver
 ```
@@ -165,6 +167,27 @@ apply it to.
 `CacheAssemblyOptions` has exactly one field, `maxChatsPerChannel`. Unset means unbounded, which is
 what every client did before and still does unless it opts in. It only bites on web storage; inside a
 native shell chat always routes to SQLite.
+
+### The page's graph
+
+`engine.data` (`RuntimeData`) is how the React surface reaches the data. `repositories()` and
+`cloudRepositories(cid)` hand over the **page's view** of a graph (`pageRepositoriesOf`): the same
+repositories, minus what answers with a session's token — the auth repository's token issuers
+(`TOKEN_ISSUING_AUTH_METHODS`; `confirmPhoneCode` stays for `link` mode only) and the pairing claim —
+and minus the lifecycle of the graph and of each repository (`withContext`, `dispose`). Those are left
+out of the type and refused at run time with `PAGE_REPOSITORY_REFUSED`. The view is a proxy that binds
+each method to its repository, and it is memoised per graph and per repository, so a screen that puts
+a repository in an effect's dependencies keeps the same object. A method read off it is not: each read
+binds anew, so hold the repository, not one of its methods, where identity matters.
+
+The rest of `RuntimeData` is the work the page used to do by importing this folder: the cloud-addressed
+send and wait, the invited and paired cloud recovery and names (by cloud id — the engine uses the live
+scope's cloud repository), the cache clear and cursor reset, the state outbox observer (it returns its
+stop), the cache's metrics and the cross-cloud cache search (signed out, the search answers empty).
+
+Across the bridge every repository method is a `call` but the `observe*` ones, which are `stream`s
+(`bridge/repositories.ts` — keyed by every method of every page repository); the graphs themselves are
+the page's handles and do not cross ([docs/bridge](../bridge/README.md)).
 
 ### The hooks
 

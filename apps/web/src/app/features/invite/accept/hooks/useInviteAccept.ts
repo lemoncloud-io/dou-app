@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import type { DomainChannel, IChannelRepository } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 
 import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
@@ -21,7 +21,10 @@ const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(Strin
 const CHANNEL_READ_TIMEOUT_MS = 3_000;
 
 /** The first row the cache emits for `id` (or `null` on timeout) — a one-shot read of an observer. */
-const readChannelOnce = (channel: IChannelRepository, id: string): Promise<DomainChannel | null> =>
+const readChannelOnce = (
+    channel: runtime.data.PageRepositories['channel'],
+    id: string
+): Promise<DomainChannel | null> =>
     new Promise(resolve => {
         let settled = false;
         const settle = (item: DomainChannel | null) => {

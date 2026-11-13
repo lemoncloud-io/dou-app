@@ -82,23 +82,22 @@ changes.
 
 ### Outside React
 
-| Function                                                  | Does                                                                                            |
-| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `getRuntimeSocketState()`                                 | the active slot's socket at the moment of the call — a click, a timer                           |
-| `waitUntilVerified(slot?, timeoutMs?)`                    | `true` once that slot (the active one when none is named) is verified; `false` on timeout       |
-| `requestOnSlot(slot, type, data?, options?)`              | a request on one named slot, whichever is active — the relay account while a cloud is on screen |
-| `onServerEvent(type, listener, { slot? })`                | the server's pushes of one type, from one slot or the active one                                |
-| `onServerMessage(listener)`                               | every frame the active slot receives, across reconnects                                         |
-| `observeSocketRequests(observer)`                         | every settled request, for a sampled timing                                                     |
-| `getSlotStatuses()`                                       | every bound slot's status (async) — a debug screen's, not a gate                                |
-| `reconnectSocket()`                                       | closes the active socket so it redials — a wake kick                                            |
-| `recoverUnverifiedSockets()` · `recoverSocketsOnResume()` | recover the slots that are not verified; on resume, ping the verified ones too                  |
+| Function                                                  | Does                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `getRuntimeSocketState()`                                 | the active slot's socket at the moment of the call — a click, a timer                     |
+| `waitUntilVerified(slot?, timeoutMs?)`                    | `true` once that slot (the active one when none is named) is verified; `false` on timeout |
+| `onServerEvent(type, listener, { slot? })`                | the server's pushes of one type, from one slot or the active one                          |
+| `onServerMessage(listener)`                               | every frame the active slot receives, across reconnects                                   |
+| `observeSocketRequests(observer)`                         | every settled request, for a sampled timing                                               |
+| `getSlotStatuses()`                                       | every bound slot's status (async) — a debug screen's, not a gate                          |
+| `reconnectSocket()`                                       | closes the active socket so it redials — a wake kick                                      |
+| `recoverUnverifiedSockets()` · `recoverSocketsOnResume()` | recover the slots that are not verified; on resume, ping the verified ones too            |
 
 The socket manager is not on the surface any more: everything an app did with it is one of these.
-`requestOnSlot` and `onServerMessage` are not domain results, so they never cross the bridge: they work
-only where the runtime runs in the page's own process. The relay account's profile reads and writes —
-the one place a page that may mirror a runtime uses `requestOnSlot` — have to become domain calls before
-the page mirrors one.
+`onServerMessage` is not a domain result, so it never crosses the bridge: it works only where the
+runtime runs in the page's own process (desktop-web's frame log). The relay account's profile, which
+an app used to read and write on the relay slot directly, is the session commands
+`runtime.session.fetchAccountProfile` and `updateAccountProfile`.
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime

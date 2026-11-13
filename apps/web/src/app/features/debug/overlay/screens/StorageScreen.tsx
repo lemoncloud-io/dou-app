@@ -148,8 +148,9 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
         }
         try {
             const stores = clearWebStores(env);
-            // Written after the wipe so it survives it; read by the next boot.
-            runtime.data.requestSyncCursorReset();
+            // Written after the wipe so it survives it; read by the next boot — so waited for, before
+            // the page goes.
+            await runtime.data.requestSyncCursorReset();
             // The result line is gone with the page, so the outcome goes to the logs, which the wipe keeps.
             logger.info('APP', 'debug storage: web cache cleared', { data: { ...databases, ...stores } });
         } catch (e) {
@@ -172,7 +173,7 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
             return;
         }
         if (target === 'native') {
-            runtime.data.requestSyncCursorReset();
+            await runtime.data.requestSyncCursorReset();
             navigate('reload');
             return;
         }

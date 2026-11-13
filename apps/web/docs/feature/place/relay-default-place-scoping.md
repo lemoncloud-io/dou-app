@@ -15,7 +15,8 @@ Four of the five mechanisms live in `@chatic/data` — the write gate on `UserRe
 reconciliation and the create/update rules on `PlaceRepository`, the read-time filter in
 `PlaceLocalDataSource`, and `isForeignContext` in `scopeGuards.ts`. The app supplies the policy in
 `main.tsx`, polls the reconciliation from `useBackgroundSync`, and owns the sixth piece outright:
-the account profile read in `useMyUser` and written through `relayAccountGateway`.
+the account profile read in `useMyUser` and written by `useUpdateProfile`, through the runtime's
+`runtime.session.fetchAccountProfile` / `updateAccountProfile`.
 
 ## Responsibilities
 
@@ -142,9 +143,9 @@ What works instead is app-level and touches no cache:
   (`UserTokenView extends UserView`, so it carries `name` / `photo` / `email` / `link$`). `useMyUser`
   re-reads it on every session signal; the store hands back a fresh context object on each notify,
   which is the re-render trigger. There is no cache to invalidate and no flash on first paint.
-- **Write** — `getRelayAccountGateway()` builds a `user` gateway whose requests go through
-  `runtime.connection.requestOnSlot(RELAY_SLOT, …)`, pinned to the relay slot rather than following
-  the active facade. The response is patched back
+- **Write** — `runtime.session.updateAccountProfile` sends `user.update` on the relay slot rather than
+  following the active facade (the runtime's `fetchAccountProfile` reads `user.profile` the same way).
+  The response is patched back
   into the stored token, and patching the token **is** the update path: every reader sees it at once
   and the next cold start seeds from it.
 - **Gating** — a request pinned to the relay slot throws rather than falling back when no relay slot is bound, so

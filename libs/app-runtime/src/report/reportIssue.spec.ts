@@ -3,10 +3,11 @@
  * through the `report` repository and builds no request of its own. The body it hands
  * over is asserted alongside, since the session facts inside it are this file's job.
  */
-import { getRepositories } from '@chatic/runtime-core';
 import { reportIssue } from './reportIssue';
 
-jest.mock('@chatic/runtime-core/data/runtime', () => ({ getRepositories: jest.fn() }));
+// The page's graph, as the engine hands it over.
+const getRepositories = jest.fn();
+jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
 jest.mock('@chatic/config', () => ({
     config: { get: jest.fn((key: string) => ({ 'env.stage': 'test', 'env.project': 'chatic_web' })[key]) },
 }));
@@ -29,7 +30,7 @@ const submitIssue = jest.fn();
 beforeEach(() => {
     jest.clearAllMocks();
     submitIssue.mockResolvedValue({ id: 'r1' });
-    (getRepositories as jest.Mock).mockReturnValue({ report: { submitIssue } });
+    getRepositories.mockReturnValue({ report: { submitIssue } });
     window.history.replaceState({}, '', '/settings/feedback');
 });
 

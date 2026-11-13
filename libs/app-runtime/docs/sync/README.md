@@ -40,9 +40,10 @@ A registration that is not one screen's target — a list of rooms, a set of joi
 `runtime.sync.registerSyncTarget(target, { cid })`, which returns its drop. `updateSyncSnapshot` tells
 the sync engine the baseline the cache already holds, and `listSyncTargets()` (async) lists the targets
 for a debug screen. All three, and the hooks, go through the engine (`runtimeEngine().sync`, in
-`syncCommands.ts`), never the sync manager, which is not on the surface. The group's other functions
-— `refreshBackgroundClouds`, `subscribeBackgroundDeltas`, the refused-channel reads and the room feed —
-still come straight from `@chatic/sync`; they move behind the engine with the repositories.
+`syncCommands.ts`), never the sync manager, which is not on the surface. So do the group's other
+functions — `refreshBackgroundClouds`, `subscribeBackgroundDeltas`, the refused-channel reads
+(`isChannelRefused` is synchronous: on the phone the refusals are part of what the page mirrors) and the
+room feed (`fetchRoomFeed`, `prefetchRoomFeed`).
 
 ### Priming a room
 

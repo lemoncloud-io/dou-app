@@ -1,6 +1,6 @@
 import { toWireLogBatch } from '@chatic/bridges';
 
-import { getRepositories } from '@chatic/runtime-core';
+import { runtimeData } from '../data/dataCommands';
 
 import type { UploadOutcome } from '@chatic/bridges';
 import type { LogEntry } from '@chatic/bridges';
@@ -59,9 +59,10 @@ export const uploadLogBatch = async (entries: LogEntry[]): Promise<UploadOutcome
     if (!entries.length) return 'ok';
 
     try {
-        // Resolved per call, not at module load: the uploader boots before the app configures the
-        // data runtime (apps/web `main.tsx`), and a flush only ever happens after that.
-        await getRepositories().report.uploadLogBatch(toWireLogBatch(entries));
+        // Resolved per call, not at module load: the uploader boots before the entry point hands the
+        // runtime its engine (apps/web `main.tsx`), and a flush only ever happens after that. Through
+        // the engine, like every data call: on the phone the repositories may live in another process.
+        await runtimeData().repositories().report.uploadLogBatch(toWireLogBatch(entries));
 
         // 2xx: accepted. Individual entries the server dropped are reported in
         // the body, but they are not worth resending — it already refused them.

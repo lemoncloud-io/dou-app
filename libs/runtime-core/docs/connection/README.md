@@ -244,8 +244,9 @@ The rest, by how each would cross the bridge (the contract lists them):
 
 `setOwnedClouds` keeps the lists and re-issues an owned cloud held as an invitee on a list change and
 again on each cloud token commit (`cloud:token`) — an invite entry can be committed after the catalog
-arrived, and no list change follows it. `requestOnSlot` is what the relay account's screens use while a
-cloud is on screen: they do not go through a repository, whose cache is read under the live scope.
+arrived, and no list change follows it. The relay account's profile, read and written on the relay slot
+whichever cloud is on screen, is a session command (`fetchAccountProfile`, `updateAccountProfile`): it
+does not go through a repository, whose cache is read under the live scope.
 
 The sync engine has the same seam, `engine.sync` (`RuntimeSync`, `sync/runtimeSync.ts`): a target
 registration that stands until it is dropped, the cache's baseline, and the targets for a debug screen.

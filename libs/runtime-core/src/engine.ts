@@ -14,6 +14,8 @@ import { createSessionController } from './session/sessionController';
 import { createCoreSessionView } from './session/sessionView';
 import type { SessionView } from './session/snapshot';
 import type { SessionController, SessionControllerOptions } from './session/sessionController';
+import { createCoreRuntimeData } from './data/runtimeData';
+import type { RuntimeData } from './data/runtimeData';
 import { primeChatRoom } from './sync/primeChatRoom';
 import { createCoreRuntimeSync } from './sync/runtimeSync';
 import type { RuntimeSync } from './sync/runtimeSync';
@@ -47,8 +49,8 @@ export interface PushRegistrar {
  * the same members backed by that process; the surface does not know which it was given.
  *
  * The session is in it — its state (`session`, without tokens) and everything a screen does to it
- * (`commands`) — and so are the sockets (`connection`) and the sync engine (`sync`). Not in it yet: the
- * repositories, which still come straight from the core packages.
+ * (`commands`) — and so are the sockets (`connection`), the sync engine (`sync`) and the data
+ * (`data`: the repository graphs without their token issuers, and the work done on them).
  */
 export interface RuntimeEngine {
     /** The session as screens read it — a snapshot without tokens, and its changes. */
@@ -59,6 +61,8 @@ export interface RuntimeEngine {
     connection: RuntimeConnection;
     /** The sync engine as screens drive it: the targets kept in sync, and the cache's baselines. */
     sync: RuntimeSync;
+    /** The data as screens read and write it: the repository graphs, and the work done on them. */
+    data: RuntimeData;
     /** The relay session's boot and the guest keep-alive. */
     sessionController(options: SessionControllerOptions): SessionController;
     /** The sockets kept in line with the session, and the background clouds. */
@@ -83,6 +87,7 @@ export const coreEngine: RuntimeEngine = {
     commands: createCoreSessionCommands(),
     connection: createCoreRuntimeConnection(),
     sync: createCoreRuntimeSync(),
+    data: createCoreRuntimeData(),
     sessionController: options => createSessionController(options),
     connectionController: options => createConnectionController(options),
     relayCredentialGuard: policy => new RelayCredentialGuard(policy),

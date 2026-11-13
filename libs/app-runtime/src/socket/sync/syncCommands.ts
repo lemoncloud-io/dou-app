@@ -1,7 +1,9 @@
 import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
+import type { ChatRefreshResult } from '@chatic/data';
+import { logger } from '@chatic/logger';
 import type { RuntimeSync } from '@chatic/runtime-core';
-import type { SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
+import type { BackgroundDelta, SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 
 import { runtimeEngine } from '../../init';
 
@@ -27,3 +29,32 @@ export const updateSyncSnapshot = (
 
 /** Every registered target, with its cloud — for a debug surface. */
 export const listSyncTargets = (): Promise<SyncTargetListing[]> => runtimeSync().listTargets();
+
+/** Asks the background clouds — or one of them — for what changed, now: the foreground kick. */
+export const refreshBackgroundClouds = (cid?: string): void => {
+    runtimeSync()
+        .refreshBackgroundClouds(cid)
+        .catch(error => logger.warn('SYNC', '[syncCommands] refreshBackgroundClouds failed', { error }));
+};
+
+/** Hears each background cloud's delta as it lands. */
+export const subscribeBackgroundDeltas = (listener: (delta: BackgroundDelta) => void): (() => void) =>
+    runtimeSync().onBackgroundDelta(listener);
+
+/** Whether the server has refused to sync this room in this session. */
+export const isChannelRefused = (channelId: string): boolean => runtimeSync().isChannelRefused(channelId);
+
+/** Hears every change to the refused rooms; the listener reads again. */
+export const subscribeRefusedChannels = (listener: () => void): (() => void) =>
+    runtimeSync().subscribeRefusedChannels(listener);
+
+/** A room's latest page, fetched once per entry; `fresh` sends a new request regardless. */
+export const fetchRoomFeed = (
+    cid: string,
+    channelId: string,
+    options?: { cache?: 'hit' | 'miss'; fresh?: boolean }
+): Promise<ChatRefreshResult> => runtimeSync().fetchRoomFeed(cid, channelId, options);
+
+/** Starts a room's fetch at the tap that opens it. Never rejects. */
+export const prefetchRoomFeed = (cid: string, channelId: string): Promise<void> =>
+    runtimeSync().prefetchRoomFeed(cid, channelId);

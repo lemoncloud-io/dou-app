@@ -4,8 +4,6 @@ import type { LinkedAccountsView } from '@lemoncloud/chatic-backend-api';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { getRelayAccountGateway } from '../runtime/relayAccountGateway';
-
 export interface RelayAccount {
     name?: string;
     photo?: string;
@@ -52,18 +50,18 @@ export const useRelayAccount = () => {
     useEffect(() => {
         if (!isRelayVerified) return;
         let cancelled = false;
-        // The call sits inside try/catch, not just a `.catch()` on the
-        // promise: the scoped client resolves its slot OUTSIDE the promise
-        // chain and throws SYNCHRONOUSLY when the slot is unbound. The token
+        // The call sits inside try/catch: the relay account's read fails
+        // when the relay slot is unbound, and whether that arrives as a throw
+        // or a rejection, the catch below takes it. The token
         // value is already on screen, so skipping IS the recovery.
         void (async () => {
             try {
-                const response = await getRelayAccountGateway().profile();
+                const response = await runtime.session.fetchAccountProfile();
                 if (cancelled) return;
                 // `user.profile` answers with a wrapper ($user + $site); tolerate
                 // a flat user view the same way. `$site` is deliberately ignored
                 // — this hook is the ACCOUNT profile.
-                const view = ((response as { $user?: Record<string, unknown> } | undefined)?.$user ??
+                const view = ((response as unknown as { $user?: Record<string, unknown> } | undefined)?.$user ??
                     response ??
                     {}) as Record<string, unknown>;
                 const patch: Record<string, unknown> = {};
@@ -86,7 +84,7 @@ export const useRelayAccount = () => {
     const updateAccount = useCallback(async (data: RelayAccountUpdate): Promise<unknown> => {
         setIsMutating(true);
         try {
-            const updated = (await getRelayAccountGateway().update(data as never)) as Record<string, unknown>;
+            const updated = (await runtime.session.updateAccountProfile(data)) as unknown as Record<string, unknown>;
             runtime.session.patchRelaySessionUser({
                 name: (updated.name as string | undefined) ?? data.name,
                 ...(data.photo !== undefined ? { photo: (updated.photo as string | undefined) ?? data.photo } : {}),

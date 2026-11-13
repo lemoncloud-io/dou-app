@@ -3,15 +3,13 @@ import { renderHook } from '@testing-library/react';
 import { useInvitedCloudNameSync } from './useInvitedCloudNameSync';
 
 const syncInvitedCloudName = jest.fn(() => Promise.resolve());
-const cloud = { id: 'cloud-repo' };
 let isVerified = true;
 let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-b';
 
-jest.mock('@chatic/runtime-core/data/invitedCloudDurability', () => ({
+jest.mock('../dataCommands', () => ({
     syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
 }));
-jest.mock('./useRuntimeRepositories', () => ({ useRuntimeRepositories: () => ({ cloud }) }));
 jest.mock('../../connection/hooks/useRuntimeSocketState', () => ({
     useRuntimeSocketState: () => ({ isVerified }),
 }));
@@ -33,7 +31,7 @@ describe('useInvitedCloudNameSync', () => {
     it('syncs the active cloud name once both its socket and the relay are verified', () => {
         renderHook(() => useInvitedCloudNameSync());
 
-        expect(syncInvitedCloudName).toHaveBeenCalledWith(cloud, 'cloud-b');
+        expect(syncInvitedCloudName).toHaveBeenCalledWith('cloud-b');
     });
 
     // The name is read from the relay, and the run is spent once it starts: starting it while only
@@ -47,7 +45,7 @@ describe('useInvitedCloudNameSync', () => {
         rerender();
 
         expect(syncInvitedCloudName).toHaveBeenCalledTimes(1);
-        expect(syncInvitedCloudName).toHaveBeenCalledWith(cloud, 'cloud-b');
+        expect(syncInvitedCloudName).toHaveBeenCalledWith('cloud-b');
     });
 
     it('waits for the active socket as well', () => {

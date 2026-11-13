@@ -71,6 +71,8 @@ export { clearSiteSelection } from './sessionCommands';
 // the repositories read it under the live scope, so while a cloud is active the relay `user` row is
 // out of their reach (apps/web/docs/feature/mypage/README.md). apps/web uses both.
 export { patchRelaySessionUser } from './sessionCommands';
+// The account's own profile on the relay, read and written whichever cloud is active.
+export { fetchAccountProfile, updateAccountProfile } from './sessionCommands';
 
 // --- React surface --------------------------------------------------------------------------------
 export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';

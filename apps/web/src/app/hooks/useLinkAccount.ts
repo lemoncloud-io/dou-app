@@ -57,8 +57,10 @@ export const useLinkAccount = () => {
     });
 
     const confirmMutation = useMutation({
-        mutationFn: ({ phone, otp, mode, countryCode }: { phone: string; otp: string } & PhoneCodeProveArgs) =>
-            auth.confirmPhoneCode(phone, otp, { mode, countryCode }),
+        // `link` only: the page's auth repository does not confirm a sign-in — that answer carries the
+        // session's token, and it is the session command `confirmPhoneLogin`'s.
+        mutationFn: ({ phone, otp, countryCode }: { phone: string; otp: string } & PhoneCodeProveArgs) =>
+            auth.confirmPhoneCode(phone, otp, { mode: 'link', countryCode }),
     });
 
     const verifySocialMutation = useMutation({

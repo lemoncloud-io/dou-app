@@ -37,6 +37,15 @@ jest.mock('@chatic/session', () => ({
     patchRelaySessionUser: (patch: unknown) => mockPatchRelaySessionUser(patch),
 }));
 
+const mockRelayRequest = jest.fn(async (type: string) =>
+    type === 'user.profile' ? { $user: { name: 'Me' } } : { name: 'New' }
+);
+const mockGetScopedClient = jest.fn((_slot: string) => ({ request: mockRelayRequest }));
+jest.mock('@chatic/transport', () => ({
+    RELAY_SLOT: 'default',
+    getSocketManager: () => ({ getScopedClient: (slot: string) => mockGetScopedClient(slot) }),
+}));
+
 const mockClaimPairing = jest.fn();
 jest.mock('../data/runtime', () => ({
     getRepositories: () => ({ pairing: { claimPairing: (id: string) => mockClaimPairing(id) } }),
@@ -162,6 +171,27 @@ describe('the core session commands', () => {
             expect(mockAuth.relaySession.loginByOAuthCode).toHaveBeenCalledWith('google', 'code-1', undefined);
             expect(mockAuth.relaySession.loginUser).toHaveBeenCalledWith({ body: {}, email: undefined });
             expect(mockAuth.logoutSession).toHaveBeenCalledWith(undefined);
+        });
+    });
+
+    describe("the account's own profile, on the relay", () => {
+        it('reads and updates it on the relay slot, whichever cloud is active', async () => {
+            await expect(commands.fetchAccountProfile()).resolves.toEqual({ $user: { name: 'Me' } });
+            await expect(commands.updateAccountProfile({ name: 'New' })).resolves.toEqual({ name: 'New' });
+
+            expect(mockGetScopedClient).toHaveBeenCalledWith('default');
+            expect(mockRelayRequest.mock.calls.map(([type]) => type)).toEqual(['user.profile', 'user.update']);
+            expect(mockRelayRequest).toHaveBeenLastCalledWith('user.update', { name: 'New' }, undefined);
+        });
+
+        it('rejects, rather than throws, when the relay slot is not bound — as a command across the bridge would', async () => {
+            mockGetScopedClient.mockImplementationOnce(() => {
+                throw new Error('[SocketManager] no relay slot bound');
+            });
+
+            const call = commands.fetchAccountProfile();
+
+            await expect(call).rejects.toThrow('no relay slot bound');
         });
     });
 

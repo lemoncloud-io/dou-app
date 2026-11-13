@@ -11,15 +11,15 @@ export { listSyncTargets, registerSyncTarget, updateSyncSnapshot } from './syncC
 export type { SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 // The foreground kick for the clouds the user is not looking at — the receive loops themselves are
 // started by the connection host, not by an app.
-export { refreshBackgroundClouds } from '@chatic/sync';
+export { refreshBackgroundClouds } from './syncCommands';
 // When a background cloud's delta came back — for an app holding a mark that only its cache can
 // retire, such as a push it heard about before the cache did.
-export { subscribeBackgroundDeltas } from '@chatic/sync';
+export { subscribeBackgroundDeltas } from './syncCommands';
 export type { BackgroundDelta } from '@chatic/sync';
 // Refusal is a READ for screens — `isChannelRefused` plus its subscription, so a room can say "you
 // are not in this conversation" instead of waiting out a timeout it cannot interpret. The writers
 // (`recordRefusedChannel` / `clearRefusedChannel`) stay internal: only the sync plans decide what
 // the server refused, and an app that could write this could make the room lie.
-export { isChannelRefused, subscribeRefusedChannels } from '@chatic/sync';
+export { isChannelRefused, subscribeRefusedChannels } from './syncCommands';
 // A room's latest page, fetched once per entry: the tap starts it, and the room's sync hooks join it.
-export { fetchRoomFeed, prefetchRoomFeed } from '@chatic/sync';
+export { fetchRoomFeed, prefetchRoomFeed } from './syncCommands';

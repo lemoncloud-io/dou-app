@@ -20,7 +20,7 @@ jest.mock('@chatic/bridges', () => ({
     isNative: () => native,
     logger: { warn: jest.fn(), info: jest.fn() },
 }));
-const requestSyncCursorReset = jest.fn();
+const requestSyncCursorReset = jest.fn(async () => undefined);
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: { requestSyncCursorReset: () => requestSyncCursorReset() },

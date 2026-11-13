@@ -38,7 +38,7 @@ export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
 // The sockets outside React, through the engine (`./connectionCommands`) — never the socket manager,
 // which on the phone may live in another process:
 // - `getRuntimeSocketState` reads the active socket at the moment of a click or a timer;
-// - `waitUntilVerified` gates work on a slot's handshake, `requestOnSlot` sends on one named slot;
+// - `waitUntilVerified` gates work on a slot's handshake;
 // - `onServerEvent` / `onServerMessage` hear the server's pushes and every frame;
 // - `observeSocketRequests` times requests, `getSlotStatuses` lists the slots for a debug screen;
 // - `reconnectSocket`, `recoverUnverifiedSockets` and `recoverSocketsOnResume` are the wake kicks an
@@ -53,7 +53,6 @@ export {
     reconnectSocket,
     recoverSocketsOnResume,
     recoverUnverifiedSockets,
-    requestOnSlot,
     waitUntilVerified,
 } from './connectionCommands';
 export type { SlotKey, SlotStatus, SocketRequestSample } from '@chatic/transport';

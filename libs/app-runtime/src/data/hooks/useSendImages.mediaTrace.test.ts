@@ -8,6 +8,11 @@ import { useSendImages } from './useSendImages';
 
 // Its own file, so the tracer's per-minute cap starts empty: the main suite's sends would use it up.
 jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+// The hook reads a cloud's graph through the engine; the graph is the same mock either way.
+jest.mock('../dataCommands', () => ({
+    getCloudRepositories: (cid: string) =>
+        jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
+}));
 
 const mockSendImageMessage = jest.fn();
 jest.mock('@chatic/data', () => ({
