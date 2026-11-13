@@ -24,6 +24,7 @@ export * from './session/relaySession';
 export * from './pairing/pairedCloudSessions';
 export * from './pairing/pairedClouds';
 export * from './pairing/pairedSession';
+export * from './pairing/pairingClaims';
 export * from './pairing/pairingClient';
 export * from './pairing/pairingErrors';
 export * from './pairing/pairingRequestFlow';
@@ -44,6 +45,7 @@ export * from './socket/recoverUnverifiedSockets';
 export * from './socket/renewers';
 export * from './socket/requestRelaySessionRefresh';
 export * from './socket/sessionDelegate';
+export * from './socket/switchCloudSession';
 export * from './socket/switchSite';
 
 // platform — the address the session ends to and the boot reads, filled by each platform's adapter

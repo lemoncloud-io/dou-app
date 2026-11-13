@@ -1,19 +1,18 @@
 import { act, renderHook } from '@testing-library/react';
 
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
+import { emptySessionSnapshot, fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 import { usePairedCloudCheck } from './usePairedCloudCheck';
 
-const checkAll = jest.fn();
-const end = jest.fn();
-let paired: string[] = [];
+// The round itself — the guest rule, re-issuing each cloud — is the engine's `checkPairedClouds`;
+// what is left here is when the hook runs it.
+const checkPairedClouds = jest.fn();
+const session = fakeSessionView();
+const paired = (cloudIds: string[]) => session.set({ pairing: { ...emptySessionSnapshot().pairing, cloudIds } });
 
-jest.mock('@chatic/auth/pairing/pairedCloudSessions', () => ({
-    PAIRED_CLOUD_CHECK_INTERVAL_MS: 600_000,
-    pairedCloudSessions: { checkAll: () => checkAll(), list: () => paired, end: (id: string) => end(id) },
-}));
-const clear = jest.fn();
-let relayGuest = true;
-jest.mock('@chatic/auth/pairing/pairedClouds', () => ({ pairedClouds: { list: () => paired, clear: () => clear() } }));
-jest.mock('@chatic/auth/pairing/pairedSession', () => ({ isRelayGuest: () => relayGuest }));
 let initialized = true;
 jest.mock('../session/readers/useSessionAuth', () => ({ useSessionAuth: () => ({ isInitialized: initialized }) }));
 
@@ -26,24 +25,27 @@ const flush = async () => {
 beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
-    paired = ['1000002'];
-    relayGuest = true;
+    paired(['1000002']);
     initialized = true;
-    checkAll.mockResolvedValue([]);
+    checkPairedClouds.mockResolvedValue([]);
+    initAppRuntime({ ...coreEngine, session, commands: fakeSessionCommands({ checkPairedClouds }) });
 });
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+    jest.useRealTimers();
+    resetRuntimeEngine();
+});
 
 describe('usePairedCloudCheck', () => {
     it('checks on mount and then every ten minutes', async () => {
         renderHook(() => usePairedCloudCheck(jest.fn()));
         await flush();
-        expect(checkAll).toHaveBeenCalledTimes(1);
+        expect(checkPairedClouds).toHaveBeenCalledTimes(1);
 
         await act(async () => {
             jest.advanceTimersByTime(600_000);
         });
         await flush();
-        expect(checkAll).toHaveBeenCalledTimes(2);
+        expect(checkPairedClouds).toHaveBeenCalledTimes(2);
     });
 
     it('waits for the session to initialise before the first check — the relay is not up before that', async () => {
@@ -53,16 +55,16 @@ describe('usePairedCloudCheck', () => {
         await act(async () => {
             await result.current.check();
         });
-        expect(checkAll).not.toHaveBeenCalled();
+        expect(checkPairedClouds).not.toHaveBeenCalled();
 
         initialized = true;
         rerender();
         await flush();
-        expect(checkAll).toHaveBeenCalledTimes(1);
+        expect(checkPairedClouds).toHaveBeenCalledTimes(1);
     });
 
     it('tells the app about each cloud that ended', async () => {
-        checkAll.mockResolvedValueOnce(['1000002']);
+        checkPairedClouds.mockResolvedValueOnce(['1000002']);
         const onEnded = jest.fn();
         renderHook(() => usePairedCloudCheck(onEnded));
         await flush();
@@ -71,41 +73,27 @@ describe('usePairedCloudCheck', () => {
     });
 
     it('does nothing without a paired cloud', async () => {
-        paired = [];
+        paired([]);
         const { result } = renderHook(() => usePairedCloudCheck(jest.fn()));
         await flush();
         await act(async () => {
             await result.current.check();
         });
 
-        expect(checkAll).not.toHaveBeenCalled();
+        expect(checkPairedClouds).not.toHaveBeenCalled();
     });
 
     it('never runs two rounds at once', async () => {
         let release: () => void = () => undefined;
-        checkAll.mockImplementationOnce(() => new Promise(resolve => (release = () => resolve([]))));
+        checkPairedClouds.mockImplementationOnce(() => new Promise(resolve => (release = () => resolve([]))));
         const { result } = renderHook(() => usePairedCloudCheck(jest.fn()));
         await flush();
 
         await act(async () => {
             await result.current.check();
         });
-        expect(checkAll).toHaveBeenCalledTimes(1);
+        expect(checkPairedClouds).toHaveBeenCalledTimes(1);
         release();
         await flush();
-    });
-
-    it('ends a guest-era list once the device signed in to an account of its own', async () => {
-        relayGuest = false;
-        paired = ['1000002', '1000004'];
-        renderHook(() => usePairedCloudCheck(jest.fn()));
-        await flush();
-
-        // `end`, not a bare clear: it also forgets the approver's uid recorded for each cloud, which the
-        // account's own entry would otherwise be refused against as a change of user.
-        expect(end).toHaveBeenCalledWith('1000002');
-        expect(end).toHaveBeenCalledWith('1000004');
-        expect(clear).not.toHaveBeenCalled();
-        expect(checkAll).not.toHaveBeenCalled();
     });
 });

@@ -3,21 +3,20 @@ import { renderHook } from '@testing-library/react';
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
 
+import type { SessionAccountView } from '@chatic/auth';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 import { useLogin } from './useLogin';
 import { useLoginRelayGuestByDevice } from './useLoginRelayGuestByDevice';
 import { useLoginRelaySocial } from './useLoginRelaySocial';
 
-// What every login answers with — a token view, as the backend sends it. The hooks hand the screen
-// the account's fields only: the token stays with the session.
-const answer = { uid: 'u1', name: 'Me', createdAt: 1, Token: { identityToken: 'secret-identity' } };
-
-jest.mock('@chatic/auth/session/relaySession', () => ({
-    relaySession: {
-        loginUser: jest.fn(async () => answer),
-        loginBySocialToken: jest.fn(async () => answer),
-        loginGuestByDevice: jest.fn(async () => answer),
-    },
-}));
+// What every login command answers with — the account, without its token (the engine strips it).
+const account = { uid: 'u1', name: 'Me', createdAt: 1 } as unknown as SessionAccountView;
+const loginUser = jest.fn(async () => account);
+const loginBySocialToken = jest.fn(async () => account);
+const loginGuestByDevice = jest.fn(async () => account);
 
 const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(
@@ -26,24 +25,37 @@ const wrapper = ({ children }: { children: ReactNode }) =>
         children
     );
 
-describe('the login hooks', () => {
-    const account = { uid: 'u1', name: 'Me', createdAt: 1 };
+beforeEach(() => {
+    jest.clearAllMocks();
+    initAppRuntime({
+        ...coreEngine,
+        commands: fakeSessionCommands({ loginUser, loginBySocialToken, loginGuestByDevice }),
+    });
+});
 
-    it('answer an email login with the account, without its token', async () => {
+afterEach(() => resetRuntimeEngine());
+
+describe('the login hooks', () => {
+    it("run an email login through the engine's command and answer with the account", async () => {
         const { result } = renderHook(() => useLogin(), { wrapper });
 
-        await expect(result.current.mutateAsync({ uid: 'me@example.com', pwd: 'pw' })).resolves.toEqual(account);
+        await expect(result.current.mutateAsync({ uid: 'me@example.com', pwd: 'pw', email: true })).resolves.toEqual(
+            account
+        );
+        expect(loginUser).toHaveBeenCalledWith({ uid: 'me@example.com', pwd: 'pw' }, { email: true });
     });
 
-    it('answer a social login with the account, without its token', async () => {
+    it("run a social login through the engine's command and answer with the account", async () => {
         const { result } = renderHook(() => useLoginRelaySocial(), { wrapper });
 
         await expect(result.current.mutateAsync({ body: {} as never, provider: 'google' })).resolves.toEqual(account);
+        expect(loginBySocialToken).toHaveBeenCalledWith({}, 'google');
     });
 
-    it('answer a guest login with the account, without its token', async () => {
+    it("run a guest login through the engine's command and answer with the account", async () => {
         const { result } = renderHook(() => useLoginRelayGuestByDevice(), { wrapper });
 
         await expect(result.current.mutateAsync('device-1')).resolves.toEqual(account);
+        expect(loginGuestByDevice).toHaveBeenCalledWith('device-1');
     });
 });

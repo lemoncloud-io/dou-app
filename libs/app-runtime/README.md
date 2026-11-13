@@ -204,7 +204,7 @@ libs/app-runtime/src/
 ├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       10 files — the host and 8 hooks; the controller it starts is @chatic/runtime-core's
-├── session/          34 files — the React surface (32 under hooks/), the readers through the engine (`sessionReads.ts`) and the `session` group; the use cases are @chatic/auth
+├── session/          35 files — the React surface (32 under hooks/), the readers (`sessionReads.ts`) and the commands (`sessionCommands.ts`) through the engine, and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
 ├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
@@ -262,7 +262,7 @@ const ChannelList = () => {
 Four rules hold.
 
 1. **Import one identifier.** `runtime`, then pick a group. The groups are not importable on their own, and that is deliberate: `data` is already a local in 23 consumer files, `session` in 17, `sync` in 9, so `const { data } = useQuery()` would shadow the group and stop the file compiling. There is no flat alias lane either — selling a symbol under two names guarantees one of them rots.
-2. **A group is a job, not a folder.** `session.confirmPhoneLogin` lives in `@chatic/auth`, `session.authFailureReaction` in `@chatic/transport`, `push.useRegisterDeviceTokenMutation` in `data/hooks/`. Each group's own barrel names every symbol it sells, so the barrel is the catalogue.
+2. **A group is a job, not a folder.** `session.authFailureReaction` lives in `@chatic/transport`, `session.isRefusedForEndedPairing` in `@chatic/auth`, `push.useRegisterDeviceTokenMutation` in `data/hooks/`. Each group's own barrel names every symbol it sells, so the barrel is the catalogue.
 3. **Read values with hooks; control lifecycle by mounting.** `RuntimeAuthHost` is the same host with background guest login switched off — for a console that must not silently acquire a session. It is a second named export rather than a prop so a forgotten argument cannot hand a console a guest.
 4. **Store writers are not on the surface.** Reading `getGlobalSessionContext()` is fine; there is no `setSessionAuthenticated` to call. Driving the session is the runtime's own job.
 
@@ -314,7 +314,9 @@ one: it hands over an engine first — `initAppRuntime(coreEngine)` from `@chati
 fake one whose members are `jest.fn` when the point is what the surface asks the engine for. Anything
 that reads the session reads `engine.session`, so a fake engine carries a session view: `fakeSessionView()`
 from `@chatic/runtime-core/testing/sessionView`, as `initAppRuntime({ ...coreEngine, session })`, with
-`session.set(...)` to change it.
+`session.set(...)` to change it. Anything that changes the session runs `engine.commands`, so a test of it
+passes `fakeSessionCommands({ ... })` from `@chatic/runtime-core/testing/sessionCommands` as `commands`,
+with only the commands it expects — any other rejects, naming itself.
 
 Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and

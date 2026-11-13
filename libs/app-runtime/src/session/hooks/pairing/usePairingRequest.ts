@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { applySessionToken, pairedCloudSessions, pairingClientOf, PairingRequestFlow } from '@chatic/auth';
+import { pairingClientOf, PairingRequestFlow } from '@chatic/auth';
 import type { PairingRequestState } from '@chatic/auth';
+import { sessionCommands } from '../../sessionCommands';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
 
@@ -17,7 +18,9 @@ export interface PairingRequestOptions {
 /**
  * The code screen's half of a pairing: asks for a code, polls the relay until the approving device
  * answers, and signs this device in — a relay approval through the same path as a phone login, a cloud
- * approval by entering that cloud as a guest and remembering it as a paired cloud.
+ * approval by entering that cloud as a guest and remembering it as a paired cloud. The claim and the
+ * sign-in are the engine's commands: a relay approval carries the account's session token, which the
+ * runtime keeps and this flow only names by a handle.
  *
  * The flow is built once per mount and survives strict mode's unmount/remount without sending a second
  * request or overlapping claims (see `PairingRequestFlow`).
@@ -44,9 +47,14 @@ export const usePairingRequest = (options: PairingRequestOptions = {}) => {
                     client: pairingClientOf(),
                 });
             },
-            claim: pairingId => latest.current.pairing.claimPairing(pairingId),
-            applySession: session => applySessionToken(session),
-            enterCloud: cloudId => pairedCloudSessions.enter(cloudId, latest.current.switchCloud),
+            claim: pairingId => sessionCommands().claimPairing(pairingId),
+            applySession: sessionHandle => sessionCommands().applyPairingSession(sessionHandle),
+            // Prepared by the runtime, switched by this screen's own switch — which carries the switch's
+            // trace and its in-flight key.
+            enterCloud: async cloudId => {
+                await sessionCommands().preparePairedCloudEntry(cloudId);
+                await latest.current.switchCloud(cloudId);
+            },
             onChange: setState,
         });
     }

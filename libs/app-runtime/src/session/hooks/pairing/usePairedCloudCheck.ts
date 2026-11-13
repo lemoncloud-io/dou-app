@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { PAIRED_CLOUD_CHECK_INTERVAL_MS, pairedCloudSessions, pairedClouds, isRelayGuest } from '@chatic/auth';
+import { PAIRED_CLOUD_CHECK_INTERVAL_MS } from '@chatic/auth';
+
+import { sessionCommands } from '../../sessionCommands';
+import { readSession } from '../../sessionReads';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 /**
@@ -8,7 +11,9 @@ import { useSessionAuth } from '../session/readers/useSessionAuth';
  * app calls it on returning to the foreground, the trigger only it can see. `onEnded` hears each cloud
  * the relay stopped delegating, already torn down and off the list, so the app can say so.
  *
- * With no paired cloud it does nothing at all, so mounting it everywhere costs nothing.
+ * With no paired cloud it does nothing at all, so mounting it everywhere costs nothing. A device that has
+ * since signed in to an account of its own drops its guest list instead (the engine's
+ * `checkPairedClouds`).
  *
  * Nothing runs before the session has initialised. The check is a relay-signed request, and at boot
  * the relay transport is not up yet: a check then fails before it reaches the network, counts as
@@ -24,18 +29,10 @@ export const usePairedCloudCheck = (onEnded: (cloudId: string) => void): { check
     ready.current = isInitialized;
 
     const check = useCallback(async () => {
-        if (!ready.current || running.current || pairedClouds.list().length === 0) return;
-        // A device that has since signed in to an account of its own enters clouds through that account;
-        // the list it kept as a guest no longer describes it. Each is ended, not just cleared: that also
-        // forgets the approver's uid recorded for the cloud, which would otherwise make the account's
-        // own entry into the cloud look like a change of user, and be refused as one.
-        if (!isRelayGuest()) {
-            pairedCloudSessions.list().forEach(cloudId => pairedCloudSessions.end(cloudId));
-            return;
-        }
+        if (!ready.current || running.current || readSession().pairing.cloudIds.length === 0) return;
         running.current = true;
         try {
-            (await pairedCloudSessions.checkAll()).forEach(cloudId => latest.current(cloudId));
+            (await sessionCommands().checkPairedClouds()).forEach(cloudId => latest.current(cloudId));
         } finally {
             running.current = false;
         }

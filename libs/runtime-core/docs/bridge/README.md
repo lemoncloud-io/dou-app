@@ -71,10 +71,15 @@ still speak (`RUNTIME_CONTRACTS`), and the handshake takes the newest they share
 The session snapshot is in the contract: `SessionSnapshot`
 ([docs/session](../session/README.md#the-session-view)) is what the shell's runtime puts in
 `OnRuntimeHello` and `OnRuntimeSessionChanged` (`SessionSnapshotWire`). The bridge vocabulary declares
-those bodies as plain JSON; runtime-core is where the shape is typed. The commands, the call targets and the
-events are added to the contract one at a time,
-each with the change that first moves a screen's reader or command behind the engine — where the core
-engine is a first implementation to check it against.
+those bodies as plain JSON; runtime-core is where the shape is typed.
+
+So are the session commands. A `RuntimeCall` names them with the target `session`
+(`SESSION_COMMANDS_TARGET`) and one of `SESSION_COMMAND_METHODS` — the allow-list the shell dispatches
+against, keyed by every member of `SessionCommands`, so a command added there and left out of the list
+does not compile. The arguments are the command's own, in order; the result is what it resolves with
+([docs/session](../session/README.md#the-commands)). The other call targets and the events are added
+to the contract one at a time, each with the change that first moves a screen's reads or calls behind
+the engine — where the core engine is a first implementation to check it against.
 
 ## The messages
 
@@ -130,7 +135,7 @@ where the session is, before the error reaches the page.
 
 ## Where it lives
 
-| File                     | Holds                                                                                                                                               |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge/contract.ts` | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`            |
-| `src/bridge/errors.ts`   | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError` |
+| File                     | Holds                                                                                                                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge/contract.ts` | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS` |
+| `src/bridge/errors.ts`   | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                            |

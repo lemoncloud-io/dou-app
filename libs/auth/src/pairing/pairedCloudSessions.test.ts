@@ -8,7 +8,8 @@ import { cloudStore } from '@chatic/session/store/stores';
 import { pairedClouds } from './pairedClouds';
 import {
     PairedCloudSessions,
-    forgetRefusedPairedCloud,
+    checkPairedClouds,
+    endPairedCloud,
     isRefusedForEndedPairing,
     pairedCloudSessions,
     type PairedCloudSessionsDeps,
@@ -24,6 +25,8 @@ jest.mock('../socket/renewers', () => ({ credentialRenewers: { forSlot: jest.fn(
 jest.mock('../socket/reauthenticateActiveSocket', () => ({ reauthenticateActiveSocket: jest.fn() }));
 jest.mock('../socket/reauthDelegate', () => ({ createReauthDelegate: jest.fn() }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
+const mockIsRelayGuest = jest.fn(() => true);
+jest.mock('./pairedSession', () => ({ isRelayGuest: () => mockIsRelayGuest() }));
 jest.mock('../session/cloudTokens', () => ({
     isExchangeInFlight: jest.fn(),
     issueCloudTokens: jest.fn(),
@@ -96,34 +99,6 @@ describe('PairedCloudSessions.end', () => {
     });
 });
 
-describe('PairedCloudSessions.forgetRefused', () => {
-    it('ends a paired cloud the relay refused over an ended pairing', () => {
-        const { sessions, ids, deps } = harness(['1000002']);
-
-        expect(sessions.forgetRefused('1000002', revoked())).toBe(true);
-        expect(ids).toEqual([]);
-        expect(deps.dropIdentity).toHaveBeenCalledWith('1000002');
-    });
-
-    it.each([
-        ['a network error', new Error('Network Error')],
-        ['a server error', refusal('', 502)],
-        ['a 403 that says nothing of the pairing (stale relay credentials)', refusal('The security token is expired')],
-    ])('keeps it after %s', (_label, error) => {
-        const { sessions, ids } = harness(['1000002']);
-
-        expect(sessions.forgetRefused('1000002', error)).toBe(false);
-        expect(ids).toEqual(['1000002']);
-    });
-
-    it('leaves a cloud that was never paired alone', () => {
-        const { sessions, deps } = harness(['1000002']);
-
-        expect(sessions.forgetRefused('1000004', revoked())).toBe(false);
-        expect(deps.dropIdentity).not.toHaveBeenCalled();
-    });
-});
-
 describe('PairedCloudSessions.reissue', () => {
     it('re-registers the socket and brings the committed cloud back to the selected place', async () => {
         const { sessions, calls, deps } = harness();
@@ -151,11 +126,11 @@ describe('PairedCloudSessions.reissue', () => {
     });
 });
 
-describe('PairedCloudSessions.enter', () => {
-    it("settles an exchange on the wire, forgets the tab's own uid, re-issues, remembers the cloud, switches", async () => {
+describe('PairedCloudSessions.prepareEntry', () => {
+    it("settles an exchange on the wire, forgets the tab's own uid, re-issues, then remembers the cloud", async () => {
         const { sessions, calls, switchCloud } = harness();
 
-        await sessions.enter('1000004', switchCloud);
+        await sessions.prepareEntry('1000004');
 
         // The drop sits between the settle and the re-issue: an exchange refuses to move a cloud off its
         // recorded uid, and the approver's uid replacing the tab's own is what entering is for.
@@ -166,25 +141,17 @@ describe('PairedCloudSessions.enter', () => {
             'reauth:1000004',
             'align:1000004',
             'add:1000004',
-            'switch:1000004',
         ]);
+        // The caller switches its own way.
+        expect(switchCloud).not.toHaveBeenCalled();
     });
 
-    it('neither switches nor remembers the cloud when the relay refuses the delegation', async () => {
-        const { sessions, deps, switchCloud } = harness();
+    it('does not remember the cloud when the relay refuses the delegation', async () => {
+        const { sessions, deps } = harness();
         deps.reissue.mockRejectedValueOnce(revoked());
 
-        await expect(sessions.enter('1000004', switchCloud)).rejects.toMatchObject({ response: { status: 403 } });
-        expect(switchCloud).not.toHaveBeenCalled();
+        await expect(sessions.prepareEntry('1000004')).rejects.toMatchObject({ response: { status: 403 } });
         expect(deps.clouds.add).not.toHaveBeenCalled();
-    });
-
-    it("keeps the cloud on the list when the switch fails — the tab holds the approver's tokens for it", async () => {
-        const { sessions, ids, switchCloud } = harness();
-        switchCloud.mockRejectedValueOnce(new Error('switch failed'));
-
-        await expect(sessions.enter('1000004', switchCloud)).rejects.toThrow('switch failed');
-        expect(ids).toEqual(['1000004']);
     });
 });
 
@@ -244,7 +211,6 @@ describe('the wired instance', () => {
     };
     sessionStores.configure({ secret: store, plain: store });
     const onTerminalExpiry = jest.fn();
-    const switchCloud = jest.fn(async () => undefined);
 
     beforeEach(() => {
         map.clear();
@@ -260,7 +226,7 @@ describe('the wired instance', () => {
     it('lets an exchange that began before the approval finish, then re-issues its own', async () => {
         jest.mocked(isExchangeInFlight).mockReturnValue(true);
 
-        await pairedCloudSessions.enter('1000004', switchCloud);
+        await pairedCloudSessions.prepareEntry('1000004');
 
         expect(issueCloudTokens).toHaveBeenCalledWith('1000004', { allowCache: false });
         expect(jest.mocked(issueCloudTokens).mock.invocationCallOrder[0]).toBeLessThan(
@@ -273,14 +239,14 @@ describe('the wired instance', () => {
         jest.mocked(isExchangeInFlight).mockReturnValue(true);
         jest.mocked(issueCloudTokens).mockRejectedValue(new Error('network'));
 
-        await pairedCloudSessions.enter('1000004', switchCloud);
+        await pairedCloudSessions.prepareEntry('1000004');
 
         expect(reissueCloudTokens).toHaveBeenCalledWith('1000004');
         expect(pairedClouds.list()).toEqual(['1000004']);
     });
 
     it('waits for nothing when no exchange is on the wire', async () => {
-        await pairedCloudSessions.enter('1000004', switchCloud);
+        await pairedCloudSessions.prepareEntry('1000004');
 
         expect(issueCloudTokens).not.toHaveBeenCalled();
     });
@@ -307,8 +273,47 @@ describe('the wired instance', () => {
         cloudStore.setCloudIdentity('1000002', { uid: 'approver' });
         cloudStore.setCloudIdentity('1000009', { uid: 'mine' });
 
-        expect(forgetRefusedPairedCloud('1000002', revoked())).toBe(true);
+        expect(endPairedCloud('1000002')).toBe(true);
         expect(pairedClouds.list()).toEqual([]);
         expect(cloudStore.getCloudIdentities()).toEqual({ '1000009': { uid: 'mine' } });
+    });
+
+    it('checks nothing when no cloud is paired', async () => {
+        await expect(checkPairedClouds()).resolves.toEqual([]);
+        expect(reissueCloudTokens).not.toHaveBeenCalled();
+    });
+
+    it('re-checks every paired cloud of a guest and returns the ones that ended', async () => {
+        pairedClouds.add('1000002');
+        pairedClouds.add('1000003');
+        jest.mocked(reissueCloudTokens).mockImplementation(async cloudId => {
+            if (cloudId === '1000002') throw revoked();
+            return { cloudToken: { $site: { id: 'site-landed' } } } as never;
+        });
+
+        await expect(checkPairedClouds()).resolves.toEqual(['1000002']);
+        expect(pairedClouds.list()).toEqual(['1000003']);
+    });
+
+    it("ends a signed-in device's guest-era clouds instead of checking them, and reports nothing ended", async () => {
+        pairedClouds.add('1000002');
+        pairedClouds.add('1000004');
+        cloudStore.setCloudIdentity('1000002', { uid: 'approver' });
+        mockIsRelayGuest.mockReturnValueOnce(false);
+
+        await expect(checkPairedClouds()).resolves.toEqual([]);
+        expect(reissueCloudTokens).not.toHaveBeenCalled();
+        expect(pairedClouds.list()).toEqual([]);
+        // Ended, not just cleared: the approver's uid goes too, or the account's own entry would be
+        // refused as a change of user.
+        expect(cloudStore.getCloudIdentities()).not.toHaveProperty('1000002');
+    });
+
+    it('ends a paired cloud it is told is over, and says whether there was one', () => {
+        pairedClouds.add('1000002');
+
+        expect(endPairedCloud('1000002')).toBe(true);
+        expect(pairedClouds.list()).toEqual([]);
+        expect(endPairedCloud('1000002')).toBe(false);
     });
 });

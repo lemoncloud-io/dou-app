@@ -3,45 +3,14 @@ import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
-
 import type { PerfTraceBackend } from '@chatic/perf';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
 
-const mockSwitchCloudSession = jest.fn();
+import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
+import { useSwitchCloudSession } from './useSwitchCloudSession';
 
-jest.mock('@chatic/auth/session/cloudSession', () => ({
-    cloudSession: { switchTo: (...args: unknown[]) => mockSwitchCloudSession(...args) },
-}));
-
-const mockSlotKeys = jest.fn((): string[] => []);
-jest.mock('@chatic/transport/socket/runtime', () => ({
-    getSocketManager: () => ({ getSlotKeys: () => mockSlotKeys() }),
-}));
-
-const mockTimeToExpiry = jest.fn((): number | null => 60 * 60_000);
-const mockRenew = jest.fn(async () => true);
-jest.mock('@chatic/auth/socket/renewers', () => ({
-    credentialRenewers: { forSlot: () => ({ timeToExpiry: () => mockTimeToExpiry(), renew: () => mockRenew() }) },
-}));
-
-const mockReauthenticate = jest.fn(async () => undefined);
-jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
-    reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...(args as [])),
-}));
-jest.mock('@chatic/auth/socket/reauthDelegate', () => ({ createReauthDelegate: () => ({}) }));
-
-const { useSwitchCloudSession } = require('./useSwitchCloudSession');
-const {
-    INVITE_LOGIN_UNKNOWN,
-    keepInviteLogin,
-    readInviteLogin,
-    resetInviteLogins,
-} = require('@chatic/auth/session/inviteLogins');
-
-const inviteAnswer = { id: 'invitee', Token: { identityToken: 'invitee-identity' } };
-const endpoints = { backend: 'https://cloud.example.com', wss: 'wss://cloud.example.com' };
-/** The handle the runtime hands a screen for an invite login's answer, as `switchCloud` takes it. */
-const handleFor = (answer: unknown) => ({ ...keepInviteLogin(answer), ...endpoints });
-let inviteLogin: { handle: string; cloudId: string | null; backend: string; wss: string };
+const switchCloud = jest.fn(async (_cloudId: string, _options?: unknown) => undefined);
 
 const createWrapper = () => {
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
@@ -54,126 +23,35 @@ describe('useSwitchCloudSession', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         resetPerfTraces();
-        mockSwitchCloudSession.mockResolvedValue({ cloudId: 'cloud-1' });
-        mockSlotKeys.mockReturnValue([]);
-        mockTimeToExpiry.mockReturnValue(60 * 60_000);
-        resetInviteLogins();
-        inviteLogin = handleFor(inviteAnswer);
+        initAppRuntime({ ...coreEngine, commands: fakeSessionCommands({ switchCloud }) });
     });
 
-    afterEach(() => resetPerfTraces());
+    afterEach(() => {
+        resetPerfTraces();
+        resetRuntimeEngine();
+    });
 
-    it("delegates the switch to the session service and resolves with nothing — the service's snapshot carries a token", async () => {
+    it("switches through the engine's command and resolves with nothing", async () => {
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await expect(result.current.switchCloud('cloud-1')).resolves.toBeUndefined();
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: false });
+        expect(switchCloud).toHaveBeenCalledWith('cloud-1', undefined);
     });
 
-    it('tells the service when the target cloud already has a socket slot bound', async () => {
-        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await result.current.switchCloud('cloud-1');
-
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: true });
-        expect(mockRenew).not.toHaveBeenCalled();
-    });
-
-    it('renews at once after landing on a live slot whose token ran low — e.g. after sleep', async () => {
-        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
-        mockTimeToExpiry.mockReturnValue(60_000);
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await result.current.switchCloud('cloud-1');
-
-        expect(mockRenew).toHaveBeenCalledTimes(1);
-    });
-
-    it('leaves a switch without a live slot to its own fresh exchange', async () => {
-        mockTimeToExpiry.mockReturnValue(60_000);
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await result.current.switchCloud('cloud-1');
-
-        expect(mockRenew).not.toHaveBeenCalled();
-    });
-
-    it("enters with the answer the invite login's handle stands for, instead of re-issuing", async () => {
+    it('hands the command the invite login the entry follows', async () => {
+        const inviteLogin = { handle: 'invite-login-1', cloudId: 'aws-1', backend: 'https://cloud' };
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
         await result.current.switchCloud('cloud-1', { inviteLogin });
 
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', {
-            hasLiveSlot: false,
-            issuedTokens: expect.objectContaining({
-                cloudToken: inviteAnswer,
-                delegationToken: expect.objectContaining({ cloudId: 'cloud-1', wss: 'wss://cloud.example.com' }),
-            }),
-        });
-        expect(mockReauthenticate).not.toHaveBeenCalled();
+        expect(switchCloud).toHaveBeenCalledWith('cloud-1', { inviteLogin });
     });
 
-    it('re-registers a live slot with the invite answer, and does not renew it', async () => {
-        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
-        mockTimeToExpiry.mockReturnValue(60_000);
+    it('rethrows what the command throws', async () => {
+        switchCloud.mockRejectedValueOnce(Object.assign(new Error('unknown handle'), { code: 'INVITE_LOGIN_UNKNOWN' }));
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 
-        await result.current.switchCloud('cloud-1', { inviteLogin });
-
-        expect(mockReauthenticate).toHaveBeenCalledWith(expect.objectContaining({ slot: 'cloud-1' }));
-        // A renewal re-issues through delegate-cloud — the very identity the answer replaced.
-        expect(mockRenew).not.toHaveBeenCalled();
-    });
-
-    it('still switches when the live slot will not re-register — the store already holds the answer', async () => {
-        mockSlotKeys.mockReturnValue(['default', 'cloud-1']);
-        mockReauthenticate.mockRejectedValueOnce(new Error('socket down'));
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await expect(result.current.switchCloud('cloud-1', { inviteLogin })).resolves.toBeUndefined();
-    });
-
-    it('forgets the answer once the cloud is entered', async () => {
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await result.current.switchCloud('cloud-1', { inviteLogin });
-
-        expect(readInviteLogin(inviteLogin.handle)).toBeNull();
-    });
-
-    it('keeps the answer for a retry after a switch that failed, and enters with it then', async () => {
-        mockSwitchCloudSession.mockRejectedValueOnce(
-            Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' })
-        );
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await expect(result.current.switchCloud('cloud-1', { inviteLogin })).rejects.toThrow('Network Error');
-        await result.current.switchCloud('cloud-1', { inviteLogin });
-
-        expect(mockSwitchCloudSession).toHaveBeenLastCalledWith('cloud-1', {
-            hasLiveSlot: false,
-            issuedTokens: expect.objectContaining({ cloudToken: inviteAnswer }),
-        });
-    });
-
-    it('refuses a handle the runtime does not hold, rather than enter as the relay user', async () => {
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await expect(
-            result.current.switchCloud('cloud-1', {
-                inviteLogin: { handle: 'invite-login-404', cloudId: null, ...endpoints },
-            })
-        ).rejects.toMatchObject({ code: INVITE_LOGIN_UNKNOWN });
-        expect(mockSwitchCloudSession).not.toHaveBeenCalled();
-    });
-
-    it('falls back to an ordinary switch when the invite answer cannot be entered with', async () => {
-        const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
-
-        await result.current.switchCloud('cloud-1', { inviteLogin: handleFor({ id: 'invitee', Token: {} }) });
-
-        expect(mockSwitchCloudSession).toHaveBeenCalledWith('cloud-1', { hasLiveSlot: false, issuedTokens: undefined });
+        await expect(result.current.switchCloud('cloud-1')).rejects.toMatchObject({ code: 'INVITE_LOGIN_UNKNOWN' });
     });
 
     it('records a successful switch as one cloud_switch trace with outcome ok', async () => {
@@ -191,7 +69,7 @@ describe('useSwitchCloudSession', () => {
 
     it('records a failed switch with outcome error and still rethrows', async () => {
         configurePerfTraces(backend);
-        mockSwitchCloudSession.mockRejectedValue(new Error('exchange failed'));
+        switchCloud.mockRejectedValueOnce(new Error('exchange failed'));
 
         const { result } = renderHook(() => useSwitchCloudSession(), { wrapper: createWrapper() });
 

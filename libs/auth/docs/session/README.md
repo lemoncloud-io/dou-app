@@ -86,7 +86,7 @@ user. The one change that is meant to happen, the owned-cloud reclaim, gets an o
 the server can issue one, so a token whose role is `owner` is let through. With no uid recorded (a
 first entry, or after the account signed out and the map was cleared) any answer is taken. An invite
 login's own answer is committed by `cloudSession.switchTo` without an exchange, so accepting an invite
-again can still set the user. A pairing's `enter` forgets the cloud's uid before its re-issue, because
+again can still set the user. A pairing's entry (`prepareEntry`) forgets the cloud's uid before its re-issue, because
 replacing the tab's identity with the approver's is what it is for, and a guest that signs in to an
 account ends its paired clouds the same way.
 
@@ -174,15 +174,15 @@ in; nothing is rebuilt from the token, because signed HTTP reads it per request.
 runtime-core's `RelayCredentialGuard` reads both. They used to be asked of lemon-web-core's own stored token
 bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
-[`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three
-apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the
-repository takes an object. Keeping that translation in one place is its entire reason to exist.
+[`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: its callers
+(runtime-core's `loginWithInviteCode` command, app-runtime's `fetchInviteInfoWithCode`) pass positional
+arguments and the repository takes an object. Keeping that translation in one place is its entire reason to exist.
 
 [`clearSiteSelection.ts`](../../src/session/clearSiteSelection.ts) empties the active cloud's place
 selection and does nothing else — no `auth.switch`, no switch token, the socket session stays put. It is
 on the barrel for one case: the user has just left the last place of a cloud, so there is no place to
 switch to, and keeping the old id would leave the app on a place they are no longer in (apps/web's
-`useSwitchPlace` calls it). Moving between places stays `useSiteSwitch`'s job.
+`useSwitchPlace` asks for it, through runtime-core's `clearSiteSelection` command). Moving between places stays `useSiteSwitch`'s job.
 
 ## Further reading
 

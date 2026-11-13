@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useSessionIdentity } from '../readers/useSessionIdentity';
-import { registerUserWithInviteCode } from '@chatic/auth';
+import { registerUserWithInviteCode } from '../../../sessionCommands';
 
 interface InviteFlowArgs {
     code: string;
