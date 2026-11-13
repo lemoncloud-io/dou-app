@@ -207,6 +207,7 @@ export const ko: EnTranslation = {
     'chat.file.cancelUploadHint': '업로드 취소',
     'chat.file.copyLink': '링크 복사',
     'chat.file.linkCopied': '링크 복사됨',
+    'chat.file.linkUnavailable': '이 기기에 없는 클라우드의 링크예요',
     'chat.file.copyLinkFailed': '링크를 복사하지 못했어요',
     'chat.file.forwardTitle': '{{name}} 전달',
     'chat.file.forwardHint': '파일을 보낼 채널을 고르세요',

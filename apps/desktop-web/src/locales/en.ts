@@ -197,6 +197,7 @@ export const en = {
     'chat.file.cancelUploadHint': 'Cancel upload',
     'chat.file.copyLink': 'Copy link',
     'chat.file.linkCopied': 'Link copied',
+    'chat.file.linkUnavailable': "That link's cloud isn't on this device",
     'chat.file.copyLinkFailed': "Couldn't copy the link",
     'chat.file.forwardTitle': 'Forward {{name}}',
     'chat.file.forwardHint': 'Pick a channel to send the file to',

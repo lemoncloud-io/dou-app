@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID } from '@chatic/data';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { selectNewAccountPending, useJoinDialogStore, useSignInNoticeStore } from '../../auth';
 import {
@@ -66,6 +68,7 @@ import {
     CreatePlaceDialog,
     DesktopLayout,
     EditPlaceDialog,
+    ForwardFileHost,
     OnboardingDialog,
     NavRail,
     NavSidebar,
@@ -99,7 +102,15 @@ import {
     pendingRedirectPlace,
 } from '../utils';
 import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
-import { openLandingOf, originFor, placeToEnter, returnRoute, shouldOfferReturn, type ReaderLocation } from '../utils';
+import {
+    openLandingOf,
+    opensIntoKnownCloud,
+    originFor,
+    placeToEnter,
+    returnRoute,
+    shouldOfferReturn,
+    type ReaderLocation,
+} from '../utils';
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -387,11 +398,22 @@ export const HomePage = () => {
     // consumed so returning to home later doesn't re-jump.
     const pendingOpen = usePendingOpenStore(s => s.target);
     const clearPendingOpen = usePendingOpenStore(s => s.clear);
+    const { t: translate } = useTranslation();
     useEffect(() => {
         if (!pendingOpen?.channelId) return;
         const { cloudId, channelId } = pendingOpen;
         const landing = openLandingOf(pendingOpen);
         const activeCloud = activeCloudId ?? 'default';
+        if (
+            !opensIntoKnownCloud(pendingOpen, {
+                activeCloudId: activeCloud,
+                knownCloudIds: new Set(clouds.map(c => c.id)),
+            })
+        ) {
+            toast({ description: translate('chat.file.linkUnavailable') });
+            clearPendingOpen();
+            return;
+        }
         const sameCloud = !cloudId || cloudId === activeCloud;
         // A notification is a detour like any other jump, the open channel included:
         // it moves the reader to the latest or swaps the thread beside it.
@@ -869,6 +891,9 @@ export const HomePage = () => {
 
     return (
         <>
+            {/* Forward from a file's More menu picks from the place's channels, as the switcher does.
+                Here rather than in the channel list, which a compact window unmounts with its drawer. */}
+            <ForwardFileHost channels={channels} />
             <DesktopLayout
                 rail={
                     <>

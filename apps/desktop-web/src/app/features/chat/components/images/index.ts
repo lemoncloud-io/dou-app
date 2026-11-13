@@ -1,5 +1,6 @@
 export * from './AttachButton';
 export * from './AttachmentDropOverlay';
+export * from './ForwardFileDialog';
 export * from './ComposerAttachments';
 export * from './ImageActions';
 export * from './ImageSpinner';

@@ -210,9 +210,9 @@ export interface AttachmentValidation<T> {
     accepted: T[];
     /**
      * Every refused file with its reason, in incoming order. Counts per reason were all a toast could
-     * say; the dialog that replaced it names each file, so a reader knows which ones to fix.
+     * say; the dialog that replaced it names each file, so a reader knows which ones to fix. `max` is
+     * the ceiling it went over: bytes for `too-large`, files for `limit`.
      */
-    /** `max` is the ceiling it went over: bytes for `too-large`, files for `limit`. */
     refused: { file: T; reason: AttachmentRejection; max?: number }[];
 }
 

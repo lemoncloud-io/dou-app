@@ -54,6 +54,7 @@ export const parsePushDeeplink = (deeplink: string | undefined | null): PushDeep
         // the listeners that share this event.
         try {
             const [cloudId, placeId, channelId, chatNo, rootId] = link.slice(1).map(dec);
+            if (!Number.isSafeInteger(Number(chatNo))) return null;
             return {
                 ...(cloudId ? { cloudId } : {}),
                 placeId,

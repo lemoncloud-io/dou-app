@@ -224,14 +224,18 @@ lists them under the images:
       which is the member-only link the design asks for without a server link. A message not yet
       numbered by the server has no link to copy.
       Opening one may switch the reader's cloud or place without asking, as a notification's click
-      does; a channel the reader is not in is never reached, and the open lapses.
+      does; a channel the reader is not in is never reached, and the open lapses. Anything on the
+      machine can open the scheme, so a link only moves the reader to a cloud this device already
+      lists (`opensIntoKnownCloud`); one naming another cloud is refused with a toast rather than
+      looked up, and a message number past the safe integer range is not a link at all.
     - **Forward**, in the same two menus, sends the file again as a new message: the reader picks a
       channel of the place on screen, the same list as the quick switcher (`ForwardFileDialog`,
-      mounted beside it in `ChannelList`). The server has no forward, so the file is fetched and sent
+      mounted by the home screen, not the channel list, which a compact window unmounts with its
+      drawer). The server has no forward, so the file is fetched and sent
       through the usual attachment send to that channel (`useSendImages` keyed to the pick, with
       `attach: false`: that channel's own screen may be open, and its rows stay that screen's), as the
-      reader's own message. A send runs once however the channel list remounts meanwhile, and the
-      picker closes when the list goes, so a place switch never offers another place's channels. A toast says where it is going once the bytes are in; the row in that
+      reader's own message. A send runs once however the host remounts meanwhile, and the picker
+      closes when the home screen goes. A toast says where it is going once the bytes are in; the row in that
       channel shows the upload as any send does, and a failed one stays there as failed. A file that
       will not load is reported and nothing is sent. Other places and clouds are not offered.
     - **One player per file.** Every view of one address — the card, the voice detail dialog, a tray

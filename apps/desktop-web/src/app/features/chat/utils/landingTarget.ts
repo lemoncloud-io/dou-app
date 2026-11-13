@@ -55,3 +55,18 @@ export const openLandingOf = ({
     if (chatNo != null) return { kind: 'message', chatNo };
     return { kind: 'latest' };
 };
+
+/**
+ * Whether an open may take the reader to the cloud it names. A copied message link reaches the app
+ * from anywhere on the machine — a web page can open the scheme — so it only moves the reader to a
+ * cloud this device already lists (the home cloud included), never to one it would have to look up.
+ * A notification's target comes from the reader's own pushes and is not held to this.
+ */
+export const opensIntoKnownCloud = (
+    target: { cloudId?: string; chatNo?: number },
+    { activeCloudId, knownCloudIds }: { activeCloudId: string; knownCloudIds: ReadonlySet<string> }
+): boolean => {
+    if (target.chatNo == null) return true;
+    if (!target.cloudId || target.cloudId === activeCloudId) return true;
+    return knownCloudIds.has(target.cloudId);
+};

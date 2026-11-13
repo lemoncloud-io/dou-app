@@ -72,8 +72,7 @@ export const ForwardFileHost = ({ channels }: { channels: DomainChannel[] }) => 
     const request = useForwardFileStore(s => s.request);
     const jobs = useForwardFileStore(s => s.jobs);
     const close = useForwardFileStore(s => s.close);
-    // The picker lists this place's channels: one left open as the place changes would offer the new
-    // place's channels for a file of the old one.
+    // Left with the home screen: a picker still open would greet the reader on the way back.
     useEffect(() => close, [close]);
     return (
         <>
@@ -180,8 +179,8 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
         attach: false,
     });
     useEffect(() => {
-        // Once per job, claimed outside the component: the host remounts whenever the channel list
-        // changes shape (loading, a filter with no match), and a remounted send must not send again.
+        // Once per job, claimed outside the component: a remount of the host (the home screen left
+        // and entered again) must not send again.
         if (startedJobs.has(job.id)) return;
         startedJobs.add(job.id);
         const { file } = job;

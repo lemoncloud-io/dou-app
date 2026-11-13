@@ -127,6 +127,7 @@ describe('parsePushDeeplink — a message link', () => {
             chatNo: 7,
         });
         expect(parsePushDeeplink('chatic://message/%E0/p/ch/7')).toBeNull();
+        expect(parsePushDeeplink(`chatic://message/c/p/ch/${'9'.repeat(22)}`)).toBeNull();
     });
 
     it('leaves the sign-in link alone', () => {
