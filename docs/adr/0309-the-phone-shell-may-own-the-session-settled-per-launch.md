@@ -8,7 +8,10 @@
 > login's); `refactor/connection-via-engine` (the sockets and the sync engine through the engine, their
 > calls and streams named in the contract); `feat/runtime-mobile` (the native adapter: React Native's
 > ports and `createNativeRuntime`; not booted yet); `refactor/repositories-via-engine` (the page's
-> repository graph without the token issuers, every repository method named in the contract)
+> repository graph without the token issuers, every repository method named in the contract);
+> `feat/native-storage-ports` (the native runtime's stores on the page's vault item and keys, its cache
+> on the app's database through the WebView's own cache handlers, and the page's vault refused once
+> the app holds the session; still not booted)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
@@ -131,3 +134,7 @@ shell never offers.
 - The session snapshot, the commands, the call targets and the events are each added with the change
   that first moves a reader or a command behind the engine.
 - While the page sends no hello, nothing changes for anyone.
+- A runtime in the app waits out a locked vault instead of falling back from it. A page reads iOS's
+  before-the-first-unlock vault as unavailable, runs on its tab and reloads once it reads; the app has no
+  reload to come back with and nothing to show before the unlock, so it asks again on each return to
+  the front and boots after.

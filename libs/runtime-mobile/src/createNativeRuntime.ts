@@ -14,12 +14,15 @@ import { nativeTransportPorts } from './transport';
 export interface NativeRuntimeOptions {
     /**
      * The session's two stores and the runtime's own `device` store. They are the app's to build on its
-     * own native storage — the credentials in the device's secure store, the rest in a fast key-value
-     * store; none is built yet — and they have to be readable synchronously and ready before this call.
-     * The parameters a session ends with wait for the next launch in `plain` too.
+     * own native storage — the credentials in the device vault (`nativeSecretStore`), the rest in
+     * key-value files (`keyValueStoreOn`) — and they have to be readable synchronously and loaded before
+     * this call. The parameters a session ends with wait for the next launch in `plain` too.
      */
     storage: RuntimeConfig['storage'];
-    /** Where the cache's rows live: each domain's store, the search across clouds, the metrics. */
+    /**
+     * Where the cache's rows live: each domain's store, the search across clouds, the metrics — the
+     * app's database, through `nativeLocalCachePorts`.
+     */
     cache: RuntimeConfig['cache'];
     /**
      * The user agent this device reports, sent as the socket handshake's `User-Agent`. It must be the

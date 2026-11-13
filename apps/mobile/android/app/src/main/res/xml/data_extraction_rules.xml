@@ -11,6 +11,13 @@
     - datastore/RN_KEYCHAIN.preferences_pb: where react-native-keychain keeps its encrypted items.
     - RN_KEYCHAIN.xml: the SharedPreferences file it migrates from (older versions wrote there).
     - mmkv/secure-storage(.crc): the MMKV instance holding only the vault's install flag.
+
+    The app runtime's own stores stay behind with the vault: the session's plain half (the device id,
+    the cloud identities, the selected cloud) is only meaningful beside the tokens the vault keeps, so
+    a new phone starts both fresh.
+
+    - mmkv/chatic-runtime-plain(.crc), mmkv/chatic-runtime-device(.crc): the runtime's plain and
+      device stores.
 -->
 <data-extraction-rules>
     <cloud-backup>
@@ -18,11 +25,19 @@
         <exclude domain="sharedpref" path="RN_KEYCHAIN.xml" />
         <exclude domain="file" path="mmkv/secure-storage" />
         <exclude domain="file" path="mmkv/secure-storage.crc" />
+        <exclude domain="file" path="mmkv/chatic-runtime-plain" />
+        <exclude domain="file" path="mmkv/chatic-runtime-plain.crc" />
+        <exclude domain="file" path="mmkv/chatic-runtime-device" />
+        <exclude domain="file" path="mmkv/chatic-runtime-device.crc" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="datastore/RN_KEYCHAIN.preferences_pb" />
         <exclude domain="sharedpref" path="RN_KEYCHAIN.xml" />
         <exclude domain="file" path="mmkv/secure-storage" />
         <exclude domain="file" path="mmkv/secure-storage.crc" />
+        <exclude domain="file" path="mmkv/chatic-runtime-plain" />
+        <exclude domain="file" path="mmkv/chatic-runtime-plain.crc" />
+        <exclude domain="file" path="mmkv/chatic-runtime-device" />
+        <exclude domain="file" path="mmkv/chatic-runtime-device.crc" />
     </device-transfer>
 </data-extraction-rules>

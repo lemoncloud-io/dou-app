@@ -32,6 +32,10 @@ const engine = createNativeRuntime({
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `createNativeRuntime(options)`           | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine |
 | `@chatic/runtime-mobile/polyfills` entry | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                   |
+| `nativeSecretStore(vault, options?)`     | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process  |
+| `waitForUnlockedVault(vault)`            | waits while the vault is locked (iOS, before the first unlock) and answers the first other read               |
+| `keyValueStoreOn(file)`                  | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are            |
+| `nativeLocalCachePorts(client)`          | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`    |
 
 The ports `createNativeRuntime` fills, the same in every React Native app:
 
@@ -41,9 +45,49 @@ The ports `createNativeRuntime` fills, the same in every React Native app:
 | `RuntimePorts.foreground` | `nativeForegroundPorts()` | `AppState`: in front unless `background`; a subscriber hears only a change of that answer                                     |
 | `RuntimePorts.auth`       | `nativeAuthPorts()`       | the parameters the last session ended with, carried in the plain store to the next boot; the app's `leaveToHome`              |
 
-`storage` and `cache` are the app's. The app is to build the stores on the device's secure store and its
-native key-value store and the cache on its native database — app code with native modules of its own,
-none of it written yet. The package takes them as they are and decides nothing about them.
+`storage` and `cache` are the app's: they sit on native modules the app links (its keychain item, its
+MMKV files, its SQLite), and the app opens those. What is the same for any app that keeps its state that
+way is here, as the four builders above; `apps/mobile` puts them together in
+`src/app/services/runtime/` (`buildRuntimePorts`).
+
+## The stores and the cache
+
+The runtime in the app has to read the state the WebView's pages have been writing, because the
+person signed in through a page and their cache was filled by one. So each port is the page's own
+store over a different channel, not a new store:
+
+- **`secret` is the page's vault store.** A page keeps the session's four tokens in the device vault
+  through `NativeSecureStore` (`@chatic/storage`) and the bridge's `StorageGet`/`StorageSave`/
+  `StorageClear`. `nativeSecretStore` is the same class on the same vault, reached in-process: the same
+  keychain item, the same keys, so a session a page signed in is the session this runtime reads, with
+  nothing to move. It keeps the page's rules with it — values in memory once loaded, writes after and in
+  order, and a vault that cannot be read or refuses a write taken as unavailable, never as empty: the
+  store holds the session in memory for the rest of the run. A vault that does not answer within
+  `NATIVE_VAULT_TIMEOUT_MS` (10 s, the page's bridge budget) counts as one that failed: a keychain call
+  that never returns must not hold the boot. Loading it is the boot's, through the same
+  secret-storage step a page's boot runs (`prepareSecretStorage`), which also finishes a logout whose
+  clear was never confirmed.
+- **Locked is waited out, not fallen back from.** On iOS the vault cannot be read until the phone is
+  first unlocked after it boots, and the app can be launched in the background before that. A page
+  answers that with its tab storage and reloads once the vault reads; a runtime in the app has no reload
+  to come back with and nothing to show before the unlock, so `waitForUnlockedVault` asks again each
+  time the app comes to the front and the boot loads the store after. Read locked while already in
+  front, it asks once more a second later and then only on the next return to the front: each ask is a
+  keychain read, and a vault still locked in front does not change by being asked every second. Every other answer (values,
+  empty, an error, an undecryptable vault the app reset) comes back at once.
+- **`plain` and `device` are files of the runtime's own.** `keyValueStoreOn` keeps the strings a store
+  is handed as they are. The app's own MMKV wrapper JSON-encodes, and a store's `clear` empties its
+  whole file, so the runtime never shares a file with the app's other values.
+- **The cache is the app's database through the page's adapters.** `NativeDBAdapter` and
+  `NativeGlobalSearchSource` (`@chatic/db`) take any `CacheBridgeClient` — one `request`, one answer.
+  The app builds one over the very handlers that answer the WebView's cache messages, so a page and this
+  runtime cannot read or write the cache differently, and the adapters keep their read sharing and
+  their metrics. Every domain routes to the database: a page falls back to its own storage only when
+  the installed app is too old to hold a domain, and this runtime is the installed app.
+
+Nothing reads `plain` or `device` across from the page yet: a page keeps the selected cloud, the
+identities and the device id in its own `localStorage`, and those carry over when the app starts
+running the session, not before.
 
 ## Why each port answers the way it does
 
@@ -102,8 +146,14 @@ has to build the string itself.
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. The app's entry does, and passes what it builds into the assembly.
-- It compiles without the DOM's types or Node's (`tsconfig.lib.json`); React Native's own types supply
-  its globals.
+- Its own source compiles without the DOM's types or Node's (`tsconfig.lib.json`); React Native's own
+  types supply its globals.
+- One exception it carries knowingly: the cache ports import the `@chatic/db` barrel, which also holds
+  the page's IndexedDB and Web Storage engines and reaches `@chatic/bridges`. Neither package carries a
+  platform tag, so the `platform:native` rule cannot see that edge, and db is compiled with the DOM's
+  types (this package type-checks it only through `skipLibCheck`). What runs here is `NativeDBAdapter`,
+  `NativeGlobalSearchSource` and the metrics source, which touch no page global — the device check
+  covers them — and a DOM use added to `BaseDbAdapter` or those three would fail on a device first.
 - Its tests run in jest's `node` environment with each React Native module replaced by the test's own
   mock: no React Native preset, no native module.
 - `@react-native-community/netinfo` and `react-native-get-random-values` are native modules. They are

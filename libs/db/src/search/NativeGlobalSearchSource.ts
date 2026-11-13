@@ -6,7 +6,6 @@ import type {
     OnFetchAllCacheDataPayload,
     OnSearchGlobalCacheDataPayload,
 } from '@chatic/bridge-messages';
-import type { IWebBridgeClient } from '@chatic/bridges';
 import type {
     GlobalCacheContext,
     GlobalCacheContextQuery,
@@ -16,6 +15,8 @@ import type {
     IGlobalCacheSearchSource,
 } from '@chatic/data';
 import { globalCacheRefKey } from '@chatic/data';
+
+import type { CacheBridgeClient } from '../native/cacheBridge';
 
 /**
  * `_domain` is stamped onto every item by the native CacheSearchService
@@ -45,7 +46,7 @@ const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
  * so it works on app builds already in the field.
  */
 export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
-    constructor(private readonly bridge: IWebBridgeClient) {}
+    constructor(private readonly bridge: CacheBridgeClient) {}
 
     async search(keyword: string, query: GlobalCacheSearchQuery): Promise<GlobalCacheSearchResult> {
         const trimmed = keyword.trim();
@@ -71,9 +72,9 @@ export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
     }
 
     /**
-     * Reads a non-active cloud's rows by passing `cid` explicitly: the bridge handler forwards the
-     * payload's cid straight to the cache service (useCrudCacheHandler.ts:13-32), which is what
-     * makes a read outside the active cloud possible at all.
+     * Reads a non-active cloud's rows by passing `cid` explicitly: the app's `FetchAllCacheData` handler
+     * (apps/mobile cacheMessages.ts) forwards the payload's cid straight to the cache service, which is
+     * what makes a read outside the active cloud possible at all.
      *
      * Cost is `3 × clouds + channelRefs` round trips, issued in parallel — per cloud the whole
      * channel/site/join table (one request beats one-per-id), and per channel a single

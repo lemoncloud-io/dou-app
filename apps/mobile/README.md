@@ -27,12 +27,16 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Five workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+Eleven workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
-entry contract and the upload queue; [`@chatic/device-utils`](../../libs/device-utils/README.md) and
-[`@chatic/shared`](../../libs/shared/README.md) supply the small shared pieces.
+entry contract and the upload queue; [`@chatic/perf`](../../libs/perf/README.md) the performance
+traces; [`@chatic/device-utils`](../../libs/device-utils/README.md),
+[`@chatic/shared`](../../libs/shared/README.md) and `@chatic/chatic-apps-sdk` supply the small shared
+pieces. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md), [`@chatic/storage`](../../libs/storage/README.md) and
+[`@chatic/db`](../../libs/db/README.md) are the runtime's ports the app builds on its own storage (`services/runtime/`), and
+`@chatic/data` is read by tests only.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
@@ -96,7 +100,7 @@ flowchart TD
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
     Handlers["webview/hooks<br/>31 handlers"]
-    Services["services/<br/>21 domains"]
+    Services["services/<br/>23 domains"]
     BridgeTS["bridge/<br/>14 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
@@ -157,7 +161,7 @@ apps/mobile/
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      114 files across 21 domains, assembled in provider.ts
+│       ├── services/      134 files across 23 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer

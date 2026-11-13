@@ -10,6 +10,11 @@ SQLite, and the WebView-facing cache service that answers the web client's cache
 | SQLite | `src/app/database/sqlite` | Structured records — one table per cache domain, plus upload task state |
 | MMKV   | `src/app/database/mmkv`   | Small key-value state — preferences, config, the log upload queue       |
 
+The runtime the app can run the session in has two MMKV files of its own, `chatic-runtime-plain` and
+`chatic-runtime-device` (`services/runtime/runtimeStorageFiles.ts`). They hold the runtime's stores as
+plain strings and are never opened through `MmkvStorage`, which JSON-encodes and shares the app's
+default file — see [`@chatic/runtime-mobile`](../../../../libs/runtime-mobile/README.md#the-stores-and-the-cache).
+
 ```bash
 grep -c "TABLES\." apps/mobile/src/app/database/sqlite/tables.ts
 ```
@@ -23,7 +28,9 @@ data source instead.
 ```mermaid
 flowchart TD
     Web["Web App"] --> Handler["useCrudCacheHandler / useSearchCacheHandler"]
-    Handler --> CacheService["CacheCrudService / CacheSearchService"]
+    Runtime["Runtime in this process<br/>(createInProcessCacheClient)"] --> Handlers
+    Handler --> Handlers["createCacheMessageHandlers"]
+    Handlers --> CacheService["CacheCrudService / CacheSearchService"]
     CacheService --> DataSource["data/cache/*DataSource"]
     DataSource --> SQLite["SqliteDatabase"]
     OtherService["Other services (preference, config, log queue)"] --> MMKV["MmkvStorage"]
@@ -73,6 +80,24 @@ sequenceDiagram
     Service-->>Handler: result
     Handler-->>Web: bridge response
 ```
+
+## One set of handlers, two callers
+
+How each cache message is answered lives in `services/cache/cacheMessages.ts`
+(`createCacheMessageHandlers`), not in the hooks. The WebView's hooks hand the page's messages to it,
+and a runtime in this process reaches the same SQLite through it too:
+`createInProcessCacheClient` turns the handlers into a `CacheBridgeClient` — the one method `@chatic/db`'s
+`NativeDBAdapter` and `NativeGlobalSearchSource` need of a bridge — so the runtime runs the page's own
+adapters, with their read sharing and metrics, without the WebView in between. A page and the runtime
+therefore cannot read or write the cache differently.
+
+The client answers as the WebView's bridge client does: a `success: false` answer (a failed search)
+rejects with its error, and a message with no cache handler rejects with `NOT_FOUND`. A failed read or
+write is not a rejection on either side — it is `success: true` with an empty result, which the web
+reads as "fall back for this read".
+
+The services are passed as getters and read on each message, so SQLite still opens on the first cache
+message, whichever caller sends it.
 
 ## Batch reads (`FetchManyCacheData`)
 
@@ -129,7 +154,8 @@ SQLite):
 
 - SQL schema and table names belong to `database/sqlite`.
 - Domain row mapping belongs to `data/cache`.
-- The WebView contract belongs to `services/cache` and its handler hooks.
+- The WebView contract belongs to `services/cache` (`cacheMessages.ts`); the handler hooks only wire
+  it to the bridge.
 - The retired chunked-upload module's `upload_tasks` table is dropped by migration 11; file
   transfer persists nothing — see [../native/file-transfer.md](../native/file-transfer.md).
 - MMKV holds small values and queues; it does not grow into structured list or query storage.

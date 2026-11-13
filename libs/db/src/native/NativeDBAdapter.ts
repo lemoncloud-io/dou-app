@@ -1,5 +1,4 @@
 import { logger } from '@chatic/bridges';
-import type { IWebBridgeClient } from '@chatic/bridges';
 import type {
     CacheModelOf,
     CacheQueryOf,
@@ -25,6 +24,7 @@ import type {
 import type { DataContextProvider } from '@chatic/data';
 import { stableHash, withCacheMeta } from '@chatic/data';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';
+import type { CacheBridgeClient } from './cacheBridge';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 
 /** Bridge message → instrumentation operation name. These are all 10 kinds this adapter sends. */
@@ -67,7 +67,7 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     private readonly inflightReads = new Map<string, Promise<unknown>>();
 
     constructor(
-        private readonly bridge: IWebBridgeClient,
+        private readonly bridge: CacheBridgeClient,
         type: TType,
         contextProvider: DataContextProvider
     ) {

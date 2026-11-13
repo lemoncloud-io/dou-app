@@ -11,6 +11,7 @@ fill that copy at boot and write it back. The contract — payloads, reasons, `r
 | `src/app/services/secureStorage/SecureStorageService.ts`         | The vault: start-up read, in-memory copy, serialized writes       |
 | `src/app/services/secureStorage/MmkvSecureStorageInstallFlag.ts` | The reinstall flag, in its own MMKV instance                      |
 | `src/app/webview/hooks/secureStorageHandlers.ts`                 | `StorageGet` / `StorageSave` / `StorageClear`, and the media list |
+| `src/app/services/runtime/runtimePorts.ts`                       | The app runtime's `secret` store on the same vault, in-process    |
 | `android/app/src/main/res/xml/data_extraction_rules.xml`         | Keeps the vault and its flag off cloud backup and device transfer |
 
 ## Where it lives
@@ -73,6 +74,12 @@ legacy SharedPreferences file, and the `secure-storage` MMKV files from both. Th
 useless on the new phone anyway — the Keystore key never leaves the old one — and would only arrive
 as an item to reset.
 
+The app runtime's own MMKV files, `chatic-runtime-plain` and `chatic-runtime-device`, are excluded
+from both too. The plain store holds the session's other half — the device id, the cloud identities,
+the selected cloud — which means nothing beside a vault that stayed behind, so a new phone starts both
+fresh. The page's copy of the same values sits in the WebView's own storage, which these rules do not
+cover; it is the page's until the app runs the session.
+
 ## Who may ask
 
 The handlers are registered on the main WebView's host only, which already drops messages from an
@@ -80,6 +87,24 @@ untrusted origin; the sub WebView's host never answers them. A `medium` other th
 a malformed `StorageSave`, is answered with `INVALID`. The shell announces the medium before the page
 runs: `CHATIC_APP_STORAGE_MEDIA = ['nativeSecure']` in the injected script
 ([../webview/README.md](../webview/README.md#injection)).
+
+**The page, or the app's runtime — never both.** The app can run the session itself, in its own JS
+process, through `@chatic/runtime-mobile`. That runtime keeps its `secret` store on this same vault,
+in-process (`services/runtime/runtimePorts.ts`): the same item and the same keys, so the session a page
+signed in is the one the runtime reads, with nothing to move. Everything in the vault is the session's
+four tokens. So once the app holds the session, the handlers take an `ownsSession` flag and the page is
+answered as by a vault it cannot use: `StorageGet` is `unavailable` (`error`) without a read, and
+`StorageSave` and `StorageClear` are `ok: false` without a write. The refusal is logged once per kind
+of message, not on every ask. The flag is read on every message and is off — the page holds the
+session — until the app starts running it.
+
+The refusal keeps the page away from the runtime's tokens; on its own it does not keep the page from
+holding a session. A page told its vault is unavailable falls back to the tab's storage for the run,
+and signs in from a copy of the tokens left in `localStorage` if one is there; a page logout answered
+`ok: false` leaves its "clear the vault next boot" marker set. So the switch that turns the flag on
+also tells the page, before it runs, that the vault is not its medium (the shell stops announcing
+`nativeSecure`), and the page then runs without a session of its own — the refusal is the backstop
+behind that, not the switch.
 
 ## Debug panel
 
