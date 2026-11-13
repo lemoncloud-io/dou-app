@@ -14,7 +14,8 @@ import type { LogContext } from '@chatic/logger';
  * carry the same id.
  *
  * The tenancy fields stay empty on this side: only the web session knows them.
- * That is expected, and the server hoists whatever arrives.
+ * That is expected, and the server hoists whatever arrives. `sessionOwner` says
+ * which side holds the session this launch, from the source the provider sets.
  */
 
 /** Issued once per process — the identity of this app run. */
@@ -30,9 +31,29 @@ const DEVICE = {
     appVersion: DeviceInfo.getVersion(),
 };
 
+let readSessionOwner: (() => string) | null = null;
+
+/**
+ * Where entries read which side holds the session this launch from (`launchSessionOwner`). Set by
+ * the provider; a source that throws leaves the field off rather than taking logging down.
+ */
+export const setLogSessionOwnerSource = (source: (() => string) | null): void => {
+    readSessionOwner = source;
+};
+
+const sessionOwner = (): string | undefined => {
+    try {
+        return readSessionOwner?.() ?? undefined;
+    } catch {
+        return undefined;
+    }
+};
+
 export const readNativeLogContext = (): LogContext => ({
     runId: NATIVE_RUN_ID,
     ...DEVICE,
+    // Which side holds the session this launch — settled once, so every entry of a run agrees.
+    sessionOwner: sessionOwner(),
 });
 
 /** Registers the provider with the logging core. Call before anything logs. */

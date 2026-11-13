@@ -20,7 +20,7 @@ libs/runtime-core/src/
 ├── data/               the repository graph — see docs/data/
 ├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) — not on the barrel
 ├── connection/         the connection controller: session → socket slots; the sockets as screens read them — see docs/connection/
-├── session/            the session controller, the two credential guards, the foreground port, the session view and the commands — see docs/session/
+├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors — see docs/bridge/
 └── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/); the sync engine as screens drive it (docs/connection/)
@@ -32,7 +32,7 @@ page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/
 `initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
 app-runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
 through `createNativeRuntime(...)` in `@chatic/runtime-mobile`, which fills React Native's ports the
-same way; the mobile app does not boot it yet.
+same way; the mobile app can boot it (its `docs/runtime/`), and nothing starts it yet.
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without

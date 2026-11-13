@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
 import { BadgeSyncBridge, PushMarksBridge } from '../../bridge';
+import { acquirePushToken } from '../../services/notification/pushToken';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/bridge-messages';
 
@@ -19,29 +20,11 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
     const fetchFcmToken = useCallback(async (_message: WebMessageData<'FetchFcmToken'>) => {
         try {
-            const hasPermission = await notificationService.requestPermission();
-
-            if (hasPermission) {
-                let token;
-                if (Platform.OS === 'ios') {
-                    await notificationService.registerAPNs();
-                    token = await notificationService.getAPNSToken();
-                } else {
-                    token = await notificationService.getToken();
-                }
-
-                if (token) {
-                    // Existence, never the value: an FCM/APNs token is a credential (catalog rule 8),
-                    // and `debug` entries still reach the server on non-release builds.
-                    logger.info('NOTIFICATION', 'push token acquired', { platform: Platform.OS });
-                    return { type: 'OnFetchFcmToken' as const, success: true, data: { token } };
-                } else {
-                    throw new Error('Failed to generate FCM Token');
-                }
-            } else {
-                logger.error('NOTIFICATION', 'Allow not notification permission.');
-                throw new Error('Notification permission denied.');
-            }
+            const token = await acquirePushToken(notificationService, Platform.OS);
+            // Existence, never the value: an FCM/APNs token is a credential (catalog rule 8),
+            // and `debug` entries still reach the server on non-release builds.
+            logger.info('NOTIFICATION', 'push token acquired', { platform: Platform.OS });
+            return { type: 'OnFetchFcmToken' as const, success: true, data: { token } };
         } catch (e: any) {
             logger.error('NOTIFICATION', 'Set FCM token error.', e);
             return {

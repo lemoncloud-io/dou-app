@@ -37,6 +37,8 @@ export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } f
 // the connections, kept in line with the session, and the sockets as screens read and drive them
 export type { ConnectionController, ConnectionControllerOptions } from './connection/connectionController';
 export type { ConnectionSnapshot, RuntimeConnection } from './connection/runtimeConnection';
+// The relay's slot key, as `ConnectionSnapshot.verifiedSlots` names it.
+export { RELAY_SLOT } from '@chatic/transport';
 
 // the sync engine as screens drive it
 export type { RuntimeSync } from './sync/runtimeSync';
@@ -73,6 +75,8 @@ export type { SessionCommands } from './session/commands';
 
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
+export { prepareSecretStorage } from './session/secretStorage';
+export type { SecretStorageBoot, SecretStorageOutcome } from './session/secretStorage';
 
 // the credential guards an app starts with its own policy
 export type { SessionStalenessPolicy } from './session/relayCredentialGuard';

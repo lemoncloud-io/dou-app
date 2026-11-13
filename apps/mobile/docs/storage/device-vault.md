@@ -74,11 +74,13 @@ legacy SharedPreferences file, and the `secure-storage` MMKV files from both. Th
 useless on the new phone anyway — the Keystore key never leaves the old one — and would only arrive
 as an item to reset.
 
-The app runtime's own MMKV files, `chatic-runtime-plain` and `chatic-runtime-device`, are excluded
-from both too. The plain store holds the session's other half — the device id, the cloud identities,
-the selected cloud — which means nothing beside a vault that stayed behind, so a new phone starts both
-fresh. The page's copy of the same values sits in the WebView's own storage, which these rules do not
-cover; it is the page's until the app runs the session.
+The app runtime's own MMKV files — `chatic-runtime-plain`, `chatic-runtime-device` and
+`chatic-runtime-mode` — are excluded from both too. The plain store holds the session's other half —
+the device id, the cloud identities, the selected cloud — which means nothing beside a vault that
+stayed behind, so a new phone starts both fresh; and it starts with the page owning the session, as a
+fresh install does, rather than with the runtime owning stores that did not come along. The page's copy
+of the same values sits in the WebView's own storage, which these rules do not cover; it is the page's
+until the app runs the session.
 
 ## Who may ask
 

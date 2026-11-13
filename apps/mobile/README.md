@@ -44,7 +44,9 @@ bookkeeping (`@chatic/bridges`); the desktop shell's answers to the same message
 
 `@chatic/config` is a special case, and the absence is deliberate: this app never imports it, but
 `ConfigKvService` and `useConfigKvHandler` persist its shell lane. The library's name appears in this
-source tree only in comments.
+source tree only in comments. The app's own session runtime does run it — `@chatic/runtime-mobile`'s
+boot calls `config.init` with the build's values on a launch the runtime owns
+([docs/runtime/](./docs/runtime/README.md)) — but through that package, not from this tree.
 
 ## Design principles
 
@@ -161,7 +163,7 @@ apps/mobile/
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      134 files across 23 domains, assembled in provider.ts
+│       ├── services/      143 files across 23 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
@@ -288,7 +290,7 @@ the lanes. There are four store apps — iOS and Android, each dev and prod. See
 
 ## Documents
 
-The detail lives under [`docs/`](./docs/README.md), in seven categories. Each category folder has a
+The detail lives under [`docs/`](./docs/README.md), in eight categories. Each category folder has a
 `README.md` that is either its lead document or a short index.
 
 | Category                                  | What it covers                                                                                                     |
@@ -298,6 +300,7 @@ The detail lives under [`docs/`](./docs/README.md), in seven categories. Each ca
 | [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                                    |
 | [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge                                |
 | [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, the device vault, and resumable file upload                   |
+| [docs/runtime/](./docs/runtime/README.md) | The session run by the app itself — the per-launch owner, the runtime's boot and what it keeps running             |
 | [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                                     |
 | [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server                             |
 

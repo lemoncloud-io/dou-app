@@ -6,8 +6,18 @@ package holds the pieces that are true of that process and of nothing else — N
 socket opened by React Native with the handshake header the relay checks — and builds the runtime from
 them. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/README.md).
 
-The mobile app does not boot it yet: today the page owns the session on every platform. The package
-exists so the native side can be built and tested on its own first.
+The mobile app can boot it (`apps/mobile/docs/runtime/`), on a launch whose owner is set to the app;
+nothing sets it yet, so the page owns the session on every launch today. An app boots it with
+`bootNativeRuntime` and keeps it alive with `runNativeRuntime`:
+
+```ts
+import '@chatic/runtime-mobile/polyfills'; // first, before anything draws random numbers
+
+const { engine } = await bootNativeRuntime({ storage, vault, cache, env, userAgent, leaveToHome });
+const stop = runNativeRuntime(engine, { deviceIds, push });
+```
+
+`createNativeRuntime` is the step inside the boot that assembles the runtime from loaded stores:
 
 ```ts
 // The app's entry file, first line — before anything that draws random numbers is loaded.
@@ -36,6 +46,8 @@ const engine = createNativeRuntime({
 | `waitForUnlockedVault(vault)`            | waits while the vault is locked (iOS, before the first unlock) and answers the first other read               |
 | `keyValueStoreOn(file)`                  | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are            |
 | `nativeLocalCachePorts(client)`          | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`    |
+| `bootNativeRuntime(options)`             | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime |
+| `runNativeRuntime(engine, options)`      | starts the session and connection controllers, the two credential guards and push registration; returns stop  |
 
 The ports `createNativeRuntime` fills, the same in every React Native app:
 
@@ -88,6 +100,36 @@ store over a different channel, not a new store:
 Nothing reads `plain` or `device` across from the page yet: a page keeps the selected cloud, the
 identities and the device id in its own `localStorage`, and those carry over when the app starts
 running the session, not before.
+
+## Booting and running
+
+`bootNativeRuntime` boots in the order a page's entry does, and each step is one a page already has:
+
+1. **The build's values** (`NATIVE_RUNTIME_ENV_KEYS`: `VITE_ENV`, `VITE_PROJECT`, `VITE_HOST`,
+   `VITE_OAUTH_ENDPOINT`, `VITE_SOCIAL_OAUTH_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`,
+   `VITE_DOU_ENDPOINT`) are checked, then handed to `@chatic/config` through the same env adapter the web
+   apps use, with `CHATIC_APP_PLATFORM` answered by `Platform.OS`. A missing one throws
+   `NativeRuntimeEnvError` (its `missing` lists them) before anything starts, so an app that catches it
+   leaves the session where it was.
+2. **The vault** is waited for while locked (`waitForUnlockedVault`).
+3. **The secret store** is loaded through runtime-core's `prepareSecretStorage` — the step a page's
+   boot runs. It empties the vault first when an earlier logout's clear was never confirmed
+   (`SECRET_LOGOUT_PENDING_KEY` in `plain`). It is never told the launch follows a logout: a page's
+   `?logout=1` belongs to the one document the logout opened, while the address the auth port saved
+   outlives the logout as long as the process runs on — a guest signed in after it would lose its
+   tokens at the next launch — and the logout empties the vault before it ends anyway. The app has no
+   web storage behind it, so the step's web copy and tab are empty.
+4. **`createNativeRuntime`**, with the loaded stores.
+
+`runNativeRuntime` then starts what a page's runtime host starts on mount: the session controller
+(initialize, keep a guest signed in), the connection controller (background clouds now, sockets once the
+session is ready), the relay guard with a page's policy (`NATIVE_RELAY_GUARD_POLICY`: no timer, a forced
+refresh on the relay's first verification) and the cloud guard — both checked again on each return to
+the front, the relay one only while its socket is verified — and push registration with the app's
+delegate. Each return to the front also probes the sockets (`connection.recoverOnResume`) and asks the
+background clouds for their deltas (`sync.refreshBackgroundClouds`), at most once per
+`WAKE_KICK_THROTTLE_MS` (5 s), as a page does. Its stop undoes them, last first; a step that throws
+stops what had started and rethrows.
 
 ## Why each port answers the way it does
 
@@ -145,7 +187,9 @@ has to build the string itself.
 - Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/app-runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
-- Nothing in the runtime imports it. The app's entry does, and passes what it builds into the assembly.
+- Nothing in the runtime imports it. The app's runtime host does (`apps/mobile`'s
+  `services/runtime/nativeRuntime.ts`), loaded only on a launch that runs the runtime, and passes what
+  it builds into the assembly.
 - Its own source compiles without the DOM's types or Node's (`tsconfig.lib.json`); React Native's own
   types supply its globals.
 - One exception it carries knowingly: the cache ports import the `@chatic/db` barrel, which also holds

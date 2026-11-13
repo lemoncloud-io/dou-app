@@ -5,7 +5,8 @@ import { FanOutPerfTraceBackend, PipelinePerfTraceBackend, configurePerfTraces }
 // Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
-import { attachNativeLogContext, readNativeLogContext } from './log/native/nativeLogContext';
+import { attachNativeLogContext, readNativeLogContext, setLogSessionOwnerSource } from './log/native/nativeLogContext';
+import { launchSessionOwner } from './runtime/launchSessionOwner';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -188,6 +189,8 @@ class DependencyProvider {
         // Context first: it is stamped at dispatch, so anything logged before
         // this would carry no runId and be unattributable to this app run.
         attachNativeLogContext();
+        // Which side holds the session this launch, on every entry from here on.
+        setLogSessionOwnerSource(launchSessionOwner);
         // The hub's listeners, wired before anything logs (principle 15). The app
         // keeps three: the console, the store, and Crashlytics (below).
         //

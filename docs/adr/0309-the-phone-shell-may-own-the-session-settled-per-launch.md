@@ -11,7 +11,8 @@
 > repository graph without the token issuers, every repository method named in the contract);
 > `feat/native-storage-ports` (the native runtime's stores on the page's vault item and keys, its cache
 > on the app's database through the WebView's own cache handlers, and the page's vault refused once
-> the app holds the session; still not booted)
+> the app holds the session; still not booted); `feat/native-runtime-boot` (the app's runtime host:
+> the per-launch owner, the boot and what keeps the session alive, not started by anything yet)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
@@ -138,3 +139,6 @@ shell never offers.
   before-the-first-unlock vault as unavailable, runs on its tab and reloads once it reads; the app has no
   reload to come back with and nothing to show before the unlock, so it asks again on each return to
   the front and boots after.
+- On a launch the app runs the session, its build needs the session's endpoints too, by the names the
+  web's env files use. Each stage's values then live in the web env and the mobile env, kept in step by
+  hand; a mobile build without them leaves the session to the page.
