@@ -1,9 +1,9 @@
 # notifications — the inbox this device derives from the rooms it watches
 
-`apps/web/src/app/features/notifications` owns the notification inbox's data: what gets into it, how
-it is stored, when an item reads as read, and the reads a screen composes it from. It owns no screen
-yet — the inbox screen, the bottom-navigation dot and the home row marks are built on what is
-described here. Why it is derived on the device, and apart from desktop's inbox, is ADR-0312.
+`apps/web/src/app/features/notifications` owns the notification inbox: what gets into it, how it is
+stored, when an item reads as read, and the two screens that show it — the notifications tab
+(`/notifications`) and the find-me sheet over home. The bottom-navigation dot and home's room marks
+read the same store. Why it is derived on the device, and apart from desktop's inbox, is ADR-0312.
 
 The store and the pure reads over it live app-wide — `app/stores/useNotificationStore` and
 `app/utils/notifications` (the item model, the mark/remove/undo operations, thread participation and
@@ -118,9 +118,9 @@ cloud, since each item names its own.
   (`useNotificationReadSync` → `markChannelReadUpTo`). The cursor is the one the unread badges count
   from. Only a move ahead is applied, once, so an item an undo turned back to unread stays unread
   until the reader reads further.
-- **A thread's items** are not touched by the room's cursor: a thread is read on its own screen, and
-  `markThreadRead` is the operation for that. The thread screen does not call it yet, so until it
-  does, a thread item turns read only when it is opened or marked from the inbox.
+- **A thread's items** are not touched by the room's cursor: a thread is read on its own screen. The
+  thread screen (`ThreadPage`) calls `markThreadRead` for its thread while it is open — on opening,
+  and again whenever a new unread item for that thread arrives.
 - **Opening an item** from the inbox marks it read (`markRead`) — the screen's job.
 
 A message in the room on screen is usually captured before the reader's cursor passes it, and then
@@ -139,6 +139,45 @@ Pure functions over a list of items (`app/utils/notifications/selectors`); a scr
   screen formats a `date` from `dayStart`.
 - `findMe(items)` — unread `mention`, `threadMention` and `replyToMine`, newest first.
 - `channelBadges(items, channelId)` — one room's unread mention and thread counts.
+
+## Screens
+
+**The notifications tab** (`pages/NotificationsPage`, route `ROUTES.notifications`, the bottom nav's
+middle tab). Everything in scope (`useScopedNotifications` — the session's cloud and place), read or
+not:
+
+- five tabs (`SegmentedTabs`, inline) with their unread counts, a zero hidden;
+- "Unread only" (`FilterChip`) and "Mark all read", which covers the current tab only;
+- the items by day, newest first, each one the kit's `NotificationRow` through `NotificationListItem`.
+  The row's chip, location, context and quote come from `utils/rowParts` (pure, tested);
+- a tap reads the item and goes to its message (`?chatNo=` on the room or the thread; a reaction goes
+  to the message reacted to);
+- **selection mode** — from "Select" or a long press, which starts with that row picked
+  (`useNotificationSelection`). The quick chips pick all / unread / read of what is visible, and a
+  chip pressed again on its own set clears it. The bottom bar (`SelectionActionBar`, drawn over the
+  nav) marks read — off when everything picked is already read — or deletes after a confirm. Both
+  close the mode and show a 3-second toast whose "Undo" puts back exactly what changed
+  (`useNotificationActions`). Deleting takes items off the inbox only; the messages stay;
+- three empty states — nothing at all (no filter row, no "Select"), an empty tab (named), and nothing
+  unread under "Unread only" (with "Show all notifications").
+
+**The find-me sheet** (`components/FindMeSheet`) — what is looking for the reader now: `findMe` of the
+scope (unread mentions, thread mentions and replies to my messages), narrowed by All / Mentions /
+Threads chips with counts, "Mark all read", and a tap that closes the sheet and opens the message.
+Reading an item anywhere takes it off the sheet; it stays in the tab. Home's row raises it through
+`app/stores/useFindMeSheetRequest`, and the private shell mounts `FindMeSheetHost` to answer, since
+home may not import this feature. The sheet has no selection mode.
+
+**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter and quick-select
+chips, a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
+as a long press commits to selection mode; a warning as the delete confirm opens; success once a mark
+read or a delete has gone through, and a tick for "Undo". Opening an item plays nothing — the page
+change is the feedback. Motion comes from the kit parts (the underline growing under a tab, the check
+column sliding in, the action bar rising where the nav was, a row's ground easing between unread,
+read and picked) plus fades as the header and the chip rows swap with selection mode; every one of
+them is off under `prefers-reduced-motion`.
+
+Avatars are the default person glyph for now: an item keeps its author's id and name, not a photo.
 
 ## Limits
 

@@ -125,14 +125,15 @@ export const NotificationRow = ({
             onContextMenu={event => onLongPress && event.preventDefault()}
             data-unread={unread || undefined}
             className={cn(
-                'flex w-full cursor-pointer select-none items-start px-3 py-2 text-left transition-colors',
+                // The ground eases between unread, read and picked; a press dims the row a touch.
+                'flex w-full cursor-pointer select-none items-start px-3 py-2 text-left transition-[background-color,filter] duration-300 active:brightness-95 motion-reduce:transition-none',
                 selectable && selected ? 'bg-nav-ink/[0.06]' : unread ? 'bg-primary/[0.08]' : 'bg-transparent',
                 className
             )}
         >
             <div className="flex min-w-0 flex-1 items-start gap-2.5 px-1 py-1.5">
                 {selectable && (
-                    <span className="flex h-[42px] shrink-0 items-center">
+                    <span className="flex h-[42px] shrink-0 items-center duration-200 animate-in fade-in-0 slide-in-from-left-2 motion-reduce:animate-none">
                         <Checkbox checked={selected} tone="ink" size={22} interactive={false} />
                     </span>
                 )}
@@ -151,7 +152,7 @@ export const NotificationRow = ({
                                     <span
                                         aria-hidden
                                         data-unread-dot
-                                        className="size-[7px] rounded-full bg-alert-red"
+                                        className="size-[7px] rounded-full bg-alert-red duration-200 animate-in fade-in-0 zoom-in-50 motion-reduce:animate-none"
                                     />
                                 )}
                             </span>

@@ -50,6 +50,7 @@ export const PlaceChip = ({
             aria-label={showUnread ? `${name}, ${unreadLabel ?? unreadText}` : name}
             className={cn(
                 'inline-flex max-w-[200px] shrink-0 items-center gap-1.5 rounded-[20px] py-1 pl-1.5 pr-2',
+                'transition-[background-color,color,transform] duration-200 active:scale-95 motion-reduce:transition-none',
                 selected ? 'bg-chip-ink' : 'border-[0.5px] border-input-border bg-chip-surface',
                 className
             )}
@@ -76,7 +77,7 @@ export const PlaceChip = ({
             {showUnread && (
                 <span
                     aria-hidden
-                    className="flex shrink-0 items-center justify-center rounded-full bg-point-pink px-1.5 py-[3px] text-[11px] font-semibold leading-[11px] tracking-[-0.11px] text-white"
+                    className="flex shrink-0 items-center justify-center rounded-full bg-point-pink px-1.5 py-[3px] text-[11px] font-semibold leading-[11px] tracking-[-0.11px] text-white duration-200 animate-in fade-in-0 zoom-in-75 motion-reduce:animate-none"
                 >
                     {unreadText}
                 </span>

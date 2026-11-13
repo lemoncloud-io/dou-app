@@ -601,6 +601,76 @@
         },
         "inApp": {
             "now": "now"
+        },
+        "inbox": {
+            "title": "Notifications",
+            "select": "Select",
+            "cancel": "Cancel",
+            "selectedCount": "{{count}} selected",
+            "tabs": {
+                "all": "All",
+                "group": "Groups",
+                "dm": "1:1",
+                "thread": "Threads",
+                "mention": "Mentions"
+            },
+            "unreadOnly": "Unread only",
+            "markAllRead": "Mark all read",
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "chip": {
+                "mention": "Mention",
+                "thread": "Thread"
+            },
+            "dmLocation": "1:1",
+            "context": {
+                "threadMention": "Mentioned in a thread",
+                "replyToMine": "Replied to you",
+                "participatedThread": "Thread you joined",
+                "reaction": "Reacted to you {{emoji}}",
+                "dmMessage": "New message"
+            },
+            "quote": "Original: {{text}}",
+            "unread": "Unread",
+            "unknownSender": "Unknown",
+            "quick": {
+                "all": "Select all",
+                "unread": "Unread",
+                "read": "Read only"
+            },
+            "markRead": "Mark as read {{count}}",
+            "delete": "Delete {{count}}",
+            "deleteConfirm": {
+                "title": "Delete {{count}} notifications?",
+                "description": "They leave this list only; the messages stay in their rooms.",
+                "confirm": "Delete"
+            },
+            "markedRead": "Marked {{count}} as read",
+            "deleted": "Deleted {{count}} notifications",
+            "undo": "Undo",
+            "empty": {
+                "none": "No notifications yet",
+                "noneHint": "When someone mentions you in this place\nor replies or reacts to your messages, it gathers here.",
+                "tab": "No {{tab}} notifications",
+                "unread": "No unread notifications",
+                "showAll": "Show all notifications",
+                "tabHint": {
+                    "group": "Mentions, replies and reactions\nin group chats show here.",
+                    "dm": "New 1:1 messages and\nreactions to your messages show here.",
+                    "thread": "Replies to your messages and new replies\nin threads you joined show here.",
+                    "mention": "When someone @mentions you, it shows here."
+                }
+            }
+        },
+        "findMe": {
+            "title": "Looking for you",
+            "filters": {
+                "all": "All",
+                "mention": "Mentions",
+                "thread": "Threads"
+            },
+            "empty": "Nothing is looking for you right now",
+            "footnote": "Tap to go straight to the message in its room.\nRead messages leave this list and stay in the Notifications tab."
         }
     },
     "globalLoader": {
@@ -639,8 +709,10 @@
         "tabs": {
             "all": "All",
             "group": "Groups",
-            "dm": "1:1"
-        }
+            "dm": "1:1",
+            "chats": "Chats"
+        },
+        "findMe": "Looking for you {{count}}"
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -801,7 +873,9 @@
     "bottomNav": {
         "chat": "Chat",
         "my": "MY",
-        "unread": "{{count}} unread"
+        "unread": "{{count}} unread",
+        "notifications": "Alerts",
+        "newNotifications": "New notifications"
     },
     "explore": {
         "title": "Explore",

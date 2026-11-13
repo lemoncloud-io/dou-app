@@ -48,15 +48,11 @@ requires `permissions.canCreatePlace`.
 `cloudType` is only ever `'invited' | 'owner'` — the relay is a separate id, not a type — so a cloud
 that is neither the relay nor invited is one I own.
 
-The room list's `＋` opens for **either** of its two rows, which is not the same as
-`canCreate`. `canCreate` (`isDefaultCloud || isCloudOwner`) means "may make a room here" and now
-guards the `그룹방 만들기` row alone; that row additionally appears **only while unpaid** on the
-relay, because a group room lives in a cloud of one's own and for a subscriber the relay entry would
-lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and in the relay list it goes to
-the phone-number contact form. A cloud's home has no section headings: its `＋` sits at the end of the
-tab row (`ChannelCreateMenu`, the same popover) and offers `1:1 대화` to any member of the place —
-to the member picker — and `그룹방 만들기` to the owner, so an invited member's `＋` holds the 1:1 entry
-alone. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists
+Home's `＋` sits at the end of the tab row (`ChannelCreateMenu`). In a cloud it is a popover that
+offers `1:1 대화` to any member of the place — to the member picker — and `그룹방 만들기` to the
+owner, so an invited member's `＋` holds the 1:1 entry alone. The relay has no group rooms, so its
+`＋` offers no group entry at all, not even as an upsell: it is one button straight to the
+phone-number contact form for a 1:1. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists
 a cloud's 1:1s in a section of their own, and starts them too.
 
 ### What each tap does
@@ -69,15 +65,13 @@ a cloud's 1:1s in a section of their own, and starts them too.
 
 `handleCreateGroup`, in order:
 
-1. On the relay → the subscription upsell, immediately. **The cap is not checked first**, or the
-   relay place's own channel count would turn an upsell into a cap toast.
-2. No active place → `homePage.selectPlaceFirst` toast. A room belongs to the active place, and
+1. No active place → `homePage.selectPlaceFirst` toast. A room belongs to the active place, and
    `useChannelMutations` falls back to an empty `sid` when there is none — so the write would
    succeed into a scope no list reads, rather than failing where anyone could see it. The Chat
    section does not render without a selected place, so nothing reaches this from the UI today; it
    is the fallback, not a reachable path, that makes the check worth having.
-3. At `MAX_CHANNELS_PER_PLACE` → `homePage.channelLimitReached` toast.
-4. Free tier → `SubscriptionRequiredDialog`. Otherwise → `CreateChannelDialog`.
+2. At `MAX_CHANNELS_PER_PLACE` → `homePage.channelLimitReached` toast.
+3. Free tier → `SubscriptionRequiredDialog`. Otherwise → `CreateChannelDialog`.
 
 **`CreateChannelDialog` outlives the section that opened it.** It is mounted unconditionally, so a
 place disappearing mid-flow — a cloud switch, a deleted place, revoked access — would leave a filled
@@ -133,8 +127,6 @@ second tap made a second place. An edit to the name between the two taps is ther
 - `PlaceProfileForm` exposes a `dismissible` flag that removes the X and blocks esc/overlay
   dismissal. The place overlay's profile step and the cloud invite's pass `false` until a save
   fails.
-- The relay branch in `handleCreateGroup` must stay ahead of the cap check. Reordering them is a
-  silent regression: the upsell becomes a cap toast for relay users only.
 - Cap behaviour differs between build classes. A cap test has to pin `isDevBuild()`, or it passes
   locally and proves nothing.
 

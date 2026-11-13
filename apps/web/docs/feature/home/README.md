@@ -30,9 +30,8 @@ What it owns of each is the entry point and nothing behind it.
    missing primitive is added to the kit and then used.
 2. **The host owns state.** Kit components hold no product state. Open dropdowns and the selected
    row are held by `HomePage` or by the list that renders them. A `CollapsibleSection` can keep its
-   own open/closed fallback, but home does not rely on it: `HomePage` controls the relay's room list
-   from a stored record — see [Folded sections](#folded-sections) — and a cloud's chat tab from a store
-   held outside the page.
+   own open/closed fallback, but home has no folding section any more: the chat tab is held in a store
+   outside the page — see [Folded sections](#folded-sections).
 3. **One active place.** Selecting a place switches the backend active site and the Chat section
    follows it. Channels of several places are never fetched at once.
 4. **Relay hides places, it does not disconnect them.** The relay has exactly one place and it is
@@ -54,10 +53,9 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; a
-cloud's place row (`PlaceChipRow`); the room lists — the relay's one folding list, and a cloud's one
-list under the tabs All / Groups / 1:1 with the create ＋ at the end of the tab row — with their
-previews, unread badges and, on a cloud, each row's unread mentions and thread replies from the
-device's notification inbox; the rows' swipe actions (pin, mute, leave or delete); pull-to-refresh on
+cloud's place row (`PlaceChipRow`); the room list — one list under the tabs All / Groups / 1:1 (the
+relay: one Chats tab) with the create ＋ at the end of the tab row — with its previews, unread
+badges and each row's unread mentions and thread replies from the device's notification inbox; the rows' swipe actions (pin, mute, leave or delete); pull-to-refresh on
 the body; the cloud-switcher sheet; the place counts and cloud unread marks; the three app-global
 runners that home exports.
 
@@ -127,11 +125,14 @@ no answer is not "no cloud". The Chat section still fills normally, because plac
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
-The labels are the **product** nouns, not the domain's. On the relay there is one room list,
-`대화방` / `Chat Rooms` (its 1:1s and its self chat together). A cloud lists its place's rooms in one
+The labels are the **product** nouns, not the domain's. Both homes list the place's rooms in one
 list under three tabs — `전체` / `All`, `그룹 대화` / `Groups`, `1:1 대화` / `1:1` — each with the
 number of rooms it holds (withheld while the rooms are still arriving). All and 1:1 lead with the
-account's notes-to-self room; see [dm-and-self-chat.md](../channels/dm-and-self-chat.md). The tab is
+notes-to-self room — a cloud's belongs to the account, the relay's is one of its place's rooms; see
+[dm-and-self-chat.md](../channels/dm-and-self-chat.md). The relay has no group rooms, so its row has
+one tab, `대화` / `Chats`, over every room (the tab store does not carry a cloud's tab over); its ＋
+goes straight to the phone-number contact form for a 1:1 and offers no group entry; and its sent 1:1
+invites wait above its rooms. The tab is
 held in `useHomeChatTabStore`, in memory: coming back from a room lands on the tab that was left,
 and a relaunch starts on All. An empty tab says only that its kind is empty; an empty All is the
 place's own empty state (create a room, or rooms arrive by invitation). `채널` is what
@@ -157,6 +158,15 @@ read succeeds — or if it fails, silently — the header names the cloud by the
 on a horizontally scrolling line — the current place filled navy, every place with its unread count —
 and, for an owner who may add one, a ＋ at its end. With no place selected, the no-place guidance (or
 the loading state) leads, and the account's notes-to-self room still lists below it.
+
+Switching a tab or a place plays the selection haptic (not on a tap of the one already open), as
+does opening the find-me sheet; the chips ease their colours and sink a little when pressed, and the
+tab's underline grows out from its centre.
+
+Under the tabs, "나를 찾는 메시지 n ›" / "Looking for you n" counts the unread mentions of me and
+replies to my messages where the session is (`findMe`), and is not drawn at zero. It opens the
+find-me sheet, which the notifications feature owns: home raises `app/stores/useFindMeSheetRequest`,
+and the private shell mounts the sheet's host ([notifications](../notifications/README.md#screens)).
 
 Each cloud row carries, beside its unread count, the unread mentions of me and the unread replies in
 my threads in that room, counted from the device's notification inbox (`useNotificationStore`,
@@ -187,19 +197,10 @@ is a known gap, not an intended rule.
 
 ## Folded sections
 
-Only the relay's room list folds now; a cloud's home has a place row and tabs, not sections. The fold
-is remembered: `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key
-(`persist: 'local'`), and `HomePage` passes the list a controlled `open`/`onOpenChange` under the id
-`channels`. The record may still hold `places` and `cloudDm` from the cloud's former sections; nothing
-reads them.
-
-It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
-section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
-switch between relay and a cloud each start it over.
-
-The record is **app-wide**, not per cloud or place like sort and pins — folding Chat Rooms says how
-a person uses home, not something about one place. It stores the folded ids only, so an absent or
-corrupt record means everything open, which is the default it always had.
+Nothing on home folds any more: both homes draw a tab row over one list. `useHomeSections` and the
+`ui.homeSectionsCollapsed` config key it reads are no longer used by home; the stored record may still
+hold `places`, `channels` and `cloudDm` from the former sections, and nothing reads them. Removing the
+hook and the key is a cleanup of its own.
 
 ## Switching
 

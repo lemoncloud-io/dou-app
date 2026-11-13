@@ -65,7 +65,9 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { toCloudId } from '../../../hooks/useCloudScope';
+import { toCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';
+import { useNotificationStore } from '../../../stores/useNotificationStore';
+import { threadRootNo } from '../../../utils/notifications';
 import { useDebugRoomMirror } from '../../debug';
 
 const MAX_INPUT_LENGTH = 5000;
@@ -119,6 +121,26 @@ export const ThreadPage = () => {
     const stableChannelId = channelId || 'default';
     // This thread's own conversation for the composer's draft and its waiting files — not the room's.
     const draftScope = `${stableChannelId}#${rootNo ?? ''}`;
+
+    // This thread's items in the notification inbox read while it is open: the room's read cursor
+    // clears only top-level items, so a thread clears its own — on opening, and as new ones arrive.
+    const notifyCloudId = useSelectedCloudId();
+    const unreadThreadItems = useNotificationStore(state =>
+        rootNo
+            ? Object.values(state.items).filter(
+                  item =>
+                      !item.read &&
+                      item.cloudId === notifyCloudId &&
+                      item.channelId === stableChannelId &&
+                      !!item.parentId &&
+                      threadRootNo(item.parentId) === rootNo
+              ).length
+            : 0
+    );
+    useEffect(() => {
+        if (!rootNo || unreadThreadItems === 0) return;
+        useNotificationStore.getState().markThreadRead(notifyCloudId, stableChannelId, rootNo);
+    }, [notifyCloudId, stableChannelId, rootNo, unreadThreadItems]);
 
     // The composer's text is this thread's draft: kept when the thread is left, and swapped when the
     // route moves to another thread without remounting.

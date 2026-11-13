@@ -26,6 +26,8 @@ export const SelectionActionBar = ({ secondary, destructive, className }: Select
     <div
         className={cn(
             'fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-[var(--app-width,430px)] gap-2 border-t border-input-border bg-background px-4 pt-3',
+            // It takes the bottom nav's place, so it rises from where the nav was.
+            'duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-4 motion-reduce:animate-none',
             className
         )}
         style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 12px)' }}
@@ -34,7 +36,7 @@ export const SelectionActionBar = ({ secondary, destructive, className }: Select
             type="button"
             onClick={secondary.onClick}
             disabled={secondary.disabled}
-            className="h-12 flex-1 rounded-xl bg-action-soft text-[15px] font-semibold text-nav-ink disabled:opacity-40"
+            className="h-12 flex-1 rounded-xl bg-action-soft text-[15px] font-semibold text-nav-ink transition-[opacity,transform] duration-150 active:scale-[0.98] disabled:opacity-40 motion-reduce:transition-none"
         >
             {secondary.label}
         </button>
@@ -42,7 +44,7 @@ export const SelectionActionBar = ({ secondary, destructive, className }: Select
             type="button"
             onClick={destructive.onClick}
             disabled={destructive.disabled}
-            className="h-12 flex-1 rounded-xl bg-alert-red text-[15px] font-semibold text-white disabled:opacity-40"
+            className="h-12 flex-1 rounded-xl bg-alert-red text-[15px] font-semibold text-white transition-[opacity,transform] duration-150 active:scale-[0.98] disabled:opacity-40 motion-reduce:transition-none"
         >
             {destructive.label}
         </button>

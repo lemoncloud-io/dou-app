@@ -43,7 +43,9 @@ export const FilterChip = ({
         disabled={disabled}
         onClick={onClick}
         className={cn(
-            'inline-flex shrink-0 items-center gap-1 rounded-[18px] border py-[7px] text-[13px] font-medium leading-4 transition-colors',
+            'inline-flex shrink-0 items-center gap-1 rounded-[18px] border py-[7px] text-[13px] font-medium leading-4',
+            // Colours ease between off and on; a press sinks the chip a little.
+            'transition-[background-color,border-color,color,transform] duration-200 active:scale-95 motion-reduce:transition-none',
             check ? 'pl-2.5 pr-3' : 'px-3',
             selected ? 'border-chip-ink bg-chip-ink text-white' : 'border-chip-border bg-transparent text-tab-idle',
             disabled && 'opacity-50',

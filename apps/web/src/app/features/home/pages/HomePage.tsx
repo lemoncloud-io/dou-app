@@ -12,6 +12,7 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 import {
     AppHeader,
     EmptyState,
+    IconChevronRight,
     ProfileAvatar,
     PullToRefresh,
     SegmentedTabs,
@@ -33,9 +34,12 @@ import {
     useMenuNavigate,
     useMyProfile,
     useOnboarding,
+    useScopedNotifications,
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
+import { useFindMeSheetRequest } from '../../../stores/useFindMeSheetRequest';
+import { findMe } from '../../../utils/notifications';
 import { useCloudSelfChannels } from '../../channels/hooks';
 import { channelKindOf, isInCloudSelfSection } from '../../channels/lib';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
@@ -61,7 +65,7 @@ import { getCloudDisplayName } from '../components/cloud-session';
 import { requestBackgroundRefresh } from '../../../runtime/backgroundRefresh';
 import { haptics } from '../../../bridge/haptics';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
-import { useAddCloudFlow, useHomeSections, usePlaceProfileNudge, useSwitchPlace } from '../hooks';
+import { useAddCloudFlow, usePlaceProfileNudge, useSwitchPlace } from '../hooks';
 import {
     useActiveCloudPlaces,
     useCachedCloudNames,
@@ -218,25 +222,32 @@ export const HomePage = () => {
     // The place's own rooms. A subscription cloud's notes-to-self room carries a place too, but it
     // belongs to the account and leads the 1:1 section instead. `channels` keeps it for the syncs.
     const placeRooms = useMemo(() => channels.filter(channel => !isInCloudSelfSection(channel)), [channels]);
-    // A cloud lists its place's rooms in two sections — groups, then 1:1s — split by the room's kind
-    // alone (`stereo`), the same rule every other 1:1 decision reads; a two-member group stays a
-    // group. The relay keeps one list: its 1:1s are reached by phone number and its only other room
-    // is the self chat, so a split there would only move one row.
+    // Both homes split the place's rooms by kind alone (`stereo`), the same rule every other 1:1
+    // decision reads — a two-member group stays a group. A self chat goes with the 1:1s: the relay's
+    // is one of its place's rooms, a cloud's is the account's and arrives separately below.
     const { placeDms, placeGroups } = useMemo(() => {
         const dms: typeof placeRooms = [];
         const groups: typeof placeRooms = [];
-        for (const channel of placeRooms) (channelKindOf(channel.stereo) === 'dm' ? dms : groups).push(channel);
+        for (const channel of placeRooms) (channelKindOf(channel.stereo) === 'group' ? groups : dms).push(channel);
         return { placeDms: dms, placeGroups: groups };
     }, [placeRooms]);
-    // The cloud's 1:1 list: my notes-to-self room on top, then the place's 1:1s.
+    // The 1:1 list: a cloud's notes-to-self room on top, then the place's 1:1s (the relay's self chat
+    // among them).
     const dmSectionRooms = useMemo(() => [...cloudSelfChannels, ...placeDms], [cloudSelfChannels, placeDms]);
-    // A cloud's home lists its rooms under three tabs — every room, the group rooms, the 1:1s — in one
-    // list rather than the two folding sections it had (Figma 5953:30555). "All" leads with the
-    // notes-to-self room, as the 1:1 list does.
-    const chatTab = useHomeChatTabStore(state => state.tab);
+    // Both homes list their rooms under three tabs — every room, the group rooms, the 1:1s — in one
+    // list rather than folding sections (Figma 5953:30555). "All" and 1:1 lead with the notes-to-self
+    // room. The relay has no group rooms, so it draws the same row with one tab, "Chats".
+    // The relay has no group rooms, so its row has one tab and is always on it — a tab picked in a
+    // cloud does not carry over.
+    const storedChatTab = useHomeChatTabStore(state => state.tab);
+    const chatTab: HomeChatTab = isDefaultCloud ? 'all' : storedChatTab;
     const setChatTab = useHomeChatTabStore(state => state.setTab);
     const allRooms = useMemo(() => [...dmSectionRooms, ...placeGroups], [dmSectionRooms, placeGroups]);
     const roomsByTab: Record<HomeChatTab, typeof allRooms> = { all: allRooms, group: placeGroups, dm: dmSectionRooms };
+    // "Messages looking for you": the unread mentions and replies to me where the session is. The
+    // row opens the sheet the notifications feature hosts; it is not drawn when nothing is waiting.
+    const findMeCount = findMe(useScopedNotifications()).length;
+    const requestFindMeSheet = useFindMeSheetRequest(state => state.request);
     // Sent relay invites (ADR-0089 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
@@ -352,9 +363,6 @@ export const HomePage = () => {
     // screen or the desktop favorites star). Pinned rows float above the chosen sort order.
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScope);
     const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
-    // Which sections are folded. App-wide, unlike sort and pins: it is about how home is used, so
-    // it holds across clouds and places, and survives leaving home and relaunching.
-    const homeSections = useHomeSections();
     const { toast } = useToast();
 
     // The dialog outlives the section that opened it — it is mounted unconditionally — so a place
@@ -383,15 +391,9 @@ export const HomePage = () => {
     };
 
     // Group-room creation is limit- and PRO-gated: at the cap → toast; subscribed → the create
-    // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners).
+    // dialog; otherwise the upsell. Owner gating is upstream (the "+" only shows for owners). The
+    // relay offers no group entry at all: it has no group rooms.
     const handleCreateGroup = () => {
-        // On relay the entry exists ONLY as an upsell (ChannelList shows it there while unpaid), so
-        // it never reaches the create dialog — and the relay place's own channel count must not
-        // turn that upsell into a cap toast.
-        if (isDefaultCloud) {
-            setIsSubscriptionRequiredOpen(true);
-            return;
-        }
         // A room belongs to the ACTIVE place, and `createChannel` falls back to an empty sid when
         // there is none — which writes a room into a scope no list reads. The Chat section does not
         // render without a selected place, so this is not reachable from the UI today; it is here
@@ -583,91 +585,91 @@ export const HomePage = () => {
                     />
                 )}
 
-                {isDefaultCloud ? (
-                    selectedPlaceId ? (
-                        // The relay's one list: its rooms, its self chat and the sent invites.
+                {/* No place yet: the guidance (or the loading state) leads. A cloud's notes-to-self room
+                    still lists below it — it belongs to no place. */}
+                {!selectedPlaceId && noPlaceBody}
+                {(selectedPlaceId || cloudSelfChannels.length > 0) && (
+                    <>
+                        <SegmentedTabs
+                            variant="inline"
+                            items={
+                                isDefaultCloud
+                                    ? [{ id: 'all', label: t('homePage.tabs.chats'), count: tabCount(allRooms) }]
+                                    : [
+                                          { id: 'all', label: t('homePage.tabs.all'), count: tabCount(allRooms) },
+                                          {
+                                              id: 'group',
+                                              label: t('homePage.tabs.group'),
+                                              count: tabCount(placeGroups),
+                                          },
+                                          { id: 'dm', label: t('homePage.tabs.dm'), count: tabCount(dmSectionRooms) },
+                                      ]
+                            }
+                            value={chatTab}
+                            onChange={id => {
+                                if (id === chatTab) return;
+                                haptics.play('selection');
+                                setChatTab(id as HomeChatTab);
+                            }}
+                            trailing={
+                                isDefaultCloud ? (
+                                    // The relay's one way to start a room: a 1:1, reached by phone number.
+                                    <ChannelCreateMenu
+                                        onCreate={isChannelSectionLoading ? undefined : handleCreateOneOnOne}
+                                        createLabel={t('channelList.createDirect')}
+                                    />
+                                ) : (
+                                    <ChannelCreateMenu
+                                        showOneOnOneCreate={canStartCloudDm}
+                                        onCreateOneOnOne={handleStartCloudDm}
+                                        showGroupCreate={!isChannelSectionLoading && isCloudOwner}
+                                        onCreateGroup={handleCreateGroup}
+                                        isPro={planTier !== 'free'}
+                                    />
+                                )
+                            }
+                        />
+                        {findMeCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    haptics.play('selection');
+                                    requestFindMeSheet();
+                                }}
+                                className="flex w-full items-center gap-1 px-4 py-2.5 text-[13px] font-medium leading-[17px] tracking-[-0.26px] text-point-blue duration-200 animate-in fade-in-0 slide-in-from-top-1 active:opacity-70 motion-reduce:animate-none"
+                            >
+                                {t('homePage.findMe', { count: findMeCount })}
+                                <IconChevronRight aria-hidden className="size-4" />
+                            </button>
+                        )}
                         <ChannelList
-                            channels={placeRooms}
+                            bare
+                            channels={roomsByTab[chatTab]}
+                            // The notes-to-self room leads every list it is in; the group tab has none.
+                            leadsWithSelf={chatTab !== 'group'}
                             joinByChannel={myJoins}
-                            sid={selectedPlaceId}
-                            isLoading={isChannelSectionLoading}
-                            canCreate={!isChannelSectionLoading}
-                            isDefaultCloud
-                            // On the relay a 1:1 is reached by phone number.
-                            showOneOnOneCreate={!isChannelSectionLoading}
-                            isPro={planTier !== 'free'}
-                            sortMethod={channelSortMethod}
-                            pinnedChannelIds={pinnedChannelIds}
-                            onTogglePin={togglePinned}
-                            onCreateOneOnOne={handleCreateOneOnOne}
-                            onCreateGroup={handleCreateGroup}
+                            sid={selectedPlaceId ?? selectedSiteId ?? ''}
+                            isLoading={isChannelSectionLoading || isCloudSelfLoading}
+                            // "All" with nothing in it is the place's own empty state — create a room, or
+                            // rooms arrive by invitation. A tab with nothing says only that its kind is empty.
+                            emptyLabel={
+                                chatTab === 'group'
+                                    ? t('homePage.groupChatsEmpty')
+                                    : chatTab === 'dm'
+                                      ? t('cloudDm.section.empty')
+                                      : undefined
+                            }
+                            isInvitedPlace={isInvitedCloud}
                             onOpenPlaceInfo={
                                 selectedSiteId ? () => navigate(ROUTES.place.settingsDetail(selectedSiteId)) : undefined
                             }
-                            sentInvites={sentInvites}
+                            sortMethod={channelSortMethod}
+                            pinnedChannelIds={pinnedChannelIds}
+                            onTogglePin={togglePinned}
+                            // The relay's sent 1:1 invites wait above its rooms, under All and 1:1.
+                            sentInvites={isDefaultCloud && chatTab !== 'group' ? sentInvites : []}
                             onSelectInvite={inviteId => navigate(ROUTES.invite.waiting(inviteId))}
-                            open={homeSections.isOpen('channels')}
-                            onOpenChange={open => homeSections.setOpen('channels', open)}
                         />
-                    ) : (
-                        noPlaceBody
-                    )
-                ) : (
-                    <>
-                        {/* No place yet: the guidance (or the loading state) leads. The account's
-                            notes-to-self room still lists below it — it belongs to no place. */}
-                        {!selectedPlaceId && noPlaceBody}
-                        {(selectedPlaceId || cloudSelfChannels.length > 0) && (
-                            <>
-                                <SegmentedTabs
-                                    variant="inline"
-                                    items={[
-                                        { id: 'all', label: t('homePage.tabs.all'), count: tabCount(allRooms) },
-                                        { id: 'group', label: t('homePage.tabs.group'), count: tabCount(placeGroups) },
-                                        { id: 'dm', label: t('homePage.tabs.dm'), count: tabCount(dmSectionRooms) },
-                                    ]}
-                                    value={chatTab}
-                                    onChange={id => setChatTab(id as HomeChatTab)}
-                                    trailing={
-                                        <ChannelCreateMenu
-                                            showOneOnOneCreate={canStartCloudDm}
-                                            onCreateOneOnOne={handleStartCloudDm}
-                                            showGroupCreate={!isChannelSectionLoading && isCloudOwner}
-                                            onCreateGroup={handleCreateGroup}
-                                            isPro={planTier !== 'free'}
-                                        />
-                                    }
-                                />
-                                <ChannelList
-                                    bare
-                                    channels={roomsByTab[chatTab]}
-                                    // The notes-to-self room leads every list it is in; the group tab has none.
-                                    leadsWithSelf={chatTab !== 'group'}
-                                    joinByChannel={myJoins}
-                                    sid={selectedPlaceId ?? selectedSiteId ?? ''}
-                                    isLoading={isChannelSectionLoading || isCloudSelfLoading}
-                                    // "All" with nothing in it is the place's own empty state — create a room, or
-                                    // rooms arrive by invitation. A tab with nothing says only that its kind is empty.
-                                    emptyLabel={
-                                        chatTab === 'group'
-                                            ? t('homePage.groupChatsEmpty')
-                                            : chatTab === 'dm'
-                                              ? t('cloudDm.section.empty')
-                                              : undefined
-                                    }
-                                    isInvitedPlace={isInvitedCloud}
-                                    onOpenPlaceInfo={
-                                        selectedSiteId
-                                            ? () => navigate(ROUTES.place.settingsDetail(selectedSiteId))
-                                            : undefined
-                                    }
-                                    sortMethod={channelSortMethod}
-                                    pinnedChannelIds={pinnedChannelIds}
-                                    onTogglePin={togglePinned}
-                                    sentInvites={[]}
-                                />
-                            </>
-                        )}
                     </>
                 )}
 

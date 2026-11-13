@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
 import { useHomeChatTabStore } from '../stores/useHomeChatTabStore';
+import { useFindMeSheetRequest } from '../../../stores/useFindMeSheetRequest';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_PLACES } from '../../../utils';
 
@@ -96,6 +97,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </header>
     ),
     EmptyState: () => <div data-testid="empty-state" />,
+    IconChevronRight: () => <i />,
     ProfileAvatar: () => <img alt="" />,
     // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
     SegmentedTabs: ({ items, value, onChange, trailing }: any) => (
@@ -152,6 +154,8 @@ jest.mock('../../../hooks', () => ({
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
     }),
     useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
+    // The inbox where the session is — what the find-me row counts. Seeded per test.
+    useScopedNotifications: () => scopedNotifications,
     useHomeChannels: () => ({ channels: homeChannels, isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds }),
     // Registration is the one join concern still scoped to home — a no-op here.
@@ -244,8 +248,10 @@ jest.mock('../components', () => ({
         </div>
     ),
     // The cloud home's ＋: one button per entry it would offer, so "no handler, no entry" reads the same.
-    ChannelCreateMenu: ({ showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
+    ChannelCreateMenu: ({ onCreate, showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
         <>
+            {/* One direct action (the relay's 1:1) or the popover's 1:1 entry — the same start either way. */}
+            {onCreate && <button data-testid="start-dm" onClick={onCreate} />}
             {showOneOnOneCreate && onCreateOneOnOne && <button data-testid="start-dm" onClick={onCreateOneOnOne} />}
             {showGroupCreate && onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
         </>
@@ -286,6 +292,8 @@ let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
 // section is read from it.
 let activeCloudChannels: unknown[] = [];
+// The notification inbox's items in scope — the find-me row counts the unread mentions and replies.
+let scopedNotifications: unknown[] = [];
 // The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
 // Clouds I am a guest in. The active cloud listed here makes me an invited member, not its owner.
@@ -326,6 +334,7 @@ beforeEach(() => {
     isSwitchingPlace = false;
     isProfileNudgeVisible = false;
     activeCloudChannels = [];
+    scopedNotifications = [];
     homeChannels = [];
     invitedClouds = [];
     selectedSiteId = 'site-1';
@@ -383,10 +392,11 @@ describe('HomePage — relay mode', () => {
         expect(useSwitchPlace).toHaveBeenCalled();
     });
 
-    it('still renders the Chat section', () => {
+    it('still renders the room list, under the same tabs as a cloud', () => {
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toBeInTheDocument();
+        expect(screen.getByTestId('chat-tabs')).toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toBeInTheDocument();
         expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
     });
 
@@ -405,26 +415,48 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 
-    // The relay keeps one list: its 1:1s and its self chat stay beside each other, untitled.
-    it('keeps one untitled list with every room in it and no 1:1 section', () => {
+    // The relay has no group rooms: its row keeps one tab, its rooms all under it, self chat first.
+    it('draws one tab over every room, led by the self chat', () => {
         homeChannels = [
             { id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' },
             { id: 'r-self', stereo: 'self', cid: 'default', sid: '0000' },
         ];
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', '');
-        expect(screen.queryByTestId('cloud-list')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('chat-tabs')).not.toBeInTheDocument();
+        expect(screen.getByTestId('tab-all')).toHaveAttribute('data-count', '2');
+        expect(screen.queryByTestId('tab-group')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('tab-dm')).not.toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'true');
     });
 
-    // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
+    // A tab picked in a cloud does not carry over: the relay's one tab is always the open one.
+    it('stays on its one tab whatever a cloud left in the tab store', () => {
+        useHomeChatTabStore.setState({ tab: 'group' });
+        homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('chat-tabs')).toHaveAttribute('data-value', 'all');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm');
+    });
+
+    // On relay a 1:1 is reached by phone number, so the tab row's ＋ goes to the contact form.
     it('offers the 1:1 entry and sends it to the contact invite form', () => {
         render(<HomePage />);
-        fireEvent.click(screen.getByTestId('create-direct'));
+        fireEvent.click(screen.getByTestId('start-dm'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
+    });
+
+    // The relay has no group rooms, so its ＋ offers none — not even as an upsell.
+    it('offers no group creation, paid or not', () => {
+        const { unmount } = render(<HomePage />);
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
+        unmount();
+
+        membership = { isValid: true };
+        render(<HomePage />);
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 });
 
@@ -597,7 +629,7 @@ describe('HomePage — cloud mode', () => {
         homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: 'site-1' }];
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', '');
     });
 
     // The empty room list's "you can leave this place" link opens the active place's information
@@ -608,23 +640,6 @@ describe('HomePage — cloud mode', () => {
         fireEvent.click(screen.getByTestId('open-place-info'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
-    });
-});
-
-// The relay's list still folds, and its fold comes from the stored record — that is what lets it
-// survive leaving home. A cloud's home has no folding sections any more.
-describe('HomePage — section folds', () => {
-    beforeEach(() => {
-        selectedCloudId = 'default';
-    });
-
-    it('opens the relay list from its stored entry and writes a toggle under it', () => {
-        collapsedSections = { channels: true };
-        render(<HomePage />);
-
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        fireEvent.click(screen.getByTestId('channel-toggle'));
-        expect(setSectionOpenMock.mock.calls).toEqual([['channels', true]]);
     });
 });
 
@@ -935,15 +950,11 @@ describe('HomePage — tier', () => {
 
 // On relay, "그룹 방 만들기" is an upsell-only entry point — it always leads to a subscription prompt, regardless of channel count.
 describe('HomePage — 그룹 방 만들기', () => {
-    it('중계에선 구독 유도 다이얼로그를 띄우고 생성 다이얼로그로 가지 않는다', () => {
+    it('offers no group entry on the relay, which has no group rooms', () => {
         selectedCloudId = 'default';
         render(<HomePage />);
-        fireEvent.click(screen.getByTestId('create-group'));
 
-        expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
-        expect(screen.queryByTestId('create-channel-dialog')).not.toBeInTheDocument();
-        // The limit-reached toast doesn't block the relay upsell path.
-        expect(toastMock).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 
     it('구독한 클라우드에선 생성 다이얼로그를 연다', () => {
@@ -1079,5 +1090,54 @@ describe('HomePage — place profile banner', () => {
         render(<HomePage />);
 
         expect(usePlaceProfileNudge).toHaveBeenLastCalledWith({ nick: 'me' });
+    });
+});
+
+// "Messages looking for you": the unread mentions and replies to me, under the tabs. The row asks the
+// shell for the sheet; it is not drawn while nothing is waiting.
+describe('HomePage — find-me row', () => {
+    const item = (over: Record<string, unknown>) => ({
+        id: String(Math.random()),
+        cloudId: 'cloud-1',
+        channelId: 'c',
+        kind: 'mention',
+        ownerName: 'Sis',
+        content: 'hi',
+        createdAt: 1,
+        read: false,
+        ...over,
+    });
+
+    beforeEach(() => {
+        selectedCloudId = 'cloud-1';
+        useFindMeSheetRequest.setState({ open: false });
+    });
+
+    it('counts unread mentions and replies to me, and nothing else', () => {
+        scopedNotifications = [
+            item({ kind: 'mention' }),
+            item({ kind: 'replyToMine' }),
+            item({ kind: 'reaction' }),
+            item({ kind: 'participatedThread' }),
+            item({ kind: 'mention', read: true }),
+        ];
+        render(<HomePage />);
+
+        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":2}');
+    });
+
+    it('asks for the sheet when tapped', () => {
+        scopedNotifications = [item({})];
+        render(<HomePage />);
+
+        fireEvent.click(screen.getByRole('button', { name: /homePage\.findMe/ }));
+        expect(useFindMeSheetRequest.getState().open).toBe(true);
+    });
+
+    it('is not drawn while nothing is looking for me', () => {
+        scopedNotifications = [item({ kind: 'reaction' })];
+        render(<HomePage />);
+
+        expect(screen.queryByRole('button', { name: /homePage\.findMe/ })).not.toBeInTheDocument();
     });
 });
