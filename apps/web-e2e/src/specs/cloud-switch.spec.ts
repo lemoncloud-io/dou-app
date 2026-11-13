@@ -36,21 +36,23 @@ import { expect, test } from '../support/test';
 /** The cloud switcher in home's header. It names the cloud the session is in, or shows DoU's mark. */
 const switcher = (page: Page) => page.getByRole('banner').getByRole('button', { name: 'Switch Cloud', exact: true });
 
-/**
- * A place row: its initial, its name, "Selected" on the one the session is in or "Switching place" on
- * the one it is moving to, and whose place it is.
- */
-const placeRow = (page: Page, name: string) =>
-    page.getByRole('button', { name: new RegExp(`^\\S ${name}( Selected| Switching place)* (My|Invited) Place$`) });
+/** Home's row of place chips — a cloud's only; the relay draws none. */
+const placeChips = (page: Page) => page.getByRole('group', { name: 'Places', exact: true });
 
-const isSelectedPlace = (page: Page, name: string) => placeRow(page, name).getByRole('img', { name: 'Selected' });
+/** A place chip: named by its place, with ", <n> unread" after the name while the place has unread. */
+const placeRow = (page: Page, name: string) =>
+    placeChips(page).getByRole('button', { name: new RegExp(`^${name}(, .*)?$`) });
+
+/** The chip of the place the session is in: the pressed one. */
+const isSelectedPlace = (page: Page, name: string) =>
+    placeChips(page).getByRole('button', { name: new RegExp(`^${name}(, .*)?$`), pressed: true });
 
 /** The relay's home: the guest's 1:1 with Mina and their self chat. */
 const expectRelayHome = async (page: Page): Promise<void> => {
     await expect(switcher(page).getByRole('img', { name: 'DoU' })).toBeVisible();
     await expect(roomRow(page, MINA.nick)).toBeVisible();
     await expect(roomRow(page, GUEST_NICK)).toBeVisible();
-    await expect(page.getByText('Places', { exact: true })).toHaveCount(0);
+    await expect(placeChips(page)).toHaveCount(0);
     for (const room of [CLOUD_ROOM, SECOND_PLACE_ROOM]) await expect(roomRow(page, room.name)).toHaveCount(0);
 };
 
@@ -173,7 +175,7 @@ test('a cloud that cannot be entered is rolled back: the switcher is on DoU agai
     // The refusal moves it back.
     await expect(switcher(page).getByRole('img', { name: 'DoU' })).toBeVisible();
     await expect(switcher(page)).not.toContainText(CLOUD.name);
-    await expect(page.getByText('Places', { exact: true })).toHaveCount(0);
+    await expect(placeChips(page)).toHaveCount(0);
     for (const room of [CLOUD_ROOM, SECOND_PLACE_ROOM]) await expect(roomRow(page, room.name)).toHaveCount(0);
     // No socket to the cloud, and nothing written under it in the shell's cache.
     expect(backend.allFrames.filter(frame => frame.endpoint === CLOUD.wss)).toEqual([]);
