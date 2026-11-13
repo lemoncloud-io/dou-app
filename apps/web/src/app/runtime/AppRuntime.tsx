@@ -16,6 +16,7 @@ import { ActiveCloudDataProvider, OtherCloudUnreadProvider, useCloudCatalogRelay
 import { useAutoScrollOnFocus, useReturnKeyFlow } from '../ui/hooks';
 import { DebugObservationReporter } from '../features/debug';
 import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
+import { NotificationsRunner } from '../features/notifications';
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
@@ -80,6 +81,7 @@ export const AppRuntime = () => {
                     <UnreadBadgeRunner />
                     <CloudPushMarkRunner />
                     <CloudActivatedRunner />
+                    <NotificationsRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
                     <PairedCloudNameRunner />
