@@ -203,6 +203,8 @@ export const ko: EnTranslation = {
     'chat.file.groupTitle_one': '{{count}}개의 첨부 파일',
     'chat.file.groupTitle_other': '{{count}}개의 첨부 파일',
     'chat.file.replyInThread': '스레드에서 답글',
+    'chat.file.cancelUpload': '{{name}} 업로드 취소',
+    'chat.file.cancelUploadHint': '업로드 취소',
     'chat.file.showInChat': '대화에서 보기',
     'chat.voice.openDetail': '{{name}} 상세 보기',
     'chat.voice.detail': '음성 파일 상세',

@@ -168,6 +168,42 @@ describe('a voice card', () => {
         expect(screen.queryByRole('button', { name: /More actions/ })).toBeNull();
     });
 
+    it('cancels its upload from the card, voice or document alike', () => {
+        const onCancelUpload = vi.fn();
+        render(
+            <MessageFiles
+                author={author}
+                onCancelUpload={onCancelUpload}
+                message={sent([
+                    { localStatus: 'sending', localName: 'memo.m4a', localContentType: 'audio/mp4', localSize: 10 },
+                    {
+                        localStatus: 'sending',
+                        localName: 'plan.pdf',
+                        localContentType: 'application/pdf',
+                        localSize: 10,
+                    },
+                ])}
+            />,
+            { wrapper }
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel upload of memo.m4a' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel upload of plan.pdf' }));
+        expect(onCancelUpload).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers no cancel where the send cannot be stopped', () => {
+        render(
+            <MessageFiles
+                author={author}
+                message={sent([
+                    { localStatus: 'sending', localName: 'memo.m4a', localContentType: 'audio/mp4', localSize: 10 },
+                ])}
+            />,
+            { wrapper }
+        );
+        expect(screen.queryByRole('button', { name: /Cancel upload/ })).toBeNull();
+    });
+
     it('says it was not sent when its upload failed', () => {
         render(
             <MessageFiles

@@ -55,6 +55,8 @@ interface PendingImages {
      * one-each pick has none until its turn comes (see `sendImages`).
      */
     timing?: MediaSendTiming;
+    /** Cancels the send from when the row goes in flight: its PUTs stop, and no message goes out. */
+    abort?: AbortController;
 }
 
 /**
@@ -284,14 +286,15 @@ const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
  * shell sender to take it fails its slot rather than reaching a page PUT that cannot read it.
  */
 const putFor =
-    (put: PutPort, putShellFile: ShellFilePutPort | undefined) =>
+    (put: PutPort, putShellFile: ShellFilePutPort | undefined, signal: AbortSignal) =>
     async (
         target: UploadPutTarget,
         file: ChatAttachmentSource,
         label: string,
         onProgress?: PutProgress
     ): Promise<PutResult> => {
-        if (!isShellFileRef(file)) return put(target, file, label, onProgress);
+        // A shell's transfer module has no cancel; its file finishes, and the send is stopped after it.
+        if (!isShellFileRef(file)) return put(target, file, label, onProgress, signal);
         if (!putShellFile) return { kind: 'no-response', reason: 'system' };
         const result = await putShellFile(target, file, label, onProgress);
         if (result.kind === 'no-response' && result.reason === 'source') goneShellFiles.add(file.uri);
@@ -557,6 +560,25 @@ export const useSendImages = ({
             const entry = pendingImages.get(pendingId);
             if (!entry) return;
             const timing = entry.timing;
+            // Made where the row went in flight, so a cancel while it waited its turn is already in it.
+            const abort = entry.abort ?? new AbortController();
+            entry.abort = abort;
+            // Cancelled: the reader said "don't send this", so the row goes rather than turning Failed. What
+            // it had declared stays on the server, which has no delete for a single upload. Not timed: a
+            // cancel is neither a send nor a failure.
+            const settleCancelled = async () => {
+                release(pendingId);
+                await chatOf(entry.cid)
+                    .cacheDelete(pendingId)
+                    .catch(error => {
+                        log('image message: could not remove the cancelled row', { error: (error as Error)?.name });
+                    });
+            };
+            if (abort.signal.aborted) return settleCancelled();
+            // Thrown by the ports a cancelled run would still reach, which the sequence reads as a failure.
+            const stopIfCancelled = () => {
+                if (abort.signal.aborted) throw new Error('image message: cancelled');
+            };
             // A retry counts from nothing again: its PUTs start from the first byte.
             clearImageSendProgress(pendingId);
             const { converted, refused } = await convertVideos(entry);
@@ -606,18 +628,21 @@ export const useSendImages = ({
                         // Each port marks its phase of `chat_send_media` as it settles. The sequence calls
                         // `complete` once every put has settled, so its call is the end of the byte transfer.
                         start: async payload => {
+                            stopIfCancelled();
                             const tickets = await repository.startUploads(payload);
                             timing?.mark('upload_started');
                             return tickets;
                         },
                         complete: async payload => {
+                            stopIfCancelled();
                             timing?.mark('bytes_sent');
                             const completed = await repository.completeUploads(payload);
                             timing?.mark('upload_completed');
                             return completed;
                         },
-                        put: putFor(putRef.current, putShellFileRef.current),
+                        put: putFor(putRef.current, putShellFileRef.current, abort.signal),
                         send: async ({ uploadIds }) => {
+                            stopIfCancelled();
                             const sent = await repository.sendPendingImageChat(pendingId, { uploadIds });
                             timing?.mark('sent');
                             return sent;
@@ -656,6 +681,7 @@ export const useSendImages = ({
                 if (lost.length > 0) await keepUnsent(entry, lost, false);
                 return;
             }
+            if (abort.signal.aborted) return settleCancelled();
             timing?.end('error');
             await chatOf(entry.cid)
                 .failPendingImageChat(pendingId)
@@ -717,6 +743,7 @@ export const useSendImages = ({
                 urls,
                 thumbnailed: false,
                 inFlight: true,
+                abort: new AbortController(),
                 detached: !attachedRef.current,
                 inTurn,
                 timing,
@@ -801,8 +828,10 @@ export const useSendImages = ({
         async (pendingId: string): Promise<boolean> => {
             const entry = pendingImages.get(pendingId);
             if (!entry || entry.inFlight) return false;
-            // Claimed before the first await, so a second tap in the same moment finds it taken.
+            // Claimed before the first await, so a second tap in the same moment finds it taken; the last
+            // run's controller is spent, and a cancel from now on is this run's.
             entry.inFlight = true;
+            entry.abort = new AbortController();
             changed();
             const timing = beginMediaSendTiming({ files: entry.files, reply: !!entry.parentId, retry: true });
             try {
@@ -837,6 +866,18 @@ export const useSendImages = ({
 
     /** Forgets a pending row's files. The row itself is removed by the existing failed-message delete. */
     const discard = useCallback((pendingId: string) => release(pendingId), []);
+
+    /**
+     * Stops a send in progress ("cancel upload"): its PUTs are aborted, no message is sent, and the row
+     * is removed once the send settles. False when it is not sending (settled, failed, or unknown). A
+     * cancel that lands after the message went out does nothing; the message stays sent.
+     */
+    const cancel = useCallback((pendingId: string): boolean => {
+        const entry = pendingImages.get(pendingId);
+        if (!entry?.inFlight || !entry.abort) return false;
+        entry.abort.abort();
+        return true;
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -888,5 +929,5 @@ export const useSendImages = ({
         };
     }, [cid, channelId, parentId]);
 
-    return { sendImages, retry, canRetry, discard };
+    return { sendImages, retry, canRetry, discard, cancel };
 };

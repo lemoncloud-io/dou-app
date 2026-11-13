@@ -225,12 +225,17 @@ export type PutResult =
  */
 export type PutProgress = (sentBytes: number) => void;
 
-/** Sends `file` to `target`. `label` is a log-safe name for the payload, e.g. `slot-2/thumbnail`. */
+/**
+ * Sends `file` to `target`. `label` is a log-safe name for the payload, e.g. `slot-2/thumbnail`.
+ * `signal` cancels it: a sender that can stop its transfer does, and answers as a transfer that never
+ * answered; one that cannot lets it finish.
+ */
 export type PutPort = (
     target: UploadPutTarget,
     file: File,
     label: string,
-    onProgress?: PutProgress
+    onProgress?: PutProgress,
+    signal?: AbortSignal
 ) => Promise<PutResult>;
 
 /** Sends a file the shell keeps, from where it lies. Only the native transfer can. */

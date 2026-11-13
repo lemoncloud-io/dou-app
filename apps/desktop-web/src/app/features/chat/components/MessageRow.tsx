@@ -95,6 +95,8 @@ interface MessageRowProps {
     canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
+    /** Stops an attachment message's send while it uploads ("cancel upload"). */
+    onCancelUpload?: (message: DomainChat) => void;
     /** Folded reactions for the whole feed, keyed by message id. */
     reactions?: ReadonlyMap<string, ReactionTally[]>;
     /** Resolves a reactor's display name for the chip's label. */
@@ -223,6 +225,7 @@ export const MessageRow = memo(
         onRetry,
         canRetry,
         onDiscard,
+        onCancelUpload,
         reactions,
         reactorName,
         threadMeta,
@@ -654,6 +657,7 @@ export const MessageRow = memo(
                                             onDeleteMessage={() => message.id && deleteMessage(message.id)}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                             onShowInChat={onShowMessage && (() => onShowMessage(message))}
+                                            onCancelUpload={onCancelUpload && (() => onCancelUpload(message))}
                                         />
                                     )}
                                     {/* `failure &&` first: an unsent message has no id, and

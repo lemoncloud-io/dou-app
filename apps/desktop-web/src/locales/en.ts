@@ -193,6 +193,8 @@ export const en = {
     'chat.file.groupTitle_one': '{{count}} attachment',
     'chat.file.groupTitle_other': '{{count}} attachments',
     'chat.file.replyInThread': 'Reply in thread',
+    'chat.file.cancelUpload': 'Cancel upload of {{name}}',
+    'chat.file.cancelUploadHint': 'Cancel upload',
     'chat.file.showInChat': 'Show in chat',
     'chat.voice.openDetail': 'Open details of {{name}}',
     'chat.voice.detail': 'Voice file details',

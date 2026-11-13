@@ -16,6 +16,7 @@ import {
     toChatFiles,
     type ChatFile,
 } from '../../utils';
+import { CancelUploadButton } from './CancelUploadButton';
 import { DeleteFileConfirm } from './DeleteFileConfirm';
 import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
@@ -43,6 +44,8 @@ interface MessageFilesProps {
      * own feed — not in a thread, the threads page or Saved.
      */
     onShowInChat?: () => void;
+    /** Stops the message's send while its files upload. Absent where it cannot be stopped. */
+    onCancelUpload?: () => void;
 }
 
 /**
@@ -60,6 +63,7 @@ export const MessageFiles = ({
     onDeleteMessage,
     onReply,
     onShowInChat,
+    onCancelUpload,
 }: MessageFilesProps) => {
     const { t } = useTranslation();
     const { id, upload$$ } = message;
@@ -116,6 +120,7 @@ export const MessageFiles = ({
                             onDelete={requestDelete}
                             deleteMessage={canDelete ? onDeleteMessage : undefined}
                             onShowInChat={onShowInChat}
+                            onCancelUpload={onCancelUpload}
                         />
                     </li>
                 ))}
@@ -141,6 +146,7 @@ const FileItem = ({
     onDelete,
     deleteMessage,
     onShowInChat,
+    onCancelUpload,
 }: {
     file: ChatFile;
     author: ImageAuthor;
@@ -154,6 +160,7 @@ const FileItem = ({
      */
     deleteMessage?: () => void;
     onShowInChat?: () => void;
+    onCancelUpload?: () => void;
 }) => {
     const { t } = useTranslation();
     const name = file.name ?? t(file.kind === 'video' ? 'chat.attach.previewVideo' : 'chat.attach.previewFile');
@@ -180,6 +187,7 @@ const FileItem = ({
                 onSave={save}
                 onReply={onReply}
                 onDelete={onDelete}
+                onCancelUpload={onCancelUpload}
                 onOpen={
                     file.url
                         ? () =>
@@ -240,6 +248,7 @@ const FileItem = ({
                         <ImageSpinner className="h-5 w-5 border-2" />
                     </span>
                 )}
+                {file.isUploading && onCancelUpload && <CancelUploadButton name={name} onCancel={onCancelUpload} />}
                 {file.isFailed && <AlertCircle size={18} aria-hidden className="shrink-0 text-destructive" />}
                 {saveButton}
             </div>

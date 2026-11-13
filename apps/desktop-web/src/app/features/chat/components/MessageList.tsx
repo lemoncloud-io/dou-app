@@ -76,6 +76,8 @@ interface MessageListProps {
     canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
+    /** Stops an attachment message's send while it uploads. */
+    onCancelUpload?: (message: DomainChat) => void;
     /** Fetch older history when the reader scrolls near the top. */
     onLoadOlder?: () => void;
     hasMore?: boolean;
@@ -175,6 +177,7 @@ export const MessageList = ({
     onRetry,
     canRetry,
     onDiscard,
+    onCancelUpload,
     onLoadOlder,
     hasMore,
     isLoadingOlder,
@@ -991,6 +994,7 @@ export const MessageList = ({
                                     onRetry={onRetry}
                                     canRetry={canRetry}
                                     onDiscard={onDiscard}
+                                    onCancelUpload={onCancelUpload}
                                     threadMeta={threadMetaView}
                                     onOpenThread={onOpenThread}
                                     onShowMessage={onShowMessage}

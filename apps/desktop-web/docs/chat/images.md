@@ -178,8 +178,10 @@ lists them under the images:
     - A name too long for the line gives way in the stem and keeps its extension in view; the whole
       name is in the hint.
     - **Being sent**, the button is a ring filling with the bytes sent (`useImageSendProgress`, by
-      slot) and the line reads `Uploading 42% · 17 MB`; a spinner until the bytes are counted. There
-      is no cancel: the send has no way to stop an upload in flight. **Not sent**, the card is red
+      slot) and the line reads `Uploading 42% · 17 MB`; a spinner until the bytes are counted. An X
+      beside it cancels the send (a document's card has the same X): the send is the whole message's,
+      so every file in it stops, and the message goes from the feed instead of turning failed. Files
+      already uploaded stay on the server, unreferenced. **Not sent**, the card is red
       and says so; Retry and Delete stay on the message's own failed line, so they are not offered
       twice.
     - **Cannot be played** (the address failed, or the browser cannot decode it): the button gives

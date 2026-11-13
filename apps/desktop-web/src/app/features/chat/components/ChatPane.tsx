@@ -414,6 +414,7 @@ export const ChatPane = ({
                     onRetry={composer.retry}
                     canRetry={composer.canRetry}
                     onDiscard={composer.discard}
+                    onCancelUpload={composer.cancelUpload}
                     onLoadOlder={handleLoadOlder}
                     hasMore={hasMore}
                     isLoadingOlder={isLoadingOlder}

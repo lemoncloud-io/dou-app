@@ -23,6 +23,7 @@ import {
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
 import { formatFileSize, formatPlaybackTime, type ChatFile } from '../../utils';
+import { CancelUploadButton } from './CancelUploadButton';
 import { FileName } from './FileName';
 import { useVoicePlayback } from './voicePlayback';
 import { Hint } from '../../../../shared';
@@ -40,6 +41,8 @@ interface VoiceCardProps {
     onDelete?: () => void;
     /** Opens the voice detail dialog. */
     onOpen?: () => void;
+    /** Stops the message's send while the file uploads. */
+    onCancelUpload?: () => void;
 }
 
 const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
@@ -56,11 +59,24 @@ const ICON_BUTTON =
  * failed line carries Retry and Delete. A file the browser cannot decode becomes a plain card that still
  * saves, and if it breaks off while playing the player raises a toast — the card alone may be out of sight.
  */
-export const VoiceCard = ({ file, name, messageId, onSave, onReply, onDelete, onOpen }: VoiceCardProps) => {
+export const VoiceCard = ({
+    file,
+    name,
+    messageId,
+    onSave,
+    onReply,
+    onDelete,
+    onOpen,
+    onCancelUpload,
+}: VoiceCardProps) => {
     const { t } = useTranslation();
     const size = file.size !== undefined ? formatFileSize(file.size) : undefined;
 
-    if (file.isUploading) return <UploadingVoice name={name} size={size} messageId={messageId} slot={file.slot} />;
+    if (file.isUploading) {
+        return (
+            <UploadingVoice name={name} size={size} messageId={messageId} slot={file.slot} onCancel={onCancelUpload} />
+        );
+    }
 
     if (file.isFailed || !file.url) {
         return (
@@ -95,11 +111,13 @@ const UploadingVoice = ({
     size,
     messageId,
     slot,
+    onCancel,
 }: {
     name: string;
     size: string | undefined;
     messageId: string | undefined;
     slot: number | undefined;
+    onCancel?: () => void;
 }) => {
     const { t } = useTranslation();
     const ratios = runtime.data.useImageSendProgress(messageId);
@@ -112,6 +130,7 @@ const UploadingVoice = ({
                 <ProgressRing ratio={progress} />
             </span>
             <Body name={name} meta={[status, size]} />
+            {onCancel && <CancelUploadButton name={name} onCancel={onCancel} />}
         </div>
     );
 };
