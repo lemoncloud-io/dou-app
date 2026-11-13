@@ -9,26 +9,18 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-
-import {
+    ActivityCountBadge,
     Badge,
     CollapsibleSection,
     DefaultAvatar,
     IconBell,
     IconBellOff,
     IconEdit,
-    IconChatAdd,
     IconLeave,
     IconPin,
     IconTrash,
     ImageAvatar,
     ListRow,
-    SubscriptionBadge,
     SwipeActionRow,
     UnreadBadge,
     type SwipeAction,
@@ -62,6 +54,9 @@ import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
+import { ChannelCreateMenu } from './ChannelCreateMenu';
+import { useNotificationStore } from '../../../stores/useNotificationStore';
+import { channelBadges, type ChannelBadges } from '../../../utils/notifications';
 import { useChannelRowActions } from '../hooks/useChannelRowActions';
 import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 
@@ -95,6 +90,7 @@ const ChannelItem = ({
     lastChat,
     lastActivity,
     lastChatSender,
+    inboxActivity,
 }: {
     channel: DomainChannel;
     unread: number;
@@ -125,6 +121,8 @@ const ChannelItem = ({
     lastActivity?: DomainChat;
     /** Who wrote `lastChat`, for a group room (list-level useLastChatSenders). Undefined otherwise. */
     lastChatSender?: string;
+    /** Unread mentions of me and unread replies in my threads here, from the notification inbox. */
+    inboxActivity?: ChannelBadges;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -299,7 +297,19 @@ const ChannelItem = ({
             trailing={
                 <div className="flex flex-col items-end gap-1">
                     <span className="text-[12px] leading-4 text-description">{time}</span>
-                    <UnreadBadge count={unread} variant="pill" />
+                    <div className="flex items-center gap-1">
+                        <ActivityCountBadge
+                            variant="mention"
+                            count={inboxActivity?.mentions ?? 0}
+                            label={t('channelList.activity.mentions', { count: inboxActivity?.mentions ?? 0 })}
+                        />
+                        <ActivityCountBadge
+                            variant="thread"
+                            count={inboxActivity?.threads ?? 0}
+                            label={t('channelList.activity.threads', { count: inboxActivity?.threads ?? 0 })}
+                        />
+                        <UnreadBadge count={unread} variant="pill" />
+                    </div>
                 </div>
             }
             // Hand the row's channel across so the room renders its header instantly instead of
@@ -395,6 +405,11 @@ interface ChannelListProps {
     /** Controlled expanded state — the host remembers it. Omit to let the section hold its own. */
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    /**
+     * Rows only, with no section heading or fold — a cloud's home, whose tabs above the list already
+     * say what it holds and carry the create button.
+     */
+    bare?: boolean;
 }
 
 export const ChannelList = ({
@@ -422,6 +437,7 @@ export const ChannelList = ({
     onSelectInvite,
     open,
     onOpenChange,
+    bare = false,
 }: ChannelListProps) => {
     const { t } = useTranslation();
     // My active-site profile — the self-chat title fallback AND the self-chat row's avatar. Resolved
@@ -473,6 +489,15 @@ export const ChannelList = ({
     const lastActivities = useLastActivities(channels, joinByChannel);
     // A group row's line names who wrote it, through ONE list-level profile subscription as well.
     const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
+
+    // Unread mentions and thread replies per row, from the device's notification inbox. Channel ids
+    // repeat across clouds, so only the selected cloud's items are counted.
+    const notificationItems = useNotificationStore(state => state.items);
+    const activityByChannel = useMemo(() => {
+        const cloudId = readSelectedCloudId();
+        const items = Object.values(notificationItems).filter(item => item.cloudId === cloudId);
+        return new Map(channels.map(channel => [channel.id, channelBadges(items, channel.id)]));
+    }, [notificationItems, channels]);
 
     // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
     // other row reads null and stays closed.
@@ -567,72 +592,21 @@ export const ChannelList = ({
     // allowed to do.
     const showGroupCreate = canCreate && (!isDefaultCloud || !isPro);
 
-    // The popover opens for either entry, not for group-create alone: the two rows have separate
-    // conditions, so the popover must not hang on just one of them.
-    const createMenu = onCreate ? (
-        <button
-            type="button"
-            aria-label={createLabel ?? t('channelList.createChat')}
-            onClick={onCreate}
-            className="flex size-6 items-center justify-center text-foreground"
-        >
-            <IconChatAdd className="size-[18px]" />
-        </button>
-    ) : showGroupCreate || showOneOnOneCreate ? (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    aria-label={t('channelList.createChat')}
-                    className="flex size-6 items-center justify-center text-foreground"
-                >
-                    <IconChatAdd className="size-[18px]" />
-                </button>
-            </DropdownMenuTrigger>
-            {/* Popover metrics are the design's, not the ui-kit menu defaults (Figma 2931:8181):
-                the sheet HUGS its rows instead of sitting at a fixed 184px — with one entry that
-                left a wide empty gutter — over a translucent, blurred surface with a soft 32px
-                shadow, 16px corners, a 6px inner gutter and 12/10px rows. `min-w-0` is what
-                releases the kit's 8rem floor; the transform origin makes it scale out of the ＋
-                button it belongs to rather than out of its own centre. */}
-            <DropdownMenuContent
-                align="end"
-                sideOffset={6}
-                className="min-w-0 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border-[0.5px] border-input-border/70 bg-popover/90 p-1.5 shadow-[0_3px_32px_0_rgba(0,0,0,0.08)] backdrop-blur-[4px] duration-150 ease-out"
-            >
-                {showOneOnOneCreate && (
-                    <DropdownMenuItem
-                        onClick={onCreateOneOnOne}
-                        className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
-                    >
-                        {t('channelList.createDirect')}
-                    </DropdownMenuItem>
-                )}
-                {showGroupCreate && (
-                    <DropdownMenuItem
-                        onClick={onCreateGroup}
-                        className="flex cursor-pointer items-center justify-between gap-2 rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4 tracking-[-0.14px]"
-                    >
-                        {/* The design leaves no slack in this row (label + badge fill it exactly), so the
-                            label must not wrap. */}
-                        <span className="whitespace-nowrap">{t('channelList.createGroup')}</span>
-                        {!isPro && <SubscriptionBadge tier="pro" size="xs" />}
-                    </DropdownMenuItem>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    ) : undefined;
+    const createMenu =
+        onCreate || showGroupCreate || showOneOnOneCreate ? (
+            <ChannelCreateMenu
+                onCreate={onCreate}
+                createLabel={createLabel}
+                showOneOnOneCreate={showOneOnOneCreate}
+                onCreateOneOnOne={onCreateOneOnOne}
+                showGroupCreate={showGroupCreate}
+                onCreateGroup={onCreateGroup}
+                isPro={isPro}
+            />
+        ) : undefined;
 
-    return (
-        // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
-        // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
-        <CollapsibleSection
-            title={title ?? t('homePage.channels')}
-            count={isLoading ? undefined : channels.length}
-            actions={createMenu}
-            open={open}
-            onOpenChange={onOpenChange}
-        >
+    const body = (
+        <>
             {/* Sent-invite rows float above real channels — they are the newest, most actionable
                 entries, same spirit as a pinned channel. See useInviteListRows for what qualifies. */}
             {sentInvites.map(invite => {
@@ -694,12 +668,29 @@ export const ChannelList = ({
                                 lastChat={lastChats.get(channel.id)}
                                 lastActivity={lastActivities.get(channel.id)}
                                 lastChatSender={lastChatSenders.get(channel.id)}
+                                inboxActivity={activityByChannel.get(channel.id)}
                             />
                         </SwipeActionRow>
                     );
                 })
             )}
             {rowActions.dialog}
+        </>
+    );
+
+    if (bare) return <div className="flex flex-col">{body}</div>;
+
+    return (
+        // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
+        // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
+        <CollapsibleSection
+            title={title ?? t('homePage.channels')}
+            count={isLoading ? undefined : channels.length}
+            actions={createMenu}
+            open={open}
+            onOpenChange={onOpenChange}
+        >
+            {body}
         </CollapsibleSection>
     );
 };

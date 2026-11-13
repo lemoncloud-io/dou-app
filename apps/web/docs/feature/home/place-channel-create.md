@@ -48,14 +48,15 @@ requires `permissions.canCreatePlace`.
 `cloudType` is only ever `'invited' | 'owner'` — the relay is a separate id, not a type — so a cloud
 that is neither the relay nor invited is one I own.
 
-The channel section's `＋` opens for **either** of its two rows, which is not the same as
+The room list's `＋` opens for **either** of its two rows, which is not the same as
 `canCreate`. `canCreate` (`isDefaultCloud || isCloudOwner`) means "may make a room here" and now
 guards the `그룹방 만들기` row alone; that row additionally appears **only while unpaid** on the
 relay, because a group room lives in a cloud of one's own and for a subscriber the relay entry would
-lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and shows on relay only: the tap
-goes to the phone-number contact form. A cloud starts its 1:1s from the `1:1 대화` section's own `＋`
-instead, which any member of the place gets — so an invited member has no `＋` on the group section
-but does on the 1:1 section. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists
+lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and in the relay list it goes to
+the phone-number contact form. A cloud's home has no section headings: its `＋` sits at the end of the
+tab row (`ChannelCreateMenu`, the same popover) and offers `1:1 대화` to any member of the place —
+to the member picker — and `그룹방 만들기` to the owner, so an invited member's `＋` holds the 1:1 entry
+alone. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists
 a cloud's 1:1s in a section of their own, and starts them too.
 
 ### What each tap does

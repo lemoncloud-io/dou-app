@@ -82,9 +82,9 @@ cloud plus my join rows and runs `useChannelUnreads` over them; `HomePage`, `Uni
 from its own channel observer plus a join observer per channel, so every join write was paid for
 three times.
 
-`HomePage` reads `byPlace` from it. Every site of the cloud has a key, so an unselected `PlaceItem`
-can show its dot; the selected row shows a `VerifiedBadge` instead, because it is where you already
-are. `ChannelList` re-derives `byChannel` over just the visible channels from the same join map — a
+`HomePage` reads `byPlace` from it. Every site of the cloud has a key, so every chip of the place row
+(`PlaceChipRow`) shows its own unread count, the selected one included — the selected chip is told
+apart by its fill, not by losing its number. `ChannelList` re-derives `byChannel` over just the visible channels from the same join map — a
 second pass over data already in hand, not a second subscription.
 
 The provider is **observe-only** (`sync: false`): mounting the app registers zero per-channel join

@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { HomePage } from './HomePage';
+import { useHomeChatTabStore } from '../stores/useHomeChatTabStore';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_PLACES } from '../../../utils';
 
@@ -96,6 +97,20 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
     EmptyState: () => <div data-testid="empty-state" />,
     ProfileAvatar: () => <img alt="" />,
+    // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
+    SegmentedTabs: ({ items, value, onChange, trailing }: any) => (
+        <div data-testid="chat-tabs" data-value={value}>
+            {items.map((item: any) => (
+                <button
+                    key={item.id}
+                    data-testid={`tab-${item.id}`}
+                    data-count={item.count ?? ''}
+                    onClick={() => onChange(item.id)}
+                />
+            ))}
+            {trailing}
+        </div>
+    ),
     // The gesture is the kit's to test; here a button stands in for a completed pull.
     PullToRefresh: ({ children, onRefresh }: { children: any; onRefresh: () => Promise<unknown> }) => (
         <div>
@@ -161,13 +176,10 @@ jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => <div /> }));
 jest.mock('../../onboarding', () => ({ OnboardingModal: () => null }));
 
 jest.mock('../components', () => ({
-    // Mirrors the create-group entry back out: the popover is the list's, but what the tap does
-    // (upsell vs create dialog) is decided here, in the page.
-    //
-    // The page renders this twice on a cloud — the 1:1 section and the group rooms. The buttons
-    // follow their handlers (and the 1:1 one its flag) so the stub says the same thing the real
-    // popover does: no handler, no entry. `title` tells the two apart: the 1:1 section is
-    // `dm-list`, and the relay's one list and a cloud's group rooms are both `channel-list`.
+    // Mirrors the create entries back out: the popover is the list's, but what the tap does (upsell
+    // vs create dialog) is decided here, in the page. The buttons follow their handlers (and the 1:1
+    // one its flag) so the stub says the same thing the real popover does: no handler, no entry.
+    // The relay's one list is `channel-list`; a cloud's tabbed, heading-less list is `cloud-list`.
     ChannelList: ({
         channels,
         isPro,
@@ -182,6 +194,7 @@ jest.mock('../components', () => ({
         open,
         onOpenChange,
         onOpenPlaceInfo,
+        bare,
     }: {
         channels?: { id: string }[];
         isPro?: boolean;
@@ -196,9 +209,10 @@ jest.mock('../components', () => ({
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
         onOpenPlaceInfo?: () => void;
+        bare?: boolean;
     }) => (
         <div
-            data-testid={title === 'cloudDm.section.title' ? 'dm-list' : 'channel-list'}
+            data-testid={bare ? 'cloud-list' : 'channel-list'}
             data-title={title ?? ''}
             data-leads-with-self={String(!!leadsWithSelf)}
             data-can-create={String(!!canCreate)}
@@ -212,10 +226,7 @@ jest.mock('../components', () => ({
                 <button data-testid="create-direct" onClick={onCreateOneOnOne} />
             )}
             {onCreate && <button data-testid="start-dm" onClick={onCreate} />}
-            <button
-                data-testid={title === 'cloudDm.section.title' ? 'dm-toggle' : 'channel-toggle'}
-                onClick={() => onOpenChange?.(!open)}
-            />
+            <button data-testid="channel-toggle" onClick={() => onOpenChange?.(!open)} />
             {onOpenPlaceInfo && <button data-testid="open-place-info" onClick={onOpenPlaceInfo} />}
         </div>
     ),
@@ -227,19 +238,17 @@ jest.mock('../components', () => ({
     CreatePlaceDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="create-place-dialog" /> : null),
     InviteDialog: () => null,
     // Surfaces the "+" so the place-cap branch can be driven from the page, as a user would.
-    PlaceList: ({
-        onCreatePlace,
-        open,
-        onOpenChange,
-    }: {
-        onCreatePlace: () => void;
-        open?: boolean;
-        onOpenChange?: (open: boolean) => void;
-    }) => (
-        <div data-testid="place-list" data-open={String(open)}>
+    PlaceChipRow: ({ onCreatePlace }: { onCreatePlace: () => void }) => (
+        <div data-testid="place-list">
             <button data-testid="add-place" onClick={onCreatePlace} />
-            <button data-testid="place-toggle" onClick={() => onOpenChange?.(!open)} />
         </div>
+    ),
+    // The cloud home's ＋: one button per entry it would offer, so "no handler, no entry" reads the same.
+    ChannelCreateMenu: ({ showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
+        <>
+            {showOneOnOneCreate && onCreateOneOnOne && <button data-testid="start-dm" onClick={onCreateOneOnOne} />}
+            {showGroupCreate && onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
+        </>
     ),
     // Mirrors the props back out: the cap dialog's two actions are wired here, in the page.
     PlaceLimitDialog: ({
@@ -310,6 +319,7 @@ jest.mock('../../invite/hooks/useInviteListRows', () => ({
 
 beforeEach(() => {
     jest.clearAllMocks();
+    useHomeChatTabStore.setState({ tab: 'all' });
     places = [{ id: 'site-1', stereo: 'group' }];
     isPlacesLoading = false;
     selectedPlaceId = 'site-1';
@@ -405,7 +415,8 @@ describe('HomePage — relay mode', () => {
 
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', '');
-        expect(screen.queryByTestId('dm-list')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cloud-list')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('chat-tabs')).not.toBeInTheDocument();
     });
 
     // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
@@ -462,8 +473,8 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
 
-    // A cloud splits the place's rooms by kind: 1:1s in their own section, groups under theirs.
-    it("splits the place's rooms into a 1:1 section and a group section", () => {
+    // A cloud lists its rooms in one list under three tabs: every room, the group rooms, the 1:1s.
+    it('lists every room under All and each kind under its own tab, with counts', () => {
         homeChannels = [
             { id: 'g-1', stereo: 'private', cid: 'cloud-1', sid: 'site-1' },
             { id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' },
@@ -471,58 +482,83 @@ describe('HomePage — cloud mode', () => {
         ];
         render(<HomePage />);
 
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'site-1@me@peer');
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'g-1,g-2');
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', 'homePage.groupChats');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'site-1@me@peer,g-1,g-2');
+        expect(screen.getByTestId('tab-all')).toHaveAttribute('data-count', '3');
+        expect(screen.getByTestId('tab-group')).toHaveAttribute('data-count', '2');
+        expect(screen.getByTestId('tab-dm')).toHaveAttribute('data-count', '1');
+
+        fireEvent.click(screen.getByTestId('tab-group'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'g-1,g-2');
+
+        fireEvent.click(screen.getByTestId('tab-dm'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'site-1@me@peer');
     });
 
-    it('draws the group section above the 1:1 section', () => {
+    // Home unmounts on every navigation; the tab is held outside it so a trip into a room keeps it.
+    it('comes back on the tab that was left', () => {
+        const { unmount } = render(<HomePage />);
+        fireEvent.click(screen.getByTestId('tab-dm'));
+        unmount();
+
+        render(<HomePage />);
+        expect(screen.getByTestId('chat-tabs')).toHaveAttribute('data-value', 'dm');
+    });
+
+    // A count while the rooms are still arriving would claim an answer we do not have.
+    it('withholds the tab counts while a place switch is in flight', () => {
+        isSwitchingPlace = true;
         render(<HomePage />);
 
-        const groups = screen.getByTestId('channel-list');
-        const dms = screen.getByTestId('dm-list');
-        expect(groups.compareDocumentPosition(dms) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.getByTestId('tab-all')).toHaveAttribute('data-count', '');
     });
 
-    // The cloud's notes-to-self room belongs to the account, not the place: it leads the 1:1
-    // section, and the place's copy of it (it carries a place too) is listed in neither section.
-    it('lists the self chat atop the 1:1 section, and not among the groups', () => {
+    // The cloud's notes-to-self room belongs to the account, not the place: it leads All and the
+    // 1:1 tab, and the place's copy of it (it carries a place too) is listed under neither kind.
+    it('leads All and the 1:1 tab with the self chat, and keeps it out of the group tab', () => {
         const self = { id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'site-1' };
         activeCloudChannels = [self];
         homeChannels = [{ id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' }, self];
         render(<HomePage />);
 
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'self,site-1@me@peer');
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-leads-with-self', 'true');
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', '');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'self,site-1@me@peer');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'true');
+
+        fireEvent.click(screen.getByTestId('tab-group'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', '');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'false');
     });
 
-    // The section's ＋ is how a cloud 1:1 starts, so it is drawn with no 1:1 and no self chat yet.
-    it('draws the 1:1 section with its start entry before any 1:1 exists', () => {
+    // The ＋ at the end of the tabs is how a cloud 1:1 starts, so it is there before any 1:1 exists.
+    it('starts a 1:1 from the tab row before any 1:1 exists', () => {
         render(<HomePage />);
 
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', '');
         fireEvent.click(screen.getByTestId('start-dm'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.channels.startDm);
     });
 
+    it('offers the owner group creation from the same ＋', () => {
+        render(<HomePage />);
+
+        expect(screen.getByTestId('create-group')).toBeInTheDocument();
+    });
+
     // A 1:1 is between two people, not a room the place's owner hands out: an invited member may
-    // start one too, where the group section offers them no create entry.
+    // start one too, but not a group room.
     it('offers an invited member the 1:1 start but not group creation', () => {
         invitedClouds = [{ id: 'cloud-1' }];
         render(<HomePage />);
 
         expect(screen.getByTestId('start-dm')).toBeInTheDocument();
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-can-create', 'false');
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 
-    // The group list keeps the relay's phone-number entry off: a cloud 1:1 starts from its own section.
+    // The relay's phone-number entry has no place in a cloud.
     it('offers no relay 1:1 entry in a cloud', () => {
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-toggle')).toBeInTheDocument();
         expect(screen.queryByTestId('create-direct')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
     });
 
     // The picker lists the session's place; while home shows another one, a switch is still moving.
@@ -530,23 +566,30 @@ describe('HomePage — cloud mode', () => {
         selectedSiteId = 'site-2';
         render(<HomePage />);
 
-        expect(screen.getByTestId('dm-list')).toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toBeInTheDocument();
         expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    // With 1:1s above it, an empty group section says only that; the place's own empty state (create
-    // one / rooms arrive by invitation, leave the place) is for a place with no room at all.
-    it('says only that no group exists yet when the 1:1 section has rooms', () => {
-        homeChannels = [{ id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' }];
+    // While the place's rooms are still loading the picker has no place to read members from.
+    it('holds the 1:1 start while a place switch is in flight', () => {
+        isSwitchingPlace = true;
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', 'homePage.groupChatsEmpty');
+        expect(screen.getByTestId('cloud-list')).toBeInTheDocument();
+        expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    it("keeps the place's own empty state when the place has no room at all", () => {
+    // An empty tab says only that its kind is empty; the place's own empty state (create one / rooms
+    // arrive by invitation, leave the place) is for All, where it means the place has no room at all.
+    it('keeps the place empty state for All and a plain line for an empty tab', () => {
         render(<HomePage />);
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', '');
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
+        fireEvent.click(screen.getByTestId('tab-group'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', 'homePage.groupChatsEmpty');
+
+        fireEvent.click(screen.getByTestId('tab-dm'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', 'cloudDm.section.empty');
     });
 
     it('keeps the relay list on its own empty state', () => {
@@ -555,15 +598,6 @@ describe('HomePage — cloud mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
-    });
-
-    // While the place's rooms are still loading the picker has no place to read members from.
-    it('holds the 1:1 start while a place switch is in flight', () => {
-        isSwitchingPlace = true;
-        render(<HomePage />);
-
-        expect(screen.getByTestId('dm-list')).toBeInTheDocument();
-        expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
     // The empty room list's "you can leave this place" link opens the active place's information
@@ -577,36 +611,20 @@ describe('HomePage — cloud mode', () => {
     });
 });
 
-// The fold of each section comes from the stored record, not from the section itself — that is
-// what lets it survive leaving home. Each of the three sections must read and write its own id:
-// the 1:1 and group sections are the same component, so a shared id would fold both.
+// The relay's list still folds, and its fold comes from the stored record — that is what lets it
+// survive leaving home. A cloud's home has no folding sections any more.
 describe('HomePage — section folds', () => {
     beforeEach(() => {
-        selectedCloudId = 'cloud-1';
-        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
+        selectedCloudId = 'default';
     });
 
-    it('opens each section from its own stored entry', () => {
+    it('opens the relay list from its stored entry and writes a toggle under it', () => {
         collapsedSections = { channels: true };
         render(<HomePage />);
 
-        expect(screen.getByTestId('place-list')).toHaveAttribute('data-open', 'true');
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-open', 'true');
-    });
-
-    it('writes a toggle under the id of the section that was toggled', () => {
-        render(<HomePage />);
-
-        fireEvent.click(screen.getByTestId('place-toggle'));
         fireEvent.click(screen.getByTestId('channel-toggle'));
-        fireEvent.click(screen.getByTestId('dm-toggle'));
-
-        expect(setSectionOpenMock.mock.calls).toEqual([
-            ['places', false],
-            ['channels', false],
-            ['cloudDm', false],
-        ]);
+        expect(setSectionOpenMock.mock.calls).toEqual([['channels', true]]);
     });
 });
 
@@ -654,24 +672,23 @@ describe('HomePage — no place selected yet', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('empty-state')).toBeInTheDocument();
-        expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
-        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'self');
-        // With no place there is nobody to pick, so the section lists and starts nothing.
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'self');
+        // With no place there is nobody to pick, so the ＋ starts nothing.
         expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    it('draws no 1:1 section on a cloud with no place and no self chat', () => {
+    it('draws no list on a cloud with no place and no self chat', () => {
         render(<HomePage />);
 
-        expect(screen.queryByTestId('dm-list')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cloud-list')).not.toBeInTheDocument();
     });
 
-    it('shows neither once a place is selected — the channel list owns the slot', () => {
+    it('shows neither once a place is selected — the room list owns the slot', () => {
         selectedPlaceId = 'site-1';
 
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toBeInTheDocument();
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
     });

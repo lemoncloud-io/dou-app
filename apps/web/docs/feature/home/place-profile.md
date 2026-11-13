@@ -102,9 +102,9 @@ is true **or** `place.id === HOME_PLACE_ID` (`'0000'`), and `place.name` otherwi
 
 Two signals rather than one, because the callers hold different things. A hook that knows the
 session knows `selectedCloudId`; a list row holds only a place object. `HOME_PLACE_ID` is the real
-runtime sid, so the row still resolves correctly on its own — the home rail's `PlaceItem` passes
-`isDefaultCloud: false` and relies entirely on the id, since the place section is not rendered on
-the relay at all.
+runtime sid, so the row still resolves correctly on its own — the home place row's chips
+(`PlaceChipRow`) pass `isDefaultCloud: false` and rely entirely on the id, since the place row is not
+rendered on the relay at all.
 
 `useActivePlaceName` is the hook form: it observes the active place row and runs the same function,
 falling back to `{ id: sid }` when the row is not cached yet so a dialog title never flashes empty.
@@ -120,7 +120,7 @@ drifting apart.
   number or a UUID, and it would appear exactly when the nudge is most useful.
 - A profile edit reaches home through the observed cache, not through a session refresh, so no
   re-login or re-fetch is needed to see it.
-- `PlaceItem` hard-codes `isDefaultCloud: false`. If the place section ever renders on the relay,
+- `PlaceChipRow` hard-codes `isDefaultCloud: false`. If the place row ever renders on the relay,
   that argument has to become real or the home place will print `default`.
 
 ## Further reading
