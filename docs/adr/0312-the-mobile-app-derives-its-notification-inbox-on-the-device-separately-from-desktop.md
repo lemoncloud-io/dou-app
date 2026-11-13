@@ -1,8 +1,10 @@
 # ADR-0312: The mobile app derives its notification inbox on the device, separately from desktop
 
 > Status: Accepted · Decided: 2026-11-13 · Implemented: `feat/web-notification-inbox`
-> · Scope: `apps/web` — `src/app/features/notifications/` (`stores/`, `hooks/`, `utils/`,
-> `NotificationsRunner`), its mount in `runtime/AppRuntime.tsx` and its sign-out callback in `main.tsx`
+> · Scope: `apps/web` — the store `src/app/stores/useNotificationStore.ts` and the model, items and
+> selectors in `src/app/utils/notifications/` (both shared with home), the feature
+> `src/app/features/notifications/` (`hooks/`, `utils/`, `NotificationsRunner`), its mount in
+> `runtime/AppRuntime.tsx` and its sign-out callback in `main.tsx`
 > · The module doc is [apps/web notifications](../../apps/web/docs/feature/notifications/README.md)
 
 ## Context
