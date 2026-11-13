@@ -19,7 +19,7 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { clearInputLocks } from './app/features/channels/stores/useInputLockStore';
-import { clearNotifications } from './app/features/notifications/stores/useNotificationStore';
+import { clearNotifications } from './app/stores/useNotificationStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';

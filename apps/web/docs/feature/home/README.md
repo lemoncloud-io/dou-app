@@ -1,7 +1,7 @@
 # home
 
-**The main screen at `/` — the list of places in the cloud you are connected to, the list of
-channels in the place you have selected, and the sheet that moves you between clouds.** It also owns
+**The main screen at `/` — the row of places in the cloud you are connected to, the rooms of the
+place you have selected under three tabs, and the sheet that moves you between clouds.** It also owns
 the header identity, the unread marks for everywhere you are not currently looking, and the two
 creation entries that open a new place or group room.
 
@@ -30,8 +30,9 @@ What it owns of each is the entry point and nothing behind it.
    missing primitive is added to the kit and then used.
 2. **The host owns state.** Kit components hold no product state. Open dropdowns and the selected
    row are held by `HomePage` or by the list that renders them. A `CollapsibleSection` can keep its
-   own open/closed fallback, but home does not rely on it: `HomePage` controls every section from a
-   stored record — see [Folded sections](#folded-sections).
+   own open/closed fallback, but home does not rely on it: `HomePage` controls the relay's room list
+   from a stored record — see [Folded sections](#folded-sections) — and a cloud's chat tab from a store
+   held outside the page.
 3. **One active place.** Selecting a place switches the backend active site and the Chat section
    follows it. Channels of several places are never fetched at once.
 4. **Relay hides places, it does not disconnect them.** The relay has exactly one place and it is
@@ -40,23 +41,25 @@ What it owns of each is the entry point and nothing behind it.
    and a relay home without it is an empty screen.
 5. **A limit never removes a button.** `＋` entries stay visible at their cap and the attempt
    explains the refusal. "Why is this gone" is a worse question than "why can't I".
-6. **Marks, not counts, for what you cannot see.** A place you are not in and a cloud you are not
-   looking at are represented by presence marks, never numbers. Both are counted underneath, from
-   the cache: a cloud off screen is kept current by its background socket within about a minute, and
-   one past the background cap, or with no tokens yet, is as fresh as your last visit. The mark is
-   true for the whole of that lag; a number would be briefly wrong in it — and the design draws a
-   mark.
+6. **Marks, not counts, for another cloud.** A cloud you are not looking at is represented by a
+   presence mark, never a number. It is counted underneath, from the cache: a cloud off screen is kept
+   current by its background socket within about a minute, and one past the background cap, or with no
+   tokens yet, is as fresh as your last visit. The mark is true for the whole of that lag; a number
+   would be briefly wrong in it — and the design draws a mark. Places are different: every place of
+   the cloud you are in is on the same socket and current, and the place row's design draws each
+   place's unread count on its chip.
 7. **Rendering never fetches.** The channel list is a pure cache read. Freshness is a separate
    registration the surface mounts, so scrolling a row into view cannot make a request.
 
 ## Scope
 
-**In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; the
-Place section; the room sections (the relay's one list; a cloud's group and 1:1 sections, in that
-order below Places) with their previews, unread badges and create entries (a popover, or the 1:1
-section's direct ＋); the rows'
-swipe actions (pin, mute, leave or delete); pull-to-refresh on the body; the cloud-switcher sheet;
-the place and cloud unread marks; the three app-global runners that home exports.
+**In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; a
+cloud's place row (`PlaceChipRow`); the room lists — the relay's one folding list, and a cloud's one
+list under the tabs All / Groups / 1:1 with the create ＋ at the end of the tab row — with their
+previews, unread badges and, on a cloud, each row's unread mentions and thread replies from the
+device's notification inbox; the rows' swipe actions (pin, mute, leave or delete); pull-to-refresh on
+the body; the cloud-switcher sheet; the place counts and cloud unread marks; the three app-global
+runners that home exports.
 
 **Out** — search itself (the header button only navigates to `/search`), the subscribe and IAP flow
 ([subscription](../subscription/README.md)), the profile form ([place](../place/README.md)), invite
@@ -111,7 +114,7 @@ grep -rn "features/home'\|'\.\./\.\./home'" --include='*.ts' --include='*.tsx' a
 
 ## The two homes
 
-**Relay** (`selectedCloudId === 'default'`). The header is `kind="no-cloud"`. **No Place section is
+**Relay** (`selectedCloudId === 'default'`). The header is `kind="no-cloud"`. **No place row is
 rendered** — the relay has one place and it is auto-selected, so the list would add nothing; the slot
 goes to `CloudPromoBanner`, which appears only while the account owns no cloud and has not dismissed
 it within the last 24 hours, and gives way to the missing-profile banner
@@ -124,12 +127,16 @@ no answer is not "no cloud". The Chat section still fills normally, because plac
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
-The section titles are the **product** nouns, not the domain's: `플레이스` / `Places`, and on the relay
-one room list, `대화방` / `Chat Rooms` (its 1:1s and its self chat together). A cloud splits its place's
-rooms into `1:1 대화` / `1:1 Chats` (the self chat on top, then the place's 1:1s) and `그룹 대화` /
-`Group Chats` — see [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists a cloud's
-1:1s in a section of their own. `채널` is what `DomainChannel` and `ChannelRepository` are called in
-code and it stays there; the screen says the word a user would.
+The labels are the **product** nouns, not the domain's. On the relay there is one room list,
+`대화방` / `Chat Rooms` (its 1:1s and its self chat together). A cloud lists its place's rooms in one
+list under three tabs — `전체` / `All`, `그룹 대화` / `Groups`, `1:1 대화` / `1:1` — each with the
+number of rooms it holds (withheld while the rooms are still arriving). All and 1:1 lead with the
+account's notes-to-self room; see [dm-and-self-chat.md](../channels/dm-and-self-chat.md). The tab is
+held in `useHomeChatTabStore`, in memory: coming back from a room lands on the tab that was left,
+and a relaunch starts on All. An empty tab says only that its kind is empty; an empty All is the
+place's own empty state (create a room, or rooms arrive by invitation). `채널` is what
+`DomainChannel` and `ChannelRepository` are called in code and it stays there; the screen says the
+word a user would.
 
 **Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
 initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
@@ -146,8 +153,14 @@ name comes from a third place: `PairedCloudNameRunner` (mounted under `AppRuntim
 well as the shells) reads it from the relay once per entry, after the cloud's socket and the relay are
 verified, and keeps it beside the paired-cloud list (`runtime.session.usePairedCloudNames`). Until that
 read succeeds — or if it fails, silently — the header names the cloud by the end of its id
-(`pairing.cloud.unnamed`). The Place section lists the cloud's
-places, the selected one carrying a badge and the others a dot when they have unread.
+(`pairing.cloud.unnamed`). Below the header the place row (`PlaceChipRow`) holds one chip per place
+on a horizontally scrolling line — the current place filled navy, every place with its unread count —
+and, for an owner who may add one, a ＋ at its end. With no place selected, the no-place guidance (or
+the loading state) leads, and the account's notes-to-self room still lists below it.
+
+Each cloud row carries, beside its unread count, the unread mentions of me and the unread replies in
+my threads in that room, counted from the device's notification inbox (`useNotificationStore`,
+[notifications](../notifications/README.md)) for the selected cloud only.
 
 **The profile menu** holds "Place settings" and, for the owner of the active cloud place who has
 turned on the Lab experiment, "Invite to place". Both act on the session's place — there is no
@@ -157,12 +170,14 @@ matters for the invite: the server files it under the site the session is on, so
 invite (the relay, a place they do not own, a guest) or has not opted in. The rule and the page behind it — the room invite's contact invite, bound to the place — belong to
 [invite](../invite/place-invite.md).
 
-**The tier pill** (header, and the profile menu on a cloud) is FREE or PRO: PRO when the membership
-is valid **or** the catalog holds an active cloud. PRO is final the moment either source says so,
-but FREE needs both to have answered, since either could still make it PRO. Until then the tier is
-undecided and both surfaces hold a pulsing placeholder of the pill's size
-(`SubscriptionBadgeSkeleton`; `AppHeader`'s `planLoading`) — not a guessed FREE that flips, and not an
-empty slot the pill later pops into. A failed catalog fetch counts as answered here, so the tier
+**The tier** is read in the profile menu — FREE on the relay always, the account's tier on a cloud.
+The header carries no tier pill: the home redesign (Figma `5953:30571`) draws only search and the
+profile there, on both homes, and subscription is reached from MY. The tier is FREE or PRO: PRO when
+the membership is valid **or** the catalog holds an active cloud. PRO is final the moment either
+source says so, but FREE needs both to have answered, since either could still make it PRO. Until
+then the tier is undecided and the menu holds a pulsing placeholder of the pill's size
+(`SubscriptionBadgeSkeleton`) — not a guessed FREE that flips, and not an empty slot the pill later
+pops into. A failed catalog fetch counts as answered here, so the tier
 falls back to membership alone rather than pulsing forever.
 
 The membership half reads the server's `isValid`, which [subscription](../subscription/README.md)
@@ -172,19 +187,15 @@ is a known gap, not an intended rule.
 
 ## Folded sections
 
-Places, the room list (a cloud's group rooms) and a cloud's 1:1 section each fold independently,
-and the fold is remembered. `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config
-key (`persist: 'local'`), and `HomePage` passes each list a controlled `open`/`onOpenChange` under its
-own id — `places`, `channels`, `cloudDm`. The group and 1:1 sections are the same `ChannelList`, so
-the id is what keeps folding one from folding the other. `cloudDm` held the self chat alone for a
-while, when mobile listed no cloud 1:1; it is a stored key, so it kept its name.
+Only the relay's room list folds now; a cloud's home has a place row and tabs, not sections. The fold
+is remembered: `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key
+(`persist: 'local'`), and `HomePage` passes the list a controlled `open`/`onOpenChange` under the id
+`channels`. The record may still hold `places` and `cloudDm` from the cloud's former sections; nothing
+reads them.
 
 It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
 section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
-switch between relay and a cloud (which mounts or drops the Place and 1:1 sections) each start
-it over. So does a cold cloud switch, where the Chat section gives way to the loading state until a
-place is selected. The skeleton-to-list swap inside the Place section is not one of these — both
-render the same section, so React keeps it — but both branches still forward `open`.
+switch between relay and a cloud each start it over.
 
 The record is **app-wide**, not per cloud or place like sort and pins — folding Chat Rooms says how
 a person uses home, not something about one place. It stores the folded ids only, so an absent or
@@ -192,7 +203,7 @@ corrupt record means everything open, which is the default it always had.
 
 ## Switching
 
-Tapping a place row calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
+Tapping a place chip calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
 commit and the rollback. With no place active — right after a cloud switch — `useSwitchPlace`
 auto-selects the first; with no place at all — once the list is actually known, see below — the
 Chat section is replaced by an empty state.
@@ -222,7 +233,7 @@ list drops a row stamped `deletedAt`), or the owner deleted it from this device 
 same fallback: the selected id was in the list and is not any more, so home switches to the first
 place left. When none is left there is nothing to switch to: the selection is emptied with
 `runtime.session.clearSiteSelection()`, which asks for no switch, and home shows the cloud with no
-place (the empty Place section, the no-place empty state and the cloud's notes to self). The same
+place (an empty place row, the no-place empty state and the cloud's notes to self). The same
 seen-then-gone rule guards it, so an empty list nobody has seen a selection in clears nothing. A user
 who leaves a place themselves does not take this path: the leave ends on a notice that sends them to
 DoU Home (see [place/README.md](../place/README.md#members-and-leaving)), and so does the notice for
@@ -295,7 +306,7 @@ A pull adds **no fetch of its own**. It asks, sooner, for what the screen would 
   the request goes through a registered handler rather than a second copy of the hook. A pull made
   while an earlier one is still running joins it.
 - `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
-  tier pill, which the background sync does not own. The catalog is asked only with a session,
+  the tier, which the background sync does not own. The catalog is asked only with a session,
   because its query is disabled without one and `refetch` does not honour that. For a guest
   account neither reaches the relay: both hooks answer a guest themselves (no owned clouds, no
   membership), so a guest's pull refreshes them without a request.
@@ -313,7 +324,7 @@ sync home already registers, which catches a row up whenever the channel delta m
 
 ## Row swipe actions
 
-Every room row in the room sections — the relay's list, a cloud's group and 1:1 sections — slides sideways to reveal actions
+Every room row in the room lists — the relay's list and a cloud's tabbed list — slides sideways to reveal actions
 behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
 
 | Swipe | Actions                                                                   |
@@ -335,7 +346,7 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
   as `mention` draws nothing, as it is delivered as all messages (`notifyLevelOf`).
 - **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
   moves the row, often out from under the finger, so it is confirmed with a toast. A cloud's self
-  chat leads the 1:1 section whatever is pinned, so a pin could not move it and its row has no right
+  chat leads the All and 1:1 tabs whatever is pinned, so a pin could not move it and its row has no right
   swipe — and with no left side either, it does not swipe at all.
 - **A self chat** in a place's list (relay) has a pin and no left side — its settings offer neither
   notifications nor an exit. Someone else's self chat, which is only ever a row left over from the

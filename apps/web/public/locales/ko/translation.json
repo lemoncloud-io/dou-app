@@ -635,7 +635,12 @@
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
         "loadingCloud": "클라우드를 불러오는 중이에요",
         "refreshing": "새로고침 중",
-        "selectPlaceFirst": "플레이스를 먼저 선택해주세요"
+        "selectPlaceFirst": "플레이스를 먼저 선택해주세요",
+        "tabs": {
+            "all": "전체",
+            "group": "그룹 대화",
+            "dm": "1:1 대화"
+        }
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -758,7 +763,11 @@
             "leave": "나가기",
             "delete": "삭제"
         },
-        "draft": "초안"
+        "draft": "초안",
+        "activity": {
+            "mentions": "안 읽은 멘션 {{count}}개",
+            "threads": "안 읽은 스레드 답글 {{count}}개"
+        }
     },
     "channelManage": {
         "title": "대화방 관리",

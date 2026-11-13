@@ -5,7 +5,7 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { useActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
-import { useNotificationStore } from '../stores/useNotificationStore';
+import { useNotificationStore } from '../../../stores/useNotificationStore';
 
 /**
  * Follows every room's read cursor in the active cloud into the inbox: when a cursor moves ahead,

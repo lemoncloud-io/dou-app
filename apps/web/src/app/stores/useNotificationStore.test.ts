@@ -1,4 +1,4 @@
-import type { NotificationItem } from '../utils/notificationModel';
+import type { NotificationItem } from '../utils/notifications/notificationModel';
 import {
     NOTIFICATIONS_STORAGE_KEY,
     THREAD_PARTICIPATIONS_STORAGE_KEY,

@@ -5,8 +5,8 @@ import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
 
 import { ActiveCloudDataContext, type ActiveCloudData } from '../../../hooks/activeCloudDataContext';
-import { useNotificationStore, useThreadParticipationStore } from '../stores/useNotificationStore';
-import type { NotificationItem } from '../utils/notificationModel';
+import { useNotificationStore, useThreadParticipationStore } from '../../../stores/useNotificationStore';
+import type { NotificationItem } from '../../../utils/notifications';
 import { useNotificationCapture } from './useNotificationCapture';
 
 jest.mock('@chatic/app-runtime', () => ({

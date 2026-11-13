@@ -635,7 +635,12 @@
         "noPlaceDescription": "Connect to a place to start chatting",
         "loadingCloud": "Loading cloud",
         "refreshing": "Refreshing",
-        "selectPlaceFirst": "Select a place first"
+        "selectPlaceFirst": "Select a place first",
+        "tabs": {
+            "all": "All",
+            "group": "Groups",
+            "dm": "1:1"
+        }
     },
     "cloudSessionSheet": {
         "title": "Switch Cloud",
@@ -758,7 +763,11 @@
             "leave": "Leave",
             "delete": "Delete"
         },
-        "draft": "Draft"
+        "draft": "Draft",
+        "activity": {
+            "mentions": "{{count}} unread mentions",
+            "threads": "{{count}} unread thread replies"
+        }
     },
     "channelManage": {
         "title": "Manage chats",
