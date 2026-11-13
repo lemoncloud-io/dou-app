@@ -2,6 +2,12 @@
 
 ## [2026-11-13] - No version updates
 
+### Refactor
+
+- (runtime-core,app-runtime,web,desktop-web) hand the page its repositories via the engine
+
+## [2026-11-13] - No version updates
+
 ### Features
 
 - (runtime-mobile,mobile) build the runtime from react native's ports, not booted yet
