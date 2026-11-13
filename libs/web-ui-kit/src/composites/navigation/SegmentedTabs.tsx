@@ -7,6 +7,11 @@ export interface SegmentedTabsItem {
     id: string;
     /** Tab label. */
     label: string;
+    /**
+     * A count drawn after the label (e.g. "그룹 대화 8"). `undefined` or `0` draws nothing — the
+     * notification tabs hide a zero.
+     */
+    count?: number;
 }
 
 export interface SegmentedTabsProps {
@@ -16,6 +21,14 @@ export interface SegmentedTabsProps {
     value: string;
     /** Fired with the newly selected tab's `id`. */
     onChange: (id: string) => void;
+    /**
+     * `fill` (default) — tabs share the row equally, 15px. `inline` — tabs hug their text from the
+     * left with a 20px gap, 14px, the underline as wide as the text (Figma "대화 필터" 5953:31567,
+     * the notification tabs 6021:18449).
+     */
+    variant?: 'fill' | 'inline';
+    /** A node at the row's right end, outside the tablist (e.g. the home's new-chat button). */
+    trailing?: React.ReactNode;
     className?: string;
 }
 
@@ -31,7 +44,14 @@ export interface SegmentedTabsProps {
  * both ends) so the row is operable without a pointer; the host is responsible for giving each
  * panel `role="tabpanel"` if it needs the full pairing.
  */
-export const SegmentedTabs = ({ items, value, onChange, className }: SegmentedTabsProps) => {
+export const SegmentedTabs = ({
+    items,
+    value,
+    onChange,
+    variant = 'fill',
+    trailing,
+    className,
+}: SegmentedTabsProps) => {
     const listRef = React.useRef<HTMLDivElement>(null);
     const activeIndex = items.findIndex(item => item.id === value);
 
@@ -64,36 +84,78 @@ export const SegmentedTabs = ({ items, value, onChange, className }: SegmentedTa
         listRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
     };
 
-    return (
+    const renderTab = (item: SegmentedTabsItem) => {
+        const isActive = item.id === value;
+        const showCount = (item.count ?? 0) > 0;
+        const common = {
+            type: 'button' as const,
+            role: 'tab',
+            'aria-selected': isActive,
+            // Only the active tab is a tab stop, so Tab enters the row once and the arrows take over.
+            tabIndex: isActive ? 0 : -1,
+            onClick: () => onChange(item.id),
+        };
+        if (variant === 'inline') {
+            return (
+                <button key={item.id} {...common} className="flex shrink-0 flex-col items-center gap-2 pt-2">
+                    <span
+                        className={cn(
+                            'flex items-center gap-1 whitespace-nowrap text-[14px] leading-normal tracking-[-0.28px]',
+                            isActive ? 'text-foreground' : 'font-medium text-tab-idle'
+                        )}
+                    >
+                        <span className={cn(isActive && 'font-bold')}>{item.label}</span>
+                        {showCount && (
+                            <span className={cn('font-medium', isActive && 'text-nav-ink')}>{item.count}</span>
+                        )}
+                    </span>
+                    <span aria-hidden className={cn('h-0.5 w-full', isActive ? 'bg-foreground' : 'bg-transparent')} />
+                </button>
+            );
+        }
+        return (
+            <button
+                key={item.id}
+                {...common}
+                className={cn(
+                    'flex-1 border-b-2 px-4 py-3 text-[15px] font-semibold leading-[1.4] tracking-[-0.075px] transition-colors',
+                    isActive
+                        ? 'border-foreground text-foreground'
+                        : 'border-transparent text-placeholder active:text-label'
+                )}
+            >
+                {item.label}
+                {showCount && <span className="ml-1">{item.count}</span>}
+            </button>
+        );
+    };
+
+    const list = (
         <div
             ref={listRef}
             role="tablist"
             onKeyDown={handleKeyDown}
-            className={cn('flex w-full border-b border-input-border', className)}
+            className={cn(
+                variant === 'inline' ? 'flex min-w-0 flex-1 items-center gap-5 overflow-x-auto' : 'flex w-full',
+                variant === 'fill' && 'border-b border-input-border',
+                variant === 'fill' && !trailing && className
+            )}
         >
-            {items.map(item => {
-                const isActive = item.id === value;
-                return (
-                    <button
-                        key={item.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        // Only the active tab is a tab stop, so Tab enters the row once and the
-                        // arrows take over from there.
-                        tabIndex={isActive ? 0 : -1}
-                        onClick={() => onChange(item.id)}
-                        className={cn(
-                            'flex-1 border-b-2 px-4 py-3 text-[15px] font-semibold leading-[1.4] tracking-[-0.075px] transition-colors',
-                            isActive
-                                ? 'border-foreground text-foreground'
-                                : 'border-transparent text-placeholder active:text-label'
-                        )}
-                    >
-                        {item.label}
-                    </button>
-                );
-            })}
+            {items.map(renderTab)}
+        </div>
+    );
+
+    if (variant === 'fill' && !trailing) return list;
+    return (
+        <div
+            className={cn(
+                'flex w-full items-center border-b border-input-border',
+                variant === 'inline' && 'gap-5 px-4',
+                className
+            )}
+        >
+            {list}
+            {trailing && <div className="flex shrink-0 items-center">{trailing}</div>}
         </div>
     );
 };

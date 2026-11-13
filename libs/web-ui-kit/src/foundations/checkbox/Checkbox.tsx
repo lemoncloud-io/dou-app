@@ -12,9 +12,10 @@ export interface CheckboxProps {
     size?: number;
     /**
      * Checked-state fill. `primary` is the Figma "CheckBox" component; `accent` is the
-     * "Check Circle" glyph used by the chat-room management list (#90C304 disc, white check).
+     * "Check Circle" glyph used by the chat-room management list (#90C304 disc, white check);
+     * `ink` is the notification selection check (6023:18847, navy disc, white check).
      */
-    tone?: 'primary' | 'accent';
+    tone?: 'primary' | 'accent' | 'ink';
     /** Accessible label (used when interactive). */
     label?: string;
     /**
@@ -28,6 +29,7 @@ export interface CheckboxProps {
 const CHECKED_TONE = {
     primary: 'border-primary bg-primary text-primary-foreground',
     accent: 'border-main-accent bg-main-accent text-white',
+    ink: 'border-chip-ink bg-chip-ink text-white',
 } as const;
 
 /**

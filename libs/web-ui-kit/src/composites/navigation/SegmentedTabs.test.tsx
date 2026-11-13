@@ -107,4 +107,44 @@ describe('SegmentedTabs — 포커스', () => {
 
         expect(screen.getByRole('tab', { name: '연락처' })).toHaveFocus();
     });
+
+    it('draws a count after the label and hides a zero', () => {
+        render(
+            <SegmentedTabs
+                variant="inline"
+                items={[
+                    { id: 'all', label: 'All', count: 12 },
+                    { id: 'dm', label: 'DM', count: 0 },
+                ]}
+                value="all"
+                onChange={jest.fn()}
+            />
+        );
+
+        expect(screen.getByRole('tab', { name: 'All 12' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('tab', { name: 'DM' })).toBeInTheDocument();
+    });
+
+    it('keeps the trailing node outside the tablist', () => {
+        render(
+            <SegmentedTabs
+                variant="inline"
+                items={ITEMS}
+                value="place"
+                onChange={jest.fn()}
+                trailing={<button type="button">new</button>}
+            />
+        );
+
+        expect(screen.getByRole('tablist')).not.toContainElement(screen.getByRole('button', { name: 'new' }));
+        expect(screen.getAllByRole('tab')).toHaveLength(2);
+    });
+
+    it('keeps the keyboard contract in the inline variant', () => {
+        const onChange = jest.fn();
+        render(<SegmentedTabs variant="inline" items={ITEMS} value="place" onChange={onChange} />);
+
+        fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
+        expect(onChange).toHaveBeenCalledWith('contact');
+    });
 });

@@ -2,7 +2,14 @@ import { useState } from 'react';
 
 import type { Meta, StoryObj } from '@storybook/react';
 
-import { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid } from '../../resources/icons';
+import {
+    IconNavBell,
+    IconNavBellSolid,
+    IconNavChat,
+    IconNavChatSolid,
+    IconNavMy,
+    IconNavMySolid,
+} from '../../resources/icons';
 import { FloatingTabBar } from './FloatingTabBar';
 
 const meta: Meta<typeof FloatingTabBar> = {
@@ -22,7 +29,7 @@ export default meta;
 
 type Story = StoryObj<typeof FloatingTabBar>;
 
-const Demo = ({ badge }: { badge?: number }) => {
+const Demo = ({ badge, dot }: { badge?: number; dot?: boolean }) => {
     const [active, setActive] = useState('chat');
     return (
         <FloatingTabBar
@@ -34,6 +41,15 @@ const Demo = ({ badge }: { badge?: number }) => {
                     activeIcon: <IconNavChatSolid />,
                     badge,
                     active: active === 'chat',
+                },
+                {
+                    key: 'alerts',
+                    label: '알림',
+                    icon: <IconNavBell />,
+                    activeIcon: <IconNavBellSolid />,
+                    dot,
+                    dotLabel: '새 알림 있음',
+                    active: active === 'alerts',
                 },
                 {
                     key: 'my',
@@ -51,6 +67,9 @@ const Demo = ({ badge }: { badge?: number }) => {
 export const Default: Story = { render: () => <Demo /> };
 
 export const WithUnreadBadge: Story = { render: () => <Demo badge={1200} /> };
+
+/** The notifications tab's red dot — something new, no number. */
+export const WithNotificationDot: Story = { render: () => <Demo badge={3} dot /> };
 
 /** Coloured rows behind the bar, so the frost, the saturation lift and the rims can be judged. */
 export const OverContent: Story = {

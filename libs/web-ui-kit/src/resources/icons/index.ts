@@ -1,5 +1,6 @@
 import {
     ArrowUp,
+    AtSign,
     Bell,
     BellOff,
     Check,
@@ -72,6 +73,8 @@ export const IconClock: LucideIcon = Clock;
 export const IconCopy: LucideIcon = Copy;
 /** Room notifications on / off — the home row's mute swipe action and its muted-state glyph. */
 export const IconBell: LucideIcon = Bell;
+/** The mention mark — the notification row's mention chip and the room's mention jump pill. */
+export const IconAtSign: LucideIcon = AtSign;
 export const IconBellOff: LucideIcon = BellOff;
 /** Leave a room — the member's destructive swipe action. */
 export const IconLeave: LucideIcon = LogOut;
@@ -138,4 +141,15 @@ export {
 } from './FileKindIcons';
 // Bottom nav glyphs (Figma 5780:17209): each tab has a line icon and a filled one for its selected
 // state. They fill or stroke `currentColor`; the tab bar colours them with `text-nav-ink`.
-export { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid, type NavIconProps } from './NavIcons';
+export {
+    IconNavBell,
+    IconNavBellSolid,
+    IconNavChat,
+    IconNavChatSolid,
+    IconNavMy,
+    IconNavMySolid,
+    type NavIconProps,
+} from './NavIcons';
+// Notification glyphs (Figma 5774:29146): the thread type chip's bubble, the filter chip's check and
+// the jump pill's arrow. They stroke `currentColor`; the chip, filter or pill colours them.
+export { IconCheckSmall, IconJumpArrow, IconThreadChip, type NotifyGlyphProps } from './NotifyGlyphs';
