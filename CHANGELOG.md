@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web/notifications) derive the notification inbox on the device (ADR-0312)
+
+## [2026-11-13] - No version updates
+
+### Features
+
 - (web-ui-kit) add the notification parts — rows, chips, selection bar and jump pills
 
 ### Documentation

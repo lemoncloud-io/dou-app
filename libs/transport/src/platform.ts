@@ -71,7 +71,7 @@ class TransportPlatform implements ITransportPlatform {
 /**
  * The process-wide platform. A default would have to be one platform's — a page's `navigator` and
  * `WebSocket` — and in a native process those either do not exist or answer wrongly (React Native's
- * `WebSocket` sends no User-Agent, which the server checks a refreshed token against), so an unwired
- * runtime fails at the first use instead.
+ * `WebSocket` does not send the app's User-Agent, which the server checks a refreshed token against),
+ * so an unwired runtime fails at the first use instead.
  */
 export const transportPlatform: ITransportPlatform = new TransportPlatform();

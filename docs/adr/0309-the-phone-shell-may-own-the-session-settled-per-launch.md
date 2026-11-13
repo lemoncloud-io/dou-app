@@ -6,15 +6,17 @@
 > handles, login answers without `Token`); `refactor/session-commands-via-engine` (the session commands,
 > run through the engine and named in the contract; a pairing approval's session held like an invite
 > login's); `refactor/connection-via-engine` (the sockets and the sync engine through the engine, their
-> calls and streams named in the contract); `refactor/repositories-via-engine` (the page's repository
-> graph without the token issuers, every repository method named in the contract)
+> calls and streams named in the contract); `feat/runtime-mobile` (the native adapter: React Native's
+> ports and `createNativeRuntime`; not booted yet); `refactor/repositories-via-engine` (the page's
+> repository graph without the token issuers, every repository method named in the contract)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
 > (`client.ts`, `mock.ts`); `libs/bridges/src/app/AppBridgeHost.ts` (`RuntimeHello` is not taken as the
 > web being ready); the phone and desktop shells' contract tests (the requests unanswered, the pushes
 > not sent); `libs/runtime-core/src/bridge/` (`RUNTIME_CONTRACT_VERSION`, the handshake, errors across
-> the bridge)
+> the bridge); `libs/runtime-mobile` (`@chatic/runtime-mobile`) and the two native modules it needs in
+> `apps/mobile/package.json` (`@react-native-community/netinfo`, `react-native-get-random-values`)
 > · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
 > · Amends: [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) — its first Alternative:
 > the session's state joins the engine one reader group at a time, the core engine first

@@ -62,7 +62,10 @@ hooks that share them depend on this package anyway.
    `currentSearch()` — the address's query string, which the boot sweep and `preserveUrl` read — and
    `leaveToHome(params)` — the navigation at the end of `clearAndRedirect`. In a page
    (filled by `createWebRuntime` in `@chatic/runtime-web`) they are `location.search` and
-   `location.replace('/?<params>')`. Used before it is configured, `authPlatform.ports()` throws and
+   `location.replace('/?<params>')`. In React Native (`createNativeRuntime` in
+   `@chatic/runtime-mobile`) there is no address: `leaveToHome` saves the parameters in the plain store
+   and hands over to the app's own way home, and the next boot's `currentSearch` answers them — the
+   second lifetime a page gets from its navigation. Used before it is configured, `authPlatform.ports()` throws and
    names `createRuntime`; the boot sweep reads it outside its storage `try`, so a missing wiring fails
    the boot rather than skipping the sweep.
 

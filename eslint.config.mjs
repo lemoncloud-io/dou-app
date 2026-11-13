@@ -157,12 +157,15 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   runtime from them. It sits on the core libs and the foundation and on nothing else. This is an
  *   allow-list, not a deny-list, so a dependency it gains later has to be tagged on purpose rather
  *   than slipping in untagged.
- * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`).
- *   Nothing in the runtime depends on them; they never reach up into the React surface, and a port
- *   is not UI, so no React either.
+ * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`,
+ *   `@chatic/runtime-mobile`). Nothing in the runtime depends on them; they never reach up into the
+ *   React surface, and a port is not UI, so no React either.
  * - `layer:react-surface` — `@chatic/app-runtime`, what apps render against. It never imports an
  *   adapter: which platform fills the ports is the entry point's choice, not the surface's.
  * - `platform:web` — a package that only runs in a web page. It may not pull React Native in.
+ * - `platform:native` — a package that only runs in React Native's JS process
+ *   (`@chatic/runtime-mobile`). It may not depend on a `platform:web` package: what is true of a page
+ *   is false there, and nothing would say so until a device ran it.
  *
  * `notDependOnLibsWithTags` also follows the target's own dependencies, so a core lib cannot reach
  * an adapter through a lib in between. `onlyDependOnLibsWithTags` checks direct dependencies only.
@@ -202,6 +205,10 @@ const runtimeLayerConstraints = [
     {
         sourceTag: 'platform:web',
         bannedExternalImports: REACT_NATIVE_IMPORTS,
+    },
+    {
+        sourceTag: 'platform:native',
+        notDependOnLibsWithTags: ['platform:web'],
     },
 ];
 
@@ -263,9 +270,9 @@ const STORAGE_GLOBALS = [
 /**
  * The core packages — session, transport, sync, auth, data — run in the native process as well as in a
  * page, so none of them may read a page's globals: what the platform answers comes in through a port
- * the platform's adapter fills (`@chatic/runtime-web` in a page). Four of them also compile without
- * the DOM's types; `@chatic/data` still declares its IndexedDB port in IndexedDB's own types, so for
- * it this list is the only check. Listed by name, because `no-restricted-globals` has no "everything
+ * the platform's adapter fills (`@chatic/runtime-web` in a page, `@chatic/runtime-mobile` in the native
+ * process). Four of them also compile without the DOM's types; `@chatic/data` still declares its
+ * IndexedDB port in IndexedDB's own types, so for it this list is the only check. Listed by name, because `no-restricted-globals` has no "everything
  * a page has"; these are the ones a runtime is tempted by.
  */
 const CORE_LIB_SOURCES = ['session', 'transport', 'sync', 'auth', 'data'].map(name => `libs/${name}/src/**/*.ts`);
@@ -405,8 +412,8 @@ export default [
         // the HTTP gateways; the sync barrel sells the manager and the refusal writers; the auth barrel
         // sells the session writers and the renewers. An app that imported one could go around the use
         // cases built on them. Apps read all four through `runtime`. A lib config that extends this
-        // one and may import one of the packages — transport, sync, auth, app-runtime — sets the rule
-        // again for its own files.
+        // one and may import one of the packages — transport, sync, auth, app-runtime, and the two
+        // adapters runtime-web and runtime-mobile — sets the rule again for its own files.
         //
         // No package is exempt here, `libs/data` and `libs/session` included: each passes the whole
         // list, its own name among it. An `ignores` for either would open more than its own name —
@@ -441,7 +448,7 @@ export default [
                         {
                             name: '@chatic/runtime-core',
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web, hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                     patterns: [
@@ -473,7 +480,7 @@ export default [
                         {
                             group: ['@chatic/runtime-core/*'],
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web, hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                 },
