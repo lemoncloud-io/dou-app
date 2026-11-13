@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-13] - root@0.153.1, @chatic/landing@0.17.2
+
+### Refactor
+
+- (data,http) remove the subscriptions/0/mine read, not called any more
+- (landing) read the web subscription off the membership, not subscriptions/0/mine
+
 ## [2026-11-13] - No version updates
 
 ### Refactor
