@@ -10,6 +10,15 @@
     // The same sibling projects tsconfig.lib.json references.
     "references": [
         {
+            "path": "../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../db/tsconfig.lib.json"
+        },
+        {
             "path": "../runtime-core/tsconfig.lib.json"
         },
         {

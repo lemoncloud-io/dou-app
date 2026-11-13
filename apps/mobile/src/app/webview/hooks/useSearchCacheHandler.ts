@@ -1,30 +1,20 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import { useServices } from '../../hooks';
 import { provider } from '../../services';
-import type { WebMessageData } from '@chatic/bridge-messages';
+import { createCacheMessageHandlers } from '../../services/cache/cacheMessages';
 
+/** The page's search across clouds. Answered by `createCacheMessageHandlers`, as the CRUD messages are. */
 export const useSearchCacheHandler = () => {
     const { logService: logger } = useServices();
-    // `provider.cacheSearchService` is read inside the callback (not at render) so SQLite opens on the
-    // first actual search message, off the boot critical path (boot-optimization.md 4.4).
 
-    const handleSearchGlobalCache = useCallback(
-        async (message: WebMessageData<'SearchGlobalCacheData'>) => {
-            const { keyword, cid, uid } = message.data;
-            try {
-                const items = await provider.cacheSearchService.search(keyword, cid, uid);
-                return { type: 'OnSearchGlobalCacheData' as const, success: true, data: { items } };
-            } catch (e: any) {
-                logger.error('CACHE', `Search execution failed for keyword: ${keyword}`, e);
-                return {
-                    type: 'OnSearchGlobalCacheData' as const,
-                    success: false,
-                    error: { code: 'SEARCH_ERROR', message: e.message },
-                };
-            }
-        },
-        [logger]
-    );
-
-    return { handleSearchGlobalCache };
+    return useMemo(() => {
+        // `provider.cacheSearchService` is read on each message (not at render) so SQLite opens on the
+        // first actual search message, off the boot critical path (boot-optimization.md 4.4).
+        const handlers = createCacheMessageHandlers({
+            crud: () => provider.cacheCrudService,
+            search: () => provider.cacheSearchService,
+            logger,
+        });
+        return { handleSearchGlobalCache: handlers.SearchGlobalCacheData };
+    }, [logger]);
 };

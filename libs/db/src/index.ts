@@ -13,6 +13,7 @@ export type { IndexedDBAdapterOptions } from './indexeddb/IndexedDBAdapter';
 export { WebStorageAdapter } from './webstorage/WebStorageAdapter';
 
 export { NativeDBAdapter } from './native/NativeDBAdapter';
+export type { CacheBridgeClient } from './native/cacheBridge';
 export {
     getNativeCacheMetrics,
     recordNativeCacheOperation,
