@@ -27,6 +27,7 @@ import {
 import { formatFileSize, formatPlaybackTime, splitFileName } from '../../utils';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';
 import { useVoicePlayback } from './voicePlayback';
+import { useWaveform } from './voiceWaveform';
 import { Hint } from '../../../../shared';
 
 /** How far the arrow keys and the skip buttons move. */
@@ -61,8 +62,9 @@ const ROUND_BUTTON =
  * card is and the card follows what is done here.
  *
  * Space plays and pauses, ←/→ move fifteen seconds and Esc closes, wherever focus is inside — a focused
- * button does not also take the Space as a click. The bars are a pattern drawn from the name, not the
- * file's waveform: drawing that would mean fetching the whole file before it plays.
+ * button does not also take the Space as a click. The bars are the file's own waveform, fetched and
+ * decoded once it opens; until then, and for a file the browser cannot decode, a pattern drawn from the
+ * name stands in, so the dialog never waits on the decode to play.
  */
 export const VoiceDetailDialog = ({
     src,
@@ -85,7 +87,8 @@ export const VoiceDetailDialog = ({
     const { playing, loading, time, duration, failed, rate } = voice;
     const contentRef = useRef<HTMLDivElement>(null);
     const { extension } = splitFileName(name);
-    const bars = useMemo(() => barHeights(name), [name]);
+    const pattern = useMemo(() => barHeights(name), [name]);
+    const bars = useWaveform(src, pattern, { size, duration });
 
     const max = duration || 1;
     const position = duration ? Math.min(time, duration) : 0;
@@ -213,7 +216,7 @@ export const VoiceDetailDialog = ({
                                 key={index}
                                 className={cn(
                                     'w-[3px] rounded-full transition-colors',
-                                    index / BAR_COUNT < played ? 'bg-foreground' : 'bg-foreground/20'
+                                    index / bars.length < played ? 'bg-foreground' : 'bg-foreground/20'
                                 )}
                                 style={{ height: `${height}%` }}
                             />
