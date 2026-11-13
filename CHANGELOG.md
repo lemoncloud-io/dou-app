@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-13] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime,web,desktop-web) reach the sockets and sync through the engine
+
 ## [2026-11-13] - root@0.153.1, @chatic/landing@0.17.2
 
 ### Refactor
