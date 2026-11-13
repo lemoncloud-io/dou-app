@@ -1309,6 +1309,10 @@
             "unlock": "입력 잠금 해제",
             "locked": "입력을 잠갔어요",
             "unlocked": "입력 잠금을 해제했어요"
+        },
+        "jump": {
+            "mentions": "멘션 {{count}}",
+            "latest": "최신 메시지 {{count}}"
         }
     },
     "search": {

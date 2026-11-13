@@ -29,3 +29,4 @@ export * from './useMessageEditing';
 export * from './useRoomOpenTrace';
 export * from './useRoomSyncTrace';
 export * from './useChatInputLock';
+export * from './useRoomJumpPills';

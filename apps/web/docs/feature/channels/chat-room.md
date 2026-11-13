@@ -4,7 +4,7 @@
 it owns data, derivation and orchestration (send, read, scroll, gestures) and nothing visual.
 Everything drawn comes from `@chatic/web-ui-kit` primitives, assembled here — `ChatRoomHeader`,
 `DateDivider`, `SystemNotice`, `SystemMessage`, `MessageRow`, `MessageBubble`, `ReadReceipt`,
-`MessageInput`, `FloatingDateChip`.
+`MessageInput`, `FloatingDateChip`, `JumpPill`.
 
 This document covers the room's own surface. Reactions, the action sheet and the thread page are in
 [reactions-and-threads.md](./reactions-and-threads.md); the hooks feeding this screen are in
@@ -658,6 +658,25 @@ the server (`revalidateAround`). And a list change that leaves the newest row al
 the top, or a gap filled — goes through the same anchor hold as an arrival when the reader is in
 history. Rows added at the top move nothing, but a gap filled below a reader who jumped into old
 history pushes them up in WebKit, just as an arrival does.
+
+## Jump pills
+
+One floating pill sits centred above the composer when there is somewhere to jump
+(`useRoomJumpPills`, the kit's `JumpPill`, Figma 6002:40133 · 6002:41749). Mentions win when both
+apply.
+
+- **Mentions** — the reader's unread mentions in this room, from the device's notification inbox
+  (`app/stores/useNotificationStore`; [notifications](../notifications/README.md)), oldest first. A
+  thread mention points at its root's row in the room. They are taken **when the room opens**:
+  entering moves the read cursor, and the cursor reads the room's inbox items, so a later read would
+  find nothing. A tap jumps to the oldest one left through `useMessageJumpStore` — the same scroll,
+  older-page loading and highlight a search hit gets — and reads its items; a mention whose row
+  scrolls into view by hand counts as reached too (checked on scroll and as the list changes).
+- **Latest messages** — while the reader is away from the newest messages (`useChatScroll`'s
+  `isAwayFromBottom`, the same slack that decides the bottom pin), how many messages from others have
+  arrived since they left; a tap scrolls smoothly back to the bottom, and arriving there clears it.
+
+Both play the selection haptic when tapped.
 
 ## What not to do
 
