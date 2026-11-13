@@ -390,10 +390,11 @@ describe('HomePage — relay mode', () => {
         expect(useSwitchPlace).toHaveBeenCalled();
     });
 
-    it('still renders the Chat section', () => {
+    it('still renders the room list, under the same tabs as a cloud', () => {
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toBeInTheDocument();
+        expect(screen.getByTestId('chat-tabs')).toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toBeInTheDocument();
         expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
     });
 
@@ -412,26 +413,41 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 
-    // The relay keeps one list: its 1:1s and its self chat stay beside each other, untitled.
-    it('keeps one untitled list with every room in it and no 1:1 section', () => {
+    // The relay's self chat is one of its place's rooms: it goes with the 1:1s and leads them, and
+    // the group tab — the relay has no group rooms of its own — is empty.
+    it('lists its self chat with the 1:1s, under All and 1:1, and nothing under Groups', () => {
         homeChannels = [
             { id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' },
             { id: 'r-self', stereo: 'self', cid: 'default', sid: '0000' },
         ];
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', '');
-        expect(screen.queryByTestId('cloud-list')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('chat-tabs')).not.toBeInTheDocument();
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'true');
+        expect(screen.getByTestId('tab-dm')).toHaveAttribute('data-count', '2');
+        fireEvent.click(screen.getByTestId('tab-group'));
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', '');
+        expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
     });
 
-    // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
+    // On relay a 1:1 is reached by phone number, so the tab row's ＋ goes to the contact form.
     it('offers the 1:1 entry and sends it to the contact invite form', () => {
         render(<HomePage />);
-        fireEvent.click(screen.getByTestId('create-direct'));
+        fireEvent.click(screen.getByTestId('start-dm'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
+    });
+
+    // A group room lives in a cloud of one's own: on the relay its entry is the upsell, so a
+    // subscriber, who already has that, is not offered it.
+    it('offers group creation as the upsell to the unpaid only', () => {
+        const { unmount } = render(<HomePage />);
+        expect(screen.getByTestId('create-group')).toBeInTheDocument();
+        unmount();
+
+        membership = { isValid: true };
+        render(<HomePage />);
+        expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 });
 
@@ -604,7 +620,7 @@ describe('HomePage — cloud mode', () => {
         homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: 'site-1' }];
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
+        expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', '');
     });
 
     // The empty room list's "you can leave this place" link opens the active place's information
@@ -615,23 +631,6 @@ describe('HomePage — cloud mode', () => {
         fireEvent.click(screen.getByTestId('open-place-info'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
-    });
-});
-
-// The relay's list still folds, and its fold comes from the stored record — that is what lets it
-// survive leaving home. A cloud's home has no folding sections any more.
-describe('HomePage — section folds', () => {
-    beforeEach(() => {
-        selectedCloudId = 'default';
-    });
-
-    it('opens the relay list from its stored entry and writes a toggle under it', () => {
-        collapsedSections = { channels: true };
-        render(<HomePage />);
-
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        fireEvent.click(screen.getByTestId('channel-toggle'));
-        expect(setSectionOpenMock.mock.calls).toEqual([['channels', true]]);
     });
 });
 
