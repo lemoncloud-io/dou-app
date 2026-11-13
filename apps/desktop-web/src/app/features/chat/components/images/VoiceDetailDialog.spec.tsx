@@ -219,13 +219,26 @@ describe('opening it from the card', () => {
         const onDeleteMessage = vi.fn();
         const { rerender } = renderFeed({ canDelete: true, onDeleteMessage });
         fireEvent.click(cardOf());
-        rerender(<VoiceDetailHost />);
+        rerender(
+            <>
+                {null}
+                <VoiceDetailHost />
+            </>
+        );
         await openMore();
         fireEvent.click(screen.getByRole('menuitem', { name: 'Delete file' }));
         expect(screen.getByRole('alertdialog', { name: 'Delete this message?' })).toBeTruthy();
         expect(onDeleteMessage).not.toHaveBeenCalled();
         fireEvent.click(screen.getByRole('button', { name: 'Delete file' }));
         expect(onDeleteMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes when the screen holding it goes, so it does not come back on return', () => {
+        const { unmount } = renderFeed();
+        fireEvent.click(cardOf());
+        expect(useVoiceDetailStore.getState().request).not.toBeNull();
+        unmount();
+        expect(useVoiceDetailStore.getState().request).toBeNull();
     });
 
     it('leaves show in chat out elsewhere', async () => {

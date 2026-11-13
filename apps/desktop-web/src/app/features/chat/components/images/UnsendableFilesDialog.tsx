@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TFunction } from 'i18next';
@@ -27,6 +28,8 @@ export const UnsendableFilesHost = () => {
     const { t } = useTranslation();
     const request = useUnsendableFilesStore(s => s.request);
     const close = useUnsendableFilesStore(s => s.close);
+    // Closed with the home screen, adding nothing, as Cancel does: the composer that asked is gone.
+    useEffect(() => close, [close]);
     if (!request) return null;
     const { refused, restCount, onUploadRest } = request;
     const hasUnsupported = refused.some(file => file.reason === 'unsupported');

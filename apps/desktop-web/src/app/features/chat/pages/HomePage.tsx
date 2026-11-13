@@ -410,6 +410,9 @@ export const HomePage = () => {
                 knownCloudIds: new Set(clouds.map(c => c.id)),
             })
         ) {
+            // The cloud list may not be in yet (a link that started the app): wait for it, and judge
+            // the link again once it lands, rather than refuse a cloud the reader has.
+            if (isFetchingClouds) return;
             toast({ description: translate('chat.file.linkUnavailable') });
             clearPendingOpen();
             return;
@@ -483,8 +486,9 @@ export const HomePage = () => {
             }
         }
         clearPendingOpen();
-        // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
-    }, [pendingOpen?.nonce]);
+        // Re-fire only on a new notification (nonce), not on selectedPlaceId churn — and once the cloud
+        // list lands, for a link held above until it did.
+    }, [pendingOpen?.nonce, isFetchingClouds]);
 
     // Places the auto-select below has already tried, skipped until the selection settles. A refused
     // switch rolls the selection back to the same unlisted site, so without it every failed switch

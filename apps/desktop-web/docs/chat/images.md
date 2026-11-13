@@ -128,7 +128,7 @@ images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matc
 the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
 a browser, Chrome may ask once whether the site may download several files.
 
-When a save ends, the desktop app says so (`useDownloadNotices`, mounted once in `DesktopLayout`):
+When a save ends, the desktop app says so (`useDownloadNotices`, mounted once at the app root, so a save that ends on Settings or Profile is told too):
 "Saved song.mp3" with "Show in Finder" ("Show in Explorer" on Windows), and saves that end within a
 few seconds of each other — Download all — share one notice that counts them ("Saved 6 files"), its
 button showing the last. A save that broke off says so; a save dialog dismissed says nothing. Only the
@@ -227,7 +227,8 @@ lists them under the images:
       does; a channel the reader is not in is never reached, and the open lapses. Anything on the
       machine can open the scheme, so a link only moves the reader to a cloud this device already
       lists (`opensIntoKnownCloud`); one naming another cloud is refused with a toast rather than
-      looked up, and a message number past the safe integer range is not a link at all.
+      looked up — once the cloud list has loaded: a link that arrives first, as on a cold start,
+      waits for it. A message number past the safe integer range is not a link at all.
     - **Forward**, in the same two menus, sends the file again as a new message: the reader picks a
       channel of the place on screen, the same list as the quick switcher (`ForwardFileDialog`,
       mounted by the home screen, not the channel list, which a compact window unmounts with its

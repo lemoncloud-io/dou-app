@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 
 import { DeleteFileConfirm } from './DeleteFileConfirm';
@@ -26,6 +26,9 @@ export const useVoiceDetailStore = create<{
 export const VoiceDetailHost = () => {
     const request = useVoiceDetailStore(s => s.request);
     const close = useVoiceDetailStore(s => s.close);
+    // Closed with the home screen: one left open would come back with the old row's actions, and its
+    // file, released meanwhile, would start again from the top.
+    useEffect(() => close, [close]);
     // The delete waiting on its confirm. Kept here, not in the dialog: the dialog closes as it asks.
     const [pendingDelete, setPendingDelete] = useState<(() => void) | null>(null);
     const onDelete = request?.onDelete;

@@ -118,4 +118,26 @@ describe('unsendable files', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Upload the other 1' }));
         expect(tray.current.attachments.map(item => item.name)).toEqual(['song.mp3']);
     });
+
+    it('adds nothing and closes when the screen holding it goes', () => {
+        const onUploadRest = vi.fn();
+        const host = render(
+            <TooltipProvider>
+                <UnsendableFilesHost />
+            </TooltipProvider>
+        );
+        act(() =>
+            useUnsendableFilesStore.setState({
+                request: {
+                    refused: [{ name: 'empty.txt', reason: 'empty' }],
+                    restCount: 1,
+                    onUploadRest,
+                },
+            })
+        );
+        expect(screen.getByRole('alertdialog')).toBeTruthy();
+        host.unmount();
+        expect(useUnsendableFilesStore.getState().request).toBeNull();
+        expect(onUploadRest).not.toHaveBeenCalled();
+    });
 });

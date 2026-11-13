@@ -12,7 +12,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
-import { RouteFallback, parsePushDeeplink, usePendingOpenStore } from './shared';
+import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenStore } from './shared';
 
 /**
  * Desktop notification-open router. Mounted inside the Router (so it can
@@ -25,6 +25,12 @@ import { RouteFallback, parsePushDeeplink, usePendingOpenStore } from './shared'
  * Whenever a target is set it routes home; HomePage applies the cloud/place/
  * channel target once each loads.
  */
+/** A save the shell finished: "Saved …" and the way to show it, on whichever page the reader is. */
+const DownloadNotices = () => {
+    useDownloadNotices();
+    return null;
+};
+
 const NotificationOpenListener = () => {
     const navigate = useNavigate();
     const request = usePendingOpenStore(s => s.request);
@@ -112,6 +118,7 @@ export const AppRouter = () => {
     return (
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
+            {isAuthenticated && <DownloadNotices />}
             {/* Route-independent, so "?" and the menu entry work on every page. */}
             {isAuthenticated && (
                 // Its own boundary: the chat chunk loading must not blank the page.
