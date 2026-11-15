@@ -1,4 +1,14 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/bridge-messages';
+import type {
+    CacheModelMap,
+    CacheQueryMap,
+    CacheType,
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatMediaPage,
+    LastChatItem,
+    PagingMeta,
+} from '@chatic/bridge-messages';
 import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
 import type { ICacheDataSource, IChatCacheDataSource } from '../../data/cache';
@@ -263,6 +273,49 @@ export class CacheCrudService implements ICacheCrudService {
             this.logService.error('CACHE', 'FetchLastChats error', error as Error);
             return null;
         }
+    }
+
+    /**
+     * [Fetch] One page of a room's media index. Unlike `fetchLastChats` a failure is thrown, so the
+     * handler can answer it `items: null` while an empty page stays an honest empty page.
+     */
+    public async fetchChatMedia(payload: {
+        type: 'chat';
+        channelId: string;
+        kind: ChatMediaKind;
+        cursorNo?: number;
+        limit: number;
+        cid: string;
+        uid: string;
+    }): Promise<ChatMediaPage> {
+        const { type, channelId, kind, cursorNo, limit, cid, uid } = payload;
+        if (type !== 'chat' || !channelId) throw new Error('fetchChatMedia requires a chat channelId');
+        return this.chatDataSource.fetchMediaPage({ channelId, kind, cursorNo, limit }, cid, uid);
+    }
+
+    /** [Fetch] A room's media index entries per kind. Throws on failure, as `fetchChatMedia`. */
+    public async countChatMedia(payload: {
+        type: 'chat';
+        channelId: string;
+        cid: string;
+        uid: string;
+    }): Promise<ChatMediaCounts> {
+        const { type, channelId, cid, uid } = payload;
+        if (type !== 'chat' || !channelId) throw new Error('countChatMedia requires a chat channelId');
+        return this.chatDataSource.countMedia(channelId, cid, uid);
+    }
+
+    /** [Save] A room fill's entries. Throws on failure, so the web does not mark the room filled. */
+    public async saveChatMedia(payload: {
+        type: 'chat';
+        items: ChatMediaFillItem[];
+        version: number;
+        cid: string;
+        uid: string;
+    }): Promise<void> {
+        const { type, items, version, cid, uid } = payload;
+        if (type !== 'chat') throw new Error('saveChatMedia is chat only');
+        await this.chatDataSource.saveMediaFill(items ?? [], version, cid, uid);
     }
 
     public async save<K extends CacheType>(payload: {

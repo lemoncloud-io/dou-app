@@ -26,7 +26,9 @@ export const nativeLocalCachePorts = (client: CacheBridgeClient): LocalCachePort
         if (route !== NATIVE_CACHE_ROUTE) {
             throw new Error(`[runtime-mobile] unknown cache route '${route}' for '${type}'`);
         }
-        return new NativeDBAdapter(client, type, contextProvider);
+        // This runtime is the installed app, built together with the handlers it sends to — every
+        // cache request the adapter knows is answered, the room media index reads included.
+        return new NativeDBAdapter(client, type, contextProvider, { handlesMessage: () => true });
     },
     routed: () => undefined,
     globalSearch: () => new NativeGlobalSearchSource(client),

@@ -23,7 +23,7 @@ import { asDomStorage } from '@chatic/storage';
 
 import type { KeyValueStore } from '@chatic/storage';
 import { InvitedCloudImportStorage } from './invitedCloudImport';
-import { isNativeCacheTypeUsable } from './nativeCacheSupport';
+import { isNativeCacheMessageHandled, isNativeCacheTypeUsable } from './nativeCacheSupport';
 import { type CacheBackend, isInPhoneApp, resolveCacheBackend } from './routing';
 
 export { setNativeCacheSupport } from './nativeCacheSupport';
@@ -117,7 +117,9 @@ export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => ({
     ): CacheStorage<TType> => {
         switch (route as CacheBackend) {
             case 'native':
-                return new NativeDBAdapter(webClient, type, contextProvider);
+                return new NativeDBAdapter(webClient, type, contextProvider, {
+                    handlesMessage: isNativeCacheMessageHandled,
+                });
             case 'session':
                 return createTabStorageAdapter(type, contextProvider, tab);
             case 'web':

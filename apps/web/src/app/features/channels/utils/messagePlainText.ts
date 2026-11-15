@@ -1,6 +1,6 @@
 import { blocksToPlainText, parseBlocks } from '@chatic/block-kit';
 
-import { toPlainPreview, toPlainText } from './messageTokens';
+import { toPlainPreview, toPlainText } from '@chatic/data';
 
 /**
  * A message body as one string, whatever shape it arrived in — a Block Kit payload or

@@ -169,24 +169,26 @@ into it where the correlation survives.
 ```text
 libs/bridge-messages/src/
 ├── index.ts                      public barrel — re-exports ./types, nothing else
+├── testing/                      test support only, `@chatic/bridge-messages/testing` — the room media index
+│                                 contract table both stores' suites run (`chatMediaContract.ts`)
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (122) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (136) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (125) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (139) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
     └── model/                    29 files — 28 payload files, grouped by domain, and their barrel
 ```
 
-35 files, 4,676 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
-whole gate.
+37 files, 5,262 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+whole gate. `testing/` is data and a runner other projects' suites import; it has no runtime caller.
 
 The payload files, with what is in each:
 
 | File                   | Lines | What it declares                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `system.ts`            | 526   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `cache.ts`             | 491   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `cache.ts`             | 622   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, `ChatMediaEntry`, the 14 cache messages                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `common.ts`            | 205   | `AppLogInfo`, the upload queue, `PendingReportInfo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `media-export.ts`      | 144   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes                                                                                                                                                                                                                                                                                                                                                         |

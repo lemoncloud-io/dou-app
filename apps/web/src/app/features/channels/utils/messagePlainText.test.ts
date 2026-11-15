@@ -1,5 +1,5 @@
 import { deleteConfirmQuote, messagePlainText, messagePreview, messageSearchText } from './messagePlainText';
-import { toPlainPreview } from './messageTokens';
+import { toPlainPreview } from '@chatic/data';
 
 describe('messagePlainText', () => {
     it('flattens a Block Kit payload instead of returning its JSON', () => {

@@ -4,7 +4,7 @@ import { AtSign } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import { type DomainChannel, type DomainChat, type DomainJoin, isMentioningViewer } from '@chatic/data';
+import { type DomainChannel, type DomainChat, type DomainJoin, isMentioningViewer, toPlainPreview } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -49,7 +49,6 @@ import {
     showsMemberCount,
 } from '../../channels/lib';
 import { lastChatPreview } from '../../channels/utils/lastChatPreview';
-import { toPlainPreview } from '../../channels/utils/messageTokens';
 import { notifyLevelOf } from '../../channels/utils/notifyLevel';
 import { sortChannels } from '../../../utils/sortChannels';
 import { InviteChannelRow } from '../../invite/components/InviteChannelRow';

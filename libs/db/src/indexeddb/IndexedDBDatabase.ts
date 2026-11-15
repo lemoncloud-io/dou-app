@@ -1,12 +1,28 @@
 import type { CacheType } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
-import type { CursorQueryOptions, IIndexedDB, IndexedDbRow } from '@chatic/data';
+import type {
+    CursorQueryOptions,
+    IIndexedDB,
+    IndexedDbChatMediaFill,
+    IndexedDbRow,
+    IndexedDbWriteBatch,
+} from '@chatic/data';
 
 const DB_NAME = 'ChaticWebCacheDB';
-const DB_VERSION = 3;
+/**
+ * v4 adds `CHAT_MEDIA_INDEX` and nothing else: the media entries are new records in the same store,
+ * so an upgrade moves no data, and a room's existing messages are indexed the first time its media
+ * is read.
+ */
+const DB_VERSION = 4;
 const STORE_NAME = 'cache_store';
 export const TYPE_CID_UID_INDEX = 'type_cid_uid';
 export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
+/**
+ * A room's media entries of one kind, ordered by message number: `[type, cid, uid, channel_id, kind,
+ * chat_no]`. Only `chatmedia` records carry `kind`, so no other record is in it.
+ */
+export const CHAT_MEDIA_INDEX = 'chat_media_index';
 
 /**
  * When `chat_no` is this value, the row has no server number yet — a message that's sending or
@@ -62,6 +78,11 @@ export class IndexedDBDatabase implements IIndexedDB {
                 }
                 if (!store.indexNames.contains(CHAT_PAGINATION_INDEX)) {
                     store.createIndex(CHAT_PAGINATION_INDEX, ['type', 'cid', 'uid', 'channel_id', 'chat_no'], {
+                        unique: false,
+                    });
+                }
+                if (!store.indexNames.contains(CHAT_MEDIA_INDEX)) {
+                    store.createIndex(CHAT_MEDIA_INDEX, ['type', 'cid', 'uid', 'channel_id', 'kind', 'chat_no'], {
                         unique: false,
                     });
                 }
@@ -230,6 +251,80 @@ export class IndexedDBDatabase implements IIndexedDB {
             };
             request.onerror = () => reject(request.error);
         });
+    }
+
+    async writeBatch(batch: IndexedDbWriteBatch): Promise<void> {
+        const db = await this.getDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const done = this.promisifyTransaction(tx);
+        try {
+            const store = tx.objectStore(STORE_NAME);
+            batch.deleteKeys?.forEach(key => store.delete(key));
+            batch.deleteRanges?.forEach(range => store.delete(range));
+            batch.put?.forEach(record => store.put(record));
+        } catch (error) {
+            // A put that throws (a value that cannot be cloned) would otherwise leave the requests
+            // queued before it to commit — the old entries deleted, the new row never written.
+            done.catch(() => undefined);
+            tx.abort();
+            throw error;
+        }
+        await done;
+    }
+
+    async walkIndex<T>(
+        indexName: string,
+        range: IDBKeyRange,
+        direction: IDBCursorDirection,
+        visit: (record: T) => boolean
+    ): Promise<void> {
+        const db = await this.getDB();
+        return new Promise<void>((resolve, reject) => {
+            const request = db
+                .transaction(STORE_NAME, 'readonly')
+                .objectStore(STORE_NAME)
+                .index(indexName)
+                .openCursor(range, direction);
+            request.onsuccess = () => {
+                const cursor = request.result;
+                if (!cursor || !visit(cursor.value as T)) {
+                    resolve();
+                    return;
+                }
+                cursor.continue();
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async applyChatMediaFill(fills: IndexedDbChatMediaFill[], version: number): Promise<number> {
+        if (fills.length === 0) return 0;
+        const db = await this.getDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const done = this.promisifyTransaction(tx);
+        const store = tx.objectStore(STORE_NAME);
+        let applied = 0;
+        // Each check and its write run inside this transaction, so nothing can land between them.
+        for (const fill of fills) {
+            const read = store.get(fill.chatKey);
+            read.onsuccess = () => {
+                const row = read.result as IndexedDbRow<'chat'> | undefined;
+                const rowVersion =
+                    (row?.data as { mediaEntriesVersion?: number } | undefined)?.mediaEntriesVersion ?? 0;
+                if (!row || rowVersion >= version) return;
+                store.delete(fill.entriesRange);
+                for (const entry of fill.entries) {
+                    store.put({ ...entry, channel_id: row.channel_id ?? '', chat_no: row.chat_no ?? 0 });
+                }
+                applied += 1;
+            };
+        }
+        await done;
+        return applied;
+    }
+
+    async count(indexName: string, range: IDBKeyRange): Promise<number> {
+        return this.readOperation<number>(store => store.index(indexName).count(range));
     }
 
     /**

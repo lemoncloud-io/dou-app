@@ -20,6 +20,9 @@ const setup = () => {
         deleteAll: jest.fn(),
         clear: jest.fn(),
         clearByChannel: jest.fn(),
+        fetchChatMedia: jest.fn(),
+        countChatMedia: jest.fn(),
+        saveChatMedia: jest.fn(),
     } as unknown as jest.Mocked<ICacheCrudService>;
     const search = { search: jest.fn() } as unknown as jest.Mocked<ICacheSearchService>;
     const handlers = createCacheMessageHandlers({ crud: () => crud, search: () => search, logger });
@@ -124,6 +127,54 @@ const CASES = [
             type: 'OnClearCacheDataByChannel',
             data: { type: 'chat', ...scope, channelId: 'ch', success: false },
         },
+    },
+    {
+        type: 'FetchChatMediaCacheData',
+        method: 'fetchChatMedia',
+        data: { type: 'chat', ...scope, channelId: 'ch', kind: 'image', limit: 5 },
+        value: {
+            items: [{ kind: 'image', idx: 0, ref: 'u', chatId: 'ch:1', chatNo: 1, chat: { id: 'ch:1' } }],
+            nextCursorNo: 1,
+        },
+        ok: {
+            type: 'OnFetchChatMediaCacheData',
+            data: {
+                type: 'chat',
+                ...scope,
+                channelId: 'ch',
+                kind: 'image',
+                items: [{ kind: 'image', idx: 0, ref: 'u', chatId: 'ch:1', chatNo: 1, chat: { id: 'ch:1' } }],
+                nextCursorNo: 1,
+            },
+        },
+        failed: {
+            type: 'OnFetchChatMediaCacheData',
+            data: { type: 'chat', ...scope, channelId: 'ch', kind: 'image', items: null, nextCursorNo: null },
+        },
+    },
+    {
+        type: 'CountChatMediaCacheData',
+        method: 'countChatMedia',
+        data: { type: 'chat', ...scope, channelId: 'ch' },
+        value: { image: 2, video: 0, file: 0, audio: 0, link: 1 },
+        ok: {
+            type: 'OnCountChatMediaCacheData',
+            data: {
+                type: 'chat',
+                ...scope,
+                channelId: 'ch',
+                counts: { image: 2, video: 0, file: 0, audio: 0, link: 1 },
+            },
+        },
+        failed: { type: 'OnCountChatMediaCacheData', data: { type: 'chat', ...scope, channelId: 'ch', counts: null } },
+    },
+    {
+        type: 'SaveChatMediaCacheData',
+        method: 'saveChatMedia',
+        data: { type: 'chat', ...scope, items: [], version: 1 },
+        value: undefined,
+        ok: { type: 'OnSaveChatMediaCacheData', data: { type: 'chat', ...scope, success: true } },
+        failed: { type: 'OnSaveChatMediaCacheData', data: { type: 'chat', ...scope, success: false } },
     },
 ] as const;
 

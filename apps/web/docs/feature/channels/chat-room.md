@@ -344,7 +344,7 @@ and linkifying their text widens it.
 
 Message text is a small markdown-like dialect, the one the desktop composer writes: `**bold**`,
 `*italic*`, `~~strike~~`, `` `code` ``, triple-backtick fences, `> ` quote lines and labelled links.
-[`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) reads exactly that set,
+[`messageTokens.ts`](../../../../../libs/data/src/domain/messageTokens.ts) in `@chatic/data` reads exactly that set,
 with the desktop reader's rules for quotes and marks, so a formatted message reads the same on both.
 Headings and lists stay literal, and there is no escape syntax: a backslash is a backslash.
 
@@ -699,8 +699,8 @@ Both play the selection haptic when tapped.
 - `ChannelRoomPage` is the largest file in the feature, and its test (`ChannelRoomPage.test.tsx`)
   renders it with every hook mocked, so it pins what the page draws, not the logic behind it. Logic
   added for this screen goes into a pure util, a hook or a component so it can be tested — that
-  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` and
-  `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
+  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` (now in
+  `@chatic/data`, where the room media index reads links with it) and `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
   `useChatScroll`.
 - Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
   colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a

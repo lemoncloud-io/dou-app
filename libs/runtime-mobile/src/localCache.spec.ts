@@ -36,6 +36,12 @@ describe('nativeLocalCachePorts', () => {
         });
     });
 
+    it('lets the chat storage query the room media index — this runtime is the shell that answers it', () => {
+        const storage = nativeLocalCachePorts(fakeClient()).storage('chat', NATIVE_CACHE_ROUTE, context, undefined);
+
+        expect(storage.canQueryChatMedia?.()).toBe(true);
+    });
+
     it('refuses a route it did not make', () => {
         expect(() => nativeLocalCachePorts(fakeClient()).storage('user', 'web', context, undefined)).toThrow(
             "unknown cache route 'web'"
