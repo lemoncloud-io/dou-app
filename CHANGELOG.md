@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-core,app-runtime) hold a media send's cloud through the engine, not runInCloud
+
+## [2026-11-15] - No version updates
+
+### Refactor
+
 - (runtime-core,app-runtime,sync) route the page's remaining reads through the engine
 
 ## [2026-11-15] - No version updates
