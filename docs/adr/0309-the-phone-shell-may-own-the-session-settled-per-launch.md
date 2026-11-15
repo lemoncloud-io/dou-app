@@ -19,7 +19,9 @@
 > `logout` signal across the bridge; `primeChatRoom` moved from the engine onto `sync`, which ADR-0308
 > decision 1 listed as an engine member); `feat/bridged-runtime` (the page's mirror engine,
 > `createMirrorEngine` and `createBridgedRuntime`, not yet built by any entry; the host sends a pending
-> session push before a call's answer)
+> session push before a call's answer); `feat/native-session-end` (a session's end restarts the
+> app's JS context, and the development owner switch — see
+> [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md))
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
@@ -31,6 +33,9 @@
 > · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
 > · Amends: [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) — its first Alternative:
 > the session's state joins the engine one reader group at a time, the core engine first
+> **Amended by [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md) (2026-11-15):**
+> "once per launch" means once per JS context, which the app can start over itself — after a session
+> its runtime held ends, and to apply the development owner switch.
 
 ## Context
 

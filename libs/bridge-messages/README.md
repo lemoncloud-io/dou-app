@@ -1,7 +1,7 @@
 # @chatic/bridge-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 120 web→app request types, 134 app→web message types, the payload
+can cross the WebView boundary — 122 web→app request types, 136 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -108,8 +108,8 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 27<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>120 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>134 message types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>122 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>136 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -172,13 +172,13 @@ libs/bridge-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (114) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (126) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (122) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (136) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    27 files — 26 payload files, grouped by domain, and their barrel
+    └── model/                    29 files — 28 payload files, grouped by domain, and their barrel
 ```
 
-33 files, 4,445 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+35 files, 4,676 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -211,7 +211,8 @@ The payload files, with what is in each:
 | `sub-webview.ts`       | 401   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `GetSubWebViewUserKey`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, the five storage requests, `GetSubWebViewPermission`, `RequestSubWebViewPermission`, `OpenSettings`, `OnSubWebViewContextChanged`, `OnSubWebViewCloseRequested`, `SubWebViewContext`; the page manifest (`SubWebViewManifest`, `SubWebViewPermission`); codes, `SubWebViewPageErrorCode` |
 | `storage.ts`           | 68    | A storage medium the shell keeps for the web — `StorageGet`, `StorageSave`, `StorageClear`, `StorageMedium` (`nativeSecure`, the device vault), `StorageUnavailableReason`                                                                                                                                                                                                                                                                                                                                                   |
 | `runtime.ts`           | 122   | The runtime across the bridge, for a shell that owns the session — `RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`, `RuntimeOffer` (`window.CHATIC_APP_RUNTIME`); bodies are JSON (`RuntimeWireValue`) whose meaning `@chatic/runtime-core` declares                                                                                                                                                                                                    |
-| `index.ts`             | 27    | The barrel for the payload files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `session-owner.ts`     | 37    | The development switch for who holds the session on the phone — `FetchSessionOwner`, `SetSessionOwner` (records the owner and restarts the shell's JS); answered only by a non-production shell                                                                                                                                                                                                                                                                                                                              |
+| `index.ts`             | 28    | The barrel for the payload files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
 and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`, plus `localName` / `localContentType` /
@@ -315,7 +316,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 120 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 122 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

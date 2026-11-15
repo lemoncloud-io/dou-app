@@ -57,7 +57,9 @@ Three rules hold on every crossing:
    `setBadgeCount` in `appBridge.ts`). `fire` never claims success — it reports `"sent (no confirmation)"` so a silent void call is never mistaken for a confirmed one.
 3. **A rejection is reported as it came.** Every command the panel sends is one the oldest app this
    page runs in already handles, so `run` reports a rejection — `NOT_FOUND` included — as
-   `"failed: <message>"`, with nothing learned or locked.
+   `"failed: <message>"`, with nothing learned or locked. One screen is the exception: Session owner
+   asks for a switch only a non-production app offers, so it reads a rejected first request as "not
+   offered" and shows that instead of its controls.
 
 ## What stays in apps/mobile
 
@@ -84,7 +86,7 @@ machine, the on-device checklist — is in
 
 ## Further reading
 
-- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 25 screens, the
+- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 26 screens, the
   unlock gate, the manifest, how to add a screen.
 - [`libs/bridge-messages`](../../../../libs/bridge-messages/README.md) — the request/reply contract every
   bridge command follows, including the web-ships-before-app rule.

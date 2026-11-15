@@ -60,7 +60,10 @@
 //         the OnRuntimeEvent and OnRuntimeSessionChanged pushes — the main web's conversation with a
 //         shell that owns the session, which offers it in `window.CHATIC_APP_RUNTIME`. Declared only:
 //         no shell answers them yet, and a sub WebView page is never answered.
-export const BRIDGE_VERSION = '2.23.0' as const;
+// 2.24.0: added FetchSessionOwner and SetSessionOwner (web -> app) — the debug overlay's development
+//         switch for which side holds the session on the phone; a production shell leaves both
+//         unanswered.
+export const BRIDGE_VERSION = '2.24.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

@@ -46,6 +46,12 @@ The bridge buffers `OnNavigate` until the `WebAppReady` handshake completes (see
 [../webview/README.md](../webview/README.md)), so a cold-start link or tap is delivered as soon as the web is ready —
 no manual startup delay is needed.
 
+A JS context the app started over itself (`services/appRestart` — after a session its runtime held ended,
+or the session owner switch) skips both cold-start lookups. The OS keeps answering them with the link or
+tap that launched the process, and the context before the restart already followed it; replaying it would
+reopen that room on the signed-out home. Warm links and taps are followed as usual. See
+[../runtime/README.md](../runtime/README.md#when-a-session-ends).
+
 ## Which links reach the app
 
 A `https` link opens the app only when the OS sees the tap and finds the app claiming that path:
