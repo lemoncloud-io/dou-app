@@ -43,6 +43,23 @@ const everywhere = (
     firebase: { attributes: attributeKeys, metrics },
 });
 
+/**
+ * The run dimension both shells stamp on the pipeline (`PipelinePerfTraceBackend`'s ambient
+ * attributes): which side holds the session — `web` (the page) or `native` (the phone app's own
+ * runtime). Listed on the traces that are compared between the two ways of running.
+ */
+export const SESSION_OWNER_ATTRIBUTE = 'session_owner';
+
+/** `everywhere`, plus `session_owner` on the pipeline only: Firebase keeps the attributes it had. */
+const everywhereByOwner = (
+    kind: 'trace' | 'sample',
+    attributeKeys: readonly string[],
+    metrics: readonly string[]
+): PerfTraceCatalogEntry => ({
+    ...everywhere(kind, attributeKeys, metrics),
+    attributes: attrs(...attributeKeys, SESSION_OWNER_ATTRIBUTE),
+});
+
 const ROOM_PHASES = ['handler', 'handshake_done', 'recover_done', 'cloud_done', 'switch_done', 'mount'];
 const ROOM_SYNC_METRICS = [
     ...ROOM_PHASES,
@@ -71,12 +88,12 @@ const MEDIA_PHASES = [
  * Firebase keeps receiving all of it. The last three are pipeline-only.
  */
 export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
-    boot: everywhere(
+    boot: everywhereByOwner(
         'trace',
         ['boot_type'],
         ['provider_ready', 'app_mount', 'main_screen_mount', 'load_start', 'load_end', 'web_app_ready']
     ),
-    first_screen: everywhere('sample', ['boot_type', 'reveal'], ['value_ms', 'web_app_ready']),
+    first_screen: everywhereByOwner('sample', ['boot_type', 'reveal'], ['value_ms', 'web_app_ready']),
     cloud_switch: everywhere('trace', ['outcome'], []),
     site_switch: everywhere('trace', ['outcome'], ['verified']),
     web_vitals: {
@@ -86,20 +103,20 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
         // INP, CLS and TTFB are recorded for the pipeline only (CLS as ×1000, an integer).
         firebase: { attributes: ['vital'], metrics: ['value_ms'], only: { vital: ['fcp', 'lcp'] } },
     },
-    chat_room_open: everywhere(
+    chat_room_open: everywhereByOwner(
         'trace',
         ['entry', 'start', 'switch', 'cache', 'outcome'],
         [...ROOM_PHASES, 'cache_emit', 'message_count']
     ),
     chat_room_sync: {
         kind: 'trace',
-        // `session_owner` marks a room opened in a page that mirrors the phone shell's runtime, so those
-        // launches are read apart. The pipeline's alone: Firebase keeps the five it always had.
-        attributes: attrs('entry', 'start', 'switch', 'cache', 'outcome', 'session_owner'),
+        // `session_owner` reads launches whose session the page holds apart from those whose phone shell
+        // holds it. The pipeline's alone: Firebase keeps the five it always had.
+        attributes: attrs('entry', 'start', 'switch', 'cache', 'outcome', SESSION_OWNER_ATTRIBUTE),
         metrics: ROOM_SYNC_METRICS,
         firebase: { attributes: ['entry', 'start', 'switch', 'cache', 'outcome'], metrics: ROOM_SYNC_METRICS },
     },
-    bridge_request: everywhere(
+    bridge_request: everywhereByOwner(
         'sample',
         ['type', 'outcome'],
         ['rtt_ms', 'in_flight', 'queue_ms', 'req_chars', 'res_chars']

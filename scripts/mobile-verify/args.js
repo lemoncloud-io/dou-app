@@ -13,6 +13,9 @@ Options:
   --app-only              no scenario: build, install and launch the app, then keep the device, web and
                           Metro up for hand checks until stopped (Ctrl-C / SIGTERM)
   --web local|dev         local (default): serve this checkout's apps/web; dev: the deployed dev web
+  --session-owner web|native
+                          who holds the session: web (default, the page) or native (the app's own
+                          runtime, switched on after the fresh install; needs --web local)
   --rebuild               build the native app even when the last build is still current
   --wait <minutes>        how long to wait for another device run or build to finish (default 15)
   --keep-device           leave the simulator/emulator running afterwards for hand checks
@@ -25,6 +28,7 @@ Exit codes: 0 passed · 1 scenario failed · 2 could not run (environment or inv
 
 const PLATFORMS = ['ios', 'android'];
 const WEB_MODES = ['local', 'dev'];
+const SESSION_OWNERS = ['web', 'native'];
 
 /**
  * Parse argv (without node and the script path). Throws a plain Error with a usage message for a
@@ -36,6 +40,7 @@ function parseArgs(argv) {
         platform: null,
         tag: null,
         web: 'local',
+        sessionOwner: 'web',
         rebuild: false,
         waitMinutes: 15,
         keepDevice: false,
@@ -62,6 +67,9 @@ function parseArgs(argv) {
                 break;
             case '--web':
                 options.web = takeValue(arg, i++);
+                break;
+            case '--session-owner':
+                options.sessionOwner = takeValue(arg, i++);
                 break;
             case '--wait':
                 options.waitMinutes = Number(takeValue(arg, i++));
@@ -105,6 +113,12 @@ function parseArgs(argv) {
     if (options.target && options.tag) throw new Error('Pass either a target or --tag, not both.');
     if (!PLATFORMS.includes(options.platform)) throw new Error('--platform must be ios or android.');
     if (!WEB_MODES.includes(options.web)) throw new Error('--web must be local or dev.');
+    if (!SESSION_OWNERS.includes(options.sessionOwner)) throw new Error('--session-owner must be web or native.');
+    // The app's runtime takes its services from the web app's env of the same stage (envfile.js), which
+    // only a local web run reads.
+    if (options.sessionOwner === 'native' && options.web !== 'local') {
+        throw new Error('--session-owner native needs --web local.');
+    }
     if (!Number.isFinite(options.waitMinutes) || options.waitMinutes < 0) {
         throw new Error('--wait takes a number of minutes (0 = do not wait).');
     }

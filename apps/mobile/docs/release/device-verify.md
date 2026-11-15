@@ -19,21 +19,23 @@ yarn mobile:verify home/open-room --platform ios       # one scenario
 yarn mobile:verify home --platform android             # every scenario of a feature
 yarn mobile:verify --tag smoke --platform ios          # every scenario tagged smoke
 yarn mobile:verify --app-only --platform ios           # no scenario: launch the app and hold it up for hand checks
+yarn mobile:verify home --platform ios --session-owner native   # the same scenarios on the app's own runtime
 yarn mobile:verify --list                              # what exists
 ```
 
 One platform per run, and one run per machine (see [One run at a time](#one-run-at-a-time)). Run iOS,
 then Android — never both at once. `--help` lists the options; the ones worth knowing:
 
-| Option          | Effect                                                                                  |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `--web dev`     | load the deployed dev web instead of serving this checkout's — for a native-only change |
-| `--rebuild`     | build even when the last build is still current                                         |
-| `--app-only`    | run no scenario: launch the app once, then keep device, web and Metro up until stopped  |
-| `--keep-device` | leave the device running afterwards, for hand checks on the same app                    |
-| `--show-device` | open the simulator window / run the emulator with a window (default: headless)          |
-| `--record`      | record a video of the run (Android caps it at 180 s)                                    |
-| `--wait <min>`  | how long to wait for another device run or build to finish (default 15)                 |
+| Option                   | Effect                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `--web dev`              | load the deployed dev web instead of serving this checkout's — for a native-only change                        |
+| `--session-owner native` | run the scenarios with the session held by the app's own runtime ([below](#the-session-owner)); local web only |
+| `--rebuild`              | build even when the last build is still current                                                                |
+| `--app-only`             | run no scenario: launch the app once, then keep device, web and Metro up until stopped                         |
+| `--keep-device`          | leave the device running afterwards, for hand checks on the same app                                           |
+| `--show-device`          | open the simulator window / run the emulator with a window (default: headless)                                 |
+| `--record`               | record a video of the run (Android caps it at 180 s)                                                           |
+| `--wait <min>`           | how long to wait for another device run or build to finish (default 15)                                        |
 
 ### Exit codes
 
@@ -100,6 +102,30 @@ looks like an import cycle), `.env`'s non-empty values over them, and `VITE_WEBV
 at the harness's own web port. The derived file is written owner-only under the harness's cache
 directory (below), outside the checkout, and passed as an absolute `ENVFILE`; react-native-config
 accepts that on both platforms. With `--web dev` it is `.env.dev` unchanged.
+
+A `--web local` build also carries the services the app's own runtime starts with (`VITE_PROJECT`,
+`VITE_HOST`, the sign-in, backend, socket and DoU endpoints — the list is `NATIVE_RUNTIME_ENV_KEYS` in
+runtime-mobile's boot, and a unit test keeps the harness's copy equal to it), so one build serves both
+session owners and switching needs no rebuild. A mobile env leaves them empty, since nothing else in
+the app reads them, so the harness takes the empty ones from `apps/web/.env`, which names the same
+services — unless the two envs name different stages (`VITE_ENV`). `VITE_ENV` itself always comes from
+the mobile env: it is the app's own stage, which also decides whether the development switch exists.
+With `--session-owner native`, envs for different stages or a key with no value stop the run before the
+build (exit 2), naming the keys and never their values; without them the runtime's boot fails and the
+page silently keeps the session. A page-owned run never reads them.
+
+### The session owner
+
+On the phone the session is the page's unless the development switch hands it to the app's own
+runtime (mobile [docs/runtime](../runtime/README.md#the-switch)). A scenario run starts from a cleared
+install, which always puts it back on the page, so `--session-owner native` switches it after that:
+`_shared/fresh-guest.yaml` ends by running `_shared/native-session-owner.yaml` when the runner passes
+`SESSION_OWNER=native`. That sub-flow presses **App (native)** on the debug overlay's **Session owner**
+screen, waits for the overlay to close with the restart and for home, and checks the screen's **This page** row reads
+"Mirrors the app's runtime". **This run** is not enough: it reads App (native) even when the runtime
+could not start and the page kept the session. Every scenario that begins with `fresh-guest` runs on the
+app's runtime that way, so the same scenarios compare the two owners. With `--app-only` the build is
+prepared for it and the switch is left to the hand check.
 
 ### Ports
 
@@ -231,15 +257,16 @@ curl -fsSL "https://get.maestro.mobile.dev" | MAESTRO_VERSION=2.11.0 bash
 
 The runner passes these variables; a flow reads them as `${NAME}`:
 
-| Variable         | Value                                                 |
-| ---------------- | ----------------------------------------------------- |
-| `APP_ID`         | `io.chatic.dou.dev` (iOS bundle ID / Android app ID)  |
-| `APP_SCHEME`     | `chatic-dev` — the dev build's deep-link scheme       |
-| `PLATFORM`       | `ios` or `android`                                    |
-| `DOU_TEST_PHONE` | the fixture's fictional number, or `DOU_VERIFY_PHONE` |
+| Variable         | Value                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------- |
+| `APP_ID`         | `io.chatic.dou.dev` (iOS bundle ID / Android app ID)                                   |
+| `APP_SCHEME`     | `chatic-dev` — the dev build's deep-link scheme                                        |
+| `PLATFORM`       | `ios` or `android`                                                                     |
+| `DOU_TEST_PHONE` | the fixture's fictional number, or `DOU_VERIFY_PHONE`                                  |
+| `SESSION_OWNER`  | `web` or `native` (`--session-owner`); `_shared/fresh-guest.yaml` switches on `native` |
 
 Selectors are the text the user reads. The app's screens are web content, and both platforms expose
-WebView text through the accessibility tree, so `tapOn: "Chat Rooms"` reaches a web element;
+WebView text through the accessibility tree, so `tapOn: "Chats"` reaches a web element;
 DOM ids and `data-testid` do not cross that boundary. Text is a regular expression matched against
 the whole label: a row read as "MY Self Chat" needs `'.*Self Chat'`, and `(`, `)`, `+` need a
 backslash. The text is the `en` locale's, and the phone field's country code starts at +1. The

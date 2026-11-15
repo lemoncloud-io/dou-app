@@ -8,7 +8,11 @@ const en = {
     statusSection: 'Owner',
     currentLabel: 'This run',
     nextLabel: 'From the next start',
+    pageLabel: 'This page',
     owners: { web: 'Page (web)', native: 'App (native)' },
+    // What the page settled at boot: a launch set to the app whose runtime could not start still
+    // reads "App (native)" above, while the page here holds its own session.
+    pageOwners: { web: 'Holds its own session', native: 'Mirrors the app’s runtime' },
     carryOver:
         'The tokens in the device vault carry over. What the page keeps in its own storage (the selected cloud, cloud identities) does not.',
     restarting: 'Restarting the app…',
@@ -24,7 +28,9 @@ const ko: typeof en = {
     statusSection: '소유자',
     currentLabel: '이번 실행',
     nextLabel: '다음 시작부터',
+    pageLabel: '이 페이지',
     owners: { web: '페이지 (web)', native: '앱 (native)' },
+    pageOwners: { web: '자기 세션을 쥠', native: '앱 런타임을 미러링' },
     carryOver:
         '기기 보관함의 토큰은 그대로 이어집니다. 페이지가 자기 저장소에 둔 값(선택한 클라우드, 클라우드 신원)은 넘어가지 않습니다.',
     restarting: '앱을 다시 시작하는 중…',

@@ -39,7 +39,10 @@ itself (`services/appRestart`, below) — such a restart reads the owner again, 
 effect without the person relaunching the app.
 
 Every native log entry carries it as the `sessionOwner` context field (`nativeLogContext.ts`), so a
-run's entries say which side held the session.
+run's entries say which side held the session. The log-pipeline copies of the shell's `boot` and
+`first_screen` traces carry `session_owner` too, but from what the app answered the page's hello
+(`settledSessionOwner`), so a launch whose runtime could not start counts as the page's (libs/perf
+README, `ambientAttributes`).
 
 ### The switch
 
@@ -54,6 +57,11 @@ failed to load — counts as production, so the switch fails closed. A productio
 `NOT_FOUND`, so the screen says the switch is not offered and nothing a page sends can move the session
 there. The stage rather than `__DEV__` is the gate so that the stage builds testers install, which are
 release builds, have it too.
+
+The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
+runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
+without the runtime's services): **This run** says App (native) for both. The device scenarios switch
+through this screen with `--session-owner native` (release `device-verify.md`).
 
 The vault's tokens are the same keychain item for both owners, so a session carries over a switch. What
 each side keeps in its own plain storage — the selected cloud, the cloud identities — does not yet. The

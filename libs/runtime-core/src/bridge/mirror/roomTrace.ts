@@ -1,9 +1,6 @@
 import type { ChatRefreshResult } from '@chatic/data';
-import { endPerfTrace, getActivePerfTrace } from '@chatic/perf';
+import { SESSION_OWNER_ATTRIBUTE, endPerfTrace, getActivePerfTrace } from '@chatic/perf';
 import type { PerfTrace } from '@chatic/perf';
-
-/** The attribute a mirrored room's trace carries, so the two ways of running are compared apart. */
-export const SESSION_OWNER_ATTRIBUTE = 'session_owner';
 
 /**
  * A room being opened has a `chat_room_sync` trace in progress, in the page. Where the runtime runs in
