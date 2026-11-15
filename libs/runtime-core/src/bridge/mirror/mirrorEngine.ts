@@ -156,9 +156,8 @@ const mirrorGraph = (talk: MirrorConversation, target: string, prefix: readonly 
  *   `waitForCloudSocket`) answers `false` when the bridge fails.
  * - **Streams** — `observe*`, `onServerEvent`, `onBackgroundDelta`, a target registration, a cloud hold — stop
  *   synchronously, as in-process.
- * - **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods such as
- *   `chat.uncoveredFeed`) throw `RUNTIME_NOT_AVAILABLE`: a raw request, raw frames and a synchronous
- *   answer do not cross.
+ * - **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods) throw
+ *   `RUNTIME_NOT_AVAILABLE`: a raw request, raw frames and a synchronous answer do not cross.
  * - **Lifecycle members** do nothing. The controllers, the credential guards and push registration run
  *   where the runtime runs; a page that mirrors only reads the outcome. The session controller reports
  *   ready once the mirrored session is initialised.

@@ -106,8 +106,9 @@ entry that disagrees with its method does not compile: a method that returns a p
 `observe*` method, which returns its unsubscribe, a `stream` whose events are its callback's arguments; a
 method that returns nothing a `send` — a call its caller does not wait for (`device.syncDevice`,
 `device.syncStatus`); and a method that answers synchronously with a value is `local`, since the page has
-no answer to give in the same turn (`chat.uncoveredFeed`, which reads a ledger kept beside the cache)
-(`REPOSITORY_CALL_METHODS` holds the calls and sends, `REPOSITORY_STREAMS` the streams). The
+no answer to give in the same turn (none does today: the chat's answered ranges, which a room once read
+that way, are the stream `chat.observeFeedCoverage`) (`REPOSITORY_CALL_METHODS` holds the calls and sends,
+`REPOSITORY_STREAMS` the streams). The
 token issuers are not on the page's graph, so they are not in the contract either (`confirmPhoneCode`
 stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (`DATA_CALL_METHODS`,
 `DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)). `primeChatRoom` is a sync call; its
@@ -273,8 +274,7 @@ it.
   `observe*` method as a stream whose listener is its function argument. `cloudRepositories(cid)` is
   the same against `data@cloud`, one graph per cloud id.
 - **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods) throw
-  `RUNTIME_NOT_AVAILABLE`. `chat.uncoveredFeed` is one: the room's history paging reads it in the same
-  turn, so a page cannot mirror the shell's runtime until that read has a crossing of its own.
+  `RUNTIME_NOT_AVAILABLE`.
 - **Lifecycle members do nothing.** The session and connection controllers, the two credential guards
   and push registration run where the runtime runs; the session controller only reports ready once the
   mirrored session is initialised.

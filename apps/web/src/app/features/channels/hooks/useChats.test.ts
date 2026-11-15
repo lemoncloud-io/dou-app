@@ -16,6 +16,8 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionIdentity: jest.fn(),
+            useSessionSelection: jest.fn(),
+            useUidInCloud: jest.fn(),
         },
         connection: {
             useRuntimeSocketState: jest.fn(),
@@ -30,27 +32,31 @@ jest.mock('./useChannelHeadRefresh', () => ({ useChannelHeadRefresh: jest.fn() }
 
 const chatObserveList = jest.fn();
 const chatRefreshList = jest.fn();
-// A stand-in for the repository's record of ranges a page answered for, keyed by channel id alone.
+// A stand-in for the repository's record of ranges a page answered for, keyed by channel id alone. A
+// range added while a room is open reaches it as the repository's coverage stream would.
 const coverage = (() => {
     let ranges: Array<[string, number, number]> = [];
+    const listeners = new Map<string, Set<(covered: Array<[number, number]>) => void>>();
+    const covered = (channelId: string): Array<[number, number]> =>
+        ranges
+            .filter(([id]) => id === channelId)
+            .map(([, low, high]): [number, number] => [low, high])
+            .sort((a, b) => a[0] - b[0]);
     return {
-        add: (channelId: string, low: number, high: number) => ranges.push([channelId, low, high]),
+        add: (channelId: string, low: number, high: number) => {
+            ranges.push([channelId, low, high]);
+            listeners.get(channelId)?.forEach(listener => listener(covered(channelId)));
+        },
         clear: () => {
             ranges = [];
+            listeners.clear();
         },
-        uncovered: (channelId: string, low: number, high: number): Array<[number, number]> => {
-            const gaps: Array<[number, number]> = [];
-            let cursor = low;
-            for (const [, rangeLow, rangeHigh] of ranges
-                .filter(([id]) => id === channelId)
-                .sort((a, b) => a[1] - b[1])) {
-                if (rangeHigh < cursor) continue;
-                if (rangeLow > high) break;
-                if (rangeLow > cursor) gaps.push([cursor, rangeLow - 1]);
-                cursor = Math.max(cursor, rangeHigh + 1);
-            }
-            if (cursor <= high) gaps.push([cursor, high]);
-            return gaps;
+        covered,
+        subscribe: (channelId: string, listener: (covered: Array<[number, number]>) => void) => {
+            const set = listeners.get(channelId) ?? new Set();
+            set.add(listener);
+            listeners.set(channelId, set);
+            return () => set.delete(listener);
         },
     };
 })();
@@ -70,6 +76,13 @@ const seedUsers = (users: Array<Partial<DomainUser>>) =>
         return () => undefined;
     });
 
+/** The repository's coverage stream over the test's own record: now, then on each change. */
+const observeCoverage = (channelId: string, callback: (covered: Array<[number, number]>) => void) => {
+    const stop = coverage.subscribe(channelId, callback);
+    callback(coverage.covered(channelId));
+    return stop;
+};
+
 beforeEach(() => {
     jest.clearAllMocks();
     seedUsers([{ id: 'u1', name: 'Alice' }]);
@@ -80,11 +93,13 @@ beforeEach(() => {
         chat: {
             observeList: chatObserveList,
             refreshList: chatRefreshList,
-            uncoveredFeed: (channelId: string, low: number, high: number) => coverage.uncovered(channelId, low, high),
+            observeFeedCoverage: observeCoverage,
         },
         user: { observeList: userObserveList },
     });
     (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-a' });
+    (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me');
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
 });
 
@@ -764,6 +779,113 @@ describe('useChats — gaps in the cached history', () => {
         expect(result.current.gaps).toEqual([]);
     });
 
+    it('closes a gap when a page answers for it, though the page brought no row (all deleted)', () => {
+        seedChats(rows(5, 40));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        expect(result.current.gaps).toHaveLength(1);
+
+        act(() => coverage.add('c1', 6, 39));
+
+        expect(result.current.gaps).toEqual([]);
+        expect(result.current.isFetched(20)).toBe(true);
+    });
+
+    it("does not read the previous channel's answered ranges as the next one's", () => {
+        coverage.add('c1', 6, 39);
+        seedChats(rows(5, 40));
+        // Every render's answer, the one before the subscription moves to the new channel included.
+        const answers: boolean[] = [];
+        const { rerender } = renderHook(
+            ({ channelId }) => {
+                const chats = useChats({ channelId, limit: 100 });
+                answers.push(chats.isFetched(20));
+                return chats;
+            },
+            { initialProps: { channelId: 'c1' } }
+        );
+        expect(answers[answers.length - 1]).toBe(true);
+        answers.length = 0;
+
+        rerender({ channelId: 'c2' });
+
+        expect(answers.length).toBeGreaterThan(0);
+        expect(answers.every(answer => answer === false)).toBe(true);
+    });
+
+    it("subscribes again when the selected cloud changes, and does not read the previous cloud's ranges", () => {
+        coverage.add('c1', 6, 39);
+        seedChats(rows(5, 40));
+        // The repository binds a subscription to the cloud selected when it is made. The new cloud's
+        // ranges have not arrived yet, as a mirrored stream's first value may not have.
+        const observeFeedCoverage = jest.fn(
+            (channelId: string, callback: (covered: Array<[number, number]>) => void) =>
+                observeFeedCoverage.mock.calls.length === 1 ? observeCoverage(channelId, callback) : () => undefined
+        );
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+            chat: { observeList: chatObserveList, refreshList: chatRefreshList, observeFeedCoverage },
+            user: { observeList: userObserveList },
+        });
+        const answers: boolean[] = [];
+        const { rerender } = renderHook(() => {
+            const chats = useChats({ channelId: 'c1', limit: 100 });
+            answers.push(chats.isFetched(20));
+            return chats;
+        });
+        expect(answers[answers.length - 1]).toBe(true);
+        answers.length = 0;
+
+        (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: 'cloud-b' });
+        rerender();
+
+        expect(observeFeedCoverage).toHaveBeenCalledTimes(2);
+        expect(answers.length).toBeGreaterThan(0);
+        expect(answers.every(answer => answer === false)).toBe(true);
+    });
+
+    it('subscribes again when the account in the cloud changes', () => {
+        const observeFeedCoverage = jest.fn(observeCoverage);
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+            chat: { observeList: chatObserveList, refreshList: chatRefreshList, observeFeedCoverage },
+            user: { observeList: userObserveList },
+        });
+        seedChats(rows(5, 40));
+        const { rerender } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        expect(observeFeedCoverage).toHaveBeenCalledTimes(1);
+
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('someone-else');
+        rerender();
+
+        expect(observeFeedCoverage).toHaveBeenCalledTimes(2);
+    });
+
+    it("pages from nothing answered while the next channel's ranges have not arrived", async () => {
+        coverage.add('c1', 1351, 1400);
+        seedChats(rows(1401, 1402));
+        // c2's first value is late, as a mirrored stream's may be; c1's ranges must not stand in for it.
+        const observeFeedCoverage = (channelId: string, callback: (covered: Array<[number, number]>) => void) =>
+            channelId === 'c1' ? observeCoverage(channelId, callback) : () => undefined;
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+            chat: {
+                observeList: chatObserveList,
+                refreshList: chatRefreshList,
+                cacheReadList: jest.fn().mockResolvedValue({ list: [chat({ id: 'c2:1400', chatNo: 1400 })] }),
+                observeFeedCoverage,
+            },
+            user: { observeList: userObserveList },
+        });
+        const { result, rerender } = renderHook(({ channelId }) => useChats({ channelId, limit: 100 }), {
+            initialProps: { channelId: 'c1' },
+        });
+
+        rerender({ channelId: 'c2' });
+        await act(() => result.current.loadMore());
+
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c2', cursorNo: 1401, limit: 50 },
+            { cursorIsRow: true }
+        );
+    });
+
     it('fills from the newer side with the page just below it, and from the older side just above', async () => {
         seedChats(rows(5, 200));
         chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
@@ -872,8 +994,7 @@ describe('useChats — gaps in the cached history', () => {
                     observeList: chatObserveList,
                     refreshList: chatRefreshList,
                     cacheReadList,
-                    uncoveredFeed: (channelId: string, low: number, high: number) =>
-                        coverage.uncovered(channelId, low, high),
+                    observeFeedCoverage: observeCoverage,
                 },
                 user: { observeList: userObserveList },
             });
@@ -893,8 +1014,7 @@ describe('useChats — gaps in the cached history', () => {
                     observeList: chatObserveList,
                     refreshList: chatRefreshList,
                     cacheReadList: jest.fn().mockResolvedValue({ list: [chat({ id: 'c1:90', chatNo: 90 })] }),
-                    uncoveredFeed: (channelId: string, low: number, high: number) =>
-                        coverage.uncovered(channelId, low, high),
+                    observeFeedCoverage: observeCoverage,
                 },
                 user: { observeList: userObserveList },
             });
@@ -941,8 +1061,7 @@ describe('useChats — gaps in the cached history', () => {
                 observeList: chatObserveList,
                 refreshList: chatRefreshList,
                 cacheReadList: jest.fn().mockRejectedValue(new Error('storage busy')),
-                uncoveredFeed: (channelId: string, low: number, high: number) =>
-                    coverage.uncovered(channelId, low, high),
+                observeFeedCoverage: observeCoverage,
             },
             user: { observeList: userObserveList },
         });

@@ -68,8 +68,7 @@ export const REPOSITORY_METHODS = {
         observeList: 'stream',
         observeLastList: 'stream',
         refreshList: 'call',
-        // Answers from a ledger kept beside the cache, in the same turn — see `RepositoryCrossing`.
-        uncoveredFeed: 'local',
+        observeFeedCoverage: 'stream',
         getChat: 'call',
         sendChat: 'call',
         updateChat: 'call',

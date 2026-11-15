@@ -21,7 +21,9 @@
 > `createMirrorEngine` and `createBridgedRuntime`, not yet built by any entry; the host sends a pending
 > session push before a call's answer); `feat/native-session-end` (a session's end restarts the
 > app's JS context, and the development owner switch — see
-> [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md))
+> [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md));
+> `refactor/feed-coverage-stream` (a chat's answered ranges become the stream
+> `chat.observeFeedCoverage`, read by the room's paging, in place of the synchronous `uncoveredFeed`)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
