@@ -54,8 +54,11 @@ export interface RuntimeSync {
         channelId: string,
         options?: { cache?: 'hit' | 'miss'; fresh?: boolean }
     ): Promise<ChatRefreshResult>;
-    /** Starts a room's fetch at the tap that opens it. Never rejects. */
-    prefetchRoomFeed(cid: string, channelId: string): Promise<void>;
+    /**
+     * Starts a room's fetch at the tap that opens it. Never rejects; resolves with the fetch's result,
+     * or `null` when it did not start or failed.
+     */
+    prefetchRoomFeed(cid: string, channelId: string): Promise<ChatRefreshResult | null>;
     /**
      * Primes a chat room for its first render: aligns the chat plan's baseline with the cache, and
      * fetches the room's first page on a cold cache. `options.cancelled` is asked between steps in this

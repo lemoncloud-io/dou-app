@@ -2,21 +2,32 @@ import type { PageAuthRepository, PagePairingRepository, PageRepositories } from
 import type { RuntimeData } from '../data/runtimeData';
 
 /**
- * How a repository method crosses: `call` is one `RuntimeCall` whose result is the method's own;
- * `stream` is an `observe*` method — a `RuntimeSubscribe` whose events are the callback's
- * arguments, until the page unsubscribes.
- */
-type RepositoryCrossing = 'call' | 'stream';
-
-/**
- * Every method of the page's repository graph, by repository, and how it crosses. Keyed by every
- * method of each repository's page type, so a method added to a repository and left out here does not
- * compile. The token issuers are not on the page's graph, so they are not here either.
+ * How a repository method crosses, read off its signature so a table entry that disagrees with the
+ * method does not compile:
  *
- * A `RuntimeCall` names a repository method with the target `data` (`DATA_TARGET`) and the method as
- * `<repository>.<method>` — `chat.sendChat` — and, for a cloud's graph rather than the live scope's,
- * the cloud id first among its arguments (`cloudRepositories`).
+ * - `call` — the method returns a promise: one `RuntimeCall`, answered with what it resolves to;
+ * - `stream` — an `observe*` method, which returns its unsubscribe: a `RuntimeSubscribe` whose events
+ *   are the callback's arguments, until the page unsubscribes;
+ * - `send` — the method returns nothing: one `RuntimeCall` its caller does not wait for;
+ * - `local` — the method answers synchronously with a value. That cannot cross: a page that mirrors
+ *   another process's runtime has no answer to give in the same turn, so the method works only with the
+ *   runtime in the page.
  */
+type RepositoryCrossing = 'call' | 'stream' | 'send' | 'local';
+
+type CrossingOf<Method> = Method extends (...args: never[]) => infer Result
+    ? Result extends Promise<unknown>
+        ? 'call'
+        : Result extends () => void
+          ? 'stream'
+          : [Result] extends [void]
+            ? 'send'
+            : 'local'
+    : 'local';
+
+/** The crossing every method of `Repository` must be listed with. */
+type CrossingsOf<Repository> = { [Method in keyof Repository]: CrossingOf<Repository[Method]> };
+
 export const REPOSITORY_METHODS = {
     auth: {
         sendPhoneCode: 'call',
@@ -29,7 +40,7 @@ export const REPOSITORY_METHODS = {
         findAlias: 'call',
         verifyAlias: 'call',
         fetchInviteInfo: 'call',
-    } satisfies Record<keyof PageAuthRepository, RepositoryCrossing>,
+    } satisfies CrossingsOf<PageAuthRepository>,
     channel: {
         observeList: 'stream',
         observeItem: 'stream',
@@ -52,12 +63,13 @@ export const REPOSITORY_METHODS = {
         cacheWrite: 'call',
         cacheDelete: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['channel'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['channel']>,
     chat: {
         observeList: 'stream',
         observeLastList: 'stream',
         refreshList: 'call',
-        uncoveredFeed: 'call',
+        // Answers from a ledger kept beside the cache, in the same turn — see `RepositoryCrossing`.
+        uncoveredFeed: 'local',
         getChat: 'call',
         sendChat: 'call',
         updateChat: 'call',
@@ -76,7 +88,7 @@ export const REPOSITORY_METHODS = {
         cacheDelete: 'call',
         cacheClear: 'call',
         cacheClearByChannelId: 'call',
-    } satisfies Record<keyof PageRepositories['chat'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['chat']>,
     cloud: {
         observeList: 'stream',
         observeItem: 'stream',
@@ -92,12 +104,12 @@ export const REPOSITORY_METHODS = {
         makeCloud: 'call',
         releaseCloud: 'call',
         retryCloudSetup: 'call',
-    } satisfies Record<keyof PageRepositories['cloud'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['cloud']>,
     device: {
-        syncDevice: 'call',
-        syncStatus: 'call',
+        syncDevice: 'send',
+        syncStatus: 'send',
         updateRemotePushMute: 'call',
-    } satisfies Record<keyof PageRepositories['device'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['device']>,
     invite: {
         list: 'call',
         create: 'call',
@@ -111,7 +123,7 @@ export const REPOSITORY_METHODS = {
         cacheWrite: 'call',
         cacheDelete: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['invite'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['invite']>,
     join: {
         observeList: 'stream',
         readChat: 'call',
@@ -123,7 +135,7 @@ export const REPOSITORY_METHODS = {
         cacheWrite: 'call',
         cacheDelete: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['join'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['join']>,
     pairing: {
         requestPairing: 'call',
         checkPairing: 'call',
@@ -131,7 +143,7 @@ export const REPOSITORY_METHODS = {
         denyPairing: 'call',
         listPairings: 'call',
         revokePairing: 'call',
-    } satisfies Record<keyof PagePairingRepository, RepositoryCrossing>,
+    } satisfies CrossingsOf<PagePairingRepository>,
     profile: {
         observeList: 'stream',
         observeItem: 'stream',
@@ -145,11 +157,11 @@ export const REPOSITORY_METHODS = {
         cacheWrite: 'call',
         cacheDelete: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['profile'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['profile']>,
     report: {
         submitIssue: 'call',
         uploadLogBatch: 'call',
-    } satisfies Record<keyof PageRepositories['report'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['report']>,
     place: {
         observeList: 'stream',
         observeItem: 'stream',
@@ -164,7 +176,7 @@ export const REPOSITORY_METHODS = {
         cacheWrite: 'call',
         cacheDelete: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['place'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['place']>,
     subscription: {
         fetchPlans: 'call',
         fetchMembershipInfo: 'call',
@@ -182,7 +194,7 @@ export const REPOSITORY_METHODS = {
         addCard: 'call',
         setDefaultCard: 'call',
         removeCard: 'call',
-    } satisfies Record<keyof PageRepositories['subscription'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['subscription']>,
     user: {
         observeList: 'stream',
         observeItem: 'stream',
@@ -203,26 +215,26 @@ export const REPOSITORY_METHODS = {
         cacheClear: 'call',
         listRelayUsers: 'call',
         tryFetchProfile: 'call',
-    } satisfies Record<keyof PageRepositories['user'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['user']>,
     syncMeta: {
         getSyncedAt: 'call',
         setSyncedAt: 'call',
         cacheClear: 'call',
-    } satisfies Record<keyof PageRepositories['syncMeta'], RepositoryCrossing>,
+    } satisfies CrossingsOf<PageRepositories['syncMeta']>,
 } as const;
 
-/** The repository methods a `RuntimeCall` may name, as `<repository>.<method>`. */
+/** The repository methods a `RuntimeCall` may name — `call` and `send` alike — as `<repository>.<method>`. */
 export const REPOSITORY_CALL_METHODS: readonly string[] = Object.entries(REPOSITORY_METHODS).flatMap(
     ([repository, methods]) =>
-        Object.entries(methods)
-            .filter(([, crossing]) => crossing === 'call')
+        Object.entries(methods as Record<string, RepositoryCrossing>)
+            .filter(([, crossing]) => crossing === 'call' || crossing === 'send')
             .map(([method]) => `${repository}.${method}`)
 );
 
 /** The repository methods a `RuntimeSubscribe` may name — every `observe*` — as `<repository>.<method>`. */
 export const REPOSITORY_STREAMS: readonly string[] = Object.entries(REPOSITORY_METHODS).flatMap(
     ([repository, methods]) =>
-        Object.entries(methods)
+        Object.entries(methods as Record<string, RepositoryCrossing>)
             .filter(([, crossing]) => crossing === 'stream')
             .map(([method]) => `${repository}.${method}`)
 );

@@ -17,14 +17,16 @@ runtime.boot.initAppRuntime(
 );
 ```
 
-| Export                          | Does                                                                                                                                                                         |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createWebRuntime(options)`     | fills the page's ports (below), calls runtime-core's `createRuntime`, and returns the engine for `initAppRuntime(engine)`                                                    |
-| `resolveStorageStores(env?)`    | chooses and builds every store an app keeps state in, for its environment — see [The stores](#the-stores)                                                                    |
-| `readStorageEnvironment()`      | what that choice depends on: in a shell, the shell keeps a vault, a late vault already confirmed                                                                             |
-| `LATE_VAULT_MARK`               | the tab mark apps/web writes when a shell turns out to keep a vault only after its handshake                                                                                 |
-| `setNativeCacheSupport(report)` | the phone shell's cache capability, which the cache routing reads; called by apps/web after the bridge handshake, before the data graph is built                             |
-| `xhrPut`, `createXhrPut()`      | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file |
+| Export                          | Does                                                                                                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createWebRuntime(options)`     | fills the page's ports (below), calls runtime-core's `createRuntime`, and returns the engine for `initAppRuntime(engine)`                                                               |
+| `createBridgedRuntime(options)` | the engine of a page whose phone shell owns the session — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                                                           |
+| `webMirrorPort(client?)`        | the mirror's port over the page's bridge: `RuntimeCall` and `RuntimeSubscribe` (with `RUNTIME_CALL_TIMEOUT_MS`), `RuntimeUnsubscribe` and the two runtime pushes; made before the hello |
+| `resolveStorageStores(env?)`    | chooses and builds every store an app keeps state in, for its environment — see [The stores](#the-stores)                                                                               |
+| `readStorageEnvironment()`      | what that choice depends on: in a shell, the shell keeps a vault, a late vault already confirmed                                                                                        |
+| `LATE_VAULT_MARK`               | the tab mark apps/web writes when a shell turns out to keep a vault only after its handshake                                                                                            |
+| `setNativeCacheSupport(report)` | the phone shell's cache capability, which the cache routing reads; called by apps/web after the bridge handshake, before the data graph is built                                        |
+| `xhrPut`, `createXhrPut()`      | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file            |
 
 The ports `createWebRuntime` fills, the same in every web app:
 
@@ -38,6 +40,26 @@ The ports `createWebRuntime` fills, the same in every web app:
 They are not on the barrel: an app takes the whole set through `createWebRuntime`, so a forgotten port is
 not possible. The four apps that boot the runtime — web, desktop-web, admin and the landing site — call it
 from their entry point.
+
+### A page that mirrors its shell
+
+On a phone launch whose shell runs the session, the page builds no runtime of its own:
+`createBridgedRuntime({ hello, port })` returns runtime-core's mirror engine (`createMirrorEngine`) over
+the page's bridge, built from the session the shell's `native` answer to the page's hello carried.
+Nothing is wired in the page — no stores, sockets or cache — and every member reaches the shell's
+runtime as runtime-core's [docs/bridge](../runtime-core/docs/bridge/README.md#the-pages-half-the-mirror-engine)
+describes. It is the counterpart of `createWebRuntime`, never called alongside it: one launch has one
+owner. No entry point calls it yet.
+
+**The port is made before the hello** (`webMirrorPort()`). The shell pushes the session from the moment
+it answers, and the mirror exists only after the answer arrives; the port keeps the newest push heard
+with no one listening — with the signals of every push before it, so a sign-out in between is not lost —
+and hands it to the mirror when it subscribes.
+
+A runtime call or subscribe waits `RUNTIME_CALL_TIMEOUT_MS` (60 s) rather than the bridge's 10 s
+default: a call can be a socket round trip or a cloud switch with its own deadline inside the runtime,
+and a subscribe the page gave up on would stay open in the shell until the next hello, so this only
+catches an answer that never comes.
 
 ### The stores
 

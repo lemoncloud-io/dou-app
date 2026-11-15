@@ -18,11 +18,11 @@ libs/runtime-core/src/
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
-├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) — not on the barrel
+├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) and a host joined to a mirror in one process (`testing/mirrorLoopback`) — not on the barrel
 ├── connection/         the connection controller: session → socket slots; the sockets as screens read them — see docs/connection/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
-├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host — see docs/bridge/
+├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host, the page's mirror engine — see docs/bridge/
 └── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (app-runtime docs/sync/)
 ```
 
@@ -84,8 +84,9 @@ a handshake before it boots, and the shell decides. The page runs its own runtim
 or from a shell that cannot answer; a lost answer means asking again, never a second owner. `src/bridge/` holds what both halves are held to: the contract version they negotiate, the
 handshake's three steps, and how an error crosses with the fields screens read — or says the installed
 app's runtime does not have the method yet. The shell's half is
-`createRuntimeBridgeHost` (`src/bridge/host.ts`); the page's mirror is still to come
-([docs/bridge](./docs/bridge/README.md)).
+`createRuntimeBridgeHost` (`src/bridge/host.ts`); the page's is `createMirrorEngine`
+(`src/bridge/mirror/`), an engine with every member the in-process one has, each crossing as the
+contract says ([docs/bridge](./docs/bridge/README.md)).
 
 ## Purpose
 
