@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-15] - root@0.156.1, @chatic/landing@0.18.2
+
+### Bug Fixes
+
+- (landing) keep the reader signed in when the server refuses the account
+
 ## [2026-11-15] - No version updates
 
 ### Features
