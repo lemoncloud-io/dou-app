@@ -1,6 +1,8 @@
 import { logger } from '@chatic/logger';
 import type { RuntimeEngine } from '@chatic/runtime-core';
 
+import { attachLogoutCallbacks } from './session/logoutCallbacks';
+
 let engine: RuntimeEngine | null = null;
 
 /**
@@ -17,6 +19,7 @@ export const initAppRuntime = (next: RuntimeEngine): void => {
         logger.warn('WEB_CORE', '[initAppRuntime] the engine was replaced — mounted hosts keep the previous one');
     }
     engine = next;
+    attachLogoutCallbacks(next);
 };
 
 /**

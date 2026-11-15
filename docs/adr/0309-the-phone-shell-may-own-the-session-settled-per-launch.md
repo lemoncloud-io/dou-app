@@ -14,7 +14,10 @@
 > the app holds the session; still not booted); `feat/native-runtime-boot` (the app's runtime host:
 > the per-launch owner, the boot and what keeps the session alive, not started by anything yet);
 > `feat/runtime-bridge-host` (the shell's half of the bridge — the offer, the hello that starts the
-> runtime, the calls, subscriptions and session push; no page asks yet)
+> runtime, the calls, subscriptions and session push; no page asks yet); `refactor/page-reads-via-engine`
+> (the page's remaining direct reads through the engine; the connection and refused-room views and a
+> `logout` signal across the bridge; `primeChatRoom` moved from the engine onto `sync`, which ADR-0308
+> decision 1 listed as an engine member)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`

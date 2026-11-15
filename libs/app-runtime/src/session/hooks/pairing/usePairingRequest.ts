@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { pairingClientOf, PairingRequestFlow } from '@chatic/auth';
+import { PairingRequestFlow } from '@chatic/auth';
+
+import { pairingClientOf } from '../../pageDevice';
 import type { PairingRequestState } from '@chatic/auth';
 import { sessionCommands } from '../../sessionCommands';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';

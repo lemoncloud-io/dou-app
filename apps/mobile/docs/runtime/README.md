@@ -114,9 +114,10 @@ page that shares no contract with it is refused (`RUNTIME_CONTRACT_MISMATCH`), n
 
 A sign-out leaves the address a page would navigate to (`logout=1` among it) in the runtime's plain
 store for the next boot, and calls the host's way home. The host logs `session.native_ended` and tells
-`onSessionEnded` listeners. Nothing listens yet: taking the person home is the WebView's, and the page's
-mirror sees the session end in the next session push — what the shell does then is one of the items
-below.
+`onSessionEnded` listeners. The page hears it too: the next session push carries the `logout` signal,
+which runs what the page keeps for the signed-in person and drops at a sign-out. Nothing listens to
+`onSessionEnded` yet: taking the person home is the WebView's, and what the shell does then is one of
+the items below.
 
 ## What is not done yet
 

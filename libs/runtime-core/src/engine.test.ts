@@ -59,10 +59,10 @@ describe('coreEngine', () => {
         expect(coreEngine.session).toBe(madeViews[0].value);
     });
 
-    it('primes a chat room through the core prime', async () => {
+    it('primes a chat room through the core prime, on the sync', async () => {
         const cancelled = () => false;
 
-        await expect(coreEngine.primeChatRoom('cloud-a', 'ch-1', { cancelled })).resolves.toBe('ready');
+        await expect(coreEngine.sync.primeChatRoom('cloud-a', 'ch-1', { cancelled })).resolves.toBe('ready');
 
         expect(mockPrime).toHaveBeenCalledWith('cloud-a', 'ch-1', { cancelled });
     });

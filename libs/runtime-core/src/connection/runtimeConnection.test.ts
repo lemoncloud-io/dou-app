@@ -77,7 +77,14 @@ jest.mock('@chatic/transport', () => ({
     ...jest.requireActual('@chatic/transport'),
     getSocketManager: () => mockManager,
     backgroundClouds: { setJoined: (cids: string[]) => mockSetJoined(cids) },
+    readOnline: () => mockOnline.value,
+    subscribeOnline: (listener: () => void) => {
+        mockOnlineListeners.add(listener);
+        return () => mockOnlineListeners.delete(listener);
+    },
 }));
+const mockOnline = { value: true };
+const mockOnlineListeners = new Set<() => void>();
 
 const mockReclaim = jest.fn(async () => []);
 const mockRecoverUnverified = jest.fn(async () => undefined);
@@ -113,6 +120,20 @@ beforeEach(() => {
 });
 
 describe('the core runtime connection — its snapshot', () => {
+    it("carries the platform's online signal, and tells subscribers when it changes", () => {
+        const connection = createCoreRuntimeConnection();
+        const listener = jest.fn();
+        connection.subscribe(listener);
+        expect(connection.snapshot().online).toBe(true);
+
+        mockOnline.value = false;
+        mockOnlineListeners.forEach(notify => notify());
+
+        expect(listener).toHaveBeenCalled();
+        expect(connection.snapshot().online).toBe(false);
+        mockOnline.value = true;
+    });
+
     it('lists the bound slots that are verified, leaving out the ones still handshaking', () => {
         mockManager.bind('default', true);
         mockManager.bind('cloud-a', false);

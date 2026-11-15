@@ -11,7 +11,7 @@ jest.mock('@chatic/session', () => ({
     },
 }));
 
-const { useDynamicDeviceId, readSessionDeviceId, resolveDeviceIds } = require('./useDynamicDeviceId');
+const { useDynamicDeviceId, lazySessionDeviceId, resolveDeviceIds } = require('./useDynamicDeviceId');
 
 describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해석', () => {
     beforeEach(() => {
@@ -110,11 +110,21 @@ describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해
     // The connection controller resolves the id outside React, on every pass: the page's own id is
     // fixed once, and a shell id injected later is picked up by the next pass.
     it('resolves outside React the same way, re-reading the injected ids on every call', () => {
-        const sessionDeviceId = readSessionDeviceId();
+        const sessionDeviceId = lazySessionDeviceId();
         expect(resolveDeviceIds(sessionDeviceId).deviceId).toBe('session-1');
 
         window.CHATIC_APP_UNIQUE_DEVICE_ID = 'bare-1';
 
         expect(resolveDeviceIds(sessionDeviceId).deviceId).toBe('bare-1');
+    });
+
+    it("never touches the session's store when the shell injected an id", () => {
+        const throwing = jest.fn(() => {
+            throw new Error('no session store in a page whose session runs in the app');
+        });
+        window.CHATIC_APP_UNIQUE_DEVICE_ID = 'bare-1';
+
+        expect(resolveDeviceIds(throwing).deviceId).toBe('bare-1');
+        expect(throwing).not.toHaveBeenCalled();
     });
 });

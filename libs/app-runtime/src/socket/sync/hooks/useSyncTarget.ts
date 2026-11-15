@@ -60,7 +60,7 @@ export interface ChatSyncState {
 }
 
 /**
- * Primes the room for its first render — the engine's `primeChatRoom`, which aligns the chat plan's
+ * Primes the room for its first render — the engine's `sync.primeChatRoom`, which aligns the chat plan's
  * baseline to the cache and fetches a first page only when the cache is cold. This hook decides when:
  * once `cid`'s slot is verified, and again after that slot's auth or reconnect, whichever slot is
  * active. A warm room's sync is `useForegroundChatRefresh`'s in the web, which marks the same trace
@@ -83,7 +83,7 @@ const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState
         if (!isVerified || !channelId) return;
         let cancelled = false;
         void runtimeEngine()
-            .primeChatRoom(cid, channelId, { cancelled: () => cancelled })
+            .sync.primeChatRoom(cid, channelId, { cancelled: () => cancelled })
             .then(outcome => {
                 if (!cancelled && outcome !== 'cancelled') {
                     setSettled({ scope: `${cid}:${channelId}`, status: outcome });

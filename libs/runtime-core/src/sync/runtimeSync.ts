@@ -5,12 +5,16 @@ import {
     fetchRoomFeed,
     getSyncManager,
     isChannelRefused,
+    listRefusedChannels,
     prefetchRoomFeed,
     refreshBackgroundClouds,
     subscribeBackgroundDeltas,
     subscribeRefusedChannels,
 } from '@chatic/sync';
 import type { BackgroundDelta, SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
+
+import { primeChatRoom } from './primeChatRoom';
+import type { ChatPrimeOutcome, PrimeChatRoomOptions } from './primeChatRoom';
 
 /**
  * What the React surface asks of the sync engine — never the sync manager itself. On the phone the
@@ -39,6 +43,8 @@ export interface RuntimeSync {
     isChannelRefused(channelId: string): boolean;
     /** Hears every change to the refused rooms; the listener reads again. */
     subscribeRefusedChannels(listener: () => void): () => void;
+    /** Every room refused now — the list `isChannelRefused` answers from, for a mirror of it. */
+    refusedChannels(): string[];
     /**
      * A room's latest page, fetched once per entry: a caller that finds one in flight, or one that
      * just finished, gets that one. `fresh` sends a new request regardless.
@@ -50,6 +56,12 @@ export interface RuntimeSync {
     ): Promise<ChatRefreshResult>;
     /** Starts a room's fetch at the tap that opens it. Never rejects. */
     prefetchRoomFeed(cid: string, channelId: string): Promise<void>;
+    /**
+     * Primes a chat room for its first render: aligns the chat plan's baseline with the cache, and
+     * fetches the room's first page on a cold cache. `options.cancelled` is asked between steps in this
+     * process only — across the bridge the caller drops a late outcome instead.
+     */
+    primeChatRoom(cid: string, channelId: string, options?: PrimeChatRoomOptions): Promise<ChatPrimeOutcome>;
 }
 
 /** The core runtime's sync: this process's sync manager. */
@@ -63,6 +75,8 @@ export const createCoreRuntimeSync = (): RuntimeSync => ({
     onBackgroundDelta: listener => subscribeBackgroundDeltas(listener),
     isChannelRefused: channelId => isChannelRefused(channelId),
     subscribeRefusedChannels: listener => subscribeRefusedChannels(listener),
+    refusedChannels: () => listRefusedChannels(),
     fetchRoomFeed: (cid, channelId, options) => fetchRoomFeed(cid, channelId, options ?? undefined),
     prefetchRoomFeed: (cid, channelId) => prefetchRoomFeed(cid, channelId),
+    primeChatRoom: (cid, channelId, options) => primeChatRoom(cid, channelId, options ?? undefined),
 });

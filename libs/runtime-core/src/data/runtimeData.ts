@@ -19,6 +19,9 @@ import type { PageRepositories } from './pageRepositories';
 import { syncPairedCloudName } from './pairedCloudName';
 import { getDataManager, getRepositories } from './runtime';
 import { requestSyncCursorReset } from './syncCursorWatermark';
+import { userGateway } from '@chatic/transport';
+import type { RegisterDeviceTokenBody } from '@lemoncloud/chatic-backend-api';
+import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 
 const EMPTY_SEARCH: GlobalCacheSearchResult = { channels: [], sites: [], chats: [] };
 const EMPTY_CONTEXT: GlobalCacheContext = { channelsByRef: {}, sitesByRef: {}, joinsByRef: {}, lastChatsByRef: {} };
@@ -62,6 +65,11 @@ export interface RuntimeData {
     searchCache(keyword: string, options?: { cid?: string }): Promise<GlobalCacheSearchResult>;
     /** The clouds and rooms a set of search hits points at, for drawing them — empty while signed out. */
     resolveCacheContext(refs: { cids: string[]; channelRefs: GlobalCacheRef[] }): Promise<GlobalCacheContext>;
+    /**
+     * Registers a push token with the push broker now, signed by the relay session — for a debug screen
+     * that re-registers by hand. The registration that runs on its own is the push registrar's.
+     */
+    registerDeviceToken(body: RegisterDeviceTokenBody, options?: { force?: boolean }): Promise<RegisterDeviceResult>;
 }
 
 /** The core runtime's data: this process's repository graphs and cache. */
@@ -106,5 +114,6 @@ export const createCoreRuntimeData = (): RuntimeData => {
             if (!uid) return EMPTY_CONTEXT;
             return getGlobalCacheSearchSource().resolveContext({ uid, ...refs });
         },
+        registerDeviceToken: (body, options) => userGateway().registerDevice(body, { force: options?.force }),
     };
 };

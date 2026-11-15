@@ -59,10 +59,10 @@ export { forgetInviteLogin } from './sessionCommands';
 // logout-callback registry have no hook because their callers are not React (an OAuth redirect
 // page's effect, a log uploader's module init).
 export { createCredentialsByProvider } from './sessionCommands';
-export { registerSessionLogoutCallback } from '@chatic/auth';
+export { registerSessionLogoutCallback } from './logoutCallbacks';
 // Invite login and lookup. The lookup changes no session, so it is not a command.
 export { registerUserWithInviteCode } from './sessionCommands';
-export { fetchInviteInfoWithCode } from '@chatic/auth';
+export { fetchInviteInfoWithCode } from './authLookups';
 // Empties the place selection without a switch — for a cloud whose last place the user just left,
 // where there is nothing to switch to. Not a hook: the caller already decides when, in an effect.
 export { clearSiteSelection } from './sessionCommands';
@@ -115,7 +115,8 @@ export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing'
 export { isInOwnCloudSession, isPairedSession } from './sessionReads';
 export { forgetRefusedPairedCloud } from './sessionCommands';
 export { isRefusedForEndedPairing } from '@chatic/auth';
-export { deviceDisplayName, pairingClientOf } from '@chatic/auth';
+export { deviceDisplayName } from '@chatic/auth';
+export { pairingClientOf } from './pageDevice';
 export { classifyPairingError } from '@chatic/auth';
 export type { PairingApprovalError } from '@chatic/auth';
 export type { PairingRequestState } from '@chatic/auth';

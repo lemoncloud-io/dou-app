@@ -40,7 +40,17 @@ jest.mock('@chatic/session', () => ({
 jest.mock('@chatic/transport', () => ({
     backgroundClouds: { subscribe: (listener: Listener) => listen(mockBackgroundListeners)(listener) },
 }));
+/** The relay session's logout callbacks, as it keeps them: run once, then emptied. */
+const mockLogoutCallbacks = new Set<() => void>();
+const signOut = () => {
+    [...mockLogoutCallbacks].forEach(callback => callback());
+    mockLogoutCallbacks.clear();
+};
 jest.mock('@chatic/auth', () => ({
+    registerSessionLogoutCallback: (callback: () => void) => {
+        mockLogoutCallbacks.add(callback);
+        return () => mockLogoutCallbacks.delete(callback);
+    },
     isPairedSession: () => mockStore.paired,
     isInOwnCloudSession: () => mockStore.inOwnCloud,
     pairedClouds: {
@@ -305,5 +315,34 @@ describe('createCoreSessionView', () => {
         emit(mockUidSourceListeners);
 
         expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('hears every sign-out of a process that lives on, though the relay session empties its list each time', async () => {
+        const view = createCoreSessionView();
+        const listener = jest.fn();
+        const stop = view.onLogout(listener);
+
+        signOut();
+        await Promise.resolve();
+        signOut();
+        await Promise.resolve();
+
+        expect(listener).toHaveBeenCalledTimes(2);
+        stop();
+        signOut();
+        expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps hearing when one listener throws', () => {
+        const view = createCoreSessionView();
+        const after = jest.fn();
+        view.onLogout(() => {
+            throw new Error('listener bug');
+        });
+        view.onLogout(after);
+
+        signOut();
+
+        expect(after).toHaveBeenCalledTimes(1);
     });
 });

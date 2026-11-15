@@ -226,7 +226,8 @@ only records what it saw. Each pass runs the binder first and the re-auth second
 
 `engine.connection` (`RuntimeConnection`) is everything the React surface asks of the sockets; app-runtime
 reaches the socket manager no other way. Its snapshot is plain data — `active`, the active slot's socket
-state, and `verifiedSlots`, every bound slot that is verified, in slot order — and keeps the same objects
+state, `verifiedSlots`, every bound slot that is verified, in slot order, and `online`, the transport's
+network signal — and keeps the same objects
 until something in it changes: `active` is the manager's own snapshot, and the verified list is rebuilt
 only when the set differs. It re-reads on the active slot's changes, on each slot's verified changes,
 and once more after a slot's teardown has finished (a teardown is announced while the slot is still

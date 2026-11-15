@@ -2,7 +2,7 @@ import type { SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 
 import { recoverSocketsOnResume, recoverUnverifiedSockets, reclaimOwnedClouds } from '@chatic/auth';
 import { sessionSignal } from '@chatic/session';
-import { backgroundClouds, getSocketManager } from '@chatic/transport';
+import { backgroundClouds, getSocketManager, readOnline, subscribeOnline } from '@chatic/transport';
 import type { SlotKey, SlotStatus, SocketRequestSample, SocketState } from '@chatic/transport';
 
 /** The sockets as screens read them. Plain data: on the phone it is mirrored from another process. */
@@ -11,6 +11,8 @@ export interface ConnectionSnapshot {
     active: SocketState;
     /** Every bound slot that is verified now, the relay among them, in slot order. */
     verifiedSlots: readonly string[];
+    /** Whether the device has a network: the platform's online signal, where the sockets run. */
+    online: boolean;
 }
 
 /**
@@ -109,10 +111,11 @@ export const createCoreRuntimeConnection = (): RuntimeConnection => {
     const snapshot = (): ConnectionSnapshot => {
         const active = getSocketManager().getSnapshot();
         const key = readVerifiedKey();
-        if (current && current.active === active && key === verifiedKey) return current;
+        const online = readOnline();
+        if (current && current.active === active && key === verifiedKey && current.online === online) return current;
         const verifiedSlots = current && key === verifiedKey ? current.verifiedSlots : key ? key.split(SEPARATOR) : [];
         verifiedKey = key;
-        const next: ConnectionSnapshot = { active, verifiedSlots };
+        const next: ConnectionSnapshot = { active, verifiedSlots, online };
         current = next;
         return next;
     };
@@ -129,6 +132,7 @@ export const createCoreRuntimeConnection = (): RuntimeConnection => {
     const attachUpstream = (): (() => void) => {
         const manager = getSocketManager();
         const unsubscribeActive = manager.subscribe(() => notify());
+        const unsubscribeOnline = subscribeOnline(() => notify());
         // One verified subscription per bound slot, re-made as slots bind and go: a slot that appears
         // after subscribing has no subscription until the client listener adds one.
         const perSlot = new Map<SlotKey, () => void>();
@@ -149,6 +153,7 @@ export const createCoreRuntimeConnection = (): RuntimeConnection => {
         });
         return () => {
             unsubscribeActive();
+            unsubscribeOnline();
             unsubscribeClients();
             for (const unsubscribe of perSlot.values()) unsubscribe();
             perSlot.clear();

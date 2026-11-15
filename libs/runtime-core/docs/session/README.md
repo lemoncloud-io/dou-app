@@ -151,7 +151,10 @@ guards' `check` itself.
 
 `engine.session` is how the React surface reads the session — every reader app-runtime publishes
 (`useGlobalSession`, `getUidInCloud`, `isPairedSession` and the rest) goes through it. It is a
-`SessionView { snapshot(), subscribe(listener) }`, and the snapshot is a `SessionSnapshot`:
+`SessionView { snapshot(), subscribe(listener), onLogout(listener) }`, and the snapshot is a
+`SessionSnapshot`. `onLogout` hears each sign-out as it happens (the core view registers on the relay
+session's logout callbacks) — for what a page drops with the signed-in person, which a snapshot cannot
+say, since the session after a sign-out may look the same as before it:
 
 | Part              | Holds                                                                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------------------ |

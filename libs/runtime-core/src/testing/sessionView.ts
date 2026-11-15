@@ -19,6 +19,8 @@ export const emptySessionSnapshot = (): SessionSnapshot => ({
 /** A session view a test drives: `set` replaces the snapshot and tells every subscriber. */
 export interface FakeSessionView extends SessionView {
     set(next: Partial<SessionSnapshot>): void;
+    /** Signs out, as far as `onLogout` listeners hear. */
+    logout(): void;
 }
 
 /**
@@ -29,6 +31,7 @@ export interface FakeSessionView extends SessionView {
 export const fakeSessionView = (initial: Partial<SessionSnapshot> = {}): FakeSessionView => {
     let current: SessionSnapshot = { ...emptySessionSnapshot(), ...initial };
     const listeners = new Set<() => void>();
+    const logoutListeners = new Set<() => void>();
     return {
         snapshot: () => current,
         subscribe(listener) {
@@ -40,6 +43,15 @@ export const fakeSessionView = (initial: Partial<SessionSnapshot> = {}): FakeSes
         set(next) {
             current = { ...current, ...next };
             for (const listener of [...listeners]) listener();
+        },
+        onLogout(listener) {
+            logoutListeners.add(listener);
+            return () => {
+                logoutListeners.delete(listener);
+            };
+        },
+        logout() {
+            for (const listener of [...logoutListeners]) listener();
         },
     };
 };

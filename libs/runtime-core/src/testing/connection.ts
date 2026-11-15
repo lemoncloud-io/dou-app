@@ -10,6 +10,7 @@ export const emptyConnectionSnapshot = (): ConnectionSnapshot => ({
         connectionId: null,
     } as ConnectionSnapshot['active'],
     verifiedSlots: [],
+    online: true,
 });
 
 /** Sockets a test drives: `set` replaces the snapshot and tells every subscriber. */

@@ -17,11 +17,14 @@ import {
     CONNECTION_STREAMS,
     CONNECTION_TARGET,
     RUNTIME_CONTRACTS,
+    SESSION_CHANGE_SIGNAL,
     SESSION_COMMAND_METHODS,
     SESSION_COMMANDS_TARGET,
+    SESSION_LOGOUT_SIGNAL,
     SYNC_CALL_METHODS,
     SYNC_STREAMS,
     SYNC_TARGET,
+    VIEW_STREAMS,
     answerRuntimeHello,
 } from './contract';
 import { runtimeNotAvailableFailure, toRuntimeFailure } from './errors';
@@ -127,6 +130,27 @@ const repositoryMethod = (repositories: object, name: string): Invoke | null => 
     return typeof member === 'function' ? (member as Invoke).bind(repository) : null;
 };
 
+/** A view a page mirrors through a subscription (`VIEW_STREAMS`): its value now, and its changes. */
+const viewOf = (
+    engine: RuntimeEngine,
+    target: string,
+    topic: string
+): { read: () => unknown; subscribe: (listener: () => void) => () => void } | null => {
+    if (target === CONNECTION_TARGET && topic === VIEW_STREAMS[CONNECTION_TARGET]) {
+        return {
+            read: () => engine.connection.snapshot(),
+            subscribe: listener => engine.connection.subscribe(listener),
+        };
+    }
+    if (target === SYNC_TARGET && topic === VIEW_STREAMS[SYNC_TARGET]) {
+        return {
+            read: () => engine.sync.refusedChannels(),
+            subscribe: listener => engine.sync.subscribeRefusedChannels(listener),
+        };
+    }
+    return null;
+};
+
 /**
  * The member a `RuntimeCall` or `RuntimeSubscribe` names, bound and with the arguments it takes — or
  * `null` when the contract does not list it for that kind. Only listed members are reached: a page names
@@ -228,26 +252,40 @@ export const createRuntimeBridgeHost = ({
 
     const snapshotOf = (live: RuntimeEngine) => ({ seq: sessionSeq, session: live.session.snapshot() });
 
+    // What happened since the last push: a change of the view, a sign-out, or both.
+    const pendingSignals = new Set<string>();
+
     const pushSession = () => {
         pushScheduled = false;
         if (!engine) return;
         sessionSeq += 1;
+        const signals = [...pendingSignals];
+        pendingSignals.clear();
         const payload: OnRuntimeSessionChangedPayload = {
             seq: sessionSeq,
-            signals: ['session'],
+            signals,
             session: engine.session.snapshot() as unknown as RuntimeWireValue,
         };
         onPayload?.({ kind: 'session', size: sizeOf(payload) });
         send.sessionChanged(payload);
     };
 
+    const schedulePush = (signal: string) => {
+        pendingSignals.add(signal);
+        if (pushScheduled) return;
+        pushScheduled = true;
+        schedule(pushSession);
+    };
+
     const startSessionPush = (live: RuntimeEngine) => {
         if (stopSessionPush) return;
-        stopSessionPush = live.session.subscribe(() => {
-            if (pushScheduled) return;
-            pushScheduled = true;
-            schedule(pushSession);
-        });
+        const offChange = live.session.subscribe(() => schedulePush(SESSION_CHANGE_SIGNAL));
+        // A sign-out is a moment, not a state: the snapshot after it may look like the one before.
+        const offLogout = live.session.onLogout(() => schedulePush(SESSION_LOGOUT_SIGNAL));
+        stopSessionPush = () => {
+            offChange();
+            offLogout();
+        };
     };
 
     const endSubscriptions = () => {
@@ -270,6 +308,77 @@ export const createRuntimeBridgeHost = ({
     const notStarted = (): { failure: AppMessageError } => ({
         failure: { code: RUNTIME_NOT_STARTED_CODE, message: 'the page has not been answered native yet' },
     });
+
+    /**
+     * Opens a stream under `subscriptionId`. The member is invoked with the host's listener where its
+     * arguments hold the marker; a member that has to end its stream on its own (a view whose read
+     * failed) is handed `fail` as its last argument.
+     */
+    const subscribeTo = (
+        subscriptionId: string,
+        name: string,
+        member: { invoke: Invoke; args: unknown[] },
+        handFail = false
+    ): RuntimeHostAnswer<Record<string, never>> => {
+        subscriptions.get(subscriptionId)?.();
+        let seq = lastEventSeq.get(subscriptionId) ?? 0;
+        let ended = false;
+        let stop: () => void = () => undefined;
+        const end = () => {
+            if (ended) return;
+            ended = true;
+            subscriptions.delete(subscriptionId);
+            stop();
+        };
+        const listener = (...event: unknown[]) => {
+            if (ended) return;
+            seq += 1;
+            lastEventSeq.set(subscriptionId, seq);
+            let size: number;
+            try {
+                size = sizeOf(event);
+            } catch (error) {
+                send.event({ subscriptionId, seq, event: { $ended: toRuntimeFailure(error) } as never });
+                end();
+                return;
+            }
+            onPayload?.({ kind: 'event', name, size });
+            if (size > payloadLimit) {
+                send.event({ subscriptionId, seq, event: { $ended: tooLarge(name, size) } as never });
+                end();
+                return;
+            }
+            send.event({ subscriptionId, seq, event: event as RuntimeWireValue });
+        };
+        const fail = (error: unknown) => {
+            if (ended) return;
+            seq += 1;
+            lastEventSeq.set(subscriptionId, seq);
+            send.event({ subscriptionId, seq, event: { $ended: toRuntimeFailure(error) } as never });
+            end();
+        };
+
+        const callArgs = member.args.map(arg => (isListenerMarker(arg) ? listener : arg));
+        if (handFail) callArgs.push(fail);
+        try {
+            const returned = member.invoke(...callArgs);
+            if (typeof returned !== 'function') {
+                // A stream that cannot be stopped would outlive the page that asked for it.
+                ended = true;
+                return { failure: toRuntimeFailure(new Error(`${name} answered no way to stop it`)) };
+            }
+            stop = returned as () => void;
+        } catch (error) {
+            return { failure: toRuntimeFailure(error) };
+        }
+        // An event during the subscribing call itself may already have ended it.
+        if (ended) {
+            stop();
+            return { value: {} };
+        }
+        subscriptions.set(subscriptionId, end);
+        return { value: {} };
+    };
 
     return {
         hello: async payload => {
@@ -335,6 +444,39 @@ export const createRuntimeBridgeHost = ({
         subscribe: async ({ subscriptionId, target, topic, args }) => {
             if (!engine) return notStarted();
             const given = Array.isArray(args) ? args : [];
+            const view = viewOf(engine, target, topic);
+            if (view) {
+                // A view: its current value at once, then each change, coalesced per turn.
+                const viewArgs = [RUNTIME_LISTENER_MARKER];
+                let scheduled = false;
+                const viewMember = {
+                    invoke: (listener: unknown, fail: unknown) => {
+                        const emit = listener as (value: unknown) => void;
+                        const endWith = fail as (error: unknown) => void;
+                        const push = () => {
+                            if (scheduled) return;
+                            scheduled = true;
+                            schedule(() => {
+                                scheduled = false;
+                                let value: unknown;
+                                try {
+                                    value = view.read();
+                                } catch (error) {
+                                    // A read that throws ends the mirror, saying so, rather than leaving
+                                    // the page on a value that silently stopped changing.
+                                    endWith(error);
+                                    return;
+                                }
+                                emit(value);
+                            });
+                        };
+                        push();
+                        return view.subscribe(push);
+                    },
+                    args: viewArgs,
+                };
+                return subscribeTo(subscriptionId, `${target}.${topic}`, viewMember, true);
+            }
             const member = resolveMember(engine, 'stream', target, topic, given);
             if (!member) return { failure: runtimeNotAvailableFailure(target, topic) };
 
@@ -352,57 +494,7 @@ export const createRuntimeBridgeHost = ({
                 };
             }
 
-            subscriptions.get(subscriptionId)?.();
-            const name = `${target}.${topic}`;
-            let seq = lastEventSeq.get(subscriptionId) ?? 0;
-            let ended = false;
-            let stop: () => void = () => undefined;
-            const end = () => {
-                if (ended) return;
-                ended = true;
-                subscriptions.delete(subscriptionId);
-                stop();
-            };
-            const listener = (...event: unknown[]) => {
-                if (ended) return;
-                seq += 1;
-                lastEventSeq.set(subscriptionId, seq);
-                let size: number;
-                try {
-                    size = sizeOf(event);
-                } catch (error) {
-                    send.event({ subscriptionId, seq, event: { $ended: toRuntimeFailure(error) } as never });
-                    end();
-                    return;
-                }
-                onPayload?.({ kind: 'event', name, size });
-                if (size > payloadLimit) {
-                    send.event({ subscriptionId, seq, event: { $ended: tooLarge(name, size) } as never });
-                    end();
-                    return;
-                }
-                send.event({ subscriptionId, seq, event: event as RuntimeWireValue });
-            };
-
-            const callArgs = member.args.map(arg => (isListenerMarker(arg) ? listener : arg));
-            try {
-                const returned = member.invoke(...callArgs);
-                if (typeof returned !== 'function') {
-                    // A stream that cannot be stopped would outlive the page that asked for it.
-                    ended = true;
-                    return { failure: toRuntimeFailure(new Error(`${name} answered no way to stop it`)) };
-                }
-                stop = returned as () => void;
-            } catch (error) {
-                return { failure: toRuntimeFailure(error) };
-            }
-            // An event during the subscribing call itself may already have ended it.
-            if (ended) {
-                stop();
-                return { value: {} };
-            }
-            subscriptions.set(subscriptionId, end);
-            return { value: {} };
+            return subscribeTo(subscriptionId, `${target}.${topic}`, member);
         },
 
         unsubscribe: ({ subscriptionId }) => {

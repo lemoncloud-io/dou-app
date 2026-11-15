@@ -27,6 +27,7 @@ const engine = {
             sessionListeners.add(listener);
             return () => sessionListeners.delete(listener);
         },
+        onLogout: () => () => undefined,
     },
     commands: { switchSite: jest.fn(async () => undefined) },
     data: {

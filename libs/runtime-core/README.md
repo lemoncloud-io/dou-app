@@ -23,7 +23,7 @@ libs/runtime-core/src/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host — see docs/bridge/
-└── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/); the sync engine as screens drive it (docs/connection/)
+└── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (app-runtime docs/sync/)
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
@@ -56,7 +56,6 @@ surface starts its lifecycle work from, instead of making it itself:
 | `connectionController(options)`                                 | the sockets kept in line with the session, the background clouds |
 | `relayCredentialGuard(policy)` · `cloudCredentialGuard(policy)` | the two credential guards an app starts with its own policy      |
 | `pushRegistration(options)`                                     | push device-token registration                                   |
-| `primeChatRoom(cid, channelId, options)`                        | a chat room's baseline and first page                            |
 
 The engine `createRuntime` returns is the **core engine**: each member makes the core implementation, in
 this process. The classes behind it are not on the barrel — only their types are — so app-runtime can
