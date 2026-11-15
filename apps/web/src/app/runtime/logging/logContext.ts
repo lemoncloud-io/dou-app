@@ -31,6 +31,16 @@ interface NativeGlobals {
 const nativeGlobals = (): NativeGlobals => window as unknown as NativeGlobals;
 
 let webRunId: string | undefined;
+let sessionOwner: string | undefined;
+
+/**
+ * Records who holds the session this run — `web` (the page) or `native` (the phone app's runtime) —
+ * once the entry point has settled it. Stamped only inside the app: in a browser tab only the page can
+ * hold it, and the field would say nothing.
+ */
+export const setLogSessionOwner = (owner: 'web' | 'native' | undefined): void => {
+    sessionOwner = owner;
+};
 
 /**
  * The run id the native shell injected, or `undefined` outside the app WebView.
@@ -109,6 +119,7 @@ export const readLogContext = (): LogContext => {
         osVersion: globals.CHATIC_APP_OS_VERSION,
         model: globals.CHATIC_APP_DEVICE_MODEL,
         sessionId: currentTelemetrySessionId(),
+        sessionOwner: isNative() ? sessionOwner : undefined,
         ...deviceContext(globals),
     };
 };

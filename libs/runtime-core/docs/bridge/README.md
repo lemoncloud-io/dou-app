@@ -4,8 +4,8 @@ On the phone the session can belong to the shell's own JavaScript process instea
 shell runs this package's runtime — the session and its tokens, the sockets, sync, the repositories —
 and the page mirrors it, asking the shell for everything the session decides. This document is the
 contract the two halves share, and both halves of it: the shell's (`RuntimeBridgeHost`) and the page's
-mirror engine (`createMirrorEngine`). Nothing builds the mirror yet — the web entry that says hello and
-picks it comes next.
+mirror engine (`createMirrorEngine`). The web app's entry point says hello and picks it — through
+runtime-web's `settleSessionOwner` — on a launch whose shell offers.
 
 ## Where the cut is
 
@@ -45,7 +45,9 @@ page                            settleRuntimeHello(outcome) → web · native ·
   owner — or one that finds no session, which the shell keeps from it. Asking again is safe because
   **the shell answers every hello of a launch with the same owner**: once it has said `native`, it
   says `native` until the app process ends. What a page does when asking again keeps failing is the
-  mirror's to decide; booting its own runtime is not an option.
+  page's to decide; booting its own runtime is not an option. The web page asks for 30 s of being
+  shown, then shows an error with a reload instead of booting at all (runtime-web's
+  `settleSessionOwner`); a `RUNTIME_CONTRACT_MISMATCH` refusal ends the asking at once.
 - **The injected offer is read as untrusted.** A value that is not an offer, or names none of the
   page's contracts, is no offer at all; it never throws at boot.
 - **A reloaded page says hello again** and is answered from the runtime that is already running. The
