@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-15] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,web) keep background cloud sockets across a page reload, not drop them on an unread list
+- (runtime-core) number a reloaded page's runtime streams from 1, not after the last page's
+
 ## [2026-11-15] - root@0.156.1, @chatic/landing@0.18.2
 
 ### Bug Fixes
