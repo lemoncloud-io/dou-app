@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Refactor
+
+- (runtime-core,app-runtime,sync) route the page's remaining reads through the engine
+
+## [2026-11-15] - No version updates
+
 ### Features
 
 - (runtime-core,mobile,bridges) answer the page's runtime requests from the app's runtime
