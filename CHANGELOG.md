@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-15] - No version updates
+
+### Features
+
+- (runtime-core,mobile,bridges) answer the page's runtime requests from the app's runtime
+
 ## [2026-11-13] - No version updates
 
 ### Features
