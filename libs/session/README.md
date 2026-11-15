@@ -96,6 +96,21 @@ The keys stay in the file of the store that reads and writes them rather than mo
 `setDeviceId`. `getDeviceId` is the page's own id, which app-runtime's `useDynamicDeviceId` reads and
 makes on first use; an app or desktop shell injects an id of its own that wins over it.
 
+`chatic-delegator-id` is the one key kept in **both** ports (below): `setDelegatorId` writes and clears
+both copies, and `getDelegatorId` reads the secret one first and falls back to the plain one. The id is
+the guest the server registers for this device, the user an invited cloud is accepted under, so it has
+to be readable by whichever side owns the session. In a shell the plain port is the page's own
+`localStorage` on one side and the phone runtime's own file on the other; the secret port is the device
+vault both sides open under the same item and keys. A copy kept only in the plain port never reached
+the other side, and an account signed in for a long time never logs in as a guest again to write it, so
+the invited clouds it accepted were hidden from it there and a new invite could not be accepted.
+
+The plain copy is kept rather than moved, for three readers: a web build from before this reads only
+it, a run whose vault cannot be read falls back to it, and the vault boot copies it into a vault that
+lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies only ever hold this device's guest
+— the server registers one per device id — so when they differ, because the other side ended a session
+and wrote only its own copies, either one names the same user.
+
 ### Two ports: secret and plain
 
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
@@ -105,7 +120,7 @@ The stores do not hold a storage of their own. They hold two **ports** that the 
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache`                                                                                                                                                                        |
+| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache` · `chatic-delegator-id` (a copy; see `identityStore`)                                                                                                                  |
 | `plain`  | `chatic-relay-selected-site-id` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` · `chatic-delegator-id` · `chatic-device-id` · `chatic-paired-cloud-ids` · `chatic-paired-cloud-names` |
 
 The split is by what a value would cost if it leaked: whoever holds a `secret` key signs as the user.
@@ -114,7 +129,10 @@ The split is by what a value would cost if it leaked: whoever holds a `secret` k
 auth those two keys (`pairedCloudsSlot`, `pairedCloudNamesSlot`), not the plain port — nothing outside
 may write the session's other keys.
 `chatic-secret-logout-pending` is in the plain list too: a logout whose vault clear was not confirmed
-leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
+leaves it, and the next boot empties the vault before reading it. `chatic-delegator-id` is listed under
+`plain` in `SESSION_KEYS` and its secret copy is not: every key on the secret list has its web copy
+deleted by the vault boot, and this key's web copy is the only one an existing install has.
+`SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
 copy of the list.
 

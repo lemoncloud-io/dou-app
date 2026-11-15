@@ -1,8 +1,7 @@
 import { type StorageLike } from './jsonSlot';
-import { plainPort } from './ports';
+import { DELEGATOR_ID_KEY, plainPort, secretPort } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
 
-const DELEGATOR_ID_KEY = 'chatic-delegator-id';
 const DEVICE_ID_KEY = 'chatic-device-id';
 
 /**
@@ -36,27 +35,40 @@ export interface IIdentityStore {
     setDeviceId(value: string | null): void;
 }
 
+/**
+ * The delegator id is kept in both ports, and read from the secret one first.
+ *
+ * It is a device fact rather than a secret: the guest the server registers for this device, the user
+ * an invited cloud is accepted under. Inside a shell it has to be readable by whichever side owns the
+ * session, and the secret port is the one store both sides share — the device vault, under the same
+ * item and keys. The plain port is the page's own `localStorage` and the phone runtime's own file, so a
+ * value kept only there is invisible to the other side, and an account signed in for a long time never
+ * logs in as a guest again to write it anew. Without it the invited clouds the account accepted are
+ * hidden from it and a new invite cannot be accepted.
+ *
+ * The plain copy is kept and written alongside rather than moved: an older web build reads only that
+ * one, and it is what a boot copies into a vault that lacks the id (`secretStorageMigration`). Both
+ * copies are written together and cleared together, and they only ever hold this device's guest, so
+ * when they differ (a session the other side ended) either one names the same user.
+ */
 class IdentityStore implements IIdentityStore {
     constructor(
         private readonly storage: StorageLike,
+        private readonly secret: StorageLike,
         private readonly signal: ISessionSignal
     ) {}
 
-    private put(key: string, value: string | null): void {
-        if (value) {
-            this.storage.set(key, value);
-        } else {
-            this.storage.remove(key);
-        }
+    private put(key: string, value: string | null, stores: StorageLike[] = [this.storage]): void {
+        stores.forEach(store => (value ? store.set(key, value) : store.remove(key)));
         this.signal.emit('identity');
     }
 
     getDelegatorId(): string | null {
-        return this.storage.get(DELEGATOR_ID_KEY);
+        return this.secret.get(DELEGATOR_ID_KEY) ?? this.storage.get(DELEGATOR_ID_KEY);
     }
 
     setDelegatorId(value: string | null): void {
-        this.put(DELEGATOR_ID_KEY, value);
+        this.put(DELEGATOR_ID_KEY, value, [this.secret, this.storage]);
     }
 
     getDeviceId(): string | null {
@@ -76,4 +88,4 @@ class IdentityStore implements IIdentityStore {
     }
 }
 
-export const identityStore: IIdentityStore = new IdentityStore(plainPort, sessionSignal);
+export const identityStore: IIdentityStore = new IdentityStore(plainPort, secretPort, sessionSignal);

@@ -13,6 +13,7 @@ import {
     relayStore,
     clearRelaySession,
     SECRET_LOGOUT_PENDING_KEY,
+    DELEGATOR_ID_KEY,
     SESSION_KEYS,
     sessionStores,
     sessionSignal,
@@ -325,9 +326,10 @@ class RelaySession implements IRelaySession {
         // the next boot empty it before reading it.
         const secret = sessionStores.of('secret');
         if (isNativeStore(secret)) {
-            // Tokens a run whose vault was unavailable left in the tab go too; the store only knows the
-            // ones this page wrote.
-            SESSION_KEYS.secret.forEach(key => WebStore.session().remove(key));
+            // Tokens a run whose vault was unavailable left in the tab go too, and so does the guest
+            // id such a run wrote there; the store only knows the ones this page wrote. In a shell
+            // with a vault the plain store is `localStorage`, so this never reaches the plain copy.
+            [...SESSION_KEYS.secret, DELEGATOR_ID_KEY].forEach(key => WebStore.session().remove(key));
             secret.clear();
             try {
                 await secret.flush();

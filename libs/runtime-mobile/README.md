@@ -69,7 +69,8 @@ The runtime in the app has to read the state the WebView's pages have been writi
 person signed in through a page and their cache was filled by one. So each port is the page's own
 store over a different channel, not a new store:
 
-- **`secret` is the page's vault store.** A page keeps the session's four tokens in the device vault
+- **`secret` is the page's vault store.** A page keeps the session's four tokens, and a copy of the
+  device guest's id, in the device vault
   through `NativeSecureStore` (`@chatic/storage`) and the bridge's `StorageGet`/`StorageSave`/
   `StorageClear`. `nativeSecretStore` is the same class on the same vault, reached in-process: the same
   keychain item, the same keys, so a session a page signed in is the session this runtime reads, with
@@ -100,7 +101,8 @@ store over a different channel, not a new store:
 
 Nothing reads `plain` or `device` across from the page yet: a page keeps the selected cloud, the
 identities and the device id in its own `localStorage`, and those carry over when the app starts
-running the session, not before.
+running the session, not before. The device guest's id is the exception: a page also keeps it in the
+vault, so this runtime reads it through `secret` (`libs/session` README, `identityStore`).
 
 ## Booting and running
 

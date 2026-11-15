@@ -144,6 +144,79 @@ describe('NativeSecureStore', () => {
     });
 });
 
+describe('NativeSecureStore.offer', () => {
+    const hydrated = async (values: Record<string, string> = {}) => {
+        const shell = fakeShell({ status: 'available', values });
+        Object.assign(shell.vault, values);
+        const store = new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() });
+        await store.hydrate();
+        return { shell, store };
+    };
+
+    it('writes a key the store does not hold, and answers once the shell confirmed it', async () => {
+        const { shell, store } = await hydrated({ token: 't' });
+
+        await expect(store.offer('id', 'v')).resolves.toBe(true);
+
+        expect(shell.vault).toEqual({ token: 't', id: 'v' });
+        expect(store.get('id')).toBe('v');
+    });
+
+    it('leaves the store on the vault, with what it holds, when the shell refuses', async () => {
+        const { shell, store } = await hydrated({ token: 't' });
+        shell.answers.save = false;
+
+        await expect(store.offer('id', 'v')).resolves.toBe(false);
+
+        expect(store.status).toBe('available');
+        expect(store.get('token')).toBe('t');
+        expect(store.get('id')).toBeNull();
+    });
+
+    it('never overwrites a key the store holds', async () => {
+        const { shell, store } = await hydrated({ id: 'held' });
+
+        await expect(store.offer('id', 'other')).resolves.toBe(false);
+
+        expect(shell.saves).toEqual([]);
+        expect(store.get('id')).toBe('held');
+    });
+
+    it('writes nothing while the store is unavailable, not even to its fallback', async () => {
+        const shell = fakeShell({ status: 'unavailable', reason: 'locked', values: {} });
+        const fallback = new MemoryStore();
+        const store = new NativeSecureStore({ channel: shell.channel, fallback });
+        await store.hydrate();
+
+        await expect(store.offer('id', 'v')).resolves.toBe(false);
+
+        expect(shell.saves).toEqual([]);
+        expect(fallback.get('id')).toBeNull();
+    });
+
+    it('lets a write made while it was in flight win, in memory and in the vault', async () => {
+        const { shell, store } = await hydrated();
+
+        const offered = store.offer('id', 'offered');
+        store.remove('id');
+        await offered;
+        await store.flush();
+
+        expect(store.get('id')).toBeNull();
+        expect(shell.vault.id).toBeUndefined();
+    });
+
+    it('waits behind a send already queued, so the vault sees writes in order', async () => {
+        const { shell, store } = await hydrated();
+
+        store.set('id', 'set-first');
+        await expect(store.offer('id', 'offered')).resolves.toBe(false);
+        await settle();
+
+        expect(shell.vault.id).toBe('set-first');
+    });
+});
+
 describe('isNativeStore', () => {
     it('tells a store the shell keeps from a plain one', () => {
         const shell = fakeShell();

@@ -56,7 +56,8 @@ there. The stage rather than `__DEV__` is the gate so that the stage builds test
 release builds, have it too.
 
 The vault's tokens are the same keychain item for both owners, so a session carries over a switch. What
-each side keeps in its own plain storage — the selected cloud, the cloud identities — does not yet.
+each side keeps in its own plain storage — the selected cloud, the cloud identities — does not yet. The
+device guest's id crosses through the vault; see [The device, as the page knows it](#the-device-as-the-page-knows-it).
 
 ## Starting the runtime
 
@@ -108,6 +109,14 @@ token on iOS, the FCM token elsewhere) and keeps its record in the same `pushReg
 What the page keeps in its own storage does not move yet: the selected cloud, the cloud identities and
 the other plain session values start empty in the runtime's file. Carrying them over belongs with the
 switch that turns the runtime on.
+
+The device guest's id is the exception, because without it the invited clouds an account accepted are
+hidden from it and a new invite cannot be accepted. It is kept in the vault as well as in the plain
+store, and a launch the page owns copies it from the page's storage into a vault that lacks it
+(`libs/session` README, `identityStore`). The runtime reads it from the vault. So an install that has
+had one launch of a page build that copies it has the id on either side. One switched to the runtime
+before such a launch reads none until it logs in as a guest, which also writes it — a gap the switch
+has to close before it becomes a default.
 
 ## The page's side of the bridge
 

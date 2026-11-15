@@ -438,6 +438,22 @@ describe('session/auth/relaySession', () => {
             expect(plain.get('chatic-secret-logout-pending')).toBe('1');
             consoleError.mockRestore();
         });
+
+        // The plain copy is cleared by `clearRelaySession` (mocked here; see the session ports test).
+        it('takes the guest id with it, from the vault and from a copy an unavailable run left in the tab', async () => {
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { store, vault } = vaultWith(true);
+            vault['chatic-delegator-id'] = 'guest-1';
+            await store.hydrate();
+            sessionStores.configure({ secret: store, plain: new MemoryStore() });
+            sessionStorage.setItem('chatic-delegator-id', 'left-by-an-unavailable-run');
+
+            await relaySession.clearAndRedirect();
+
+            expect(vault).toEqual({});
+            expect(sessionStorage.getItem('chatic-delegator-id')).toBeNull();
+            consoleError.mockRestore();
+        });
     });
 
     it('persists deviceId through identityStore and writes no raw localStorage copy', () => {
