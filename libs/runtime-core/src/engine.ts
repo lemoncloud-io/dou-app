@@ -16,10 +16,8 @@ import type { SessionView } from './session/snapshot';
 import type { SessionController, SessionControllerOptions } from './session/sessionController';
 import { createCoreRuntimeData } from './data/runtimeData';
 import type { RuntimeData } from './data/runtimeData';
-import { primeChatRoom } from './sync/primeChatRoom';
 import { createCoreRuntimeSync } from './sync/runtimeSync';
 import type { RuntimeSync } from './sync/runtimeSync';
-import type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';
 
 /** A credential guard as its caller drives it: a policy, a check, and triggers to start and stop. */
 export interface CredentialGuard<Policy> {
@@ -73,8 +71,6 @@ export interface RuntimeEngine {
     cloudCredentialGuard(policy?: CloudCredentialPolicy): CredentialGuard<CloudCredentialPolicy>;
     /** Registers the shell's push token, once per install. */
     pushRegistration(options: PushRegistrationOptions): PushRegistrar;
-    /** Primes a chat room for its first render. */
-    primeChatRoom(cid: string, channelId: string, options?: PrimeChatRoomOptions): Promise<ChatPrimeOutcome>;
 }
 
 /**
@@ -93,5 +89,4 @@ export const coreEngine: RuntimeEngine = {
     relayCredentialGuard: policy => new RelayCredentialGuard(policy),
     cloudCredentialGuard: policy => new CloudCredentialGuard(policy),
     pushRegistration: options => new PushRegistration(options),
-    primeChatRoom: (cid, channelId, options) => primeChatRoom(cid, channelId, options),
 };

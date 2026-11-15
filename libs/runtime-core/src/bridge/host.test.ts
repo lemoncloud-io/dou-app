@@ -19,12 +19,19 @@ const fakeEngine = () => {
     let snapshot = { auth: { isAuthenticated: true }, relayUser: { id: 'u1' } };
     const observers = new Map<string, (...args: unknown[]) => void>();
     const stops: string[] = [];
+    const logoutListeners = new Set<() => void>();
+    const connectionListeners = new Set<() => void>();
+    let connectionSnapshot = { active: { state: 'idle' }, verifiedSlots: [] as string[], online: true };
     const engine = {
         session: {
             snapshot: () => snapshot,
             subscribe: (listener: () => void) => {
                 sessionListeners.add(listener);
                 return () => sessionListeners.delete(listener);
+            },
+            onLogout: (listener: () => void) => {
+                logoutListeners.add(listener);
+                return () => logoutListeners.delete(listener);
             },
         },
         commands: {
@@ -34,6 +41,11 @@ const fakeEngine = () => {
         },
         connection: {
             slotStatuses: jest.fn(async () => [{ key: 'default' }]),
+            snapshot: () => connectionSnapshot,
+            subscribe: (listener: () => void) => {
+                connectionListeners.add(listener);
+                return () => connectionListeners.delete(listener);
+            },
             onServerEvent: jest.fn((type: string, listener: (...args: unknown[]) => void) => {
                 observers.set(`server:${type}`, listener);
                 return () => stops.push(`server:${type}`);
@@ -42,6 +54,8 @@ const fakeEngine = () => {
         },
         sync: {
             registerTarget: jest.fn(() => () => stops.push('target')),
+            refusedChannels: () => ['ch-gone'],
+            subscribeRefusedChannels: jest.fn(() => () => undefined),
         },
         data: {
             clearLocalCaches: jest.fn(async () => ({ cleared: 2 })),
@@ -59,6 +73,11 @@ const fakeEngine = () => {
             })),
         },
     };
+    const logout = () => logoutListeners.forEach(listener => listener());
+    const changeConnection = (next: Partial<typeof connectionSnapshot>) => {
+        connectionSnapshot = { ...connectionSnapshot, ...next };
+        connectionListeners.forEach(listener => listener());
+    };
     const changeSession = (next: typeof snapshot) => {
         snapshot = next;
         sessionListeners.forEach(listener => listener());
@@ -70,6 +89,10 @@ const fakeEngine = () => {
         stops,
         changeSession,
         sessionListeners,
+        logout,
+        logoutListeners,
+        changeConnection,
+        connectionListeners,
     };
 };
 
@@ -165,6 +188,56 @@ describe('createRuntimeBridgeHost — hello', () => {
         await expect(host.hello(hello)).resolves.toMatchObject({ value: { seq: 1 } });
         // One push subscription, however many pages said hello.
         expect(fake.sessionListeners.size).toBe(1);
+    });
+});
+
+describe('createRuntimeBridgeHost — the views and the sign-out', () => {
+    it('pushes a sign-out as the logout signal, with the change it brought in the same push', async () => {
+        const { host, fake, pushes, flush } = setup();
+        await host.hello(hello);
+
+        fake.logout();
+        fake.changeSession({ auth: { isAuthenticated: false }, relayUser: { id: 'u1' } });
+        flush();
+
+        expect(pushes).toEqual([
+            {
+                seq: 1,
+                signals: ['logout', 'session'],
+                session: { auth: { isAuthenticated: false }, relayUser: { id: 'u1' } },
+            },
+        ]);
+    });
+
+    it("mirrors the connection's snapshot as a stream: now, then each change once per turn", async () => {
+        const { host, fake, events, flush } = setup();
+        await host.hello(hello);
+
+        await expect(
+            host.subscribe({ subscriptionId: 'v', target: 'connection', topic: 'snapshot', args: [] })
+        ).resolves.toEqual({ value: {} });
+        flush();
+        fake.changeConnection({ online: false });
+        fake.changeConnection({ verifiedSlots: ['default'] });
+        flush();
+
+        expect(events.map(event => event.event)).toEqual([
+            [{ active: { state: 'idle' }, verifiedSlots: [], online: true }],
+            [{ active: { state: 'idle' }, verifiedSlots: ['default'], online: false }],
+        ]);
+        host.unsubscribe({ subscriptionId: 'v' });
+        expect(fake.connectionListeners.size).toBe(0);
+    });
+
+    it("mirrors the sync's refused rooms as a stream", async () => {
+        const { host, fake, events, flush } = setup();
+        await host.hello(hello);
+
+        await host.subscribe({ subscriptionId: 'r', target: 'sync', topic: 'refusedChannels', args: [] });
+        flush();
+
+        expect(events).toEqual([{ subscriptionId: 'r', seq: 1, event: [['ch-gone']] }]);
+        expect(fake.raw.sync.subscribeRefusedChannels).toHaveBeenCalled();
     });
 });
 
@@ -397,5 +470,40 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
 
         expect(fake.stops).toEqual(['user:u1']);
         expect(fake.sessionListeners.size).toBe(0);
+        expect(fake.logoutListeners.size).toBe(0);
+    });
+
+    it('ends a view whose read throws with a last event saying so', async () => {
+        const { host, fake, events, flush } = setup();
+        await host.hello(hello);
+        fake.raw.sync.refusedChannels = () => {
+            throw new Error('read failed');
+        };
+
+        await host.subscribe({ subscriptionId: 'r', target: 'sync', topic: 'refusedChannels', args: [] });
+        flush();
+
+        expect(events).toEqual([
+            { subscriptionId: 'r', seq: 1, event: { $ended: expect.objectContaining({ code: RUNTIME_ERROR_CODE }) } },
+        ]);
+    });
+});
+
+describe('createRuntimeBridgeHost — with the real scheduler', () => {
+    // The page has to keep a stream's events from before its subscribe answer: with a microtask
+    // scheduler a view's first value is sent ahead of that answer.
+    it("sends a view's first value before the subscribe is answered", async () => {
+        const fake = fakeEngine();
+        const order: string[] = [];
+        const host = createRuntimeBridgeHost({
+            engine: async () => fake.engine,
+            send: { event: () => order.push('event'), sessionChanged: () => undefined },
+        });
+        await host.hello(hello);
+
+        const answered = host.subscribe({ subscriptionId: 'v', target: 'connection', topic: 'snapshot', args: [] });
+        await answered.then(() => order.push('answer'));
+
+        expect(order).toEqual(['event', 'answer']);
     });
 });

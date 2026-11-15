@@ -255,6 +255,7 @@ const dataMembers: Record<keyof RuntimeData, DataCrossing> = {
     resetCacheMetrics: 'call',
     searchCache: 'call',
     resolveCacheContext: 'call',
+    registerDeviceToken: 'call',
 };
 
 /** The data methods a `RuntimeCall` may name, besides the repositories'. */

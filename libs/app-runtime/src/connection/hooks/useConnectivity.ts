@@ -2,7 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useVerifiedClouds } from './useVerifiedClouds';
-import { isLinkDown, readOnline, subscribeOnline } from '@chatic/transport';
+import { isLinkDown } from '@chatic/transport';
+import { readConnection, subscribeConnection } from '../connectionCommands';
 import type { LinkSignals, SocketState } from '@chatic/transport';
 
 /** What the app should TELL THE USER about the connection. `online` means "nothing to warn about". */
@@ -43,8 +44,11 @@ export const deriveConnectivity = ({
 };
 
 /** Live connection status for the app shell. See `deriveConnectivity` for the semantics. */
+const readOnlineSignal = (): boolean => readConnection().online;
+
 export const useConnectivity = (): ConnectivityStatus => {
-    const isBrowserOnline = useSyncExternalStore(subscribeOnline, readOnline, readOnline);
+    // The online signal of the process that runs the sockets — this page's own, or the app's.
+    const isBrowserOnline = useSyncExternalStore(subscribeConnection, readOnlineSignal, readOnlineSignal);
     const socketState = useRuntimeSocketState();
     const hasVerifiedSocket = useVerifiedClouds().length > 0;
 

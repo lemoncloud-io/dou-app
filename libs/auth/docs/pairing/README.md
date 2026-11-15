@@ -97,6 +97,7 @@ failures.
   `<browser> · <OS>` instead of a raw `Mozilla/5.0 (…)` line.
 - **`pairingClientOf`** is what the request tells the approver about this device: the socket's own
   platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
+  App-runtime passes it the page's own platform and user agent, so it needs no transport configured.
 
 The hooks over these — `usePairingRequest`, `useIsPairedSession`, `usePairedCloudIds`,
 `usePairedCloudNames`, `usePairingAwareLogout`, `usePairedCloudCheck` — are app-runtime's

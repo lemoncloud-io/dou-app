@@ -82,7 +82,10 @@ does not compile. The arguments are the command's own, in order; the result is w
 The sockets and the sync engine are two more targets, `connection` (`CONNECTION_TARGET`) and `sync`
 (`SYNC_TARGET`). Each member says how it crosses, keyed by every member of `RuntimeConnection` and
 `RuntimeSync` so a new one cannot be left out: a **view** is mirrored with its snapshot (the connection's
-`snapshot` and `subscribe`); a **call** is one `RuntimeCall` (`CONNECTION_CALL_METHODS`,
+`snapshot` and `subscribe`; the sync's refused rooms, `refusedChannels` with `isChannelRefused` and
+`subscribeRefusedChannels`) — subscribed to as a stream named in `VIEW_STREAMS` (`connection.snapshot`,
+`sync.refusedChannels`), whose events carry the view's whole value, once at subscribing and then after
+each change, coalesced per turn; a **call** is one `RuntimeCall` (`CONNECTION_CALL_METHODS`,
 `SYNC_CALL_METHODS`); a **stream** is a `RuntimeSubscribe` whose events the page hears until it
 unsubscribes (`CONNECTION_STREAMS` — a server push type, every frame, request samples; `SYNC_STREAMS` —
 a target registration, which stands while its stream is open); a **local** member does not cross at
@@ -101,7 +104,10 @@ repository so a new one cannot be left out: an `observe*` method is a stream who
 callback's arguments, every other method a call (`REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`). The
 token issuers are not on the page's graph, so they are not in the contract either (`confirmPhoneCode`
 stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (`DATA_CALL_METHODS`,
-`DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)).
+`DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)). `primeChatRoom` is a sync call; its
+`cancelled` option is asked only in the process that runs the prime — across the bridge the page drops a
+late outcome instead. `registerDeviceToken` is a data call, for the debug screen that re-registers a
+push token by hand.
 
 The session commands gained the relay account's profile (`fetchAccountProfile`,
 `updateAccountProfile`) — what pages used to send on the relay slot themselves.
@@ -189,7 +195,17 @@ which answers `{ value }` or `{ failure }` rather than throwing.
   subscription under a known id replaces the old one.
 - **The session.** Each change of the session view, coalesced to one per JS turn, is pushed as
   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at, so
-  the page drops any push older than what it holds.
+  the page drops any push older than what it holds. Its `signals` say what happened since the last one:
+  `session` (`SESSION_CHANGE_SIGNAL`) for a change of the view, and `logout` (`SESSION_LOGOUT_SIGNAL`)
+  for a sign-out — `SessionView.onLogout`, which a snapshot cannot carry because the session after it
+  may look the same. A sign-out and the change it brought travel in one push.
+- **Views** (`VIEW_STREAMS`) are served as streams the host feeds itself, with no listener marker. A
+  view whose read throws ends with `{ $ended: failure }`.
+- **Events can come before the subscribe's answer.** A view's first value, and any event a member
+  emits while it is being subscribed, is sent in the same turn, ahead of the `OnRuntimeSubscribe`
+  reply. The page keeps the events of a subscription it is still waiting on, keyed by its own id, and
+  hands them over once the answer arrives — it must not drop an event for an id it has not seen
+  answered.
 - **Size.** Every body's size — the length of its JSON, an approximation of what crosses — goes to
   `onPayload`. A result over `payloadLimit` (4 Mi characters) answers `RUNTIME_PAYLOAD_TOO_LARGE`; an
   event over it ends its subscription with a last event `{ $ended: failure }`. A hello's answer and a

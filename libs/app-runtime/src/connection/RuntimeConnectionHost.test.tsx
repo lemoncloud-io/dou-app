@@ -40,8 +40,8 @@ const setReady = (ready: boolean): void => {
 
 // The device id the host hands the controller: the page's own id, unless the shell injected one.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
-    readSessionDeviceId: () => 'device-1',
-    resolveDeviceIds: (sessionDeviceId: string) => ({ deviceId: sessionDeviceId }),
+    lazySessionDeviceId: () => () => 'device-1',
+    resolveDeviceIds: (sessionDeviceId: () => string) => ({ deviceId: sessionDeviceId() }),
 }));
 
 // What the controller drives, stubbed where it would reach a server. The controller itself is real:

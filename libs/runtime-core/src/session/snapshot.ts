@@ -96,4 +96,10 @@ export interface SessionSnapshot {
 export interface SessionView {
     snapshot(): SessionSnapshot;
     subscribe(listener: () => void): () => void;
+    /**
+     * Hears each sign-out, as it happens — for what the page keeps for the signed-in person and drops
+     * with them (drafts, an inbox, a log queue). A snapshot cannot say it: the session that follows may
+     * look the same. Across the bridge it is the `logout` signal of a session push.
+     */
+    onLogout(listener: () => void): () => void;
 }

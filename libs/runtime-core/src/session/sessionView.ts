@@ -1,4 +1,4 @@
-import { isInOwnCloudSession, isPairedSession, pairedClouds } from '@chatic/auth';
+import { isInOwnCloudSession, isPairedSession, pairedClouds, registerSessionLogoutCallback } from '@chatic/auth';
 import {
     cloudStore,
     getActiveSessionUser,
@@ -11,6 +11,7 @@ import {
     subscribeSessionSignal,
 } from '@chatic/session';
 import type { GlobalSessionContext, IdentityContext } from '@chatic/session';
+import { logger } from '@chatic/logger';
 import { backgroundClouds } from '@chatic/transport';
 
 import type {
@@ -75,6 +76,28 @@ export const createCoreSessionView = (): SessionView => {
     let stale = true;
     let wired = false;
     let current: SessionSnapshot | null = null;
+
+    // The sign-out listeners, kept here rather than in the relay session: it empties its own list each
+    // time it runs it, which suits a page (a sign-out reloads it) and not a process that lives on — the
+    // app's runtime hears every sign-out of its run. So this registers one callback with the relay
+    // session, and registers it again after each sign-out, once the relay session has emptied its list.
+    const logoutListeners = new Set<() => void>();
+    let logoutRegistered = false;
+    const registerLogout = (): void => {
+        if (logoutRegistered || logoutListeners.size === 0) return;
+        logoutRegistered = true;
+        registerSessionLogoutCallback(() => {
+            logoutRegistered = false;
+            for (const listener of [...logoutListeners]) {
+                try {
+                    listener();
+                } catch (error) {
+                    logger.error('AUTH', 'A sign-out listener threw', { error });
+                }
+            }
+            void Promise.resolve().then(registerLogout);
+        });
+    };
 
     const markStale = (): void => {
         stale = true;
@@ -168,6 +191,14 @@ export const createCoreSessionView = (): SessionView => {
                 offPaired();
                 offNames();
                 offUids();
+            };
+        },
+
+        onLogout(listener) {
+            logoutListeners.add(listener);
+            registerLogout();
+            return () => {
+                logoutListeners.delete(listener);
             };
         },
     };

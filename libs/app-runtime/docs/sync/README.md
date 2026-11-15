@@ -48,7 +48,7 @@ room feed (`fetchRoomFeed`, `prefetchRoomFeed`).
 ### Priming a room
 
 `ChatSyncPlan.run` is a no-op — chat is event-driven — so registering a chat target loads nothing by
-itself. `useChatSync` therefore primes the room — runtime-core's `primeChatRoom(cid, channelId)`, which
+itself. `useChatSync` therefore primes the room — the engine's `sync.primeChatRoom(cid, channelId)`, which
 does two things, and they are both required:
 
 1. Read the durable chat cache, take its highest `chatNo`, and call `updateLocalSnapshot`. The cache _is_ the cursor; there is no separate meta cursor for chat.
@@ -77,7 +77,7 @@ need the sync (a sidebar preview) ignore it.
 ## What not to do
 
 - **Do not register from a component and expect it to survive the route.** Registration belongs to whatever screen owns the data; observation can live wherever it likes.
-- **Do not prime outside `useChatSync`.** The manager stays domain-agnostic; chat prime needs a chat policy and a repository. The prime itself is runtime-core's `primeChatRoom`; the hook decides when it runs and holds its status.
+- **Do not prime outside `useChatSync`.** The manager stays domain-agnostic; chat prime needs a chat policy and a repository. The prime itself is the engine's `sync.primeChatRoom`; the hook decides when it runs and holds its status.
 
 ## Further reading
 

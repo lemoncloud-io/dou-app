@@ -76,9 +76,9 @@ the engine's. The background slots built from them are described in
 | `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them        |
 | `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
 
-The hooks read one snapshot, the engine's (`active`, the active slot's socket, and `verifiedSlots`,
-every bound slot that is verified, in slot order), which keeps the same objects until something in it
-changes.
+The hooks read one snapshot, the engine's (`active`, the active slot's socket; `verifiedSlots`,
+every bound slot that is verified, in slot order; and `online`, the platform's network signal where the
+sockets run), which keeps the same objects until something in it changes.
 
 ### Outside React
 
@@ -101,8 +101,8 @@ an app used to read and write on the relay slot directly, is the session command
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
-do". It reads the platform's online signal through `@chatic/transport` (`readOnline`,
-`subscribeOnline`; `navigator.onLine` in a page). Its truth table encodes one asymmetry — that flag is a **strong negative** and an
+do". It reads the platform's online signal off the engine's connection snapshot (`online` — the
+transport's `readOnline`, `navigator.onLine` in a page, NetInfo in the app). Its truth table encodes one asymmetry — that flag is a **strong negative** and an
 **unreliable positive** (`true` only proves an interface is up). So with the browser online, a closed
 socket reads as **reconnecting, not offline**: the fault is ours, and telling the user to check their
 wifi sends them after the wrong thing. Boot (`state === 'idle'`) reads as `online`, because nothing

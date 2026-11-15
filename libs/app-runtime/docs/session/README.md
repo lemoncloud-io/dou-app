@@ -58,7 +58,21 @@ itself and whether the cloud is a paired one from the session view, and leaves t
 engine's `endPairedCloud`. What stays in the page: the mutation keys (`SWITCH_*`), so `useIsMutating`
 still sees a switch, and the `cloud_switch` trace, taken around the command by `useSwitchCloudSession`.
 The calls that change no session — `useFindAlias`, `useVerifyAlias`, `useInviteInfo`, the two
-`useRegisterUser*` — still call `@chatic/auth`; they move with the repositories.
+`useRegisterUser*`, and `fetchInviteInfoWithCode` — go through the engine's auth repository
+(`authLookups.ts`), so they run wherever the session runs.
+
+What the page keeps for the signed-in person and drops at a sign-out (composer drafts, input locks, the
+notification inbox, the log queue) is registered with `registerSessionLogoutCallback`. The registry is
+app-runtime's own and listens to the engine's `session.onLogout`, so the callbacks fire whichever process
+ran the sign-out; one registered before the engine is handed over — the log uploader starts first — is
+attached when it is.
+
+`useDynamicDeviceId` and the host's controllers read the page's own device id from the session's store
+only when the shell injected none (`lazySessionDeviceId`). Inside the phone app there always is one, and
+a page whose session runs in the app's process has no session store of its own. `pairingClientOf` reads
+this page's platform and user agent from the page itself, not from the runtime's transport.
+`authFailureReaction` stays a re-export of the transport's registry: only admin and landing register
+on it, and neither runs inside the phone app, where the HTTP layer would be in another process.
 
 The commands keep tokens out of the screen the same way. A login answers with the account's fields,
 not its token: `useLogin`, `useLoginRelaySocial` and `useLoginRelayGuestByDevice` resolve with a

@@ -157,12 +157,29 @@ const syncMembers: Record<keyof RuntimeSync, Crossing> = {
     subscribeRefusedChannels: 'view',
     fetchRoomFeed: 'call',
     prefetchRoomFeed: 'call',
+    refusedChannels: 'view',
+    primeChatRoom: 'call',
 };
 
 /** The sync methods a `RuntimeCall` may name. */
 export const SYNC_CALL_METHODS = membersCrossing<RuntimeSync>(syncMembers, 'call');
 /** The sync streams a `RuntimeSubscribe` may name: a registration stands while its stream is open. */
 export const SYNC_STREAMS = membersCrossing<RuntimeSync>(syncMembers, 'stream');
+
+/**
+ * The views a page mirrors besides the session, each subscribed to as a stream whose events carry the
+ * view's whole value: once at subscribing, then after each change (coalesced per turn). `connection`'s
+ * snapshot is `RuntimeConnection.snapshot()`; `sync`'s refused rooms are `RuntimeSync.refusedChannels()`,
+ * which `isChannelRefused` answers from.
+ */
+export const VIEW_STREAMS = {
+    [CONNECTION_TARGET]: 'snapshot',
+    [SYNC_TARGET]: 'refusedChannels',
+} as const;
+
+/** The `signals` of a session push: the view changed, and a sign-out happened (`SessionView.onLogout`). */
+export const SESSION_CHANGE_SIGNAL = 'session';
+export const SESSION_LOGOUT_SIGNAL = 'logout';
 
 /** What the shell knows when a page says hello. */
 export interface RuntimeHelloHost {

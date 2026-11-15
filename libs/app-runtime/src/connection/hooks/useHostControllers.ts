@@ -4,7 +4,7 @@ import type { ConnectionController, SessionController } from '@chatic/runtime-co
 
 import { runtimeEngine } from '../../init';
 
-import { readSessionDeviceId, resolveDeviceIds } from '../../session/hooks/app/useDynamicDeviceId';
+import { lazySessionDeviceId, resolveDeviceIds } from '../../session/hooks/app/useDynamicDeviceId';
 
 export interface HostControllers {
     session: SessionController;
@@ -21,7 +21,7 @@ export interface HostControllers {
  */
 export const useHostControllers = (): HostControllers => {
     const [controllers] = useState<HostControllers>(() => {
-        const sessionDeviceId = readSessionDeviceId();
+        const sessionDeviceId = lazySessionDeviceId();
         const deviceId = () => resolveDeviceIds(sessionDeviceId).deviceId;
         const engine = runtimeEngine();
         return {

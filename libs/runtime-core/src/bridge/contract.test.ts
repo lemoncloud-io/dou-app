@@ -180,7 +180,13 @@ describe('the sockets and the sync engine across the bridge', () => {
     });
 
     it("list every member of the core engine's sync once — a registration is a stream, refusals a view", () => {
-        const listed = [...SYNC_CALL_METHODS, ...SYNC_STREAMS, 'isChannelRefused', 'subscribeRefusedChannels'];
+        const listed = [
+            ...SYNC_CALL_METHODS,
+            ...SYNC_STREAMS,
+            'isChannelRefused',
+            'subscribeRefusedChannels',
+            'refusedChannels',
+        ];
 
         expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeSync()).sort());
         expect(SYNC_STREAMS).toEqual(['registerTarget', 'onBackgroundDelta']);

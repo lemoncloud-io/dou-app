@@ -204,7 +204,7 @@ libs/app-runtime/src/
 ├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       11 files — the host, 8 hooks and the sockets outside React (`connectionCommands.ts`), through the engine; the controller it starts is @chatic/runtime-core's
-├── session/          35 files — the React surface (32 under hooks/), the readers (`sessionReads.ts`) and the commands (`sessionCommands.ts`) through the engine, and the `session` group; the use cases are @chatic/auth
+├── session/          38 files — the React surface (32 under hooks/), the readers (`sessionReads.ts`), the commands (`sessionCommands.ts`), the account lookups (`authLookups.ts`) and the sign-out callbacks (`logoutCallbacks.ts`) through the engine, the page's own device (`pageDevice.ts`), and the `session` group; the use cases are @chatic/auth
 ├── socket/           3 files — the `sync` group, its hooks and the sync engine outside React (`syncCommands.ts`), through the engine; the managers stay in their own packages
 ├── data/             the `data` group, its hooks and the data outside React (`dataCommands.ts`), through the engine; the graph itself is @chatic/runtime-core's
 ├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group

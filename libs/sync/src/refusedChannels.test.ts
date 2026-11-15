@@ -2,6 +2,7 @@ import {
     clearRefusedChannel,
     clearRefusedChannels,
     isChannelRefused,
+    listRefusedChannels,
     recordRefusedChannel,
     subscribeRefusedChannels,
 } from './refusedChannels';
@@ -53,5 +54,17 @@ describe('refusedChannels', () => {
         unsubscribe();
         recordRefusedChannel('ch-3');
         expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('lists the refused rooms as the same array until the set changes', () => {
+        recordRefusedChannel('ch-a');
+        const first = listRefusedChannels();
+
+        expect(listRefusedChannels()).toBe(first);
+        expect(first).toEqual(['ch-a']);
+
+        recordRefusedChannel('ch-b');
+        expect(listRefusedChannels()).not.toBe(first);
+        expect(listRefusedChannels()).toEqual(['ch-a', 'ch-b']);
     });
 });
