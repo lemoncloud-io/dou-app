@@ -218,6 +218,6 @@ describe('the data across the bridge', () => {
         const listed = [...DATA_CALL_METHODS, ...DATA_STREAMS, 'repositories', 'cloudRepositories'];
 
         expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeData()).sort());
-        expect(DATA_STREAMS).toEqual(['observeStateOutbox']);
+        expect(DATA_STREAMS).toEqual(['holdCloud', 'observeStateOutbox']);
     });
 });

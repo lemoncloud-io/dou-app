@@ -22,6 +22,12 @@ export const getCloudRepositories = (cid: string): PageRepositories => runtimeDa
 export const sendChatInCloud = (cid: string, payload: ChatSendPayload): Promise<DomainChat> =>
     runtimeData().sendChatInCloud(cid, payload);
 
+/**
+ * Holds `cid`'s socket until the returned function is called — for a write that spans several of that
+ * cloud's repository calls with the page's own work between them, such as an image send's upload.
+ */
+export const holdCloud = (cid: string): (() => void) => runtimeData().holdCloud(cid);
+
 /** Resolves `true` once `cid`'s socket is verified, `false` when `timeoutMs` passes first. */
 export const waitForCloudSocket = (cid: string, timeoutMs?: number): Promise<boolean> =>
     runtimeData().waitForCloudSocket(cid, timeoutMs);

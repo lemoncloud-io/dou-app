@@ -25,9 +25,11 @@ effect's dependencies does not re-run it.
 | `getCacheMetricsSource()`                                                                      | `{ read, reset }` over the cache's counts — both asynchronous         |
 | `getAcceptorId()`                                                                              | the id an invited cloud row records, read from the session view       |
 
-Sending media (`useSendImages`) still runs in this process: it holds a cloud's socket across work that
-is a function, and its files cannot cross a bridge. It becomes a command of its own before a page
-mirrors a runtime in another process.
+`holdCloud(cid)` — the engine's hold on a cloud's socket, until the returned release is called — is
+not on the package's surface: it is what `useSendImages` holds a cloud with. Sending media
+reaches the session only through the engine: the hold, the upload targets, the completion and the send.
+The files stay in the page, which uploads their bytes itself, so nothing that cannot cross a bridge is
+handed to the engine ([image-send.md](./image-send.md)).
 
 ## The hooks
 

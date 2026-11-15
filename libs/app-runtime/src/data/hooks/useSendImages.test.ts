@@ -1,25 +1,27 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } from '@chatic/data';
+import type { ChatAttachmentSource, DomainChat, SendImagePorts, SendImageResult, ShellFileRef } from '@chatic/data';
 
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
+import { getCloudRepositories } from '@chatic/runtime-core';
 import { beginMediaSendTiming } from '@chatic/runtime-core';
+import { holdCloud } from '../dataCommands';
 import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
-jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
-// The hook reads a cloud's graph through the engine; the graph is the same mock either way.
+jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
+// The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
 jest.mock('../dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
+    holdCloud: jest.fn(),
 }));
 // The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
 const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
 jest.mock('@chatic/runtime-core/data/mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
-/** The clouds whose socket is held right now, as `runInCloud` would hold them. */
+/** The clouds whose socket is held right now, as the engine's `holdCloud` would hold them. */
 const held: string[] = [];
 
 const mockSendImageMessage = jest.fn();
@@ -61,16 +63,15 @@ beforeEach(() => {
     revoked.length = 0;
     held.length = 0;
     (getCloudRepositories as jest.Mock).mockReturnValue({ chat });
-    (runInCloud as jest.Mock).mockImplementation(
-        async (cid: string, work: (repositories: { chat: typeof chat }) => Promise<unknown>) => {
-            held.push(cid);
-            try {
-                return await work({ chat });
-            } finally {
-                held.splice(held.indexOf(cid), 1);
-            }
-        }
-    );
+    (holdCloud as jest.Mock).mockImplementation((cid: string) => {
+        held.push(cid);
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            held.splice(held.indexOf(cid), 1);
+        };
+    });
     chat.createPendingImageChat.mockImplementation(
         async ({ pendingId }: { pendingId?: string }) => pendingId ?? `row-${++rowSeq}`
     );
@@ -98,8 +99,51 @@ describe('useSendImages', () => {
         await act(() => result.current.sendImages(files()));
 
         expect(getCloudRepositories).toHaveBeenCalledWith('cloud-a');
-        expect(runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(heldDuringSend).toEqual([['cloud-a']]);
+        expect(held).toEqual([]);
+        unmount();
+    });
+
+    it("asks the room's cloud for upload targets, completes and sends there, each inside the hold", async () => {
+        const heldAt: Record<string, string[]> = {};
+        chat.startUploads.mockImplementation(async () => {
+            heldAt.start = [...held];
+            return { tickets: [] };
+        });
+        chat.completeUploads.mockImplementation(async () => {
+            heldAt.complete = [...held];
+            return { results: [] };
+        });
+        chat.sendPendingImageChat.mockImplementation(async () => {
+            heldAt.send = [...held];
+            return { id: 'ch-1:9' };
+        });
+        mockSendImageMessage.mockImplementation(
+            async (_files: unknown, ports: SendImagePorts<ChatAttachmentSource>) => {
+                await ports.start({ channelId: 'ch-1', uploads: [] } as never);
+                await ports.complete({ uploads: [] } as never);
+                await ports.send({ uploadIds: ['up-1'] } as never);
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(heldAt).toEqual({ start: ['cloud-a'], complete: ['cloud-a'], send: ['cloud-a'] });
+        expect(chat.sendPendingImageChat).toHaveBeenCalledWith(expect.any(String), { uploadIds: ['up-1'] });
+        expect(held).toEqual([]);
+        unmount();
+    });
+
+    it('lets the hold go when the sequence throws', async () => {
+        mockSendImageMessage.mockRejectedValue(new Error('bridge timeout'));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()).catch(() => undefined));
+
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(held).toEqual([]);
         unmount();
     });
@@ -161,8 +205,8 @@ describe('useSendImages', () => {
             await sending;
         });
 
-        expect(runInCloud).toHaveBeenCalledTimes(1);
-        expect(runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(holdCloud).toHaveBeenCalledTimes(1);
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(getCloudRepositories).toHaveBeenCalledWith('cloud-a');
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
         unmount();
@@ -877,7 +921,7 @@ describe('useSendImages — one message per file', () => {
             localThumbUrls: [expect.stringMatching(/^blob:/)],
         });
         expect(separate).toEqual({ ...bundled, localThumbUrls: [expect.stringMatching(/^blob:/)] });
-        expect(runInCloud).toHaveBeenCalledTimes(2);
+        expect(holdCloud).toHaveBeenCalledTimes(2);
         mockSendImageMessage.mock.calls.forEach(([files]) => {
             expect(files).toHaveLength(1);
             expect(files[0]).toBe(photo);

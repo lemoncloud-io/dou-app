@@ -39,11 +39,21 @@ app's attach panel puts the text in the photo message instead (`content`).
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
-`getCloudRepositories(cid)`, and the upload and the send run inside
-`runInCloud(cid, …)`, which holds that cloud's socket until the send settles. An upload
-takes seconds, and a cloud switch in that time used to put the finished message on the next cloud's
-socket while its row stayed in the first; now the row, the upload and the send stay together
-whichever cloud is on screen by the time it ends.
+`getCloudRepositories(cid)`, and the upload and the send run inside one hold of that cloud's socket
+(`holdCloud(cid)`), taken before the first request and released once the send settles, sent or
+failed. An upload takes seconds, and a cloud switch in that time used to put the finished message on
+the next cloud's socket while its row stayed in the first; now the row, the upload and the send stay
+together whichever cloud is on screen by the time it ends.
+
+**The session is reached only through the engine; the bytes never leave the page.** The hold is the
+engine's `data.holdCloud`; the upload targets (`startUploads`), their completion (`completeUploads`)
+and the send (`sendPendingImageChat`) are repository calls on the cloud's graph the engine hands over,
+each a value in and a value out. Between them the page
+puts the bytes itself, through the `put` port, from the files it holds. So the same send runs whether
+the session is in the page or in the app's own process with the page mirroring it: a function or a
+`File` would not cross to that process, and none is handed over. The hold is a value too — a release
+to call — and across that bridge it is a subscription that stands until the page ends it, so a page
+that reloads mid-send leaves no hold behind.
 
 ## What happens on send
 

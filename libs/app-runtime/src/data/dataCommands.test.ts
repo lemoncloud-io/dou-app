@@ -7,6 +7,7 @@ import {
     getAcceptorId,
     getCacheMetricsSource,
     getCloudRepositories,
+    holdCloud,
     recoverInvitedCloudIfMissing,
     requestSyncCursorReset,
     sendChatInCloud,
@@ -17,11 +18,13 @@ import {
 } from './dataCommands';
 
 const stopObserving = jest.fn();
+const releaseHold = jest.fn();
 const data = {
     repositories: jest.fn(),
     cloudRepositories: jest.fn(() => ({ chat: {} })),
     sendChatInCloud: jest.fn(async () => ({ id: 'chat-1' })),
     waitForCloudSocket: jest.fn(async () => true),
+    holdCloud: jest.fn((_cid: string) => releaseHold),
     recoverInvitedCloud: jest.fn(async () => undefined),
     syncInvitedCloudName: jest.fn(async () => undefined),
     syncPairedCloudName: jest.fn(async () => undefined),
@@ -52,6 +55,14 @@ describe("the data the app reads and writes, through the engine's data", () => {
         expect(data.cloudRepositories).toHaveBeenCalledWith('c-1');
         expect(data.sendChatInCloud).toHaveBeenCalledWith('c-1', { content: 'hi' });
         expect(data.waitForCloudSocket).toHaveBeenCalledWith('c-1', 3000);
+    });
+
+    it("holds a cloud through the engine and hands back the engine's release", () => {
+        const release = holdCloud('c-1');
+        release();
+
+        expect(data.holdCloud).toHaveBeenCalledWith('c-1');
+        expect(releaseHold).toHaveBeenCalledTimes(1);
     });
 
     it('recovers and names clouds by id alone — the engine picks the repository', async () => {

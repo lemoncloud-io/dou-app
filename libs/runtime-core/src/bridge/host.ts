@@ -41,7 +41,8 @@ import {
  * The marker a page puts in a `RuntimeSubscribe`'s `args` where the member takes its listener — the
  * callback of an `observe*` method, `onServerEvent`'s listener, an observer. The host puts its own
  * listener there, and what that listener is called with becomes one `OnRuntimeEvent` (its arguments,
- * as an array). A stream with no listener (`registerTarget`) has no marker: it stands while subscribed.
+ * as an array). A stream with no listener (`registerTarget`, `holdCloud`) has no marker: it stands while
+ * subscribed.
  */
 export const RUNTIME_LISTENER_MARKER = { $listener: true } as const;
 
@@ -114,7 +115,7 @@ export interface RuntimeBridgeHost {
 type Invoke = (...args: unknown[]) => unknown;
 
 /** The streams that take no listener: they stand while subscribed and send no events. */
-const LISTENERLESS_STREAMS = new Set([`${SYNC_TARGET}.registerTarget`]);
+const LISTENERLESS_STREAMS = new Set([`${SYNC_TARGET}.registerTarget`, `${DATA_TARGET}.holdCloud`]);
 
 const isListenerMarker = (value: unknown): boolean =>
     typeof value === 'object' && value !== null && (value as { $listener?: unknown }).$listener === true;
@@ -480,9 +481,9 @@ export const createRuntimeBridgeHost = ({
             const member = resolveMember(engine, 'stream', target, topic, given);
             if (!member) return { failure: runtimeNotAvailableFailure(target, topic) };
 
-            // Exactly one listener where the member takes one, none where it takes none
-            // (`registerTarget`, which stands while subscribed): a stream run without its listener would
-            // fail at its first emission, inside the runtime rather than in front of the page.
+            // Exactly one listener where the member takes one, none where it takes none (`registerTarget`,
+            // `holdCloud`, which stand while subscribed): a stream run without its listener would fail at its
+            // first emission, inside the runtime rather than in front of the page.
             const markers = member.args.filter(isListenerMarker).length;
             if (markers !== (LISTENERLESS_STREAMS.has(`${target}.${topic}`) ? 0 : 1)) {
                 return {

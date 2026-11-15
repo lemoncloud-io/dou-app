@@ -5,6 +5,7 @@ import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import {
     CLOUD_SOCKET_WAIT_MS,
     getCloudRepositories,
+    holdCloud,
     runInCloud,
     sendChatInCloud,
     waitForCloudSocket,
@@ -111,6 +112,28 @@ describe('sendChatInCloud', () => {
         resolveSecond({ id: 'second' });
         await second;
         expect(backgroundClouds.getHeld()).toEqual([]);
+    });
+});
+
+describe('holdCloud', () => {
+    it('holds the cloud until released, stacking with other holds and releasing each once', () => {
+        const first = holdCloud('cloud-a');
+        const second = holdCloud('cloud-a');
+        expect(backgroundClouds.getHeld()).toEqual(['cloud-a']);
+
+        first();
+        first();
+        expect(backgroundClouds.getHeld()).toEqual(['cloud-a']);
+
+        second();
+        expect(backgroundClouds.getHeld()).toEqual([]);
+    });
+
+    it('reads a missing cloud id as the relay', () => {
+        const release = holdCloud('');
+
+        expect(backgroundClouds.getHeld()).toEqual([RELAY_CLOUD_ID]);
+        release();
     });
 });
 

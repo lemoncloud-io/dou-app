@@ -22,7 +22,7 @@ export { setStateOutboxObserver } from './data/factories/outboxFactory';
 export type { StateOutboxSample } from './data/factories/outboxFactory';
 
 // writes named by cloud, and the domains the data facade publishes
-export { getCloudRepositories, runInCloud, sendChatInCloud, waitForCloudSocket } from './data/cloudChat';
+export { getCloudRepositories, sendChatInCloud, waitForCloudSocket } from './data/cloudChat';
 export { beginMediaSendTiming } from './data/mediaSendTrace';
 export type { MediaSendTiming } from './data/mediaSendTrace';
 export { getAcceptorId, isAcceptedBy, withAcceptor } from './data/invitedCloudAcceptance';

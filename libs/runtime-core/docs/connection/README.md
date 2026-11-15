@@ -165,9 +165,11 @@ covers that gap. It returns a release, and until the release is called:
 Holds are reference-counted — two sends to one cloud overlap, and the first to settle must not free
 the slot the second is waiting on — and the first hold and the last release announce like any other
 change to the store. The relay and the committed cloud have slots of their own and are never
-selected as background ones for a hold. `runInCloud` (`data/cloudChat.ts`) is the only caller
-(`sendChatInCloud` and the image send go through it); it takes the hold before anything awaits, so
-it is in place before any switch it races with commits.
+selected as background ones for a hold. The chat sends hold through `holdCloud`
+(`data/cloudChat.ts`) — `runInCloud`, and so `sendChatInCloud`, takes its hold there, and the image
+send holds through the engine's `data.holdCloud` — and the state outbox holds the cloud of each state
+write it sends (`data/factories/outboxFactory.ts`). Each takes the hold before its first request
+awaits, so it is in place before any switch it races with commits.
 
 The token cache announces nothing on its own, so the preparer and the cloud renewer call
 `backgroundClouds.invalidate()` when they issue or drop a cloud's tokens — that announcement is what

@@ -107,7 +107,22 @@ stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (
 `DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)). `primeChatRoom` is a sync call; its
 `cancelled` option is asked only in the process that runs the prime — across the bridge the page drops a
 late outcome instead. `registerDeviceToken` is a data call, for the debug screen that re-registers a
-push token by hand.
+push token by hand. `holdCloud` is a data stream with no listener and no events: the cloud's socket is
+held while the page's subscription stands — the image send's hold across the upload it makes itself —
+and released when the page unsubscribes, or says hello again after a reload. Three things follow from
+the page's `holdCloud` returning its release at once while the subscription crosses on its own:
+
+- **The subscribe has to reach the shell before the send's first call.** The page sends it first and
+  the bridge delivers in order; a mirror that queued subscriptions behind calls would let the first
+  request go out unheld.
+- **A hold the shell refuses cannot fail the send.** An app older than the member answers
+  `RUNTIME_NOT_AVAILABLE`, and nothing is there to throw to — the release has already been handed
+  over. The send goes on unheld, which only reopens the window a cloud switch could hit; the mirror
+  is to log the refusal.
+- **Nothing bounds a hold but its subscription.** In the page's own process the release runs when the
+  send settles. Across the bridge it runs when the page's unsubscribe arrives, a new hello ends the
+  last document's subscriptions, or the host is disposed — a page that never sends its unsubscribe
+  keeps the cloud held, outside the socket cap, until one of the other two.
 
 The session commands gained the relay account's profile (`fetchAccountProfile`,
 `updateAccountProfile`) — what pages used to send on the relay slot themselves.
@@ -190,9 +205,9 @@ which answers `{ value }` or `{ failure }` rather than throwing.
   member takes its listener — an `observe*` callback, `onServerEvent`'s listener, an observer — and the
   host puts its own there. Each call of it is one `OnRuntimeEvent` whose `event` is the listener's
   arguments as an array, numbered per subscription id — on across a replacement under the same id. A
-  listener stream takes exactly one marker, and `registerTarget`, which takes none, stands while
-  subscribed; a stream with the wrong count, or one that answers no way to stop it, is refused. A new
-  subscription under a known id replaces the old one.
+  listener stream takes exactly one marker, and `registerTarget` and `data.holdCloud`, which take none,
+  stand while subscribed; a stream with the wrong count, or one that answers no way to stop it, is
+  refused. A new subscription under a known id replaces the old one.
 - **The session.** Each change of the session view, coalesced to one per JS turn, is pushed as
   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at, so
   the page drops any push older than what it holds. Its `signals` say what happened since the last one:
