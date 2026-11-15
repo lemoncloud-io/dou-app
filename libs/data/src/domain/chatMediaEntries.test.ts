@@ -30,6 +30,22 @@ const voice = server({ id: 'u-aud', stereo: 'audio' });
 
 const cases: Array<{ name: string; chat: DomainChat; expected: ChatMediaEntry[] }> = [
     { name: 'a photo', chat: chat({ upload$$: [photo] }), expected: [{ kind: 'image', idx: 0, ref: 'u-img' }] },
+    {
+        name: 'photos sent with no text, one entry per photo',
+        chat: chat({ upload$$: [photo, server({ id: 'u-img-2', stereo: 'image' })], content: '' }),
+        expected: [
+            { kind: 'image', idx: 0, ref: 'u-img' },
+            { kind: 'image', idx: 1, ref: 'u-img-2' },
+        ],
+    },
+    {
+        name: 'photos sent with a caption, the same photos and nothing for text without a link',
+        chat: chat({ upload$$: [photo, server({ id: 'u-img-2', stereo: 'image' })], content: 'slides from today' }),
+        expected: [
+            { kind: 'image', idx: 0, ref: 'u-img' },
+            { kind: 'image', idx: 1, ref: 'u-img-2' },
+        ],
+    },
     { name: 'a video', chat: chat({ upload$$: [clip] }), expected: [{ kind: 'video', idx: 0, ref: 'u-vid' }] },
     { name: 'a document', chat: chat({ upload$$: [doc] }), expected: [{ kind: 'file', idx: 0, ref: 'u-doc' }] },
     { name: 'a voice message', chat: chat({ upload$$: [voice] }), expected: [{ kind: 'audio', idx: 0, ref: 'u-aud' }] },
