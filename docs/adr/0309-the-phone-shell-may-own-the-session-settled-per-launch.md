@@ -17,7 +17,9 @@
 > runtime, the calls, subscriptions and session push; no page asks yet); `refactor/page-reads-via-engine`
 > (the page's remaining direct reads through the engine; the connection and refused-room views and a
 > `logout` signal across the bridge; `primeChatRoom` moved from the engine onto `sync`, which ADR-0308
-> decision 1 listed as an engine member); `feat/native-session-end` (a session's end restarts the
+> decision 1 listed as an engine member); `feat/bridged-runtime` (the page's mirror engine,
+> `createMirrorEngine` and `createBridgedRuntime`, not yet built by any entry; the host sends a pending
+> session push before a call's answer); `feat/native-session-end` (a session's end restarts the
 > app's JS context, and the development owner switch — see
 > [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md))
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
@@ -140,7 +142,8 @@ shell never offers.
 - `@chatic/runtime-core` holds `RUNTIME_CONTRACT_VERSION`, the handshake (`readRuntimeOffer`,
   `answerRuntimeHello`, `settleRuntimeHello`) and the error codec (`toRuntimeFailure`,
   `runtimeNotAvailableFailure`, `reviveRuntimeError`). The shell's half calls them
-  (`createRuntimeBridgeHost`); the page's half is still to come.
+  (`createRuntimeBridgeHost`); so does the page's (`createMirrorEngine`, built in a page by
+  `createBridgedRuntime`), which no entry builds yet.
 - What a page does when its hello keeps going unanswered is left to the page's mirror; booting its own
   runtime is not one of the options.
 - The session snapshot, the commands, the call targets and the events are each added with the change

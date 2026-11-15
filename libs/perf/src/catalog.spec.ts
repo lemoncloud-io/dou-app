@@ -141,6 +141,22 @@ describe('firebaseResultOf — Firebase receives exactly what it did', () => {
         for (const v of ['inp', 'cls', 'ttfb']) expect(firebaseResultOf(vital(v))).toBeNull();
     });
 
+    it("keeps chat_room_sync's session_owner on the pipeline, out of Firebase", () => {
+        const result = {
+            ...resultWith('chat_room_sync', FIREBASE_TODAY.chat_room_sync.attributes, []),
+            attributes: {
+                entry: 'list',
+                start: 'web',
+                switch: 'none',
+                cache: 'hit',
+                outcome: 'synced',
+                session_owner: 'native',
+            },
+        };
+        expect(firebaseResultOf(result)?.attributes).not.toHaveProperty('session_owner');
+        expect(Object.keys(PERF_TRACE_CATALOG.chat_room_sync.attributes)).toContain('session_owner');
+    });
+
     it('does not treat an unknown name as a Firebase trace', () => {
         expect(isFirebaseTrace('nope')).toBe(false);
     });

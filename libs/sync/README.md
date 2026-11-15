@@ -363,7 +363,9 @@ registers every channel of the active place), but `prefetchRoomFeed` does not re
 The prime then joins that fetch when it gets there. The two-second reuse covers a fetch that already
 finished by then; without it, the room's own sync would send the same request a second time.
 `prefetchRoomFeed` never rejects. When it did not start, or it failed, the room fetches as it always
-did.
+did. It resolves with the fetch's result, or `null` when it did not start or failed: a page that mirrors
+a runtime in another process marks the room's trace from that result, since the fetch ran where the
+trace is not.
 
 `fetchRoomFeed` is also where the `chat_room_sync` trace's fetch phases are marked: the fetch that
 starts takes the room's trace if no fetch has, and a caller that joined marks nothing. The exception

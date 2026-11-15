@@ -56,5 +56,5 @@ export const fetchRoomFeed = (
 ): Promise<ChatRefreshResult> => runtimeSync().fetchRoomFeed(cid, channelId, options);
 
 /** Starts a room's fetch at the tap that opens it. Never rejects. */
-export const prefetchRoomFeed = (cid: string, channelId: string): Promise<void> =>
+export const prefetchRoomFeed = (cid: string, channelId: string): Promise<ChatRefreshResult | null> =>
     runtimeSync().prefetchRoomFeed(cid, channelId);

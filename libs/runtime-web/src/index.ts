@@ -4,6 +4,10 @@
 export { createWebRuntime } from './createWebRuntime';
 export type { WebRuntimeOptions } from './createWebRuntime';
 
+// the engine of a page that mirrors its phone shell's runtime
+export { RUNTIME_CALL_TIMEOUT_MS, createBridgedRuntime, webMirrorPort } from './createBridgedRuntime';
+export type { BridgedRuntimeOptions } from './createBridgedRuntime';
+
 // the stores an app keeps state in, chosen for its environment
 export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageStores } from './storage/resolveStorageStores';
 export type { StorageEnvironment, StorageStores } from './storage/resolveStorageStores';

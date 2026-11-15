@@ -44,6 +44,16 @@ const everywhere = (
 });
 
 const ROOM_PHASES = ['handler', 'handshake_done', 'recover_done', 'cloud_done', 'switch_done', 'mount'];
+const ROOM_SYNC_METRICS = [
+    ...ROOM_PHASES,
+    'verified',
+    'feed_sent',
+    'feed_received',
+    'feed_done',
+    'fetched',
+    'latest_no',
+    'message_count',
+];
 const MEDIA_PHASES = [
     'row',
     'converted',
@@ -81,11 +91,14 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
         ['entry', 'start', 'switch', 'cache', 'outcome'],
         [...ROOM_PHASES, 'cache_emit', 'message_count']
     ),
-    chat_room_sync: everywhere(
-        'trace',
-        ['entry', 'start', 'switch', 'cache', 'outcome'],
-        [...ROOM_PHASES, 'verified', 'feed_sent', 'feed_received', 'feed_done', 'fetched', 'latest_no', 'message_count']
-    ),
+    chat_room_sync: {
+        kind: 'trace',
+        // `session_owner` marks a room opened in a page that mirrors the phone shell's runtime, so those
+        // launches are read apart. The pipeline's alone: Firebase keeps the five it always had.
+        attributes: attrs('entry', 'start', 'switch', 'cache', 'outcome', 'session_owner'),
+        metrics: ROOM_SYNC_METRICS,
+        firebase: { attributes: ['entry', 'start', 'switch', 'cache', 'outcome'], metrics: ROOM_SYNC_METRICS },
+    },
     bridge_request: everywhere(
         'sample',
         ['type', 'outcome'],

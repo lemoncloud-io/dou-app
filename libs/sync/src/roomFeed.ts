@@ -168,10 +168,12 @@ export const fetchRoomFeed = (
  * request back past the page transition. The read is issued before the fetch, so it is answered from
  * the cache as it was before this fetch writes to it.
  *
- * Never rejects. The room's hooks fetch on their own if this one did not start or failed.
+ * Never rejects. The room's hooks fetch on their own if this one did not start or failed. Resolves with
+ * the fetch's result, or `null` when it did not start or failed — for a caller that marks the room's
+ * trace from elsewhere (a page mirroring another process's runtime).
  */
-export const prefetchRoomFeed = async (cid: string, channelId: string): Promise<void> => {
-    if (!getSocketManager().isSlotVerified(slotKeyOf(cid))) return;
+export const prefetchRoomFeed = async (cid: string, channelId: string): Promise<ChatRefreshResult | null> => {
+    if (!getSocketManager().isSlotVerified(slotKeyOf(cid))) return null;
     getSyncManager().registerChat(channelId, undefined, { cid })();
     // Never rejects: a failed read only leaves the trace without its `cache` attribute.
     const cache = syncDataGraph
@@ -183,9 +185,10 @@ export const prefetchRoomFeed = async (cid: string, channelId: string): Promise<
             () => undefined
         );
     try {
-        await startOrJoin(cid, channelId, cache, false);
+        return await startOrJoin(cid, channelId, cache, false);
     } catch {
         // The room's hooks fetch again, and they log a failure that is still there.
+        return null;
     }
 };
 

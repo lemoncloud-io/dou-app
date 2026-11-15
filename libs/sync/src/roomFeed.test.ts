@@ -305,6 +305,16 @@ describe('prefetchRoomFeed', () => {
     it('never rejects, so a failed tap leaves the room to fetch on its own', async () => {
         mockRefreshList.mockRejectedValueOnce(new Error('socket closed'));
 
-        await expect(prefetchRoomFeed('cloud-a', 'ch-1')).resolves.toBeUndefined();
+        await expect(prefetchRoomFeed('cloud-a', 'ch-1')).resolves.toBeNull();
+    });
+
+    it("resolves with the fetch's result, and null when it did not start", async () => {
+        const { resolve } = deferredRefresh();
+        const tap = prefetchRoomFeed('cloud-a', 'ch-1');
+        resolve(page(3));
+        await expect(tap).resolves.toMatchObject({ fetchedCount: 3 });
+
+        mockIsSlotVerified.mockReturnValue(false);
+        await expect(prefetchRoomFeed('cloud-a', 'ch-2')).resolves.toBeNull();
     });
 });

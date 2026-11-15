@@ -221,7 +221,8 @@ const resolveMember = (
  *   is one `OnRuntimeEvent`, numbered per subscription. A new subscription under a known id replaces
  *   the old one.
  * - **The session.** Every change of the session view, coalesced per `schedule`, is one
- *   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at.
+ *   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at. A
+ *   push still waiting when a call settles goes out before the call's answer.
  * - **Size.** A result or event larger than `payloadLimit` is not sent: the call fails, and the
  *   subscription ends with `{ $ended: failure }`. Every body's size goes to `onPayload`. The size is the
  *   length of the body's JSON — an approximation of what crosses, which adds the envelope and its
@@ -256,9 +257,13 @@ export const createRuntimeBridgeHost = ({
     // What happened since the last push: a change of the view, a sign-out, or both.
     const pendingSignals = new Set<string>();
 
+    // Runs from the schedule, or sooner from a call's answer (`flushSessionPush`); whichever comes
+    // first sends the push and the other finds nothing due.
     const pushSession = () => {
+        if (!pushScheduled) return;
         pushScheduled = false;
-        if (!engine) return;
+        // A call still running when the bridge closed settles after it: no one is there to push to.
+        if (!engine || disposed) return;
         sessionSeq += 1;
         const signals = [...pendingSignals];
         pendingSignals.clear();
@@ -427,8 +432,12 @@ export const createRuntimeBridgeHost = ({
             try {
                 value = await member.invoke(...member.args);
             } catch (error) {
+                pushSession();
                 return { failure: toRuntimeFailure(error) };
             }
+            // What the call did to the session goes out before its answer, so a page whose command
+            // resolves already holds the snapshot that shows it.
+            pushSession();
             const name = `${target}.${method}`;
             let size: number;
             try {
