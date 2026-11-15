@@ -45,6 +45,7 @@
             "loading": "Loading…",
             "error": {
                 "network": "The connection is unstable. Please try again shortly.",
+                "notAllowed": "This account can't subscribe. Please contact us.",
                 "unknown": "Something went wrong. Please try again."
             },
             "paymentWindow": {

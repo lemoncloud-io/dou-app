@@ -427,6 +427,13 @@ sign-in page (`lib/safeNext.ts`) — anything else falls back to the subscriptio
 client's error hook at the route root, which sends the reader to
 `/subscription/login?reason=session-ended&next=<the page>`. No page catches it.
 
+**A refused account is not a session end.** The subscription server sells only to a user that is not a
+guest; it refuses anyone else with `403 NOT ALLOWED - main user only`, whatever the call. The port reads
+that 403 as `notAllowed` — any other 403 is still `unauthenticated` — so the reader stays signed in and
+the page that asked says the account cannot subscribe (`commonErrorKey` in `lib/errorKey.ts`, the
+fallback copy every page shares). Read as a lost session, it would sign the reader out on the first
+refused call and again after every sign-in.
+
 **Sign-in is a redirect round trip.** `startSignIn` returns the provider's address and the browser
 leaves for it; the provider sends it back to `/subscription/login/callback`, whose query goes to
 `completeSignIn`. Against the server the provider is the OAuth relay and the code becomes the same
@@ -561,6 +568,10 @@ missed results first, so one read answers both the account and its subscription 
   and the subscription together sends one request. The server's read is not a plain read — it also
   re-reads a store receipt and reconciles the account's clouds — so sending it twice at once is waste.
   Only a read in flight is shared: the next call after it settles reads again, which a poll needs.
+- Above the port, the query client keeps an answer fresh for a minute (`staleTime` in
+  `routes/index.tsx`), so moving between pages reuses it rather than reading again on every mount — the
+  plans, the subscription list and back read the subscription once instead of three times. What changes
+  the state invalidates what it changed, and a poll runs on its own interval.
 - The read carries no `?platform`. The server answers the record of the platform the membership is on
   now, which is what the screens want: `?platform=portone` would read nothing for a dollar subscriber
   and would show an old web record to an account a store bills today.
@@ -668,12 +679,12 @@ subscription. Every period and count it uses is in `testing/mock/policy.ts`; the
 come from `lib/catalog.ts`. A test picks the state with a query string handed to `createMockPort`
 (`readSearch`):
 
-| Parameter          | Effect                                                                                                                                                                                                                                                                              |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                                                                                        |
-| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network` and `session-ended` (each fails the next call only), `signin-canceled`, `signin-expired` (how the provider answers a sign-in), `code-expired` (the next code check) and `resend-limit` (the next resend) |
-| `&now=2026-11-20`  | the fake's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                                                                                         |
-| `&cards=0`         | the scenario with no payment method                                                                                                                                                                                                                                                 |
+| Parameter          | Effect                                                                                                                                                                                                                                                                                             |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                                                                                                       |
+| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network`, `session-ended` and `not-allowed` (each fails the next call only), `signin-canceled`, `signin-expired` (how the provider answers a sign-in), `code-expired` (the next code check) and `resend-limit` (the next resend) |
+| `&now=2026-11-20`  | the fake's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                                                                                                        |
+| `&cards=0`         | the scenario with no payment method                                                                                                                                                                                                                                                                |
 
 Scenarios: `visitor` (the default, signed out), `new` (Google, no billing email yet), `new-apple` (no address shared), `new-trial-used`, `no-linked-account`,
 `no-linked-account-apple`, `store-ios`, `store-android`, `trial`, `active`, `active-card-expiring`,
@@ -900,7 +911,7 @@ not trigger.
   against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 660 tests
+    npx nx test @chatic/landing   # 664 tests
     ```
 
 - **The account-surface gate is the hostname and the build, and then the addresses.**
@@ -966,7 +977,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 660 tests pass; in CI
+npx nx test @chatic/landing                               # 664 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

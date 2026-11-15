@@ -398,6 +398,11 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             fail('unauthenticated', 'mock: injected session end');
         }
         if (auth && !s.signedIn) fail('unauthenticated');
+        if (auth && s.fail === 'not-allowed') {
+            s.fail = null;
+            commit(s);
+            fail('notAllowed', 'mock: injected refusal of the account');
+        }
         const result = op(s);
         commit(s);
         return clone(result);

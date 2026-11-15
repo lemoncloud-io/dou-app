@@ -729,6 +729,13 @@ describe('W-14 plan change', () => {
         expect(where()).toBe('/subscription/change?plan=pro-tier-01');
     });
 
+    it('says the account cannot subscribe where the server refuses it, and keeps the reader signed in', async () => {
+        renderAt('/subscription/change?plan=pro-tier-01', mockSetup('?mock=active&fail=not-allowed'));
+
+        expect(await screen.findByText(i18n.t('subscription.common.error.notAllowed'))).toBeTruthy();
+        expect(where()).toBe('/subscription/change?plan=pro-tier-01');
+    });
+
     it('sends a reader without a subscription to checkout', async () => {
         renderAt('/subscription/change?plan=pro-tier-01', mockSetup('?mock=new'));
 

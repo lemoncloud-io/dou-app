@@ -2,9 +2,9 @@ import { type JSX, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useBillingInfo, useRemoveEmail, useReplaceEmail } from '../hooks';
-import { isPortError } from '../lib/port';
 import { EmailVerificationForm } from './EmailVerificationForm';
 import { Badge, Button, Dialog, useToast } from './ui';
+import { commonErrorKey } from '../lib/errorKey';
 
 import type { BillingEmail } from '../types';
 
@@ -76,14 +76,7 @@ export const BillingEmailChangeDialog = ({
                     onChanged?.(verified);
                     onClose();
                 },
-                onError: err =>
-                    setError(
-                        t(
-                            isPortError(err, 'network')
-                                ? 'subscription.common.error.network'
-                                : 'subscription.common.error.unknown'
-                        )
-                    ),
+                onError: err => setError(t(commonErrorKey(err))),
             }
         );
     };

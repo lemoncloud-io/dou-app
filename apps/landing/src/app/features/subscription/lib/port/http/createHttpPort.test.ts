@@ -679,11 +679,11 @@ describe('createHttpPort — checkout', () => {
         });
     });
 
-    it('reads any other 403 on a charge as the session refused, not the card', async () => {
+    it('reads any other 403 on a charge as the credentials refused, not the card', async () => {
         const { port } = setup({
             ...BASE_ROUTES,
             'POST /subscriptions/0/start': () => {
-                throw httpError(403, '403 NOT ALLOWED - main user only @doPostStart(subscriptions/0)');
+                throw httpError(403, 'Missing Authentication Token');
             },
         });
         const error = await port
@@ -691,6 +691,20 @@ describe('createHttpPort — checkout', () => {
             .catch(e => e);
         expect(isPortError(error, 'unauthenticated')).toBe(true);
         expect(await port.getSession()).toBeNull();
+    });
+
+    it('reads a refusal of the account as not allowed, and keeps the reader signed in', async () => {
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'POST /subscriptions/0/issue': () => {
+                throw httpError(403, '403 NOT ALLOWED - main user only @doPostIssue(subscriptions/0)');
+            },
+        });
+        const error = await port
+            .startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', country: 'KR', payer: PAYER })
+            .catch(e => e);
+        expect(isPortError(error, 'notAllowed')).toBe(true);
+        expect(await port.getSession()).not.toBeNull();
     });
 
     it('follows a start answered with a subscription it could not read, instead of failing it', async () => {
