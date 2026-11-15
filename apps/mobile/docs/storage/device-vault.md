@@ -94,7 +94,8 @@ runs: `CHATIC_APP_STORAGE_MEDIA = ['nativeSecure']` in the injected script
 process, through `@chatic/runtime-mobile`. That runtime keeps its `secret` store on this same vault,
 in-process (`services/runtime/runtimePorts.ts`): the same item and the same keys, so the session a page
 signed in is the one the runtime reads, with nothing to move. Everything in the vault is the session's
-four tokens. So once the app holds the session, the handlers take an `ownsSession` flag and the page is
+four tokens and a copy of the device guest's id, which the page's boot copies in so the runtime can read
+it too (`libs/session` README, `identityStore`). So once the app holds the session, the handlers take an `ownsSession` flag and the page is
 answered as by a vault it cannot use: `StorageGet` is `unavailable` (`error`) without a read, and
 `StorageSave` and `StorageClear` are `ok: false` without a write. The refusal is logged once per kind
 of message, not on every ask. The flag is read on every message and is off — the page holds the

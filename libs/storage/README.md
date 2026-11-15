@@ -99,6 +99,10 @@ The vault is behind the bridge, which is asynchronous, so the store keeps its va
 Writes go to memory at once; the writes of one turn of the event loop travel to the shell as one
 `StorageSave` carrying each key's last value, in order, one request at a time. `flush()` sends what is
 waiting and resolves only once the shell confirmed it — a logout waits on it before leaving the page.
+`offer(key, value)` is the write for a value that is only a copy of one kept elsewhere: it writes only a
+key the store does not hold, in a send of its own queued in order with the others, and a refusal leaves
+the store as it was rather than switching it to its fallback. It answers whether the shell confirmed it
+and never rejects. The secret storage boot copies the device guest's id this way.
 
 **Unavailable is not empty.** When the vault cannot be read this run, a write is refused, or the shell
 does not answer — five seconds for the read, the bridge's own limit for a write, both counted only while the page is visible — the store switches to its fallback — the tab's `sessionStorage` —

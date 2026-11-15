@@ -154,6 +154,28 @@ device key that was invalidated, data from another device): it empties it and th
 again. Every row is decided from what the vault and web storage hold, so a boot that dies half-way does
 the move again next time.
 
+**The rows are decided by the tokens alone.** The vault may also hold the device guest's id (below),
+and a vault holding only that id is not a signed-in one: it takes the `empty` rows, so a web copy of
+the tokens is still moved rather than deleted.
+
+**The device guest's id is copied, never moved.** In three rows the boot copies `chatic-delegator-id`
+from the plain store into the vault if the vault lacks it, and leaves the plain copy where it is:
+`values`; `empty` with no web copy; and `empty` with a web copy, once the move is confirmed. It does not
+overwrite an id the vault already holds. It does not run in the logout row, in the unavailable rows, or
+after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
+unanswered offer leaves the store on the vault with the session's tokens, where a refused `set` would
+switch the whole run to the tab. The boot does not wait for it either, so a shell that never answers
+does not hold every launch for the full timeout. A copy that does not land is logged, the reader
+(`identityStore`) falls back to the plain copy, and the next boot tries again. The vault's own shell
+may still stop accepting writes for the process after a keychain failure; a token write in that run
+would have met the same failure. The tab sweeps (once the vault answers again, and at a logout) take
+the id along with the tokens: a run whose vault was unavailable wrote it there through the fallback. The id has to reach the vault because the phone app's runtime reads only the vault and
+its own file, and an install signed in to an account never logs in as a guest again, the one moment the
+id is written. It is copied rather than moved because deleting it would be the one way this step could
+lose it: an older web build, a run whose vault cannot be read, and this step itself read the plain copy.
+That is also why the id is not on `SESSION_KEYS.secret` — every key there has its web copy deleted by
+the `values` row above.
+
 lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
 `createRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
 signed from the session's relay token now and nothing writes under that prefix, so a bundle in web
