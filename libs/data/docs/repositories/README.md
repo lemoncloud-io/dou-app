@@ -235,15 +235,20 @@ the rows it carries, and a number in that range that did not come back is a dele
   request cursor when the caller says it is a numbered row (`cursorIsRow`), which puts the head at or
   above it. An empty page that ran to the start proves nothing otherwise.
 
-`ChatRepository.refreshList` records each proven range in `FeedCoverage`, in memory for the page's
-life, keyed by scope and channel; `uncoveredFeed(channelId, low, high)` reads it back. A screen needs
-this to tell the two kinds of hole in the cache apart. A deleted message leaves a missing number
-exactly like history nobody has fetched, and every room with deletions has such holes, because a page
-writes only what it carries. It is not persisted — a second store would have to survive every cloud
-switch and app update alongside the cache, and forgetting it on relaunch costs one request per page of
-old history someone looks at again — but it is cleared with the rows it describes:
-`cacheClear()` forgets the scope, `cacheClearByChannelId` and `ChannelRepository`'s leave purge forget
-the channel. Left behind, it would read the holes a clear opened as deletions for the rest of the run.
+`ChatRepository.refreshList` records each proven range in `FeedCoverage`, in memory for the app run (in
+whichever process holds the repositories), keyed by scope and channel. `observeFeedCoverage(channelId,
+callback)` streams a channel's ranges — now, then after each change; a range already inside them is no
+change — for the cloud and account selected when it subscribes, so a caller subscribes again when either
+changes. The pure `uncoveredIn(covered, low, high)` reads which parts of a run the ranges leave out. It
+is a stream, not a question answered in the same turn, so a screen can read it when the repositories run
+in another process (the phone app's runtime, with the page mirroring it). A screen needs this to tell
+the two kinds of hole in the cache apart. A deleted message leaves a missing number exactly like history
+nobody has fetched, and every room with deletions has such holes, because a page writes only what it
+carries. It is not persisted — a second store would have to survive every cloud switch and app update
+alongside the cache, and forgetting it on relaunch costs one request per page of old history someone
+looks at again — but it is cleared with the rows it describes: `cacheClear()` forgets the scope,
+`cacheClearByChannelId` and `ChannelRepository`'s leave purge forget the channel. Left behind, it would
+read the holes a clear opened as deletions for the rest of the run.
 
 With `markMissingHidden`, a page also marks a cached row inside its range that it did not carry as
 deleted — the delete that happened while the device was not listening, which live sync never replays.

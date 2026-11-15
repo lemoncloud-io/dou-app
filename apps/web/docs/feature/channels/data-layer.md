@@ -233,9 +233,16 @@ its own, and the cache keeps priority throughout — every cached row is shown a
 is asked only for numbers it does not hold (ADR-0206).
 
 - **Finding a gap.** `gaps` lists each run of missing chat numbers between two rows in the window
-  that no page has answered for this run (`chatRepository.uncoveredFeed` — what a page proves is
+  that no page has answered for this run. The hook holds the channel's answered ranges from
+  `chatRepository.observeFeedCoverage` and works the rest out with `uncoveredIn` — what a page proves is
   described in
-  [libs/data's repository doc](../../../../../libs/data/docs/repositories/README.md#what-a-feed-page-proves)).
+  [libs/data's repository doc](../../../../../libs/data/docs/repositories/README.md#what-a-feed-page-proves).
+  A stream rather than a question asked in the same turn, so the record can sit in the phone app's
+  runtime when the page mirrors it. A range answered for by any fetch — the hook's own, the room's
+  entry page, live sync — reaches the hook as a change and the gaps are worked out again. The
+  repository binds a subscription to the cloud and account selected when it is made, and the
+  repository object is one for every cloud, so the hook keys it on the selected cloud, its uid and the
+  channel; until the new key's first value arrives the hook reads nothing as answered.
   A missing number inside an answered range is a deleted message, not a gap. A run of up to 10
   unanswered numbers is not listed either: most such holes are deletions, and the re-check below
   settles them without a divider flashing in and out.

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import { isInJoinWindow } from '@chatic/data';
-import type { DomainChat, DomainUser } from '@chatic/data';
+import { isInJoinWindow, uncoveredIn } from '@chatic/data';
+import type { DomainChat, DomainUser, FeedRange } from '@chatic/data';
 
+import { useSelectedCloudId } from '../../../hooks/useCloudScope';
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';
 import type { ClientChatView } from '../types';
 import { useChannelHeadRefresh } from './useChannelHeadRefresh';
@@ -38,6 +39,9 @@ const RUN_STARTED_AT = Date.now();
 // messages — the feed leaves them out — and those that are not get filled when the rows around them
 // are re-checked (`revalidateAround`), so a divider there would only flash and go.
 const GAP_DIVIDER_MIN_MISSING = 11;
+
+/** No range answered for: what a channel reads before its ranges arrive. */
+const NOTHING_COVERED: readonly FeedRange[] = [];
 
 /**
  * A stretch of the conversation between two cached rows that this run has not fetched: real history
@@ -141,9 +145,29 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // True while a failed page waits out its retry delay. `loadMore` reads it, so the end of the wait
     // hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
     const [isBackingOff, setIsBackingOff] = useState(false);
-    // Bumped when a fetch of this hook's own proves a range, so gaps are worked out again even when the
-    // page brought no row the window did not already hold — a gap of deleted messages closes that way.
-    const [coverageVersion, setCoverageVersion] = useState(0);
+    // The ranges a feed page has answered for in this run (`observeFeedCoverage`), and whose they are.
+    // The repository binds a subscription to the cloud and account selected when it is made, and the
+    // repository object is the same for every cloud, so the subscription is keyed on the selected cloud
+    // and its uid, not on the repository. A room that switches channel, cloud or account without
+    // remounting renders once before the subscription below is replaced, and must not read the previous
+    // scope's ranges as this one's. Gaps are worked out again whenever the ranges change — a page of
+    // deleted messages closes its gap that way, though it added no row. The ref is what the paging
+    // callbacks read in the middle of a frame.
+    const cid = useSelectedCloudId();
+    const uid = runtime.session.useUidInCloud(cid);
+    const coverageKey = channelId ? `${cid}|${uid ?? ''}|${channelId}` : null;
+    const [coverage, setCoverage] = useState<{ key: string; covered: readonly FeedRange[] } | null>(null);
+    const coveredRef = useRef<readonly FeedRange[]>(NOTHING_COVERED);
+    const covered = coverage && coverage.key === coverageKey ? coverage.covered : NOTHING_COVERED;
+
+    useEffect(() => {
+        coveredRef.current = NOTHING_COVERED;
+        if (!coverageKey) return;
+        return chatRepository.observeFeedCoverage(channelId, next => {
+            coveredRef.current = next;
+            setCoverage({ key: coverageKey, covered: next });
+        });
+    }, [chatRepository, channelId, coverageKey]);
     // Gaps being filled, and gaps whose last fill failed (the divider then offers a retry).
     const [gapStatus, setGapStatus] = useState<ReadonlyMap<string, 'loading' | 'failed'>>(new Map());
     // Ranges asked for and not yet answered, by request cursor — one request per range at a time.
@@ -373,7 +397,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
             // row is there to show — a range of nothing but deleted messages would leave the window
             // where it is, and the no-progress check would take that for the start of history.
             const pageLow = Math.max(1, oldestNo - LOAD_MORE_SIZE);
-            if (chatRepository.uncoveredFeed(channelId, pageLow, oldestNo - 1).length === 0) {
+            if (uncoveredIn(coveredRef.current, pageLow, oldestNo - 1).length === 0) {
                 // A failed read only means the cache cannot vouch for the page: ask the server, as before.
                 const below = await chatRepository
                     .cacheReadList({ channelId, cursorNo: oldestNo, limit: 1 })
@@ -465,8 +489,6 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // when enough of it is unanswered: inside a range a page answered for, a missing number is a
     // deleted message.
     const gaps = useMemo<ChatGap[]>(() => {
-        // Read so the gaps are worked out again when a fetch proved a range without adding a row.
-        void coverageVersion;
         const numbers = chats
             .map(chat => chat.chatNo)
             .filter((chatNo): chatNo is number => !!chatNo && chatNo > 0)
@@ -476,13 +498,14 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
             const olderNo = numbers[index - 1];
             const newerNo = numbers[index];
             if (newerNo - olderNo - 1 < GAP_DIVIDER_MIN_MISSING) continue;
-            const missing = chatRepository
-                .uncoveredFeed(channelId, olderNo + 1, newerNo - 1)
-                .reduce((sum, [low, high]) => sum + high - low + 1, 0);
+            const missing = uncoveredIn(covered, olderNo + 1, newerNo - 1).reduce(
+                (sum, [low, high]) => sum + high - low + 1,
+                0
+            );
             if (missing >= GAP_DIVIDER_MIN_MISSING) found.push({ olderNo, newerNo, missing });
         }
         return found;
-    }, [chats, chatRepository, channelId, coverageVersion]);
+    }, [chats, covered]);
 
     /**
      * Fetches the page below `cursorNo` — any `[cursorNo − 50, cursorNo)` is one request — and widens
@@ -509,7 +532,6 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
                 if (generation !== generationRef.current) return false;
                 const added = result.fetchedCount - held;
                 if (added > 0) growWindow(added);
-                setCoverageVersion(version => version + 1);
                 return true;
             } finally {
                 rangeInFlightRef.current.delete(cursorNo);
@@ -530,7 +552,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
             // Next to what is still unanswered, not next to the gap's edges: a page of nothing but
             // deleted messages proves its range without moving either edge, and asking from the edge
             // again would fetch that same range for ever.
-            const open = chatRepository.uncoveredFeed(channelId, gap.olderNo + 1, gap.newerNo - 1);
+            const open = uncoveredIn(coveredRef.current, gap.olderNo + 1, gap.newerNo - 1);
             if (open.length === 0) return;
             const cursorNo =
                 side === 'newer' ? open[open.length - 1][1] + 1 : Math.min(open[0][0] + LOAD_MORE_SIZE, gap.newerNo);
@@ -550,7 +572,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
                 settle('failed');
             }
         },
-        [chatRepository, channelId, fetchRange]
+        [channelId, fetchRange]
     );
 
     // Blocks re-checked this visit. A block reaching past the newest message is never answered for in
@@ -583,7 +605,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
             const low = Math.floor((chatNo - 1) / LOAD_MORE_SIZE) * LOAD_MORE_SIZE + 1;
             const high = low + LOAD_MORE_SIZE - 1;
             if (recheckedRef.current.has(low)) return;
-            if (chatRepository.uncoveredFeed(channelId, low, high).length === 0) return;
+            if (uncoveredIn(coveredRef.current, low, high).length === 0) return;
             const failedAt = recheckFailedAtRef.current.get(low);
             if (failedAt && Date.now() - failedAt < LOAD_MORE_RETRY_MAX_MS) return;
             fetchRange(high + 1).then(
@@ -593,7 +615,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
                 () => recheckFailedAtRef.current.set(low, Date.now())
             );
         },
-        [chatRepository, channelId, fetchRange]
+        [channelId, fetchRange]
     );
 
     /**
@@ -606,14 +628,11 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
         [fetchRange]
     );
 
-    /** Whether a page has answered for `chatNo` in this run (read again after each of this hook's fetches). */
+    /** Whether a page has answered for `chatNo` in this run (asked again whenever the answered ranges change). */
     const isFetched = useCallback(
-        (chatNo: number): boolean => {
-            // Read so callers get a new function when the answer may have changed.
-            void coverageVersion;
-            return chatRepository.uncoveredFeed(channelId, chatNo, chatNo).length === 0;
-        },
-        [chatRepository, channelId, coverageVersion]
+        // A new function whenever the ranges change, so callers ask again.
+        (chatNo: number): boolean => uncoveredIn(covered, chatNo, chatNo).length === 0,
+        [covered]
     );
 
     return {

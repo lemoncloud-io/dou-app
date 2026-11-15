@@ -43,6 +43,11 @@ const fakeRuntime = () => {
             }),
             refreshList: jest.fn(async (query: { channelId: string }) => ({ list: [query.channelId] })),
             cacheRead: jest.fn(async () => null),
+            observeFeedCoverage: jest.fn((channelId: string, callback: (...args: unknown[]) => void) => {
+                listeners.set(`coverage:${channelId}`, callback);
+                callback([]);
+                return () => stopped.push(`coverage:${channelId}`);
+            }),
         },
         device: { syncDevice: jest.fn(() => undefined) },
     };
@@ -302,6 +307,20 @@ describe('createMirrorEngine — calls and streams', () => {
         expect(fake.stopped).toContain('hold:c1');
     });
 
+    it("streams a channel's answered ranges, which a room's history paging reads", async () => {
+        const { fake, loopback, mirror } = await setup();
+        const heard: unknown[] = [];
+        const stop = mirror.data.repositories().chat.observeFeedCoverage('ch1', covered => heard.push(covered));
+        await loopback.settle();
+        fake.listeners.get('coverage:ch1')?.([[50, 99]]);
+        await loopback.settle();
+        stop();
+        await loopback.settle();
+
+        expect(heard).toEqual([[], [[50, 99]]]);
+        expect(fake.stopped).toContain('coverage:ch1');
+    });
+
     it('stops a stream asked to stop before its subscribe was answered, once it is', async () => {
         const { fake, loopback, mirror } = await setup();
         const stop = mirror.sync.registerTarget({ type: 'chat', id: 'ch1' } as never);
@@ -325,13 +344,12 @@ describe('createMirrorEngine — calls and streams', () => {
         );
     });
 
-    it('refuses the members that do not cross, a synchronous repository answer among them', async () => {
+    it('refuses the members that do not cross', async () => {
         const { mirror } = await setup();
         await expect(mirror.connection.requestOnSlot('default' as never, 'x')).rejects.toMatchObject({
             code: RUNTIME_NOT_AVAILABLE_CODE,
         });
         expect(() => mirror.connection.onServerMessage(() => undefined)).toThrow(/does not cross/);
-        expect(() => mirror.data.repositories().chat.uncoveredFeed('ch1', 1, 9)).toThrow(/does not cross/);
     });
 
     it('sends a repository method that returns nothing without a promise to reject', async () => {

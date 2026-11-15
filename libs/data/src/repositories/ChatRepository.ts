@@ -79,10 +79,13 @@ export interface IChatRepository extends DisposableRepository {
 
     refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
     /**
-     * The parts of `[low, high]` no feed page has answered for in this run (see `FeedCoverage`). A
-     * missing chat number outside them is a deleted message; inside them, history not fetched yet.
+     * The chat-number ranges of `channelId` a feed page has answered for in this run (see
+     * `FeedCoverage`): now, then after each change, until the returned function is called. A missing
+     * chat number inside them is a deleted message; outside them, history not fetched yet —
+     * `uncoveredIn(covered, low, high)` reads which. A stream rather than a question asked in the same
+     * turn, so the record can sit in another process than the screen that reads it.
      */
-    uncoveredFeed(channelId: string, low: number, high: number): FeedRange[];
+    observeFeedCoverage(channelId: string, callback: (covered: readonly FeedRange[]) => void): () => void;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendPayload): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
@@ -377,9 +380,12 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    public uncoveredFeed(channelId: string, low: number, high: number): FeedRange[] {
+    public observeFeedCoverage(channelId: string, callback: (covered: readonly FeedRange[]) => void): () => void {
         const { cid, uid } = this.getNormalizedContext();
-        return feedCoverage.uncovered(feedCoverageKey(cid, uid, channelId), low, high);
+        const key = feedCoverageKey(cid, uid, channelId);
+        const unsubscribe = feedCoverage.subscribe(key, callback);
+        callback(feedCoverage.covered(key));
+        return unsubscribe;
     }
 
     /**

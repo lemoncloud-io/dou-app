@@ -193,9 +193,6 @@ the runtime still waits for a page that says hello.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
   change while one is set. The development switch does not check for one.
-- **A room's history paging needs a crossing.** `chat.uncoveredFeed` answers synchronously from a
-  ledger beside the cache, so the page's mirror cannot answer it (it is `local` in runtime-core's
-  contract) and the room's paging would fail on a launch the runtime owns.
 - **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
   restarted context sends a `boot` trace and a `first_screen` sample as a launch would; while the switch
   is the only way onto a runtime-owned launch these are a tester's, but they need a type of their own
