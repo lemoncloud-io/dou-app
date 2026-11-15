@@ -65,12 +65,12 @@ public surface with zero consumers, exactly the category the barrel cleanup exis
 narrow type is genuinely needed, the repo's habit is a `Pick` at the point of use, the way
 `ScopedSocketClient` and `ActiveScope`'s `BoundCidSource` do it.
 
-| Concern                                    | Members                                                                                                                                                                                                                     |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setActiveSlot` · `setAuthenticated` · `getSlotKeys`                                                                                                                                     |
-| **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                                           |
-| **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` · `getSlotStatuses` |
-| **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                                               |
+| Concern                                    | Members                                                                                                                                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Slot lifecycle** — addressed per slot    | `ensure` · `connect` · `destroy` · `setActiveSlot` · `setAuthenticated` · `getSlotKeys`                                                                                                                                                           |
+| **Request and push** — active facade       | `request` · `send` · `onType` · `onSlotType` · `onMessage` · `onState` · `onError` · `disconnect`                                                                                                                                                 |
+| **Observation** — no lifecycle, no sending | `getClient` · `getScopedClient` · `getSnapshot` · `subscribe` · `subscribeClient` · `subscribeSlotClients` · `waitUntilVerified` · `waitUntilSlotVerified` · `isSlotVerified` · `subscribeSlotVerified` · `firstConnectSince` · `getSlotStatuses` |
+| **Cache attribution**                      | `getBoundCid`                                                                                                                                                                                                                                     |
 
 ### A slot is keyed by the cloud it serves
 
@@ -169,6 +169,15 @@ Verification has per-slot counterparts for the same reason: `isSlotVerified(key)
 `subscribeSlotVerified(key, listener)` (fires immediately, then on every change). Anything pinned
 with `getScopedClient` must gate on these — `waitUntilVerified` would wait on cloud the moment a
 cloud session came up.
+
+`firstConnectSince(key)` says when the slot's first connection attempt since it was bound began, by
+`Date.now()`, for as long as that attempt lasts — through the open socket's handshake and after it —
+and is `undefined` before it begins and for good once that socket starts closing: a reconnect is not a
+first attempt. The first attempt belongs to whoever bound the slot (a boot, a cloud switch), where a
+later one is the SDK's own retry. The wall clock is deliberate — a suspension counts toward the age,
+so a first attempt under way when the app went to the background reads old when it comes back. The
+foreground wake kick reads it to leave a slot's first connection alone while it is young
+([auth socket § Waking a wedged socket](../../../auth/docs/socket/README.md#waking-a-wedged-socket)).
 
 ### What a socket says about its device
 

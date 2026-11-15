@@ -417,6 +417,9 @@ compare from the release date on. A week of sampled runs is the first useful rea
   outcome and round trip.
 - **`wake_recovery`** is the foreground kick recycling a slot that was not verified. A request should
   rarely be in flight on such a slot; a steady share means something sends before the slot verifies.
+  On a cold start the phone's first foreground report used to kick the boot's own connect as well;
+  the kick now leaves a slot's first connection alone while it is under 10 s old, so a share that
+  falls after the release carrying that change is the boot kick gone.
 - **`service_restart`** comes from the SDK's connection rotation, roughly every 100 min on a long
   connection. Requests in flight across it fail as 499 and are its cost. In chatic-sockets-lib 0.5.7
   the rotation also left the socket closed until the next foreground kick, and every request in that

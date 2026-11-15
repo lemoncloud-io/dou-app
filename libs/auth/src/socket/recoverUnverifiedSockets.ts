@@ -21,7 +21,26 @@ import type { SocketSessionDelegate } from './types';
 export interface RecoverUnverifiedSocketsDeps {
     manager?: ISocketManager;
     delegate?: SocketSessionDelegate;
+    /** The wall clock the age of a connection attempt is read against. Overridable for tests. */
+    now?: () => number;
 }
+
+/**
+ * How long a slot's first connection is left to finish before a wake pass kicks it.
+ *
+ * The kick is for a reconnect the app's suspension stranded. A slot's first connection is not that:
+ * it belongs to whoever bound the slot — the boot, a cloud switch — and on a cold start the shell's
+ * first foreground report lands while it is under way. Kicking it there closed the boot's own connect
+ * (a 499 on everything waiting for it) only to open the same one again. A reconnect is still kicked
+ * however young: it is the SDK's backoff-driven retry, and the kick is what restarts it at once with
+ * the backoff reset.
+ *
+ * Ten seconds bounds the trust. A first connection that opens normally is verified in one or two; one
+ * older than this has stalled — waiting on a link that is not up, or on a handshake reply that the SDK
+ * would otherwise wait half a minute for — or was under way when the app was suspended, and the age is
+ * read on the wall clock so a suspension counts. Either way it is kicked as before.
+ */
+export const FIRST_CONNECT_GRACE_MS = 10_000;
 
 /**
  * How long a slot that reads verified gets to answer the foreground probe before it is recycled.
@@ -48,7 +67,8 @@ const coalescer = new Coalescer<void>();
  * can be a half-open zombie — recovery otherwise waits for the keep-alive loop to miss two pongs
  * (~40-80s) before the reconnect controller re-establishes and the SDK re-authenticates.
  *
- * Per bound slot that is NOT verified:
+ * Per bound slot that is NOT verified, except one whose first connection is still to come or began
+ * less than {@link FIRST_CONNECT_GRACE_MS} ago:
  *  1. Force-close the transport. `connect()` below re-arms the SDK reconnect controller, so a
  *     failed attempt still keeps auto-reconnect running.
  *  2. If the controller is terminally `expired`, re-seed it via `register()` (idempotent; resets
@@ -84,7 +104,7 @@ export const recoverSocketsOnResume = (deps: RecoverUnverifiedSocketsDeps = {}):
     coalescer.run(() => doRecover(deps, true));
 
 const doRecover = async (
-    { manager, delegate }: RecoverUnverifiedSocketsDeps,
+    { manager, delegate, now = Date.now }: RecoverUnverifiedSocketsDeps,
     probeVerified: boolean
 ): Promise<void> => {
     const socketManager = manager ?? getSocketManager();
@@ -111,6 +131,13 @@ const doRecover = async (
         // awaits a reconnect.
         const status = getAuthStatus(key, { manager: socketManager });
         if (needsSocketKick(status)) {
+            const firstConnectAgeMs = firstConnectAge(socketManager.firstConnectSince(key), now());
+            if (status === 'handshaking' && (client.state === 'idle' || firstConnectAgeMs !== undefined)) {
+                logger.info('SOCKET', '[recoverUnverifiedSockets] leaving a first connect', {
+                    data: { kind: kindOf(key), cid: key, state: client.state, firstConnectAgeMs },
+                });
+                continue;
+            }
             kicks.push({ key, client, status });
         } else if (probeVerified && needsLivenessProbe(status)) {
             probes.push(probeSlot(key, client, socketManager));
@@ -148,6 +175,17 @@ const doRecover = async (
     if (results.length > 0) {
         logger.info('SOCKET', '[recoverUnverifiedSockets] probed', { data: { probes: results } });
     }
+};
+
+/**
+ * How long ago the slot's first connection began, while that is under the grace; `undefined` when
+ * there is none, it is past the grace, or the clock has moved back past it, which says nothing of its
+ * age.
+ */
+const firstConnectAge = (since: number | undefined, at: number): number | undefined => {
+    if (since === undefined) return undefined;
+    const age = at - since;
+    return age >= 0 && age < FIRST_CONNECT_GRACE_MS ? age : undefined;
 };
 
 /** One probe's outcome, for the pass's log line. */

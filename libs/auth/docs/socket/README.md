@@ -128,7 +128,8 @@ stateDiagram-v2
 
 There is no `wedged` state ("unverified for a long time"). Persistence needs a clock, and this is a
 read-only projection with no timer of its own; what stands in for it is the self-loop — the wake kick
-that `needsSocketKick` drives.
+that `needsSocketKick` drives. The kick owns the clock it needs: it reads from the socket manager when
+the slot's first connection began, and leaves a young one alone (below).
 
 Two predicates keep the callers from re-deriving conditions:
 
@@ -450,15 +451,37 @@ has no CORS header and reaches the browser as a network failure.
 [`recoverUnverifiedSockets(deps?)`](../../src/socket/recoverUnverifiedSockets.ts) is what an app
 calls on its own foreground signal. It walks both kinds, skips unbound slots, and acts only where
 `needsSocketKick(status)` holds — a slot that looks `verified` is left alone, because churning a warm
-connection costs more than it fixes. For each one it disconnects with code 1000, re-registers from
+connection costs more than it fixes. For each one — except a slot on its first connection, below —
+it disconnects with code 1000, re-registers from
 the delegate when the slot was terminally expired (and closes the gate again), and reconnects. It
 marks the slot with `noteResumeKick` before disconnecting and clears the mark after reconnecting, so
 `socket_verify` records that attempt as a `resume` and no later one inherits it. Concurrent calls
 share one pass through a `Coalescer`.
 
+**A slot's first connection is left to finish.** A `handshaking` slot that has not begun to connect
+yet (`idle`), or whose first connection since it was bound began less than `FIRST_CONNECT_GRACE_MS`
+(10 s) ago, is skipped, with one log line, `[recoverUnverifiedSockets] leaving a first connect`,
+carrying `firstConnectAgeMs`. The first connection belongs to whoever bound the slot — the boot, a
+cloud switch — and an app's first foreground report arrives while it is under way: on a cold start
+the phone shell reports `active` as soon as the page listens. Kicking there closed the boot's own
+connect — a 499 for everything waiting on it — only to open the same connection again, and an `idle`
+slot kicked while its boot was still fetching the registration opened its socket before the
+`device.save:ok` listener was attached.
+
+- **A reconnect is kicked however young.** It is the SDK's backoff-driven retry, and the kick is what
+  restarts it at once with the backoff reset — after a network comes back, say.
+- **The grace is ten seconds.** A first connection that opens normally is verified in a second or
+  two. One older than that has stalled — on a link that is not up, or waiting for a handshake reply
+  the SDK would give half a minute — or was under way when the app was suspended. The age comes from
+  the socket manager's `firstConnectSince(key)`, read on the wall clock so a suspension counts, and
+  such a slot is kicked as before.
+- **An `expired` controller is kicked whatever its age**, and so is a `closed` slot waiting out its
+  reconnect backoff, since connecting it now is the point.
+
 [`recoverSocketsOnResume(deps?)`](../../src/socket/recoverUnverifiedSockets.ts) is the same pass
-plus a **liveness probe** for the slots it leaves alone (`needsLivenessProbe` — `verified` and
-`stale`), and it is what apps/web calls. After a suspension a half-open connection keeps the flags of
+plus a **liveness probe** for the `verified` and `stale` slots it leaves alone (`needsLivenessProbe`;
+a first connection it spares is not probed either), and it is what apps/web and the phone shell's
+runtime call. After a suspension a half-open connection keeps the flags of
 the handshake it completed before, so it reads verified while nothing reaches the server; left to the
 SDK keep-alive it closes 40–80 s later, and every refetch sent on that foreground fails with it.
 
