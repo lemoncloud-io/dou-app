@@ -213,8 +213,13 @@ which answers `{ value }` or `{ failure }` rather than throwing.
 - **Subscriptions.** A page puts `RUNTIME_LISTENER_MARKER` (`{ $listener: true }`) in `args` where the
   member takes its listener — an `observe*` callback, `onServerEvent`'s listener, an observer — and the
   host puts its own there. Each call of it is one `OnRuntimeEvent` whose `event` is the listener's
-  arguments as an array, numbered per subscription id — on across a replacement under the same id. A
-  listener stream takes exactly one marker, and `registerTarget` and `data.holdCloud`, which take none,
+  arguments as an array, numbered per subscription id — on across a replacement under the same id, and
+  from 1 again after a hello: a reloaded page's mirror reuses the last page's ids, and numbers carried
+  over would read to it as skipped events. Starting over is safe because the hello ends every stream of
+  the last document before it is answered, and the shell sends events unbuffered and in order with the
+  answers — whatever an old stream sent reaches the page ahead of the hello's answer, before the new
+  document has subscribed. A shell that buffered events per document would break that, and would have
+  to number across documents again. A listener stream takes exactly one marker, and `registerTarget` and `data.holdCloud`, which take none,
   stand while subscribed; a stream with the wrong count, or one that answers no way to stop it, is
   refused. A new subscription under a known id replaces the old one.
 - **The session.** Each change of the session view, coalesced to one per JS turn, is pushed as
