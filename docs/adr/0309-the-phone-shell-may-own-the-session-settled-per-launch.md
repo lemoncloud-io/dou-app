@@ -23,7 +23,10 @@
 > app's JS context, and the development owner switch — see
 > [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md));
 > `refactor/feed-coverage-stream` (a chat's answered ranges become the stream
-> `chat.observeFeedCoverage`, read by the room's paging, in place of the synchronous `uncoveredFeed`)
+> `chat.observeFeedCoverage`, read by the room's paging, in place of the synchronous `uncoveredFeed`);
+> `feat/web-entry-session-owner` (the web entry settles the owner before it boots — the hello, asked again
+> for up to 30 s and then an error with a reload; on `native` the mirror and no vault; a build flag that
+> stops it asking)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
@@ -145,9 +148,14 @@ shell never offers.
   `answerRuntimeHello`, `settleRuntimeHello`) and the error codec (`toRuntimeFailure`,
   `runtimeNotAvailableFailure`, `reviveRuntimeError`). The shell's half calls them
   (`createRuntimeBridgeHost`); so does the page's (`createMirrorEngine`, built in a page by
-  `createBridgedRuntime`), which no entry builds yet.
-- What a page does when its hello keeps going unanswered is left to the page's mirror; booting its own
-  runtime is not one of the options.
+  `createBridgedRuntime`, which the web entry builds on a `native` answer).
+- A page whose hello keeps going unanswered asks for 30 s of being shown, then boots nothing and shows
+  an error with a reload; booting its own runtime is not one of the options.
+- A page that does not ask cannot tell a shell already holding the session from one that is not: the
+  offer reads the same either way. So the page's own setting, or a page that shares no contract with
+  the shell, takes effect from the next app process; a page reloaded into a process whose shell already
+  answered `native` would boot a second session. Closing that needs the shell to say in its offer that
+  it holds the session.
 - The session snapshot, the commands, the call targets and the events are each added with the change
   that first moves a reader or a command behind the engine.
 - While the page sends no hello, nothing changes for anyone.

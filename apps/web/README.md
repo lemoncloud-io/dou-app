@@ -298,8 +298,11 @@ main.tsx
 ├── syncThemeFromSharedKey(stores.webLocal)
 ├── config.init(createWebConfigPorts(stores))                       (before any lazy setting read)
 ├── migrateLegacyPhoneCountry(stores.webLocal)
-├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
-├── runtime.boot.initAppRuntime(createWebRuntime({ storage, ... }))  (before any session read)
+├── settleSessionOwner (@chatic/runtime-web)                         (docs/bridge — who holds the session)
+│   ├── web    → vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage
+│   ├── native → no vault: the shell's runtime holds the session
+│   └── null   → sessionOwnerUnsettled screen, nothing below runs
+├── runtime.boot.initAppRuntime(createWebRuntime(...) | createBridgedRuntime(...))  (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-web)

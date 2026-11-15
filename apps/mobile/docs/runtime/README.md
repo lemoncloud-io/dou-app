@@ -8,9 +8,13 @@ the runtime starts, and what it keeps running.
 
 **Nothing turns it on yet.** The owner is `web` unless the development switch says otherwise (see
 [The switch](#the-switch)). On a launch whose owner is `native`, the app offers the session to the page
-and answers the runtime handshake — but no page asks yet: the page's mirror engine exists
-(`createBridgedRuntime` in `@chatic/runtime-web`), and the web entry that says hello and builds it comes
-next.
+and answers the runtime handshake; the web page says hello and, on the `native` answer, mirrors the
+runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-web`). It then opens no
+vault and runs no session of its own, so while the page asks, only one side holds the session's tokens
+(one that does not ask is under [What is not done yet](#what-is-not-done-yet)): the runtime says it
+holds the session only once `start()` has answered an engine and never tells a later page `web`, and the
+page boots its own runtime only on a `web` answer. A page that cannot settle the owner in 30 s of being
+shown boots neither and shows an error with a reload.
 
 | File (`src/app/services/runtime/`)           | Role                                                                                     |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -182,14 +186,14 @@ cover is what the person sees.
 ## What is not done yet
 
 These are the conditions the steps that turn the runtime on have to meet. None of them matters on a
-launch the page owns, which is every launch but the ones the development switch makes — and on those,
-the runtime still waits for a page that says hello.
+launch the page owns, which is every launch but the ones the development switch makes.
 
-- **One side at a time.** The page and the runtime each keep their own copy of the vault's tokens. If
-  both ran a session, a token one side rotated would leave the other's stale, and one side's later
-  write could undo the other's sign-out. The shell's half keeps its side of this — it says it holds
-  the session only once `start()` has answered an engine, and never tells a later page `web` — and the
-  page's half must keep the other: no session of its own while the runtime runs one.
+- **The offer does not say whether the session is already held.** A page that does not ask — one whose
+  own switch is off, or one sharing no contract with the runtime — cannot tell a launch whose runtime
+  already answered `native` from one whose runtime has not started, and only a hello reaches the
+  `RUNTIME_CONTRACT_MISMATCH` refusal. Reloaded into the first kind, such a page would boot a second
+  session. The offer has to say the session is held (and the page then ask whatever its switch says)
+  before a web deploy can be the rollback mid-process.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
   change while one is set. The development switch does not check for one.

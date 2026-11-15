@@ -158,6 +158,42 @@ the FCM token fetch (`appBridge.fetchFcmToken()`), the platform read off
 a fresh install. Outside the native shell `CHATIC_APP_PLATFORM` is unset, the delegate is `null`, and
 the runtime hook is a no-op.
 
+## Who holds the session: the hello at boot
+
+On the phone the session can belong to the shell's own runtime instead of the page. `main.tsx`
+settles which before anything boots, with `settleSessionOwner` from `@chatic/runtime-web`:
+
+- **No offer** in `window.CHATIC_APP_RUNTIME` (a browser, a shell that does not run its runtime) — the
+  page holds the session, as it always has, and nothing is said to the shell.
+- **An offer** — the page says `RuntimeHello` and waits. On `native` it builds the mirror
+  (`createBridgedRuntime`) in place of `createWebRuntime` and never opens the device vault: no
+  `prepareSecretStorage`, no late-vault reload, no watch for a vault that was locked at launch. The
+  vault is the shell's for that launch.
+- **No settled answer** — it asks again for 30 s of the page being shown, behind the boot cover, then
+  shows the error screen (`runtime/sessionOwnerUnsettled.tsx`) in place of the app. Its button reloads,
+  and so does the app coming back to the foreground — a shell that could not answer while the device
+  was locked may answer now. It never boots its own runtime as a way out: the shell may hold the
+  session, and the page would be a second owner.
+
+On a `native` launch the shell's runtime cannot reach the page's storage, so the page takes its own
+signed-out keys (`runtime/signedOutKeys.ts` — the log pipeline's and the telemetry policy's) at each
+sign-out and at the `?logout=1` boot that follows one, as `createWebRuntime({ signedOutKeyPrefixes })`
+does on the page's own launches. Every log entry made inside the app after the settle carries
+`sessionOwner` (`web` or `native`).
+
+**The switch.** `VITE_SESSION_MIRROR_DISABLED=true` in a build makes the page never ask, so launches are
+the page's again whatever the installed app offers — the rollback for the shell owning the session. Two
+limits:
+
+- **It needs the variable in the build.** The deploy workflows write `.env` from a fixed list of
+  variables, so the line has to be added there (or to `.env.prod` for a local `web:build:prod`); it is
+  listed, commented out, in `.env.example`.
+- **It takes effect from the next app process.** The shell's offer reads the same whether or not it
+  already holds the session, so a page that does not ask cannot tell. A page reloaded into a process
+  whose shell already answered `native` would boot a second session beside it; a page in a fresh
+  process is the page's alone, and the shell, never asked, keeps its runtime off. The same holds for a
+  page that shares no contract with the shell.
+
 ## Without a native shell
 
 `isNative()` (from `@chatic/bridges`) is false in a plain browser tab, and every `appBridge` request
