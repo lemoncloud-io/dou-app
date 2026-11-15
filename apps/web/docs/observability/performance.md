@@ -28,20 +28,20 @@ holding a trace until it expires.
 
 ## What the web records
 
-| Trace             | Taken in                                                                                                                                      | Attributes                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                                                                                                  | `outcome`: `ok` / `error`                          |
-| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op                                                                                 | `outcome`: `ok` / `error`                          |
-| `web_vitals`      | `webVitalsReporter.ts`, all five as samples (value in `value_ms`, CLS ×1000); FCP and LCP also reach Firebase, INP/CLS/TTFB the pipeline only | `vital`: `fcp` / `lcp` / `inp` / `cls` / `ttfb`    |
-| `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `chat_room_sync`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome`                                 |
-| `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                                                                                          | `thread` · `kind` (`text`) · `outcome`             |
-| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc                                                                       | `kind` · `count` · `size` · `thread` · `outcome`   |
-| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)                                                                                | `type` · `kind` · `outcome` · `close_reason`       |
-| `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                                                                                    | `op` · `outcome` · `kind`                          |
-| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                                                                                           | `kind` · `cause` · `outcome`                       |
-| `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)                                                                                | `lane` · `outcome` · `step` · `room`               |
+| Trace             | Taken in                                                                                                                                      | Attributes                                                                           |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                                                                                                  | `outcome`: `ok` / `error`                                                            |
+| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op                                                                                 | `outcome`: `ok` / `error`                                                            |
+| `web_vitals`      | `webVitalsReporter.ts`, all five as samples (value in `value_ms`, CLS ×1000); FCP and LCP also reach Firebase, INP/CLS/TTFB the pipeline only | `vital`: `fcp` / `lcp` / `inp` / `cls` / `ttfb`                                      |
+| `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome`                                   |
+| `chat_room_sync`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` · `session_owner` (pipeline only) |
+| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome`                                                                   |
+| `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                                                                                          | `thread` · `kind` (`text`) · `outcome`                                               |
+| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc                                                                       | `kind` · `count` · `size` · `thread` · `outcome`                                     |
+| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)                                                                                | `type` · `kind` · `outcome` · `close_reason`                                         |
+| `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                                                                                    | `op` · `outcome` · `kind`                                                            |
+| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                                                                                           | `kind` · `cause` · `outcome`                                                         |
+| `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)                                                                                | `lane` · `outcome` · `step` · `room`                                                 |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -228,6 +228,15 @@ trace, and that trace takes the fetch it waits on. Only the owning fetch may end
 a fetch that fails without owning it, or a failure before any fetch took it (the warm refresh's cache
 read, say), leaves the trace to end the way it otherwise would. The room page (`useRoomSyncTrace`)
 adds `mount` and ends it.
+
+On a phone launch whose shell owns the session, the prime and the fetches run in the shell, where this
+trace is not. The page's mirror engine marks it around its calls instead (runtime-core
+[docs/bridge](../../../../libs/runtime-core/docs/bridge/README.md#the-pages-half-the-mirror-engine)):
+`verified` as the prime is asked, `feed_sent` as the first fetch is asked, then `fetched`, `latest_no`
+and `feed_done` from its result. `feed_received` and `cache` are absent there, as are the marks of a
+fetch the prime starts itself, and the trace carries `session_owner` `native`, so those launches are
+compared only with each other. That attribute reaches the log pipeline only: Firebase keeps its five.
+Nothing runs that way yet.
 
 ### Phases (metrics, in ms from the tap)
 

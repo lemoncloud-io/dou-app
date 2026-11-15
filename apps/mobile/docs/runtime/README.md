@@ -8,7 +8,8 @@ the runtime starts, and what it keeps running.
 
 **Nothing turns it on yet.** The owner is `web` unless a development setting says otherwise. On a
 launch whose owner is `native`, the app offers the session to the page and answers the runtime
-handshake — but no page asks yet: the page's side of it comes next.
+handshake — but no page asks yet: the page's mirror engine exists (`createBridgedRuntime` in
+`@chatic/runtime-web`), and the web entry that says hello and builds it comes next.
 
 | File (`src/app/services/runtime/`)           | Role                                                                                     |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -138,6 +139,9 @@ nothing starts it.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
   change while one is set.
+- **A room's history paging needs a crossing.** `chat.uncoveredFeed` answers synchronously from a
+  ledger beside the cache, so the page's mirror cannot answer it (it is `local` in runtime-core's
+  contract) and the room's paging would fail on a launch the runtime owns.
 - **The paired-cloud check** — which ends a paired cloud with a toast and a sign-out — has a screen in
   it and runs only with the page today. On a launch the runtime owns, nothing runs it; where it lives
   is to be settled before the runtime is turned on.

@@ -3,8 +3,9 @@
 On the phone the session can belong to the shell's own JavaScript process instead of the page: the
 shell runs this package's runtime — the session and its tokens, the sockets, sync, the repositories —
 and the page mirrors it, asking the shell for everything the session decides. This document is the
-contract the two halves share. The shell's half is built (`RuntimeBridgeHost`, below); the page's mirror
-engine is still to come.
+contract the two halves share, and both halves of it: the shell's (`RuntimeBridgeHost`) and the page's
+mirror engine (`createMirrorEngine`). Nothing builds the mirror yet — the web entry that says hello and
+picks it comes next.
 
 ## Where the cut is
 
@@ -100,8 +101,13 @@ The data is a fourth target, `data` (`DATA_TARGET`). A repository method is name
 `<repository>.<method>` — `chat.sendChat`. For a cloud's graph rather than the live scope's the target
 is `data@cloud` (`DATA_CLOUD_TARGET`), with the same names and the cloud id first among the arguments.
 `REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of each page
-repository so a new one cannot be left out: an `observe*` method is a stream whose events are its
-callback's arguments, every other method a call (`REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`). The
+repository so a new one cannot be left out, and each crossing is read off the method's signature, so an
+entry that disagrees with its method does not compile: a method that returns a promise is a `call`; an
+`observe*` method, which returns its unsubscribe, a `stream` whose events are its callback's arguments; a
+method that returns nothing a `send` — a call its caller does not wait for (`device.syncDevice`,
+`device.syncStatus`); and a method that answers synchronously with a value is `local`, since the page has
+no answer to give in the same turn (`chat.uncoveredFeed`, which reads a ledger kept beside the cache)
+(`REPOSITORY_CALL_METHODS` holds the calls and sends, `REPOSITORY_STREAMS` the streams). The
 token issuers are not on the page's graph, so they are not in the contract either (`confirmPhoneCode`
 stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (`DATA_CALL_METHODS`,
 `DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)). `primeChatRoom` is a sync call; its
@@ -213,19 +219,79 @@ which answers `{ value }` or `{ failure }` rather than throwing.
   the page drops any push older than what it holds. Its `signals` say what happened since the last one:
   `session` (`SESSION_CHANGE_SIGNAL`) for a change of the view, and `logout` (`SESSION_LOGOUT_SIGNAL`)
   for a sign-out — `SessionView.onLogout`, which a snapshot cannot carry because the session after it
-  may look the same. A sign-out and the change it brought travel in one push.
+  may look the same. A sign-out and the change it brought travel in one push. A push still waiting when
+  a call settles is sent before the call's answer, so a command the page awaits resolves with its
+  effect already in the page's snapshot.
 - **Views** (`VIEW_STREAMS`) are served as streams the host feeds itself, with no listener marker. A
   view whose read throws ends with `{ $ended: failure }`.
 - **Events can come before the subscribe's answer.** A view's first value, and any event a member
   emits while it is being subscribed, is sent in the same turn, ahead of the `OnRuntimeSubscribe`
-  reply. The page keeps the events of a subscription it is still waiting on, keyed by its own id, and
-  hands them over once the answer arrives — it must not drop an event for an id it has not seen
-  answered.
+  reply. The page keeps the events of a subscription it is still waiting on, keyed by its own id —
+  it must not drop an event for an id it has not seen answered. The mirror routes events by the id it
+  chose before it asked, so it never does.
 - **Size.** Every body's size — the length of its JSON, an approximation of what crosses — goes to
   `onPayload`. A result over `payloadLimit` (4 Mi characters) answers `RUNTIME_PAYLOAD_TOO_LARGE`; an
   event over it ends its subscription with a last event `{ $ended: failure }`. A hello's answer and a
   session push are measured, never refused. The cap is a safety net, not chunking: the cache's bridge messages already
   carry bodies of the same size unsplit, and splitting waits for measurements that show it is needed.
+
+## The page's half: the mirror engine
+
+`createMirrorEngine({ port, hello })` (`src/bridge/mirror/`) is the engine of a page that mirrors a
+runtime running elsewhere. It has every member the in-process engine has — a test holds the two side by
+side — so the React surface cannot tell which it was given. The port (`RuntimeMirrorPort`) is the three
+requests and the two pushes; `@chatic/runtime-web`'s `createBridgedRuntime` is it over the page's
+bridge, and a test joins it to a host in the same process (`src/testing/mirrorLoopback.ts`). The
+port must deliver in order: the mirror relies on a session push sent before an answer arriving before
+it.
+
+- **The session** starts from the hello's snapshot and takes each push in number order; one at or below
+  the number held is dropped. Each part of a pushed snapshot that equals the part held keeps its object
+  (`shareStructure`), so a reader of one part does not re-render for a change in another, and a push
+  that changed nothing notifies no one. A `logout` signal runs the `onLogout` listeners once the new
+  snapshot is in place, each guarded.
+- **Commands** are one call each. Because the shell pushes before it answers, a command resolves with
+  its effect already in the snapshot — the order a screen that awaits a sign-in and reads the session
+  next relies on.
+- **Views** — the connection's snapshot, the refused rooms — are streams opened when the engine is made
+  and read synchronously. Until the first value arrives the connection reads idle with nothing
+  verified, and no room is refused.
+- **Calls** answer with the member's result or throw `reviveRuntimeError`'s error. A trailing
+  `undefined` argument is dropped, so the member applies its own default; one in the middle crosses as
+  `null`. A result crosses as it was, `null` included; a member that resolved `undefined` arrives as
+  `null`. A `void` member (`setBackgroundClouds`, `setOwnedClouds`, `updateLocalSnapshot`, a repository's
+  `send` methods) is sent without waiting, and its failure logged. A wait that never rejects in-process
+  (`waitUntilVerified`, `waitForCloudSocket`) answers `false` when the bridge fails.
+- **Streams** — an `observe*` method, `onServerEvent`, a target registration, a cloud hold
+  (`holdCloud`, which keeps a cloud's socket for a media send while open) — are routed by the id the
+  mirror chose before asking, so an event ahead of the subscribe's
+  answer is kept. A late copy (a number at or below the last) is dropped; a gap is logged. `{ $ended }`
+  or a refused subscribe ends the stream and is logged — the screen that opened it has no other way to
+  hear it. Stopping is synchronous; the unsubscribe goes out once the subscribe was answered, so the
+  shell never receives them in the wrong order.
+- **Repositories** are plain objects built from `REPOSITORY_METHODS`: a call per method, and an
+  `observe*` method as a stream whose listener is its function argument. `cloudRepositories(cid)` is
+  the same against `data@cloud`, one graph per cloud id.
+- **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods) throw
+  `RUNTIME_NOT_AVAILABLE`. `chat.uncoveredFeed` is one: the room's history paging reads it in the same
+  turn, so a page cannot mirror the shell's runtime until that read has a crossing of its own.
+- **Lifecycle members do nothing.** The session and connection controllers, the two credential guards
+  and push registration run where the runtime runs; the session controller only reports ready once the
+  mirrored session is initialised.
+- **Promises keep their in-process shape.** `primeChatRoom` never throws (a failure is `failed`) and asks
+  its `cancelled` option when the outcome arrives, since a function does not cross; `prefetchRoomFeed`
+  never rejects.
+- **A room's trace.** The `chat_room_sync` trace is in the page, while the prime and the first fetch run
+  in the shell. So the mirror marks it around the calls (`roomTrace.ts`): `verified` as the prime is
+  asked; `feed_sent` as the first fetch for the room is asked (`fetchRoomFeed`, or `prefetchRoomFeed` —
+  only while the mirrored snapshot has the cloud's socket verified, as the in-process prefetch starts
+  nothing otherwise — which resolves with its result for this), then the counts and `feed_done`, ending
+  the trace when nothing was written, or as `error` when the fetch failed or answered `null`.
+  `feed_received` and the `cache` attribute only the shell sees, so they are absent, as are the marks of
+  a fetch the prime itself starts. Each trace it touches carries `session_owner: native`, an attribute
+  the log pipeline records and Firebase does not, so the two ways of running are compared apart.
+
+What crosses is JSON: a result that held a `Date` arrives as its ISO string.
 
 ## Where it lives
 
@@ -234,4 +300,5 @@ which answers `{ value }` or `{ failure }` rather than throwing.
 | `src/bridge/contract.ts`     | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
 | `src/bridge/errors.ts`       | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
 | `src/bridge/host.ts`         | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, the defaults                                                                                                                                                          |
+| `src/bridge/mirror/`         | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls and streams (`conversation.ts`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                                                                            |
 | `src/bridge/repositories.ts` | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                       |

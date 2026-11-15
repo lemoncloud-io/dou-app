@@ -210,6 +210,40 @@ describe('createRuntimeBridgeHost — the views and the sign-out', () => {
         ]);
     });
 
+    it('sends the push a call caused before the call answers, and only once', async () => {
+        const { host, fake, pushes, flush } = setup();
+        await host.hello(hello);
+        fake.raw.commands.switchSite.mockImplementationOnce(async () => {
+            fake.changeSession({ auth: { isAuthenticated: true }, relayUser: { id: 'u2' } });
+        });
+
+        await host.call({ target: 'session', method: 'switchSite', args: ['s2'] });
+        expect(pushes).toEqual([
+            { seq: 1, signals: ['session'], session: { auth: { isAuthenticated: true }, relayUser: { id: 'u2' } } },
+        ]);
+        flush();
+        expect(pushes).toHaveLength(1);
+    });
+
+    it('pushes nothing for a call that settles after the bridge closed', async () => {
+        const { host, fake, pushes } = setup();
+        await host.hello(hello);
+        let finish: () => void = () => undefined;
+        fake.raw.commands.switchSite.mockImplementationOnce(
+            () =>
+                new Promise<void>(resolve => {
+                    finish = resolve;
+                })
+        );
+        const answered = host.call({ target: 'session', method: 'switchSite', args: ['s3'] });
+        // A change while the call runs leaves a push due; the bridge then closes before the call settles.
+        fake.changeSession({ auth: { isAuthenticated: false }, relayUser: { id: 'u3' } });
+        host.dispose();
+        finish();
+        await answered;
+        expect(pushes).toEqual([]);
+    });
+
     it("mirrors the connection's snapshot as a stream: now, then each change once per turn", async () => {
         const { host, fake, events, flush } = setup();
         await host.hello(hello);

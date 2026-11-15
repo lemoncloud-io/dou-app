@@ -137,3 +137,6 @@ export type {
     RuntimeHostSend,
     RuntimePayloadSample,
 } from './bridge/host';
+export { createMirrorEngine } from './bridge/mirror/mirrorEngine';
+export type { MirrorEngine, MirrorEngineOptions } from './bridge/mirror/mirrorEngine';
+export type { RuntimeMirrorPort } from './bridge/mirror/port';
