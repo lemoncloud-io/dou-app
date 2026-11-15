@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Refactor
+
+- (data,web,runtime-core) stream a room's answered feed ranges instead of reading them inline
+
+## [2026-11-15] - No version updates
+
 ### Features
 
 - (mobile,web,bridge-messages) restart the JS context when a native session ends (ADR-0314)
