@@ -9,11 +9,13 @@ import { bootNativeRuntime, runNativeRuntime } from '@chatic/runtime-mobile';
 import type { NativeRuntimeRunOptions } from '@chatic/runtime-mobile';
 
 import { getUserAgent } from '../../utils/device';
+import { appRestart } from '../appRestart';
 import { acquirePushToken } from '../notification/pushToken';
 import { provider } from '../provider';
 import { createNativeRuntimeHost } from './nativeRuntimeHost';
 import { buildRuntimePorts } from './runtimePorts';
 import { launchSessionOwner } from './launchSessionOwner';
+import { restartOnSessionEnd } from './restartOnSessionEnd';
 import { openRuntimeStorageFiles } from './runtimeStorageFiles';
 
 /** The preference the page keeps its push registration record under; the runtime keeps the same one. */
@@ -84,3 +86,6 @@ export const nativeRuntimeHost = createNativeRuntimeHost({
     run: engine => runNativeRuntime(engine, { deviceIds, push: pushDelegate }),
     logService: provider.logService,
 });
+
+// For the process: a session's end restarts the JS context, which takes this host with it.
+restartOnSessionEnd(nativeRuntimeHost, appRestart);

@@ -18,8 +18,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
 | `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
 | `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 32 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
-| `src/app/webview/hooks/*Handler.ts`                          | 33 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 34 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 35 domain handlers, one per capability group                                                                 |
 | `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
 | `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
@@ -164,16 +164,20 @@ Then:
 - **The handshake says the same thing.** The `WebAppReady` reply over that loopback lists exactly the
   registered requests — the vocabulary minus `MOBILE_UNSUPPORTED` — and their paired replies, since
   the web decides photo save and share and where performance traces go from that list. On a launch the
-  app's own runtime owns, it lists the four runtime requests too.
+  app's own runtime owns, it lists the four runtime requests too, and a build for any stage but
+  production lists the two session owner requests.
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
-through the router. Two other callers are allowed. The sub WebView's own host
+through the router. Three other callers are allowed. The sub WebView's own host
 (`subWebView/createSubBridgeHost.ts`) is a different host whose handshake its own test pins to the
 sub WebView subset — see [sub-webview.md](./sub-webview.md). `useRuntimeBridgeHandler` registers the
 runtime requests (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`) only on a
 launch the app's own runtime owns, so the suite, which mounts a launch the page owns, counts them
-among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md).
+among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md). `useSessionOwnerHandler`
+registers the development owner switch (`FetchSessionOwner`, `SetSessionOwner`) only in a build for a
+stage other than production, and the suite counts those two among `MOBILE_UNSUPPORTED` for the same
+reason — see [The switch](../runtime/README.md#the-switch).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and

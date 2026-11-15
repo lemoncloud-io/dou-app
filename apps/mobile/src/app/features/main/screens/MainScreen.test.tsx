@@ -3,11 +3,17 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { MainScreen } from './MainScreen';
 
-type WebViewProps = { onError: (event: { nativeEvent: { description: string } }) => void };
+type WebViewProps = {
+    onError: (event: { nativeEvent: { description: string } }) => void;
+    onLoadStart: (event: { nativeEvent: { url: string } }) => void;
+    source: { uri: string };
+};
 
 let webViewProps: WebViewProps | null = null;
 const mockWebViewMounts = jest.fn();
 const mockOnLoadFailed = jest.fn();
+const mockUseDeepLinkNavigation = jest.fn();
+let mockRestartNote: { reason: string; homeSearch?: string } | null = null;
 
 jest.mock('react-native', () => ({
     View: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -36,7 +42,10 @@ jest.mock('../../../webview/hooks/useWebViewNavigation', () => ({
 }));
 
 jest.mock('../../../webview/hooks/useDeepLinkNavigation', () => ({
-    useDeepLinkNavigation: () => ({ deepLinkError: false, deepLinkErrorReason: null, handleDismissError: jest.fn() }),
+    useDeepLinkNavigation: (...args: unknown[]) => {
+        mockUseDeepLinkNavigation(...args);
+        return { deepLinkError: false, deepLinkErrorReason: null, handleDismissError: jest.fn() };
+    },
 }));
 
 jest.mock('../../../webview/hooks', () => ({
@@ -47,6 +56,10 @@ jest.mock('../../../services', () => ({
     bootMetricsService: { mark: jest.fn() },
     bootSplashService: { onWebAppReady: jest.fn(), onLoadFailed: () => mockOnLoadFailed() },
     logger: { debug: jest.fn() },
+}));
+
+jest.mock('../../../services/appRestart', () => ({
+    appRestart: { note: () => mockRestartNote },
 }));
 
 jest.mock('../../../hooks', () => ({
@@ -104,5 +117,69 @@ describe('MainScreen web page load failure', () => {
         expect(screen.queryByTestId('webview-error')).toBeNull();
         expect(screen.getByTestId('webview')).toBeTruthy();
         expect(mockWebViewMounts).toHaveBeenCalled();
+    });
+});
+
+describe('MainScreen after the app restarted itself', () => {
+    beforeEach(() => {
+        webViewProps = null;
+        mockRestartNote = null;
+        mockUseDeepLinkNavigation.mockClear();
+    });
+
+    it('opens the base address and follows cold-start links on an ordinary launch', () => {
+        renderScreen();
+
+        expect(webViewProps?.source).toEqual({ uri: 'https://app.example' });
+        expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: false });
+    });
+
+    // A session the app's runtime held ended: the page boots as one that has just signed out.
+    it('opens home with the address the session ended with, and skips the cold-start replay', () => {
+        mockRestartNote = { reason: 'session-ended', homeSearch: 'logout=1&reason=logout' };
+
+        renderScreen();
+
+        expect(webViewProps?.source).toEqual({ uri: 'https://app.example?logout=1&reason=logout' });
+        expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: true });
+    });
+
+    // A page booted with `logout=1` empties the vault: a later mount repeating it would sign out a
+    // session started since the restart.
+    it('carries the home query on the first load only, not into a later mount', () => {
+        mockRestartNote = { reason: 'session-ended', homeSearch: 'logout=1' };
+        renderScreen();
+        expect(webViewProps?.source).toEqual({ uri: 'https://app.example?logout=1' });
+
+        act(() => {
+            webViewProps?.onLoadStart({ nativeEvent: { url: 'https://app.example?logout=1' } });
+        });
+        failLoad('net::ERR_CONNECTION_RESET');
+        fireEvent.click(screen.getByText('retry'));
+
+        expect(webViewProps?.source).toEqual({ uri: 'https://app.example' });
+    });
+
+    it('keeps the home query on the mounted WebView once its load has started', () => {
+        mockRestartNote = { reason: 'session-ended', homeSearch: 'logout=1' };
+        const { rerender } = renderScreen();
+        const firstSource = webViewProps?.source;
+
+        act(() => {
+            webViewProps?.onLoadStart({ nativeEvent: { url: 'https://app.example?logout=1' } });
+        });
+        rerender(<MainScreen {...({ route: { params: {} } } as any)} />);
+
+        // The same object: a changed source would navigate the live WebView a second time.
+        expect(webViewProps?.source).toBe(firstSource);
+    });
+
+    it('opens the base address after an owner switch, still skipping the replay', () => {
+        mockRestartNote = { reason: 'session-owner-changed' };
+
+        renderScreen();
+
+        expect(webViewProps?.source).toEqual({ uri: 'https://app.example' });
+        expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: true });
     });
 });

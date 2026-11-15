@@ -34,9 +34,16 @@ const MAX_NATIVE_ROUTE_ATTEMPTS = 8;
  * not this hook's job any more: the web holds its boot cover (and so the launch splash) until the
  * replayed navigation has rendered.
  *
+ * A JS context the app restarted itself (`appRestart`) skips the cold-start lookups: the OS still
+ * reports the link or tap that launched the process, and the previous context already took it.
+ *
  * @param bridge
+ * @param options.skipColdStart this context was started over by the app, not launched by the OS
  */
-export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDeepLinkNavigationResult => {
+export const useDeepLinkNavigation = (
+    bridge: IAppBridgeHost | undefined,
+    { skipColdStart = false }: { skipColdStart?: boolean } = {}
+): UseDeepLinkNavigationResult => {
     const [deepLinkError, setDeepLinkError] = useState(false);
     const [deepLinkErrorReason, setDeepLinkErrorReason] = useState<string | null>(null);
 
@@ -174,30 +181,32 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
         };
 
         // --- Cold start capture (app launched by a deep link or a notification tap) ---
-        // Either native lookup rejects on some OEM builds / a torn-down bridge; a rejection is
-        // "no intent from this source", never a reason to break the other source.
-        deeplinkService
-            .getInitialUrl()
-            .then(url => {
-                if (!disposed && url) dispatchDeepLink(url, true);
-            })
-            .catch(err => {
-                logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start link lookup failed', err);
-            });
-        notificationService
-            .getInitialNotification()
-            .then(remoteMessage => {
-                if (!disposed && remoteMessage) {
-                    dispatchPushTap(
-                        remoteMessage.data as PushNavigationData | undefined,
-                        true,
-                        remoteMessage.messageId
-                    );
-                }
-            })
-            .catch(err => {
-                logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start notification lookup failed', err);
-            });
+        if (!skipColdStart) {
+            // Either native lookup rejects on some OEM builds / a torn-down bridge; a rejection is
+            // "no intent from this source", never a reason to break the other source.
+            deeplinkService
+                .getInitialUrl()
+                .then(url => {
+                    if (!disposed && url) dispatchDeepLink(url, true);
+                })
+                .catch(err => {
+                    logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start link lookup failed', err);
+                });
+            notificationService
+                .getInitialNotification()
+                .then(remoteMessage => {
+                    if (!disposed && remoteMessage) {
+                        dispatchPushTap(
+                            remoteMessage.data as PushNavigationData | undefined,
+                            true,
+                            remoteMessage.messageId
+                        );
+                    }
+                })
+                .catch(err => {
+                    logger.warn('DEEPLINK', '[useDeepLinkNavigation] Cold-start notification lookup failed', err);
+                });
+        }
 
         // --- Warm capture (deep link / tap arriving while the app is already running) ---
         const unsubscribeDeepLink = deeplinkService.subscribe(url => {
@@ -213,7 +222,7 @@ export const useDeepLinkNavigation = (bridge: IAppBridgeHost | undefined): UseDe
             unsubscribeDeepLink();
             unsubscribeOnOpened();
         };
-    }, [bridge]);
+    }, [bridge, skipColdStart]);
 
     return { deepLinkError, deepLinkErrorReason, handleDismissError };
 };

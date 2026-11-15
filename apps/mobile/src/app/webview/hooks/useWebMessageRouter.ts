@@ -30,6 +30,7 @@ import {
     useNativeStorageHandler,
     useSecureStorageHandler,
     useRuntimeBridgeHandler,
+    useSessionOwnerHandler,
     usePerfHandler,
     useUnfurlHandler,
     useSubWebViewHandler,
@@ -174,6 +175,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
     // The runtime requests, on a launch the app's runtime owns; registered on their own.
     useRuntimeBridgeHandler(bridge);
+    // The debug overlay's session owner switch; registered only outside production builds.
+    useSessionOwnerHandler(bridge);
     const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {

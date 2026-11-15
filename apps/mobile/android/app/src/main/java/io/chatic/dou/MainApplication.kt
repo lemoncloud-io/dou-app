@@ -7,6 +7,7 @@ import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import io.chatic.dou.bridge.AppIconManagerPackage
+import io.chatic.dou.bridge.AppRestartPackage
 import io.chatic.dou.bridge.AttachmentPickerPackage
 import io.chatic.dou.bridge.BackNavigationPackage
 import io.chatic.dou.bridge.BadgeSyncPackage
@@ -31,6 +32,7 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
             add(AppIconManagerPackage())
+            add(AppRestartPackage())
             add(AttachmentPickerPackage())
             add(AudioRecorderPackage())
             add(BackNavigationPackage())

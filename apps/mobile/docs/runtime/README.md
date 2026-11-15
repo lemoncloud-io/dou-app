@@ -6,9 +6,9 @@ opens the sockets and reads the cache. The app can hold it instead, in its own J
 runs, on the app's own storage and network. This document is how the app does that: who decides, how
 the runtime starts, and what it keeps running.
 
-**Nothing turns it on yet.** The owner is `web` unless a development setting says otherwise. On a
-launch whose owner is `native`, the app offers the session to the page and answers the runtime
-handshake — but no page asks yet: the page's side of it comes next.
+**Nothing turns it on yet.** The owner is `web` unless the development switch says otherwise (see
+[The switch](#the-switch)). On a launch whose owner is `native`, the app offers the session to the page
+and answers the runtime handshake — but no page asks yet: the page's side of it comes next.
 
 | File (`src/app/services/runtime/`)           | Role                                                                                     |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -17,6 +17,8 @@ handshake — but no page asks yet: the page's side of it comes next.
 | `nativeRuntime.ts`                           | The app's one host, wired to the app's services — loaded only when the runtime is wanted |
 | `runtimePorts.ts` · `runtimeStorageFiles.ts` | The runtime's stores and cache on the app's vault, MMKV files and SQLite                 |
 | `runtimeOffer.ts` · `runtimeBridge.ts`       | The offer injected into the page, and the four runtime requests answered over the host   |
+| `restartOnSessionEnd.ts`                     | A session's end restarts the JS context, which opens the WebView home                    |
+| `sessionOwnerSwitch.ts`                      | The development switch: records the owner and restarts to apply it, outside production   |
 
 ## Who owns the session
 
@@ -24,12 +26,31 @@ handshake — but no page asks yet: the page's side of it comes next.
 `chatic-runtime-mode`. Anything but an explicit `native` — no file, no key, a value this build does not
 know, a file that cannot be opened — is `web`, which is what every launch was before.
 
-**It is settled once per launch.** The first read is kept for the process: a page that reloads and asks
-again has to hear the same owner, and the logs of one run must agree. `writeSessionOwner` therefore
-records the owner for the _next_ launch.
+**It is settled once per launch.** The first read is kept for the JS context: a page that reloads and
+asks again has to hear the same owner, and the logs of one run must agree. `writeSessionOwner` therefore
+records the owner for the _next_ launch. A launch here is a JS context, which the app can also start over
+itself (`services/appRestart`, below) — such a restart reads the owner again, and is how a change takes
+effect without the person relaunching the app.
 
 Every native log entry carries it as the `sessionOwner` context field (`nativeLogContext.ts`), so a
 run's entries say which side held the session.
+
+### The switch
+
+The web's debug overlay has a **Session owner** screen. It asks the app with `FetchSessionOwner` (this
+run's owner, and the one recorded for the next start) and `SetSessionOwner`, which records the owner and,
+when it differs from this run's, restarts the JS context a moment later — after its answer has reached
+the page, which the restart reloads.
+
+Only a local or test stage build registers the two requests (`useSessionOwnerHandler`, gated on the
+baked `VITE_ENV` read through `toEnvStage`). A value the build does not recognise — an env file that
+failed to load — counts as production, so the switch fails closed. A production build leaves them
+`NOT_FOUND`, so the screen says the switch is not offered and nothing a page sends can move the session
+there. The stage rather than `__DEV__` is the gate so that the stage builds testers install, which are
+release builds, have it too.
+
+The vault's tokens are the same keychain item for both owners, so a session carries over a switch. What
+each side keeps in its own plain storage — the selected cloud, the cloud identities — does not yet.
 
 ## Starting the runtime
 
@@ -115,21 +136,53 @@ page that shares no contract with it is refused (`RUNTIME_CONTRACT_MISMATCH`), n
 A sign-out leaves the address a page would navigate to (`logout=1` among it) in the runtime's plain
 store for the next boot, and calls the host's way home. The host logs `session.native_ended` and tells
 `onSessionEnded` listeners. The page hears it too: the next session push carries the `logout` signal,
-which runs what the page keeps for the signed-in person and drops at a sign-out. Nothing listens to
-`onSessionEnded` yet: taking the person home is the WebView's, and what the shell does then is one of
-the items below.
+which runs what the page keeps for the signed-in person and drops at a sign-out.
+
+**The app then starts its JS context over** (`restartOnSessionEnd`, registered when `nativeRuntime.ts`
+loads). A page drops what a session left in memory by reloading — the repository graph, the sync engine,
+the background clouds, the outboxes. The runtime has no reload of its own, and it cannot be rebuilt in
+place: the packages it wires are process-wide, assembled once per JS context (`createRuntime` refuses a
+second call), and each keeps module state of its own. Starting the context over is the one way that
+provably drops all of it, so the next account begins on an empty runtime, as a page's next document
+does.
+
+The restart goes through `services/appRestart`:
+
+1. It writes a note — `{ reason: 'session-ended', homeSearch: 'logout=1…', at }` — to its own MMKV file
+   (`chatic-app-restart`), then reloads with the `AppRestart` native module. `DevSettings.reload` is no
+   use here: it does nothing in a release build.
+2. The new context reads the note once and removes it. `MainScreen` opens the WebView at the base
+   address with that query, so the page boots as a page does after it signed itself out, and the
+   runtime's own boot (at that page's hello) reads the flag it saved. The page loads once: the restart
+   mounts a new WebView anyway, and it opens at home. **The query is the first load's alone** — it is
+   dropped when that load starts. A page booted with `logout=1` empties the vault, so a later mount (a
+   retry after a failed load, the WebView back after a link's error view, a custom web build switched
+   on) must not repeat it over a session signed in since; it opens the base address.
+3. Because the note says the app, not the OS, started this context, the cold-start lookups are skipped
+   (`useDeepLinkNavigation`'s `skipColdStart`): the OS still reports the link or push tap that launched
+   the process, and the previous context already took it.
+
+Two guards keep a note from being read by the wrong context:
+
+- **A note lasts thirty seconds** (`RESTART_NOTE_TTL_MS`, from the `at` it carries). A reload takes well
+  under a second; an older note was left by a context the process died in before its reload landed,
+  and the launch that finds it is the OS's — opened by a link or a push tap that must be followed.
+- **A context restarts once.** A second restart asked for while the first is under way (two paths can
+  end one session) answers the first's result: a second reload would start a third context, with the
+  note already taken by the second. The owner switch keeps one pending restart the same way.
+
+A reload that does not happen (no host to reload) takes the note back and logs `app.restart_failed`; the
+WebView then stays where it is until the next launch. What a restart costs: the bundle is evaluated
+again, the app's services start again, the WebView and any sub WebView are torn down, and the page
+boots cold — which a sign-out does anyway. The launch splash is not shown again; the web's own boot
+cover is what the person sees.
 
 ## What is not done yet
 
-These are the conditions the steps that turn the runtime on have to meet. None of them matters while
-nothing starts it.
+These are the conditions the steps that turn the runtime on have to meet. None of them matters on a
+launch the page owns, which is every launch but the ones the development switch makes — and on those,
+the runtime still waits for a page that says hello.
 
-- **Nothing acts on a session's end.** `onSessionEnded` has no listener: the WebView is not sent home
-  and the runtime is not restarted (below).
-- **A session's end needs a fresh runtime.** A page drops everything it held in memory by reloading — the
-  repository graph, the sync engine, the background clouds, the outboxes. The runtime has no reload, so
-  after `onSessionEnded` the app has to stop it and start the JS context over before the next account
-  signs in; until then that memory would carry into the next session.
 - **One side at a time.** The page and the runtime each keep their own copy of the vault's tokens. If
   both ran a session, a token one side rotated would leave the other's stale, and one side's later
   write could undo the other's sign-out. The shell's half keeps its side of this — it says it holds
@@ -137,7 +190,11 @@ nothing starts it.
   page's half must keep the other: no session of its own while the runtime runs one.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
-  change while one is set.
+  change while one is set. The development switch does not check for one.
+- **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
+  restarted context sends a `boot` trace and a `first_screen` sample as a launch would; while the switch
+  is the only way onto a runtime-owned launch these are a tester's, but they need a type of their own
+  before the runtime is turned on.
 - **The paired-cloud check** — which ends a paired cloud with a toast and a sign-out — has a screen in
   it and runs only with the page today. On a launch the runtime owns, nothing runs it; where it lives
   is to be settled before the runtime is turned on.

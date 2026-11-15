@@ -1,4 +1,5 @@
 export * from './AppIconBridge';
+export * from './AppRestartBridge';
 export * from './AttachmentPickerBridge';
 export * from './AudioRecorderBridge';
 export * from './BackNavigationBridge';

@@ -31,7 +31,8 @@ export interface NativeRuntimeHost {
     engine(): Engine | null;
     /**
      * Hears each session end: the runtime saved the address it ended with (`logout=1` among it) for the
-     * next boot, and the app now takes the person home — the WebView is the one to reload.
+     * next boot, and the app now takes the person home — by starting its JS context over
+     * (`restartOnSessionEnd`), which reloads the WebView with it.
      */
     onSessionEnded(listener: (params: URLSearchParams) => void): () => void;
 }

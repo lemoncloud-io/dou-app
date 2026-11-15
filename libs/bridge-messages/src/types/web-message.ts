@@ -119,6 +119,8 @@ import type {
     RuntimeHelloPayload,
     RuntimeSubscribePayload,
     RuntimeUnsubscribePayload,
+    FetchSessionOwnerPayload,
+    SetSessionOwnerPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -289,6 +291,9 @@ export type WebMessagePayloadMap = {
     RuntimeCall: RuntimeCallPayload;
     RuntimeSubscribe: RuntimeSubscribePayload;
     RuntimeUnsubscribe: RuntimeUnsubscribePayload;
+    // 13. Session owner. A development switch, answered only by a non-production shell.
+    FetchSessionOwner: FetchSessionOwnerPayload;
+    SetSessionOwner: SetSessionOwnerPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */

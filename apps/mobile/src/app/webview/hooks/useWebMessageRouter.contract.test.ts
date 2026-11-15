@@ -10,6 +10,9 @@ import { useWebViewNavigation } from './useWebViewNavigation';
 const NATIVE_LAUNCH_ONLY =
     "The runtime conversation; registered on its own (useRuntimeBridgeHandler) and only on a launch the app's runtime owns, which offers it in CHATIC_APP_RUNTIME";
 
+const OWNER_SWITCH =
+    'The development session owner switch; registered on its own (useSessionOwnerHandler) and only by a non-production build';
+
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
  * answers each with `NOT_FOUND`, which is what the web falls back on. A message belongs here only
@@ -36,6 +39,8 @@ const MOBILE_UNSUPPORTED = {
     RuntimeCall: NATIVE_LAUNCH_ONLY,
     RuntimeSubscribe: NATIVE_LAUNCH_ONLY,
     RuntimeUnsubscribe: NATIVE_LAUNCH_ONLY,
+    FetchSessionOwner: OWNER_SWITCH,
+    SetSessionOwner: OWNER_SWITCH,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.
@@ -135,6 +140,9 @@ describe('mobile bridge contract', () => {
             'useWebViewNavigation.ts',
             // The runtime requests, registered only on a launch the app's runtime owns.
             'useRuntimeBridgeHandler.ts',
+            // The session owner switch, registered only by a non-production build. Listed in
+            // MOBILE_UNSUPPORTED above because this suite does not mount it.
+            'useSessionOwnerHandler.ts',
             '../../subWebView/createSubBridgeHost.ts',
         ];
         const appRoot = join(__dirname, '../..');

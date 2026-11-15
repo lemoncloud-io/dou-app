@@ -10,6 +10,8 @@ import { DeepLinkErrorView, WebViewErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
 import { bootMetricsService, bootSplashService, logger, subWebViewService } from '../../../services';
+import { appRestart } from '../../../services/appRestart';
+import { homeAddress } from '../../../webview/utils/homeAddress';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 import { useCustomZipBootGate } from '../../../customZip';
@@ -49,14 +51,31 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     // customZipServerUrl is only set after the server has started).
     const { isRestoringCustomZip } = useCustomZipBootGate();
 
+    // Set only when the app started this JS context over itself — after a session its runtime held
+    // ended, or after the session owner was switched. Read once per context.
+    const restartNote = appRestart.note();
+
     const { setNavCanGoBack } = useWebViewNavigation(bridge);
     // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.
-    const { deepLinkError, deepLinkErrorReason, handleDismissError } = useDeepLinkNavigation(bridge);
+    const { deepLinkError, deepLinkErrorReason, handleDismissError } = useDeepLinkNavigation(bridge, {
+        skipColdStart: restartNote !== null,
+    });
+
+    // After a session's end the first page load carries the query the page would have gone home with
+    // (`logout=1…`), so the page boots as one that has just signed out. The first load only: a page
+    // booted with it empties the vault, so a later mount must not repeat it over a session signed in
+    // since. It is dropped when that load starts.
+    const homeSearchRef = useRef(restartNote?.homeSearch ?? null);
 
     // source is not frozen at mount time — it's derived from the resolved base URL, so that
     // toggling the custom zip on/off is reflected when the origin changes; reloading happens via a
-    // reloadToken key remount.
-    const webViewSource = useMemo(() => ({ uri: webViewBaseUrl }), [webViewBaseUrl]);
+    // reloadToken key remount. It is worked out again for every new mount — a new base, a reload, the
+    // WebView back after an error view replaced it — and only then, so dropping the home query never
+    // changes the source under a mounted WebView, which would navigate it.
+    const webViewSource = useMemo(
+        () => ({ uri: homeAddress(webViewBaseUrl, homeSearchRef.current) }),
+        [webViewBaseUrl, webViewReloadToken, deepLinkError, webViewError]
+    );
 
     // The error view replaces the WebView, so nothing will ever report a first screen; lift the
     // splash so the error is seen now rather than at the native cap.
@@ -92,6 +111,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                 onMessage={onMessage}
                 scrollEnabled={false}
                 onLoadStart={event => {
+                    homeSearchRef.current = null;
                     bootMetricsService.mark('load-start');
                     updateWebViewState({
                         isLoading: true,

@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 15 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 16 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
@@ -29,7 +29,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Fifteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Sixteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature           | TypeScript                  | Android                                                                                                                                                                  | iOS                                                                                                                                                            |
@@ -49,6 +49,7 @@ platform:
 | Badge sync        | `BadgeSyncBridge.ts`        | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                                                                                                               | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS                                                                 |
 | Shared language   | `SharedLanguageBridge.ts`   | `SharedLanguageModule.kt`, `push/LanguagePreferenceStore.kt`                                                                                                             | `SharedLanguageModule.m` — see [../system/language.md](../system/language.md)                                                                                  |
 | Haptic            | `HapticBridge.ts`           | `HapticModule.kt` — `performHapticFeedback` on the window, no VIBRATE permission; outcomes are `CONFIRM`/`REJECT` on Android 11+, `LONG_PRESS` for warning and before 11 | `HapticModule.m` — `UISelectionFeedbackGenerator` / light `UIImpactFeedbackGenerator` / `UINotificationFeedbackGenerator` for success, warning, error          |
+| App restart       | `AppRestartBridge.ts`       | `AppRestartModule.kt` — the React host's `reload`                                                                                                                        | `AppRestartModule.m` — `RCTTriggerReloadCommandListeners`                                                                                                      |
 | Push delivery     | none                        | `push/ChaticFirebaseMessagingService.kt`                                                                                                                                 | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                                                                                        |
 
 `TriggerHaptic` is answered only when it is asked as a request. The web sends its first haptic that
@@ -58,6 +59,13 @@ back on the UI thread mid-gesture. A kind this build does not know is refused wi
 when a reply is owed and dropped silently otherwise. A build whose JS has the handler but whose
 native side predates the `Haptic` module answers success and plays nothing — `HapticBridge` is
 silent rather than warning, because it is asked on every swipe and pull.
+
+`AppRestartBridge.reload` starts the JS context over in every build: the bundle runs again, every JS
+module starts empty and the React tree — the WebViews with it — is mounted anew, while the process and
+what the native modules keep on disk stay. `DevSettings.reload` does the same only in a debug build. The
+module answers before it reloads, since the context that asked does not survive the reload. Nothing calls
+it directly: `services/appRestart` leaves the next context a note of why it began (see
+[../runtime/README.md](../runtime/README.md#when-a-session-ends)).
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background
 chat push (Android's FCM service, iOS's Notification Service Extension) and clears native storage in

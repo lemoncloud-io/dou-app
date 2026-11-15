@@ -105,6 +105,14 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen })),
     },
     {
+        // Which side holds the session on the phone. Production builds leave it unanswered.
+        key: 'SessionOwner',
+        requiresShell: true,
+        icon: 'ArrowLeftRight',
+        section: 'tools',
+        load: () => import('./screens/SessionOwnerScreen').then(m => ({ default: m.SessionOwnerScreen })),
+    },
+    {
         // Distinct from the Boot screen: that one measures the current web session live, this is the
         // native side's persisted per-boot history (ADR-0080 decision 11).
         key: 'BootRecords',

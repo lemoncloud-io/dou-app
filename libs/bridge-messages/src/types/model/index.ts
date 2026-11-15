@@ -18,6 +18,7 @@ export * from './perf';
 export * from './photo-library';
 export * from './preference';
 export * from './runtime';
+export * from './session-owner';
 export * from './share-intake';
 export * from './storage';
 export * from './sub-webview';
