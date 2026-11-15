@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,web,bridge-messages) restart the JS context when a native session ends (ADR-0314)
+
+## [2026-11-15] - No version updates
+
+### Features
+
 - (runtime-core,runtime-web,sync,perf) add the page's mirror engine for a shell-owned session
 
 ## [2026-11-15] - No version updates
