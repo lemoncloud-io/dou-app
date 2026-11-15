@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Features
+
+- (runtime-web,web) settle the session owner at boot and mirror a shell that holds it
+
+## [2026-11-15] - No version updates
+
 ### Refactor
 
 - (data,web,runtime-core) stream a room's answered feed ranges instead of reading them inline
