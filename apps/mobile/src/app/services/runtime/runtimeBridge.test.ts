@@ -16,6 +16,11 @@ jest.mock('react-native', () => ({
 jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(), fetch: jest.fn() }));
 jest.mock('../provider', () => ({ provider: { logService: { warn: jest.fn() } } }));
 
+const mockRecordAnswered = jest.fn();
+jest.mock('./launchSessionOwner', () => ({
+    recordAnsweredSessionOwner: (owner: string) => mockRecordAnswered(owner),
+}));
+
 const mockStart = jest.fn();
 jest.mock('./nativeRuntime', () => ({ nativeRuntimeHost: { start: () => mockStart() } }));
 
@@ -42,7 +47,10 @@ const outboxObservers = new Set<(sample: unknown) => void>();
 const fakeBridge = () => ({ pushEvent: jest.fn() }) as unknown as IAppBridgeHost & { pushEvent: jest.Mock };
 
 describe('createAppRuntimeBridge', () => {
-    beforeEach(() => mockStart.mockReset());
+    beforeEach(() => {
+        mockStart.mockReset();
+        mockRecordAnswered.mockReset();
+    });
 
     it('starts the runtime at the first hello and answers native', async () => {
         mockStart.mockResolvedValue(engine);
@@ -61,6 +69,20 @@ describe('createAppRuntimeBridge', () => {
             },
         });
         expect(mockStart).toHaveBeenCalledTimes(1);
+        expect(mockRecordAnswered).toHaveBeenCalledWith('native');
+    });
+
+    it("records a hello answered for the page when the runtime could not start, so it is counted as the page's", async () => {
+        mockStart.mockResolvedValue(null);
+        const { handlers } = createAppRuntimeBridge(fakeBridge());
+
+        const answer = await handlers.RuntimeHello({
+            type: 'RuntimeHello',
+            data: { contracts: [...RUNTIME_CONTRACTS] },
+        } as never);
+
+        expect(answer).toMatchObject({ success: true, data: { sessionOwner: 'web' } });
+        expect(mockRecordAnswered).toHaveBeenCalledWith('web');
     });
 
     it('answers a failure as the bridge expects one, and pushes session changes as events', async () => {

@@ -10,7 +10,7 @@ const { tryAcquireLock, releaseLock, findHeavyWork, busyFixes, isAlive } = requi
 const { redactLine } = require('../mobile-verify/proc');
 const { nodeVersionWarning, isEnUs } = require('../mobile-verify/index');
 const { pickPort, seedFrom } = require('../mobile-verify/ports');
-const { parseEnv, deriveEnv } = require('../mobile-verify/envfile');
+const { NATIVE_RUNTIME_ENV_KEYS, parseEnv, deriveEnv, withNativeRuntimeEnv } = require('../mobile-verify/envfile');
 const { parseStatus, snapshot, restore, changedSince } = require('../mobile-verify/treeGuard');
 const { buildFingerprint } = require('../mobile-verify/fingerprint');
 const { javaMajor, pickIosRuntime, listSystemImages } = require('../mobile-verify/toolchain');
@@ -41,6 +41,17 @@ describe('mobile-verify', () => {
         it('rejects unknown options and a flag missing its value', () => {
             expect(() => parseArgs(['home', '--platform', 'ios', '--fast'])).toThrow('Unknown option --fast');
             expect(() => parseArgs(['home', '--platform'])).toThrow('--platform needs a value');
+        });
+
+        it('takes the session owner, web by default, and native only with the local web', () => {
+            expect(parseArgs(['home', '--platform', 'ios']).sessionOwner).toBe('web');
+            expect(parseArgs(['home', '--platform', 'ios', '--session-owner', 'native']).sessionOwner).toBe('native');
+            expect(() => parseArgs(['home', '--platform', 'ios', '--session-owner', 'shell'])).toThrow(
+                '--session-owner must be web or native'
+            );
+            expect(() => parseArgs(['home', '--platform', 'ios', '--session-owner', 'native', '--web', 'dev'])).toThrow(
+                'needs --web local'
+            );
         });
 
         it('lets --list and --help through without a target', () => {
@@ -272,6 +283,42 @@ describe('mobile-verify', () => {
     });
 
     describe('env file', () => {
+        it("lists the same runtime keys as the app's runtime requires", () => {
+            const boot = fs.readFileSync(path.join(__dirname, '../../libs/runtime-mobile/src/boot.ts'), 'utf8');
+            const declared = boot.match(/NATIVE_RUNTIME_ENV_KEYS = \[([\s\S]*?)\]/)[1].match(/'[A-Z_]+'/g);
+            expect(declared.map(key => key.slice(1, -1))).toEqual(NATIVE_RUNTIME_ENV_KEYS);
+        });
+
+        it("fills the runtime's empty values from the web env of the same stage, keeping the mobile ones", () => {
+            const merged = parseEnv('VITE_ENV=LOCAL\nVITE_WS_ENDPOINT=wss://mobile\nVITE_HOST=\n');
+            const web = NATIVE_RUNTIME_ENV_KEYS.map(
+                key => `${key}=${key === 'VITE_ENV' ? 'LOCAL' : `web-${key}`}`
+            ).join('\n');
+
+            const { values, missing, stageMismatch } = withNativeRuntimeEnv(merged, web);
+
+            expect(stageMismatch).toBe(false);
+            expect(missing).toEqual([]);
+            expect(values.get('VITE_WS_ENDPOINT')).toBe('wss://mobile');
+            expect(values.get('VITE_HOST')).toBe('web-VITE_HOST');
+        });
+
+        it('refuses web values from another stage, and names what neither env has', () => {
+            expect(
+                withNativeRuntimeEnv(parseEnv('VITE_ENV=LOCAL\n'), 'VITE_ENV=PROD\nVITE_HOST=h\n').stageMismatch
+            ).toBe(true);
+            const { missing } = withNativeRuntimeEnv(parseEnv('VITE_ENV=LOCAL\n'), 'VITE_HOST=h\n');
+            expect(missing).toEqual(NATIVE_RUNTIME_ENV_KEYS.filter(key => !['VITE_ENV', 'VITE_HOST'].includes(key)));
+        });
+
+        it("never takes the app's stage from the web env: an empty one is missing", () => {
+            const web = NATIVE_RUNTIME_ENV_KEYS.map(key => `${key}=web`).join('\n');
+            const { values, missing } = withNativeRuntimeEnv(parseEnv('VITE_ENV=\n'), web);
+
+            expect(values.get('VITE_ENV')).toBe('');
+            expect(missing).toEqual(['VITE_ENV']);
+        });
+
         it('parses KEY=VALUE lines, quotes and export, skipping comments', () => {
             const values = parseEnv('# c\nexport A="1"\nB=two\n\nC=\n');
             expect([...values]).toEqual([

@@ -4,6 +4,7 @@ import { createRuntimeBridgeHost } from '@chatic/runtime-mobile';
 import type { RuntimeHostAnswer, RuntimePayloadSample } from '@chatic/runtime-mobile';
 
 import { provider } from '../provider';
+import { recordAnsweredSessionOwner } from './launchSessionOwner';
 import { nativeRuntimeHost } from './nativeRuntime';
 
 /** A body at or over this size is logged, so the large ones show up before anything hits the cap. */
@@ -50,8 +51,14 @@ export const createAppRuntimeBridge = (bridge: IAppBridgeHost) => {
     });
     return {
         handlers: {
-            RuntimeHello: async (message: WebMessageData<'RuntimeHello'>) =>
-                reply('RuntimeHello', await host.hello(message.data)),
+            RuntimeHello: async (message: WebMessageData<'RuntimeHello'>) => {
+                const answer = await host.hello(message.data);
+                // What the page now runs on, for the statistics stamped with who holds the session.
+                if (!('failure' in answer)) {
+                    recordAnsweredSessionOwner(answer.value.sessionOwner === 'native' ? 'native' : 'web');
+                }
+                return reply('RuntimeHello', answer);
+            },
             RuntimeCall: async (message: WebMessageData<'RuntimeCall'>) =>
                 reply('RuntimeCall', await host.call(message.data)),
             RuntimeSubscribe: async (message: WebMessageData<'RuntimeSubscribe'>) =>

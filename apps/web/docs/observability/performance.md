@@ -28,14 +28,22 @@ holding a trace until it expires.
 
 ## What the web records
 
+**`session_owner`.** Inside the app the pipeline branch stamps who holds the session this launch —
+`web` or `native`, as `main.tsx` settled it (`runtime/launchSessionOwner.ts`) — on every trace whose
+catalog entry lists it (`PipelinePerfTraceBackend`'s ambient attributes): `chat_room_open`,
+`chat_room_sync` and `bridge_request` here. The shell stamps its own `boot` and `first_screen` with what
+it answered the page's hello, the same owner. A browser tab has no owner to stamp. Firebase never
+receives it. Inside the app a page-owned launch now reads `web` where `chat_room_sync` used to carry
+nothing; outside the app it still carries nothing.
+
 | Trace             | Taken in                                                                                                                                      | Attributes                                                                           |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                                                                                                  | `outcome`: `ok` / `error`                                                            |
 | `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op                                                                                 | `outcome`: `ok` / `error`                                                            |
 | `web_vitals`      | `webVitalsReporter.ts`, all five as samples (value in `value_ms`, CLS ×1000); FCP and LCP also reach Firebase, INP/CLS/TTFB the pipeline only | `vital`: `fcp` / `lcp` / `inp` / `cls` / `ttfb`                                      |
-| `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome`                                   |
+| `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` · `session_owner` (pipeline only) |
 | `chat_room_sync`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` · `session_owner` (pipeline only) |
-| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome`                                                                   |
+| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome` · `session_owner` (pipeline only)                                 |
 | `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                                                                                          | `thread` · `kind` (`text`) · `outcome`                                               |
 | `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc                                                                       | `kind` · `count` · `size` · `thread` · `outcome`                                     |
 | `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)                                                                                | `type` · `kind` · `outcome` · `close_reason`                                         |
@@ -236,7 +244,6 @@ trace is not. The page's mirror engine marks it around its calls instead (runtim
 and `feed_done` from its result. `feed_received` and `cache` are absent there, as are the marks of a
 fetch the prime starts itself, and the trace carries `session_owner` `native`, so those launches are
 compared only with each other. That attribute reaches the log pipeline only: Firebase keeps its five.
-Nothing runs that way yet.
 
 ### Phases (metrics, in ms from the tap)
 

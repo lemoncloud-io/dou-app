@@ -15,6 +15,10 @@ jest.mock('../../../../bridge', () => ({
     },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn(), info: jest.fn() } }));
+const readLaunchSessionOwner = jest.fn();
+jest.mock('../../../../runtime/launchSessionOwner', () => ({
+    readLaunchSessionOwner: () => readLaunchSessionOwner(),
+}));
 
 const owners = (current: string, next: string) => Promise.resolve({ data: { current, next } });
 
@@ -24,6 +28,7 @@ describe('SessionOwnerScreen', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         fetchSessionOwner.mockImplementation(() => owners('web', 'web'));
+        readLaunchSessionOwner.mockReturnValue(undefined);
         restoreLanguage = setDebugLanguageForTests('en');
     });
 
@@ -36,6 +41,22 @@ describe('SessionOwnerScreen', () => {
         expect(await screen.findByText('This run')).toBeInTheDocument();
         expect(screen.getAllByText('Page (web)').length).toBeGreaterThan(0);
         expect(screen.getByRole('button', { name: 'App (native)' })).toHaveAttribute('aria-pressed', 'true');
+        // The page has settled no owner here (outside the app), so there is no row for it.
+        expect(screen.queryByText('This page')).not.toBeInTheDocument();
+    });
+
+    it('shows what this page settled, which tells a launch whose app runtime failed from one that mirrors it', async () => {
+        fetchSessionOwner.mockImplementation(() => owners('native', 'native'));
+        readLaunchSessionOwner.mockReturnValue('web');
+        const { unmount } = render(<SessionOwnerScreen />);
+
+        expect(await screen.findByText('This page')).toBeInTheDocument();
+        expect(screen.getByText('Holds its own session')).toBeInTheDocument();
+        unmount();
+
+        readLaunchSessionOwner.mockReturnValue('native');
+        render(<SessionOwnerScreen />);
+        expect(await screen.findByText('Mirrors the app’s runtime')).toBeInTheDocument();
     });
 
     // The app decides whether the switch exists; a production build leaves both requests unanswered.

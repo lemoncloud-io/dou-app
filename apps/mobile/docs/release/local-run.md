@@ -183,7 +183,8 @@ absorbs all three spellings on the read side.
   `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT` and `VITE_WS_ENDPOINT` are read only by the app's own
   session runtime, on a launch set to run it ([../runtime/README.md](../runtime/README.md)). Every
   other launch ignores them, and a build without them leaves the session to the page; copy them from
-  the web app's env of the same stage to run it.
+  the web app's env of the same stage to run it. `yarn mobile:verify` fills them into its own build from
+  `apps/web/.env` ([device-verify.md](./device-verify.md#the-build-reads-a-derived-env-file)).
 
 ## Further reading
 

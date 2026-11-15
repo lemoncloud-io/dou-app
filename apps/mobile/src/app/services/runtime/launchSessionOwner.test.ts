@@ -32,3 +32,31 @@ describe('launchSessionOwner', () => {
         expect(load()()).toBe('web');
     });
 });
+
+describe('settledSessionOwner', () => {
+    beforeEach(() => mockOpen.mockReset());
+
+    const loadModule = (setting: string | undefined): typeof LaunchSessionOwnerModule => {
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? setting : undefined) });
+        let module: typeof LaunchSessionOwnerModule | undefined;
+        jest.isolateModules(() => {
+            module = require('./launchSessionOwner') as typeof LaunchSessionOwnerModule;
+        });
+        return module as typeof LaunchSessionOwnerModule;
+    };
+
+    it("is the page's on a launch the page owns, whatever was answered", () => {
+        const { settledSessionOwner } = loadModule(undefined);
+        expect(settledSessionOwner()).toBe('web');
+    });
+
+    it("is nothing on a launch set to the app's runtime until a hello is answered, then the answer", () => {
+        const { recordAnsweredSessionOwner, settledSessionOwner } = loadModule('native');
+        expect(settledSessionOwner()).toBeUndefined();
+
+        recordAnsweredSessionOwner('web');
+        expect(settledSessionOwner()).toBe('web');
+        recordAnsweredSessionOwner('native');
+        expect(settledSessionOwner()).toBe('native');
+    });
+});

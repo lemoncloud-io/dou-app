@@ -6,6 +6,7 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
+import { readLaunchSessionOwner } from '../../../../runtime/launchSessionOwner';
 import { useSessionOwnerScreenStrings } from '../../i18n/screens/SessionOwnerScreen';
 
 interface Owners {
@@ -35,6 +36,8 @@ export const SessionOwnerScreen = () => {
     const [owners, setOwners] = useState<Owners | null>(null);
     const [unavailable, setUnavailable] = useState(false);
     const [restarting, setRestarting] = useState(false);
+    // What this page settled when it booted, which only a reload changes.
+    const pageOwner = readLaunchSessionOwner();
 
     const load = useCallback(async () => {
         try {
@@ -82,6 +85,7 @@ export const SessionOwnerScreen = () => {
                     <Section title={strings.statusSection}>
                         <Row label={strings.currentLabel} value={strings.owners[owners.current]} />
                         <Row label={strings.nextLabel} value={strings.owners[owners.next]} />
+                        {pageOwner && <Row label={strings.pageLabel} value={strings.pageOwners[pageOwner]} />}
                     </Section>
 
                     <div className="flex flex-wrap gap-2">

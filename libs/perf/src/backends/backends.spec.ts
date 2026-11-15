@@ -157,4 +157,34 @@ describe('PipelinePerfTraceBackend', () => {
 
         expect(() => pipeline.stop(result())).not.toThrow();
     });
+
+    it("adds a run's ambient attribute to a trace whose catalog entry lists it, and to no other", () => {
+        const record = jest.fn();
+        const pipeline = new PipelinePerfTraceBackend(
+            () => ({ record }),
+            () => ({ session_owner: 'native' })
+        );
+
+        pipeline.stop(result());
+        pipeline.stop(result({ name: 'chat_send', attributes: { kind: 'text' } }));
+
+        expect(record.mock.calls[0][2].attrs).toEqual({ entry: 'list', network: '4g', session_owner: 'native' });
+        expect(record.mock.calls[1][2].attrs).toEqual({ kind: 'text' });
+    });
+
+    it("keeps a trace's own value over the ambient one, and leaves off an ambient value that is undefined", () => {
+        const record = jest.fn();
+        const ambient: { session_owner?: string } = { session_owner: 'web' };
+        const pipeline = new PipelinePerfTraceBackend(
+            () => ({ record }),
+            () => ambient
+        );
+
+        pipeline.stop(result({ attributes: { entry: 'list', session_owner: 'native' } }));
+        ambient.session_owner = undefined;
+        pipeline.stop(result({ attributes: { entry: 'list' } }));
+
+        expect(record.mock.calls[0][2].attrs).toEqual({ entry: 'list', session_owner: 'native' });
+        expect(record.mock.calls[1][2].attrs).toEqual({ entry: 'list' });
+    });
 });

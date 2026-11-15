@@ -31,13 +31,7 @@ import { clearNotifications } from './app/stores/useNotificationStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
-import {
-    attachLogContext,
-    readInjectedRunId,
-    readLogContext,
-    reportRunIdJoin,
-    setLogSessionOwner,
-} from './app/runtime/logging/logContext';
+import { attachLogContext, readInjectedRunId, readLogContext, reportRunIdJoin } from './app/runtime/logging/logContext';
 import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
@@ -51,6 +45,7 @@ import {
 import { startTelemetry } from './app/runtime/telemetry';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
+import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
 import { showSessionOwnerUnsettled } from './app/runtime/sessionOwnerUnsettled';
 import { SIGNED_OUT_KEY_PREFIXES, dropSignedOutKeys } from './app/runtime/signedOutKeys';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -344,7 +339,7 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
 // fallback. A launch whose owner could not be settled boots neither runtime — the shell may hold the
 // session, and a page that ran its own then would be a second owner — and says so, with a reload.
 void bootReady.then(choice => {
-    setLogSessionOwner(choice.sessionOwner ?? undefined);
+    setLaunchSessionOwner(choice.sessionOwner ?? undefined);
     if (choice.sessionOwner === null) showSessionOwnerUnsettled(choice);
     else startApp(choice);
 });

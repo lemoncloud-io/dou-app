@@ -106,7 +106,10 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                             {t('phoneVerify.devDelivery')}
                         </span>
                         <label className="flex items-center gap-2 text-[13px] text-label">
+                            {/* The id is how the device scenarios find it on Android, whose WebView
+                                exposes a checkbox without its label. */}
                             <input
+                                id="dev-delivery-dry-run"
                                 type="checkbox"
                                 checked={state.devDryRun}
                                 onChange={e => state.onDevDryRunChange(e.target.checked)}
@@ -115,6 +118,7 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                         </label>
                         <label className="flex items-center gap-2 text-[13px] text-label">
                             <input
+                                id="dev-delivery-slack"
                                 type="checkbox"
                                 checked={state.devSlack}
                                 onChange={e => state.onDevSlackChange(e.target.checked)}

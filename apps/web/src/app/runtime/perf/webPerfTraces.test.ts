@@ -1,6 +1,7 @@
 import { recordPerfSample, resetPerfTraces, startPerfTrace } from '@chatic/perf';
 
 import { appBridge } from '../../bridge/appBridge';
+import { setLaunchSessionOwner } from '../launchSessionOwner';
 import { configureWebPerfTraces, setPerfTelemetryRecorder } from './webPerfTraces';
 
 import type { Logger } from '@chatic/logger';
@@ -104,6 +105,51 @@ describe('configureWebPerfTraces — the log pipeline branch', () => {
 
         expect(appBridge.stopPerfTrace).not.toHaveBeenCalled();
         expect(pipeline.record).toHaveBeenCalledTimes(1);
+    });
+
+    it('stamps who holds the session on the pipeline inside the app, and keeps it off the bridge', () => {
+        const pipeline = recorder();
+        setPerfTelemetryRecorder(pipeline);
+        (window as unknown as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        setLaunchSessionOwner('native');
+        try {
+            configureWebPerfTraces().resolveWith(reportWith(['StartPerfTrace', 'StopPerfTrace']));
+            const trace = startPerfTrace('chat_room_open');
+            trace.putAttribute('entry', 'list');
+            trace.stop();
+        } finally {
+            setLaunchSessionOwner(undefined);
+            delete (window as unknown as Record<string, unknown>).ReactNativeWebView;
+        }
+
+        expect(pipeline.record).toHaveBeenCalledWith(
+            'trace',
+            'chat_room_open',
+            expect.objectContaining({ attrs: { entry: 'list', session_owner: 'native' } })
+        );
+        expect(appBridge.stopPerfTrace).toHaveBeenCalledWith(
+            expect.objectContaining({ attributes: { entry: 'list' } })
+        );
+    });
+
+    it('stamps no session owner in a browser tab, where only the page can hold it', () => {
+        const pipeline = recorder();
+        setPerfTelemetryRecorder(pipeline);
+        setLaunchSessionOwner('web');
+        try {
+            configureWebPerfTraces().resolveWith(null);
+            const trace = startPerfTrace('chat_room_open');
+            trace.putAttribute('entry', 'list');
+            trace.stop();
+        } finally {
+            setLaunchSessionOwner(undefined);
+        }
+
+        expect(pipeline.record).toHaveBeenCalledWith(
+            'trace',
+            'chat_room_open',
+            expect.objectContaining({ attrs: { entry: 'list' } })
+        );
     });
 
     it('never sends a pipeline-only trace over the bridge', () => {

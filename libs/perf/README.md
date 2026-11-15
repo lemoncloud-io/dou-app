@@ -207,7 +207,12 @@ of, where a measurement is recorded.
   stamped with the stop's wall-clock time (`endedAt`) so a replayed stop keeps when it happened. The
   recorder is read on each stop, because the host builds it after boot; with none, nothing is
   recorded. It replaces the old log fallback, which wrote a sentence with the numbers in a capped
-  string and sampled one run in ten by a constant.
+  string and sampled one run in ten by a constant. Its optional `ambientAttributes` are dimensions of
+  the run rather than of one trace: each is added to a trace whose catalog entry lists it and that does
+  not carry it already, so no other trace gives the recorder a key to refuse. Both shells pass
+  `session_owner` (`SESSION_OWNER_ATTRIBUTE`) — `web` or `native`, who holds the session this launch —
+  which the catalog lists, for the pipeline only, on `boot`, `first_screen`, `chat_room_open`,
+  `chat_room_sync` and `bridge_request`.
 - **`DeferredPerfTraceBackend`** holds starts and stops, in order, until `resolve(target)` names
   the destination. It then replays everything onto it and forwards from then on.
     - The WebView uses it because the destination is only known from the WebAppReady reply, which
