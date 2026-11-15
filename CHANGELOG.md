@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Bug Fixes
+
+- (session,auth,storage) keep the device guest id in the vault, not only in the page (ADR-0315)
+
+## [2026-11-15] - No version updates
+
 ### Features
 
 - (runtime-web,web) settle the session owner at boot and mirror a shell that holds it
