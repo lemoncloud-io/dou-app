@@ -50,6 +50,7 @@ export { PAGE_REPOSITORY_REFUSED, TOKEN_ISSUING_AUTH_METHODS } from './data/page
 export {
     DATA_CALL_METHODS,
     DATA_STREAMS,
+    DATA_CLOUD_TARGET,
     DATA_TARGET,
     REPOSITORY_CALL_METHODS,
     REPOSITORY_METHODS,
@@ -116,3 +117,20 @@ export {
     toRuntimeFailure,
 } from './bridge/errors';
 export type { RuntimeErrorDetails } from './bridge/errors';
+export {
+    DEFAULT_RUNTIME_HELLO_WAIT_MS,
+    DEFAULT_RUNTIME_PAYLOAD_LIMIT,
+    RUNTIME_CONTRACT_MISMATCH_CODE,
+    RUNTIME_LISTENER_MARKER,
+    RUNTIME_NOT_STARTED_CODE,
+    RUNTIME_PAYLOAD_TOO_LARGE_CODE,
+    RUNTIME_STARTING_CODE,
+    createRuntimeBridgeHost,
+} from './bridge/host';
+export type {
+    RuntimeBridgeHost,
+    RuntimeBridgeHostOptions,
+    RuntimeHostAnswer,
+    RuntimeHostSend,
+    RuntimePayloadSample,
+} from './bridge/host';

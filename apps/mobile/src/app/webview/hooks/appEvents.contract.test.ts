@@ -66,11 +66,14 @@ const MOBILE_APP_EVENTS = {
         test: 'app/subWebView/SubWebView.test.tsx',
     },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
+    // Only on a launch the app's runtime owns, once a page said hello (docs/runtime/).
     OnRuntimeEvent: {
-        notEmitted: 'This shell does not run the runtime yet, so it never owns the session or pushes from it',
+        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        test: 'app/services/runtime/runtimeBridge.test.ts',
     },
     OnRuntimeSessionChanged: {
-        notEmitted: 'This shell does not run the runtime yet, so it never owns the session or pushes from it',
+        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        test: 'app/services/runtime/runtimeBridge.test.ts',
     },
 } satisfies Record<string, Decision>;
 

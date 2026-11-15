@@ -22,8 +22,8 @@ export interface NativeRuntimeHost {
     /**
      * Boots and runs the runtime, once per process: a second call answers the first one's result. It
      * answers `null` when the page owns the session this launch, or when the start failed: a boot that
-     * failed created nothing and the page keeps the session; a run that failed after the boot leaves no
-     * side running it this launch. It may stay pending for as long as the vault is locked (iOS, before
+     * failed created nothing, and a run that failed after the boot stopped what it had started — either
+     * way the page keeps the session. It may stay pending for as long as the vault is locked (iOS, before
      * the first unlock) — a caller that answers someone must not wait on it unbounded.
      */
     start(): Promise<Engine | null>;
@@ -91,11 +91,12 @@ export const createNativeRuntimeHost = ({
         try {
             run(booted.engine);
         } catch (error) {
-            // The runtime exists and owns this process's session stores; `run` stopped what it had
-            // started. Neither side runs the session for the rest of this launch.
+            // `run` stopped what it had started, so the runtime exists without running. The start
+            // answers `null`: the page is told the session is its own, and runs it from the vault as on
+            // any launch the page owns.
             logService.error(
                 'session.native_runtime_failed',
-                'Native runtime booted but did not start; no side runs the session this launch',
+                'Native runtime booted but did not start; the page keeps the session',
                 {
                     error,
                 }

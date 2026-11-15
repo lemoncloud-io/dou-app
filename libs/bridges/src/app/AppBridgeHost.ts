@@ -86,8 +86,10 @@ export class AppBridgeHost implements IAppBridgeHost {
      *
      * The storage requests are on the list for the same reason: the web loads the device vault before
      * its runtime boots and before anything listens, so the first of them arrives well ahead of
-     * `WebAppReady`. So is the runtime handshake: a page asks a shell that owns the session for it
-     * before its runtime boots, which is also before anything listens.
+     * `WebAppReady`. So is the runtime conversation: a page asks a shell that owns the session for
+     * the handshake before its runtime boots, and its runtime then calls and subscribes while it boots —
+     * all of it before anything listens for the buffered events. The runtime's own pushes follow the
+     * buffer like any event: they reach the page in order once it is ready.
      */
     private static readonly NON_READINESS_MESSAGE_TYPES = new Set([
         'SendLog',
@@ -95,6 +97,9 @@ export class AppBridgeHost implements IAppBridgeHost {
         'StorageSave',
         'StorageClear',
         'RuntimeHello',
+        'RuntimeCall',
+        'RuntimeSubscribe',
+        'RuntimeUnsubscribe',
     ]);
 
     private protocol: MessageProtocol;

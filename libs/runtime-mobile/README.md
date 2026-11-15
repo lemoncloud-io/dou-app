@@ -38,16 +38,17 @@ const engine = createNativeRuntime({
 });
 ```
 
-| Export                                   | Does                                                                                                          |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `createNativeRuntime(options)`           | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine |
-| `@chatic/runtime-mobile/polyfills` entry | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                   |
-| `nativeSecretStore(vault, options?)`     | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process  |
-| `waitForUnlockedVault(vault)`            | waits while the vault is locked (iOS, before the first unlock) and answers the first other read               |
-| `keyValueStoreOn(file)`                  | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are            |
-| `nativeLocalCachePorts(client)`          | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`    |
-| `bootNativeRuntime(options)`             | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime |
-| `runNativeRuntime(engine, options)`      | starts the session and connection controllers, the two credential guards and push registration; returns stop  |
+| Export                                                                    | Does                                                                                                                       |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine              |
+| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                |
+| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process               |
+| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                            |
+| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                         |
+| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                 |
+| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime              |
+| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop               |
+| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core |
 
 The ports `createNativeRuntime` fills, the same in every React Native app:
 
@@ -187,9 +188,9 @@ has to build the string itself.
 - Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/app-runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
-- Nothing in the runtime imports it. The app's runtime host does (`apps/mobile`'s
-  `services/runtime/nativeRuntime.ts`), loaded only on a launch that runs the runtime, and passes what
-  it builds into the assembly.
+- Nothing in the runtime imports it. The app's runtime modules do (`apps/mobile`'s
+  `services/runtime/nativeRuntime.ts`, `runtimeBridge.ts`, `runtimeOffer.ts`), loaded only on a launch
+  that runs the runtime, and pass what they build into the assembly.
 - Its own source compiles without the DOM's types or Node's (`tsconfig.lib.json`); React Native's own
   types supply its globals.
 - One exception it carries knowingly: the cache ports import the `@chatic/db` barrel, which also holds

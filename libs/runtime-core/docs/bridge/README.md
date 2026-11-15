@@ -3,8 +3,8 @@
 On the phone the session can belong to the shell's own JavaScript process instead of the page: the
 shell runs this package's runtime — the session and its tokens, the sockets, sync, the repositories —
 and the page mirrors it, asking the shell for everything the session decides. This document is the
-contract the two halves share. The halves themselves (the shell's host, the page's mirror engine) are
-not built yet; what exists is the contract both will be held to.
+contract the two halves share. The shell's half is built (`RuntimeBridgeHost`, below); the page's mirror
+engine is still to come.
 
 ## Where the cut is
 
@@ -93,18 +93,23 @@ profile is the session commands `fetchAccountProfile` / `updateAccountProfile` �
 desktop debug log, where the desktop shell never runs the runtime itself
 ([docs/connection](../connection/README.md#the-sockets-as-screens-read-them)).
 
-The data is a fourth target, `data` (`DATA_TARGET`). A repository method is named `<repository>.<method>`
-— `chat.sendChat` — and, for a cloud's graph rather than the live scope's, takes the cloud id first among
-its arguments. `REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of
-each page repository so a new one cannot be left out: an `observe*` method is a stream whose events are
-its callback's arguments, every other method a call (`REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`).
-The token issuers are not on the page's graph, so they are not in the contract either
-(`confirmPhoneCode` stays, for `link` mode only). The rest of
-`RuntimeData` is listed the same way (`DATA_CALL_METHODS`, `DATA_STREAMS`)
-([docs/data](../data/README.md#the-pages-graph)).
+The data is a fourth target, `data` (`DATA_TARGET`). A repository method is named
+`<repository>.<method>` — `chat.sendChat`. For a cloud's graph rather than the live scope's the target
+is `data@cloud` (`DATA_CLOUD_TARGET`), with the same names and the cloud id first among the arguments.
+`REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of each page
+repository so a new one cannot be left out: an `observe*` method is a stream whose events are its
+callback's arguments, every other method a call (`REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`). The
+token issuers are not on the page's graph, so they are not in the contract either (`confirmPhoneCode`
+stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (`DATA_CALL_METHODS`,
+`DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)).
 
 The session commands gained the relay account's profile (`fetchAccountProfile`,
 `updateAccountProfile`) — what pages used to send on the relay slot themselves.
+
+Version 1 includes how a call and a subscription are spelled across the bridge, not only what they
+name: the `data@cloud` target, the listener marker (`{ $listener: true }`) and the last event of an
+ended stream (`{ $ended: failure }`). Once a build that answers them ships, changing any of them is a
+change the other side cannot read, and raises the version.
 
 ## The messages
 
@@ -158,10 +163,44 @@ The field list is what the page's screens read. Markers the owner's own recovery
 stale-credential route `@chatic/http` stamps on a failed request, do not cross: that recovery runs
 where the session is, before the error reaches the page.
 
+## The shell's half: `RuntimeBridgeHost`
+
+`createRuntimeBridgeHost({ engine, send })` (`src/bridge/host.ts`) answers the four requests for any
+shell. The shell supplies the engine — started on first ask, `null` when it does not run the session —
+and how to push; it wires the requests to `hello`, `call`, `subscribe` and `unsubscribe`, each of
+which answers `{ value }` or `{ failure }` rather than throwing.
+
+- **Hello.** Waits for the engine for at most `helloWaitMs` (5 s); one still starting answers
+  `RUNTIME_STARTING`, which `settleRuntimeHello` reads as no answer, so the page asks again. Otherwise
+  `answerRuntimeHello` decides. Once a hello is answered `native` the host keeps that engine, and a
+  later page is never told `web`: one that shares no contract with the shell is answered
+  `RUNTIME_CONTRACT_MISMATCH` — it cannot mirror this app, and must not take the session the app runs.
+  Every hello is a new document, so the subscriptions of the last one end.
+- **Calls** run only what the contract lists for their target; anything else — `requestOnSlot`, a name
+  that is not a member, a repository's `constructor` — answers `RUNTIME_NOT_AVAILABLE`, and nothing
+  outside the lists is reachable however it is spelled. Before a hello was answered `native` every call
+  answers `RUNTIME_NOT_STARTED`.
+- **Subscriptions.** A page puts `RUNTIME_LISTENER_MARKER` (`{ $listener: true }`) in `args` where the
+  member takes its listener — an `observe*` callback, `onServerEvent`'s listener, an observer — and the
+  host puts its own there. Each call of it is one `OnRuntimeEvent` whose `event` is the listener's
+  arguments as an array, numbered per subscription id — on across a replacement under the same id. A
+  listener stream takes exactly one marker, and `registerTarget`, which takes none, stands while
+  subscribed; a stream with the wrong count, or one that answers no way to stop it, is refused. A new
+  subscription under a known id replaces the old one.
+- **The session.** Each change of the session view, coalesced to one per JS turn, is pushed as
+  `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at, so
+  the page drops any push older than what it holds.
+- **Size.** Every body's size — the length of its JSON, an approximation of what crosses — goes to
+  `onPayload`. A result over `payloadLimit` (4 Mi characters) answers `RUNTIME_PAYLOAD_TOO_LARGE`; an
+  event over it ends its subscription with a last event `{ $ended: failure }`. A hello's answer and a
+  session push are measured, never refused. The cap is a safety net, not chunking: the cache's bridge messages already
+  carry bodies of the same size unsplit, and splitting waits for measurements that show it is needed.
+
 ## Where it lives
 
 | File                         | Holds                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/bridge/contract.ts`     | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
 | `src/bridge/errors.ts`       | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
-| `src/bridge/repositories.ts` | `DATA_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                                            |
+| `src/bridge/host.ts`         | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, the defaults                                                                                                                                                          |
+| `src/bridge/repositories.ts` | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                       |

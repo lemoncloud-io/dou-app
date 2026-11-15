@@ -163,13 +163,17 @@ Then:
   unsupported request gets `NOT_FOUND`.
 - **The handshake says the same thing.** The `WebAppReady` reply over that loopback lists exactly the
   registered requests — the vocabulary minus `MOBILE_UNSUPPORTED` — and their paired replies, since
-  the web decides photo save and share and where performance traces go from that list.
+  the web decides photo save and share and where performance traces go from that list. On a launch the
+  app's own runtime owns, it lists the four runtime requests too.
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
-through the router. The one other caller is the sub WebView's own host
-(`subWebView/createSubBridgeHost.ts`), a different host whose handshake its own test pins to the
-sub WebView subset — see [sub-webview.md](./sub-webview.md).
+through the router. Two other callers are allowed. The sub WebView's own host
+(`subWebView/createSubBridgeHost.ts`) is a different host whose handshake its own test pins to the
+sub WebView subset — see [sub-webview.md](./sub-webview.md). `useRuntimeBridgeHandler` registers the
+runtime requests (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`) only on a
+launch the app's own runtime owns, so the suite, which mounts a launch the page owns, counts them
+among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
@@ -225,10 +229,11 @@ direction has its own contract tests.
 | `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
 | `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
 | `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
+| `OnRuntimeEvent`                        | `runtimeBridge`             | Only on a launch the app's runtime owns: each event of a stream the page subscribed to after its hello                                                    |
+| `OnRuntimeSessionChanged`               | `runtimeBridge`             | Only on a launch the app's runtime owns: each change of the session, once per JS turn, after a page's hello was answered `native`                         |
 
 `OnUpdateStatus` is a push-only message this shell never sends: the desktop updates itself, the
-phone through the store. `OnRuntimeEvent` and `OnRuntimeSessionChanged` are not sent yet either: they
-belong to a shell that runs the runtime and owns the session, which this one does not do yet. `OnOpenURL` is not an event despite the name — it is the reply to the
+phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the
 web's `OpenURL` request.
 
 ### Its contract tests
@@ -315,6 +320,9 @@ instead of surfacing as an opaque "Script error.":
   decides from this list alone whether to ask for the device vault, so it is set before the page runs;
   a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
   the post-load injection, so the list is in both
+- `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }`, only on
+  a launch the app's own runtime owns; absent otherwise, so a page asks for the runtime handshake only
+  when the app will answer it — see [../runtime/README.md](../runtime/README.md)
 
 **A throw skips everything after it in the block, so no snippet may throw on a page that has not
 started yet.** Android can run the before-content injection before the document has a root

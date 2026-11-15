@@ -3,6 +3,7 @@ import {
     getDebugModeScript,
     getDeviceInfoScript,
     getLogUploadHoldScript,
+    getRuntimeOfferScript,
     getStorageMediaScript,
     getSyncInjectionScript,
     getThemeScript,
@@ -230,5 +231,25 @@ describe('getStorageMediaScript', () => {
         expect(win.CHATIC_APP_STORAGE_MEDIA).toEqual(['nativeSecure']);
         expect(win.CHATIC_APP_CONFIG_BAG).toEqual({ 'ui.onboardingCompleted': 'true' });
         expect(postMessage).not.toHaveBeenCalled();
+    });
+});
+
+describe('getRuntimeOfferScript', () => {
+    const base = {
+        insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        keyboardHeight: 0,
+        deviceInfo: makeParams(),
+        theme: 'dark' as const,
+    };
+
+    it('offers the session on a launch the app runtime owns', () => {
+        const script = getSyncInjectionScript({ ...base, runtimeOffer: { sessionOwner: 'native', contracts: [1] } });
+
+        expect(script).toContain('window.CHATIC_APP_RUNTIME = {"sessionOwner":"native","contracts":[1]};');
+    });
+
+    it('offers nothing otherwise, so a page never asks', () => {
+        expect(getRuntimeOfferScript(null)).toBe('');
+        expect(getSyncInjectionScript(base)).not.toContain('CHATIC_APP_RUNTIME');
     });
 });

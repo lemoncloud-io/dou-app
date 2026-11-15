@@ -22,7 +22,7 @@ libs/runtime-core/src/
 ├── connection/         the connection controller: session → socket slots; the sockets as screens read them — see docs/connection/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
-├── bridge/             the runtime across the bridge: the handshake, the contract version, errors — see docs/bridge/
+├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host — see docs/bridge/
 └── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/); the sync engine as screens drive it (docs/connection/)
 ```
 
@@ -84,8 +84,9 @@ owns the session is settled once per launch: the shell offers before the page ru
 a handshake before it boots, and the shell decides. The page runs its own runtime only on a refusal
 or from a shell that cannot answer; a lost answer means asking again, never a second owner. `src/bridge/` holds what both halves are held to: the contract version they negotiate, the
 handshake's three steps, and how an error crosses with the fields screens read — or says the installed
-app's runtime does not have the method yet. The halves themselves
-are not built yet ([docs/bridge](./docs/bridge/README.md)).
+app's runtime does not have the method yet. The shell's half is
+`createRuntimeBridgeHost` (`src/bridge/host.ts`); the page's mirror is still to come
+([docs/bridge](./docs/bridge/README.md)).
 
 ## Purpose
 

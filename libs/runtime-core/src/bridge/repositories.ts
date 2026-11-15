@@ -230,6 +230,12 @@ export const REPOSITORY_STREAMS: readonly string[] = Object.entries(REPOSITORY_M
 /** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the data: the repositories and the rest of `RuntimeData`. */
 export const DATA_TARGET = 'data';
 
+/**
+ * The `target` for a repository method of one cloud's graph (`RuntimeData.cloudRepositories`) rather
+ * than the live scope's: the same `<repository>.<method>` names, with the cloud id as the first argument.
+ */
+export const DATA_CLOUD_TARGET = 'data@cloud';
+
 type DataCrossing = 'view' | 'call' | 'stream' | 'local';
 
 // Keyed by every member, so one added to `RuntimeData` and left out here does not compile.

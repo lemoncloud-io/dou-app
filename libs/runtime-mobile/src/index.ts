@@ -16,3 +16,7 @@ export { NATIVE_RUNTIME_ENV_KEYS, NativeRuntimeEnvError, bootNativeRuntime, miss
 export type { NativeRuntimeBoot, NativeRuntimeBootOptions } from './boot';
 export { NATIVE_RELAY_GUARD_POLICY, runNativeRuntime } from './run';
 export type { NativeRuntimeRunOptions } from './run';
+
+// the shell's half of the runtime across the bridge
+export { RUNTIME_CONTRACTS, RUNTIME_LISTENER_MARKER, createRuntimeBridgeHost } from '@chatic/runtime-core';
+export type { RuntimeBridgeHost, RuntimeHostAnswer, RuntimePayloadSample } from '@chatic/runtime-core';
