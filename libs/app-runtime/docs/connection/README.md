@@ -66,6 +66,15 @@ re-issue an owned cloud held as an invitee — on a list change, and on each clo
 the engine's. The background slots built from them are described in
 [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#background-slots).
 
+`useBackgroundClouds(null)` hands nothing over: the app does not know the membership yet, and the
+runtime keeps the list it has. An empty list is an answer and withdraws every background cloud. The
+two differ where the runtime outlives the page — a phone shell that runs the session keeps its sockets
+across a page reload, and a reloaded page announcing `[]` before its first reads came back would tear
+down every background socket only to open it again. apps/web's `BackgroundCloudsRunner` passes `null`
+until both sources have answered: the cloud catalog — a failure counting only once the relay socket is
+verified, since a failure before that is the stale credential the catalog's re-read follows — and the
+invited-cloud cache, which counts as empty if it is still silent a few seconds after the catalog.
+
 ### Reading connection state
 
 | Hook                      | Answers                                                                     |

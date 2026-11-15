@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import type { DomainCloud } from '@chatic/data';
 
@@ -9,13 +9,17 @@ let mockOwned: DomainCloud[] = [];
 let mockDelegatorId: string | null = 'guest-1';
 // The relay session's uid. A guest's equals its delegatorId; a signed-in account's is the account's own.
 let mockAcceptorId: string | null = 'guest-1';
+// Whether the cache answers as soon as it is observed; off, the test answers through `mockAnswer`.
+let mockAnswersAtOnce = true;
+let mockAnswer: ((result: { list: DomainCloud[] }) => void) | null = null;
 
 // One repositories object for every render, as the runtime hands out: the hook subscribes per `cloud`,
 // and a fresh one each render would re-subscribe and re-set state forever.
 const mockRepositories = {
     cloud: {
         observeList: (listener: (result: { list: DomainCloud[] }) => void) => {
-            listener({ list: mockCached });
+            mockAnswer = listener;
+            if (mockAnswersAtOnce) listener({ list: mockCached });
             return () => undefined;
         },
     },
@@ -39,9 +43,25 @@ beforeEach(() => {
     mockOwned = [];
     mockDelegatorId = 'guest-1';
     mockAcceptorId = 'guest-1';
+    mockAnswersAtOnce = true;
+    mockAnswer = null;
 });
 
 describe('useInvitedClouds', () => {
+    it('says it has not read the cache until the cache answers, empty or not', () => {
+        mockAnswersAtOnce = false;
+
+        const { result } = renderHook(() => useInvitedClouds());
+
+        expect(result.current.hasReadInvitedClouds).toBe(false);
+        expect(result.current.invitedClouds).toEqual([]);
+
+        act(() => mockAnswer?.({ list: [] }));
+
+        expect(result.current.hasReadInvitedClouds).toBe(true);
+        expect(result.current.invitedClouds).toEqual([]);
+    });
+
     it('lists the invited rows of the cloud cache, and only those', () => {
         mockCached = [invited('a'), { id: 'b', cid: 'b', cloudType: 'owner' } as DomainCloud];
 

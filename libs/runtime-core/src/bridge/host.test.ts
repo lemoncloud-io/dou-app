@@ -515,6 +515,38 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
         expect(events.map(event => event.seq)).toEqual([1, 2]);
     });
 
+    it("numbers a new document's stream from 1 again, though it reuses the last document's id", async () => {
+        const { host, fake, events } = setup();
+        await host.hello(hello);
+        await host.subscribe({
+            subscriptionId: 'm1',
+            target: 'data',
+            topic: 'user.observeItem',
+            args: ['u1', RUNTIME_LISTENER_MARKER],
+        });
+        fake.observers.get('user:u1')?.({ id: 'u1' });
+        fake.observers.get('user:u1')?.({ id: 'u1' });
+
+        // The page reloaded: a new hello, and its mirror opens the same id again.
+        await host.hello(hello);
+        await host.subscribe({
+            subscriptionId: 'm1',
+            target: 'data',
+            topic: 'user.observeItem',
+            args: ['u2', RUNTIME_LISTENER_MARKER],
+        });
+        fake.observers.get('user:u2')?.({ id: 'u2' });
+        // The last document's listener, still called by its source: its stream ended at the hello, so it
+        // sends nothing that the new document's `m1` could mistake for its own.
+        fake.observers.get('user:u1')?.({ id: 'u1' });
+
+        expect(events.map(event => [event.seq, event.event])).toEqual([
+            [1, [{ id: 'u1' }]],
+            [2, [{ id: 'u1' }]],
+            [1, [{ id: 'u2' }]],
+        ]);
+    });
+
     it('refuses an empty cloud id', async () => {
         const { host } = setup();
         await host.hello(hello);

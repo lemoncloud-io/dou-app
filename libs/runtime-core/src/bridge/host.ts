@@ -218,8 +218,8 @@ const resolveMember = (
  * - **Calls.** Only members the contract lists, by target. Anything else answers
  *   `RUNTIME_NOT_AVAILABLE`; a member that throws answers `RUNTIME_ERROR` with the crossing fields.
  * - **Subscriptions.** The listener goes where the page put `RUNTIME_LISTENER_MARKER`; each call of it
- *   is one `OnRuntimeEvent`, numbered per subscription. A new subscription under a known id replaces
- *   the old one.
+ *   is one `OnRuntimeEvent`, numbered per subscription and from 1 in each document. A new subscription
+ *   under a known id replaces the old one.
  * - **The session.** Every change of the session view, coalesced per `schedule`, is one
  *   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at. A
  *   push still waiting when a call settles goes out before the call's answer.
@@ -245,6 +245,7 @@ export const createRuntimeBridgeHost = ({
     const subscriptions = new Map<string, () => void>();
     // The last event number under each subscription id, kept across a replacement under the same id:
     // an event of the old stream still in flight then never numbers above the new stream's first.
+    // Kept for one document only — `endSubscriptions` forgets it (see there).
     const lastEventSeq = new Map<string, number>();
 
     const tooLarge = (name: string, size: number): AppMessageError => ({
@@ -297,6 +298,12 @@ export const createRuntimeBridgeHost = ({
     const endSubscriptions = () => {
         subscriptions.forEach(stop => stop());
         subscriptions.clear();
+        // A new document's mirror numbers its ids from the start again (`m1`, `m2`, …) and expects each
+        // stream's events from 1. Carrying the last document's numbers over made every reused id open
+        // with a jump the mirror logs as skipped events, which buries a real gap. Nothing of the old
+        // streams can reach the new document after this: they are stopped above, and what they sent
+        // before arrives ahead of the hello's answer, before the new document has subscribed.
+        lastEventSeq.clear();
     };
 
     const waitForEngine = async (): Promise<RuntimeEngine | null | 'starting'> => {

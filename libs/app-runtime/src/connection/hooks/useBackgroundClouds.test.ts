@@ -56,4 +56,34 @@ describe('useBackgroundClouds', () => {
 
         expect(setBackgroundClouds).toHaveBeenCalledWith([]);
     });
+
+    it('hands nothing over while the membership is unknown, then the list once it is known', () => {
+        const { rerender } = renderHook(({ cids }) => useBackgroundClouds(cids), {
+            initialProps: { cids: null as readonly string[] | null },
+        });
+
+        expect(setBackgroundClouds).not.toHaveBeenCalled();
+
+        rerender({ cids: ['a'] });
+
+        expect(setBackgroundClouds.mock.calls).toEqual([[['a']]]);
+    });
+
+    it('keeps the last list when the membership becomes unknown again', () => {
+        const { rerender } = renderHook(({ cids }) => useBackgroundClouds(cids), {
+            initialProps: { cids: ['a'] as readonly string[] | null },
+        });
+
+        rerender({ cids: null });
+
+        expect(setBackgroundClouds.mock.calls).toEqual([[['a']]]);
+    });
+
+    it('still withdraws the list on unmount when it never knew the membership', () => {
+        const { unmount } = renderHook(() => useBackgroundClouds(null));
+
+        unmount();
+
+        expect(setBackgroundClouds.mock.calls).toEqual([[[]]]);
+    });
 });
