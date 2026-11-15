@@ -24,11 +24,7 @@ import {
 } from '@chatic/data';
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-// The send holds the room's cloud socket across its writes and uploads, with work that is a function —
-// which cannot cross the bridge, and neither can the files. Sending media is the runtime's own, in
-// this process, until it is a command of its own.
-import { runInCloud } from '@chatic/runtime-core';
-import { getCloudRepositories } from '../dataCommands';
+import { getCloudRepositories, holdCloud } from '../dataCommands';
 import { beginMediaSendTiming, type MediaSendTiming } from '@chatic/runtime-core';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
@@ -382,6 +378,22 @@ const keepUnsent = async (sent: PendingImages, files: ChatAttachmentSource[], re
 const chatOf = (cid: string) => getCloudRepositories(cid).chat;
 
 /**
+ * Runs `work` against the room's cloud while holding that cloud's socket, from the first upload request
+ * to the send, released when `work` settles. The hold and every request go through the engine, while the
+ * uploads `work` makes between them are the page's own: on the phone the session can run in the app's
+ * own process, where a hold is something the page asks for and ends, and the bytes never leave the page.
+ * Async throughout, so a cloud whose graph cannot be read rejects inside the hold, which is released.
+ */
+const inCloudHold = async <T>(cid: string, work: (chat: ReturnType<typeof chatOf>) => Promise<T>): Promise<T> => {
+    const release = holdCloud(cid);
+    try {
+        return await work(chatOf(cid));
+    } finally {
+        release();
+    }
+};
+
+/**
  * Points a pending row's previews at the thumbnails the preparation just made.
  *
  * The row is written before anything is prepared, so it can only start from the picked originals —
@@ -607,7 +619,7 @@ export const useSendImages = ({
             const sending = entry.files.map((_, index) => index).filter(index => !refused.includes(index));
             let result: SendImageResult = { status: 'failed', reason: 'no-stored-upload', failedSlots: refused.length };
             if (sending.length > 0) {
-                result = await runInCloud(entry.cid, async ({ chat: repository }) => {
+                result = await inCloudHold(entry.cid, async repository => {
                     // Inside the hold, so the slot it waits on is kept: a pick answered as the app comes back to
                     // the front starts the send while the socket is still reconnecting.
                     const wait = waitForConnectionRef.current;
@@ -684,7 +696,8 @@ export const useSendImages = ({
                         }
                     );
                 }).catch(error => {
-                    // A send that could not even hold its cloud (no slot bound) still ends its sample.
+                    // A send that threw rather than settling — its cloud's graph could not be read — still
+                    // ends its sample.
                     timing?.end('error');
                     throw error;
                 });

@@ -59,6 +59,7 @@ const fakeEngine = () => {
         },
         data: {
             clearLocalCaches: jest.fn(async () => ({ cleared: 2 })),
+            holdCloud: jest.fn((cid: string) => () => stops.push(`hold:${cid}`)),
             repositories: () => ({
                 user: {
                     listDevices: jest.fn(async () => ({ list: [{ id: 'd1' }] })),
@@ -361,6 +362,40 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
 
         await host.hello(hello);
         expect(fake.stops).toEqual(['user:u1', 'target', 'user:u2', 'server:chat.push']);
+    });
+
+    it("holds a cloud while the page's subscription stands, ended by unsubscribe or by a new hello", async () => {
+        const { host, fake, events } = setup();
+        await host.hello(hello);
+
+        await expect(
+            host.subscribe({ subscriptionId: 'h1', target: 'data', topic: 'holdCloud', args: ['cloud-a'] })
+        ).resolves.toEqual({ value: {} });
+        await host.subscribe({ subscriptionId: 'h2', target: 'data', topic: 'holdCloud', args: ['cloud-b'] });
+        expect(fake.raw.data.holdCloud.mock.calls).toEqual([['cloud-a'], ['cloud-b']]);
+
+        host.unsubscribe({ subscriptionId: 'h1' });
+        expect(fake.stops).toEqual(['hold:cloud-a']);
+
+        // A reloaded page says hello again: what the last document still held goes with it.
+        await host.hello(hello);
+        expect(fake.stops).toEqual(['hold:cloud-a', 'hold:cloud-b']);
+        expect(events).toEqual([]);
+    });
+
+    it('refuses a cloud hold that is handed a listener marker', async () => {
+        const { host, fake } = setup();
+        await host.hello(hello);
+
+        await expect(
+            host.subscribe({
+                subscriptionId: 'h',
+                target: 'data',
+                topic: 'holdCloud',
+                args: ['cloud-a', RUNTIME_LISTENER_MARKER],
+            })
+        ).resolves.toMatchObject({ failure: { code: RUNTIME_ERROR_CODE } });
+        expect(fake.raw.data.holdCloud).not.toHaveBeenCalled();
     });
 
     it('ends a subscription whose event is too large, and says so in its last event', async () => {

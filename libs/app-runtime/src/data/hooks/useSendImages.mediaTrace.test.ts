@@ -3,15 +3,17 @@ import { act, renderHook } from '@testing-library/react';
 import type { ChatAttachmentSource, SendImagePorts, SendImageResult } from '@chatic/data';
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
-import { getCloudRepositories, runInCloud } from '@chatic/runtime-core';
+import { getCloudRepositories } from '@chatic/runtime-core';
+import { holdCloud } from '../dataCommands';
 import { useSendImages } from './useSendImages';
 
 // Its own file, so the tracer's per-minute cap starts empty: the main suite's sends would use it up.
-jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
-// The hook reads a cloud's graph through the engine; the graph is the same mock either way.
+jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
+// The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
 jest.mock('../dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
+    holdCloud: jest.fn(),
 }));
 
 const mockSendImageMessage = jest.fn();
@@ -55,9 +57,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     configurePerfTraces(backend);
     (getCloudRepositories as jest.Mock).mockReturnValue({ chat });
-    (runInCloud as jest.Mock).mockImplementation(async (_cid: string, work: (r: { chat: typeof chat }) => unknown) =>
-        work({ chat })
-    );
+    (holdCloud as jest.Mock).mockReturnValue(() => undefined);
 });
 
 afterEach(() => resetPerfTraces());
@@ -103,8 +103,22 @@ describe('useSendImages — chat_send_media', () => {
         unmount();
     });
 
-    it('records an error when the cloud could not be held for the upload', async () => {
-        (runInCloud as jest.Mock).mockRejectedValueOnce(new Error('no cloud slot bound'));
+    it("records an error when the cloud's graph could not be read for the upload, and lets the hold go", async () => {
+        // The read that fails is the one made under the hold — not the row's write or the attach-time sweep.
+        let holding = false;
+        let failed = false;
+        const release = jest.fn(() => {
+            holding = false;
+        });
+        (holdCloud as jest.Mock).mockImplementationOnce(() => {
+            holding = true;
+            return release;
+        });
+        (getCloudRepositories as jest.Mock).mockImplementation(() => {
+            if (!holding || failed) return { chat };
+            failed = true;
+            throw new Error('no runtime for this cloud');
+        });
         const { result, unmount } = renderHook(() =>
             useSendImages({ cid: 'cloud-a', channelId: 'ch-1', put: jest.fn() })
         );
@@ -113,6 +127,8 @@ describe('useSendImages — chat_send_media', () => {
             result.current.sendImages([new File(['a'], 'a.jpg', { type: 'image/jpeg' })]).catch(() => undefined)
         );
 
+        expect(failed).toBe(true);
+        expect(release).toHaveBeenCalledTimes(1);
         expect(recorded()[0].attributes).toMatchObject({ outcome: 'error' });
         unmount();
     });

@@ -245,6 +245,9 @@ const dataMembers: Record<keyof RuntimeData, DataCrossing> = {
     cloudRepositories: 'local',
     sendChatInCloud: 'call',
     waitForCloudSocket: 'call',
+    // Stands while subscribed, with no listener and no events, like the sync's `registerTarget`: a
+    // page's hold ends with its subscription, so a page that goes away mid-send leaves none behind.
+    holdCloud: 'stream',
     recoverInvitedCloud: 'call',
     syncInvitedCloudName: 'call',
     syncPairedCloudName: 'call',

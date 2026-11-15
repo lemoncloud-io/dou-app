@@ -122,15 +122,19 @@ sent the message to the one they moved to — and nothing refused it, because `s
 `acceptsAnswer` check to fail. When the outgoing cloud's slot was then torn down, the request died
 with it.
 
-`runInCloud(cid, work)` (`data/cloudChat.ts`) names the cloud once, up front, and runs `work`
-against that cloud's graph. It is internal to this lib: the shells reach it only through the two
-sends built on it. `data.sendChatInCloud(cid, payload)` is the text send, and the image send (a row,
-an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence
-([image-send.md](../../../app-runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs):
+`data/cloudChat.ts` names the cloud once, up front, for the two sends. `sendChatInCloud(cid,
+payload)` is the text send: it runs inside `runInCloud(cid, work)`, which holds the cloud for the
+length of `work` and is internal to this lib. The image send (a row, an upload, then the send) holds
+the cloud itself through `RuntimeData.holdCloud(cid)` and makes each request on
+`cloudRepositories(cid)`, so the hold covers the whole sequence while the upload between the requests
+stays the page's own
+([image-send.md](../../../app-runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs).
+A hold is a release to call rather than a callback to run, which is what lets it cross to a runtime in
+another process (§ The page's graph). Both sends:
 
-- It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
-- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
-- The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
+- Send through `getScopedRepositories(cid)` (the image send through its page view), so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
+- **Hold** the cloud's socket slot for as long as the write is in flight ([docs/connection/](../connection/README.md#holding-a-slot-for-a-write)), and release it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- Take the cloud from the caller, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
 
 A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not
 open one for it: at the moment of the press the cloud on screen always has a slot, so an unbound one
@@ -181,13 +185,14 @@ a repository in an effect's dependencies keeps the same object. A method read of
 binds anew, so hold the repository, not one of its methods, where identity matters.
 
 The rest of `RuntimeData` is the work the page used to do by importing this folder: the cloud-addressed
-send and wait, the invited and paired cloud recovery and names (by cloud id — the engine uses the live
+send, wait and hold (`holdCloud` returns its release), the invited and paired cloud recovery and names (by cloud id — the engine uses the live
 scope's cloud repository), the cache clear and cursor reset, the state outbox observer (it returns its
 stop), the cache's metrics and the cross-cloud cache search (signed out, the search answers empty).
 
 Across the bridge every repository method is a `call` but the `observe*` ones, which are `stream`s
 (`bridge/repositories.ts` — keyed by every method of every page repository); the graphs themselves are
-the page's handles and do not cross ([docs/bridge](../bridge/README.md)).
+the page's handles and do not cross ([docs/bridge](../bridge/README.md)). `holdCloud` crosses as a
+stream with no listener: the hold stands while the page's subscription does, and ends with it.
 
 ### The hooks
 

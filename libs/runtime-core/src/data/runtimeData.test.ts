@@ -7,10 +7,12 @@ jest.mock('./runtime', () => ({
     getRepositories: () => mockGraph,
     getDataManager: () => ({ getContext: () => mockContext }),
 }));
+const mockRelease = jest.fn();
 const mockCloudChat = {
     getCloudRepositories: jest.fn(() => mockCloudGraph),
     sendChatInCloud: jest.fn(async () => ({ id: 'chat-1' })),
     waitForCloudSocket: jest.fn(async () => true),
+    holdCloud: jest.fn((_cid: string) => mockRelease),
 };
 jest.mock('./cloudChat', () => mockCloudChat);
 const mockDurability = {
@@ -59,6 +61,11 @@ describe('the core runtime data', () => {
 
         expect(mockCloudChat.sendChatInCloud).toHaveBeenCalledWith('c-1', { content: 'hi' });
         expect(mockCloudChat.waitForCloudSocket).toHaveBeenCalledWith('c-1', undefined);
+    });
+
+    it("holds a named cloud and hands back the hold's own release", () => {
+        expect(data.holdCloud('c-1')).toBe(mockRelease);
+        expect(mockCloudChat.holdCloud).toHaveBeenCalledWith('c-1');
     });
 
     it("runs the cloud name and recovery work on the live scope's cloud repository", async () => {

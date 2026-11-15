@@ -7,7 +7,7 @@ import type {
     GlobalCacheSearchResult,
 } from '@chatic/data';
 
-import { getCloudRepositories, sendChatInCloud, waitForCloudSocket } from './cloudChat';
+import { getCloudRepositories, holdCloud, sendChatInCloud, waitForCloudSocket } from './cloudChat';
 import { clearLocalCaches } from './clearLocalCaches';
 import type { ClearLocalCachesResult } from './clearLocalCaches';
 import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
@@ -42,6 +42,11 @@ export interface RuntimeData {
     sendChatInCloud(cid: string, payload: ChatSendPayload): Promise<DomainChat>;
     /** Resolves `true` once `cid`'s socket is verified, `false` when `timeoutMs` passes first. */
     waitForCloudSocket(cid: string, timeoutMs?: number): Promise<boolean>;
+    /**
+     * Holds `cid`'s socket until the returned function is called — for a write that spans several of
+     * `cloudRepositories(cid)`'s calls with the page's own work between them, such as an image send's upload.
+     */
+    holdCloud(cid: string): () => void;
 
     /** Rebuilds an invited cloud's cached row when a push names a cloud the cache lost. Best-effort. */
     recoverInvitedCloud(cloudId: string | undefined): Promise<void>;
@@ -84,6 +89,7 @@ export const createCoreRuntimeData = (): RuntimeData => {
 
         sendChatInCloud: (cid, payload) => sendChatInCloud(cid, payload),
         waitForCloudSocket: (cid, timeoutMs) => waitForCloudSocket(cid, timeoutMs ?? undefined),
+        holdCloud: cid => holdCloud(cid),
 
         recoverInvitedCloud: cloudId => recoverInvitedCloudIfMissing(getRepositories().cloud, cloudId ?? undefined),
         syncInvitedCloudName: cloudId => syncInvitedCloudName(getRepositories().cloud, cloudId ?? undefined),

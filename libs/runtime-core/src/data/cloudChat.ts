@@ -26,21 +26,31 @@ export const getCloudRepositories = (cid: string): DataRepositories =>
     getDataManager().getScopedRepositories(cloudOf(cid));
 
 /**
- * Runs `work` against `cid`'s repository graph while holding that cloud's socket slot, so moving to
- * another cloud meanwhile cannot tear down the socket the work is waiting on. For a write that spans
- * several requests — an image send writes its row, uploads, then sends — the hold covers all of them.
- * The hold is taken before anything awaits, so it is in place before any switch the caller races
- * with commits, and released when `work` settles, success or failure.
+ * Holds `cid`'s socket slot until the returned function is called, so moving to another cloud meanwhile
+ * cannot tear down the socket a write is waiting on. For a write that spans several requests with work
+ * of the caller's own between them — an image send asks for upload targets, uploads the bytes itself,
+ * then completes and sends — the hold covers all of it. Holds stack: the slot stays until the last one
+ * is released, and releasing the same hold twice releases it once.
  *
  * It keeps a slot that is bound; it does not open one. At the moment the user acts, the cloud on
- * screen has a slot, so a cloud without one means the session is not ready, and the work's first
+ * screen has a slot, so a cloud without one means the session is not ready, and the write's first
  * socket call fails at once.
+ *
+ * The hold is a value rather than a callback so it can cross to a runtime in another process: there it
+ * is a subscription that stands until the page ends it, or until the page itself goes away.
+ */
+export const holdCloud = (cid: string): (() => void) => backgroundClouds.hold(cloudOf(cid));
+
+/**
+ * Runs `work` against `cid`'s repository graph inside `holdCloud(cid)`. The hold is taken before
+ * anything awaits, so it is in place before any switch the caller races with commits, and released
+ * when `work` settles, success or failure. For work that runs entirely in this process — a function
+ * cannot cross to a runtime in another one, so a page reaches the hold through `holdCloud` instead.
  */
 export const runInCloud = async <T>(cid: string, work: (repositories: DataRepositories) => Promise<T>): Promise<T> => {
-    const cloud = cloudOf(cid);
-    const release = backgroundClouds.hold(cloud);
+    const release = holdCloud(cid);
     try {
-        return await work(getCloudRepositories(cloud));
+        return await work(getCloudRepositories(cid));
     } finally {
         release();
     }

@@ -72,9 +72,9 @@ publishes runs through them; `connection` reads and drives this process's socket
 manager, and app-runtime reaches neither manager any other way; `data` hands over the page's view of
 this process's repository graphs, without the token issuers ([docs/data](./docs/data/README.md#the-pages-graph)).
 
-Everything the React surface reads or drives goes through the engine. What still runs in the page's own
-process only is sending media (`runInCloud` with its work and files) — see
-[app-runtime docs/data](../app-runtime/docs/data/README.md).
+Everything the React surface reads or drives goes through the engine, sending media included: the page
+holds the cloud (`data.holdCloud`) and makes the upload and send calls through the engine, and uploads
+the bytes itself — see [app-runtime docs/data](../app-runtime/docs/data/README.md).
 
 ## The runtime across the bridge
 
