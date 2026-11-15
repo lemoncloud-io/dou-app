@@ -9,6 +9,11 @@ export interface InvitedCloudsResult {
     invitedClouds: DomainCloud[];
     hasInvitedClouds: boolean;
     /**
+     * The local cache has answered at least once. Until then `invitedClouds` is an empty stand-in, not
+     * an answer — the distinction a caller needs before it hands the list on as the whole membership.
+     */
+    hasReadInvitedClouds: boolean;
+    /**
      * Owned clouds this device has also cached as invited — the rows hidden from `invitedClouds` for
      * being owned. Their token may have been issued to the device's guest, so they are handed to the
      * owned-cloud reclaim. Not filtered by acceptor: a row another guest accepted costs the reclaim a
@@ -48,7 +53,8 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
     const { delegatorId } = runtime.session.useSessionIdentity();
     const acceptorId = runtime.data.getAcceptorId();
     const isMine = (c: DomainCloud): boolean => isAcceptedBy(c, delegatorId) || isAcceptedBy(c, acceptorId);
-    const [cachedInvited, setCachedInvited] = useState<DomainCloud[]>([]);
+    // `null` until the cache has answered once.
+    const [cachedInvited, setCachedInvited] = useState<DomainCloud[] | null>(null);
 
     useEffect(() => {
         return cloud.observeList(result => {
@@ -57,9 +63,15 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
     }, [cloud]);
 
     // Drop invited rows whose id is present in the owned catalog (now owned by the signed-in account).
+    const cached = cachedInvited ?? [];
     const ownedIds = new Set(ownedClouds.map(c => c.id).filter((id): id is string => !!id));
-    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isMine(c));
-    const ownedAlsoInvitedIds = cachedInvited.map(c => c.id).filter((id): id is string => !!id && ownedIds.has(id));
+    const invitedClouds = cached.filter(c => (!c.id || !ownedIds.has(c.id)) && isMine(c));
+    const ownedAlsoInvitedIds = cached.map(c => c.id).filter((id): id is string => !!id && ownedIds.has(id));
 
-    return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0, ownedAlsoInvitedIds };
+    return {
+        invitedClouds,
+        hasInvitedClouds: invitedClouds.length > 0,
+        hasReadInvitedClouds: cachedInvited !== null,
+        ownedAlsoInvitedIds,
+    };
 };

@@ -11,13 +11,20 @@ import { runtimeConnection } from '../connectionCommands';
  * Mount it once, inside the connection host. Unmounting it withdraws the list, which tears every
  * background slot down — the committed cloud's slot is unaffected.
  *
+ * `null` means the app does not know the membership yet, and hands nothing over: the runtime keeps
+ * the list it has. That is not the same as an empty list, which withdraws every background cloud. The
+ * difference matters where the runtime outlives the page — a phone shell that runs the session keeps
+ * its sockets across a page reload, and a reloaded page that announced `[]` while its first reads were
+ * still in flight would tear down every background socket only to open them again a moment later.
+ *
  * The list is compared by content, so handing a fresh array on every render costs nothing.
  */
-export const useBackgroundClouds = (cids: readonly string[]): void => {
+export const useBackgroundClouds = (cids: readonly string[] | null): void => {
     // Keyed on the content: the app's list is a new array whenever its queries re-render.
-    const key = cids.join('\n');
+    const key = cids === null ? null : cids.join('\n');
 
     useEffect(() => {
+        if (key === null) return;
         runtimeConnection().setBackgroundClouds(key ? key.split('\n') : []);
     }, [key]);
 
