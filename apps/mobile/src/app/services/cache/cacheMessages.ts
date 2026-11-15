@@ -221,6 +221,50 @@ export const createCacheMessageHandlers = ({ crud, search, logger }: CacheMessag
         }
     },
 
+    FetchChatMediaCacheData: async (message: WebMessageData<'FetchChatMediaCacheData'>) => {
+        const data = message.data;
+        const base = { type: data.type, cid: data.cid, uid: data.uid, channelId: data.channelId, kind: data.kind };
+        try {
+            const page = await crud().fetchChatMedia(data);
+            return {
+                type: 'OnFetchChatMediaCacheData' as const,
+                success: true,
+                data: { ...base, items: page.items, nextCursorNo: page.nextCursorNo },
+            };
+        } catch (e) {
+            logger.error('CACHE', `FetchChatMedia error: ${data.kind}`, e);
+            return {
+                type: 'OnFetchChatMediaCacheData' as const,
+                success: true,
+                data: { ...base, items: null, nextCursorNo: null },
+            };
+        }
+    },
+
+    CountChatMediaCacheData: async (message: WebMessageData<'CountChatMediaCacheData'>) => {
+        const data = message.data;
+        const base = { type: data.type, cid: data.cid, uid: data.uid, channelId: data.channelId };
+        try {
+            const counts = await crud().countChatMedia(data);
+            return { type: 'OnCountChatMediaCacheData' as const, success: true, data: { ...base, counts } };
+        } catch (e) {
+            logger.error('CACHE', 'CountChatMedia error', e);
+            return { type: 'OnCountChatMediaCacheData' as const, success: true, data: { ...base, counts: null } };
+        }
+    },
+
+    SaveChatMediaCacheData: async (message: WebMessageData<'SaveChatMediaCacheData'>) => {
+        const data = message.data;
+        const base = { type: data.type, cid: data.cid, uid: data.uid };
+        try {
+            await crud().saveChatMedia(data);
+            return { type: 'OnSaveChatMediaCacheData' as const, success: true, data: { ...base, success: true } };
+        } catch (e) {
+            logger.error('CACHE', 'SaveChatMedia error', e);
+            return { type: 'OnSaveChatMediaCacheData' as const, success: true, data: { ...base, success: false } };
+        }
+    },
+
     SearchGlobalCacheData: async (message: WebMessageData<'SearchGlobalCacheData'>) => {
         const { keyword, cid, uid } = message.data;
         try {

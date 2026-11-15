@@ -2,6 +2,7 @@ import type { DataContextProvider } from '../../repositories/types';
 import type { LocalCacheStorages } from '../ports';
 import { ChannelLocalDataSource, type IChannelLocalDataSource } from './ChannelLocalDataSource';
 import { ChatLocalDataSource, type IChatLocalDataSource } from './ChatLocalDataSource';
+import { createChatMediaIndexMarks } from './chatMediaIndexMarks';
 import { CloudLocalDataSource, type ICloudLocalDataSource } from './CloudLocalDataSource';
 import { InviteLocalDataSource, type IInviteLocalDataSource } from './InviteLocalDataSource';
 import { JoinLocalDataSource, type IJoinLocalDataSource } from './JoinLocalDataSource';
@@ -13,6 +14,7 @@ import { UserLocalDataSource, type IUserLocalDataSource } from './UserLocalDataS
 export * from './types';
 export * from './ChannelLocalDataSource';
 export * from './ChatLocalDataSource';
+export * from './chatMediaIndexMarks';
 export * from './CloudLocalDataSource';
 export * from './InviteLocalDataSource';
 export * from './JoinLocalDataSource';
@@ -48,7 +50,11 @@ export const createLocalDataSources = (
     }
 ): LocalDataSources => ({
     channel: new ChannelLocalDataSource(contextProvider, storages.channel),
-    chat: new ChatLocalDataSource(contextProvider, storages.chat),
+    chat: new ChatLocalDataSource(
+        contextProvider,
+        storages.chat,
+        createChatMediaIndexMarks(storages.meta, options?.routingFingerprint, options?.cursorsValidAfter)
+    ),
     cloud: new CloudLocalDataSource(contextProvider, storages.inviteCloud),
     invite: new InviteLocalDataSource(contextProvider, storages.invite),
     join: new JoinLocalDataSource(contextProvider, storages.join),

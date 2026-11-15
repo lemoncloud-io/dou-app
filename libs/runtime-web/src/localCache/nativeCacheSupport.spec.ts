@@ -10,6 +10,7 @@ import {
     LOCAL_AUTHORITY_CACHE_TYPES,
     REQUIRED_DOMAIN_VERSION,
     getNativeCacheSupport,
+    isNativeCacheMessageHandled,
     isNativeCacheTypeUsable,
     resetNativeCacheSupport,
     setNativeCacheSupport,
@@ -62,15 +63,40 @@ describe('isNativeCacheTypeUsable', () => {
             schemaVersion: 5,
             types: new Set(['chat']),
             domainVersions: { chat: 2 },
+            messages: new Set(),
         });
     });
 
     it('필드가 없는 구버전 응답도 스냅샷으로 받아들인다', () => {
         setNativeCacheSupport({});
 
-        expect(getNativeCacheSupport()).toEqual({ schemaVersion: null, types: new Set(), domainVersions: {} });
+        expect(getNativeCacheSupport()).toEqual({
+            schemaVersion: null,
+            types: new Set(),
+            domainVersions: {},
+            messages: new Set(),
+        });
         expect(isNativeCacheTypeUsable('chat')).toBe(true);
         expect(isNativeCacheTypeUsable(FUTURE_TYPE)).toBe(false);
+    });
+});
+
+describe('isNativeCacheMessageHandled', () => {
+    it('says no before the handshake reply lands, so an early read takes the plain-row path', () => {
+        expect(isNativeCacheMessageHandled('FetchChatMediaCacheData')).toBe(false);
+    });
+
+    it('says yes only for a request the shell listed among its handlers', () => {
+        setNativeCacheSupport({ supportedWebMessages: ['FetchChatMediaCacheData', 'FetchAllCacheData'] });
+
+        expect(isNativeCacheMessageHandled('FetchChatMediaCacheData')).toBe(true);
+        expect(isNativeCacheMessageHandled('CountChatMediaCacheData')).toBe(false);
+    });
+
+    it('says no for a shell whose reply predates the handler list', () => {
+        setNativeCacheSupport({ supportedCacheTypes: ['chat'] });
+
+        expect(isNativeCacheMessageHandled('FetchChatMediaCacheData')).toBe(false);
     });
 });
 

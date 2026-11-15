@@ -1,7 +1,28 @@
-import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/bridge-messages';
-import type { ICacheDataSource } from './types';
+import type { SQLBatchTuple, Scalar } from '@op-engineering/op-sqlite';
+import { CHAT_MEDIA_KINDS } from '@chatic/bridge-messages';
+import type {
+    CacheChatView,
+    ChatMediaCacheItem,
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatMediaPage,
+    ChatQueryOptions,
+    LastChatItem,
+} from '@chatic/bridge-messages';
+import type { IChatCacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
+import { TABLES } from '../../database/sqlite/tables';
 import { fetchManyByIds } from './fetchManyByIds';
+
+interface MediaRow {
+    chat_id: string;
+    idx: number;
+    chat_no: number;
+    kind: ChatMediaKind;
+    ref: string;
+    data: string;
+}
 
 /**
  * Determines whether a row is previewable — a SQL mirror of the web's `isPreviewableChat`
@@ -32,10 +53,11 @@ const PREVIEWABLE_SQL = `COALESCE(json_extract(data, '$.parentId'), '') = '' AND
 /**
  * Data source implementation specific to the Chat domain
  */
-export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQueryOptions> {
+export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
-        private readonly tableName: string
+        private readonly tableName: string,
+        private readonly mediaTableName: string = TABLES.CHAT_MEDIA
     ) {}
 
     public async fetch(id: string, cid?: string, uid?: string): Promise<CacheChatView | null> {
@@ -181,8 +203,16 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
         return results;
     }
 
-    public async save(id: string, item: CacheChatView, cid: string, uid: string): Promise<void> {
-        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    /**
+     * The statements that write one chat row: the row itself and, when the web sent its media entries,
+     * those entries in place of the message's old ones.
+     *
+     * The entries are the web's (`chatMediaEntries` in `@chatic/data`) and are stored as sent — no kind
+     * is decided here. A row with no `mediaEntries` field leaves its message's entries alone: it came
+     * from a web build that predates the index. An empty list removes them (a deleted or unsent
+     * message). Treating the two alike would erase the index on every write an older bundle makes.
+     */
+    private rowCommands(id: string, item: CacheChatView, cid: string, uid: string): SQLBatchTuple[] {
         const channelId = item.channelId || '';
         const chatNo = item.chatNo || 0;
         const createdAt = item.createdAt || 0;
@@ -198,55 +228,63 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             createdAt,
         });
 
-        await this.database.execute(sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]);
+        const commands: SQLBatchTuple[] = [
+            [
+                `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave],
+            ],
+        ];
+        if (Array.isArray(item.mediaEntries)) {
+            commands.push([
+                `DELETE FROM ${this.mediaTableName} WHERE cid = ? AND uid = ? AND chat_id = ?`,
+                [cid, uid, id],
+            ]);
+            for (const entry of item.mediaEntries) {
+                commands.push([
+                    `INSERT OR REPLACE INTO ${this.mediaTableName} (cid, uid, chat_id, idx, channel_id, chat_no, kind, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [cid, uid, id, entry.idx, channelId, chatNo, entry.kind, entry.ref],
+                ]);
+            }
+        }
+        return commands;
+    }
+
+    /**
+     * One batch even for one row: the row and its entries have to land together, and op-sqlite wraps
+     * a batch in a transaction (the JS side issues BEGIN / COMMIT, ROLLBACK on failure) where separate
+     * `execute` calls would each commit on their own.
+     */
+    public async save(id: string, item: CacheChatView, cid: string, uid: string): Promise<void> {
+        await this.database.executeBatch(this.rowCommands(id, item, cid, uid));
     }
 
     public async saveAll(items: { id: string; data: CacheChatView }[], cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
-        const sql = `INSERT OR REPLACE INTO ${this.tableName} (cid, uid, id, channel_id, chat_no, created_at, content, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-
-        const commands: [string, any[]][] = items.map(item => {
-            const id = item.id;
-            const chatData = item.data;
-
-            const channelId = chatData.channelId || '';
-            const chatNo = chatData.chatNo || 0;
-            const createdAt = chatData.createdAt || 0;
-            const content = chatData.content || '';
-
-            const dataToSave = JSON.stringify({
-                ...chatData,
-                id,
-                cid,
-                uid,
-                channelId,
-                chatNo,
-                createdAt,
-            });
-
-            return [sql, [cid, uid, id, channelId, chatNo, createdAt, content, dataToSave]];
-        });
-
-        await this.database.executeBatch(commands);
+        await this.database.executeBatch(items.flatMap(item => this.rowCommands(item.id, item.data, cid, uid)));
     }
 
     public async remove(id: string, cid: string, uid: string): Promise<void> {
-        await this.database.execute(`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [
-            id,
-            cid,
-            uid,
+        await this.database.executeBatch([
+            [`DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`, [id, cid, uid]],
+            [`DELETE FROM ${this.mediaTableName} WHERE chat_id = ? AND cid = ? AND uid = ?`, [id, cid, uid]],
         ]);
     }
 
     public async removeAll(ids: string[], cid: string, uid: string): Promise<void> {
         if (ids.length === 0) return;
         const sql = `DELETE FROM ${this.tableName} WHERE id = ? AND cid = ? AND uid = ?`;
-        await this.database.executeBatch(ids.map(id => [sql, [id, cid, uid]]));
+        const mediaSql = `DELETE FROM ${this.mediaTableName} WHERE chat_id = ? AND cid = ? AND uid = ?`;
+        await this.database.executeBatch(
+            ids.flatMap((id): SQLBatchTuple[] => [
+                [sql, [id, cid, uid]],
+                [mediaSql, [id, cid, uid]],
+            ])
+        );
     }
 
     /**
-     * Deletes only the rows for one channel (ADR-0067). `channel_id` is an extracted column used
-     * for lookups, so the condition works as-is.
+     * Deletes only the rows for one channel, and the room's media entries with them.
+     * `channel_id` is an extracted column used for lookups, so the condition works as-is.
      *
      * The scope (cid/uid) is included in the condition too — the same device's other cloud accounts
      * or other users could share the same channel id, and leaving one room shouldn't wipe their
@@ -263,7 +301,11 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             conditions.push('uid = ?');
             params.push(uid);
         }
-        await this.database.execute(`DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`, params);
+        const where = conditions.join(' AND ');
+        await this.database.executeBatch([
+            [`DELETE FROM ${this.tableName} WHERE ${where}`, params],
+            [`DELETE FROM ${this.mediaTableName} WHERE ${where}`, params],
+        ]);
     }
 
     public async clear(cid?: string, uid?: string): Promise<void> {
@@ -277,10 +319,105 @@ export class ChatDataSource implements ICacheDataSource<CacheChatView, ChatQuery
             conditions.push('uid = ?');
             params.push(uid);
         }
-        const sql =
-            conditions.length > 0
-                ? `DELETE FROM ${this.tableName} WHERE ${conditions.join(' AND ')}`
-                : `DELETE FROM ${this.tableName}`;
-        await this.database.execute(sql, params);
+        const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+        await this.database.executeBatch([
+            [`DELETE FROM ${this.tableName}${where}`, params],
+            [`DELETE FROM ${this.mediaTableName}${where}`, params],
+        ]);
+    }
+
+    /**
+     * One page of a room's media entries of one kind, newest message first and by `idx` within a
+     * message, each with its message's row (`FetchChatMediaCacheData`).
+     *
+     * Three index reads, not one: the first `limit` entries; then, when the limit landed inside a
+     * message, the rest of that message's entries, since a page never splits a message (the cursor is
+     * one message number, and the tail would be skipped by the next page); then one look below that
+     * message to tell whether a next page exists.
+     */
+    public async fetchMediaPage(
+        query: { channelId: string; kind: ChatMediaKind; cursorNo?: number; limit: number },
+        cid: string,
+        uid: string
+    ): Promise<ChatMediaPage> {
+        const limit = Math.max(1, Math.floor(query.limit) || 1);
+        const base = `FROM ${this.mediaTableName} m JOIN ${this.tableName} c ON c.cid = m.cid AND c.uid = m.uid AND c.id = m.chat_id WHERE m.cid = ? AND m.uid = ? AND m.channel_id = ? AND m.kind = ?`;
+        const select = `SELECT m.chat_id, m.idx, m.chat_no, m.kind, m.ref, c.data ${base}`;
+        const scope: Scalar[] = [cid, uid, query.channelId, query.kind];
+
+        const below = query.cursorNo !== undefined && query.cursorNo !== null;
+        const head = await this.database.execute(
+            `${select}${below ? ' AND m.chat_no < ?' : ''} ORDER BY m.chat_no DESC, m.idx ASC LIMIT ?`,
+            below ? [...scope, query.cursorNo as number, limit] : [...scope, limit]
+        );
+        const headRows = (head.rows || []) as unknown as MediaRow[];
+        if (headRows.length < limit) return { items: headRows.map(toMediaItem), nextCursorNo: null };
+
+        const boundaryNo = headRows[headRows.length - 1].chat_no;
+        const boundary = await this.database.execute(`${select} AND m.chat_no = ? ORDER BY m.chat_id ASC, m.idx ASC`, [
+            ...scope,
+            boundaryNo,
+        ]);
+        const rows = [
+            ...headRows.filter(row => row.chat_no > boundaryNo),
+            ...((boundary.rows || []) as unknown as MediaRow[]),
+        ];
+        const more = await this.database.execute(
+            `SELECT 1 AS found FROM ${this.mediaTableName} WHERE cid = ? AND uid = ? AND channel_id = ? AND kind = ? AND chat_no < ? LIMIT 1`,
+            [...scope, boundaryNo]
+        );
+        return { items: rows.map(toMediaItem), nextCursorNo: (more.rows || []).length > 0 ? boundaryNo : null };
+    }
+
+    /**
+     * A room fill's entries (`SaveChatMediaCacheData`), in one batch, never touching a chat row.
+     *
+     * Each message's statements carry the same guard: its row still exists and the row's
+     * `mediaEntriesVersion` (absent = 0) is below the fill's `version`. A row the web wrote after the fill
+     * read it carries the current version and already has the right entries (an empty list for a delete
+     * mark); a row deleted or cleared since is gone. Either way the guard skips it, inside the batch's
+     * transaction, so nothing lands between the check and the write. The entries take the row's own
+     * channel and number.
+     */
+    public async saveMediaFill(items: ChatMediaFillItem[], version: number, cid: string, uid: string): Promise<void> {
+        if (items.length === 0) return;
+        const stale = `EXISTS (SELECT 1 FROM ${this.tableName} c WHERE c.cid = ? AND c.uid = ? AND c.id = ? AND COALESCE(json_extract(c.data, '$.mediaEntriesVersion'), 0) < ?)`;
+        const commands: SQLBatchTuple[] = [];
+        for (const item of items) {
+            const guard: Scalar[] = [cid, uid, item.chatId, version];
+            commands.push([
+                `DELETE FROM ${this.mediaTableName} WHERE cid = ? AND uid = ? AND chat_id = ? AND ${stale}`,
+                [cid, uid, item.chatId, ...guard],
+            ]);
+            for (const entry of item.entries) {
+                commands.push([
+                    `INSERT OR REPLACE INTO ${this.mediaTableName} (cid, uid, chat_id, idx, channel_id, chat_no, kind, ref) SELECT c.cid, c.uid, c.id, ?, c.channel_id, c.chat_no, ?, ? FROM ${this.tableName} c WHERE c.cid = ? AND c.uid = ? AND c.id = ? AND COALESCE(json_extract(c.data, '$.mediaEntriesVersion'), 0) < ?`,
+                    [entry.idx, entry.kind, entry.ref, ...guard],
+                ]);
+            }
+        }
+        await this.database.executeBatch(commands);
+    }
+
+    /** A room's entries counted per kind, off the index alone. */
+    public async countMedia(channelId: string, cid: string, uid: string): Promise<ChatMediaCounts> {
+        const result = await this.database.execute(
+            `SELECT kind, COUNT(*) AS n FROM ${this.mediaTableName} WHERE cid = ? AND uid = ? AND channel_id = ? GROUP BY kind`,
+            [cid, uid, channelId]
+        );
+        const counts = Object.fromEntries(CHAT_MEDIA_KINDS.map(kind => [kind, 0])) as ChatMediaCounts;
+        for (const row of (result.rows || []) as unknown as Array<{ kind: ChatMediaKind; n: number }>) {
+            if (row.kind in counts) counts[row.kind] = Number(row.n) || 0;
+        }
+        return counts;
     }
 }
+
+const toMediaItem = (row: MediaRow): ChatMediaCacheItem => ({
+    kind: row.kind,
+    idx: Number(row.idx),
+    ref: row.ref,
+    chatId: row.chat_id,
+    chatNo: Number(row.chat_no),
+    chat: JSON.parse(row.data) as CacheChatView,
+});

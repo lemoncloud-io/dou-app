@@ -134,6 +134,33 @@ export type PendingUploadSlot = {
     localSize?: number;
 };
 
+/**
+ * The kinds a message's media index entry can be. Stored as text in the shell's `chat_media` table and
+ * in IndexedDB rows, so a value here is part of both schemas: adding one is a schema decision, renaming
+ * one strands every row written under the old name.
+ */
+export type ChatMediaKind = 'image' | 'video' | 'file' | 'audio' | 'link';
+
+/** Every kind, in the order a count lists them. */
+export const CHAT_MEDIA_KINDS: readonly ChatMediaKind[] = ['image', 'video', 'file', 'audio', 'link'];
+
+/**
+ * One entry of a message's media index: an attachment or a link the message carries.
+ *
+ * Computed once by the web (`chatMediaEntries` in `@chatic/data`) and carried on the chat row it came
+ * from; the stores only store and index it, so the shell never has to know the rules.
+ */
+export interface ChatMediaEntry {
+    kind: ChatMediaKind;
+    /**
+     * Order within the message. An attachment is its `upload$$` position (0..n-1), a link is n plus its
+     * order in the text — so attachments come first and the order survives a re-index.
+     */
+    idx: number;
+    /** An attachment's server upload id, or a link's URL. */
+    ref: string;
+}
+
 /** Chat message view (includes send status and domain fields) */
 export type CacheChatView = Omit<ChatView, 'upload$$'> &
     CacheViewBase & {
@@ -154,6 +181,23 @@ export type CacheChatView = Omit<ChatView, 'upload$$'> &
          * server copy of the row that does not say it is hidden; a delete the server sent is not.
          */
         hiddenByFeed?: boolean;
+        /**
+         * The message's media index entries, attached by the web on every chat write so the store can
+         * rewrite them in the same transaction as the row.
+         *
+         * Absent and empty are different answers. Absent means the writer predates the index (an
+         * older web bundle), so the store leaves the message's entries as they are; an empty list
+         * means the message has none (a deleted, unsent or text-only message), so the store removes
+         * whatever it had.
+         */
+        mediaEntries?: ChatMediaEntry[];
+        /**
+         * The rules version `mediaEntries` was decided under (`CHAT_MEDIA_ENTRIES_VERSION`), written with
+         * it. Absent reads as 0. Filling a room's index (`SaveChatMediaCacheData`) writes a message's
+         * entries only while this is below the fill's version — so a write that landed after the fill
+         * read the row, a delete mark included, is never undone by it.
+         */
+        mediaEntriesVersion?: number;
     };
 
 /** Site info view */
@@ -488,4 +532,91 @@ export type SearchGlobalCacheDataPayload = {
 /** [Response] List of global search results */
 export type OnSearchGlobalCacheDataPayload = {
     items: (CacheChatView | CacheChannelView | CacheSiteView)[];
+};
+
+/**
+ * [Request] One page of a room's media index for one kind (chat only).
+ *
+ * Newest first by `chatNo`, and within one message by `idx`. `cursorNo` reads below that message
+ * number; absent, from the newest. A page never splits a message: when the `limit`-th entry's message
+ * has more entries of this kind, they are all included, so the page can be a little longer than
+ * `limit` — the cursor is one message number, and a message cut in half would lose its tail to the
+ * next page.
+ *
+ * Answered from the shell's `chat_media` table. A shell that has no handler for it (built before the
+ * index) is detected from the handshake and never sent this; the web pages through plain chat rows
+ * instead.
+ */
+export type FetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    channelId: string;
+    kind: ChatMediaKind;
+    cursorNo?: number;
+    limit: number;
+};
+
+/** One index entry with the cached row of the message it belongs to. */
+export interface ChatMediaCacheItem extends ChatMediaEntry {
+    chatId: string;
+    chatNo: number;
+    chat: CacheChatView;
+}
+
+/** One page of a room's media index, as both stores answer it. */
+export interface ChatMediaPage {
+    items: ChatMediaCacheItem[];
+    /** The page's last message number, to read the next page below it; `null` when nothing is cached below. */
+    nextCursorNo: number | null;
+}
+
+/**
+ * [Response] A page of the media index. `items: null` is a native processing error (the sibling
+ * handlers' convention): the web answers that one read through the plain-row path.
+ */
+export type OnFetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    channelId: string;
+    kind: ChatMediaKind;
+    items: ChatMediaCacheItem[] | null;
+    nextCursorNo: number | null;
+};
+
+/** How many index entries a room has of each kind. A kind with none is 0. */
+export type ChatMediaCounts = Record<ChatMediaKind, number>;
+
+/** [Request] Count a room's media index entries per kind (chat only). */
+export type CountChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    channelId: string;
+};
+
+/** [Response] Per-kind counts. `counts: null` is a native processing error, answered as for the list. */
+export type OnCountChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    channelId: string;
+    counts: ChatMediaCounts | null;
+};
+
+/** One message's entries as a room fill computed them from the row it read. */
+export interface ChatMediaFillItem {
+    chatId: string;
+    channelId: string;
+    chatNo: number;
+    entries: ChatMediaEntry[];
+}
+
+/**
+ * [Request] Write the media entries of messages a room already had cached — the first-read fill —
+ * without writing their rows (chat only).
+ *
+ * For each item the store replaces the message's entries only while its chat row still exists and the
+ * row's `mediaEntriesVersion` (absent = 0) is below `version`; otherwise it skips the item. The row's
+ * own channel and number are used, and the row is never written — so its cache stamp and the screens
+ * reading it are untouched, and anything written to it since the fill read it wins. A shell that does
+ * not list this message is never sent it, and never filled.
+ */
+export type SaveChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    items: ChatMediaFillItem[];
+    version: number;
+};
+
+/** [Response] `success: false` is a native processing error: the fill stops and the room is not marked. */
+export type OnSaveChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
+    success: boolean;
 };

@@ -30,6 +30,9 @@ export const useCrudCacheHandler = () => {
             handleDeleteAllCache: handlers.DeleteAllCacheData,
             handleClearCache: handlers.ClearCacheData,
             handleClearCacheByChannel: handlers.ClearCacheDataByChannel,
+            handleFetchChatMediaCache: handlers.FetchChatMediaCacheData,
+            handleCountChatMediaCache: handlers.CountChatMediaCacheData,
+            handleSaveChatMediaCache: handlers.SaveChatMediaCacheData,
         };
     }, [logger]);
 };

@@ -304,5 +304,34 @@ export const MIGRATIONS: Record<number, string[]> = {
         `DROP INDEX IF EXISTS idx_upload_tasks_status_updated;`,
         `DROP TABLE IF EXISTS upload_tasks;`,
     ],
+    12: [
+        /**
+         * Chat media — a room's attachments and links, one row per entry of a message (`ChatMediaEntry`).
+         * The web decides every entry and sends it on the chat row it belongs to (`mediaEntries`); this
+         * table only stores and indexes them, rewritten in the same batch as that row. `channel_id` and
+         * `chat_no` are copied from the row so a room's entries of one kind read off one index.
+         *
+         * The index ends in `idx` so a page ordered `chat_no DESC, idx ASC` needs no sort step, and the
+         * per-kind count reads the index alone.
+         */
+        `CREATE TABLE IF NOT EXISTS ${TABLES.CHAT_MEDIA} (
+        cid TEXT NOT NULL,
+        uid TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        idx INTEGER NOT NULL,
+        channel_id TEXT NOT NULL,
+        chat_no INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        PRIMARY KEY (cid, uid, chat_id, idx)
+    );`,
+        `CREATE INDEX IF NOT EXISTS idx_chat_media_cid_uid_channel_kind_chatno ON ${TABLES.CHAT_MEDIA} (cid, uid, channel_id, kind, chat_no DESC, idx);`,
+        /**
+         * A room's newest-first chat index. Migration 2 made it, and migration 4 lost it when it rebuilt
+         * `chats` — so no device has had it since, and a room's page read sorted in a temporary B-tree.
+         * Indexing a room's cached messages and the plain-row media path both page a room this way.
+         */
+        `CREATE INDEX IF NOT EXISTS idx_chats_cid_uid_channel_chatno ON ${TABLES.CHATS} (cid, uid, channel_id, chat_no DESC);`,
+    ],
 };
 export const TARGET_VERSION = Math.max(0, ...Object.keys(MIGRATIONS).map(Number)) + 1;

@@ -17,14 +17,13 @@ import {
     takeSourceLink,
 } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
-import { isMessageEdited } from '@chatic/data';
+import { extractFirstUrl, isMessageEdited } from '@chatic/data';
 
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
 import { LONG_PRESS_DELAY_MS, MOVE_CANCEL_PX } from '../utils/longPress';
 import { mentionMarksFor, type MentionPerson, type MentionViewer } from '../utils/mentionHighlight';
-import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
 import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';

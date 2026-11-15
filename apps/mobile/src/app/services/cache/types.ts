@@ -1,4 +1,14 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/bridge-messages';
+import type {
+    CacheModelMap,
+    CacheQueryMap,
+    CacheType,
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatMediaPage,
+    LastChatItem,
+    PagingMeta,
+} from '@chatic/bridge-messages';
 
 export interface ICacheCrudService {
     /**
@@ -43,6 +53,32 @@ export interface ICacheCrudService {
         cid?: string;
         uid?: string;
     }): Promise<LastChatItem[] | null>;
+
+    /**
+     * [Fetch] One page of a room's media index for one kind (`FetchChatMediaCacheData`). Throws on a
+     * SQL error; the handler answers that as `items: null`.
+     */
+    fetchChatMedia(payload: {
+        type: 'chat';
+        channelId: string;
+        kind: ChatMediaKind;
+        cursorNo?: number;
+        limit: number;
+        cid: string;
+        uid: string;
+    }): Promise<ChatMediaPage>;
+
+    /** [Fetch] A room's media index entries counted per kind (`CountChatMediaCacheData`). Throws as above. */
+    countChatMedia(payload: { type: 'chat'; channelId: string; cid: string; uid: string }): Promise<ChatMediaCounts>;
+
+    /** [Save] A room fill's entries (`SaveChatMediaCacheData`). Throws on a SQL error; the handler answers `success: false`. */
+    saveChatMedia(payload: {
+        type: 'chat';
+        items: ChatMediaFillItem[];
+        version: number;
+        cid: string;
+        uid: string;
+    }): Promise<void>;
 
     /**
      * [Save] Save a single item

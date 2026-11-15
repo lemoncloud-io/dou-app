@@ -27,6 +27,7 @@
             "@chatic/app-runtime": ["libs/app-runtime/src/index.ts"],
             "@chatic/block-kit": ["libs/block-kit/src/index.ts"],
             "@chatic/bridge-messages": ["libs/bridge-messages/src/index.ts"],
+            "@chatic/bridge-messages/testing": ["libs/bridge-messages/src/testing/index.ts"],
             "@chatic/bridges": ["libs/bridges/src/index.ts"],
             "@chatic/chatic-apps-sdk": ["libs/chatic-apps-sdk/src/index.ts"],
             "@chatic/chatic-apps-sdk/mock": ["libs/chatic-apps-sdk/src/mock.ts"],

@@ -1,4 +1,10 @@
-import type { LastChatItem } from '@chatic/bridge-messages';
+import type {
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatMediaPage,
+    LastChatItem,
+} from '@chatic/bridge-messages';
 
 /**
  * Interface for every local cache data source.
@@ -94,11 +100,29 @@ export interface ICacheDataSource<T, Q = void> {
  *   chat_no (ADR-0057). The home channel list's `FetchLastChatsData` is answered by this one method.
  * - `clearByChannel` — removes only the rows for one channel (ADR-0067). Leaving a room should also
  *   make that room's messages disappear, which `clear` (which wipes the whole scope) can't express.
+ * - `fetchMediaPage` / `countMedia` / `saveMediaFill` — read the room media index the chat writes keep,
+ *   and fill it for messages cached before it.
  *
- * Both are an extension rather than part of the common interface because neither applies to, or is
+ * They are an extension rather than part of the common interface because none applies to, or is
  * called from, domains other than chat.
  */
 export interface IChatCacheDataSource<T, Q = void> extends ICacheDataSource<T, Q> {
     fetchLastPerChannel: (channelIds: string[], cid?: string, uid?: string) => Promise<LastChatItem[]>;
     clearByChannel: (channelId: string, cid?: string, uid?: string) => Promise<void>;
+    /**
+     * One page of a room's media index for one kind (`FetchChatMediaCacheData`). The entries are the
+     * ones the web sent on each chat row; nothing here decides a kind.
+     */
+    fetchMediaPage: (
+        query: { channelId: string; kind: ChatMediaKind; cursorNo?: number; limit: number },
+        cid: string,
+        uid: string
+    ) => Promise<ChatMediaPage>;
+    /** A room's media index entries counted per kind (`CountChatMediaCacheData`). */
+    countMedia: (channelId: string, cid: string, uid: string) => Promise<ChatMediaCounts>;
+    /**
+     * A room fill's entries (`SaveChatMediaCacheData`) — applied per message only while its row is still
+     * there at an older rules version; no row is written.
+     */
+    saveMediaFill: (items: ChatMediaFillItem[], version: number, cid: string, uid: string) => Promise<void>;
 }

@@ -63,7 +63,10 @@
 // 2.24.0: added FetchSessionOwner and SetSessionOwner (web -> app) — the debug overlay's development
 //         switch for which side holds the session on the phone; a production shell leaves both
 //         unanswered.
-export const BRIDGE_VERSION = '2.24.0' as const;
+// 2.25.0: added FetchChatMediaCacheData, CountChatMediaCacheData and SaveChatMediaCacheData (web -> app)
+//         — a room's media index in the shell's `chat_media` table, read and filled; a shell without
+//         all three is read through plain chat rows.
+export const BRIDGE_VERSION = '2.25.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

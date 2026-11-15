@@ -1,4 +1,13 @@
-import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/bridge-messages';
+import type {
+    CacheModelOf,
+    CacheQueryOf,
+    CacheType,
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatMediaPage,
+    LastChatItem,
+} from '@chatic/bridge-messages';
 import type { DataContext, DataContextProvider } from '../../repositories/types';
 import { stableHash } from '../stableHash';
 import { resolveScopedContext } from './policy';
@@ -40,6 +49,47 @@ export interface CacheStorage<TType extends CacheType> {
      * channelId.
      */
     loadLastPerChannel?(channelIds: string[]): Promise<LastChatItem[] | null>;
+
+    /**
+     * Whether this storage can answer the room media index queries below right now (chat only).
+     *
+     * Asked on every read, not once: the native storage learns what the installed shell handles from
+     * the handshake, whose answer can arrive after the storage was built. Absent or `false` means the
+     * caller pages through plain chat rows instead and indexes nothing — there is no index to fill.
+     */
+    canQueryChatMedia?(): boolean;
+
+    /**
+     * One page of a room's media index for one kind: newest message first, entries of one message by
+     * `idx`, never splitting a message (`FetchChatMediaCacheDataPayload` states the rules). Each entry
+     * carries its message's row.
+     *
+     * The storage only reads what writes put there: the entries a chat row carries in `mediaEntries`.
+     * `null` is "cannot answer this read" (a transient native error), and the caller answers it the
+     * plain-row way.
+     */
+    loadChatMedia?(query: ChatMediaQuery): Promise<ChatMediaPage | null>;
+
+    /** A room's index entries counted per kind, every kind present (0 for none). `null` as for `loadChatMedia`. */
+    countChatMedia?(channelId: string): Promise<ChatMediaCounts | null>;
+
+    /**
+     * Writes entries for messages a room already had cached — the first-read fill — and never their rows.
+     * Per item, only while the message's row still exists and its `mediaEntriesVersion` (absent = 0) is
+     * below `version`; any other item is skipped, in the same transaction as the check. That is what
+     * keeps a write landing between the fill's read and this call — an edit, a delete mark, a delete, a
+     * clear — from being undone: it either stamped the row with the current version or removed it.
+     * Throws when the write did not happen, so the room is not marked filled.
+     */
+    saveChatMediaEntries?(items: ChatMediaFillItem[], version: number): Promise<void>;
+}
+
+/** What `loadChatMedia` reads: one room, one kind, below `cursorNo` (newest when absent), about `limit` entries. */
+export interface ChatMediaQuery {
+    channelId: string;
+    kind: ChatMediaKind;
+    cursorNo?: number;
+    limit: number;
 }
 
 /**

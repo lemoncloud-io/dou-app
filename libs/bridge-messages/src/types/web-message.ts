@@ -46,6 +46,9 @@ import type {
     SavePreferencePayload,
     SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
+    FetchChatMediaCacheDataPayload,
+    CountChatMediaCacheDataPayload,
+    SaveChatMediaCacheDataPayload,
     SendLogPayload,
     SendSmsPayload,
     SetBadgeCountPayload,
@@ -212,6 +215,9 @@ export type WebMessagePayloadMap = {
     ClearCacheData: ClearCacheDataPayload;
     ClearCacheDataByChannel: ClearCacheDataByChannelPayload;
     SearchGlobalCacheData: SearchGlobalCacheDataPayload;
+    FetchChatMediaCacheData: FetchChatMediaCacheDataPayload;
+    CountChatMediaCacheData: CountChatMediaCacheDataPayload;
+    SaveChatMediaCacheData: SaveChatMediaCacheDataPayload;
 
     // 5. Preference
     FetchPreference: FetchPreferencePayload;

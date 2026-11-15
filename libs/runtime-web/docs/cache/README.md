@@ -135,6 +135,25 @@ miss later additions — the fingerprint therefore covers **every** domain. The 
 over-invalidation: an unrelated domain's routing change retires the cursors too. One full re-sync is
 the same cost a TTL expiry already imposes routinely.
 
+## A cache query the shell may not have: the room media index
+
+Routing answers "which store holds this domain". The room media index messages
+(`FetchChatMediaCacheData`, `CountChatMediaCacheData`, `SaveChatMediaCacheData`) ask a different
+question: the chat rows are in the shell either way, but a shell built before the index has no handler
+for them. The index is used only when all three are listed. A
+domain edition would be the wrong tool — raising `chat`'s would move every user's chats to web
+storage on an older shell, and the index has to live wherever the chat rows live, never apart from
+them.
+
+So the question goes to the handshake's request list instead. `setNativeCacheSupport` keeps the
+reply's `supportedWebMessages`, and `isNativeCacheMessageHandled(type)` answers from it.
+`webLocalCachePorts` hands that function to every `NativeDBAdapter` it builds, and the adapter asks it
+on each media read rather than once: the reply is asynchronous and the storage can exist before it
+lands, so a verdict fixed at construction would keep "not known yet" for the session. Until the reply
+— and on a shell that predates the list — the answer is no, and `@chatic/data` reads the room from
+plain chat rows, which gives the same page, only slower. `apps/web` needs no change: it already
+passes the whole reply.
+
 ## Raising a domain's edition
 
 1. **App first.** Raise the domain's version and ship. Add a migration only if the change actually needs one — the point of separating the logical edition from the physical schema number is that a no-op migration is never needed just to move a gate.
@@ -153,6 +172,7 @@ deploy alone — and it is a stopgap with the durability cost above.
 
 - `localCache/invitedCloudImport.spec.ts` fixes the import — only this guest's rows, once per tab, a held row wins, a failed read retries next boot.
 - `localCache/routing.spec.ts` fixes the routing table as a full **type × environment** matrix (with a desktop-shell case for `invitecloud`), plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
+- `localCache/mediaQuerySupport.spec.ts` fixes that the native chat storage asks the handshake per media read: no before the reply, yes once all three handlers are listed, no again if a later reply drops them.
 - `localCache/nativeCacheSupport.spec.ts` fixes the gate itself — the floor holds when a shell omits a legacy type, a reported version is honoured, a shortfall routes to web, and the local-authority domain stays native under every report shape.
 - The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and app-runtime's `data/factories/localFactory.test.ts` asserts the fingerprint follows the routes the port answered and is derived from the storages actually built rather than a hand-kept list. `localCache/fallbackReport.spec.ts` fixes the one-line fallback report `routed()` makes.
 

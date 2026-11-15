@@ -24,7 +24,10 @@ export type NativeCacheOperation =
     | 'delete'
     | 'deleteAll'
     | 'clearAll'
-    | 'clearByChannel';
+    | 'clearByChannel'
+    | 'loadMedia'
+    | 'countMedia'
+    | 'saveMedia';
 
 /** Only a single call over this duration gets logged. Logging every call would quickly push the ring buffer (500) out. */
 const SLOW_OPERATION_MS = 50;

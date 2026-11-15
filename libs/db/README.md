@@ -60,10 +60,13 @@ imports them as runtime functions.
    are equally hard to debug.
 6. **On native, one call is one bridge round trip.** Which method a caller picks _is_ the
    performance. `loadMany` exists for exactly this reason.
-7. **Every cache message is assumed answered.** The web refuses to run in a phone shell older than
+7. **Every cache message but the room media index ones is assumed answered.** The web refuses to run in a phone shell older than
    app 0.30.0, and every shell from that one on handles `FetchManyCacheData`, `FetchLastChatsData`
    and `ClearCacheDataByChannel`. So the adapter keeps no "this shell is too old" fallback: a bridge
    failure is a failure, rethrown (or, for the last-chats read, answered `null` for that one read).
+   The room media index messages are the exception, and the only one: they are newer than shells
+   still in use, so they are sent only to a shell that lists all three handlers (see the native store
+   below).
 
 ## Scope
 
@@ -100,7 +103,7 @@ flowchart TD
     IDB["IndexedDBAdapter<br/>+ ChatQueryExecutor"]:::web
     NDB["NativeDBAdapter<br/>+ nativeCacheMetrics"]:::nat
     WSA["WebStorageAdapter<br/><i>one JSON value per partition</i>"]:::web
-    Conn["IndexedDBDatabase<br/><i>one connection · ChaticWebCacheDB v3</i>"]:::web
+    Conn["IndexedDBDatabase<br/><i>one connection · ChaticWebCacheDB v4</i>"]:::web
     Search["IndexedDbGlobalSearchSource<br/>NativeGlobalSearchSource"]:::eng
 
     Browser["browser IndexedDB"]:::ext
@@ -192,15 +195,39 @@ One database, one object store, one connection for the whole app.
 
 | Thing                         | Value                                                                               |
 | ----------------------------- | ----------------------------------------------------------------------------------- |
-| Database                      | `ChaticWebCacheDB`, version 3                                                       |
+| Database                      | `ChaticWebCacheDB`, version 4                                                       |
 | Object store                  | `cache_store`, `keyPath: 'key'`                                                     |
 | Primary key                   | `` `${type}:${cid}:${uid}:${id}` ``                                                 |
 | Index `type_cid_uid`          | `['type', 'cid', 'uid']` — every ordinary read and `clearAll`                       |
 | Index `chat_pagination_index` | `['type', 'cid', 'uid', 'channel_id', 'chat_no']` — paging, eviction, channel clear |
+| Index `chat_media_index`      | `['type', 'cid', 'uid', 'channel_id', 'kind', 'chat_no']` — the room media index    |
 
-`channel_id` and `chat_no` are written on chat rows only, so the pagination index holds chat and
-nothing else. That is why `IndexedDBAdapter.clearByChannelId` — which deletes by a range on that
-index — is effectively chat-only. Chat is also the only domain that calls it.
+`channel_id` and `chat_no` are written on chat rows and their media entries only, and every range on
+the pagination index starts with `type`, so a chat read sees chat rows and nothing else. That is why
+`IndexedDBAdapter.clearByChannelId` — which deletes by a range on that index — is effectively
+chat-only. Chat is also the only domain that calls it.
+
+**The room media index** lives in the same store, as records of their own: `{ key, type: 'chatmedia',
+cid, uid, channel_id, chat_no, kind, chat_id, idx, ref }`, one per entry a chat row carries in
+`mediaEntries` (decided by `@chatic/data`'s `chatMediaEntries`; this lib decides nothing). Version 4
+only adds `chat_media_index` — no data moves, and a room's existing messages are indexed the first time
+its media is read. The chat adapter writes a row and its entries in one `readwrite` transaction
+(`writeBatch`, which aborts on a failed request so nothing half-lands): a list replaces the message's
+entries, an empty list removes them, and a row without the field leaves them alone (an older web
+bundle wrote it). Deleting rows, clearing a room or scope, and cap eviction remove the entries with the
+messages. A room fill (`saveChatMediaEntries`) writes entries and never a row: `applyChatMediaFill`
+reads each message's row in one `readwrite` transaction and replaces its entries only while the row
+exists and its `data.mediaEntriesVersion` (absent = 0) is below the fill's version — a row written,
+marked deleted or removed since the fill read it is skipped. The entries take the row's own
+`channel_id` and `chat_no`.
+
+An entry's key is `chatmedia:<cid>:<uid>:<chatId>` + NUL + `idx` in four digits, and one message's
+entries are the range `[prefix + NUL, prefix + U+0001)`. The separator is NUL, not `:`: a chat id is
+`<channelId>:<chatNo>` and nothing keeps `:` out of a channel id, so with `:` the range for message
+`x:12` would also hold `x:12:7`'s entries. `loadChatMedia` walks `chat_media_index` backwards below
+`cursorNo`, keeps the whole message the `limit` lands in, looks one entry further to learn whether a
+next page exists, and re-sorts each message by `idx` (the reverse walk hands them the other way).
+`countChatMedia` is one key-only `count` per kind.
 
 `IndexedDBDatabase` reopens itself on `close` (the browser forced it shut) and on `versionchange`
 (another tab is upgrading). Both log, because silently they looked like an unrelated burst of cache
@@ -230,9 +257,11 @@ means the plain-browser and native-WebView paths have no safety net here.
 
 ## The native store
 
-`NativeDBAdapter` sends ten message types, listed in `OPERATION_BY_MESSAGE`: `SaveCacheData`,
+`NativeDBAdapter` sends thirteen message types, listed in `OPERATION_BY_MESSAGE`: `SaveCacheData`,
 `SaveAllCacheData`, `FetchCacheData`, `FetchManyCacheData`, `FetchAllCacheData`, `FetchLastChatsData`,
-`DeleteCacheData`, `DeleteAllCacheData`, `ClearCacheData`, `ClearCacheDataByChannel`.
+`DeleteCacheData`, `DeleteAllCacheData`, `ClearCacheData`, `ClearCacheDataByChannel`, and the three room
+media index messages: the reads `FetchChatMediaCacheData` and `CountChatMediaCacheData`, and the fill
+`SaveChatMediaCacheData`.
 
 **The bridge is whatever answers a request.** The adapter and `NativeGlobalSearchSource` take a
 `CacheBridgeClient` — the `request` method of `@chatic/bridges`' client and nothing else, rejecting
@@ -267,6 +296,17 @@ and bury the cause. The one exception is `loadLastPerChannel`: whenever it fails
 the caller's per-channel windowed read, so it answers `null` for that read and tries again next time.
 A delete is never answered that way; `clearByChannelId` rethrows, because a delete that did not happen
 must not look as if it did.
+
+**The room media index messages are the one version check.** A shell built before the index has no
+handlers for them, and the web ships ahead of the app. So the adapter takes a `handlesMessage` check
+(`NativeDBAdapterOptions`) — the shell must handle all three — and asks it on every
+`canQueryChatMedia`, `loadChatMedia`, `countChatMedia` and `saveChatMediaEntries` — never once at construction, because a page's check answers from the handshake
+reply, which can land after the adapter exists. A page passes runtime-web's
+`isNativeCacheMessageHandled` (the shell's `supportedWebMessages`); a runtime inside the phone app
+passes `() => true`, being the shell that answers. Without the check, or while it says no, nothing is
+sent and the reads answer `null`; so does an `items: null` / `counts: null` reply or a bridge failure.
+`@chatic/data` answers `null` from plain rows. A fill that was not written throws instead (never sent,
+`success: false`, a bridge failure), so the room is not marked filled.
 
 **Instrumentation.** `nativeCacheMetrics` keeps per-`(operation, type)` count, total and max, plus a
 running op count. A single call over 50ms logs a warning, throttled to one line per key per 3s — the

@@ -3,6 +3,12 @@ import type {
     CacheModelOf,
     CacheQueryOf,
     CacheType,
+    ChatMediaCounts,
+    ChatMediaFillItem,
+    ChatMediaPage,
+    OnCountChatMediaCacheDataPayload,
+    OnFetchChatMediaCacheDataPayload,
+    OnSaveChatMediaCacheDataPayload,
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
@@ -21,13 +27,13 @@ import type {
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
 } from '@chatic/bridge-messages';
-import type { DataContextProvider } from '@chatic/data';
+import type { ChatMediaQuery, DataContextProvider } from '@chatic/data';
 import { stableHash, withCacheMeta } from '@chatic/data';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import type { CacheBridgeClient } from './cacheBridge';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 
-/** Bridge message → instrumentation operation name. These are all 10 kinds this adapter sends. */
+/** Bridge message → instrumentation operation name. These are all 13 kinds this adapter sends. */
 const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveCacheData: 'save',
     SaveAllCacheData: 'saveAll',
@@ -39,7 +45,32 @@ const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     DeleteAllCacheData: 'deleteAll',
     ClearCacheData: 'clearAll',
     ClearCacheDataByChannel: 'clearByChannel',
+    FetchChatMediaCacheData: 'loadMedia',
+    CountChatMediaCacheData: 'countMedia',
+    SaveChatMediaCacheData: 'saveMedia',
 };
+
+/** The requests a shell may not have a handler for, which this adapter asks about before sending. */
+export type OptionalNativeCacheMessage =
+    | 'FetchChatMediaCacheData'
+    | 'CountChatMediaCacheData'
+    | 'SaveChatMediaCacheData';
+
+/** The room media index needs all three: its two reads, and the fill that makes them complete. */
+const CHAT_MEDIA_MESSAGES: readonly OptionalNativeCacheMessage[] = [
+    'FetchChatMediaCacheData',
+    'CountChatMediaCacheData',
+    'SaveChatMediaCacheData',
+];
+
+export interface NativeDBAdapterOptions {
+    /**
+     * Whether the shell on the far side answers `message`. Called on every query, never captured: a
+     * page learns what its shell handles from the handshake, whose reply can land after this adapter
+     * was built. Absent, the answer is no — the caller reads plain rows instead.
+     */
+    handlesMessage?: (message: OptionalNativeCacheMessage) => boolean;
+}
 
 /**
  * A cache storage adapter class that communicates over WebBridge with the local DB in the
@@ -69,7 +100,8 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
     constructor(
         private readonly bridge: CacheBridgeClient,
         type: TType,
-        contextProvider: DataContextProvider
+        contextProvider: DataContextProvider,
+        private readonly options: NativeDBAdapterOptions = {}
     ) {
         super(type, contextProvider);
     }
@@ -244,6 +276,83 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
             return data?.items ?? null;
         } catch (error) {
             logger.warn('CACHE', '[NativeDBAdapter] last-chats read failed — falling back this read', { error });
+            return null;
+        }
+    }
+
+    /**
+     * Whether the shell answers all three room media index messages. A shell built before the index
+     * has no handlers for them, and is never sent them — the caller pages through plain rows.
+     */
+    canQueryChatMedia(): boolean {
+        const handles = this.options.handlesMessage;
+        return this.type === 'chat' && !!handles && CHAT_MEDIA_MESSAGES.every(message => handles(message));
+    }
+
+    /**
+     * A room fill's entries in one round trip. The shell applies each only while the message's row is
+     * still there at an older rules version, in the same batch. Throws when it was not written — never
+     * sent to a shell without the handler, a `success: false` answer, a bridge failure — so the caller
+     * leaves the room unmarked and reads plain rows instead.
+     */
+    async saveChatMediaEntries(items: ChatMediaFillItem[], version: number): Promise<void> {
+        if (!this.canQueryChatMedia()) throw new Error('[NativeDBAdapter] the shell has no room media index');
+        if (items.length === 0) return;
+        const scope = this.getScope();
+        if (!scope) return;
+        const response = await this.send({
+            type: 'SaveChatMediaCacheData',
+            data: { type: 'chat', cid: scope.cid, uid: scope.uid, items, version },
+        });
+        const data = response?.data as OnSaveChatMediaCacheDataPayload | undefined;
+        if (!data?.success) throw new Error('[NativeDBAdapter] the shell did not write the room media fill');
+    }
+
+    /**
+     * One page of a room's media index in one round trip. `null` — "read this one the plain-row way" —
+     * for a shell that does not handle it, a native processing error (`items: null`) or a bridge
+     * failure, each for this read only.
+     */
+    async loadChatMedia(query: ChatMediaQuery): Promise<ChatMediaPage | null> {
+        if (!this.canQueryChatMedia()) return null;
+        const scope = this.getScope();
+        if (!scope) return { items: [], nextCursorNo: null };
+        try {
+            const response = await this.sendRead({
+                type: 'FetchChatMediaCacheData',
+                data: {
+                    type: 'chat',
+                    cid: scope.cid,
+                    uid: scope.uid,
+                    channelId: query.channelId,
+                    kind: query.kind,
+                    ...(query.cursorNo !== undefined ? { cursorNo: query.cursorNo } : {}),
+                    limit: query.limit,
+                },
+            });
+            const data = response?.data as OnFetchChatMediaCacheDataPayload | undefined;
+            if (!data?.items) return null;
+            return { items: data.items, nextCursorNo: data.nextCursorNo ?? null };
+        } catch (error) {
+            logger.warn('CACHE', '[NativeDBAdapter] room media read failed — falling back this read', { error });
+            return null;
+        }
+    }
+
+    /** A room's media index counted per kind in one round trip. `null` as for `loadChatMedia`. */
+    async countChatMedia(channelId: string): Promise<ChatMediaCounts | null> {
+        if (!this.canQueryChatMedia()) return null;
+        const scope = this.getScope();
+        if (!scope) return null;
+        try {
+            const response = await this.sendRead({
+                type: 'CountChatMediaCacheData',
+                data: { type: 'chat', cid: scope.cid, uid: scope.uid, channelId },
+            });
+            const data = response?.data as OnCountChatMediaCacheDataPayload | undefined;
+            return data?.counts ?? null;
+        } catch (error) {
+            logger.warn('CACHE', '[NativeDBAdapter] room media count failed — falling back this read', { error });
             return null;
         }
     }

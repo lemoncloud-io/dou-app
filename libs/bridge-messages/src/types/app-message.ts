@@ -84,6 +84,9 @@ import type {
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
+    OnFetchChatMediaCacheDataPayload,
+    OnCountChatMediaCacheDataPayload,
+    OnSaveChatMediaCacheDataPayload,
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
@@ -225,6 +228,9 @@ export type AppMessageDataMap = {
     OnClearCacheData: OnClearCacheDataPayload;
     OnClearCacheDataByChannel: OnClearCacheDataByChannelPayload;
     OnSearchGlobalCacheData: OnSearchGlobalCacheDataPayload;
+    OnFetchChatMediaCacheData: OnFetchChatMediaCacheDataPayload;
+    OnCountChatMediaCacheData: OnCountChatMediaCacheDataPayload;
+    OnSaveChatMediaCacheData: OnSaveChatMediaCacheDataPayload;
 
     // 5. Preference
     OnFetchPreference: OnFetchPreferencePayload;

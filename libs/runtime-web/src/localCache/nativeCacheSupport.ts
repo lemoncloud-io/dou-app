@@ -1,5 +1,5 @@
 import { logger } from '@chatic/logger';
-import type { CacheDomainVersions, CacheType } from '@chatic/bridge-messages';
+import type { CacheDomainVersions, CacheType, WebMessageType } from '@chatic/bridge-messages';
 
 /**
  * What the native shell reported about its local cache DB in the bridge handshake
@@ -18,6 +18,11 @@ export interface NativeCacheSupport {
     types: ReadonlySet<CacheType>;
     /** Per-domain contract editions the app build reported implementing. */
     domainVersions: CacheDomainVersions;
+    /**
+     * The requests the shell has handlers for (`supportedWebMessages`, bridge 2.6.0). A cache QUERY
+     * the shell may not know — the room media index reads — is sent only when it is listed here.
+     */
+    messages: ReadonlySet<string>;
 }
 
 /**
@@ -91,11 +96,13 @@ export const setNativeCacheSupport = (reported: {
     cacheSchemaVersion?: number;
     supportedCacheTypes?: string[];
     cacheDomainVersions?: CacheDomainVersions;
+    supportedWebMessages?: string[];
 }): void => {
     support = {
         schemaVersion: reported.cacheSchemaVersion ?? null,
         types: new Set((reported.supportedCacheTypes ?? []) as CacheType[]),
         domainVersions: reported.cacheDomainVersions ?? {},
+        messages: new Set(reported.supportedWebMessages ?? []),
     };
     logger.debug('CACHE', '[nativeCacheSupport] native cache capability reported', {
         data: {
@@ -144,3 +151,17 @@ const requiredVersion = (type: CacheType): number => REQUIRED_DOMAIN_VERSION[typ
  * the default requirement on the floor alone, so the common path has no ordering dependency.
  */
 export const isNativeCacheTypeUsable = (type: CacheType): boolean => appVersion(type) >= requiredVersion(type);
+
+/**
+ * Whether the installed shell answers this cache request — asked by the native chat storage each
+ * time it is about to send one of the room media index reads.
+ *
+ * Read on every call, never captured: the handshake reply is asynchronous and the storage can be built
+ * before it lands, so a verdict taken at construction would freeze "not known yet" for the session.
+ * Until the reply lands — and on a shell that predates `supportedWebMessages` — the answer is no, and
+ * the reader takes the plain-row path, which answers the same, only slower.
+ *
+ * This is not a routing question. Routing is per domain (`isNativeCacheTypeUsable`); the media index
+ * lives with the chat rows wherever they are, and a shell without these handlers still holds the chats.
+ */
+export const isNativeCacheMessageHandled = (type: WebMessageType): boolean => support?.messages.has(type) ?? false;
