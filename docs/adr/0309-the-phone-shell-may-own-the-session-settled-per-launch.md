@@ -12,13 +12,15 @@
 > `feat/native-storage-ports` (the native runtime's stores on the page's vault item and keys, its cache
 > on the app's database through the WebView's own cache handlers, and the page's vault refused once
 > the app holds the session; still not booted); `feat/native-runtime-boot` (the app's runtime host:
-> the per-launch owner, the boot and what keeps the session alive, not started by anything yet)
+> the per-launch owner, the boot and what keeps the session alive, not started by anything yet);
+> `feat/runtime-bridge-host` (the shell's half of the bridge — the offer, the hello that starts the
+> runtime, the calls, subscriptions and session push; no page asks yet)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`
 > (`client.ts`, `mock.ts`); `libs/bridges/src/app/AppBridgeHost.ts` (`RuntimeHello` is not taken as the
-> web being ready); the phone and desktop shells' contract tests (the requests unanswered, the pushes
-> not sent); `libs/runtime-core/src/bridge/` (`RUNTIME_CONTRACT_VERSION`, the handshake, errors across
+> web being ready); the phone and desktop shells' contract tests (the requests unanswered and the pushes
+> not sent on a launch the shell does not run the runtime); `libs/runtime-core/src/bridge/` (`RUNTIME_CONTRACT_VERSION`, the handshake, errors across
 > the bridge); `libs/runtime-mobile` (`@chatic/runtime-mobile`) and the two native modules it needs in
 > `apps/mobile/package.json` (`@react-native-community/netinfo`, `react-native-get-random-values`)
 > · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
@@ -129,7 +131,8 @@ shell never offers.
   that can receive it.
 - `@chatic/runtime-core` holds `RUNTIME_CONTRACT_VERSION`, the handshake (`readRuntimeOffer`,
   `answerRuntimeHello`, `settleRuntimeHello`) and the error codec (`toRuntimeFailure`,
-  `runtimeNotAvailableFailure`, `reviveRuntimeError`). Nothing calls them yet.
+  `runtimeNotAvailableFailure`, `reviveRuntimeError`). The shell's half calls them
+  (`createRuntimeBridgeHost`); the page's half is still to come.
 - What a page does when its hello keeps going unanswered is left to the page's mirror; booting its own
   runtime is not one of the options.
 - The session snapshot, the commands, the call targets and the events are each added with the change
@@ -142,3 +145,7 @@ shell never offers.
 - On a launch the app runs the session, its build needs the session's endpoints too, by the names the
   web's env files use. Each stage's values then live in the web env and the mobile env, kept in step by
   hand; a mobile build without them leaves the session to the page.
+- A body is not split across messages. A call's result or a stream's event over the shell's cap (4 Mi
+  characters of JSON) fails instead of crossing — a stream ends with a last event saying so. The cache's
+  own bridge messages already carry bodies of the same size unsplit; splitting is to be added only if
+  measurements show bodies near the cap.

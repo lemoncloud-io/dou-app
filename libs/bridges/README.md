@@ -170,7 +170,7 @@ sequenceDiagram
         W->>W: flushBuffer() → dispatchRequest() → timeoutMs starts HERE (held while the page is hidden)
         W->>A: postMessage(JSON)
         A->>H: handleMessage(string)
-        Note over H: first message that is not a boot-time one (SendLog, storage, RuntimeHello)<br/>marks the web ready and flushes the host's own event buffer
+        Note over H: first message that is not a boot-time one (SendLog, storage, the runtime requests)<br/>marks the web ready and flushes the host's own event buffer
         H->>N: handler(message)
         N-->>H: { type: 'OnFetchBadgeCount', success: true, data }
         H->>A: re-attach the request's refId and version, encode, sendToWeb
@@ -202,8 +202,9 @@ The asymmetry in the "buffers until" row is the subtle one. The host has no read
 for, so it treats **any** inbound message as proof the web is listening — except the ones a page
 sends before it can listen: `SendLog`, because the web logger relays from the earliest
 module-evaluation phase; the storage requests (`StorageGet`, `StorageSave`, `StorageClear`), because
-the web loads the device vault before its runtime boots; and `RuntimeHello`, because a page asks a
-shell that owns the session for it at the same point. Counting any of them as readiness would flush
+the web loads the device vault before its runtime boots; and the runtime requests (`RuntimeHello`,
+`RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`), because a page asks a shell that owns the
+session for the handshake at the same point and its runtime calls and subscribes while it boots. Counting any of them as readiness would flush
 buffered events (a cold-start `OnNavigate`, for instance) into a page with no listeners, where they
 vanish.
 

@@ -2,8 +2,7 @@ import { SubWebViewService } from '../../services/subWebView/SubWebViewService';
 import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { createSubWebViewHandlers, forwardSubWebViewClosed } from './subWebViewHandlers';
 
-const createService = () =>
-    new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
+const createService = () => new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
 
 const message = <T>(type: string, data: T) => ({ type, data }) as any;
 

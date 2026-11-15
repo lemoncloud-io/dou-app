@@ -6,9 +6,9 @@ opens the sockets and reads the cache. The app can hold it instead, in its own J
 runs, on the app's own storage and network. This document is how the app does that: who decides, how
 the runtime starts, and what it keeps running.
 
-**Nothing turns it on yet.** The owner is `web` unless a development setting says otherwise, and the
-handshake that would start the runtime for a page (`RuntimeHello`) is not answered by this build. The
-pieces below are in place so the handshake and the page's side can be built on them.
+**Nothing turns it on yet.** The owner is `web` unless a development setting says otherwise. On a
+launch whose owner is `native`, the app offers the session to the page and answers the runtime
+handshake — but no page asks yet: the page's side of it comes next.
 
 | File (`src/app/services/runtime/`)           | Role                                                                                     |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ pieces below are in place so the handshake and the page's side can be built on t
 | `nativeRuntimeHost.ts`                       | The host: boots and runs the runtime once per process, reports a session's end           |
 | `nativeRuntime.ts`                           | The app's one host, wired to the app's services — loaded only when the runtime is wanted |
 | `runtimePorts.ts` · `runtimeStorageFiles.ts` | The runtime's stores and cache on the app's vault, MMKV files and SQLite                 |
+| `runtimeOffer.ts` · `runtimeBridge.ts`       | The offer injected into the page, and the four runtime requests answered over the host   |
 
 ## Who owns the session
 
@@ -66,9 +67,9 @@ background cloud for its delta, at most once every five seconds, as a page does 
 suspended with the app may be dead without knowing it. `session.native_runtime_started` logs how long
 the boot took and what the vault held.
 
-A start that fails answers `null`. A failed boot created nothing, so the page keeps the session. A run
-that fails after the boot stops what it had started; the runtime then exists without running, and no
-side runs the session for the rest of that launch — the log says which of the two happened.
+A start that fails answers `null`, and the page keeps the session. A failed boot created nothing; a run
+that fails after the boot stops what it had started, so the runtime exists without running. The log
+says which of the two happened.
 
 ## The device, as the page knows it
 
@@ -81,31 +82,61 @@ What the page keeps in its own storage does not move yet: the selected cloud, th
 the other plain session values start empty in the runtime's file. Carrying them over belongs with the
 switch that turns the runtime on.
 
+## The page's side of the bridge
+
+On a launch the app owns, three things change for the main WebView, and only on such a launch:
+
+- **The offer.** The injected script sets `window.CHATIC_APP_RUNTIME` before the page runs, to
+  `{ sessionOwner: 'native', contracts }` (`runtimeOffer.ts`). A page that finds it says hello; a page
+  that does not — every launch the page owns — never asks.
+- **The four runtime requests** (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`,
+  `RuntimeUnsubscribe`) are registered on the bridge (`useRuntimeBridgeHandler`), answered by
+  runtime-core's `RuntimeBridgeHost` over the app's runtime (`runtimeBridge.ts`). On any other launch
+  they are not registered and answer `NOT_FOUND`, which a page reads as "the session is mine".
+- **The vault is refused to the page** once the runtime has started (`ownsSession` on the vault's
+  handlers): its tokens are the runtime's from then on.
+
+**The runtime starts at the page's first hello**, not when the app starts: the app takes the session
+only when a page that speaks the contract is there to mirror it. A page too old to say hello leaves the
+runtime unstarted, and keeps the session itself. The hello waits for the start for at most five seconds
+and otherwise answers `RUNTIME_STARTING`, which the page reads as "no answer" and asks again — so a
+start held by a locked vault never holds the page.
+
+One `RuntimeBridgeHost` per WebView bridge: it keeps that page's subscriptions, and a page's hello ends
+the previous page's. The runtime it answers over is the process's, so a reload or a crashed WebView's
+replacement finds the session still signed in. Sizes are counted as the length of a body's JSON (an
+approximation of what crosses): a body of 256 Ki characters or more is logged
+(`bridge.runtime_payload_large`), and a call's result or a stream's event over 4 Mi characters is
+refused. Once a page was answered `native`, the app runs the session until the process ends: a later
+page that shares no contract with it is refused (`RUNTIME_CONTRACT_MISMATCH`), never told `web`.
+
 ## When a session ends
 
 A sign-out leaves the address a page would navigate to (`logout=1` among it) in the runtime's plain
 store for the next boot, and calls the host's way home. The host logs `session.native_ended` and tells
-`onSessionEnded` listeners; taking the person home is the WebView's, so the bridge host that answers the
-page is the one to listen.
+`onSessionEnded` listeners. Nothing listens yet: taking the person home is the WebView's, and the page's
+mirror sees the session end in the next session push — what the shell does then is one of the items
+below.
 
 ## What is not done yet
 
 These are the conditions the steps that turn the runtime on have to meet. None of them matters while
 nothing starts it.
 
+- **Nothing acts on a session's end.** `onSessionEnded` has no listener: the WebView is not sent home
+  and the runtime is not restarted (below).
 - **A session's end needs a fresh runtime.** A page drops everything it held in memory by reloading — the
   repository graph, the sync engine, the background clouds, the outboxes. The runtime has no reload, so
   after `onSessionEnded` the app has to stop it and start the JS context over before the next account
   signs in; until then that memory would carry into the next session.
 - **One side at a time.** The page and the runtime each keep their own copy of the vault's tokens. If
   both ran a session, a token one side rotated would leave the other's stale, and one side's later
-  write could undo the other's sign-out. A page must not boot a session of its own while the runtime
-  runs one, and the app must not say it holds the session before `start()` has answered an engine.
+  write could undo the other's sign-out. The shell's half keeps its side of this — it says it holds
+  the session only once `start()` has answered an engine, and never tells a later page `web` — and the
+  page's half must keep the other: no session of its own while the runtime runs one.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
   change while one is set.
-- **A locked vault holds `start()`.** It waits for the first unlock; an answer to a page must not wait
-  on it unbounded.
 - **The paired-cloud check** — which ends a paired cloud with a toast and a sign-out — has a screen in
   it and runs only with the page today. On a launch the runtime owns, nothing runs it; where it lives
   is to be settled before the runtime is turned on.

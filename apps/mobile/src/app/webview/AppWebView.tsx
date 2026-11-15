@@ -19,6 +19,10 @@ import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
 import { bootMetricsService, configKvService, logger, pendingReportQueueService } from '../services';
 import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
+import type { RuntimeOffer } from '@chatic/bridge-messages';
+
+import { launchSessionOwner } from '../services/runtime/launchSessionOwner';
+import type * as RuntimeOfferModule from '../services/runtime/runtimeOffer';
 
 interface AppWebViewProps extends WebViewProps {
     /** Mobile bridge host instance (handles native feature routing and event dispatch) */
@@ -46,6 +50,21 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     // Issued by the logging layer at app start; injected so the WebView stamps
     // its entries with the same run identity as the native side.
     runId: NATIVE_RUN_ID,
+};
+
+/**
+ * The offer to own the session — on a launch the app's runtime owns, and only then. The owner is settled
+ * per launch, so this is read once; the runtime's package loads here only on such a launch.
+ */
+let runtimeOfferOfLaunch: RuntimeOffer | null | undefined;
+const readRuntimeOffer = (): RuntimeOffer | null => {
+    if (runtimeOfferOfLaunch === undefined) {
+        runtimeOfferOfLaunch =
+            launchSessionOwner() === 'native'
+                ? (require('../services/runtime/runtimeOffer') as typeof RuntimeOfferModule).nativeRuntimeOffer()
+                : null;
+    }
+    return runtimeOfferOfLaunch;
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
@@ -126,6 +145,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // Listed in the boot script, which is also the post-load script, so the web finds it before
         // its first StorageGet.
         storageMedia: STORAGE_MEDIA,
+        runtimeOffer: readRuntimeOffer(),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: toEnvStage(Config.VITE_ENV),
             // Same flag that gates the console subscription in `provider.ts`.

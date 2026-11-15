@@ -29,6 +29,7 @@ import {
     useCustomZipHandler,
     useNativeStorageHandler,
     useSecureStorageHandler,
+    useRuntimeBridgeHandler,
     usePerfHandler,
     useUnfurlHandler,
     useSubWebViewHandler,
@@ -171,6 +172,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
     const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
+    // The runtime requests, on a launch the app's runtime owns; registered on their own.
+    useRuntimeBridgeHandler(bridge);
     const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {

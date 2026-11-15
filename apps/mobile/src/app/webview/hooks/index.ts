@@ -17,6 +17,7 @@ export * from './useConfigKvHandler';
 export * from './useCustomZipHandler';
 export * from './useNativeStorageHandler';
 export * from './useSecureStorageHandler';
+export * from './useRuntimeBridgeHandler';
 export * from './useOAuthHandler';
 export * from './useVersionCheckHandler';
 export * from './useAppUpdateHandler';
