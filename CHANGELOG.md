@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Features
+
+- (mobile,web,perf) run the device scenarios on either session owner and tag perf with it
+
+## [2026-11-15] - No version updates
+
 ### Bug Fixes
 
 - (session,auth,storage) keep the device guest id in the vault, not only in the page (ADR-0315)
