@@ -102,8 +102,8 @@ that know nothing of an index.
   that window leaves the message's entries as they were. The web normally ships first, so the window
   is short; it is accepted rather than fixed by raising the version.
 - After a shell update the table is empty, and each room is filled the first time its media is read.
-  That first read carries every cached row across the bridge once and its entries back once. Its cost
-  on a device was not measured with this change.
+  That first read carries every cached row across the bridge once and its entries back once. On the
+  iOS simulator a 10,000-row room took about 0.5 s (1,000 rows about 60 ms); a phone was not measured.
 - A filled row keeps no `mediaEntriesVersion` of its own, so a refill (a routing change, a cache clear,
   a rules bump) sends such rows again; the guard lets them through, which lands on the same entries.
 - The IndexedDB cap eviction removes the evicted messages' entries by the same channel and
