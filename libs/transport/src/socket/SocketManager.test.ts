@@ -1458,6 +1458,57 @@ describe('SocketManager slot statuses', () => {
     });
 });
 
+describe('SocketManager firstConnectSince', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+    });
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    const bindIdleRelay = () => {
+        const client = makeClient({ state: 'idle' } as never);
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const emit = client.onState.mock.calls[0][0] as (event: { next: string }) => void;
+        return { manager, emit };
+    };
+
+    it("holds when the slot's first attempt began, through its handshake and after it, until it closes", () => {
+        let at = 1_000;
+        jest.spyOn(Date, 'now').mockImplementation(() => at);
+        const { manager, emit } = bindIdleRelay();
+
+        expect(manager.firstConnectSince(RELAY)).toBeUndefined();
+        emit({ next: 'connecting' });
+        at = 1_800;
+        emit({ next: 'connected' });
+        // The open socket is still the first attempt, waiting for its handshake and then serving.
+        expect(manager.firstConnectSince(RELAY)).toBe(1_000);
+
+        emit({ next: 'closing' });
+        expect(manager.firstConnectSince(RELAY)).toBeUndefined();
+    });
+
+    it('reports nothing for a reconnect: only the first attempt since the slot was bound counts', () => {
+        let at = 1_000;
+        jest.spyOn(Date, 'now').mockImplementation(() => at);
+        const { manager, emit } = bindIdleRelay();
+
+        emit({ next: 'connecting' });
+        emit({ next: 'closed' });
+        at = 9_000;
+        emit({ next: 'connecting' });
+
+        expect(manager.firstConnectSince(RELAY)).toBeUndefined();
+    });
+
+    it('is undefined for a slot that is not bound', () => {
+        expect(new SocketManager().firstConnectSince(RELAY)).toBeUndefined();
+    });
+});
+
 describe('SocketManager close reasons', () => {
     beforeEach(() => {
         mockedCreate.mockReset();

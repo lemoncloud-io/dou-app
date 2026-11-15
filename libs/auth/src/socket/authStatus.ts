@@ -24,10 +24,10 @@ import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
  * **`wedged` is deliberately NOT one of these.** An earlier draft had it for "bound but unverified
  * for too long", which reads well but cannot be derived: "too long" needs a duration, and this
  * projection is read-only by contract (holding an `unverifiedSince` clock would make it a fifth copy
- * of session state — the failure ADR-0070 spent itself removing). The instantaneous fact is
- * `handshaking`, and the current code does not distinguish the two either: `recoverUnverifiedSockets`
- * kicks ANY bound-and-unverified slot. A caller that genuinely needs "still unverified after N
- * seconds" owns that timer itself.
+ * of session state, and copies of it are what drift apart). The instantaneous fact is
+ * `handshaking`. A caller that genuinely needs "still unverified after N seconds" owns that timer
+ * itself: `recoverUnverifiedSockets` reads when the slot's first connection began from the socket
+ * manager, and leaves a young one alone.
  */
 export type AuthStatus =
     /** No token for this server — logged out, or before the first login. Nothing to do. */

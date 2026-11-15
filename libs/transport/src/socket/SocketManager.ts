@@ -68,6 +68,13 @@ interface ClientEntry {
     closingLocally: boolean;
     /** When the current connection opened, on the page's monotonic clock; unset while not open. */
     openedAt: number | undefined;
+    /**
+     * When this slot's first connection attempt began, on the wall clock, for as long as that attempt
+     * lasts; unset before it begins and for good once its socket starts closing. See `firstConnectSince`.
+     */
+    firstConnectSince: number | undefined;
+    /** Whether this slot has begun a connection attempt since it was bound. */
+    hasConnected: boolean;
     /** `teardownEntry` has begun: any close from here on is the app tearing the slot down. */
     tearingDown: boolean;
     unsubscribes: Array<() => void>;
@@ -159,6 +166,8 @@ export class SocketManager implements ISocketManager {
             lastClose: undefined,
             closingLocally: false,
             openedAt: undefined,
+            firstConnectSince: undefined,
+            hasConnected: false,
             tearingDown: false,
             unsubscribes: [],
         };
@@ -296,6 +305,10 @@ export class SocketManager implements ISocketManager {
         const entry = this.entries.get(key);
         if (!entry) return false;
         return entry.authenticated && entry.connState === 'connected';
+    }
+
+    public firstConnectSince(key: SlotKey): number | undefined {
+        return this.entries.get(key)?.firstConnectSince;
     }
 
     public getSlotStatuses(): SlotStatus[] {
@@ -699,6 +712,14 @@ export class SocketManager implements ISocketManager {
                 // own `authenticated` emission after the handshake.
                 if (event.next !== 'connected') {
                     entry.authenticated = false;
+                }
+                // The first attempt runs from the slot's first `connecting` until that socket starts
+                // closing: `connected` is still that attempt, waiting for its handshake.
+                if (event.next === 'connecting' && !entry.hasConnected) {
+                    entry.hasConnected = true;
+                    entry.firstConnectSince = Date.now();
+                } else if (event.next !== 'connecting' && event.next !== 'connected') {
+                    entry.firstConnectSince = undefined;
                 }
                 // Only a close this client asks for passes through `closing`; a remote close goes
                 // straight from `connected` to `closed`. The close listener reads this.
