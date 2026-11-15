@@ -2,6 +2,12 @@
 
 ## [2026-11-15] - No version updates
 
+### Features
+
+- (runtime-core,runtime-web,sync,perf) add the page's mirror engine for a shell-owned session
+
+## [2026-11-15] - No version updates
+
 ### Refactor
 
 - (runtime-core,app-runtime) hold a media send's cloud through the engine, not runInCloud
