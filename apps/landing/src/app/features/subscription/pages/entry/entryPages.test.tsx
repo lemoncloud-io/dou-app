@@ -126,8 +126,33 @@ describe('W-01 plans', () => {
     it('does not mistake a failed subscription list for no subscription', async () => {
         renderAt('/subscription/plans', mockSetup('?mock=active&fail=network'));
 
-        expect(await screen.findByText('Something went wrong. Please try again.')).toBeTruthy();
+        expect(await screen.findByText('The connection is unstable. Please try again shortly.')).toBeTruthy();
         expect(screen.queryByRole('button', { name: /^Subscribe/ })).toBeNull();
+    });
+
+    it('reuses what it read when the reader moves between pages, instead of asking the server again', async () => {
+        const setup = mockSetup('?mock=active');
+        const listSubscriptions = vi.spyOn(setup.port, 'listSubscriptions');
+        const getSession = vi.spyOn(setup.port, 'getSession');
+        renderAt('/subscription/plans', setup);
+        await screen.findByRole('button', { name: i18n.t('subscription.common.account.menu') });
+        await waitFor(() => expect(listSubscriptions).toHaveBeenCalled());
+        const reads = { subscriptions: listSubscriptions.mock.calls.length, session: getSession.mock.calls.length };
+        expect(reads.subscriptions).toBe(1);
+
+        // To the subscription list and back: both pages read the same answers, which are still fresh.
+        const go = async (item: string) => {
+            fireEvent.click(screen.getByRole('button', { name: i18n.t('subscription.common.account.menu') }));
+            fireEvent.click(await screen.findByRole('menuitem', { name: item }));
+        };
+        await go(i18n.t('subscription.common.account.manage'));
+        await waitFor(() => expect(where()).toBe('/subscription'));
+        await go(i18n.t('subscription.common.nav.plans'));
+        await waitFor(() => expect(where()).toBe('/subscription/plans'));
+        await screen.findByRole('button', { name: i18n.t('subscription.common.account.menu') });
+
+        expect(listSubscriptions).toHaveBeenCalledTimes(reads.subscriptions);
+        expect(getSession).toHaveBeenCalledTimes(reads.session);
     });
 
     it('points a store subscriber to the store instead of offering a plan', async () => {

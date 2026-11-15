@@ -30,6 +30,7 @@ import {
 } from './flow';
 import { CheckoutLayout, CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
 import { usePlanRoute } from './usePlanRoute';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { CardToken, PlanId } from '../../types';
 
@@ -41,8 +42,7 @@ const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'limit')) return 'subscription.checkout.payment.error.limit';
     if (isPortError(error, 'invalid')) return 'subscription.checkout.payment.error.invalid';
     if (isPortError(error, 'conflict')) return 'subscription.checkout.payment.error.conflict';
-    if (isPortError(error, 'network')) return 'subscription.common.error.network';
-    return 'subscription.common.error.unknown';
+    return commonErrorKey(error);
 };
 
 /**

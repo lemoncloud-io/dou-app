@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ROUTES } from '../../../../routes/paths';
 import { Banner, Button } from '../../components/ui';
 import { isPortError } from '../../lib/port';
+import { commonErrorKey } from '../../lib/errorKey';
 
 /**
  * What a subscription screen shows when what it reads did not load: "not found" with the way back
@@ -26,11 +27,7 @@ export const LoadFailure = ({
             <h1 className="text-[28px] font-bold text-navy">{title}</h1>
             <Banner
                 tone={notFound ? 'neutral' : 'danger'}
-                title={
-                    notFound
-                        ? t('subscription.manage.detail.notFound')
-                        : t(`subscription.common.error.${isPortError(error, 'network') ? 'network' : 'unknown'}`)
-                }
+                title={notFound ? t('subscription.manage.detail.notFound') : t(commonErrorKey(error))}
                 action={
                     notFound ? (
                         <Link to={ROUTES.subscription.root} className="text-sm font-semibold text-navy underline">

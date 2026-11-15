@@ -55,7 +55,11 @@ const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
         mutationCache: new MutationCache({ onError }),
         defaultOptions: {
             // Port errors are answers (a conflict, a limit), not blips to retry; the screens decide.
-            queries: { retry: false, refetchOnWindowFocus: false },
+            // An answer is fresh for a minute: moving between the pages reuses it instead of asking the
+            // server again on every mount — the membership read behind most of them is not a plain read
+            // (the server settles payments and reconciles clouds on it). What changes the state
+            // invalidates what it changed, and a poll keeps its own interval.
+            queries: { retry: false, refetchOnWindowFocus: false, staleTime: 60_000 },
             mutations: { retry: false },
         },
     });

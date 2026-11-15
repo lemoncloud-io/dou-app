@@ -41,6 +41,7 @@ export const FAIL_FLAGS = [
     'signin-canceled',
     'signin-expired',
     'session-ended',
+    'not-allowed',
     'code-expired',
     'resend-limit',
 ] as const;
