@@ -4,6 +4,20 @@
 
 ### Features
 
+- (data,db,mobile) index a room's attachments and links in the device cache (ADR-0316)
+
+### Documentation
+
+- (adr) record the simulator first-read cost of a room media fill
+
+### Other
+
+- test: (data) pin photo-only and captioned photo messages in the media judge
+
+## [2026-11-15] - No version updates
+
+### Features
+
 - (mobile,web,perf) run the device scenarios on either session owner and tag perf with it
 
 ## [2026-11-15] - No version updates
