@@ -381,6 +381,7 @@ jobs:
                   VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
                   VITE_DEBUG_CODE=${{ secrets[format('{0}_DEV_DEBUG_CODE', matrix.prefix)] }}
+                  VITE_APP_SESSION_OWNER=${{ matrix.project == 'web' && vars.WEB_DEV_APP_SESSION_OWNER || '' }}
                   VITE_D1_RELAY_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_DEV_DOU_ENDPOINT || '' }}
                   VITE_V1_RELAY_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_DOU_ENDPOINT || '' }}
                   VITE_D1_GOODS_ENDPOINT=${{ secrets[format('{0}_D1_GOODS_ENDPOINT', matrix.prefix)] }}

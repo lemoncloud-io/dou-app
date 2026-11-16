@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
@@ -6,7 +6,9 @@ import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { asWebSubscriptionActive } from '../lib/webSubscriptionActive';
 import { useSubscriptionIap } from './useSubscriptionIap';
+import { useWebSubscriptionNotice } from './useWebSubscriptionNotice';
 
 export interface RestorePurchases {
     /** Runs the restore and reports the outcome as a toast. Never throws. */
@@ -19,6 +21,11 @@ export interface RestorePurchases {
      * a guest has no account for a recovered receipt to attach to.
      */
     canRestore: boolean;
+    /**
+     * The "subscribed on the website" dialog, raised when the relay refuses the restored receipt.
+     * The caller renders it once beside its restore control.
+     */
+    notice: ReactNode;
 }
 
 /**
@@ -39,6 +46,7 @@ export const useRestorePurchases = (): RestorePurchases => {
     const { toast } = useToast();
     const { restorePurchases } = useSubscriptionIap();
     const { isGuest } = runtime.session.useRuntimeProfile();
+    const { show: showWebActive, notice } = useWebSubscriptionNotice();
     const [isRestoring, setIsRestoring] = useState(false);
 
     const restore = useCallback(async () => {
@@ -58,12 +66,18 @@ export const useRestorePurchases = (): RestorePurchases => {
                         : t('mypage.subscription.restoreEmpty'),
             });
         } catch (e) {
+            // A website subscription is running: nothing failed, the store just cannot be the one to
+            // hold it. Say that instead of "restore failed".
+            if (asWebSubscriptionActive(e)) {
+                showWebActive();
+                return;
+            }
             logger.error('IAP', '[useRestorePurchases] restore failed', { error: e });
             toast({ title: t('mypage.subscription.restoreFailed'), variant: 'destructive' });
         } finally {
             setIsRestoring(false);
         }
-    }, [isRestoring, restorePurchases, t, toast]);
+    }, [isRestoring, restorePurchases, showWebActive, t, toast]);
 
-    return { restore, isRestoring, canRestore: host.ports.checkout.kind === 'store' && !isGuest };
+    return { restore, isRestoring, canRestore: host.ports.checkout.kind === 'store' && !isGuest, notice };
 };

@@ -12,6 +12,7 @@ import type {
     ProfileGateway,
     UploadGateway,
     UserGateway,
+    WebhookGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 import type { ChannelGetRequestData } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 
@@ -99,6 +100,13 @@ export type InviteSocketDomainGateway = Pick<InviteGateway, 'create' | 'get' | '
  */
 export type UploadSocketDomainGateway = Pick<UploadGateway, 'start' | 'complete'>;
 
+/**
+ * `webhook.*` — channel webhook management for the channel owner. All five actions come from the SDK;
+ * the app uses list/make-token/update/delete (the root `get` is not needed: `make-token` returns the
+ * endpoint as `Location`).
+ */
+export type WebhookSocketDomainGateway = WebhookGateway;
+
 export interface SocketGatewayBundle {
     auth: AuthSocketDomainGateway;
     channel: ChannelSocketDomainGateway;
@@ -114,4 +122,5 @@ export interface SocketGatewayBundle {
     cloud: CloudSocketDomainGateway;
     profile: ProfileSocketDomainGateway;
     upload: UploadSocketDomainGateway;
+    webhook: WebhookSocketDomainGateway;
 }

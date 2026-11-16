@@ -43,11 +43,18 @@ const FORMATS: readonly Format[] = [
         extensions: ['pptx'],
         kind: 'file',
     },
+    // The legacy Office formats are OLE2 files, not ZIP containers, so they are not in `OFFICE_CONTAINERS`.
+    { type: 'application/msword', extensions: ['doc'], kind: 'file' },
+    { type: 'application/vnd.ms-excel', extensions: ['xls'], kind: 'file' },
+    { type: 'application/vnd.ms-powerpoint', extensions: ['ppt'], kind: 'file' },
     { type: 'application/x-hwp', extensions: ['hwp'], kind: 'file' },
     { type: 'application/hwp+zip', extensions: ['hwpx'], kind: 'file' },
     { type: 'text/plain', extensions: ['txt'], kind: 'file' },
-    // Sent from desktop only (each app's `ChatAttachmentFilter`). Listed ahead of the server: until it takes
-    // the type, an HTML upload is refused with a 415 and the message shows the failed file.
+    { type: 'text/csv', extensions: ['csv'], kind: 'file' },
+    { type: 'text/markdown', extensions: ['md'], kind: 'file' },
+    { type: 'application/json', extensions: ['json'], kind: 'file' },
+    // The server takes HTML, but only desktop sends it (each app's `ChatAttachmentFilter`): the phone has
+    // no viewer for a page.
     { type: 'text/html', extensions: ['html', 'htm'], kind: 'file' },
     { type: CHAT_ATTACHMENT_ZIP_TYPE, extensions: ['zip'], kind: 'file' },
     { type: 'audio/mp4', extensions: ['m4a'], kind: 'file' },
@@ -60,7 +67,8 @@ const FORMATS: readonly Format[] = [
 // has one, but Chromium on Windows reports the registry's name for it instead. Audio types predate their
 // registration: macOS names an M4A `audio/x-m4a`, Windows a WAV `audio/wav` or `audio/x-wav`. The server
 // keeps no aliases of its own, so each goes up under the canonical type. AAC and WebM are not among the
-// server's audio formats, and Chromium types a WebM from disk `video/webm` anyway.
+// server's audio formats, and Chromium types a WebM from disk `video/webm` anyway. Windows types a CSV
+// `application/vnd.ms-excel`; the server refuses that pairing, so it is not aliased to `text/csv`.
 const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwp': 'application/x-hwp',
     'application/vnd.hancom.hwp': 'application/x-hwp',
@@ -149,7 +157,14 @@ const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
 
 // DOCX, XLSX, PPTX and HWPX: ZIP containers whose type the browser takes from whichever app owns the
 // extension on that machine. Without Office, or with another suite holding the extension, a real Word
-// file arrives as a ZIP or under that suite's own name for it — a type the server does not know.
+// file arrives as a ZIP or under that suite's own name for it — a type the server does not know. The
+// legacy Office types are that kind of name too: a suite that owns `.xlsx` may type it `application/vnd.ms-excel`.
+const LEGACY_OFFICE: ReadonlySet<string> = new Set([
+    'application/msword',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-powerpoint',
+]);
+
 const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -162,7 +177,7 @@ const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
  *
  * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
  * file its system does not know (HWP, often) over with an empty type. The one other case is an office
- * container's extension under a ZIP type or a type the server does not know: the extension names the
+ * container's extension under a ZIP type, a legacy Office type or a type the server does not know: the extension names the
  * document, and it goes up as that document, never as an archive. A video or document must end in its
  * format's extension, because the receiver saves it under that name — another format's extension is
  * refused, anything else gets the right one added. An image name is left alone; the server does not
@@ -177,7 +192,7 @@ export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAtt
         UNTYPED.has(declared) ||
         (named !== undefined &&
             OFFICE_CONTAINERS.has(named.type) &&
-            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE));
+            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE || LEGACY_OFFICE.has(typed.type)));
     const format = readsName ? named : typed;
     if (!format) return null;
     const { type, kind } = format;

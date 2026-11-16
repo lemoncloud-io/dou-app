@@ -25,6 +25,7 @@ import { useChannelActions } from '../hooks';
 import { useChannelSettingsStore } from '../stores';
 import { isChannelOwner } from '../utils';
 import { ChannelActionDialogs } from './ChannelActionDialogs';
+import { ChannelWebhooksSection } from './ChannelWebhooksSection';
 import { MemberList } from './MemberList';
 
 /** Below this member count the roster is short enough to scan without a filter. */
@@ -254,6 +255,10 @@ export const ChannelSettingsPanel = ({
                         <p className="text-caption text-muted-foreground">{t('channels.settings.idHint')}</p>
                     </section>
                 )}
+
+                {/* Owner-only, and only where a service can post: a DM or the self chat has no
+                    webhook, same as the Channel ID above. */}
+                {isOwner && showId && <ChannelWebhooksSection channelId={channelId} />}
 
                 {/* Leaving and deleting used to sit under the Notifications heading, so a
                     mute decision and an irreversible one shared a group. They get their

@@ -31,11 +31,13 @@ import {
     usePlanPrice,
     useRestorePurchases,
     useTierPurchase,
+    useWebSubscriptionNotice,
     type PlanOption,
 } from '../hooks';
 import {
     formatDate,
     keepCandidates,
+    isWebSubscriptionActiveError,
     needsKeepChoice,
     planDisplayName,
     stripPlanId,
@@ -48,6 +50,8 @@ interface PurchaseTerms {
     option: PlanOption;
     replaceablePlan: ProductView | undefined;
     state: SubscriptionState;
+    /** Frozen with the rest: buying spends the trial, and the confirmation must still describe the one it started. */
+    trialEligible: boolean;
     /** The clouds a downgrade would have to choose among, counted before the relay applies anything. */
     keepCandidateCount: number;
 }
@@ -74,11 +78,12 @@ export const SubscriptionConfirmPage = () => {
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership } = useMembershipInfo();
-    const { summary, replaceablePlan: liveReplaceablePlan, isIOS, sellsInStore } = usePlanCatalog();
+    const { summary, replaceablePlan: liveReplaceablePlan, isIOS, sellsInStore, trialEligible } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const priceOf = usePlanPrice();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
-    const { restore } = useRestorePurchases();
+    const { restore, notice: restoreNotice } = useRestorePurchases();
+    const { show: showWebActive, notice: webActiveNotice } = useWebSubscriptionNotice();
     const { data: cloudsData } = useClouds({ limit: -1 });
     const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);
 
@@ -107,6 +112,7 @@ export const SubscriptionConfirmPage = () => {
                   option: liveOption,
                   replaceablePlan: liveReplaceablePlan,
                   state: summary.state,
+                  trialEligible,
                   keepCandidateCount: keepCandidates(cloudsData?.list ?? []).length,
               }
             : null);
@@ -127,7 +133,7 @@ export const SubscriptionConfirmPage = () => {
     const currentPrice = priceOf(replaceablePlan);
     // Only the entry tier for someone who never subscribed carries a trial; the store has the last
     // word on eligibility either way.
-    const trialDays = kind === 'new' && terms.state === 'none' ? (plan.trialDays ?? 0) : 0;
+    const trialDays = kind === 'new' && terms.state === 'none' && terms.trialEligible ? (plan.trialDays ?? 0) : 0;
     const validUntil = formatDate(membership?.validUntil);
     const isProcessing = pageState === PageState.Purchasing || pageState === PageState.Fetching;
 
@@ -211,6 +217,13 @@ export const SubscriptionConfirmPage = () => {
             setPurchasing(null);
             const code = (e as { code?: string })?.code;
             if (code === 'user-cancelled') return;
+            // A website subscription is running — the relay refuses the receipt. Explain, and point to
+            // where that subscription is managed, instead of reporting a payment failure.
+            if (isWebSubscriptionActiveError(e)) {
+                logger.warn('IAP', 'purchase refused: web subscription is active', { planId: plan.id });
+                showWebActive();
+                return;
+            }
             // The store already holds an entitlement this account never got attached to — recover
             // it the way the restore button does instead of reporting a payment failure.
             if (code === 'already-owned') {
@@ -339,6 +352,9 @@ export const SubscriptionConfirmPage = () => {
                     </span>
                 </div>
             )}
+
+            {webActiveNotice}
+            {restoreNotice}
 
             <PurchaseDoneDialog
                 membership={done}

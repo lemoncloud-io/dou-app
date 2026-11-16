@@ -3487,10 +3487,10 @@
   dependencies:
     lemon-model "^1.5.0"
 
-"@lemoncloud/chatic-sockets-lib@0.7.1":
-  version "0.7.1"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.7.1.tgz#3d9ca8b26d83773a19651fa02a03c1706ce9fd5f"
-  integrity sha512-AHWz74WhvYJAAjJyQ+/QDSsq3i3XNPhHb3gFnuVz5qZ08aaXSWmVmumqInSwm7Ij3zXP4EcbzFbBqJMA7ln8uQ==
+"@lemoncloud/chatic-sockets-lib@0.7.3":
+  version "0.7.3"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.7.3.tgz#79c7b266b077c81727c7741f42b580f1e7fda751"
+  integrity sha512-zImE9Afrq42xyZedKoiEfwjCTNfEHUT3rNvTf9Wm5jbbUQqdObUIj1ITLK18YcV+p/psZk0cXFAKwLhl2a7htg==
 
 "@lemoncloud/hybrid-shell@^0.8.1":
   version "0.8.1"

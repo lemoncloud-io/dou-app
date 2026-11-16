@@ -10,6 +10,7 @@
 > the switch is gated by the stage _or_ the app's debug mode, not by the stage alone
 > · Amended by: [ADR-0328](./0328-a-dev-build-starts-an-unswitched-install-on-the-apps-runtime.md) —
 > decision 1 holds for production builds; a `DEV` stage build starts an unswitched install on the runtime
+> · Amended by: [ADR-0330](./0330-production-starts-on-the-apps-runtime-and-the-web-names-the-default.md) decisions 1 and 5
 
 ## Context
 

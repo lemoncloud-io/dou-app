@@ -36,3 +36,24 @@ export type OnSetSessionOwnerPayload = {
     next: SessionOwnerName;
     restarting: boolean;
 };
+
+// --- Default owner, named by the page ---
+//
+// The owner switch above is a person's choice for one install. `SetDefaultSessionOwner` is the page's
+// word for every install nobody switched: the web build carries a setting, and the page sends it on each
+// boot, so a web deploy decides which side a production app holds the session on — no app release and no
+// debug mode. The shell records it for the NEXT start and never restarts for it, so a launch already
+// running keeps its owner. A choice recorded by the switch still outranks it, and so does a build's pin. `null` clears it, and the
+// install falls back to the build's own default (the app's runtime in production from 0.32.1). Answered by any build that
+// lists it in its `WebAppReady` reply; a shell from before it leaves it unregistered (`NOT_FOUND`).
+
+/** [Request] Records the owner of an install nobody switched — `null` to clear it — for the next start. */
+export type SetDefaultSessionOwnerPayload = {
+    owner: SessionOwnerName | null;
+};
+
+/** [Response] What is recorded now, and the owner the next start will have once every rule is applied. */
+export type OnSetDefaultSessionOwnerPayload = {
+    default: SessionOwnerName | null;
+    next: SessionOwnerName;
+};

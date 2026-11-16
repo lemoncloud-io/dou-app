@@ -40,6 +40,20 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'NOTES.TXT' }))).toBe('text');
     });
 
+    it('opens a sent CSV, Markdown or JSON file as text, by its type or its name', () => {
+        expect(canPreview(sent({ name: 'data.csv', contentType: 'text/csv' }))).toBe('text');
+        expect(canPreview(sent({ name: 'README.MD' }))).toBe('text');
+        expect(canPreview(sent({ name: 'notes.md', contentType: 'text/markdown' }))).toBe('text');
+        expect(canPreview(sent({ name: 'data.json', contentType: 'application/json' }))).toBe('text');
+        expect(canPreview(sent({ name: 'data.json', contentType: 'application/json', isUploading: true }))).toBeNull();
+    });
+
+    it('does not open a legacy Office file', () => {
+        expect(canPreview(sent({ name: 'old.doc', contentType: 'application/msword' }))).toBeNull();
+        expect(canPreview(sent({ name: 'old.xls' }))).toBeNull();
+        expect(canPreview(sent({ name: 'old.ppt' }))).toBeNull();
+    });
+
     // A voice file plays in the page; macOS types an M4A `audio/x-m4a`.
     it('plays a sent voice file, by its type or its name', () => {
         expect(canPreview(sent({ name: 'song.mp3', contentType: 'audio/mpeg' }))).toBe('audio');

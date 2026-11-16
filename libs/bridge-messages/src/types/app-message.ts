@@ -138,6 +138,7 @@ import type {
     OnRuntimeUnsubscribePayload,
     OnFetchSessionOwnerPayload,
     OnSetSessionOwnerPayload,
+    OnSetDefaultSessionOwnerPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -316,6 +317,7 @@ export type AppMessageDataMap = {
     // 13. Session owner — replies to the owner switch.
     OnFetchSessionOwner: OnFetchSessionOwnerPayload;
     OnSetSessionOwner: OnSetSessionOwnerPayload;
+    OnSetDefaultSessionOwner: OnSetDefaultSessionOwnerPayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

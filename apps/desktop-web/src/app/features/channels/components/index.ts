@@ -11,4 +11,6 @@ export * from './AvatarRowsSkeleton';
 export * from './MemberRow';
 export * from './MemberList';
 export * from './ChannelSettingsPanel';
+export * from './ChannelWebhooksSection';
+export * from './IssueWebhookDialog';
 export * from './NewDmDialog';

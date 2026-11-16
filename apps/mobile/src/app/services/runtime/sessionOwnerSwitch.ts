@@ -25,7 +25,7 @@ export interface SessionOwnerSwitchDeps {
     current: () => SessionOwner;
     /** The file the owner is recorded in for the next start. */
     file: () => SessionOwnerFile;
-    /** The owner an install nobody has switched runs on (`buildDefaultSessionOwner`); the page if omitted. */
+    /** The owner an install nobody has switched runs on (`unswitchedSessionOwner`); the page if omitted. */
     fallback?: () => SessionOwner;
     restart: Pick<AppRestart, 'restart'>;
     schedule?: (run: () => void, ms: number) => () => void;

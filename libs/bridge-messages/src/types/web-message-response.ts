@@ -136,6 +136,7 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     RuntimeUnsubscribe: 'OnRuntimeUnsubscribe',
     FetchSessionOwner: 'OnFetchSessionOwner',
     SetSessionOwner: 'OnSetSessionOwner',
+    SetDefaultSessionOwner: 'OnSetDefaultSessionOwner',
 } as const satisfies Record<WebMessageType, AppMessageType>;
 
 export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;

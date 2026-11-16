@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
 
+import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { useSubscriptionIap } from './useSubscriptionIap';
 import { useLinkedAccounts } from '../../../hooks';
 
@@ -9,7 +10,8 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
+const mockInvalidate = jest.fn();
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mockInvalidate }) }));
 
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 
@@ -228,5 +230,41 @@ describe('useSubscriptionIap — 결제 기록', () => {
         mockStore.purchase.mockResolvedValueOnce({ productId: 'plan-1', purchaseToken: 't' });
 
         await expect(result.current.purchaseAndValidate(product)).resolves.toBe(validated);
+    });
+});
+
+describe('useSubscriptionIap — website subscription refusal', () => {
+    const refusal = new Error(
+        '409 CONFLICT - portone subscription is active - verifyMembershipPurchase(membership/MS1)'
+    );
+
+    it('restore stops with the typed error instead of skipping the receipt', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([{ productId: 'P', purchaseToken: 'T' }]);
+        membershipMutate.mockRejectedValueOnce(refusal);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).rejects.toBeInstanceOf(WebSubscriptionActiveError);
+        expect(mockStore.finish).not.toHaveBeenCalled();
+    });
+
+    it('receipts restored before the refusal still refresh the caches, and the refusal is rethrown', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([
+            { productId: 'P1', purchaseToken: 'T1' },
+            { productId: 'P2', purchaseToken: 'T2' },
+        ]);
+        membershipMutate.mockResolvedValueOnce({ isValid: true }).mockRejectedValueOnce(refusal);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).rejects.toBeInstanceOf(WebSubscriptionActiveError);
+        expect(mockStore.finish).toHaveBeenCalledTimes(1);
+        expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['subscription'] });
+    });
+
+    it('other validation failures stay skippable during restore', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([{ productId: 'P', purchaseToken: 'T' }]);
+        membershipMutate.mockRejectedValueOnce(new Error('403 INVALID PAYMENT'));
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).resolves.toBe(0);
     });
 });

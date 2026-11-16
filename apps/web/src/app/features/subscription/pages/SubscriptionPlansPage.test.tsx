@@ -48,12 +48,14 @@ const show = ({
     options,
     replaceable = current,
     resubscribe,
+    trialEligible = true,
 }: {
     state: string;
     current?: typeof tier1;
     options: unknown[];
     replaceable?: Record<string, unknown>;
     resubscribe?: typeof tier1;
+    trialEligible?: boolean;
 }) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({
         sellablePlans: [tier1, tier2, tier3],
@@ -61,6 +63,7 @@ const show = ({
         currentPlan: current,
         replaceablePlan: replaceable,
         resubscribePlan: resubscribe,
+        trialEligible,
         sellsInStore: true,
         isIOS: true,
     });
@@ -76,6 +79,12 @@ beforeEach(() => {
 });
 
 describe('Subscription picker — scenarios', () => {
+    it('first subscription the server says is not trial-eligible: no trial badge', () => {
+        show({ state: 'none', trialEligible: false, options: [option(tier1, 'new')] });
+
+        expect(screen.queryByText(`${K}.trialBadge:7`)).not.toBeInTheDocument();
+    });
+
     it('first subscription: only the entry tier is pickable, with its trial; continue opens the confirm step', () => {
         show({
             state: 'none',

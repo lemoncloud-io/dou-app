@@ -21,6 +21,7 @@ Top to bottom:
   join had (the outbox restores the join). In the channel list a mentions-only channel wears an `@` glyph and one that is
   off a crossed bell.
 - **Channel ID**, group channels only (below).
+- **Webhooks**, for the owner of a group channel only (below).
 - **Leaving and deleting**: Leave for everyone, Delete for the owner. Either one closes the panel and
   clears the selected room once the server answers — about a second after the confirm, while the row
   has already left the list. Both apply only if that channel's panel and room are still the open ones
@@ -80,3 +81,33 @@ selectable as one piece, with a Copy button. Copy puts the id on the clipboard a
 
 A 1:1 and the self channel do not show it. Neither is somewhere a service posts to, and the panel
 has no use for the id there.
+
+## Webhooks
+
+The owner of a group channel manages the channel's webhooks here. A section appears between Channel ID
+and the leave/delete group only when the viewer owns the channel (`isChannelOwner`) and the channel is
+not a 1:1 or the self chat — the same rule that hides the Channel ID. Everyone else never sees it, and
+the hook behind it never reads the list for them. The section is
+`ChannelWebhooksSection`, its data is `useChannelWebhooks`, and the data layer is
+[`libs/data/docs/remote/socket.md`](../../../../libs/data/docs/remote/socket.md#webhook).
+
+- **List.** One row per live webhook: its name ("Unnamed webhook" when empty), a "Last used" date or
+  "Never used", the expiry date or "No expiry", and a badge for Paused (`disabled`) or Expired
+  (`expiresAt` in the past; `0` is never). The list is read when the socket is verified, again on the
+  unverified→verified edge, and on "Try again". It shows a loading line, an empty line, or an error
+  line with that retry.
+- **Issue.** "New webhook" asks for an optional name and an expiry (none, 7, 30 or 90 days) and then
+  shows the **token and the endpoint URL once**, each with a Copy button. The URL is the `Location` the
+  server returns on issue; a server without an endpoint configured returns none and the dialog says so
+  instead of guessing one. The token is held in the dialog's own state and nowhere else — not the
+  repository, a store, the cache or a log — and any close of the dialog drops it. It cannot be read
+  again, so the dialog says to copy it now.
+- **Pause, resume, expiry.** Pause/Resume sends `disabled`; the expiry menu sends `expiresAt` for the
+  chosen preset (`0` = never). Each row is disabled while its write is in flight. The row changes only
+  after the server accepted the write; a refusal leaves the row as it was and raises a failure toast
+  with the wire text.
+- **Delete.** Behind the confirm dialog, which names the webhook; the services using it can no longer
+  post.
+
+A cloud server that does not have the webhook action yet answers an error, which the list shows as the
+error line. The posted messages themselves are drawn as in [webhook-messages.md](./webhook-messages.md).

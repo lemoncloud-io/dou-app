@@ -314,6 +314,11 @@
             "restoreSuccess": "{{count}}건 복원 완료",
             "restoreEmpty": "복원할 구매가 없습니다",
             "restoreFailed": "복원에 실패했습니다",
+            "webActive": {
+                "title": "웹에서 결제한 구독이 있어요",
+                "description": "웹에서 시작한 구독이 이용 중이라 스토어 결제를 더할 수 없어요. 웹에서 구독을 관리하거나 변경해 주세요.",
+                "manage": "웹에서 관리"
+            },
             "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
             "termsOfService": "이용약관",
             "privacyPolicy": "개인정보처리방침",

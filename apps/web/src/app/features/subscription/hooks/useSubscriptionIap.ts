@@ -11,6 +11,7 @@ import { logger } from '@chatic/bridges';
 import { host, type StoreCheckout } from '@chatic/host';
 import { useLinkedAccounts } from '../../../hooks';
 import { APP_ID } from '../consts';
+import { asWebSubscriptionActive, isWebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import type { NativePurchase, PurchaseProduct } from '../types';
 
 /**
@@ -50,15 +51,28 @@ export const useSubscriptionIap = () => {
     // never meant to be reachable by a client credential, only by backend-api's own.
     const validate = useCallback(
         async (result: NativePurchase, email?: string) => {
-            const membership = await validateMembership.mutateAsync({
-                body: {
-                    appId: APP_ID,
-                    paymentType: storeCheckout().store === 'apple' ? 'apple-inapp' : 'google-inapp',
-                    purchaseToken: result.purchaseToken ?? '',
-                    productId: result.productId,
-                    ...(email && { email }),
-                },
-            });
+            const membership = await validateMembership
+                .mutateAsync({
+                    body: {
+                        appId: APP_ID,
+                        paymentType: storeCheckout().store === 'apple' ? 'apple-inapp' : 'google-inapp',
+                        purchaseToken: result.purchaseToken ?? '',
+                        productId: result.productId,
+                        ...(email && { email }),
+                    },
+                })
+                .catch((e: unknown) => {
+                    // A running website subscription refuses every store receipt (409). That is not a
+                    // payment failure, so it leaves here as its own error for the screens to explain.
+                    const webActive = asWebSubscriptionActive(e);
+                    if (webActive) {
+                        logger.warn('IAP', 'store receipt refused: web subscription is active', {
+                            data: { productId: result.productId },
+                        });
+                        throw webActive;
+                    }
+                    throw e;
+                });
 
             if (!membership.isValid) {
                 // Charged by the store but the membership never attaches — the "paid and got nothing"
@@ -136,6 +150,7 @@ export const useSubscriptionIap = () => {
         const store = storeCheckout();
         const purchases = await store.currentPurchases();
         let restored = 0;
+        let webActive: unknown;
 
         for (const p of purchases) {
             try {
@@ -143,6 +158,13 @@ export const useSubscriptionIap = () => {
                 await store.finish(p);
                 restored++;
             } catch (e) {
+                // The refusal covers the whole account, not this receipt: stop and let the caller
+                // explain it rather than counting it as one more skipped receipt. Receipts restored
+                // before it still refresh the caches below.
+                if (isWebSubscriptionActiveError(e)) {
+                    webActive = e;
+                    break;
+                }
                 logger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
             }
         }
@@ -152,6 +174,7 @@ export const useSubscriptionIap = () => {
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 
+        if (webActive) throw webActive;
         return restored;
     }, [validate, queryClient]);
 

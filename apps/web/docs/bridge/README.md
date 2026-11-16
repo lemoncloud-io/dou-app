@@ -199,6 +199,17 @@ limits:
   process is the page's alone, and the shell, never asked, keeps its runtime off. The same holds for a
   page that shares no contract with the shell.
 
+**The default owner.** The switch above stops this page from asking; it does not tell the app where to
+start. That is `VITE_APP_SESSION_OWNER` (`web` or `native`): once the app's `WebAppReady` reply lists
+`SetDefaultSessionOwner`, the page sends the value on every boot (`runtime/sessionOwnerDefault.ts`), and
+the app records it for installs nobody switched, from their next start. A production app from 0.32.1
+starts those installs on its runtime by default, so naming `web` here is the rollback that needs no app
+release. A launch left on the unsettled screen sends it too, without the handshake, since that is the
+launch a rollback must reach. Unset sends `null`, which clears an earlier value; with `VITE_SESSION_MIRROR_DISABLED=true` the
+page names `web`. The deploy workflows fill it from the `WEB_DEV_APP_SESSION_OWNER` /
+`WEB_PROD_APP_SESSION_OWNER` repository variables, so a change needs a web deploy to land
+(apps/mobile `docs/runtime` README, "The page's default").
+
 ## Without a native shell
 
 `isNative()` (from `@chatic/bridges`) is false in a plain browser tab, and every `appBridge` request
