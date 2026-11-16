@@ -50,7 +50,7 @@ describe('WebhookRepository', () => {
     it('pause, resume and expiry send the keys the server reads (false and 0 included)', async () => {
         const { dataSource, repository } = create();
         dataSource.update.mockResolvedValue({ id: 'a' });
-        await repository.setPaused('a', false);
+        await expect(repository.setPaused('a', false)).resolves.toBeUndefined();
         await repository.setExpiresAt('a', 0);
         expect(dataSource.update).toHaveBeenNthCalledWith(1, { id: 'a', disabled: false });
         expect(dataSource.update).toHaveBeenNthCalledWith(2, { id: 'a', expiresAt: 0 });

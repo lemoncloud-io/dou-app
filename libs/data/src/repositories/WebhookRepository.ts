@@ -19,10 +19,10 @@ export interface IWebhookRepository extends DisposableRepository {
     list(channelId: string): Promise<DomainWebhook[]>;
     /** Issues a token. The secret is on the result only — this repository keeps nothing. */
     issue(channelId: string, input?: WebhookIssueInput): Promise<DomainIssuedWebhook>;
-    /** Pauses (`true`) or resumes (`false`) a webhook. */
-    setPaused(id: string, paused: boolean): Promise<DomainWebhook>;
-    /** Sets the expiry; 0 = never. */
-    setExpiresAt(id: string, expiresAt: number): Promise<DomainWebhook>;
+    /** Pauses (`true`) or resumes (`false`) a webhook. Resolves when the server accepted it. */
+    setPaused(id: string, paused: boolean): Promise<void>;
+    /** Sets the expiry; 0 = never. Resolves when the server accepted it. */
+    setExpiresAt(id: string, expiresAt: number): Promise<void>;
     remove(id: string): Promise<void>;
 }
 
@@ -52,12 +52,14 @@ export class WebhookRepository extends BaseRepository implements IWebhookReposit
         return issued;
     }
 
-    public async setPaused(id: string, paused: boolean): Promise<DomainWebhook> {
-        return toDomainWebhook(await this.dataSource.update({ id, disabled: paused }));
+    // The write answers are not mapped: the caller already knows the value it asked for, and a
+    // partial answer (the server may omit `lastUsedAt` on an update) would overwrite what the list holds.
+    public async setPaused(id: string, paused: boolean): Promise<void> {
+        await this.dataSource.update({ id, disabled: paused });
     }
 
-    public async setExpiresAt(id: string, expiresAt: number): Promise<DomainWebhook> {
-        return toDomainWebhook(await this.dataSource.update({ id, expiresAt }));
+    public async setExpiresAt(id: string, expiresAt: number): Promise<void> {
+        await this.dataSource.update({ id, expiresAt });
     }
 
     public async remove(id: string): Promise<void> {
