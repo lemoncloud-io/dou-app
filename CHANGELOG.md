@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Features
+
+- (data,desktop-web) accept csv, md, json, doc, xls, ppt uploads
+- (data,desktop-web) accept csv, md, json, doc, xls, ppt uploads
+
+### Bug Fixes
+
+- (data) keep reading an OOXML name under a legacy Office type
+
 ## [2026-11-16] - root@0.159.2, @chatic/web@0.90.3
 
 ### Bug Fixes
