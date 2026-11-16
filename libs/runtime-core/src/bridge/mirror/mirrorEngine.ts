@@ -111,29 +111,31 @@ const mirrorGraph = (talk: MirrorConversation, target: string, prefix: readonly 
     for (const [repository, methods] of Object.entries(REPOSITORY_METHODS)) {
         const members: Record<string, (...args: unknown[]) => unknown> = {};
         for (const [method, crossing] of Object.entries(
-            methods as Record<string, 'call' | 'stream' | 'send' | 'local'>
+            methods as Record<string, 'call' | 'receipt' | 'stream' | 'send' | 'local'>
         )) {
             const name = `${repository}.${method}`;
             members[method] =
                 crossing === 'call'
                     ? (...args) => talk.call(target, name, [...prefix, ...args])
-                    : crossing === 'send'
-                      ? (...args) => talk.send(target, name, [...prefix, ...args])
-                      : crossing === 'local'
-                        ? () => {
-                              throw notInMirror(`${target}.${name}`);
-                          }
-                        : (...args) => {
-                              const at = args.findIndex(arg => typeof arg === 'function');
-                              if (at < 0) throw new Error(`${name} takes a listener`);
-                              return talk.listen(
-                                  target,
-                                  name,
-                                  [...prefix, ...args],
-                                  prefix.length + at,
-                                  args[at] as (...event: never[]) => void
-                              );
-                          };
+                    : crossing === 'receipt'
+                      ? (...args) => talk.receipt(target, name, [...prefix, ...args])
+                      : crossing === 'send'
+                        ? (...args) => talk.send(target, name, [...prefix, ...args])
+                        : crossing === 'local'
+                          ? () => {
+                                throw notInMirror(`${target}.${name}`);
+                            }
+                          : (...args) => {
+                                const at = args.findIndex(arg => typeof arg === 'function');
+                                if (at < 0) throw new Error(`${name} takes a listener`);
+                                return talk.listen(
+                                    target,
+                                    name,
+                                    [...prefix, ...args],
+                                    prefix.length + at,
+                                    args[at] as (...event: never[]) => void
+                                );
+                            };
         }
         graph[repository] = members;
     }

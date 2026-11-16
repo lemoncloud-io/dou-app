@@ -9,6 +9,7 @@ import type { RuntimeConnection } from '../connection/runtimeConnection';
 import type { SessionCommands } from '../session/commands';
 import type { RuntimeSync } from '../sync/runtimeSync';
 import type { SessionSnapshot } from '../session/snapshot';
+import type { CheckedCrossing } from './wire';
 
 /**
  * The runtime contract this build speaks across the bridge: what the session snapshot holds, which
@@ -69,8 +70,13 @@ export interface SessionSnapshotWire {
 /** The `target` a `RuntimeCall` names for a session command. */
 export const SESSION_COMMANDS_TARGET = 'session';
 
-// Keyed by every command, so a command added to `SessionCommands` and left out here does not compile.
-const sessionCommandMethods: Record<keyof SessionCommands, true> = {
+// Keyed by every command, so a command added to `SessionCommands` and left out here does not compile —
+// nor does one whose result would not cross as JSON (`CheckedCrossing`): its entry's type names the part.
+const sessionCommandMethods: {
+    [Command in keyof SessionCommands]: CheckedCrossing<SessionCommands[Command], 'call'> extends 'call'
+        ? true
+        : CheckedCrossing<SessionCommands[Command], 'call'>;
+} = {
     loginUser: true,
     loginBySocialToken: true,
     loginGuestByDevice: true,
@@ -109,32 +115,34 @@ export const SESSION_COMMAND_METHODS = Object.keys(sessionCommandMethods) as rea
  */
 type Crossing = 'view' | 'call' | 'stream' | 'local';
 
-const membersCrossing = <T>(members: Record<keyof T, Crossing>, crossing: Crossing): readonly (keyof T)[] =>
+const membersCrossing = <T>(members: Record<keyof T, string>, crossing: Crossing): readonly (keyof T)[] =>
     (Object.keys(members) as (keyof T)[]).filter(member => members[member] === crossing);
 
 /** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the sockets. */
 export const CONNECTION_TARGET = 'connection';
 
-// Keyed by every member, so one added to `RuntimeConnection` and left out here does not compile.
-const connectionMembers: Record<keyof RuntimeConnection, Crossing> = {
-    snapshot: 'view',
-    subscribe: 'view',
-    waitUntilVerified: 'call',
-    // A raw request of any type, and every frame: neither is a domain result. The page does not use
-    // the request — the relay account's profile is the session commands `fetchAccountProfile` and
-    // `updateAccountProfile` — and the frames feed a desktop debug log, where the desktop shell never
-    // runs the runtime itself.
-    requestOnSlot: 'local',
-    onServerEvent: 'stream',
-    onServerMessage: 'local',
-    observeRequests: 'stream',
-    slotStatuses: 'call',
-    reconnect: 'call',
-    recoverUnverified: 'call',
-    recoverOnResume: 'call',
-    setBackgroundClouds: 'call',
-    setOwnedClouds: 'call',
-};
+// Keyed by every member, so one added to `RuntimeConnection` and left out here does not compile. A
+// `call` entry is checked against the member's result too (`CheckedCrossing`).
+const connectionMembers: { [Member in keyof RuntimeConnection]: CheckedCrossing<RuntimeConnection[Member], Crossing> } =
+    {
+        snapshot: 'view',
+        subscribe: 'view',
+        waitUntilVerified: 'call',
+        // A raw request of any type, and every frame: neither is a domain result. The page does not use
+        // the request — the relay account's profile is the session commands `fetchAccountProfile` and
+        // `updateAccountProfile` — and the frames feed a desktop debug log, where the desktop shell never
+        // runs the runtime itself.
+        requestOnSlot: 'local',
+        onServerEvent: 'stream',
+        onServerMessage: 'local',
+        observeRequests: 'stream',
+        slotStatuses: 'call',
+        reconnect: 'call',
+        recoverUnverified: 'call',
+        recoverOnResume: 'call',
+        setBackgroundClouds: 'call',
+        setOwnedClouds: 'call',
+    };
 
 /** The connection methods a `RuntimeCall` may name. */
 export const CONNECTION_CALL_METHODS = membersCrossing<RuntimeConnection>(connectionMembers, 'call');
@@ -146,7 +154,7 @@ export const CONNECTION_LOCAL_MEMBERS = membersCrossing<RuntimeConnection>(conne
 /** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the sync engine. */
 export const SYNC_TARGET = 'sync';
 
-const syncMembers: Record<keyof RuntimeSync, Crossing> = {
+const syncMembers: { [Member in keyof RuntimeSync]: CheckedCrossing<RuntimeSync[Member], Crossing> } = {
     registerTarget: 'stream',
     updateLocalSnapshot: 'call',
     listTargets: 'call',

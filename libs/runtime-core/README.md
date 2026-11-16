@@ -18,7 +18,7 @@ libs/runtime-core/src/
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
-├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) and a host joined to a mirror in one process (`testing/mirrorLoopback`) — not on the barrel
+├── testing/            fakes for tests that go through the engine (`testing/sessionView`, `testing/sessionCommands`, `testing/connection`) and a host joined to a mirror in one process, through JSON as the bridge carries it (`testing/mirrorLoopback`) — not on the barrel
 ├── connection/         the connection controller: session → socket slots; the sockets as screens read them — see docs/connection/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/

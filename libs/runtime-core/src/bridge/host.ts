@@ -34,6 +34,7 @@ import {
     DATA_STREAMS,
     DATA_TARGET,
     REPOSITORY_CALL_METHODS,
+    REPOSITORY_RECEIPTS,
     REPOSITORY_STREAMS,
 } from './repositories';
 
@@ -159,13 +160,14 @@ const viewOf = (
  */
 const resolveMember = (
     engine: RuntimeEngine,
-    kind: 'call' | 'stream',
+    kind: 'call' | 'stream' | 'receipt',
     target: string,
     method: string,
     args: unknown[]
 ): { invoke: Invoke; args: unknown[] } | null => {
-    const listed = (calls: readonly string[], streams: readonly string[]) =>
-        has(kind === 'call' ? calls : streams, method);
+    // Only a repository method answers with a write receipt; every other target lists none.
+    const listed = (calls: readonly string[], streams: readonly string[], receipts: readonly string[] = []) =>
+        has(kind === 'call' ? calls : kind === 'stream' ? streams : receipts, method);
     const bound = (owner: object, name: string): Invoke | null => {
         const member = (owner as Record<string, unknown>)[name];
         return typeof member === 'function' ? (member as Invoke).bind(owner) : null;
@@ -191,13 +193,17 @@ const resolveMember = (
         case DATA_TARGET:
             if (listed(DATA_CALL_METHODS as readonly string[], DATA_STREAMS as readonly string[])) {
                 invoke = bound(engine.data, method);
-            } else if (listed(REPOSITORY_CALL_METHODS, REPOSITORY_STREAMS)) {
+            } else if (listed(REPOSITORY_CALL_METHODS, REPOSITORY_STREAMS, REPOSITORY_RECEIPTS)) {
                 invoke = repositoryMethod(engine.data.repositories(), method);
             }
             break;
         case DATA_CLOUD_TARGET:
             // A cloud's graph rather than the live scope's: the cloud id comes first.
-            if (typeof args[0] === 'string' && args[0] !== '' && listed(REPOSITORY_CALL_METHODS, REPOSITORY_STREAMS)) {
+            if (
+                typeof args[0] === 'string' &&
+                args[0] !== '' &&
+                listed(REPOSITORY_CALL_METHODS, REPOSITORY_STREAMS, REPOSITORY_RECEIPTS)
+            ) {
                 invoke = repositoryMethod(engine.data.cloudRepositories(args[0]), method);
                 rest = args.slice(1);
             }
@@ -205,6 +211,43 @@ const resolveMember = (
     }
     return invoke ? { invoke, args: rest } : null;
 };
+
+/** What a write receipt's stream sends: the local half done (`written`), then the server's (`delivered`). */
+export type RuntimeReceiptEvent = { written: RuntimeWireValue } | { delivered: true };
+
+/**
+ * A repository method that answers with a write receipt, as a stream: its result's promise cannot cross,
+ * so each half of the write is an event of its own. `{ written }` carries the receipt without its
+ * delivery once the method resolves; `{ delivered: true }` follows once the server has the write. The
+ * method's own failure, and a delivery the server refused, end the stream with the failure — the same
+ * error a page's `await` or `delivered.catch` would have seen in-process.
+ *
+ * Stopping only stops the events: the write is the outbox's, and it goes out whether or not the page is
+ * still listening.
+ */
+const receiptMember = (method: { invoke: Invoke; args: unknown[] }): { invoke: Invoke; args: unknown[] } => ({
+    invoke: (listener: unknown, fail: unknown) => {
+        const emit = listener as (event: RuntimeReceiptEvent) => void;
+        const endWith = fail as (error: unknown) => void;
+        // Invoked now, not on a later turn: in-process the write starts as the method is called, and a
+        // call the page sends right after this subscribe must find it started.
+        let answered: Promise<unknown>;
+        try {
+            answered = Promise.resolve(method.invoke(...method.args));
+        } catch (error) {
+            answered = Promise.reject(error);
+        }
+        answered
+            .then(receipt => {
+                const { delivered, ...written } = (receipt ?? {}) as { delivered?: unknown };
+                emit({ written: written as RuntimeWireValue });
+                return Promise.resolve(delivered).then(() => emit({ delivered: true }));
+            })
+            .catch(endWith);
+        return () => undefined;
+    },
+    args: [RUNTIME_LISTENER_MARKER],
+});
 
 /**
  * The shell's half of the runtime across the bridge: it answers a page's hello, runs the calls the
@@ -219,7 +262,8 @@ const resolveMember = (
  *   `RUNTIME_NOT_AVAILABLE`; a member that throws answers `RUNTIME_ERROR` with the crossing fields.
  * - **Subscriptions.** The listener goes where the page put `RUNTIME_LISTENER_MARKER`; each call of it
  *   is one `OnRuntimeEvent`, numbered per subscription and from 1 in each document. A new subscription
- *   under a known id replaces the old one.
+ *   under a known id replaces the old one. A repository method that answers with a write receipt is
+ *   subscribed to under its own name (`receiptMember`).
  * - **The session.** Every change of the session view, coalesced per `schedule`, is one
  *   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at. A
  *   push still waiting when a call settles goes out before the call's answer.
@@ -494,6 +538,9 @@ export const createRuntimeBridgeHost = ({
                 };
                 return subscribeTo(subscriptionId, `${target}.${topic}`, viewMember, true);
             }
+            const receipt = resolveMember(engine, 'receipt', target, topic, given);
+            if (receipt) return subscribeTo(subscriptionId, `${target}.${topic}`, receiptMember(receipt), true);
+
             const member = resolveMember(engine, 'stream', target, topic, given);
             if (!member) return { failure: runtimeNotAvailableFailure(target, topic) };
 
