@@ -3,6 +3,13 @@ import { SESSION_OWNER_KEY } from './sessionOwner';
 
 const mockOpen = jest.fn();
 jest.mock('./runtimeStorageFiles', () => ({ openSessionOwnerFile: () => mockOpen() }));
+const mockConfig: { VITE_ENV?: string; VITE_SESSION_OWNER_DEFAULT?: string } = {};
+jest.mock('react-native-config', () => ({ __esModule: true, default: mockConfig }));
+
+beforeEach(() => {
+    delete mockConfig.VITE_ENV;
+    delete mockConfig.VITE_SESSION_OWNER_DEFAULT;
+});
 
 /** A fresh copy of the module, so each test starts before the owner was read. */
 const load = (): typeof LaunchSessionOwnerModule.launchSessionOwner => {
@@ -25,7 +32,31 @@ describe('launchSessionOwner', () => {
         expect(mockOpen).toHaveBeenCalledTimes(1);
     });
 
-    it("reads a file that cannot be opened as the page's", () => {
+    it.each([
+        ['DEV', 'native'],
+        ['PROD', 'web'],
+        [undefined, 'web'],
+    ])('runs an install nobody switched, on a %p build, on %p', (stage, owner) => {
+        mockConfig.VITE_ENV = stage;
+        mockOpen.mockReturnValue({ getString: () => undefined });
+        expect(load()()).toBe(owner);
+    });
+
+    it('keeps a recorded page choice on a dev build', () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? 'web' : undefined) });
+        expect(load()()).toBe('web');
+    });
+
+    it("follows the build's override on a dev build", () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockConfig.VITE_SESSION_OWNER_DEFAULT = 'web';
+        mockOpen.mockReturnValue({ getString: () => undefined });
+        expect(load()()).toBe('web');
+    });
+
+    it("reads a file that cannot be opened as the page's, even on a dev build", () => {
+        mockConfig.VITE_ENV = 'DEV';
         mockOpen.mockImplementation(() => {
             throw new Error('mmkv');
         });

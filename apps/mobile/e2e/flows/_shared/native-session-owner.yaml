@@ -1,6 +1,7 @@
 # Switches the session to the app's own runtime, from the development switch in the debug overlay, and
 # checks that the restarted launch runs on it. `fresh-guest.yaml` runs this when the run was started
-# with `--session-owner native`; the clean install it follows has always put the session back on the page.
+# with `--session-owner native`; the clean install it follows starts on the page, because the harness pins
+# its builds' `VITE_SESSION_OWNER_DEFAULT` to `web` (a dev build would otherwise start on the runtime).
 #
 # The screen is picked from the overlay's menu, below its Tools heading: the tab strip at the top carries
 # the same name as an accessibility label, and is scrolled out of view.

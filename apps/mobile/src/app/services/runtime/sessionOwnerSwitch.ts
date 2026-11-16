@@ -25,6 +25,8 @@ export interface SessionOwnerSwitchDeps {
     current: () => SessionOwner;
     /** The file the owner is recorded in for the next start. */
     file: () => SessionOwnerFile;
+    /** The owner an install nobody has switched runs on (`buildDefaultSessionOwner`); the page if omitted. */
+    fallback?: () => SessionOwner;
     restart: Pick<AppRestart, 'restart'>;
     schedule?: (run: () => void, ms: number) => () => void;
 }
@@ -46,6 +48,7 @@ const scheduleTimeout = (run: () => void, ms: number): (() => void) => {
 export const createSessionOwnerSwitch = ({
     current,
     file,
+    fallback = () => 'web',
     restart,
     schedule = scheduleTimeout,
 }: SessionOwnerSwitchDeps) => {
@@ -54,7 +57,7 @@ export const createSessionOwnerSwitch = ({
     return {
         read: (): { current: SessionOwner; next: SessionOwner } => ({
             current: current(),
-            next: readSessionOwner(file()),
+            next: readSessionOwner(file(), fallback()),
         }),
         set: (owner: SessionOwner): { next: SessionOwner; restarting: boolean } => {
             writeSessionOwner(file(), owner);

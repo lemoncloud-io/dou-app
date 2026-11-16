@@ -8,6 +8,8 @@
 > and [apps/mobile docs/release/deploy.md](../../apps/mobile/docs/release/deploy.md)
 > · Amends: [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md) decision 5 —
 > the switch is gated by the stage _or_ the app's debug mode, not by the stage alone
+> · Amended by: [ADR-0328](./0328-a-dev-build-starts-an-unswitched-install-on-the-apps-runtime.md) —
+> decision 1 holds for production builds; a `DEV` stage build starts an unswitched install on the runtime
 
 ## Context
 

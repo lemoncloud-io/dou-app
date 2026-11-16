@@ -15,13 +15,14 @@ const fakeFile = (initial?: string) => {
     };
 };
 
-const build = (current: SessionOwner, stored?: string) => {
+const build = (current: SessionOwner, stored?: string, fallback?: SessionOwner) => {
     const file = fakeFile(stored);
     const restart = { restart: jest.fn().mockResolvedValue(true) };
     const scheduled: { run: () => void; ms: number; cancelled: boolean }[] = [];
     const ownerSwitch = createSessionOwnerSwitch({
         current: () => current,
         file: () => file,
+        ...(fallback ? { fallback: () => fallback } : {}),
         restart,
         schedule: (run, ms) => {
             const entry = { run, ms, cancelled: false };
@@ -58,6 +59,18 @@ describe('createSessionOwnerSwitch', () => {
         const { ownerSwitch } = build('web', 'native');
 
         expect(ownerSwitch.read()).toEqual({ current: 'web', next: 'native' });
+    });
+
+    it("answers the build's default for the next start when nothing is recorded", () => {
+        expect(build('native', undefined, 'native').ownerSwitch.read()).toEqual({ current: 'native', next: 'native' });
+        expect(build('web', undefined).ownerSwitch.read()).toEqual({ current: 'web', next: 'web' });
+    });
+
+    it('keeps a recorded page choice on a build that defaults to the runtime', () => {
+        const { ownerSwitch } = build('native', undefined, 'native');
+
+        expect(ownerSwitch.set('web')).toEqual({ next: 'web', restarting: true });
+        expect(ownerSwitch.read()).toEqual({ current: 'native', next: 'web' });
     });
 
     it('records a different owner and restarts after its answer is sent', () => {

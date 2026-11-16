@@ -15,6 +15,8 @@ declare module 'react-native-config' {
         VITE_SOCIAL_OAUTH_ENDPOINT?: string;
         VITE_BACKEND_ENDPOINT?: string;
         VITE_DOU_ENDPOINT?: string;
+        // `web` or `native`: the session owner a non-production build starts an unswitched install on.
+        VITE_SESSION_OWNER_DEFAULT?: string;
     }
 
     export const Config: NativeConfig;

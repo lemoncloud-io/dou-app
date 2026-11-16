@@ -6,10 +6,12 @@ opens the sockets and reads the cache. The app can hold it instead, in its own J
 runs, on the app's own storage and network. This document is how the app does that: who decides, how
 the runtime starts, and what it keeps running.
 
-**Nothing turns it on by default.** 0.32.0 is the first app version that carries the runtime, and it ships
-switched off: the owner is `web` unless the owner switch says otherwise — in a production build, only
-while the app's debug mode is on, for internal testing (see
-[The switch](#the-switch)). On a launch whose owner is `native`, the app offers the session to the page
+**Production does not turn it on by default; a dev build does.** 0.32.0 is the first app version that
+carries the runtime, and it ships switched off: in a production build the owner is `web` unless the owner
+switch says otherwise, which it answers only while the app's debug mode is on, for internal testing (see
+[The switch](#the-switch)). A dev stage build — the DoU Dev app — starts every install nobody switched on
+the runtime, so the internal builds run it without a trip to the switch (see
+[Who owns the session](#who-owns-the-session)). On a launch whose owner is `native`, the app offers the session to the page
 and answers the runtime handshake; the web page says hello and, on the `native` answer, mirrors the
 runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-web`). It then opens no
 vault and runs no session of its own, so while the page asks, only one side holds the session's tokens
@@ -35,8 +37,29 @@ The same runtime also answers a mini app in the sub WebView on such a launch —
 ## Who owns the session
 
 `launchSessionOwner()` answers `web` or `native`, read from the `sessionOwner` key of the MMKV file
-`chatic-runtime-mode`. Anything but an explicit `native` — no file, no key, a value this build does not
-know, a file that cannot be opened — is `web`, which is what every launch was before.
+`chatic-runtime-mode`, where the switch records a choice. With no choice recorded — no key, or a value
+this build does not know — it is the build's default (`defaultSessionOwner`):
+
+| Build (`VITE_ENV`)                       | Install nobody switched |
+| ---------------------------------------- | ----------------------- |
+| `DEV` (the DoU Dev app)                  | `native`                |
+| `LOCAL`                                  | `web`                   |
+| `PROD`, or a value the build cannot read | `web`, always           |
+
+The stage is the baked `VITE_ENV`, not where the page is served from: a local run whose `apps/mobile/.env`
+says `DEV` is a dev build, and starts on the runtime like the DoU Dev app — and, without the runtime's
+service settings in that file, falls back to the page on every launch with a failed start in the log.
+A non-production build can name its default instead with `VITE_SESSION_OWNER_DEFAULT` (`web` or
+`native`); the device scenarios pin their builds to `web` that way, so a fresh install starts where their
+switch step expects it. Production ignores the setting: turning the runtime on for real installs is a
+decision about installs, not about a build file. A recorded choice outranks the default either way, so a
+dev install switched to the page stays there. A file that cannot be opened reads as `web` on every
+build: a setting the app cannot read must not move the session.
+
+A dev install that ran the page before it got a build with this default moves to the runtime on its first
+launch of that build. What it kept in the page's plain storage does not come along (see
+[The device, as the page knows it](#the-device-as-the-page-knows-it)): the selected cloud starts empty
+once, as after a switch.
 
 **It is settled once per launch.** The first read is kept for the JS context: a page that reloads and
 asks again has to hear the same owner, and the logs of one run must agree. `writeSessionOwner` therefore
@@ -144,7 +167,9 @@ store, and a launch the page owns copies it from the page's storage into a vault
 (`libs/session` README, `identityStore`). The runtime reads it from the vault. So an install that has
 had one launch of a page build that copies it has the id on either side. One switched to the runtime
 before such a launch reads none until it logs in as a guest, which also writes it — a gap the switch
-has to close before it becomes a default.
+has to close before it becomes a default in production. A dev build accepts it: a DoU Dev install that
+never ran a copying page build before it got the runtime default starts without the id, so it does not
+see the invited clouds it accepted until it signs in as a guest again.
 
 ## The page's side of the bridge
 
@@ -223,7 +248,8 @@ cover is what the person sees.
 ## What is not done yet
 
 These are the conditions the steps that turn the runtime on have to meet. None of them matters on a
-launch the page owns, which is every launch but the ones the owner switch makes.
+launch the page owns, which is every production launch but the ones the owner switch makes. A dev
+build's unswitched installs run the runtime, so its testers meet these gaps on every launch.
 
 - **The offer does not say whether the session is already held.** A page that does not ask — one whose
   own switch is off, or one sharing no contract with the runtime — cannot tell a launch whose runtime
