@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (auth,transport) leave a socket's first connect alone on the boot's own foreground report
+
 ## [2026-11-15] - No version updates
 
 ### Bug Fixes
