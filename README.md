@@ -27,7 +27,7 @@
 
 ## Overview
 
-DoU is an Nx monorepo powering a real-time messaging and community platform across **8 applications** and **16 shared libraries** — web, mobile, desktop, and admin interfaces from a single codebase.
+DoU is an Nx monorepo powering a real-time messaging and community platform — web, mobile, desktop, and admin interfaces and the libraries they share, from a single codebase. `npx nx show projects` lists every project.
 
 | App                   | Description                                            | Stack                              |
 | --------------------- | ------------------------------------------------------ | ---------------------------------- |
@@ -68,7 +68,7 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 - **Deep linking** — iOS Universal Links & Android App Links
 - **Theming** — Dark / light mode with system preference detection
 - **i18n** — Multi-language support with auto-detection
-- **29 UI components** — Built on Radix UI primitives (shadcn/ui)
+- **Two component libraries** — generic Radix UI primitives (shadcn/ui) and the mobile web's design system
 
 ## Tech Stack
 
@@ -103,13 +103,22 @@ graph TB
         DATA["data<br/>Headless Data Layer"]
         HTTP["http<br/>Request Execution & Policy"]
         CONFIG["config<br/>Runtime Settings"]
-        UIKIT["ui-kit<br/>29 Radix/shadcn Components"]
+        UIKIT["ui-kit<br/>Radix/shadcn Primitives"]
+        WEBUIKIT["web-ui-kit<br/>Mobile Web Design System"]
+        BLOCKKIT["block-kit<br/>Block Kit Reader & Renderer"]
         SHARED["shared<br/>Utils & Hooks"]
         THEME["theme<br/>Dark / Light Mode"]
     end
 
+    subgraph Runtime["Runtime Libraries"]
+        RUNTIME["app-runtime<br/>React Surface & Facade"]
+        RCORE["runtime-core<br/>Runtime Assembly & Ports"]
+        RWEB["runtime-web<br/>Web Adapter"]
+        RMOBILE["runtime-mobile<br/>Native Adapter"]
+        LAYERS["session · transport · sync · auth<br/>Core Runtime Layers"]
+    end
+
     subgraph Native["Native Bridge Libraries"]
-        RUNTIME["app-runtime<br/>Session & Runtime"]
         BRIDGES["bridges<br/>WebView Transport"]
         APPMSG["bridge-messages<br/>Bridge Message Vocabulary"]
         DEVICE["device-utils<br/>Injected Device Info"]
@@ -119,12 +128,22 @@ graph TB
 
     MOBILE --> BRIDGES & APPMSG
     DESKTOP --> DESKWEB
-    WEB --> DATA & UIKIT & SHARED & THEME & CONFIG
+    WEB --> DATA & UIKIT & WEBUIKIT & SHARED & CONFIG
+    WEBUIKIT --> UIKIT
+    WEB & DESKWEB & BKB --> BLOCKKIT
     WEB --> RUNTIME & BRIDGES & DEVICE
     DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
-    ADMIN --> DATA & UIKIT & SHARED & THEME
-    RUNTIME --> DATA & HTTP
-    DATA --> DB & HTTP
+    ADMIN --> UIKIT & SHARED & RUNTIME
+    LANDING & BKB --> THEME
+    RUNTIME --> RCORE
+    RCORE --> LAYERS
+    LAYERS --> DATA & HTTP
+    WEB & DESKWEB & ADMIN & LANDING --> RWEB
+    MOBILE --> RMOBILE
+    RWEB & RMOBILE --> RCORE
+    DATA --> HTTP
+    RWEB & RMOBILE --> DB
+    DB --> DATA
 ```
 
 ### Project Structure
@@ -138,6 +157,7 @@ dou-app/
 │   ├── admin/            # Admin dashboard (port 5001)
 │   ├── landing/             # Marketing site & policy pages (port 5004)
 │   ├── desktop-web/         # Web client for the Desktop shell (port 5005)
+│   ├── desktop-web-e2e/     # Playwright E2E of desktop-web
 │   ├── block-kit-builder/   # Block Kit visual editor (port 5006)
 │   ├── mobile/              # React Native app (iOS + Android)
 │   │   ├── android/
@@ -149,7 +169,16 @@ dou-app/
 │   ├── db/                  # Cache storage engines (IndexedDB / native SQLite)
 │   ├── http/                # Request execution, retry & logging policy
 │   ├── config/              # Runtime settings facade
-│   ├── app-runtime/         # Session, sockets, repositories, sync runtimes
+│   ├── storage/             # Key-value stores split by where a value lives
+│   ├── perf/                # Performance traces and their backends
+│   ├── session/             # Session state: tokens, selected cloud and site, identity
+│   ├── transport/           # Socket slots and the HTTP manager
+│   ├── sync/                # Keeps the cache current
+│   ├── auth/                # Login, cloud entry, renewal, pairing, logout; the HMAC signer
+│   ├── runtime-core/        # The runtime's assembly and the ports a platform fills
+│   ├── runtime-web/         # Web adapter for the runtime
+│   ├── runtime-mobile/      # Native adapter for the runtime (React Native)
+│   ├── app-runtime/         # The runtime an app mounts: facade, hooks, repository graph
 │   ├── bridges/             # WebView transport between web and native shell
 │   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
 │   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
@@ -157,7 +186,7 @@ dou-app/
 │   ├── device-utils/        # Injected device info, reader hooks
 │   ├── logger/              # Cross-platform logging core
 │   ├── policy-content/      # Legal text (terms, privacy, child safety)
-│   ├── block-kit/           # Message block model consumed by block-kit-builder
+│   ├── block-kit/           # Block Kit reader and renderer for web, desktop-web and the builder
 │   ├── ui-kit/              # Generic UI components (shadcn/ui)
 │   ├── web-ui-kit/          # Mobile-web design system components
 │   ├── shared/              # Common utilities and hooks

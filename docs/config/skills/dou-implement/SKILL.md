@@ -99,8 +99,8 @@ Format and examples in
 
 ## Split the work when it splits
 
-**Run independent work in parallel subagents.** This is an Nx monorepo — `apps/` (4)
-and `libs/` (16) — so work divides along module boundaries often enough that doing it
+**Run independent work in parallel subagents.** This is an Nx monorepo — `apps/` and
+`libs/` — so work divides along module boundaries often enough that doing it
 serially is simply slower.
 
 |     | Rule                                                           | Why                                                                           |

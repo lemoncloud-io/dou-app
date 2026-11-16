@@ -1,6 +1,7 @@
 # Chatic
 
-Nx monorepo: `apps/` (11), `libs/` (23).
+Nx monorepo: `apps/` and `libs/`, plus `assets/`, `tools/eslint-rules/` and a deploy function under
+`docs/infra/`. `npx nx show projects` lists them; a count written here goes stale, so there is none.
 
 ## Language
 
