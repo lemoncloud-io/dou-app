@@ -1,7 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 
 import { BlockKitMessage, hasDrawableBlocks, takeSourceLink, type KnownBlock } from '@chatic/block-kit';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import type { PayloadParseFailure } from '../payload';
 import { DEVICE_WIDTH, type PreviewDevice } from './DeviceToggle';
