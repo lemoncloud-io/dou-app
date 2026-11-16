@@ -8,7 +8,11 @@ import { resetFileDownloads, useFileDownloads } from './useFileDownloads';
 
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+// Records what was asked of it, so a batch's count can be read; it still answers with the key alone.
+const mockTranslate = jest.fn((key: string, _vars?: Record<string, unknown>) => key);
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (key: string, vars?: Record<string, unknown>) => mockTranslate(key, vars) }),
+}));
 
 let native = true;
 const request = jest.fn();
@@ -375,5 +379,180 @@ describe('useFileDownloads inside the app', () => {
             await running;
         });
         expect(sent('OpenFile')).toHaveLength(0);
+    });
+});
+
+describe('useFileDownloads — several files at once', () => {
+    const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+    const savedNames = () => sent('SaveFile').map(message => (message as { data: { name: string } }).data.name);
+
+    beforeEach(() => {
+        mockTranslate.mockClear();
+    });
+
+    it('saves each file in turn inside the app, and reports once with the count', async () => {
+        const { result } = render();
+
+        await act(() =>
+            result.current.saveAll([
+                { file: doc, chatId: 'm-1' },
+                { file: other, chatId: 'm-2' },
+            ])
+        );
+
+        expect(started.map(download => download.url)).toEqual(['https://bucket/old', 'https://bucket/old']);
+        expect(savedNames()).toEqual(['report.pdf', 'b.pdf']);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.files.savedMany' });
+        expect(mockTranslate).toHaveBeenCalledWith('chat.attach.files.savedMany', { count: 2 });
+    });
+
+    it('signs an expired address again through each file’s own message', async () => {
+        autoResult = null;
+        getChat.mockImplementation(async ({ id }: { id: string }) => ({
+            upload$$: [{ id: id === 'm-1' ? 'u-1' : 'u-2', status: 'stored', orgUrl: `https://bucket/fresh-${id}` }],
+        }));
+        const { result } = render();
+
+        let running: Promise<void> = Promise.resolve();
+        act(() => {
+            running = result.current.saveAll([
+                { file: doc, chatId: 'm-1' },
+                { file: other, chatId: 'm-2' },
+            ]);
+        });
+        await act(async () => {
+            started[0].finish({ kind: 'responded', httpStatus: 403 });
+            await tick();
+        });
+        expect(getChat).toHaveBeenLastCalledWith({ id: 'm-1' });
+        expect(started[1]?.url).toBe('https://bucket/fresh-m-1');
+
+        await act(async () => {
+            started[1].finish({ kind: 'file', file: shellFile });
+            await tick();
+        });
+        await act(async () => {
+            started[2].finish({ kind: 'responded', httpStatus: 403 });
+            await tick();
+        });
+        expect(getChat).toHaveBeenLastCalledWith({ id: 'm-2' });
+        expect(started[3]?.url).toBe('https://bucket/fresh-m-2');
+
+        await act(async () => {
+            started[3].finish({ kind: 'file', file: shellFile });
+            await running;
+        });
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.files.savedMany' });
+    });
+
+    it('reports the files that failed with a retry that saves only those', async () => {
+        answer({
+            SaveFile: async () => {
+                const saving = sent('SaveFile').at(-1) as { data: { name: string } };
+                return saving.data.name === 'b.pdf'
+                    ? Promise.reject(failure('INVALID'))
+                    : { data: { saved: true, location: 'Download/DoU/report.pdf' } };
+            },
+        });
+        const { result } = render();
+
+        await act(() =>
+            result.current.saveAll([
+                { file: doc, chatId: 'm-1' },
+                { file: other, chatId: 'm-2' },
+            ])
+        );
+
+        expect(toast).toHaveBeenCalledTimes(1);
+        const shown = toast.mock.calls[0][0] as { title: string; variant: string; action: ReactElement };
+        expect(shown.title).toBe('chat.attach.files.saveFailedMany');
+        expect(shown.variant).toBe('destructive');
+        expect(mockTranslate).toHaveBeenCalledWith('chat.attach.files.saveFailedMany', { count: 1 });
+
+        answer({ SaveFile: async () => ({ data: { saved: true, location: 'Download/DoU/b.pdf' } }) });
+        await act(async () => {
+            (shown.action.props as { onClick: () => void }).onClick();
+            await tick();
+        });
+
+        expect(savedNames()).toEqual(['report.pdf', 'b.pdf', 'b.pdf']);
+        expect(toast).toHaveBeenLastCalledWith({ title: 'chat.attach.files.savedMany' });
+        expect(mockTranslate).toHaveBeenLastCalledWith('chat.attach.files.savedMany', { count: 1 });
+    });
+
+    it('downloads each file in a browser', async () => {
+        native = false;
+        const { result } = render();
+
+        await act(() =>
+            result.current.saveAll([
+                { file: doc, chatId: 'm-1' },
+                { file: other, chatId: 'm-2' },
+            ])
+        );
+
+        expect(downloadInBrowser.mock.calls.map(([url, name]) => [url, name])).toEqual([
+            ['https://bucket/old', 'report.pdf'],
+            ['https://bucket/old', 'b.pdf'],
+        ]);
+        expect(request).not.toHaveBeenCalled();
+    });
+});
+
+describe('useFileDownloads — a file from another message', () => {
+    const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+    /** Runs a use whose first download meets an expired address, then lets the re-signed one through. */
+    const expireOnce = async (run: () => Promise<unknown>) => {
+        autoResult = null;
+        getChat.mockResolvedValue({ upload$$: [{ id: 'u-1', status: 'stored', orgUrl: 'https://bucket/fresh' }] });
+        let running: Promise<unknown> = Promise.resolve();
+        act(() => {
+            running = run();
+        });
+        await act(async () => {
+            started[0].finish({ kind: 'responded', httpStatus: 403 });
+            await tick();
+        });
+        await act(async () => {
+            started[1]?.finish({ kind: 'file', file: shellFile });
+            await running;
+        });
+    };
+
+    it.each([
+        ['download', 'SaveFile'],
+        ['open', 'OpenFile'],
+    ] as const)('re-signs through the given message on %s, not the hook’s', async (use, shellRequest) => {
+        const { result } = render();
+
+        await expireOnce(() => result.current[use](doc, 'm-9'));
+
+        expect(getChat).toHaveBeenCalledWith({ id: 'm-9' });
+        expect(getChat).not.toHaveBeenCalledWith({ id: 'm' });
+        expect(started[1]?.url).toBe('https://bucket/fresh');
+        expect(sent(shellRequest)).toHaveLength(1);
+    });
+
+    it('re-signs through the given message on share, not the hook’s', async () => {
+        const { result } = render();
+
+        await expireOnce(() => result.current.share(doc, 'm-9'));
+
+        expect(getChat).toHaveBeenCalledWith({ id: 'm-9' });
+        expect(getChat).not.toHaveBeenCalledWith({ id: 'm' });
+        expect(shareFile).toHaveBeenCalledWith(shellFile.uri, 'report.pdf');
+    });
+
+    it('re-reads the given message for an expired address in a browser', async () => {
+        native = false;
+        downloadInBrowser.mockResolvedValue('expired');
+        const { result } = render();
+
+        await act(() => result.current.download(doc, 'm-9'));
+
+        expect(getChat).toHaveBeenCalledWith({ id: 'm-9' });
+        expect(getChat).not.toHaveBeenCalledWith({ id: 'm' });
     });
 });

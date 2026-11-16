@@ -612,8 +612,8 @@ a download button at its right edge. An upload older than names says "File". A p
 the slot's `localName` / `localSize`, a server-failed one is dimmed and says it cannot be opened.
 
 An audio upload (M4A, MP3, WAV, Ogg — a voice message or an audio file) is listed with the documents,
-marked `audio` (`chatMediaItems`), and drawn as a player card once it is sent (§ Audio cards); one still
-on its way, failed or broken is a document card, which already draws those states.
+marked `audio` (`chatMediaItems`), and drawn as an audio bubble in every state
+([audio-files.md](./audio-files.md)).
 
 In a browser the button and the card both download (`lib/fileDownload.ts`): the bytes are fetched into
 a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
@@ -656,28 +656,13 @@ recoveries:
 "Share file" appears only inside an app whose handshake lists `ShareFile` (the check the viewer's photo
 share uses), and never in a browser, where the button already saves the file.
 
-### Audio cards
+### Audio
 
-`MessageAudioCard` plays a sent audio upload where it is: a play button, a seek bar with the clock
-(`0:03 / 0:08`), the name, and a ⋯ menu with Save and, inside an app that shares files, Share — the
-same downloads, saves and shares a document card's button and the action sheet use (`useFileDownloads`).
-A recording made in the app is named "Voice message" (`chat.attach.audio.voiceMessage`): nothing in the
-upload marks one except the name the shell gives every recording, `voice-<yyyyMMdd-HHmmss>.m4a`.
-
-- **It plays in the page's own `<audio>`**, from the signed address, with `preload="metadata"`: only the
-  header is read until it is played, and that is where the length comes from — the upload carries none.
-  Where the header has not been read (the iOS WebView loads no media before a tap) the clock shows the
-  time played alone. An app built before audio plays it the same way; only its save says an update is
-  needed (above).
-- **One sound at a time** (`useInlineAudio`): a card starting pauses every other audio or video in the
-  page, and a video starting pauses the card. Leaving the room unmounts the card, which stops it, and a
-  voice message starting to record pauses every card.
-- **A file that will not play** says "can't play" (`chat.attach.audio.playFailed`) and keeps its menu,
-  so it can still be saved or shared to an app that plays it. iOS decodes Ogg Opus but not Ogg Vorbis,
-  and nothing before the bytes tells the two apart, so an Ogg Vorbis file fails there and only there.
-  A signed address that has expired fails the same way, so the error also asks for the message again
-  (`useImageAddressRefresh`) — once per card, since an Ogg Vorbis file fails at every address; a fresh
-  address starts the card over.
+An audio upload is drawn as an audio bubble in every state — on its way, failed, broken, unsupported and
+sent — and played by the room's one player, not by an element of its own. Saving and sharing it are the
+long-press sheet's rows. Picking audio alone opens a send sheet rather than waiting above the composer,
+and a pick with audio that had files refused lists them in a dialog. All of it is
+[audio-files.md](./audio-files.md).
 
 ## Voice messages
 
@@ -720,8 +705,12 @@ its limits and the microphone permission are
 ## Not done here
 
 - **Cancel, a hash.** Neither is offered or sent. Upload progress is shown (§ Rendering).
-- **A waveform, pausing a recording, a preview before sending.** A voice message is recorded, then sent
-  or thrown away; its card and its recording sheet show only time.
+- **Pausing a recording, a preview before sending.** A voice message is recorded, then sent or thrown
+  away. The waveform exists only on the audio detail, computed on this device
+  ([audio-files.md](./audio-files.md)); the bubble and the recording sheet show only time.
+- **Forwarding audio to another room, an expiry on files, a link to a message.** The design has all
+  three. The server attaches only the sender's own uploads to a new message, keeps no retention period,
+  and messages have no links, so none is drawn.
 - **Documents surviving a reload inside the app.** The record of which file the shell downloaded lives
   in the page, so after a reload the card is `idle` again and the next press downloads once more.
 - **Save and share from a tile.** The viewer has them for photos and videos inside an app that can
@@ -754,7 +743,8 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/utils/bakePhotoEdit \
   apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage \
   apps/web/src/app/features/channels/hooks/useVoiceMessage apps/web/src/app/bridge/audioRecorder \
-  apps/web/src/app/features/channels/components/MessageAudioCard apps/web/src/app/features/channels/lib/fileExport
+  apps/web/src/app/features/channels/components/MessageAudioBubble apps/web/src/app/features/channels/components/RoomAudioHost \
+  apps/web/src/app/features/channels/stores/roomAudioStore apps/web/src/app/features/channels/lib/fileExport
 npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage \
   AttachPanel MessageInput PickedFileStrip
 ```

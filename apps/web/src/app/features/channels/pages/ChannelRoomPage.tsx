@@ -103,6 +103,8 @@ import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToast
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
+import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
+import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
 
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
@@ -457,6 +459,14 @@ export const ChannelRoomPage = () => {
         fetchThrough,
         isFetched,
     } = useChats(memoizedChatParams);
+
+    // Audio: what this device hid, and stopping what plays once its message or file is gone.
+    const { hiddenMedia } = useRoomAudioSurface({
+        cid: roomCid,
+        uid: userId ?? undefined,
+        channelId: stableChannelId,
+        messages,
+    });
 
     // Debug mode only: hands what this room holds to the overlay's Room screen.
     useDebugRoomMirror('room', { channelId, channel, rendered: messages, rows: rawChats, focused: actionMessage });
@@ -1480,6 +1490,7 @@ export const ChannelRoomPage = () => {
                                                             <ChannelMessageRow
                                                                 message={message}
                                                                 mentionViewer={mentionViewer}
+                                                                hiddenMedia={hiddenMedia}
                                                                 showProfileAndName={showProfileAndName}
                                                                 showTimeAndStatus={showTimeAndStatus}
                                                                 ownerDisplayName={ownerDisplayName}
@@ -1553,6 +1564,13 @@ export const ChannelRoomPage = () => {
                         </>
                     )}
                 </div>
+
+                <RoomMiniPlayer
+                    channelId={stableChannelId}
+                    containerRef={messagesEndRef}
+                    rowsVersion={messages}
+                    top={headerHeight + 16}
+                />
 
                 <div
                     className="pointer-events-none absolute inset-x-0 flex justify-center"

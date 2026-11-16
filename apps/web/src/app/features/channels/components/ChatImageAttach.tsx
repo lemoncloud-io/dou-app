@@ -15,6 +15,7 @@ import type { runtime } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 import {
     CHAT_IMAGE_TYPES,
+    chatAttachmentStoredKind,
     type ChatAttachmentJudgement,
     type ChatAttachmentSource,
     type ChatMentionBody,
@@ -27,12 +28,15 @@ import {
     AlertDialog,
     AttachPanel,
     AttachSourceSheet,
+    AudioSendSheet,
+    formatAudioMeta,
     ComposerAttachButton,
     PhotoEditor,
     PhotoGridSheet,
     PickedFileStrip,
     RecentPhotoStrip,
     SelectedPhotoStrip,
+    UnsendableFilesDialog,
     type CropAspect,
     type PhotoEdit,
     type PhotoEditorItem,
@@ -48,6 +52,7 @@ import {
 } from '../../../bridge/attachmentPicker';
 import { cameraAccess as shellCameraAccess, type CameraAccessGate } from '../../../bridge/cameraAccess';
 import { useAttachPanelSlot } from '../hooks/useAttachPanelSlot';
+import { useLocalAudioDurations } from '../hooks/useLocalAudioDurations';
 import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { editsDiffer, usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import { usePhotoSendGrouping } from '../hooks/usePhotoSendGrouping';
@@ -56,6 +61,8 @@ import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from '.
 import { PHONE_SENDS } from '../../../utils';
 
 const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
+
+const NO_SOURCES: readonly ChatAttachmentSource[] = [];
 
 /** One empty pick for the row above the field, so an idle composer hands it the same array each render. */
 const NO_PHOTOS: PhotoItem[] = [];
@@ -405,19 +412,11 @@ export const useChatImageAttach = ({
         [judge, sendImages, onUnsentText, t]
     );
 
-    /**
-     * Judges a pick from the files entry and keeps what passes above the composer, after what already
-     * waits there. The waiting files are judged again with it, ahead of it, so a file picked a second
-     * time is refused as the same item, and the limit counts them and the in-app pick as one message.
-     */
-    const hold = useCallback(
-        (items: ChatAttachmentSource[], { refusedByShell }: { refusedByShell?: AttachmentPick['refused'] } = {}) => {
+    /** Keeps files above the composer, after what already waits there. */
+    const keepAbove = useCallback(
+        (accepted: readonly ChatAttachmentSource[]) => {
             const before = heldRef.current;
             const waiting = new Set(before.map(file => file.source));
-            const accepted = judge([...before.map(file => file.source), ...items], {
-                refusedByShell,
-                max: IMAGE_MESSAGE_SLOT_MAX - picker.picked.length,
-            });
             const added = accepted.filter(source => !waiting.has(source));
             if (added.length === 0) return;
             setHeld([
@@ -428,8 +427,100 @@ export const useChatImageAttach = ({
                 }),
             ]);
         },
-        [judge, picker.picked.length, setHeld]
+        [setHeld]
     );
+
+    // Audio picked on its own is confirmed in a sheet (Figma 6072:22980) rather than waiting above the
+    // composer; a pick of audio with anything else waits there as every file does.
+    const [audioToSend, setAudioToSend] = useState<readonly ChatAttachmentSource[] | null>(null);
+    // Open apart from the list, so the sheet keeps drawing what it held while it slides away.
+    const [audioSheetOpen, setAudioSheetOpen] = useState(false);
+    // A pick with audio in it that had files refused says which, and asks about the rest (Figma 6072:23077).
+    const [unsendable, setUnsendable] = useState<{
+        refused: { key: string; name: string; reason: string }[];
+        rest: readonly ChatAttachmentSource[];
+    } | null>(null);
+    const audioDurations = useLocalAudioDurations(audioToSend ?? NO_SOURCES);
+
+    const isAudioSource = (source: ChatAttachmentSource) => chatAttachmentStoredKind(source) === 'audio';
+    const proceedWithPick = useCallback(
+        (accepted: readonly ChatAttachmentSource[]) => {
+            if (accepted.length === 0) return;
+            if (heldRef.current.length === 0 && accepted.every(isAudioSource)) {
+                setAudioToSend(accepted);
+                setAudioSheetOpen(true);
+            } else keepAbove(accepted);
+        },
+        [keepAbove]
+    );
+
+    /**
+     * Judges a pick from the files entry and keeps what passes above the composer, after what already
+     * waits there. The waiting files are judged again with it, ahead of it, so a file picked a second
+     * time is refused as the same item, and the limit counts them and the in-app pick as one message.
+     *
+     * A pick with audio in it, made while nothing waits, goes another way: refusals are listed in a
+     * dialog rather than reduced to one toast, an empty file is refused as such, and audio alone is
+     * confirmed in the send sheet.
+     */
+    const hold = useCallback(
+        (items: ChatAttachmentSource[], { refusedByShell }: { refusedByShell?: AttachmentPick['refused'] } = {}) => {
+            const before = heldRef.current;
+            const max = IMAGE_MESSAGE_SLOT_MAX - picker.picked.length;
+            if (before.length === 0 && items.some(isAudioSource)) {
+                const empty = items.filter(source => source.size === 0);
+                const { accepted, rejected } = judgeChatAttachments(
+                    items.filter(source => source.size !== 0),
+                    max,
+                    PHONE_SENDS
+                );
+                const refused = [
+                    ...(refusedByShell ?? []).map((item, at) => ({
+                        key: `shell-${at}`,
+                        name: item.name,
+                        reason: t(
+                            item.reason === 'too-large'
+                                ? `chat.attach.rejected.too-large.${item.kind}`
+                                : `chat.attach.rejected.${item.reason}`,
+                            { max: IMAGE_MESSAGE_SLOT_MAX }
+                        ),
+                    })),
+                    ...empty.map((source, at) => ({
+                        key: `empty-${at}`,
+                        name: source.name,
+                        reason: t('chat.attach.rejected.empty'),
+                    })),
+                    ...rejected.map((rejection, at) => ({
+                        key: `judged-${at}`,
+                        name: rejection.item.name,
+                        reason: t(rejectionKey(rejection, rejection.item), { max: IMAGE_MESSAGE_SLOT_MAX }),
+                    })),
+                ];
+                if (refused.length > 0) {
+                    setUnsendable({ refused, rest: accepted });
+                    return;
+                }
+                proceedWithPick(accepted);
+                return;
+            }
+            const waiting = new Set(before.map(file => file.source));
+            const accepted = judge([...before.map(file => file.source), ...items], { refusedByShell, max });
+            keepAbove(accepted.filter(source => !waiting.has(source)));
+        },
+        [judge, keepAbove, picker.picked.length, proceedWithPick, t]
+    );
+
+    /**
+     * Sends the audio the sheet confirmed, as one message — the way waiting files go with the send
+     * button, minus the caption: the sheet has no field.
+     */
+    const sendAudio = (items: readonly ChatAttachmentSource[]) => {
+        if (items.length === 0) return;
+        shellPicker
+            .readPhotos([...items])
+            .then(read => send(read.items, { refusedByShell: read.refused }))
+            .catch(() => toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' }));
+    };
 
     const removeHeld = (id: string) => setHeld(heldRef.current.filter(file => file.id !== id));
 
@@ -1044,6 +1135,48 @@ export const useChatImageAttach = ({
                     setPermission(current => ({ ...current, open: false }));
                     appBridge.openSettings();
                 }}
+            />
+            <AudioSendSheet
+                open={audioSheetOpen}
+                onOpenChange={setAudioSheetOpen}
+                items={(audioToSend ?? NO_SOURCES).map((source, at) => ({
+                    key: String(at),
+                    name: source.name,
+                    meta: formatAudioMeta(audioDurations.get(source), source.size) || undefined,
+                }))}
+                onRemove={key => {
+                    // The last one out closes the sheet: there is nothing left to confirm.
+                    const next = (audioToSend ?? []).filter((_, at) => String(at) !== key);
+                    if (next.length) setAudioToSend(next);
+                    else setAudioSheetOpen(false);
+                }}
+                onCancel={() => setAudioSheetOpen(false)}
+                onSend={() => {
+                    setAudioSheetOpen(false);
+                    sendAudio(audioToSend ?? []);
+                }}
+                title={t('chat.attach.audioSend.title', { count: audioToSend?.length ?? 0 })}
+                sendLabel={t('chat.attach.audioSend.send', { count: audioToSend?.length ?? 0 })}
+                cancelLabel={t('chat.attach.audioSend.cancel')}
+                removeLabel={name => t('chat.attach.removeFile', { name })}
+            />
+            <UnsendableFilesDialog
+                open={!!unsendable}
+                onOpenChange={open => !open && setUnsendable(null)}
+                title={t('chat.attach.unsendable.title')}
+                description={t('chat.attach.unsendable.description')}
+                items={unsendable?.refused ?? []}
+                restCount={unsendable?.rest.length ?? 0}
+                onCancel={() => setUnsendable(null)}
+                onSendRest={() => {
+                    const rest = unsendable?.rest ?? [];
+                    setUnsendable(null);
+                    proceedWithPick(rest);
+                }}
+                onConfirm={() => setUnsendable(null)}
+                cancelLabel={t('chat.attach.audioSend.cancel')}
+                sendRestLabel={t('chat.attach.unsendable.sendRest', { count: unsendable?.rest.length ?? 0 })}
+                confirmLabel={t('chat.attach.unsendable.ok')}
             />
         </>
     );

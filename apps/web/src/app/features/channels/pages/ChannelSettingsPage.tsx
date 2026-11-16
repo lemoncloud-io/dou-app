@@ -44,6 +44,7 @@ import {
     removalActionFor,
     resolveChannelAvatar,
 } from '../lib';
+import { RoomFilesEntry } from '../components/RoomFilesEntry';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel, notifyLevelOf, notifyLevelsFor } from '../utils/notifyLevel';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
@@ -492,6 +493,9 @@ export const ChannelSettingsPage = () => {
                     trailing={nameEditor ? <ChevronRight className="size-5 text-muted-foreground" /> : undefined}
                     onClick={nameEditor ? () => openDialog(nameEditor) : undefined}
                 />
+
+                {/* The room's files, found in this device's cache — above everything else, as the design has it. */}
+                {channelId && <RoomFilesEntry cid={toCloudId(channel?.cid || selectedCloudId)} channelId={channelId} />}
 
                 {isSelfChat ? (
                     /* Self-chat: only the "방 친구" section (just me/the owner). No

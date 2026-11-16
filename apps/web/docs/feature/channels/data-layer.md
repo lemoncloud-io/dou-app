@@ -12,7 +12,7 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. Eighteen stay out of it
+One hook per file under `features/channels/hooks/`, exported from one barrel. Twenty-five stay out of it
 and are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
 composer's two, `useComposerDraft`, its unsent text, and `useMentionComposer`, its `@` lookup (both
 in [chat-room.md § The composer](./chat-room.md#the-composer)); `useStackIn`, the entrance a row I just
@@ -24,8 +24,11 @@ photo grid's three, `usePhotoPicker` and the two choices it remembers, `usePhoto
 the six behind a message's attachments,
 `useImageAddressRefresh`, `useCachedImages`, `useVideoFrames`, `useInView`, `useFileDownloads` and
 `useImageExports` ([image-send.md](./image-send.md), [image-export.md](./image-export.md)); the voice
-message's two, `useVoiceMessage`, its recording sheet, and `useInlineAudio`, one sound at a time (both
-in [image-send.md](./image-send.md)); and `usePeerCloudNames`, a cloud 1:1 peer's name from the user
+message's two, `useVoiceMessage`, its recording sheet, and `useInlineAudio`, whose `pauseInlineAudio` pauses
+the room's audio player before a recording starts (both in [image-send.md](./image-send.md)); the audio
+files' seven, `useAudioWaveform`, `useChatMessage`, `useFreshAudioAddress`, `useLocalAudioDurations` and
+`useRoomAudioSurface` ([audio-files.md](./audio-files.md)), `useRoomFiles` and `useRoomSenderName`
+([room-files.md](./room-files.md)); and `usePeerCloudNames`, a cloud 1:1 peer's name from the user
 cache ([dm-and-self-chat.md](./dm-and-self-chat.md)). They fall
 into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
 `useChats`), the sync registrars and refreshers (`useJoinPositions`, `useForegroundChatRefresh`,
@@ -33,7 +36,7 @@ into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMem
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-49 hooks, 41 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which eight have none:
+57 hooks, 49 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which eight have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \

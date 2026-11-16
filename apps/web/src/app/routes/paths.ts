@@ -49,6 +49,10 @@ export const ROUTES = {
         settings: (channelId: string) => `/channels/${channelId}/settings`,
         invite: (channelId: string) => `/channels/${channelId}/invite`,
         inviteLink: (channelId: string) => `/channels/${channelId}/invite/link`,
+        // One audio upload of one message, full screen: the message's chatNo and the upload's slot.
+        audio: (channelId: string, chatNo: number, idx: number) => `/channels/${channelId}/audio/${chatNo}/${idx}`,
+        // The room's files and links, opened on one tab.
+        files: (channelId: string, tab?: string) => `/channels/${channelId}/files${tab ? `?tab=${tab}` : ''}`,
         // Pick who to open a cloud 1:1 with. No channel id — the room does not exist yet, and the
         // server decides which one it is from the pair and the session's place.
         startDm: '/channels/start-dm',

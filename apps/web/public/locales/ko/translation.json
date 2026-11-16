@@ -1193,7 +1193,8 @@
                 },
                 "unreadable": "읽을 수 없는 파일이 있어요",
                 "duplicate": "같은 항목이 두 번 선택됐어요",
-                "limit": "한 번에 {{max}}개까지 보낼 수 있어요"
+                "limit": "한 번에 {{max}}개까지 보낼 수 있어요",
+                "empty": "빈 파일은 보낼 수 없어요"
             },
             "permission": {
                 "cameraTitle": "카메라에 대한 액세스 권한이 없어요",
@@ -1282,8 +1283,30 @@
                 "pause": "{{name}} 일시정지",
                 "seek": "{{name}} 재생 위치",
                 "playFailed": "재생할 수 없어요",
-                "menu": "{{name}} 더보기",
-                "save": "저장"
+                "save": "저장",
+                "back": "뒤로",
+                "broken": "재생할 수 없는 파일",
+                "cancelSend": "{{name}} 업로드 취소",
+                "closePlayer": "플레이어 닫기",
+                "collection": "대화방 파일",
+                "delete": "삭제",
+                "detailLoading": "파일을 불러오는 중이에요",
+                "detailMissing": "파일을 찾을 수 없어요",
+                "failed": "전송하지 못했어요",
+                "loading": "불러오는 중",
+                "more": "더보기",
+                "open": "{{name}} 자세히 보기",
+                "playFailedToast": "재생할 수 없는 파일이에요",
+                "rate": "재생 속도",
+                "retry": "재전송",
+                "sending": "{{done}} / {{total}}",
+                "share": "공유",
+                "skipBack": "15초 뒤로",
+                "skipForward": "15초 앞으로",
+                "unsupported": "재생 불가 형식",
+                "unsupportedSized": "재생 불가 형식 · {{size}}",
+                "viewInChat": "대화에서 보기",
+                "waveform": "{{name}} 파형"
             },
             "voice": {
                 "entry": "음성",
@@ -1297,6 +1320,27 @@
                 "tooShort": "1초 이상 녹음해 주세요",
                 "interrupted": "녹음이 중단됐어요",
                 "failed": "녹음하지 못했어요"
+            },
+            "audioSend": {
+                "cancel": "취소",
+                "send_one": "{{count}}개 보내기",
+                "send_other": "{{count}}개 보내기",
+                "title_one": "음성 파일 {{count}}개 보내기",
+                "title_other": "음성 파일 {{count}}개 보내기"
+            },
+            "files": {
+                "retry": "다시 시도",
+                "saveFailedMany_one": "{{count}}개를 저장하지 못했어요",
+                "saveFailedMany_other": "{{count}}개를 저장하지 못했어요",
+                "savedMany_one": "파일 {{count}}개를 저장했어요",
+                "savedMany_other": "파일 {{count}}개를 저장했어요"
+            },
+            "unsendable": {
+                "title": "보낼 수 없는 파일이 있어요",
+                "description": "아래 파일을 빼고 나머지를 보낼까요?",
+                "ok": "확인",
+                "sendRest_one": "나머지 {{count}}개 보내기",
+                "sendRest_other": "나머지 {{count}}개 보내기"
             }
         },
         "preview": {
@@ -1313,6 +1357,51 @@
         "jump": {
             "mentions": "멘션 {{count}}",
             "latest": "최신 메시지 {{count}}"
+        },
+        "files": {
+            "title": "대화방 파일",
+            "seeAll": "전체 보기",
+            "tab": {
+                "media": "사진·동영상",
+                "file": "파일",
+                "audio": "음성",
+                "link": "링크"
+            },
+            "empty": {
+                "media": "공유된 사진·동영상이 없어요",
+                "file": "공유된 파일이 없어요",
+                "audio": "공유된 음성이 없어요",
+                "link": "공유된 링크가 없어요"
+            },
+            "search": "파일명, 보낸 사람 검색",
+            "searchLinks": "주소, 보낸 사람 검색",
+            "searchLabel": "대화방 파일 검색",
+            "noMatch": "검색 결과가 없어요",
+            "searching": "찾는 중…",
+            "findOlder": "이전 파일 더 찾기",
+            "select": "선택",
+            "selectItems": "항목 선택",
+            "selectedCount_one": "{{count}}개 선택",
+            "selectedCount_other": "{{count}}개 선택",
+            "selectAll": "전체 선택",
+            "deselectAll": "선택 해제",
+            "cancel": "취소",
+            "more": "{{name}} 더보기",
+            "details": "상세 보기",
+            "copyLink": "링크 복사",
+            "shareOut": "외부 공유",
+            "delete": "삭제",
+            "exportLimit": "저장·공유는 한 번에 10개까지 할 수 있어요",
+            "linkCopied_one": "링크를 복사했어요",
+            "linkCopied_other": "링크를 복사했어요",
+            "linkCopyFailed": "링크를 복사하지 못했어요",
+            "hideTitleOne": "이 파일을 삭제할까요?",
+            "hideTitleMany_one": "파일 {{count}}개를 삭제할까요?",
+            "hideTitleMany_other": "파일 {{count}}개를 삭제할까요?",
+            "hideDescription": "내 화면에서만 지워지고, 다른 참여자에게는 그대로 보여요.",
+            "hidden_one": "파일 {{count}}개를 삭제했어요",
+            "hidden_other": "파일 {{count}}개를 삭제했어요",
+            "undo": "실행 취소"
         }
     },
     "search": {

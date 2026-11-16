@@ -1,3 +1,6 @@
+import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
+import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
+import { hiddenPartsOf } from '../lib/localMediaPrefs';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -229,6 +232,14 @@ export const ThreadPage = () => {
         gapStatus,
         fillGap,
     } = useChats(chatParams);
+
+    // Audio: what this device hid, and stopping what plays once its message or file is gone.
+    const { hiddenMedia } = useRoomAudioSurface({
+        cid: threadCid,
+        uid: userId ?? undefined,
+        channelId: stableChannelId,
+        messages: rawChats,
+    });
 
     /**
      * Is the root this URL names from before my current membership?
@@ -833,7 +844,20 @@ export const ThreadPage = () => {
                     {/* A photo can root a thread like a line of text can, and then the photo is the
                         subject — without it the page opens on a name over nothing. */}
                     {!isDeleted && (message.upload$$?.length ?? 0) > 0 && (
-                        <MessageImages uploads={message.upload$$} chatId={message.id} cid={message.cid} align="start" />
+                        <MessageImages
+                            uploads={message.upload$$}
+                            chatId={message.id}
+                            cid={message.cid}
+                            align="start"
+                            hiddenSlots={hiddenPartsOf(message, hiddenMedia)?.slots}
+                            audio={{
+                                channelId: message.channelId,
+                                chatNo: message.chatNo,
+                                senderName: message.ownerName,
+                                sentAt: message.timestamp?.getTime?.(),
+                                mine: message.isOwner,
+                            }}
+                        />
                     )}
                     {tallies && tallies.length > 0 && (
                         <ReactionChips
@@ -855,6 +879,8 @@ export const ThreadPage = () => {
             <ChannelMessageRow
                 message={message}
                 mentionViewer={mentionViewer}
+                hiddenMedia={hiddenMedia}
+                threadRootNo={rootNo}
                 showProfileAndName={!message.isOwner}
                 showTimeAndStatus
                 ownerDisplayName={message.ownerName}
@@ -895,6 +921,14 @@ export const ThreadPage = () => {
                     className="border-b border-border"
                 />
             </div>
+
+            <RoomMiniPlayer
+                channelId={stableChannelId}
+                threadRootNo={rootNo}
+                containerRef={listRef}
+                rowsVersion={rawChats}
+                top={headerHeight + 16}
+            />
 
             <div
                 ref={listRef}

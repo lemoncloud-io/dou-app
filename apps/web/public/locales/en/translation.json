@@ -1193,7 +1193,8 @@
                 },
                 "unreadable": "A file couldn't be read",
                 "duplicate": "The same item was picked twice",
-                "limit": "You can send up to {{max}} at a time"
+                "limit": "You can send up to {{max}} at a time",
+                "empty": "Empty files cannot be sent"
             },
             "permission": {
                 "cameraTitle": "No access to the camera",
@@ -1282,8 +1283,30 @@
                 "pause": "Pause {{name}}",
                 "seek": "Playback position of {{name}}",
                 "playFailed": "Can't play this",
-                "menu": "More for {{name}}",
-                "save": "Save"
+                "save": "Save",
+                "back": "Back",
+                "broken": "This file cannot be played",
+                "cancelSend": "Cancel uploading {{name}}",
+                "closePlayer": "Close player",
+                "collection": "Room files",
+                "delete": "Delete",
+                "detailLoading": "Loading the file",
+                "detailMissing": "This file could not be found",
+                "failed": "Failed to send",
+                "loading": "Loading",
+                "more": "More",
+                "open": "Open {{name}}",
+                "playFailedToast": "This file cannot be played",
+                "rate": "Playback speed",
+                "retry": "Retry",
+                "sending": "{{done}} / {{total}}",
+                "share": "Share",
+                "skipBack": "Back 15 seconds",
+                "skipForward": "Forward 15 seconds",
+                "unsupported": "Unsupported format",
+                "unsupportedSized": "Unsupported format · {{size}}",
+                "viewInChat": "View in chat",
+                "waveform": "Waveform of {{name}}"
             },
             "voice": {
                 "entry": "Voice",
@@ -1297,6 +1320,27 @@
                 "tooShort": "Record for at least a second",
                 "interrupted": "Recording stopped",
                 "failed": "Couldn't record"
+            },
+            "audioSend": {
+                "cancel": "Cancel",
+                "send_other": "Send {{count}}",
+                "title_other": "Send {{count}} audio files",
+                "send_one": "Send 1",
+                "title_one": "Send 1 audio file"
+            },
+            "files": {
+                "retry": "Try again",
+                "saveFailedMany_other": "Couldn't save {{count}}",
+                "savedMany_other": "Saved {{count}} files",
+                "saveFailedMany_one": "Couldn't save 1",
+                "savedMany_one": "Saved 1 file"
+            },
+            "unsendable": {
+                "title": "Some files cannot be sent",
+                "description": "Send the rest without the files below?",
+                "ok": "OK",
+                "sendRest_other": "Send the other {{count}}",
+                "sendRest_one": "Send the other 1"
             }
         },
         "preview": {
@@ -1313,6 +1357,51 @@
         "jump": {
             "mentions": "Mentions {{count}}",
             "latest": "Latest {{count}}"
+        },
+        "files": {
+            "title": "Room files",
+            "seeAll": "See all",
+            "tab": {
+                "media": "Photos·videos",
+                "file": "Files",
+                "audio": "Audio",
+                "link": "Links"
+            },
+            "empty": {
+                "media": "No photos or videos shared yet",
+                "file": "No files shared yet",
+                "audio": "No audio shared yet",
+                "link": "No links shared yet"
+            },
+            "search": "Search by name or sender",
+            "searchLinks": "Search by address or sender",
+            "searchLabel": "Search room files",
+            "noMatch": "Nothing matches",
+            "searching": "Searching…",
+            "findOlder": "Find older files",
+            "select": "Select",
+            "selectItems": "Select items",
+            "selectedCount_other": "{{count}} selected",
+            "selectAll": "Select all",
+            "deselectAll": "Deselect all",
+            "cancel": "Cancel",
+            "more": "More for {{name}}",
+            "details": "Details",
+            "copyLink": "Copy link",
+            "shareOut": "Share",
+            "delete": "Delete",
+            "exportLimit": "You can save or share up to 10 at a time",
+            "linkCopied_other": "Link copied",
+            "linkCopyFailed": "Couldn't copy the link",
+            "hideTitleOne": "Delete this file?",
+            "hideTitleMany_other": "Delete {{count}} files?",
+            "hideDescription": "It goes from your screen only — others still see it.",
+            "hidden_other": "Deleted {{count}} files",
+            "undo": "Undo",
+            "selectedCount_one": "1 selected",
+            "linkCopied_one": "Link copied",
+            "hideTitleMany_one": "Delete 1 file?",
+            "hidden_one": "Deleted 1 file"
         }
     },
     "search": {
