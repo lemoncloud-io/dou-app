@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - root@0.159.0, @chatic/landing@0.19.0
+
+### Features
+
+- (landing) open dollar billing on the server's dollar catalog, not the build (ADR-0327)
+
 ## [2026-11-16] - No version updates
 
 ### Refactor
