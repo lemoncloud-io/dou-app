@@ -105,6 +105,7 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
 import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
+import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
 
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
@@ -774,6 +775,8 @@ export const ChannelRoomPage = () => {
         containerRef: messagesEndRef,
         isAwayFromBottom,
         scrollToBottom: scrollChatToBottom,
+        // Unknown until the join stream answers: the pills take the first cursor known as the entry.
+        readCursor: myJoin ? (readCursorOf(readPositionOf(myJoin, channel?.$join)) ?? 0) : undefined,
     });
 
     const handleMessagesScroll = useCallback(() => {

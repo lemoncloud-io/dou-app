@@ -12,3 +12,4 @@ export * from './pushCloudId';
 export * from './chatId';
 export * from './messageTokens';
 export * from './chatMediaEntries';
+export * from './chatNotificationEntries';
