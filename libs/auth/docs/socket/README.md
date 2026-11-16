@@ -215,6 +215,15 @@ cloud change does. Otherwise the selection keeps naming a place the socket has l
 `switchSite` into that place returns early as a no-op while every site-scoped call lands on the
 default site.
 
+### `switchSite` refuses the Default Cloud id
+
+[`switchSite`](../../src/socket/switchSite.ts) refuses `'default'` before anything moves. That id
+names the Default Cloud — the apps also use it as that cloud's place scope key — and is never a site.
+Sent as one, the backend looks the site up, misses, and the failure lands on the server's error
+channel for what is a client mix-up. The refusal rejects the promise as a failed switch does, so a
+caller's failure path runs unchanged — but with no round trip, nothing to roll back, and no
+`site_switch` sample.
+
 [`applySessionToken($token, options?)`](../../src/socket/applySessionToken.ts) commits a token view,
 re-authenticates the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token`
 actually became the new identity token. It **throws** when `$token.$auth.id` is missing, because relay

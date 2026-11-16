@@ -53,6 +53,19 @@ describe('switchSiteViaSocket', () => {
         expect(mockedGetSession).not.toHaveBeenCalled();
     });
 
+    it("refuses the Default Cloud's 'default' sentinel before touching the selection or the socket", async () => {
+        mockedGetSelected.mockReturnValue('site-old');
+        withUser('user-1');
+        const authSwitch = jest.fn().mockResolvedValue(undefined);
+        mockedGetManager.mockReturnValue(makeManager(authSwitch));
+
+        await expect(switchSite('default')).rejects.toThrow('names the Default Cloud, not a site');
+
+        expect(mockedApply).not.toHaveBeenCalled();
+        expect(authSwitch).not.toHaveBeenCalled();
+        expect(isSiteSwitchInFlight()).toBe(false);
+    });
+
     it('optimistically applies the sid then auth.switch(uid@sid) on success (no rollback)', async () => {
         mockedGetSelected.mockReturnValue('site-old');
         withUser('user-1');
