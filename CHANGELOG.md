@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - root@0.159.2, @chatic/web@0.90.3
+
+### Bug Fixes
+
+- (web) land a back press on the notifications list where it was left, not at the top
+
 ## [2026-11-16] - root@0.159.1, @chatic/web@0.90.2
 
 ### Bug Fixes
