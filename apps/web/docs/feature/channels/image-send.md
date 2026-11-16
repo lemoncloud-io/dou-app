@@ -125,10 +125,10 @@ all, and the sheet says so: that videos can be sent from the DoU app (`chat.atta
 The files input asks for every format the server takes — a ZIP archive and the four audio formats
 (M4A, MP3, WAV, Ogg) included; photos and `mp4` kept among files can go from there too — by type and by
 extension, and for the generic `application/octet-stream` as well (`documentAccept`). On iOS and iPadOS
-WebKit it names the twelve file formats only (the seven documents, ZIP and the four audio formats),
+WebKit it names the eighteen file formats only (the thirteen documents, ZIP and the four audio formats),
 since an image or video type there makes the system offer the photo library and the camera first. iOS
 WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx` against the type the Files app gives such a
-file, so the twelve alone grey HWP and HWPX out of its
+file, so the eighteen alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
 page judges every pick itself (`chatAttachmentFormat`, which reads the extension of an untyped file, or
 of an office file typed as a ZIP or as a type the server does not know) and
@@ -413,7 +413,7 @@ panel at the press, and its row appears the same way, once the pick is read; mea
 thumbnails above the field stays, faded.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the seventeen formats
+entry's file input and the camera use its image-only form, `judgeChatImages`): the twenty-three formats
 the phone sends (a ZIP archive and the four audio formats included, an audio file under the type alias a system
 gives it as well; AAC and WebM are not among them), each kind's own limit (20MB a photo, 300MB a video,
 50MB a document, archive or audio file), the same item picked twice, and ten a message

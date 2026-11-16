@@ -35,7 +35,7 @@ const APPLE_DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'], PHONE_SENDS)},ap
  * What the page's own "choose from files" input takes: every format the server takes, so a photo or an
  * MP4 kept among files can be sent from here too, and nothing it would refuse. On iOS WebKit that is
  * `APPLE_DOCUMENT_ACCEPT`, which already lets any Files item through by the generic type, and must not name
- * an image or video type (see there). Elsewhere — Android's WebView, desktop browsers — the seventeen
+ * an image or video type (see there). Elsewhere — Android's WebView, desktop browsers — the twenty-three
  * formats it sends are named outright, the four audio ones among them, plus the generic type, under which a
  * system that does not know HWP offers it.
  */
