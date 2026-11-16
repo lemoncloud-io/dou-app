@@ -138,6 +138,27 @@ export type {
     RuntimeHostSend,
     RuntimePayloadSample,
 } from './bridge/host';
+// What a sub WebView page may ask of the runtime: a whitelist of read methods, by permission.
+export {
+    SUB_WEB_VIEW_ALLOWED,
+    SUB_WEB_VIEW_DATA_MEMBER_WHITELIST,
+    SUB_WEB_VIEW_REPOSITORY_WHITELIST,
+    SUB_WEB_VIEW_TARGETS,
+    checkSubWebViewRuntimeRequest,
+    subWebViewAllowedFor,
+} from './bridge/subWebViewWhitelist';
+export type {
+    SubWebViewAllow,
+    SubWebViewArgGuard,
+    SubWebViewDecision,
+    SubWebViewDeny,
+    SubWebViewDenyReason,
+    SubWebViewReadCost,
+    SubWebViewRuntimeCheck,
+    SubWebViewRuntimeRequest,
+    SubWebViewRuntimeScope,
+    SubWebViewWhitelistEntry,
+} from './bridge/subWebViewWhitelist';
 export { createMirrorEngine } from './bridge/mirror/mirrorEngine';
 export type { MirrorEngine, MirrorEngineOptions } from './bridge/mirror/mirrorEngine';
 export type { RuntimeMirrorPort } from './bridge/mirror/port';

@@ -20,6 +20,14 @@ export type {
     Theme,
 } from './types';
 export type { ChaticAppsStorage } from './storage';
+export {
+    LISTENER,
+    SDK_RUNTIME_CONTRACTS,
+    type ChaticAppsRuntime,
+    type RuntimeAllowed,
+    type RuntimeConnection,
+    type RuntimeStream,
+} from './runtime';
 export { SDK_BRIDGE_VERSION } from './client';
 export { ChaticAppsError, type ChaticAppsErrorCode } from './errors';
 export { isInApp } from './transport';

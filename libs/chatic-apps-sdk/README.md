@@ -91,21 +91,22 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 
 ## What a page can do
 
-| Call                                                          | In the app                                                                                   | In a browser                        | Needs permission |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------- |
-| `finish(result?)`                                             | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                           | `NOT_IN_APP`                        | —                |
-| `setTitle(title)`                                             | The app's bar shows it, if the page asked for the bar (1–100 characters)                     | `document.title`                    | —                |
-| `haptic(kind)`                                                | `selection`, `impact`, `success`, `warning`, `error`                                         | a short vibration, if any           | —                |
-| `onBack(handler \| null)`                                     | Android back calls `handler` and does nothing else                                           | never called                        | —                |
-| `onCloseRequest(handler \| null)`                             | Asks before the user closes; return `true` to close                                          | never called                        | —                |
-| `reportError(error)`                                          | Into DoU's log, under your origin (20 per page load)                                         | `console.error`                     | —                |
-| `copy(text)`                                                  | The clipboard                                                                                | the browser's clipboard             | `clipboard`      |
-| `share({ title, message, url })`                              | The share sheet; waits for the user (see below)                                              | Web Share, else copies (`'copied'`) | `share`          |
-| `openUrl(url)`                                                | The browser, mail, phone, SMS or a store                                                     | a new tab                           | `openUrl`        |
-| `getUserKey()`                                                | 64 hex characters, the same for this device and site                                         | `NOT_IN_APP`                        | `userKey`        |
-| `link(params?)`                                               | A link that opens this page in the app (see below)                                           | the page's own root                 | —                |
-| `storage.get(key)`, `.set(key, value)`, …                     | Your page's own storage on the device (see below)                                            | `localStorage`, same limits         | —                |
-| `permissions.query(kind)`, `.request(kind)`, `openSettings()` | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below) | the browser's own permission        | —                |
+| Call                                                          | In the app                                                                                   | In a browser                        | Needs permission                                       |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `finish(result?)`                                             | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                           | `NOT_IN_APP`                        | —                                                      |
+| `setTitle(title)`                                             | The app's bar shows it, if the page asked for the bar (1–100 characters)                     | `document.title`                    | —                                                      |
+| `haptic(kind)`                                                | `selection`, `impact`, `success`, `warning`, `error`                                         | a short vibration, if any           | —                                                      |
+| `onBack(handler \| null)`                                     | Android back calls `handler` and does nothing else                                           | never called                        | —                                                      |
+| `onCloseRequest(handler \| null)`                             | Asks before the user closes; return `true` to close                                          | never called                        | —                                                      |
+| `reportError(error)`                                          | Into DoU's log, under your origin (20 per page load)                                         | `console.error`                     | —                                                      |
+| `copy(text)`                                                  | The clipboard                                                                                | the browser's clipboard             | `clipboard`                                            |
+| `share({ title, message, url })`                              | The share sheet; waits for the user (see below)                                              | Web Share, else copies (`'copied'`) | `share`                                                |
+| `openUrl(url)`                                                | The browser, mail, phone, SMS or a store                                                     | a new tab                           | `openUrl`                                              |
+| `getUserKey()`                                                | 64 hex characters, the same for this device and site                                         | `NOT_IN_APP`                        | `userKey`                                              |
+| `link(params?)`                                               | A link that opens this page in the app (see below)                                           | the page's own root                 | —                                                      |
+| `storage.get(key)`, `.set(key, value)`, …                     | Your page's own storage on the device (see below)                                            | `localStorage`, same limits         | —                                                      |
+| `permissions.query(kind)`, `.request(kind)`, `openSettings()` | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below) | the browser's own permission        | —                                                      |
+| `runtime.connect()`, `.call(…)`, `.subscribe(…)`              | Reads the app's own data — the current cloud — exactly as DoU's screens do (see below)       | `NOT_IN_APP`                        | `session`, `cloud`, `place`, `channel`, `chat`, `user` |
 
 Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or `desktop` — and the
 `params` you were opened with; DoU's own web opens a mini app with `MiniAppLaunchParams`, see below),
@@ -143,9 +144,55 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
   sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
   its type. Pass `connect({ reportErrors: false })` to turn it off.
 
+## Reading the app's data: `apps.runtime`
+
+A page can read the cloud it was opened in — its places, rooms, messages, members — through the app's
+own runtime, the same reads DoU's screens make, and hear them change:
+
+```ts
+const apps = await connect();
+if (apps.supports('runtime')) {
+    const { allowed } = await apps.runtime.connect(); // the app asks the user once, here
+    const rooms = await apps.runtime.call('channel.cacheReadList', { sid: params.place.id });
+    const stream = await apps.runtime.subscribe('channel.observeList', [{ sid: params.place.id }], result => {
+        render(result);
+    });
+    apps.runtime.onCloudChanged(() => apps.finish());
+}
+```
+
+- **Read only, and only what your manifest asks for.** Each of `session`, `cloud`, `place`, `channel`,
+  `chat` and `user` opens a fixed set of the app's read methods; `connect()` answers the names this page
+  may use (`allowed.calls`, `allowed.streams`), and `can(name)` checks one. Anything else is refused with
+  `RUNTIME_NOT_ALLOWED`. Nothing a page can call changes anything, switches the cloud or the place, or
+  reads another cloud.
+- **What comes back is the app's own data**, as its runtime holds it: method names, arguments and
+  results are the app's runtime contract (`SDK_RUNTIME_CONTRACTS` lists the versions this library
+  speaks). They are JSON, typed `unknown` here.
+- **The user is asked once** whether your page may read this cloud. A refusal is `CONSENT_REFUSED`;
+  `connect()` asks again the next time the page is opened.
+- **Streams**: `subscribe(name, args, listener, onEnd)` hands `listener` each event's arguments. Put
+  `LISTENER` where the method takes its callback, or leave it out to have it go last. `onEnd` hears a
+  stream the app ended: `CLOUD_CHANGED`, a too-large event, or `DISCONNECTED` after the page came back
+  from the back-forward cache (subscribe again). At most 16 at a time.
+- **The cloud is fixed.** If the user's cloud changes under the view, every stream ends with
+  `CLOUD_CHANGED`, `onCloudChanged` fires once, and nothing answers after.
+- **Server reads are budgeted**: one per 250 ms and 60 a minute per view, `RATE_LIMITED` past it, with
+  `error.details.retryAfterMs`.
+- **Only some launches answer it**: the app's own runtime has to hold the session, the page has to be a
+  reviewed one on the phone, and a cloud other than Home has to be selected when it opens.
+  `supports('runtime')` is `false` everywhere else.
+- **It reads what the app holds.** Nothing a page calls fetches into the app's cache, so it sees what
+  DoU has already synced, plus the server's room list (`channel.fetchList`) and the place's members
+  (`user.listPlaceMembers`, for the place the user is in). `session` is the current cloud's part of the
+  session only.
+
+The mock answers it from `runtime: { calls, streams, session, consent }` and plays the cloud change with
+`changeCloud()`. It does not know the app's whitelist: it answers what you give it.
+
 ## Permissions
 
-The four calls marked above need a permission your page asks for in a file on its own site,
+The calls marked above need a permission your page asks for in a file on its own site,
 `/.well-known/chatic-app.json`:
 
 ```json
@@ -159,8 +206,9 @@ The four calls marked above need a permission your page asks for in a file on it
 ```
 
 You ask; an administrator grants them when your page is reviewed, and only what was granted is
-deployed. Without the file your page gets everything else but not these four, which then fail with
-`NOT_SUPPORTED`. A page has **no bar by default**: a small close button floats in the top-right corner
+deployed. Without the file your page gets everything else but not what these permissions unlock: a call
+that needs one fails with `NOT_SUPPORTED`, and without a runtime permission `supports('runtime')` is
+`false`. A page has **no bar by default**: a small close button floats in the top-right corner
 (keep it clear) and the page draws its own header. `display: "standard"` asks for the app's bar, with
 the page's title and a close button; `orientation` is `any`, `portrait` or `landscape`. The app reads
 the file before it shows your page, keeps it for the rest of its run, and fetches a fresh copy behind
@@ -182,20 +230,24 @@ try {
 }
 ```
 
-| Code                   | Means                                                                                                                   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage                    |
-| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                                    |
-| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                                            |
-| `INVALID`              | A value is missing, of the wrong type, or too long                                                                      |
-| `TOO_LARGE`            | One call's data is over 65,536 characters                                                                               |
-| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                                         |
-| `NOT_OPEN`             | `finish` after the view has already closed                                                                              |
-| `UNAVAILABLE`          | No device id to make a user key from, the page's storage could not be opened, or the device has no camera or microphone |
-| `SETTINGS_ERROR`       | `openSettings()`: the OS would not open the settings                                                                    |
-| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                                                 |
-| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                                                          |
-| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                         |
+| Code                   | Means                                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage                                                                            |
+| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                                                                                            |
+| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                                                                                                    |
+| `INVALID`              | A value is missing, of the wrong type, or too long                                                                                                                              |
+| `TOO_LARGE`            | One call's data is over 65,536 characters                                                                                                                                       |
+| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                                                                                                 |
+| `NOT_OPEN`             | `finish` after the view has already closed                                                                                                                                      |
+| `UNAVAILABLE`          | No device id to make a user key from, the page's storage could not be opened, or the device has no camera or microphone                                                         |
+| `SETTINGS_ERROR`       | `openSettings()`: the OS would not open the settings                                                                                                                            |
+| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                                                                                                         |
+| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection; or, for a runtime stream, the page came back from the back-forward cache and the stream ended (subscribe again) |
+| `RUNTIME_NOT_ALLOWED`  | `runtime`: not a method this page may use, or an argument the app holds to the current cloud or place                                                                           |
+| `CLOUD_CHANGED`        | `runtime`: the user's cloud is no longer the one this view opened on; nothing answers after                                                                                     |
+| `CONSENT_REFUSED`      | `runtime.connect()`: the user did not allow this page to read this cloud                                                                                                        |
+| `RATE_LIMITED`         | `runtime`: too many server reads; wait `error.details.retryAfterMs`                                                                                                             |
+| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                                                                                 |
 
 Treat a code not in this table as that call failing, and nothing more.
 

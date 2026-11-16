@@ -2,7 +2,32 @@ import { ruledStore, type StoreFile } from './storage';
 import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
 
 /** A manifest permission, as the page would declare it in `/.well-known/chatic-app.json`. */
-export type MockPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
+export type MockPermission =
+    | 'clipboard'
+    | 'share'
+    | 'openUrl'
+    | 'userKey'
+    | 'session'
+    | 'cloud'
+    | 'place'
+    | 'channel'
+    | 'chat'
+    | 'user';
+
+/**
+ * The app's data, as the mock answers `apps.runtime`: each method the page may call, and each stream it
+ * may subscribe to, by its `<repository>.<method>` name. The mock does not know the app's whitelist —
+ * it answers what is given here and refuses the rest — so read the real `allowed` in the app.
+ */
+export interface MockRuntime {
+    /** The session snapshot, given to a page with the `session` permission. */
+    session?: unknown;
+    calls?: { [method: string]: (...args: unknown[]) => unknown };
+    /** Each gets `emit`, which sends one event, and the page's arguments; it returns how to stop. */
+    streams?: { [method: string]: (emit: (...event: unknown[]) => void, ...args: unknown[]) => (() => void) | void };
+    /** How the user answers the app's question about this cloud; `allow` by default. */
+    consent?: 'allow' | 'refuse';
+}
 
 /** How the user answers when the page asks for a device: allows it, refuses it, or the OS blocks it. */
 export type MockDeviceAnswer = 'allow' | 'deny' | 'blocked' | 'unavailable';
@@ -26,6 +51,8 @@ export interface MockOptions {
     storage?: { [key: string]: unknown };
     /** Log each request and reply to the console. On by default. */
     log?: boolean;
+    /** The app's data, for a page with a runtime permission. */
+    runtime?: MockRuntime;
 }
 
 export interface MockController {
@@ -43,6 +70,8 @@ export interface MockController {
     requestClose(trigger?: CloseTrigger): void;
     /** A theme or language change while the page shows. */
     changeContext(change: Partial<Pick<ChaticAppsContext, 'theme' | 'locale'>>): void;
+    /** The user moves to another cloud under the view: every stream ends, and nothing answers after. */
+    changeCloud(): void;
     /** Removes the fake app. */
     uninstall(): void;
 }
@@ -65,12 +94,14 @@ const BASE = [
     'RequestSubWebViewPermission',
     'OpenSettings',
 ];
-const GATED: Record<MockPermission, string> = {
+const GATED: Partial<Record<MockPermission, string>> = {
     clipboard: 'CopyToClipboard',
     share: 'OpenShareSheet',
     openUrl: 'OpenURL',
     userKey: 'GetSubWebViewUserKey',
 };
+const RUNTIME_PERMISSIONS: readonly MockPermission[] = ['session', 'cloud', 'place', 'channel', 'chat', 'user'];
+const RUNTIME_REQUESTS = ['RuntimeHello', 'RuntimeCall', 'RuntimeSubscribe', 'RuntimeUnsubscribe'];
 const DEVICE_KINDS: readonly DeviceKind[] = ['camera', 'microphone'];
 const KINDS: readonly HapticKind[] = ['selection', 'impact', 'success', 'warning', 'error'];
 const MESSAGE_LIMIT = 64 * 1024;
@@ -126,7 +157,16 @@ const mockAppLink = (origin: string): string => {
  * app's, and nothing here proves a page works on a device.
  */
 export const installChaticAppsMock = (options: MockOptions = {}): MockController => {
-    const supported = new Set([...BASE, ...(options.permissions ?? []).map(permission => GATED[permission])]);
+    const permissions = options.permissions ?? [];
+    const reads = permissions.some(permission => RUNTIME_PERMISSIONS.includes(permission));
+    const supported = new Set<string>([
+        ...BASE,
+        ...permissions.flatMap(permission => GATED[permission] ?? []),
+        ...(reads ? RUNTIME_REQUESTS : []),
+    ]);
+    const runtime = options.runtime ?? {};
+    const runtimeStreams = new Map<string, { seq: number; stop: () => void }>();
+    let cloudChanged = false;
     // Each device starts unasked, as on a fresh install.
     const devices: Record<DeviceKind, PermissionState> = { camera: 'prompt', microphone: 'prompt' };
     const origin = window.location.origin;
@@ -213,8 +253,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.25.0',
-                    protocolVersion: '2.25.0',
+                    appVersion: '2.26.0',
+                    protocolVersion: '2.26.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },
@@ -342,10 +382,79 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 return ok('OnOpenSettings', refId);
             case 'GetSubWebViewUserKey':
                 return ok('OnGetSubWebViewUserKey', refId, { key: options.userKey ?? mockKey(origin) });
+            case 'RuntimeHello':
+            case 'RuntimeCall':
+            case 'RuntimeSubscribe':
+            case 'RuntimeUnsubscribe':
+                return answerRuntime(type, refId, data);
             default:
                 return fail('ERROR', refId, 'NOT_FOUND', `${type} is not answered for this page.`);
         }
     };
+
+    function answerRuntime(type: string, refId: unknown, data: Record<string, unknown>): void {
+        const reply = `On${type}`;
+        if (cloudChanged && type !== 'RuntimeUnsubscribe') {
+            return fail(reply, refId, 'CLOUD_CHANGED', 'The cloud this view opened on is no longer the selected one.');
+        }
+        const method = String(type === 'RuntimeSubscribe' ? data.topic : data.method);
+        const args = (Array.isArray(data.args) ? data.args : []).filter(
+            arg => !(typeof arg === 'object' && arg !== null && (arg as { $listener?: unknown }).$listener === true)
+        );
+        switch (type) {
+            case 'RuntimeHello':
+                if (runtime.consent === 'refuse') {
+                    return fail(
+                        reply,
+                        refId,
+                        'CONSENT_REFUSED',
+                        'The user did not allow this page to read this cloud.'
+                    );
+                }
+                return ok(reply, refId, {
+                    sessionOwner: 'native',
+                    contract: 1,
+                    seq: 0,
+                    session: permissions.includes('session') ? (runtime.session ?? null) : null,
+                    allowed: { calls: Object.keys(runtime.calls ?? {}), streams: Object.keys(runtime.streams ?? {}) },
+                });
+            case 'RuntimeCall': {
+                const call = runtime.calls?.[method];
+                if (data.target !== 'data' || !call) {
+                    return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', `${method} is not open to this page.`);
+                }
+                return void Promise.resolve()
+                    .then(() => call(...args))
+                    .then(
+                        value => ok(reply, refId, { value: value ?? null }),
+                        error => fail(reply, refId, 'RUNTIME_ERROR', String((error as Error)?.message ?? error))
+                    );
+            }
+            case 'RuntimeSubscribe': {
+                const open = runtime.streams?.[method];
+                const id = String(data.subscriptionId);
+                if (data.target !== 'data' || !open) {
+                    return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', `${method} is not open to this page.`);
+                }
+                runtimeStreams.get(id)?.stop();
+                const entry = { seq: 0, stop: () => undefined as void };
+                runtimeStreams.set(id, entry);
+                const emit = (...event: unknown[]) => {
+                    if (runtimeStreams.get(id) !== entry) return;
+                    entry.seq += 1;
+                    push('OnRuntimeEvent', { subscriptionId: id, seq: entry.seq, event });
+                };
+                entry.stop = open(emit, ...args) ?? (() => undefined);
+                return ok(reply, refId);
+            }
+            default: {
+                const id = String(data.subscriptionId);
+                runtimeStreams.get(id)?.stop();
+                runtimeStreams.delete(id);
+                return ok(reply, refId);
+            }
+        }
+    }
 
     const target = window as unknown as {
         ReactNativeWebView?: { postMessage(message: string): void };
@@ -388,6 +497,19 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         changeContext: change => {
             Object.assign(current, change);
             push('OnSubWebViewContextChanged', { ...current });
+        },
+        changeCloud: () => {
+            if (cloudChanged) return;
+            cloudChanged = true;
+            runtimeStreams.forEach((entry, id) => {
+                entry.stop();
+                push('OnRuntimeEvent', {
+                    subscriptionId: id,
+                    seq: entry.seq + 1,
+                    event: { $ended: { code: 'CLOUD_CHANGED', message: 'The cloud changed.' } },
+                });
+            });
+            runtimeStreams.clear();
         },
         uninstall: () => {
             delete target.ReactNativeWebView;

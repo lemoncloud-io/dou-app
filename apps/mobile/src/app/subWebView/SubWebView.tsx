@@ -4,8 +4,13 @@ import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
-import type { SubWebViewCloseTrigger, SubWebViewContext, SubWebViewPermission } from '@chatic/bridge-messages';
-import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin } from '@chatic/shared';
+import type {
+    SubWebViewCloseTrigger,
+    SubWebViewContext,
+    SubWebViewPermission,
+    SubWebViewRuntimePermission,
+} from '@chatic/bridge-messages';
+import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin, type SubWebViewTrust } from '@chatic/shared';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
@@ -19,6 +24,8 @@ import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridge
 import { createSubWebViewCloseGuard } from './subWebViewCloseGuard';
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
+import { openSubWebViewRuntime } from './subWebViewRuntimeAccess';
+import type * as RuntimeBridgeModule from './subWebViewRuntimeBridge';
 import { decideSubWebViewBack, useSubWebViewBack } from './useSubWebViewBack';
 
 interface SubWebViewProps {
@@ -29,6 +36,10 @@ interface SubWebViewProps {
     appId?: string;
     /** What the page's manifest permits beyond the base set; read once, when the view opens. */
     permissions: ReadonlySet<SubWebViewPermission>;
+    /** What the page's manifest asks to read of the app's runtime; granted only where the gate allows. */
+    runtimePermissions: ReadonlySet<SubWebViewRuntimePermission>;
+    /** How far the shell trusts the page: only a `reviewed` one may read the runtime. */
+    trust: SubWebViewTrust;
     /** Close the view as `user`; called once the page's close guard, if any, lets the close through. */
     onRequestClose: () => void;
     /** The document's own title, each time it changes. */
@@ -60,7 +71,18 @@ export interface SubWebViewHandle {
  * prompt for the same page would be a second question, so iOS does not show it.
  */
 export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
-    { viewId, url, params, appId, permissions, onRequestClose, onTitleChange, onTitleRequest },
+    {
+        viewId,
+        url,
+        params,
+        appId,
+        permissions,
+        runtimePermissions,
+        trust,
+        onRequestClose,
+        onTitleChange,
+        onTitleRequest,
+    },
     ref
 ) {
     const webViewRef = useRef<WebView>(null);
@@ -108,7 +130,12 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     const contextRef = useRef(context);
     contextRef.current = context;
 
-    const host = useMemo(() => {
+    // Settled once as the view opens: whether its page may read the app's runtime, and the cloud it is
+    // bound to. State, not a memo — React may drop a memo and compute it again, which would rebind the
+    // view to whatever cloud is selected then and start its read budget over.
+    const [runtimeAccess] = useState(() => openSubWebViewRuntime({ trust, permissions: runtimePermissions }));
+
+    const { host, runtime } = useMemo(() => {
         // A request from the previous load can be answered after the next one started; its title
         // and claims must not stick to the new page.
         const load = pageLoad;
@@ -143,12 +170,30 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             permissions: permissionService,
             openSettings,
         });
-        return createSubBridgeHost(
+        // The runtime requests, where the gate opened them: a runtime host of this load's own, so the
+        // page's streams end with the load. Loaded only then — the module brings the whole runtime.
+        let runtime: ReturnType<(typeof RuntimeBridgeModule)['createAppSubWebViewRuntimeBridge']> | null = null;
+        let pageHost: ReturnType<typeof createSubBridgeHost> | null = null;
+        if (runtimeAccess && openedOrigin) {
+            const { createAppSubWebViewRuntimeBridge } =
+                require('./subWebViewRuntimeBridge') as typeof RuntimeBridgeModule;
+            runtime = createAppSubWebViewRuntimeBridge({
+                access: runtimeAccess,
+                origin: openedOrigin,
+                pageHost: () => (isCurrent() ? pageHost : null),
+                onRefused: refusal => logger.warn('WEBVIEW', '[sub] runtime request refused', refusal),
+            });
+        }
+        pageHost = createSubBridgeHost(
             message => webViewRef.current?.postMessage(message),
-            permittedSubBridgeHandlers(handlers, permissions),
+            { ...permittedSubBridgeHandlers(handlers, permissions), ...(runtime?.handlers ?? {}) },
             () => contextRef.current
         );
-    }, [viewId, openedOrigin, pageLoad, permissions]);
+        return { host: pageHost, runtime };
+    }, [viewId, openedOrigin, pageLoad, permissions, runtimeAccess]);
+
+    // A load's runtime streams end with it, and with the view.
+    useEffect(() => () => runtime?.dispose(), [runtime]);
 
     const requestClose = useCallback(
         (trigger: SubWebViewCloseTrigger) => {

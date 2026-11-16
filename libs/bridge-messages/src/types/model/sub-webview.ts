@@ -1,3 +1,5 @@
+import type { RuntimeWireValue } from './runtime';
+
 // --- Sub WebView Types ---
 //
 // A second WebView the shell shows over the app's own, for a page on another origin. The web asks
@@ -54,6 +56,30 @@ export type SubWebViewOpenScope = 'reviewed' | 'anyHttps';
  */
 export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
 
+/**
+ * (2.26.0) What a page may read of the app's runtime, by area, declared in its manifest beside the
+ * capabilities above. Each opens a fixed set of the runtime's own read methods — the table is the
+ * runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`) — and answers them exactly
+ * as it answers the main web:
+ *
+ * - `session` — the session snapshot in the hello's answer, and its change pushes;
+ * - `cloud` — the current cloud's own row;
+ * - `place` — the current cloud's places;
+ * - `channel` — channels and their joins, in any place of the current cloud;
+ * - `chat` — messages;
+ * - `user` — users, place profiles and place member lists.
+ *
+ * Any one of them registers the four runtime requests (`RuntimeHello`, `RuntimeCall`,
+ * `RuntimeSubscribe`, `RuntimeUnsubscribe`) on the page's host — on the phone only, on a launch whose
+ * session the app's runtime holds, for a `reviewed` page, opened while a cloud other than Home was
+ * selected. Nothing they open writes, moves a cursor, switches the cloud or the place, or reads
+ * another cloud.
+ */
+export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user';
+
+/** Every name a manifest's `permissions` may hold. A shell drops the names it does not know. */
+export type SubWebViewManifestPermission = SubWebViewPermission | SubWebViewRuntimePermission;
+
 /** A device a page captures from with `getUserMedia`. */
 export type SubWebViewDeviceKind = 'camera' | 'microphone';
 
@@ -83,7 +109,7 @@ export type SubWebViewManifest = {
     manifestVersion: 1;
     /** What the bar shows when nothing else names the page; 1–100 characters. */
     name?: string;
-    permissions?: SubWebViewPermission[];
+    permissions?: SubWebViewManifestPermission[];
     display?: SubWebViewDisplay;
     orientation?: SubWebViewOrientation;
 };
@@ -99,6 +125,9 @@ export type SubWebViewErrorCode = 'INVALID' | 'NOT_ALLOWED' | 'ALREADY_OPEN' | '
  *   `TOO_LARGE` is a message over the host's size limit (65,536 characters serialized).
  * - The rest come from a request's own handler, in a reply typed `On<Request>`. `INVALID_KIND` is
  *   `TriggerHaptic`'s older name for `INVALID`, kept because a page may read it.
+ * - (2.26.0) The runtime requests add four of their own (`SubWebViewRuntimeErrorCode`), and pass the
+ *   runtime's own codes through (`RUNTIME_NOT_AVAILABLE`, `RUNTIME_ERROR` and the rest) as the main
+ *   web gets them.
  */
 export type SubWebViewPageErrorCode =
     | 'NOT_FOUND'
@@ -113,7 +142,62 @@ export type SubWebViewPageErrorCode =
     | 'SHARE_ERROR'
     | 'UNAVAILABLE'
     | 'QUOTA_EXCEEDED'
-    | 'SETTINGS_ERROR';
+    | 'SETTINGS_ERROR'
+    | SubWebViewRuntimeErrorCode;
+
+/**
+ * (2.26.0) What the sub host's runtime requests fail with before the runtime is asked:
+ * - `RUNTIME_NOT_ALLOWED` — the target, the method or the way it is asked (call or stream) is not one
+ *   this page may use, or a cloud id argument names another cloud. `details` carries
+ *   `SubWebViewRuntimeRefusal`.
+ * - `CLOUD_CHANGED` — the session's cloud is no longer the one the view opened on. Final for the view:
+ *   every open stream ends with it too.
+ * - `CONSENT_REFUSED` — the user declined to let this page read in this cloud. Asked again next open.
+ * - `RATE_LIMITED` — a read that asks the server, over the view's budget. `details` carries
+ *   `{ retryAfterMs }`.
+ */
+export type SubWebViewRuntimeErrorCode = 'RUNTIME_NOT_ALLOWED' | 'CLOUD_CHANGED' | 'CONSENT_REFUSED' | 'RATE_LIMITED';
+
+/**
+ * Why a runtime request was refused: the whitelist's reason for a closed method or target, `notGranted`
+ * for an open method whose permission the manifest does not hold, `guard` for a cloud id argument that
+ * is not the current cloud's, `unknown` for a name the whitelist does not have.
+ */
+export type SubWebViewRuntimeRefusalReason =
+    | 'write'
+    | 'cacheWrite'
+    | 'cursor'
+    | 'serverSideEffect'
+    | 'otherCloud'
+    | 'account'
+    | 'device'
+    | 'admin'
+    | 'internal'
+    | 'notGranted'
+    | 'guard'
+    | 'unknown';
+
+/** `details` of a `RUNTIME_NOT_ALLOWED` failure. */
+export type SubWebViewRuntimeRefusal = {
+    target: string;
+    method: string;
+    reason: SubWebViewRuntimeRefusalReason;
+};
+
+/**
+ * (2.26.0) [Response] The hello's answer on a sub host. It never settles who owns the session — the
+ * main web did — and the host exists only where the app's runtime runs, so it is always `native`.
+ * The fields are the main web's answer, plus what this page may use; `session` is the snapshot with
+ * the `session` permission and `null` without.
+ */
+export type OnSubWebViewRuntimeHelloPayload = {
+    sessionOwner: 'native';
+    contract: number;
+    seq: number;
+    session: RuntimeWireValue | null;
+    /** `<repository>.<method>` names this page may call, and subscribe to, on the `data` target. */
+    allowed: { calls: string[]; streams: string[] };
+};
 
 /**
  * Why a sub WebView closed:

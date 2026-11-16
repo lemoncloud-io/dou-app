@@ -378,13 +378,60 @@ it.
 What crosses is JSON: a result that held a `Date` arrives as its ISO string, and a result that would
 hold anything JSON cannot carry does not compile ([What a result may hold](#what-a-result-may-hold)).
 
+## A sub WebView page: a whitelist of reads
+
+A mini app in the phone's sub WebView may speak the same four requests to its own host, through a
+whitelist kept here (`subWebViewWhitelist.ts`). It is a whitelist of **requests**, not a filter on
+data: an allowed method answers a page exactly what it answers the main web, the whole row. What makes
+that safe is which methods can be reached at all, and two rules decide every one:
+
+- **Read only, in what it does.** Nothing that writes on the server or in the device cache, nothing
+  that moves a sync cursor or a read cursor, and nothing the server may answer by creating something
+  (`profile.get-mine` creates a missing profile row; `channel.get-self` creates the self chat). A read
+  that writes what it fetched — every `refresh*`, `chat.getChat`, `cloud.getCloud`,
+  `user.getMyProfile`, `syncChannelUsers`, `syncProfilesOf`, and the room media reads that fill a
+  room's media index — is a write here, not a read: the page's arguments decide where its rows land
+  (`channel.refreshList({ sid })` with another place's id files this place's rooms under it), and a
+  later sync does not undo it. So the server reads open to a page are the two that write nothing,
+  `channel.fetchList` and `place.isPlaceDeleted`, and the member list under guards (below).
+- **The current cloud, and no switching.** Only `data` is open, which is the live scope. `session` is
+  closed — the cloud and place switches are session commands — and so are `connection`, `sync`,
+  `data@cloud`, and every method that reaches another cloud (`*InCloud`, the cloud list and catalog,
+  `searchCache` and `resolveCacheContext` with their cloud ids).
+
+Arguments pass through as the main web sends them, except where an entry guards one
+(`SubWebViewArgGuard`): `cloud.observeItem` and `cloud.cacheRead` pass only for the current cloud's id;
+`user.listPlaceMembers`, which loads the members' place profiles into the cache, passes only with
+`placeId` and `sessionPlaceId` both the place the session is on (`SubWebViewRuntimeScope.placeId`, the
+committed place — the one the server answers profiles for) and no `pageSize`, so one call stays the
+server's page size. Table lookups read only a table's own keys: a page names them, and `__proto__`
+names nothing.
+
+Each allowed method sits under one permission a page's manifest declares (`session`, `cloud`, `place`,
+`channel`, `chat`, `user`) with its cost — `local` for the device cache and its streams, `server` for a
+read that asks the server, which the shell budgets. Each closed one names its reason (`write`,
+`cacheWrite`, `cursor`, `serverSideEffect`, `otherCloud`, `account`, `device`, `admin`, `internal`), and
+whole repositories are closed with one: `auth`, `pairing`, `invite`, `subscription`, `device`, `report`,
+`syncMeta`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
+of `RuntimeData`, so **a method added to the runtime does not compile until it is decided here** — the
+moment to ask the two questions above. The spec typecheck also refuses allowing a name that writes
+(`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like), anything `…InCloud`, a
+server read other than the three above, and a stream that is not an `observe…`; and the test lists the
+allowed methods by name, so a flipped entry shows as a diff.
+
+`checkSubWebViewRuntimeRequest` answers, for one request, the page's granted permissions and where the
+session is, whether it may go and at what cost, or the reason it may not; `subWebViewAllowedFor` lists what a set of
+permissions opens, which the page's hello reports. The view's cloud, the user's consent and the read
+budget are the shell's to check around it (`apps/mobile` docs, the sub WebView).
+
 ## Where it lives
 
-| File                         | Holds                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge/contract.ts`     | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
-| `src/bridge/errors.ts`       | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
-| `src/bridge/host.ts`         | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, `RuntimeReceiptEvent`, the defaults                                                                                                                                   |
-| `src/bridge/mirror/`         | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls, streams and write receipts (`conversation.ts`, `RECEIPT_WRITTEN_TIMEOUT_MS`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                              |
-| `src/bridge/repositories.ts` | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `REPOSITORY_RECEIPTS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                |
-| `src/bridge/wire.ts`         | `NotOnTheWire`, `CheckedCrossing` — what the compiler checks every crossing result against                                                                                                                                                                                                                                                           |
+| File                                | Holds                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge/contract.ts`            | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
+| `src/bridge/errors.ts`              | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
+| `src/bridge/host.ts`                | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, `RuntimeReceiptEvent`, the defaults                                                                                                                                   |
+| `src/bridge/mirror/`                | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls, streams and write receipts (`conversation.ts`, `RECEIPT_WRITTEN_TIMEOUT_MS`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                              |
+| `src/bridge/repositories.ts`        | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `REPOSITORY_RECEIPTS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                |
+| `src/bridge/subWebViewWhitelist.ts` | `SUB_WEB_VIEW_REPOSITORY_WHITELIST`, `SUB_WEB_VIEW_DATA_MEMBER_WHITELIST`, `SUB_WEB_VIEW_TARGETS`, `SUB_WEB_VIEW_ALLOWED`, `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`                                                                                                                                                                   |
+| `src/bridge/wire.ts`                | `NotOnTheWire`, `PromiseCrossing`, `CheckedCrossing` — what the compiler checks every crossing result against                                                                                                                                                                                                                                        |

@@ -32,6 +32,7 @@ const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['o
  */
 const EXTERNAL_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
     permissions: new Set<never>(),
+    runtimePermissions: new Set<never>(),
     display: 'standard',
     orientation: 'any',
 });
@@ -141,6 +142,8 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     params={params}
                     appId={appId}
                     permissions={manifest.permissions}
+                    runtimePermissions={manifest.runtimePermissions}
+                    trust={trust}
                     onRequestClose={close}
                     onTitleChange={setPageTitle}
                     onTitleRequest={setRequestedTitle}

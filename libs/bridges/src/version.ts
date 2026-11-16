@@ -66,7 +66,11 @@
 // 2.25.0: added FetchChatMediaCacheData, CountChatMediaCacheData and SaveChatMediaCacheData (web -> app)
 //         — a room's media index in the shell's `chat_media` table, read and filled; a shell without
 //         all three is read through plain chat rows.
-export const BRIDGE_VERSION = '2.25.0' as const;
+// 2.26.0: a sub WebView page's host answers RuntimeHello, RuntimeCall, RuntimeSubscribe and
+//         RuntimeUnsubscribe (web -> app) and pushes OnRuntimeEvent and OnRuntimeSessionChanged —
+//         through a whitelist of the runtime's read methods its manifest opens, with the
+//         `SubWebViewRuntimePermission` names; only where the app's runtime holds the session.
+export const BRIDGE_VERSION = '2.26.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

@@ -65,6 +65,23 @@ jest.mock('../services/subWebView/subWebViewStorageFile', () => {
     const { memoryStorageFile } = jest.requireActual('../services/subWebView/memoryStorageFile');
     return { openSubWebViewStorage: jest.fn(() => new SubWebViewStorage(memoryStorageFile())) };
 });
+// The runtime gate reads the session owner from a native file; each test says what it settles.
+let mockRuntimeAccess: unknown = null;
+const mockOpenRuntime = jest.fn((_input: unknown) => mockRuntimeAccess);
+jest.mock('./subWebViewRuntimeAccess', () => ({ openSubWebViewRuntime: (input: unknown) => mockOpenRuntime(input) }));
+const mockRuntimeDispose = jest.fn();
+const mockCreateRuntimeBridge = jest.fn((_deps: unknown) => ({
+    handlers: {
+        RuntimeHello: async () => ({ type: 'OnRuntimeHello', success: true, data: { sessionOwner: 'native' } }),
+        RuntimeCall: async () => ({ type: 'OnRuntimeCall', success: true, data: { value: null } }),
+        RuntimeSubscribe: async () => ({ type: 'OnRuntimeSubscribe', success: true, data: {} }),
+        RuntimeUnsubscribe: async () => ({ type: 'OnRuntimeUnsubscribe', success: true, data: {} }),
+    },
+    dispose: mockRuntimeDispose,
+}));
+jest.mock('./subWebViewRuntimeBridge', () => ({
+    createAppSubWebViewRuntimeBridge: (deps: unknown) => mockCreateRuntimeBridge(deps),
+}));
 // The barrel reaches web-only modules the CommonJS transform cannot parse; the link module is all
 // this view uses.
 jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/shared/src/utils/subWebViewLink'));
@@ -74,6 +91,7 @@ const URL_ = 'https://foo.apps.chatic.io/a';
 // Every permission, so the tests below reach every request; one stable Set, since a new one rebuilds
 // the host.
 const ALL_PERMISSIONS = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
+const NO_RUNTIME = new Set<never>();
 
 const renderView = (props: Partial<React.ComponentProps<typeof SubWebView>> = {}) =>
     render(
@@ -82,6 +100,8 @@ const renderView = (props: Partial<React.ComponentProps<typeof SubWebView>> = {}
             url={URL_}
             params={{ orderId: 7 }}
             permissions={ALL_PERMISSIONS}
+            runtimePermissions={NO_RUNTIME}
+            trust="reviewed"
             onRequestClose={jest.fn()}
             {...props}
         />
@@ -108,6 +128,68 @@ describe('SubWebView', () => {
         mockOpenURL.mockClear();
         mockBackListener = undefined;
         mockTheme = 'light';
+        mockRuntimeAccess = null;
+        mockOpenRuntime.mockClear();
+        mockCreateRuntimeBridge.mockClear();
+        mockRuntimeDispose.mockClear();
+    });
+
+    describe('the runtime requests', () => {
+        const RUNTIME = ['RuntimeHello', 'RuntimeCall', 'RuntimeSubscribe', 'RuntimeUnsubscribe'];
+        const supported = () => {
+            const ready = mockPostMessage.mock.calls
+                .map(([raw]) => JSON.parse(raw))
+                .find(reply => reply.type === 'OnWebAppReady');
+            return ready.data.supportedWebMessages as string[];
+        };
+
+        it('asks the gate once as the view opens, with its trust and runtime permissions', () => {
+            const runtimePermissions = new Set(['channel'] as const);
+            renderView({ runtimePermissions, trust: 'external' });
+
+            act(() => mockWebViewProps.onLoadStart());
+
+            expect(mockOpenRuntime).toHaveBeenCalledTimes(1);
+            expect(mockOpenRuntime).toHaveBeenCalledWith({ trust: 'external', permissions: runtimePermissions });
+        });
+
+        it('registers none of them when the gate grants nothing', async () => {
+            renderView();
+
+            mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+            await settle();
+
+            expect(supported()).not.toContain('RuntimeHello');
+            expect(mockCreateRuntimeBridge).not.toHaveBeenCalled();
+        });
+
+        it('registers them for the opened origin and cloud, one bridge per page load, each disposed with it', async () => {
+            mockRuntimeAccess = {
+                engine: { session: { snapshot: jest.fn(), subscribe: jest.fn() } },
+                openedCloudId: 'c1',
+                granted: new Set(['channel']),
+                budget: { take: jest.fn() },
+                consent: { ensure: jest.fn() },
+            };
+            const view = renderView({ runtimePermissions: new Set(['channel'] as const) });
+
+            mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+            await settle();
+            expect(supported()).toEqual(expect.arrayContaining(RUNTIME));
+            expect(mockCreateRuntimeBridge).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    origin: 'https://foo.apps.chatic.io',
+                    access: expect.objectContaining({ openedCloudId: 'c1' }),
+                })
+            );
+
+            act(() => mockWebViewProps.onLoadStart());
+            expect(mockCreateRuntimeBridge).toHaveBeenCalledTimes(2);
+            expect(mockRuntimeDispose).toHaveBeenCalledTimes(1);
+
+            view.unmount();
+            expect(mockRuntimeDispose).toHaveBeenCalledTimes(2);
+        });
     });
 
     // None of the main WebView's identity or channel: its own context script, its own user agent.
