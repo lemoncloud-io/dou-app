@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Refactor
+
+- (bridges,web) build the host profile in bridges and remove device-utils (ADR-0324)
+
 ## [2026-11-16] - root@0.158.1, @chatic/web@0.90.1, @chatic/landing@0.18.4, @chatic/desktop-web@0.57.1
 
 ### Features
