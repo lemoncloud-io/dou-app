@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -241,6 +239,10 @@
     }
 
     html {
+        /* Pretendard is named, not downloaded: it applies where the device has it installed, and the
+           system font is what a phone shows. No stylesheet is @import-ed for it — Google Fonts does
+           not serve Pretendard (that request answers 400), and an @import holds the first paint
+           until it returns. */
         font-family:
             'Pretendard',
             -apple-system,
