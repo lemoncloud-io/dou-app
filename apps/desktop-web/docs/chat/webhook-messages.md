@@ -32,6 +32,11 @@ a field's caption. The sizes are written out in
 apps/web's at different sizes — so a card body reads larger than an ordinary message's 15px, which
 is what the design asks for.
 
+Every size on this page is the one at the default text size. The sizes and the 24px padding are
+written in `rem`, so they follow the text size setting (which moves the root font size, see
+[Settings](../settings/README.md)) in step with the rest of the app; only the 10px corners and the
+border stay fixed.
+
 In the card only the heading speaks at full ink; section text, field values and the context line
 are quieter secondary text. Three Slack shapes are read for what they mean rather than literally: a
 field written `*Label*\nvalue` is a small caption over its value, an inline code run is a bordered
