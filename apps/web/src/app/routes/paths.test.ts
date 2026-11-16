@@ -67,6 +67,9 @@ describe('ROUTES — 파라미터 빌더', () => {
     it('channelId로 channels 경로를 생성한다', () => {
         expect(ROUTES.channels.room('ch1')).toBe('/channels/ch1/room');
         expect(ROUTES.channels.settings('ch1')).toBe('/channels/ch1/settings');
+        expect(ROUTES.channels.audio('ch1', 42, 1)).toBe('/channels/ch1/audio/42/1');
+        expect(ROUTES.channels.files('ch1')).toBe('/channels/ch1/files');
+        expect(ROUTES.channels.files('ch1', 'audio')).toBe('/channels/ch1/files?tab=audio');
     });
 
     it('placeId로 place 상세 경로를 생성한다', () => {

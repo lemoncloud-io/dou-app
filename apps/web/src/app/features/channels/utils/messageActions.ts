@@ -30,5 +30,21 @@ export const shareableFile = (
     message: Pick<ClientChatView, 'cid' | 'upload$$' | 'chatNo' | 'hidden'>
 ): ChatFileSlot | undefined => {
     if (message.hidden || !message.chatNo) return undefined;
-    return chatMediaItems(message.cid, message.upload$$).files.find(file => file.state === 'ready' && !!file.url);
+    // Audio is saved and shared by rows of its own (`audioFileOf`).
+    return chatMediaItems(message.cid, message.upload$$).files.find(
+        file => file.state === 'ready' && !!file.url && !file.audio
+    );
+};
+
+/**
+ * The audio file a long press on this message saves and shares: its first audio upload the server
+ * stored. An audio message's sheet offers save and share in place of the document's lone "Share file".
+ */
+export const audioFileOf = (
+    message: Pick<ClientChatView, 'cid' | 'upload$$' | 'chatNo' | 'hidden'>
+): ChatFileSlot | undefined => {
+    if (message.hidden || !message.chatNo) return undefined;
+    return chatMediaItems(message.cid, message.upload$$).files.find(
+        file => file.audio && file.state === 'ready' && !!file.url
+    );
 };

@@ -3,7 +3,7 @@ import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { logger } from '@chatic/logger';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
 import { channelIdOfChatId, toMentionBody, toMentionRecord } from '../domain';
-import type { IChatLocalDataSource } from '../local/data-sources';
+import type { IChatLocalDataSource, ListRoomMediaInput, RoomMediaCounts, RoomMediaPage } from '../local/data-sources';
 import type {
     ChatDeleteInput,
     ChatGetInput,
@@ -116,6 +116,14 @@ export interface IChatRepository extends DisposableRepository {
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
     cacheClearByChannelId(channelId: string): Promise<void>;
+
+    /**
+     * One page of a room's attachments or links of one kind from this device's cache, newest first —
+     * the local data source's `listRoomMedia`, handed through unchanged so a screen can reach it.
+     */
+    listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage>;
+    /** How many attachments and links of each kind a room has in this device's cache — handed through likewise. */
+    countRoomMedia(input: { channelId: string }): Promise<RoomMediaCounts>;
 }
 
 export interface PendingFileDetails {
@@ -274,6 +282,16 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     public cacheClearByChannelId(channelId: string): Promise<void> {
         forgetChannelCoverage(channelId, this.getNormalizedContext());
         return this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext());
+    }
+
+    // Pass-throughs: the index and its fallbacks live in the local data source. The repository only
+    // gives it the scope this graph reads in, as every other cache read here does.
+    public listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage> {
+        return this.chatLocalDataSource.listRoomMedia(input, this.getRepositoryContext());
+    }
+
+    public countRoomMedia(input: { channelId: string }): Promise<RoomMediaCounts> {
+        return this.chatLocalDataSource.countRoomMedia(input, this.getRepositoryContext());
     }
 
     public async refreshList(query: ChatFeedInput, options: ChatRefreshOptions = {}): Promise<ChatRefreshResult> {

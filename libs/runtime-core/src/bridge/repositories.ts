@@ -87,6 +87,8 @@ export const REPOSITORY_METHODS = {
         cacheDelete: 'call',
         cacheClear: 'call',
         cacheClearByChannelId: 'call',
+        listRoomMedia: 'call',
+        countRoomMedia: 'call',
     } satisfies CrossingsOf<PageRepositories['chat']>,
     cloud: {
         observeList: 'stream',

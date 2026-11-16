@@ -26,6 +26,8 @@ describe('ChatRepository', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
             cacheClearByChannelId: jest.fn(),
+            listRoomMedia: jest.fn(),
+            countRoomMedia: jest.fn(),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -48,6 +50,40 @@ describe('ChatRepository', () => {
             uploadSocketDataSource,
         };
     };
+
+    describe('room media', () => {
+        it("hands a page query to the local data source unchanged, in this graph's scope", async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            const page = { items: [], nextCursorNo: null };
+            chatLocalDataSource.listRoomMedia.mockResolvedValue(page);
+
+            const input = { channelId: 'ch-1', kind: 'audio' as const, cursorNo: 40, limit: 30 };
+            await expect(repository.listRoomMedia(input)).resolves.toBe(page);
+
+            expect(chatLocalDataSource.listRoomMedia).toHaveBeenCalledWith(
+                input,
+                expect.objectContaining({ cid: 'cloud-a', uid: 'me' })
+            );
+        });
+
+        it('hands a count query through likewise', async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            const counts = { image: 1, video: 0, file: 2, audio: 3, link: 4 };
+            chatLocalDataSource.countRoomMedia.mockResolvedValue(counts);
+
+            await expect(repository.countRoomMedia({ channelId: 'ch-1' })).resolves.toBe(counts);
+            expect(chatLocalDataSource.countRoomMedia).toHaveBeenCalledWith(
+                { channelId: 'ch-1' },
+                expect.objectContaining({ cid: 'cloud-a', uid: 'me' })
+            );
+        });
+
+        it('lets a failure of the local read reach the caller', async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            chatLocalDataSource.countRoomMedia.mockRejectedValue(new Error('bridge down'));
+            await expect(repository.countRoomMedia({ channelId: 'ch-1' })).rejects.toThrow('bridge down');
+        });
+    });
 
     // Reactions are event-sourced: the server stores no state, so the optimistic write is
     // an event of our own rather than an edit to the target message.

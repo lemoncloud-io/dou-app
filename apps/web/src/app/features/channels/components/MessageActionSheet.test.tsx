@@ -7,8 +7,12 @@ jest.mock('react-i18next', () => ({
 }));
 
 const shareFile = jest.fn();
+const mockDownloadFile = jest.fn();
 jest.mock('../hooks/useFileDownloads', () => ({
-    useFileDownloads: () => ({ share: (file: unknown) => shareFile(file) }),
+    useFileDownloads: () => ({
+        share: (file: unknown) => shareFile(file),
+        download: (file: unknown) => mockDownloadFile(file),
+    }),
 }));
 
 import { MessageActionSheet } from './MessageActionSheet';
@@ -231,5 +235,121 @@ describe('MessageActionSheet — Share file', () => {
         fireEvent.click(screen.getByText('chat.attach.fileCard.share'));
         expect(shareFile).toHaveBeenCalledWith(expect.objectContaining({ key: 'c/d1', uploadId: 'd1' }));
         expect(baseProps.onOpenChange).toHaveBeenCalledWith(false);
+    });
+});
+
+describe('MessageActionSheet — audio message', () => {
+    const audioMessage = {
+        cid: 'c',
+        id: 'm',
+        chatNo: 4,
+        upload$$: [
+            {
+                id: 'a1',
+                stereo: 'audio',
+                contentType: 'audio/mp4',
+                name: 'voice-20261102-101500.m4a',
+                orgUrl: 'https://s3/a1',
+                status: 'ready',
+            },
+        ],
+    } as never;
+    const canShare = () =>
+        shellCapabilities.setReport({
+            protocolVersion: '2.3.0',
+            supportedWebMessages: ['SaveToPhotoLibrary', 'ShareFile'],
+            supportedAppMessages: [],
+        });
+    const rowLabels = () =>
+        screen
+            .getAllByText(
+                /^chat\.(room|thread|attach\.audio|attach\.fileCard)\.(replyAction|copyMessage|editMessage|deleteMessage|save|share)$/
+            )
+            .map(node => node.textContent);
+
+    afterEach(() => act(() => shellCapabilities.reset()));
+
+    it('orders thread, save, share and delete when the app can share', () => {
+        canShare();
+        render(<MessageActionSheet {...baseProps} hasText={false} canModify fileMessage={audioMessage} />);
+
+        expect(rowLabels()).toEqual([
+            'chat.thread.replyAction',
+            'chat.attach.audio.save',
+            'chat.attach.audio.share',
+            'chat.room.deleteMessage',
+        ]);
+    });
+
+    it('offers save but no share in a browser, which cannot share a file', () => {
+        render(<MessageActionSheet {...baseProps} hasText={false} canModify fileMessage={audioMessage} />);
+
+        expect(rowLabels()).toEqual(['chat.thread.replyAction', 'chat.attach.audio.save', 'chat.room.deleteMessage']);
+    });
+
+    it('leaves delete out for a message that is not mine', () => {
+        canShare();
+        render(<MessageActionSheet {...baseProps} hasText={false} fileMessage={audioMessage} />);
+
+        expect(rowLabels()).toEqual(['chat.thread.replyAction', 'chat.attach.audio.save', 'chat.attach.audio.share']);
+    });
+
+    // Its own save and share replace the document's lone "Share file" — two share rows would be one too many.
+    it('does not add the document’s "Share file" row', () => {
+        canShare();
+        render(<MessageActionSheet {...baseProps} hasText={false} canModify fileMessage={audioMessage} />);
+
+        expect(screen.queryByText('chat.attach.fileCard.share')).not.toBeInTheDocument();
+    });
+
+    it('saves the audio file and closes the sheet', () => {
+        render(<MessageActionSheet {...baseProps} hasText={false} fileMessage={audioMessage} />);
+
+        fireEvent.click(screen.getByText('chat.attach.audio.save'));
+
+        expect(mockDownloadFile).toHaveBeenCalledWith(
+            expect.objectContaining({ key: 'c/a1', uploadId: 'a1', url: 'https://s3/a1', audio: true })
+        );
+        expect(baseProps.onOpenChange).toHaveBeenCalledWith(false);
+        expect(shareFile).not.toHaveBeenCalled();
+    });
+
+    it('shares the audio file and closes the sheet', () => {
+        canShare();
+        render(<MessageActionSheet {...baseProps} hasText={false} fileMessage={audioMessage} />);
+
+        fireEvent.click(screen.getByText('chat.attach.audio.share'));
+
+        expect(shareFile).toHaveBeenCalledWith(expect.objectContaining({ key: 'c/a1', audio: true }));
+        expect(baseProps.onOpenChange).toHaveBeenCalledWith(false);
+        expect(mockDownloadFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps the old single share row for a document that is not audio', () => {
+        canShare();
+        const pdfMessage = {
+            cid: 'c',
+            id: 'm',
+            chatNo: 3,
+            upload$$: [
+                {
+                    id: 'd1',
+                    stereo: 'file',
+                    contentType: 'application/pdf',
+                    name: 'a.pdf',
+                    orgUrl: 'https://s3/d1',
+                    status: 'stored',
+                },
+            ],
+        } as never;
+        render(<MessageActionSheet {...baseProps} hasText={false} canModify fileMessage={pdfMessage} />);
+
+        expect(rowLabels()).toEqual([
+            'chat.thread.replyAction',
+            'chat.room.deleteMessage',
+            'chat.attach.fileCard.share',
+        ]);
+        expect(screen.queryByText('chat.attach.audio.save')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.attach.audio.share')).not.toBeInTheDocument();
     });
 });

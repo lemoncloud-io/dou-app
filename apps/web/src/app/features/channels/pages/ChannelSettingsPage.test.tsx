@@ -55,6 +55,10 @@ const placeRepository = {
 // The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
+// The room files area has its own suite; here it only has to be placed.
+jest.mock('../components/RoomFilesEntry', () => ({
+    RoomFilesEntry: ({ channelId }: { channelId: string }) => <div data-testid="room-files-entry">{channelId}</div>,
+}));
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
     useLocation: () => ({ state: null }),

@@ -1,6 +1,6 @@
 # ADR-0270: The phone sends, records and plays audio, and the shell does the recording
 
-> Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/mobile-audio-attachment`
+> Status: Accepted, amended by [ADR-0317](./0317-the-room-plays-audio-through-one-player-computes-waveforms-on-the-device-and-hides-files-locally.md) (decision 4 and the "no waveform" consequence) · Decided: 2026-11-02 · Implemented: `feat/mobile-audio-attachment`
 > · Scope: `apps/web/src/app/features/channels/` (`useVoiceMessage`, `MessageAudioCard`,
 > `useInlineAudio`, `lib/fileExport.ts`), `apps/web/src/app/bridge/audioRecorder.ts`,
 > `libs/bridge-messages/src/types/model/audio-recording.ts`, `libs/web-ui-kit`'s `AttachPanel` (the voice

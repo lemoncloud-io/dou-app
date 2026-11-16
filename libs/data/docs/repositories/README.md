@@ -99,6 +99,8 @@ classDiagram
         +refreshList(query, options?) Promise
         +sendChat(payload) Promise
         +cacheClearByChannelId(channelId) Promise
+        +listRoomMedia(input) Promise
+        +countRoomMedia(input) Promise
     }
     class ChatRepository
 

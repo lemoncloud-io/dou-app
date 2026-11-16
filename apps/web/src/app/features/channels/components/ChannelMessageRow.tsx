@@ -17,8 +17,9 @@ import {
     takeSourceLink,
 } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
-import { extractFirstUrl, isMessageEdited } from '@chatic/data';
+import { chatMediaItems, extractFirstUrl, isMessageEdited } from '@chatic/data';
 
+import { hiddenPartsOf } from '../lib/localMediaPrefs';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
@@ -107,6 +108,14 @@ export interface ChannelMessageRowProps {
      * does not know its reader cannot tell a mention of them from one of anybody else.
      */
     mentionViewer?: MentionViewer;
+    /**
+     * Room items hidden on this device (`localMediaPrefs` keys). A hidden attachment is not drawn and a
+     * hidden link loses its preview card; the text stays. A message left with nothing to show is not
+     * drawn at all.
+     */
+    hiddenMedia?: ReadonlySet<string>;
+    /** The thread page's root, when this row is drawn on one — the audio detail returns there. */
+    threadRootNo?: string;
 }
 
 /** Who sent a row, as the row drew them. */
@@ -148,6 +157,8 @@ export const ChannelMessageRow = ({
     isEditTarget = false,
     onOpenProfile,
     mentionViewer,
+    hiddenMedia,
+    threadRootNo,
 }: ChannelMessageRowProps) => {
     const { t } = useTranslation();
     const mine = message.isOwner;
@@ -161,7 +172,19 @@ export const ChannelMessageRow = ({
     // An image message: the server's `upload$$`, or the local slots of one still on its way. With no
     // text of its own the images ARE the body, drawn where the bubble would be — an empty bubble
     // beside them would read as a blank message.
-    const hasImages = !isDeleted && (message.upload$$?.length ?? 0) > 0;
+    // What this device hid of the message: upload positions, and whether the link the card would
+    // unfurl is one of them. Keyed by the media index's own entries, so a key here and a row in the
+    // room's file list always name the same thing.
+    const hidden = useMemo(() => hiddenPartsOf(message, hiddenMedia), [hiddenMedia, message]);
+    const shownUploads = (message.upload$$?.length ?? 0) - (hidden?.slots.size ?? 0);
+    // A failed message of audio alone: its bubble draws the failure and the retry and delete chips
+    // under it, so the row's own failure mark and buttons would say it twice.
+    const audioOnlyFailed = useMemo(() => {
+        if (!message.isFailed || content.trim() || !message.upload$$?.length) return false;
+        const split = chatMediaItems(message.cid, message.upload$$);
+        return split.media.length === 0 && split.files.every(file => file.audio);
+    }, [message.isFailed, message.cid, message.upload$$, content]);
+    const hasImages = !isDeleted && shownUploads > 0;
     const imageOnly = hasImages && !content.trim();
     // Shared verdict, not a local rule — the same one desktop will move onto when the server grows
     // a real edit flag. It already excludes tombstones, unsent rows and missing timestamps, so
@@ -221,7 +244,8 @@ export const ChannelMessageRow = ({
     // `isLong` rides along so the card agrees with the bubble about what is code: the bubble closes
     // a fence left dangling at the cut, and a URL under that fence must not summon a card the
     // bubble is rendering as literal text.
-    const previewUrl = skipBlocks || message.isSystem ? undefined : extractFirstUrl(plain, isLong);
+    const firstUrl = skipBlocks || message.isSystem ? undefined : extractFirstUrl(plain, isLong);
+    const previewUrl = firstUrl && hidden?.links.has(firstUrl) ? undefined : firstUrl;
 
     // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
     // deleted message must not keep a live social surface.
@@ -375,7 +399,7 @@ export const ChannelMessageRow = ({
                     <span>{t('chat.room.sending')}</span>
                 </span>
             );
-        } else if (message.isFailed) {
+        } else if (message.isFailed && !audioOnlyFailed) {
             status = (
                 <span className="flex items-center gap-1 text-destructive">
                     <AlertCircle size={11} />
@@ -435,9 +459,24 @@ export const ChannelMessageRow = ({
                 chatId={message.id}
                 cid={message.cid}
                 align={mine ? 'end' : 'start'}
+                hiddenSlots={hidden?.slots}
+                audio={{
+                    channelId: message.channelId,
+                    chatNo: message.chatNo,
+                    senderName: mine ? message.ownerName : ownerDisplayName,
+                    sentAt: message.timestamp?.getTime?.(),
+                    threadRootNo,
+                    mine,
+                    failed: !!message.isFailed,
+                    onRetry,
+                    onDelete,
+                }}
             />
         </span>
     );
+
+    // Every attachment hidden on this device and no text left: nothing of the message is drawn.
+    if (hidden && !isDeleted && shownUploads === 0 && !content.trim()) return null;
 
     return (
         <MessageRow
@@ -475,7 +514,7 @@ export const ChannelMessageRow = ({
                 `justify-end` because my bubble no longer sits in a row that hugs it: the column is
                 wider than the bubble whenever the chips or the thread footer are. */}
             <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
-                {message.isFailed && mine && (
+                {message.isFailed && mine && !audioOnlyFailed && (
                     <button onClick={onRetry} className="flex shrink-0 items-center">
                         <AlertCircle size={20} className="text-destructive" />
                     </button>

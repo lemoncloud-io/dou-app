@@ -164,6 +164,12 @@ one the app's runtime predates. The shell answers that call with `RUNTIME_NOT_AV
 yet" from a call that ran and failed — and fall back, as it does for a bridge message an older shell
 answers with `NOT_FOUND`.
 
+`chat.listRoomMedia` and `chat.countRoomMedia` are the first methods added this way: pass-throughs to
+the chat cache's room media index that the room's file list reads. Where the shell owns the session,
+an app built before them answers `RUNTIME_NOT_AVAILABLE`, and the page reads that as "this app has no
+room file list yet" — it hides the entry point rather than showing an empty list. Where the page runs
+its own runtime (a browser, an app that does not own the session) the web deploy alone brings them.
+
 ## Errors
 
 Screens do not branch on error classes; they read fields off what was thrown. A call whose method

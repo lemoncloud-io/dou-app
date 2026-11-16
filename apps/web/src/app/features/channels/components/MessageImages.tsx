@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
@@ -6,7 +6,6 @@ import { chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/da
 import { cn } from '@chatic/ui-kit';
 import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 
-import { useCanExportImages } from '../../../bridge/shellCapabilities';
 import { useCachedImages, type CachedImage, type CachedImageRequest } from '../hooks/useCachedImages';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageAddressRefresh } from '../hooks/useImageAddressRefresh';
@@ -15,7 +14,7 @@ import { useInView } from '../hooks/useInView';
 import { useVideoFrames } from '../hooks/useVideoFrames';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
 
-import { MessageAudioCard } from './MessageAudioCard';
+import { MessageAudioBubble, type AudioMessageContext } from './MessageAudioBubble';
 import { SaveShareButtons } from './SaveShareButtons';
 
 interface MessageImagesProps {
@@ -25,6 +24,17 @@ interface MessageImagesProps {
     cid: string;
     /** Which side the tiles hug — mine sit on the right like my bubbles. */
     align: 'start' | 'end';
+    /**
+     * The message around an audio upload — who sent it, when, its number and its send's retry and
+     * delete — which the audio bubble needs and the other attachments do not. Absent, audio is drawn
+     * without its detail screen or its failure chips.
+     */
+    audio?: AudioMessageContext;
+    /**
+     * Upload positions hidden on this device (`upload$$` indexes). They are not drawn: a photo's
+     * tile leaves the grid, a document or audio its card.
+     */
+    hiddenSlots?: ReadonlySet<number>;
 }
 
 /**
@@ -53,9 +63,10 @@ interface MessageImagesProps {
  * know which list every row belongs to. It holds a position, not an address, so a refresh reaches an
  * open viewer too.
  *
- * An audio upload that has been sent is a player card (`MessageAudioCard`) in its place among the
- * documents; one still on its way, failed or broken is drawn as a document card, which already shows
- * those states. Its menu saves and shares it through the same downloads as a document's.
+ * An audio upload is an audio bubble (`MessageAudioBubble`) in its place among the documents, in every
+ * state — on its way, failed, broken or sent — and plays through the room's one player. Saving and
+ * sharing it are the message's long-press actions. A slot hidden on this device (`hiddenSlots`) is not
+ * drawn at all.
  *
  * A video that came without a poster gets its first frame drawn on this device once the message is on
  * screen (`useVideoFrames`): from a frame kept earlier, else one the shell makes from the video's
@@ -67,7 +78,7 @@ interface MessageImagesProps {
  * (`SaveShareButtons`). They download the original through the shell, never the page's cached copy:
  * the cache may not hold the bytes at all when storage sends no CORS headers.
  */
-export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProps) => {
+export const MessageImages = ({ uploads: allUploads, chatId, cid, align, audio, hiddenSlots }: MessageImagesProps) => {
     const { t } = useTranslation();
     const refresh = useImageAddressRefresh();
     const exports = useImageExports({ cid, chatId });
@@ -77,14 +88,16 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
     // Position in `viewable`, not a tile index.
     const [openAt, setOpenAt] = useState<number | null>(null);
 
+    // Hidden slots leave before anything is split, so every index below counts what is drawn.
+    // `slotPositions[i]` is the original `upload$$` position of the drawn slot `i`.
+    const { uploads, slotPositions } = useMemo(() => {
+        const positions = (allUploads ?? []).map((_, index) => index);
+        if (!hiddenSlots?.size || !allUploads) return { uploads: allUploads, slotPositions: positions };
+        const kept = positions.filter(index => !hiddenSlots.has(index));
+        return { uploads: kept.map(index => allUploads[index]!), slotPositions: kept };
+    }, [allUploads, hiddenSlots]);
     const split = useMemo(() => chatMediaItems(cid, uploads), [cid, uploads]);
     const files = useFileDownloads({ cid, chatId });
-    // Sharing a file is offered where the action sheet offers it: an app that shares photos shares
-    // documents and audio too.
-    const canShareFiles = useCanExportImages();
-    // Audio cards whose message was read again after a playback error. Once per card: an Ogg Vorbis file
-    // fails on iOS whatever its address, and every re-read signs a new one.
-    const audioRefreshed = useRef<Set<string>>(new Set());
     // How far a message still on its way has gone, by `upload$$` position. Only a pending row has any,
     // and it is read from page memory, so the ring's ticks never touch the cached row.
     const sendProgress = runtime.data.useImageSendProgress(chatId);
@@ -226,22 +239,19 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     />
                 )}
                 {split.files.map((file, at) => {
-                    if (file.audio && file.state === 'ready' && file.url) {
+                    if (file.audio) {
+                        const slot = split.fileSlots[at] ?? at;
                         return (
-                            <MessageAudioCard
+                            <MessageAudioBubble
                                 key={file.key}
-                                src={file.url}
-                                name={file.name}
-                                download={files.stateOf(file)}
-                                onSave={() => void files.download(file)}
-                                onCancel={() => files.cancel(file)}
-                                onShare={canShareFiles ? () => void files.share(file) : undefined}
-                                // Read again once, in case the address expired: a fresh one starts the card over.
-                                onError={() => {
-                                    if (!chatId || !file.url || audioRefreshed.current.has(file.key)) return;
-                                    audioRefreshed.current.add(file.key);
-                                    void refresh({ cid, chatId, src: file.url });
-                                }}
+                                file={file}
+                                idx={slotPositions[slot] ?? slot}
+                                cid={cid}
+                                chatId={chatId}
+                                sendProgress={
+                                    file.state === 'sending' ? sendProgress?.[slotPositions[slot] ?? slot] : undefined
+                                }
+                                context={audio ?? { mine: align === 'end', channelId: '' }}
                                 className={align === 'end' ? 'self-end' : 'self-start'}
                             />
                         );

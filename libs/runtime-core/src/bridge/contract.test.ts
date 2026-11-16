@@ -204,6 +204,12 @@ describe('the data across the bridge', () => {
         expect(Object.keys(REPOSITORY_METHODS)).toHaveLength(14);
     });
 
+    it("carries the room's media reads as calls — an app built before them answers RUNTIME_NOT_AVAILABLE", () => {
+        expect(REPOSITORY_METHODS.chat.listRoomMedia).toBe('call');
+        expect(REPOSITORY_METHODS.chat.countRoomMedia).toBe('call');
+        expect(REPOSITORY_CALL_METHODS).toEqual(expect.arrayContaining(['chat.listRoomMedia', 'chat.countRoomMedia']));
+    });
+
     it("has no token issuer, no pairing claim and no lifecycle on the page's graph", () => {
         const auth = Object.keys(REPOSITORY_METHODS.auth);
 

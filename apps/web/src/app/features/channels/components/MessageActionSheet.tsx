@@ -1,7 +1,15 @@
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
-import { BottomSheet, IconCopy, IconEmojiAdd, IconSpinner, IconThread, SheetAction } from '@chatic/web-ui-kit';
+import {
+    BottomSheet,
+    IconCopy,
+    IconDownload,
+    IconEmojiAdd,
+    IconSpinner,
+    IconThread,
+    SheetAction,
+} from '@chatic/web-ui-kit';
 import { Pencil, Share, Trash2 } from 'lucide-react';
 
 import { useCanExportImages } from '../../../bridge/shellCapabilities';
@@ -9,7 +17,7 @@ import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useRecentEmojiStore, QUICK_REACTIONS } from '../stores/useRecentEmojiStore';
 import type { ClientChatView } from '../types';
 import { hasMyReaction, type ReactionTally } from '../utils/foldReactions';
-import { shareableFile } from '../utils/messageActions';
+import { audioFileOf, shareableFile } from '../utils/messageActions';
 
 // Fills the quick row when the person has few recents. Together with QUICK_REACTIONS
 // these are conversation acknowledgements, not a "top emoji" chart.
@@ -76,6 +84,10 @@ interface MessageActionSheetProps {
  * on text — accepted because the delete asks for confirmation. Do not "fix" that by
  * showing a disabled copy on a photo; it reads as a broken feature.
  *
+ * An audio message adds save and share between thread and delete — the design's order for it, minus
+ * reply-with-quote (the app has none) and forward (the server cannot attach another member's upload to
+ * a new message). They replace the audio card's old ⋯ menu.
+ *
  * WHO reacted is deliberately not here — it lives in `ReactionDetailSheet`, reached by
  * long-pressing the chip itself. This sheet answers "what can I do to this message";
  * that one answers "who is in this reaction", and faces need room this list has not.
@@ -101,6 +113,9 @@ export const MessageActionSheet = ({
     const recent = useRecentEmojiStore(s => s.recent);
     const canShareFiles = useCanExportImages();
     const files = useFileDownloads({ cid: fileMessage?.cid ?? '', chatId: fileMessage?.id });
+    // An audio message saves and shares its audio, above delete (Figma 6044:24120); any other document
+    // keeps the lone "Share file" at the bottom.
+    const audioFile = fileMessage ? audioFileOf(fileMessage) : undefined;
     const sharedFile = canShareFiles && fileMessage ? shareableFile(fileMessage) : undefined;
 
     // Recents first (habit wins), topped up with the fixed acknowledgements — deduped
@@ -168,6 +183,29 @@ export const MessageActionSheet = ({
                     disabled={isCopying}
                     onClick={onCopy}
                 />
+            )}
+            {audioFile && (
+                <>
+                    {/* The save's progress and its result are the shell's toast; the sheet closes at once. */}
+                    <SheetAction
+                        icon={<IconDownload size={22} />}
+                        label={t('chat.attach.audio.save')}
+                        onClick={() => {
+                            void files.download(audioFile);
+                            onOpenChange(false);
+                        }}
+                    />
+                    {canShareFiles && (
+                        <SheetAction
+                            icon={<Share size={22} />}
+                            label={t('chat.attach.audio.share')}
+                            onClick={() => {
+                                void files.share(audioFile);
+                                onOpenChange(false);
+                            }}
+                        />
+                    )}
+                </>
             )}
             {/* After thread and copy, always — see the note on the row order above. */}
             {canModify && (
