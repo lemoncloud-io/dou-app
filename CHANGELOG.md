@@ -2,6 +2,12 @@
 
 ## [2026-11-16] - No version updates
 
+### Features
+
+- (mobile,runtime-core,chatic-apps-sdk) mini app reads its cloud and may send text (ADR-0325)
+
+## [2026-11-16] - No version updates
+
 ### Documentation
 
 - (block-kit,agents) add the block-kit readme and drop app and lib counts that went stale
