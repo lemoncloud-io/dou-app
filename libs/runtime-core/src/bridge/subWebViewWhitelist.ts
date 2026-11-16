@@ -15,7 +15,9 @@ import { DATA_CLOUD_TARGET, DATA_TARGET, REPOSITORY_METHODS } from './repositori
  * Two rules decide every entry:
  * - **Read only, in what it does.** Nothing that writes on the server or in the device cache — a read
  *   that refreshes the cache with what it fetched included, since the page's arguments would decide
- *   where the rows land — and nothing that moves a sync cursor or a read cursor.
+ *   where the rows land — and nothing that moves a sync cursor or a read cursor. One write is the
+ *   exception, under a permission of its own (`chatSend`): `chat.sendChat` of a plain text message to
+ *   a room of the place the page's view opened on, which the user's own composer could have sent.
  * - **The current cloud, and no switching.** Only the `data` target (the live scope) is open — the
  *   switches are session commands, and nothing that reaches another cloud is allowed.
  *
@@ -26,22 +28,44 @@ import { DATA_CLOUD_TARGET, DATA_TARGET, REPOSITORY_METHODS } from './repositori
 /** Why a method or target is closed to a page. */
 export type SubWebViewDenyReason = Exclude<SubWebViewRuntimeRefusalReason, 'notGranted' | 'guard' | 'unknown'>;
 
-/** `local` reads the device cache or one of its streams; `server` asks the server and writes nothing. */
-export type SubWebViewReadCost = 'local' | 'server';
+/**
+ * What a request spends: `local` reads the device cache or one of its streams; `server` asks the server
+ * and writes nothing; `send` posts a message, which the shell budgets apart from the reads.
+ */
+export type SubWebViewRequestCost = 'local' | 'server' | 'send';
+
+/** The longest message a page may send, in UTF-16 code units. */
+export const SUB_WEB_VIEW_MESSAGE_LIMIT = 1000;
 
 /**
  * An argument check. Arguments pass through as the main web would send them, except where an entry
  * pins one: `currentCloud` / `currentPlace` — the argument, or its `field`, must name the session's
- * current cloud or committed place; `absent` — the argument's `field` must not be there.
+ * current cloud or committed place; `absent` — the argument's `field` must not be there; `false` — the
+ * argument's `field` must be there and be `false`, an option the page has to turn off itself;
+ * `onlyFields` — the argument must be a plain object with no field but these; `text` — the argument's
+ * `field` must be a string with something besides white space in it, at most `maxLength` long;
+ * `argCount` — the request carries at most `max` arguments, so a parameter the method gains later is
+ * not open until it is decided here.
  */
 export type SubWebViewArgGuard =
     | { arg: number; field?: string; is: 'currentCloud' | 'currentPlace' }
-    | { arg: number; field: string; is: 'absent' };
+    | { arg: number; field: string; is: 'absent' }
+    | { arg: number; field: string; is: 'false' }
+    | { arg: number; is: 'onlyFields'; fields: readonly string[] }
+    | { arg: number; field: string; is: 'text'; maxLength: number }
+    | { is: 'argCount'; max: number };
 
 export interface SubWebViewAllow {
     allow: SubWebViewRuntimePermission;
-    cost: SubWebViewReadCost;
+    cost: SubWebViewRequestCost;
     guards?: readonly SubWebViewArgGuard[];
+    /**
+     * The argument's `field` names a room that must be one of the place the page is held to — the one
+     * its view opened on. A room is known only from the device cache, and the view only to the shell,
+     * neither of which this pure check reads: the shell reads the room before it lets the request go,
+     * and refuses it as a `guard` when the room is not there.
+     */
+    roomInCurrentPlace?: { arg: number; field: string };
 }
 
 /** Where the session is, as the argument checks read it. */
@@ -127,7 +151,20 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
             getChat: deny('cacheWrite'),
             // Writes the page it fetched, and can mark cached rows hidden on the caller's options.
             refreshList: deny('cacheWrite'),
-            sendChat: deny('write'),
+            // A plain text message to a room of the view's place, in the user's name: the one write a
+            // page may ask for. Nothing else a message can carry — attachments, a mention, a reply, a
+            // system or webhook row — gets past the field list.
+            sendChat: {
+                allow: 'chatSend',
+                cost: 'send',
+                guards: [
+                    { is: 'argCount', max: 1 },
+                    { arg: 0, is: 'onlyFields', fields: ['channelId', 'content'] },
+                    { arg: 0, field: 'channelId', is: 'text', maxLength: 200 },
+                    { arg: 0, field: 'content', is: 'text', maxLength: SUB_WEB_VIEW_MESSAGE_LIMIT },
+                ],
+                roomInCurrentPlace: { arg: 0, field: 'channelId' },
+            },
             updateChat: deny('write'),
             deleteChat: deny('write'),
             setReaction: deny('write'),
@@ -149,8 +186,18 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
             // held to the current cloud's id.
             observeItem: { allow: 'cloud', cost: 'local', guards: [{ arg: 0, is: 'currentCloud' }] },
             cacheRead: { allow: 'cloud', cost: 'local', guards: [{ arg: 0, is: 'currentCloud' }] },
-            // Writes the cloud it fetched.
-            getCloud: deny('cacheWrite'),
+            // The server's view of the current cloud — its name and owner, which an owned cloud's cache
+            // row does not hold — and only with `{ cache: false }`, which writes nothing: by default the
+            // read files what it fetched into the cache.
+            getCloud: {
+                allow: 'cloud',
+                cost: 'server',
+                guards: [
+                    { arg: 0, field: 'id', is: 'currentCloud' },
+                    { arg: 0, field: 'cid', is: 'absent' },
+                    { arg: 1, field: 'cache', is: 'false' },
+                ],
+            },
             observeList: deny('otherCloud'),
             cacheReadList: deny('otherCloud'),
             fetchCloudCatalog: deny('otherCloud'),
@@ -335,9 +382,20 @@ const isRecord = (value: unknown): value is Record<string, RuntimeWireValue> =>
 
 /** Whether the arguments meet one guard. A field is read only off a plain object argument. */
 const meets = (args: readonly RuntimeWireValue[], guard: SubWebViewArgGuard, scope: SubWebViewRuntimeScope) => {
+    if (guard.is === 'argCount') return args.length <= guard.max;
     const argument = args[guard.arg];
     if (guard.is === 'absent') {
         return !isRecord(argument) || !Object.prototype.hasOwnProperty.call(argument, guard.field);
+    }
+    if (guard.is === 'false') {
+        return isRecord(argument) && own<RuntimeWireValue>(argument, guard.field) === false;
+    }
+    if (guard.is === 'onlyFields') {
+        return isRecord(argument) && Object.keys(argument).every(key => guard.fields.includes(key));
+    }
+    if (guard.is === 'text') {
+        const value = isRecord(argument) ? own<RuntimeWireValue>(argument, guard.field) : undefined;
+        return typeof value === 'string' && value.trim() !== '' && value.length <= guard.maxLength;
     }
     const value =
         guard.field === undefined
@@ -345,8 +403,17 @@ const meets = (args: readonly RuntimeWireValue[], guard: SubWebViewArgGuard, sco
             : isRecord(argument)
               ? own<RuntimeWireValue>(argument, guard.field)
               : undefined;
-    const current = guard.is === 'currentCloud' ? scope.cloudId : scope.placeId;
-    return current !== null && value === current;
+    switch (guard.is) {
+        case 'currentCloud':
+            return scope.cloudId !== null && value === scope.cloudId;
+        case 'currentPlace':
+            return scope.placeId !== null && value === scope.placeId;
+        default: {
+            // A guard kind added to the type and not here fails to compile rather than passing as a place check.
+            const unhandled: never = guard;
+            return unhandled;
+        }
+    }
 };
 
 export interface SubWebViewRuntimeRequest {

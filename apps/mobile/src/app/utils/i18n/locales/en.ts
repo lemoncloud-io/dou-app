@@ -35,6 +35,11 @@ export const en = {
         subRuntimeConsent: {
             title: 'Allow access to this cloud?',
             message: '{0} wants to read this cloud in DoU: {1}. It cannot change anything.',
+            titleWithSend: 'Allow this page to send messages?',
+            messageWithSend:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms. It cannot change anything else.",
+            messageSendOnly:
+                "{0} wants to send messages in your name to this place's chat rooms in DoU. It cannot read or change anything else.",
             allow: 'Allow',
             deny: "Don't allow",
         },

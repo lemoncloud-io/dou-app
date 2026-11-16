@@ -11,6 +11,21 @@ const key = { userId: 'u1', origin: 'https://quiz.apps.chatic.io', cloudId: 'c1'
 const perms = (...names: SubWebViewRuntimePermission[]) => new Set(names);
 
 describe('createSubWebViewRuntimeConsent', () => {
+    it('keeps a yes for a page that may send per place, apart from the cloud-wide one', async () => {
+        const store = memoryStore();
+        const ask = jest.fn().mockResolvedValue(true);
+        const consent = createSubWebViewRuntimeConsent({ store, ask });
+
+        await consent.ensure({ ...key, placeId: 's1' }, perms('chat', 'chatSend'));
+        await expect(consent.ensure({ ...key, placeId: 's1' }, perms('chatSend'))).resolves.toBe('allowed');
+        await consent.ensure({ ...key, placeId: 's2' }, perms('chatSend'));
+        await consent.ensure(key, perms('chat'));
+
+        // Place s1 once, place s2 once, and the read-only page in the cloud once.
+        expect(ask).toHaveBeenCalledTimes(3);
+        expect(store.values.size).toBe(3);
+    });
+
     it('asks once, names the host and the permissions, and keeps an allow', async () => {
         const store = memoryStore();
         const ask = jest.fn().mockResolvedValue(true);

@@ -3,7 +3,11 @@ import type { SubWebViewTrust } from '@chatic/shared';
 
 import { settledSessionOwner } from '../services/runtime/launchSessionOwner';
 import type * as NativeRuntimeModule from '../services/runtime/nativeRuntime';
-import { createSubWebViewReadBudget, type SubWebViewReadBudget } from './subWebViewReadBudget';
+import {
+    createSubWebViewReadBudget,
+    SUB_WEBVIEW_MESSAGE_SENDS,
+    type SubWebViewReadBudget,
+} from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 import type * as ConsentPromptModule from './subWebViewRuntimeConsentPrompt';
 import { cloudOfSession, grantedSubWebViewRuntime } from './subWebViewRuntimeGate';
@@ -14,9 +18,13 @@ type Engine = NonNullable<ReturnType<(typeof NativeRuntimeModule)['nativeRuntime
 export interface SubWebViewRuntimeAccess {
     engine: Engine;
     openedCloudId: string;
+    /** The place the session was on as the view opened: a page that sends, sends there only. */
+    openedPlaceId: string | null;
     granted: ReadonlySet<SubWebViewRuntimePermission>;
     /** Per view, so a page cannot reset it by reloading. */
     budget: SubWebViewReadBudget;
+    /** The messages it may send, per view as well. */
+    sends: SubWebViewReadBudget;
     consent: SubWebViewRuntimeConsent;
 }
 
@@ -47,8 +55,10 @@ export const openSubWebViewRuntime = ({
     return {
         engine,
         openedCloudId,
+        openedPlaceId: engine.session.snapshot().committedSiteId,
         granted,
         budget: createSubWebViewReadBudget(),
+        sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),
         consent: createAppSubWebViewRuntimeConsent(),
     };
 };

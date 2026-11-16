@@ -6,6 +6,7 @@ import type {
     RuntimeWireValue,
     SubWebViewRuntimeErrorCode,
     SubWebViewRuntimePermission,
+    SubWebViewRuntimeRefusalReason,
     SubWebViewRuntimeRequestType,
     WebMessageData,
     WebMessageHandlerResponse,
@@ -70,6 +71,11 @@ export interface SubWebViewRuntimeBridgeDeps {
     session: SubWebViewRuntimeSession;
     /** The cloud selected when the view opened; the page reads it and nothing else. */
     openedCloudId: string;
+    /**
+     * The place the session was on when the view opened. A page with `chatSend` sends to its rooms
+     * only, and is asked about, and allowed, in that place alone.
+     */
+    openedPlaceId: string | null;
     /** What the gate granted: never empty here. */
     granted: ReadonlySet<SubWebViewRuntimePermission>;
     /** The origin the view was opened on, for consent. */
@@ -77,7 +83,10 @@ export interface SubWebViewRuntimeBridgeDeps {
     /** The page host to push to, or `null` once its page load is over: nothing reaches the next one. */
     pageHost: () => Pick<IAppBridgeHost, 'pushEvent'> | null;
     consent: SubWebViewRuntimeConsent;
+    /** The view's server reads. */
     budget: SubWebViewReadBudget;
+    /** The view's messages sent, apart from its reads: a page that reads hard can still send. */
+    sends: SubWebViewReadBudget;
     now?: () => number;
     /** Hears each refusal, for the app's log. */
     onRefused?: (refusal: { target: string; method: string; code: string; reason?: string }) => void;
@@ -116,6 +125,13 @@ const isEnded = (event: RuntimeWireValue): boolean =>
 
 const isString = (value: unknown): value is string => typeof value === 'string' && value !== '';
 
+const fieldOf = (args: readonly RuntimeWireValue[], at: { arg: number; field: string }): unknown => {
+    const argument = args[at.arg];
+    return argument !== null && typeof argument === 'object' && !Array.isArray(argument)
+        ? (argument as Record<string, unknown>)[at.field]
+        : undefined;
+};
+
 /**
  * The four runtime requests on a sub WebView page's host. Each call and subscribe is checked in one
  * order, and the first failure answers:
@@ -127,9 +143,14 @@ const isString = (value: unknown): value is string => typeof value === 'string' 
  * 2. the whitelist: the target, the method and the way it is asked, the permission, the argument
  *    guards (`checkSubWebViewRuntimeRequest`), else `RUNTIME_NOT_ALLOWED` with the reason;
  * 3. the user's consent for this page in this cloud, else `CONSENT_REFUSED`;
- * 4. for a read that asks the server, the view's budget, else `RATE_LIMITED` with `retryAfterMs`.
+ * 4. for a message, its room: one this device holds, in the cloud and the place the view opened on —
+ *    and the session still on that place — read from the device cache, else `RUNTIME_NOT_ALLOWED`
+ *    with `guard` (a failure of the read itself passes through as the runtime answered it);
+ * 5. for a read that asks the server, the view's read budget, and for a message its send budget, else
+ *    `RATE_LIMITED` with `retryAfterMs`.
  *
- * Then the request goes to the app's runtime unchanged, and its answer comes back unchanged.
+ * Then the request goes to the app's runtime unchanged, and its answer comes back unchanged — unless
+ * the view closed or its cloud changed while the checks waited: nothing is sent past either.
  *
  * The runtime host is this page load's own, so the page's streams are apart from the main web's and
  * end with the load. Its hello settles nothing: it reports the main web's owner, the contract, and
@@ -139,11 +160,13 @@ export const createSubWebViewRuntimeBridge = ({
     createHost,
     session,
     openedCloudId,
+    openedPlaceId,
     granted,
     origin,
     pageHost,
     consent,
     budget,
+    sends,
     now = Date.now,
     onRefused,
 }: SubWebViewRuntimeBridgeDeps): { handlers: SubWebViewRuntimeHandlers; dispose(): void } => {
@@ -153,6 +176,8 @@ export const createSubWebViewRuntimeBridge = ({
     // of them sent at once would all pass it while the first waits for consent.
     const admitting = new Set<string>();
     let cloudChanged = false;
+    // Set once the view's page load is over: a request still in its checks then goes nowhere.
+    let disposed = false;
 
     const host = createHost({
         event: payload => {
@@ -197,7 +222,9 @@ export const createSubWebViewRuntimeBridge = ({
 
     const ask = async (): Promise<AppMessageError | null> => {
         const userId = session.snapshot().context.identity.userId ?? '';
-        if ((await consent.ensure({ userId, origin, cloudId: openedCloudId }, granted)) === 'refused') {
+        // A page that may send is allowed per place: a yes in one place posts nothing into another.
+        const placeId = granted.has('chatSend') ? (openedPlaceId ?? '') : undefined;
+        if ((await consent.ensure({ userId, origin, cloudId: openedCloudId, placeId }, granted)) === 'refused') {
             return error('CONSENT_REFUSED', 'The user did not allow this page to read this cloud.');
         }
         // The question can stay up for a while; the cloud may have changed under it.
@@ -216,27 +243,57 @@ export const createSubWebViewRuntimeBridge = ({
             cloudId: currentCloud(),
             placeId: session.snapshot().committedSiteId,
         });
-        if (!check.ok) {
-            onRefused?.({ target, method, code: 'RUNTIME_NOT_ALLOWED', reason: check.reason });
-            return error('RUNTIME_NOT_ALLOWED', `${target}.${method} is not open to this page (${check.reason})`, {
+        const notAllowed = (reason: SubWebViewRuntimeRefusalReason) => {
+            onRefused?.({ target, method, code: 'RUNTIME_NOT_ALLOWED', reason });
+            return error('RUNTIME_NOT_ALLOWED', `${target}.${method} is not open to this page (${reason})`, {
                 target,
                 method,
-                reason: check.reason,
+                reason,
             });
-        }
+        };
+        if (!check.ok) return notAllowed(check.reason);
         const refused = await ask();
         if (refused) return refused;
-        if (check.entry.cost === 'server') {
-            const spent = budget.take(now());
+        if (check.entry.roomInCurrentPlace) {
+            const room = await roomOfPlace(target, fieldOf(args, check.entry.roomInCurrentPlace));
+            if (room === 'notHere') return notAllowed('guard');
+            if (room !== 'here') return room;
+        }
+        const spending = check.entry.cost === 'server' ? budget : check.entry.cost === 'send' ? sends : null;
+        if (spending) {
+            const spent = spending.take(now());
             if (!spent.ok) {
                 onRefused?.({ target, method, code: 'RATE_LIMITED' });
-                return error('RATE_LIMITED', 'Too many server reads from this view.', {
-                    retryAfterMs: spent.retryAfterMs,
-                });
+                const what = spending === sends ? 'messages' : 'server reads';
+                return error('RATE_LIMITED', `Too many ${what} from this view.`, { retryAfterMs: spent.retryAfterMs });
             }
         }
         return null;
     };
+
+    /**
+     * Whether a room is one of the place the view opened on, in its cloud, with the session still on
+     * that place: the room as this device holds it, read through the page load's own runtime host like
+     * any other read. A room the device does not hold — one the user left, or never joined — is not.
+     * A read that fails answers its own failure, so the page learns the runtime's reason, not a guard.
+     */
+    const roomOfPlace = async (target: string, roomId: unknown): Promise<'here' | 'notHere' | AppMessageError> => {
+        const onOpenedPlace = () => openedPlaceId !== null && session.snapshot().committedSiteId === openedPlaceId;
+        if (!isString(roomId) || !onOpenedPlace()) return 'notHere';
+        const answer = await host.call({ target, method: 'channel.cacheRead', args: [roomId] });
+        if ('failure' in answer) return answer.failure;
+        if (!cloudStillOpen()) return CLOUD_CHANGED;
+        const room = answer.value.value as { id?: unknown; cid?: unknown; sid?: unknown } | null;
+        return !!room &&
+            room.id === roomId &&
+            room.cid === openedCloudId &&
+            room.sid === openedPlaceId &&
+            onOpenedPlace()
+            ? 'here'
+            : 'notHere';
+    };
+
+    const VIEW_CLOSED: AppMessageError = { code: 'RUNTIME_NOT_STARTED', message: 'the view has closed' };
 
     const invalid = (what: string) => error('INVALID', `${what} is missing or malformed`);
 
@@ -270,6 +327,10 @@ export const createSubWebViewRuntimeBridge = ({
             }
             const refused = await admit('call', target, method, args);
             if (refused) return refuse('RuntimeCall', refused);
+            // The checks can wait on the user and on the cache: what changed meanwhile is checked again
+            // here, right before the runtime acts — a message must not go out from a closed view.
+            if (disposed) return refuse('RuntimeCall', VIEW_CLOSED);
+            if (!cloudStillOpen()) return refuse('RuntimeCall', CLOUD_CHANGED);
             return reply('RuntimeCall', await host.call({ target, method, args }));
         },
         RuntimeSubscribe: async message => {
@@ -313,6 +374,7 @@ export const createSubWebViewRuntimeBridge = ({
     return {
         handlers,
         dispose: () => {
+            disposed = true;
             stopWatching();
             open.clear();
             if (!cloudChanged) host.dispose();
@@ -340,10 +402,12 @@ export const createAppSubWebViewRuntimeBridge = ({
         createHost: send => createRuntimeBridgeHost({ engine: async () => access.engine, send }),
         session: access.engine.session,
         openedCloudId: access.openedCloudId,
+        openedPlaceId: access.openedPlaceId,
         granted: access.granted,
         origin,
         pageHost,
         consent: access.consent,
         budget: access.budget,
+        sends: access.sends,
         onRefused,
     });

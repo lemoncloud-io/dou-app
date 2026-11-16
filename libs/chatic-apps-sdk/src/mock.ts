@@ -12,7 +12,8 @@ export type MockPermission =
     | 'place'
     | 'channel'
     | 'chat'
-    | 'user';
+    | 'user'
+    | 'chatSend';
 
 /**
  * The app's data, as the mock answers `apps.runtime`: each method the page may call, and each stream it
@@ -100,7 +101,15 @@ const GATED: Partial<Record<MockPermission, string>> = {
     openUrl: 'OpenURL',
     userKey: 'GetSubWebViewUserKey',
 };
-const RUNTIME_PERMISSIONS: readonly MockPermission[] = ['session', 'cloud', 'place', 'channel', 'chat', 'user'];
+const RUNTIME_PERMISSIONS: readonly MockPermission[] = [
+    'session',
+    'cloud',
+    'place',
+    'channel',
+    'chat',
+    'user',
+    'chatSend',
+];
 const RUNTIME_REQUESTS = ['RuntimeHello', 'RuntimeCall', 'RuntimeSubscribe', 'RuntimeUnsubscribe'];
 const DEVICE_KINDS: readonly DeviceKind[] = ['camera', 'microphone'];
 const KINDS: readonly HapticKind[] = ['selection', 'impact', 'success', 'warning', 'error'];
@@ -253,8 +262,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.26.0',
-                    protocolVersion: '2.26.0',
+                    appVersion: '2.27.0',
+                    protocolVersion: '2.27.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },

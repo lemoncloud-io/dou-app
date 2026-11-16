@@ -77,25 +77,37 @@ something every page gets by default.
 
 **The runtime reads (2.26.0).** A reviewed page whose manifest declares a runtime permission —
 `session`, `cloud`, `place`, `channel`, `chat`, `user` — may read the current cloud through the four
-runtime requests, on a launch whose session the app's runtime holds. Three pieces decide it:
+runtime requests, on a launch whose session the app's runtime holds; with `chatSend` (2.27.0) it may
+also post plain text in the user's name to a room of the place the view opened on. Three pieces decide
+it:
 
 - **The gate, once as the view opens** (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`): the
   session owner must be `native`, the page `reviewed`, a cloud other than Home selected, and the
-  manifest must declare one of the six. Otherwise the four requests are not registered at all. The
+  manifest must declare one of the seven. Otherwise the four requests are not registered at all. The
   cloud selected then is the one the view is bound to, for every page load in it. The runtime module
   is required only past the cheap checks, so a launch the page owns never loads it.
 - **The whitelist** (`checkSubWebViewRuntimeRequest` in `@chatic/runtime-core`): methods that only
   read, of the `data` target only, by permission. Nothing that writes — a refresh that writes what it
   fetched into the cache included, since the page's arguments would decide where its rows land —
   nothing that moves a cursor or reaches another cloud, and nothing that switches the cloud or the
-  place: those are session commands, and `session` is closed. Two cloud reads pass only for the
-  current cloud's id; the member list only for the place the session is on, in the server's page size.
+  place: those are session commands, and `session` is closed. Three cloud reads pass only for the
+  current cloud's id, `cloud.getCloud` only with `{ cache: false }`, the one form of it that writes
+  nothing; the member list only for the place the session is on, in the server's page size. The one
+  write, `chat.sendChat` under `chatSend`, passes only `{ channelId, content }` with text in both, the
+  content at most 1,000 characters — no attachment, mention, reply or system row.
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
   app's engine, so the page's streams are apart from the main web's and end with the load. It checks,
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
   (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page and cloud in its own
-  MMKV file), and for a server read the view's budget (`subWebViewReadBudget.ts`, one per 250 ms and 60
-  a minute, per view so a reload cannot reset it). Then the request goes to the runtime unchanged. A
+  MMKV file; with `chatSend` the alert's title and text say the page sends messages, the yes is kept
+  per place too, and an earlier yes without it does not count), for a message that its room is one the
+  device holds in the view's cloud and the place the view opened on, with the session still there (read
+  from the cache through the page load's host, a failed read answering its own error), and the view's
+  budget
+  (`subWebViewReadBudget.ts`: server reads at one per 250 ms and 60 a minute, messages apart at one per
+  500 ms and 30 a minute, both per view so a reload cannot reset them). Then the request goes to the
+  runtime unchanged — unless the view closed or its cloud changed while the checks waited, which
+  nothing is sent past. A
   page with `session` gets the current cloud's part of the session (`sessionForPage`), never the
   account's other clouds or the device's guest id. Pushes go only to the page load they belong to.
 
@@ -103,7 +115,9 @@ Once the session's cloud is not the view's, every open stream ends with `CLOUD_C
 answers again — the page cannot cause that, but a deep link handled under the view can. Why a page may
 read the user's data at all, and why the boundary is which requests rather than which fields, is the
 decision recorded in ADR-0320. In short: a page's purpose is the cloud's data, so it gets the rows DoU's
-own screens get, and what keeps it safe is that every method it can reach only reads, only this cloud.
+own screens get, and what keeps it safe is that every method it can reach only reads, only this cloud
+— but for `chatSend`'s text message, which goes only to a room of the place the view opened on
+(ADR-0325).
 
 Everything else — cache, preferences, push tokens, purchases, files, `SendLog` — answers `NOT_FOUND`.
 The handshake reply also carries the page's context as `subWebView`, and a message over 64 KiB is
@@ -476,9 +490,9 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
 | `src/app/subWebView/subWebViewRuntimeAccess.ts`        | The runtime gate as the view opens, and the cloud it binds the view to  |
 | `src/app/subWebView/subWebViewRuntimeGate.ts`          | The gate's rule, kept free of the runtime module                        |
-| `src/app/subWebView/subWebViewRuntimeBridge.ts`        | The four runtime requests: cloud, whitelist, consent, budget, then on   |
+| `src/app/subWebView/subWebViewRuntimeBridge.ts`        | The four runtime requests: cloud, whitelist, consent, room, budget      |
 | `src/app/subWebView/subWebViewRuntimeConsent.ts`       | The user's yes per user, page and cloud; `…ConsentPrompt.ts` asks it    |
-| `src/app/subWebView/subWebViewReadBudget.ts`           | A view's budget of server reads                                         |
+| `src/app/subWebView/subWebViewReadBudget.ts`           | A view's budgets: server reads, and messages sent                       |
 | `src/app/subWebView/subBridgeHandlers.ts`              | The page-facing handlers, typed by `SubWebViewRequestType`              |
 | `src/app/subWebView/subWebViewUserKey.ts`              | The page's key, from the device id and its origin                       |
 | `src/app/services/subWebView/subWebViewStorage.ts`     | A page's storage: the limits, the count, all-or-none writes             |

@@ -100,6 +100,9 @@ export const runtimeOver = (
     report: (error: unknown) => void
 ): ChaticAppsRuntime & { reset(): void; dispose(): void } => {
     let hello: Promise<Hello> | null = null;
+    // Ends the hello in flight. With no timeout, a hello whose reply goes to a host that is gone — a
+    // page restored from the back-forward cache meets a new one — would otherwise never settle.
+    let abandonHello: ((error: ChaticAppsError) => void) | null = null;
     let answered: Hello | null = null;
     let session: unknown = null;
     let cloudChanged = false;
@@ -165,18 +168,28 @@ export const runtimeOver = (
             );
         }
         if (!hello) {
-            hello = client
-                .request<Hello>('RuntimeHello', { contracts: [...SDK_RUNTIME_CONTRACTS] })
+            const abandoned = new Promise<never>((_, reject) => {
+                abandonHello = reject;
+            });
+            // No timeout: the app answers once the user has been asked whether this page may read the
+            // cloud, and a person reading that question takes as long as they take — as with `share`.
+            const attempt: Promise<Hello> = Promise.race([
+                client.request<Hello>('RuntimeHello', { contracts: [...SDK_RUNTIME_CONTRACTS] }, { timeoutMs: null }),
+                abandoned,
+            ])
                 .then(reply => {
-                    answered = reply;
-                    session = reply.session ?? null;
+                    if (hello === attempt) {
+                        answered = reply;
+                        session = reply.session ?? null;
+                    }
                     return reply;
                 })
                 .catch(error => {
                     // Not kept: the user may allow the page next time it asks.
-                    hello = null;
+                    if (hello === attempt) hello = null;
                     return failed(error);
                 });
+            hello = attempt;
         }
         return hello;
     };
@@ -235,6 +248,10 @@ export const runtimeOver = (
         },
         // A page restored from the back-forward cache meets a new host: its streams are gone there.
         reset: () => {
+            abandonHello?.(
+                new ChaticAppsError('DISCONNECTED', 'The page was restored before the app answered. Connect again.')
+            );
+            abandonHello = null;
             hello = null;
             answered = null;
             session = null;

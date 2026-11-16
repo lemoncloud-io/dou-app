@@ -1,8 +1,9 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.26.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)** or **(2.26.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
-> rather than from a version number.
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.27.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)**, **(2.26.0)** or **(2.27.0)**
+> arrived with that bridge version; an app built before it lacks it, which a page learns from the
+> handshake rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
 side is this app; the page side is whatever runs on an allowlisted origin, normally through
@@ -250,13 +251,13 @@ it gets the base set, the bar, and its host as the bar's title whatever it sets 
 }
 ```
 
-| Field             | Values                                                                                                                                                        | Without it                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `manifestVersion` | `1`                                                                                                                                                           | No manifest at all         |
-| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                            | No title from the manifest |
-| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; **(2.26.0)** `session`, `cloud`, `place`, `channel`, `chat`, `user` ([Runtime reads](#runtime-reads-2260)) | The base set only          |
-| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))                                                                                                  | `fullscreen` (no bar)      |
-| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                | `any`                      |
+| Field             | Values                                                                                                                                                                                 | Without it                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `manifestVersion` | `1`                                                                                                                                                                                    | No manifest at all         |
+| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                                     | No title from the manifest |
+| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; **(2.26.0)** `session`, `cloud`, `place`, `channel`, `chat`, `user`; **(2.27.0)** `chatSend` ([Runtime reads](#runtime-reads-2260)) | The base set only          |
+| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))                                                                                                                           | `fullscreen` (no bar)      |
+| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                                         | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
 `TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, **(2.18.0)**
@@ -328,8 +329,9 @@ https://app.chatic.io/apps/quiz?level=3&seed=7  →  https://<where quiz is host
 
 ## Timing
 
-**A reply can take as long as the user does.** `OpenShareSheet` answers when the sheet closes.
-A page MUST NOT time out a request that waits on the user.
+**A reply can take as long as the user does.** `OpenShareSheet` answers when the sheet closes, and
+`RequestSubWebViewPermission` and `RuntimeHello` once the user has answered. A page MUST NOT time out a
+request that waits on the user.
 
 **Every other request SHOULD time out**, after 10 seconds by default. Some requests get no reply at
 all, by design:
@@ -357,6 +359,8 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
 | **(2.26.0)** Runtime streams per page load   | 16                                  | `INVALID`               |
 | **(2.26.0)** Server reads per view           | One per 250 ms, 60 a minute         | `RATE_LIMITED`          |
+| **(2.27.0)** Messages sent per view          | One per 500 ms, 30 a minute         | `RATE_LIMITED`          |
+| **(2.27.0)** A message's text / its room id  | 1–1,000 / 1–200 characters          | `RUNTIME_NOT_ALLOWED`   |
 
 Lengths are string lengths (UTF-16 code units), not bytes.
 
@@ -364,25 +368,25 @@ Lengths are string lengths (UTF-16 code units), not bytes.
 
 A page MUST treat a code it does not know as a failure of that request and nothing more.
 
-| Code                    | Raised by                                                                                   | Meaning                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `NOT_FOUND`             | the host                                                                                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app                                              |
-| `INTERNAL_ERROR`        | the host                                                                                    | A handler failed unexpectedly. Retrying MAY work                                                                                           |
-| `TOO_LARGE`             | the host **(2.15.0)**                                                                       | The message is over 64 KiB                                                                                                                 |
-| `INVALID`               | most requests                                                                               | A field is missing, of the wrong type, or over its limit                                                                                   |
-| `INVALID_KIND`          | `TriggerHaptic`                                                                             | `kind` is not one of the listed values                                                                                                     |
-| `NOT_OPEN`              | `FinishSubWebView`                                                                          | The view already closed                                                                                                                    |
-| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                                                                 | The link is not one this request may open or share                                                                                         |
-| `OPEN_URL_FAILED`       | `OpenURL`                                                                                   | The OS could not open an allowed link                                                                                                      |
-| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                                                           | The OS refused the write                                                                                                                   |
-| `SHARE_ERROR`           | `OpenShareSheet`                                                                            | The OS share sheet failed                                                                                                                  |
-| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)**, the device requests **(2.20.0)** | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware) |
-| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                                                      | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written                                                 |
-| `SETTINGS_ERROR`        | `OpenSettings`                                                                              | **(2.20.0)** The OS would not open the settings                                                                                            |
-| `RUNTIME_NOT_ALLOWED`   | the runtime requests                                                                        | **(2.26.0)** Not a method this page may use, or a cloud id that is not the current cloud's; `details` says why                             |
-| `CLOUD_CHANGED`         | the runtime requests                                                                        | **(2.26.0)** The session's cloud is no longer the one the view opened on; final for the view                                               |
-| `CONSENT_REFUSED`       | the runtime requests                                                                        | **(2.26.0)** The user did not allow this page to read this cloud                                                                           |
-| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                                           | **(2.26.0)** Over the view's budget of server reads; `details.retryAfterMs`                                                                |
+| Code                    | Raised by                                                                                   | Meaning                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`             | the host                                                                                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app                                                              |
+| `INTERNAL_ERROR`        | the host                                                                                    | A handler failed unexpectedly. Retrying MAY work                                                                                                           |
+| `TOO_LARGE`             | the host **(2.15.0)**                                                                       | The message is over 64 KiB                                                                                                                                 |
+| `INVALID`               | most requests                                                                               | A field is missing, of the wrong type, or over its limit                                                                                                   |
+| `INVALID_KIND`          | `TriggerHaptic`                                                                             | `kind` is not one of the listed values                                                                                                                     |
+| `NOT_OPEN`              | `FinishSubWebView`                                                                          | The view already closed                                                                                                                                    |
+| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                                                                 | The link is not one this request may open or share                                                                                                         |
+| `OPEN_URL_FAILED`       | `OpenURL`                                                                                   | The OS could not open an allowed link                                                                                                                      |
+| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                                                           | The OS refused the write                                                                                                                                   |
+| `SHARE_ERROR`           | `OpenShareSheet`                                                                            | The OS share sheet failed                                                                                                                                  |
+| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)**, the device requests **(2.20.0)** | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware)                 |
+| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                                                      | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written                                                                 |
+| `SETTINGS_ERROR`        | `OpenSettings`                                                                              | **(2.20.0)** The OS would not open the settings                                                                                                            |
+| `RUNTIME_NOT_ALLOWED`   | the runtime requests                                                                        | **(2.26.0)** Not a method this page may use, or a cloud id that is not the current cloud's — **(2.27.0)** or a message's shape or room; `details` says why |
+| `CLOUD_CHANGED`         | the runtime requests                                                                        | **(2.26.0)** The session's cloud is no longer the one the view opened on; final for the view                                                               |
+| `CONSENT_REFUSED`       | the runtime requests                                                                        | **(2.26.0)** The user did not allow this page to read this cloud                                                                                           |
+| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                                           | **(2.26.0)** Over the view's budget of server reads — **(2.27.0)** or of messages sent; `details.retryAfterMs`                                             |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
@@ -578,25 +582,28 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
 
 A page may read the app's own data — the current cloud's places, rooms, messages and members — through
 the app's runtime, exactly as DoU's own screens read it. It speaks the main web's four runtime
-requests to its own host, which passes only a whitelist of the runtime's **read** methods, by the
+requests to its own host, which passes only a whitelist of the runtime's **read** methods — and, with
+`chatSend` (2.27.0), one text send — by the
 runtime permissions its manifest declares. What an allowed method answers crosses unchanged: a page
 granted `channel` gets the whole channel row.
 
 | Permission | Opens                                                                                                                                                   |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `session`  | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                                            |
-| `cloud`    | `cloud.observeItem`, `cloud.cacheRead` — the current cloud's id only                                                                                    |
+| `cloud`    | `cloud.observeItem`, `cloud.cacheRead`, `cloud.getCloud` — the current cloud's id only; `getCloud` as `({ id }, { cache: false })`                      |
 | `place`    | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                                                   |
 | `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`                               |
 | `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                                     |
 | `user`     | `user.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList` |
+| `chatSend` | **(2.27.0)** `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                                      |
 
 The table is the runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`, which says
 why each other method is closed). Nothing else is open: no method that writes on the server or in the
 device cache — a refresh that writes what it fetched included, since the page's arguments would decide
 where the rows land — none that moves a sync or read cursor, none that reaches another cloud, and no
-target but `data`: the cloud and place switches are session commands, and `session` is closed. So a
-page reads what the app has cached, the server's room list (`channel.fetchList`) and the member list,
+target but `data`: the cloud and place switches are session commands, and `session` is closed. The one
+exception is `chatSend`'s message (2.27.0), below. So a page reads what the app has cached, the server's room list (`channel.fetchList`), the member list and
+the server's view of the current cloud (`cloud.getCloud`, which writes nothing with `{ cache: false }`),
 and fetches nothing into the cache on its own.
 
 **When the host answers them.** The four requests are registered only when all of these hold, and
@@ -632,17 +639,46 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read that asks
   the server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
   `details: { retryAfterMs }`). The reason is the whitelist's for a closed method, `notGranted`,
-  `guard`, or `unknown` for a name it does not have or a method asked the wrong way.
+  `guard`, or `unknown` for a name it does not have or a method asked the wrong way. **(2.27.0)** A
+  message is checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send
+  budget of its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the
+  reads'.
 - **Argument guards.** `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
-  id. `user.listPlaceMembers` answers only with `placeId` and `sessionPlaceId` both the place the
-  session is on, and no `pageSize`.
+  id. `cloud.getCloud` answers only as `({ id }, { cache: false })`, with `id` the current cloud's and
+  no `cid`. The cache holds an owned cloud only after the app read it from the server, and then only
+  its name, so `cloud.cacheRead` often answers `null` for the cloud the user owns; `getCloud` is the
+  read for it. It answers the relay's view of the cloud, unfiltered, as the app gets it: for a cloud
+  the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked
+  account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id
+  (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal
+  `{ id, name, status }`. The page needs the cloud's id for it: the session's `context.cloud.cloudId`
+  with the `session` permission, or `params.cloud.id` when DoU opened the page from the cloud's mini
+  app list. `user.listPlaceMembers` answers only with `placeId` and `sessionPlaceId` both the place
+  the session is on, and no `pageSize`.
+- **Sending a message (2.27.0).** With `chatSend`, `chat.sendChat` answers only for
+  `[{ channelId, content }]` — one argument, a plain object with those two fields and no other, each a
+  string with something besides white space in it, the room id at most 200 characters and the content
+  at most 1,000. Attachments, mentions, replies, a content type, system and webhook rows are all
+  refused (`guard`). The room must be one the device holds, in the cloud **and the place the view
+  opened on**, with the session still on that place; one in another place, one the user is not in, or
+  any room once the user moved to another place, is refused (`guard`) before anything is sent. A
+  message whose checks were still waiting when the view closed, or when its cloud changed, is not
+  sent. The message goes out exactly as the user's composer sends it, in the user's name and
+  unmarked, and the reply is the sent message's row. A send that fails leaves what the composer's
+  failed send leaves: a failed row in the room, in the user's name, on this device. None of the read
+  permissions opens it, and it opens no read: a page that needs a room's id reads it with `channel`.
 - **Consent.** Before the first answer, the app asks the user whether this page may read this cloud,
-  naming what it reads. A yes is kept per user, page and cloud, with the permissions it covered; a page
-  that later asks for more is asked again. A no is kept for the view only, so the next open asks again.
+  naming what it reads — and, with `chatSend`, saying in the title and the text that the page sends
+  messages in the user's name; a yes given before a page asked for `chatSend` does not cover it. The
+  hello's reply waits for that answer, so a page MUST NOT time it out (see [Timing](#timing)) and
+  SHOULD send it before any `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same
+  question. A yes is kept per user, page and cloud — and, for a page with `chatSend`, per place — with
+  the permissions it covered; a page that later asks for more is asked again. A no is kept for the
+  view only, so the next open asks again.
 - **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
   open stream ends with `CLOUD_CHANGED` and every later request fails with it, even if the cloud comes
-  back. The place is not bound: a page reads any place of the cloud, and only the user moves between
-  them.
+  back. The place is not bound for reads: a page reads any place of the cloud, and only the user moves
+  between them. A message goes only to the place the view opened on.
 - **Streams belong to the page load.** At most 16 are open at once, counting subscribes still being
   admitted; a new page load, a hello and the view's close end them all, and nothing of one load is
   pushed to the next.
@@ -757,7 +793,11 @@ feature, and needs its own decision — as the runtime reads did, which changed 
   that maps to it one to one (a plain hash of it included). **Nor the DoU user, unless the user allowed
   it (2.26.0):** a page with a runtime permission, once the user said yes, gets the cloud's data as the
   app holds it — ids in that cloud, names, profiles, messages, members, whatever fields their rows
-  carry — and never a token or the account. The device
+  carry, and with `cloud` the relay's view of the cloud, which for a cloud the user owns includes its
+  linked account, subscription and server details (see [Runtime reads](#runtime-reads-2260)) — and never
+  a token, a guest id or the device id. **(2.27.0)** With `chatSend` and the user's yes, a page also
+  posts plain text in the user's name to the rooms of the place the user is on — the one change to the
+  app's data a page can make, and other members cannot tell it from a typed message. The device
   id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one
   identifier a page gets, the user key, is an HMAC over the page's origin keyed by the device id:
   one-way, different on every origin, and only for a page whose manifest declares `userKey`.
