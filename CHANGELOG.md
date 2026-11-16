@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-16] - root@0.158.0, @chatic/web@0.90.0
+
+### Features
+
+- (web) work the inbox out from the chat cache, not from captured snapshots (ADR-0321)
+- (data) read what a chat row can tell an inbox, with no reader in mind (ADR-0321)
+
 ## [2026-11-16] - No version updates
 
 ### Features
