@@ -474,10 +474,10 @@ The pages read the same flag where it changes what they offer:
 `lib/catalog.ts` is therefore a published price list, not test data: the tests' fake server sells
 exactly this catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
 dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
-won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
-charges is decided by its billing country, not by the language. Where the account surface opens, the
-catalog port is not used; it remains wherever the gate is shut — a host the gate shuts, and a build
-without the server's addresses.
+won in Korean, dollars otherwise (won in every language in a build that bills in won only) — or, for a
+subscriber, the subscription's own. What a checkout charges is decided by its billing country, not by
+the language. Where the account surface opens, the catalog port is not used; it remains wherever the
+gate is shut — a host the gate shuts, and a build without the server's addresses.
 
 One cost is accepted: a visitor to this page where the gate is shut downloads the whole account-surface
 chunk, though only the plans page runs there.
@@ -535,10 +535,11 @@ names the country and the currency and never a provider — the last boundary co
   no production dollar products yet. W-08 stops any other billing country at a notice ("paying from
   outside Korea is not available yet", no provider named) — no currency line, no amount, no consents and
   no way on — and W-05 sends a dollar checkout handed to it back to W-08 (`billableIn`, read through
-  `useForeignBilling`, which `createPortSetup` sets from the build). W-01 still shows dollar prices to a
-  reader of any other language; what is charged is the billing country's. No production subscription is
-  billed in dollars, so W-12 and W-14's dollar paths are not reached there. Every other build bills both,
-  and the decision to open dollars in production is a later one (ADR-0311).
+  `useForeignBilling`, which `createPortSetup` sets from the build). W-01 lists won in every language
+  there, to visitors and signed-in readers alike: the server has no dollar products to list, so a reader
+  asking for dollars would get an empty catalog. No production subscription is billed in dollars, so
+  W-12 and W-14's dollar paths are not reached there. Every other build bills both, and the decision to
+  open dollars in production is a later one (ADR-0311).
 - **After the checkout.** A subscription stays with its provider: a plan change, a card added and the
   plans it is offered are all in its currency, and W-12's add-card dialog shows its billing country as
   fixed. W-08 itself only opens for a first subscription.
@@ -911,7 +912,7 @@ not trigger.
   against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 664 tests
+    npx nx test @chatic/landing   # 665 tests
     ```
 
 - **The account-surface gate is the hostname and the build, and then the addresses.**
@@ -977,7 +978,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 664 tests pass; in CI
+npx nx test @chatic/landing                               # 665 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
