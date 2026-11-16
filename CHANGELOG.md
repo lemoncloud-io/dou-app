@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Features
+
+- (host,eslint-rules) add @chatic/host and lint host questions to the entry point (ADR-0324)
+
 ## [2026-11-16] - root@0.159.0, @chatic/landing@0.19.0
 
 ### Features
