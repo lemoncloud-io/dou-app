@@ -2,6 +2,17 @@ import { useEffect } from 'react';
 
 import { runtimeConnection } from '../connectionCommands';
 
+// A withdrawal waiting for the end of the current task, or null. Module-wide rather than per hook:
+// the hook is mounted once, and an instance mounting after another unmounted has to cancel the
+// other's withdrawal, which a per-instance ref could not reach.
+let pendingWithdrawal: ReturnType<typeof setTimeout> | null = null;
+
+const cancelPendingWithdrawal = (): void => {
+    if (pendingWithdrawal === null) return;
+    clearTimeout(pendingWithdrawal);
+    pendingWithdrawal = null;
+};
+
 /**
  * Hands the runtime the clouds this account belongs to, so each of them keeps a socket session while
  * the user is looking at another one. The app owns membership — its owned catalog and invited-cloud
@@ -17,6 +28,10 @@ import { runtimeConnection } from '../connectionCommands';
  * its sockets across a page reload, and a reloaded page that announced `[]` while its first reads were
  * still in flight would tear down every background socket only to open them again a moment later.
  *
+ * The withdrawal on unmount waits for the end of the task, and a mount before then cancels it. React's
+ * StrictMode unmounts and remounts every effect once in development; withdrawing at once would tear the
+ * background sockets down on each page load there and hide whether a real reload keeps them.
+ *
  * The list is compared by content, so handing a fresh array on every render costs nothing.
  */
 export const useBackgroundClouds = (cids: readonly string[] | null): void => {
@@ -29,5 +44,13 @@ export const useBackgroundClouds = (cids: readonly string[] | null): void => {
     }, [key]);
 
     // Unmount only — a changed list is handled above without passing through an empty one.
-    useEffect(() => () => runtimeConnection().setBackgroundClouds([]), []);
+    useEffect(() => {
+        cancelPendingWithdrawal();
+        return () => {
+            pendingWithdrawal = setTimeout(() => {
+                pendingWithdrawal = null;
+                runtimeConnection().setBackgroundClouds([]);
+            }, 0);
+        };
+    }, []);
 };
