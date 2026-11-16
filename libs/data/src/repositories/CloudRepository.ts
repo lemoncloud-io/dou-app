@@ -48,6 +48,17 @@ export interface ICloudRepository extends DisposableRepository {
      * request that fails again, rejects. The returned row is not the catalog's — re-read the catalog.
      */
     retryCloudSetup(cloudId: string): Promise<DomainCloud>;
+    /**
+     * The cloud's mini app link — one address its owner sets, `''` when none. Read from the relay's
+     * view of the cloud, which members get too. Like the catalog it never touches the local cache;
+     * react-query owns it.
+     */
+    fetchMiniAppUrl(cloudId: string): Promise<string>;
+    /**
+     * Store the cloud's mini app link, `''` to clear it. The relay takes it from the cloud's owner (or
+     * an admin) and refuses anyone else; it does not check the address, so the caller does.
+     */
+    saveMiniAppUrl(cloudId: string, url: string): Promise<string>;
 }
 
 export interface CloudGetOptions {
@@ -102,6 +113,14 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
 
     public async retryCloudSetup(cloudId: string): Promise<DomainCloud> {
         return this.requireHttp().retryCloudSetup(cloudId, this.getRequestContext());
+    }
+
+    public async fetchMiniAppUrl(cloudId: string): Promise<string> {
+        return this.requireHttp().fetchMiniAppUrl(cloudId);
+    }
+
+    public async saveMiniAppUrl(cloudId: string, url: string): Promise<string> {
+        return this.requireHttp().saveMiniAppUrl(cloudId, url);
     }
 
     public observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void {

@@ -15,6 +15,7 @@ describe('CloudHttpDataSource', () => {
             release: jest.fn(),
             workspace: jest.fn(),
             verifyEmail: jest.fn(),
+            get: jest.fn(),
         };
         dataSource = new CloudHttpDataSource(gateway);
     });
@@ -90,5 +91,48 @@ describe('CloudHttpDataSource', () => {
         // constructor is the enforcement (ADR-0070 decision 5 principle 6).
         expect(Object.keys(dataSource)).not.toContain('localDataSource');
         await dataSource.listClouds(undefined, context);
+    });
+    it('fetchMiniAppUrl — reads the mini app link off the relay cloud view', async () => {
+        gateway.get.mockResolvedValue({ id: 'c1', name: 'A', miniAppUrl: 'https://shop.example/' } as any);
+
+        await expect(dataSource.fetchMiniAppUrl('c1')).resolves.toBe('https://shop.example/');
+        expect(gateway.get).toHaveBeenCalledWith('c1');
+    });
+
+    it('fetchMiniAppUrl — a cloud with no mini app link reads as an empty string', async () => {
+        gateway.get.mockResolvedValue({ id: 'c1', name: 'A' } as any);
+
+        await expect(dataSource.fetchMiniAppUrl('c1')).resolves.toBe('');
+    });
+
+    it('saveMiniAppUrl — sends the mini app link alone and returns what the relay stored', async () => {
+        gateway.update.mockResolvedValue({ id: 'c1', miniAppUrl: 'https://shop.example/' } as any);
+
+        await expect(dataSource.saveMiniAppUrl('c1', 'https://shop.example/')).resolves.toBe('https://shop.example/');
+        expect(gateway.update).toHaveBeenCalledWith('c1', { miniAppUrl: 'https://shop.example/' });
+    });
+
+    it('saveMiniAppUrl — clearing the mini app link sends an empty string', async () => {
+        gateway.update.mockResolvedValue({ id: 'c1' } as any);
+
+        await expect(dataSource.saveMiniAppUrl('c1', '')).resolves.toBe('');
+        expect(gateway.update).toHaveBeenCalledWith('c1', { miniAppUrl: '' });
+    });
+    it('fetchMiniAppUrl — no cloud view is an error, not an empty mini app link', async () => {
+        gateway.get.mockResolvedValue(undefined as any);
+
+        await expect(dataSource.fetchMiniAppUrl('c1')).rejects.toThrow('no cloud view');
+    });
+
+    it('saveMiniAppUrl — a mini app link the answer does not carry back was not stored', async () => {
+        gateway.update.mockResolvedValue({ id: 'c1' } as any);
+
+        await expect(dataSource.saveMiniAppUrl('c1', 'https://shop.example/')).rejects.toThrow('not stored');
+    });
+
+    it('saveMiniAppUrl — no cloud view is an error, not a cleared mini app link', async () => {
+        gateway.update.mockResolvedValue(undefined as any);
+
+        await expect(dataSource.saveMiniAppUrl('c1', '')).rejects.toThrow('no cloud view');
     });
 });
