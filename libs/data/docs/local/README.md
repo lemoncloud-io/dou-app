@@ -177,8 +177,10 @@ Watch for:
 
 A room's attachments and links, read from this device's cache without scanning every cached message:
 `listRoomMedia` (one kind, newest first) and `countRoomMedia` (per kind) on `IChatLocalDataSource`.
-A screen reaches them as `LocalDataSources.chat`, the same in a browser, in a phone shell with the
-index and in one without it.
+A screen reaches them through `IChatRepository`, whose `listRoomMedia` and `countRoomMedia` hand the
+call to the data source unchanged in the graph's scope — the repository is all a page can reach, and in a
+shell that owns the session the call crosses the bridge as any repository call does. The answer is the
+same in a browser, in a phone shell with the index and in one without it.
 
 **One judge, two stores.** `chatMediaEntries` ([domain/chatMediaEntries.ts](../../src/domain/chatMediaEntries.ts))
 turns a message into its entries — `image`, `video`, `file`, `audio` (the attachment's `uploadSlotKind`)
