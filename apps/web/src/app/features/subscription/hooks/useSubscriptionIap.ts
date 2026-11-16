@@ -200,6 +200,7 @@ export const useSubscriptionIap = () => {
             data: { purchases },
         } = await appBridge.fetchCurrentPurchases();
         let restored = 0;
+        let webActive: unknown;
 
         for (const p of purchases) {
             try {
@@ -208,8 +209,12 @@ export const useSubscriptionIap = () => {
                 restored++;
             } catch (e) {
                 // The refusal covers the whole account, not this receipt: stop and let the caller
-                // explain it rather than counting it as one more skipped receipt.
-                if (isWebSubscriptionActiveError(e)) throw e;
+                // explain it rather than counting it as one more skipped receipt. Receipts restored
+                // before it still refresh the caches below.
+                if (isWebSubscriptionActiveError(e)) {
+                    webActive = e;
+                    break;
+                }
                 logger.warn('IAP', '[useSubscriptionIap] restore skip', { productId: p.productId, error: e });
             }
         }
@@ -219,6 +224,7 @@ export const useSubscriptionIap = () => {
             await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         }
 
+        if (webActive) throw webActive;
         return restored;
     }, [validate, queryClient]);
 

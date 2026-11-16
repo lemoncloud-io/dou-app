@@ -217,8 +217,6 @@ export const SubscriptionConfirmPage = () => {
             setPurchasing(null);
             const code = (e as { code?: string })?.code;
             if (code === 'user-cancelled') return;
-            // The store already holds an entitlement this account never got attached to — recover
-            // it the way the restore button does instead of reporting a payment failure.
             // A website subscription is running — the relay refuses the receipt. Explain, and point to
             // where that subscription is managed, instead of reporting a payment failure.
             if (isWebSubscriptionActiveError(e)) {
@@ -226,6 +224,8 @@ export const SubscriptionConfirmPage = () => {
                 showWebActive();
                 return;
             }
+            // The store already holds an entitlement this account never got attached to — recover
+            // it the way the restore button does instead of reporting a payment failure.
             if (code === 'already-owned') {
                 logger.warn('IAP', 'purchase already owned; restoring', { planId: plan.id });
                 await restore();
