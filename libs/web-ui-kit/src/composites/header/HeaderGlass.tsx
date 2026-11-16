@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /** How long the frost takes to reach full strength. Long enough to read as a fade, short enough
  *  that the header is settled before anyone has finished looking at it. */

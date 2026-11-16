@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ChevronLeft } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 interface PageShellProps {

@@ -1,6 +1,6 @@
 import { useCallback, useState, type JSX } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useDebugModeStore, ResizablePanel } from '../../../shared';
 import { DebugAuthPage } from './DebugAuthPage';

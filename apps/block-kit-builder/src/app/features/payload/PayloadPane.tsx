@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { XCircle } from 'lucide-react';
 
 import type { KnownBlock } from '@chatic/block-kit';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { highlightJsonLine } from './highlightJson';
 import { blocksToPayloadJson, payloadJsonToBlocks, type PayloadParseFailure } from './payloadCodec';

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { BottomSheet, IconCheck, SearchInput } from '@chatic/web-ui-kit';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { listPhoneCountries, type PhoneCountry } from '@chatic/shared/phone';
 

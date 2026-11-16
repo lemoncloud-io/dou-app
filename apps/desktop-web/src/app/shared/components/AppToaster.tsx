@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import {
     Toast,
     ToastClose,

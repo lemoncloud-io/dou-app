@@ -1,7 +1,7 @@
 import { Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
 
 import type { LanguagePreference } from '../../../../i18n/languagePreference';

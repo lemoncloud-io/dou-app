@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { isNative, webClient } from '@chatic/bridges';
 

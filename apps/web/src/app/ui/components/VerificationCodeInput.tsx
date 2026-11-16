@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { VERIFICATION_CODE_LENGTH } from '../../utils';
 // Direct path: `buildEnv` is deliberately kept out of the `utils` barrel (`import.meta` — see that

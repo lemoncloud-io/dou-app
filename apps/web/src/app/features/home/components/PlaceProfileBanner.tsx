@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { ProfileAvatar, PromoBanner } from '@chatic/web-ui-kit';
 
 import { useActivePlaceName, useSetMyPlaceProfile } from '../../../hooks';

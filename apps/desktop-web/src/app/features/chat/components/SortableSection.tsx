@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { ChevronDown } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useSidebarSectionsStore } from '../stores';
 import { SortableList, type SortableItem } from './SortableList';

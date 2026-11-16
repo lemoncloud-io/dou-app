@@ -8,7 +8,6 @@ module.exports = {
     // React components and their assets and styles. These entries are the ones
     // libs/app-runtime/jest.config.js uses for the same reach.
     moduleNameMapper: {
-        '^@chatic/lib/utils$': '<rootDir>/../ui-kit/src/utils/index.ts',
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
         // Before the generic rule, which would read `config/react` as a lib named `config/react`.

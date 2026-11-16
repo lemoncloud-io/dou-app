@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconBoltSolid, IconStarsSolid } from '../../resources/icons';
 import { buttonSurfaceClass } from './Button';

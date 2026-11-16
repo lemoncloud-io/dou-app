@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { IconCheckCircleSolid, douLogo } from '@chatic/web-ui-kit';
 
 import { CloudUnreadBadge } from './CloudUnreadBadge';

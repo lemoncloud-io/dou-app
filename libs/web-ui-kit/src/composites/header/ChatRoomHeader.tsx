@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@chatic/ui-kit/components/ui/dropdown-menu';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { DefaultAvatar } from '../../foundations/avatar/DefaultAvatar';
 import { IconBack, IconMore } from '../../resources/icons';

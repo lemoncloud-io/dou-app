@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 
 import { Toaster } from 'sonner';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { useTheme } from '@chatic/theme';
 
 import { PaneDivider } from './PaneDivider';

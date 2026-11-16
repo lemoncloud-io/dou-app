@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { usePlaceOrder } from '@chatic/shared';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';

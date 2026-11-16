@@ -1,6 +1,6 @@
 import { useContext, type ReactNode } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import {
     BlockKitLabelsContext,

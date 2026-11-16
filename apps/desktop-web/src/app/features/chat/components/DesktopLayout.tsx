@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import {
     COMPACT_SHELL_WIDTH,

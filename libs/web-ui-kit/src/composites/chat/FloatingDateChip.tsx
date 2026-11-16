@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface FloatingDateChipProps {
     /** Preformatted short date label (e.g. "7. 01 Mon"). */

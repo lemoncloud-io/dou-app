@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { buttonVariants } from '@chatic/ui-kit/components/ui/button';
 
 import { focusFirstIfNothingFocused, useOpenerFocus } from '../../utils/openerFocus';

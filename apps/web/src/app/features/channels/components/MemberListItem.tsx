@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { DefaultAvatar, ImageAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
 
 interface Member {

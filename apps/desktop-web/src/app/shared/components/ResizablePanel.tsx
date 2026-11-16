@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useEscapeClose } from '../hooks/useEscapeClose';
 import { usePanelWidth } from '../hooks/usePanelWidth';

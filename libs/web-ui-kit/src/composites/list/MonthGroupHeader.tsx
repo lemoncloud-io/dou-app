@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface MonthGroupHeaderProps {
     /** The month, already formatted by the host (e.g. a localized "November 2026"). */

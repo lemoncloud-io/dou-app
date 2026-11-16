@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 
 import type { BlockTextObject, KnownBlock } from '@chatic/block-kit';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 // 16px on a phone, the design size once there is a pointer: iOS Safari zooms the
 // page when a focused field's text is smaller than 16px, and it does not zoom back.

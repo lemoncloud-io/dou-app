@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Sheet as Root, SheetContent, SheetDescription, SheetTitle } from '@chatic/ui-kit/components/ui/sheet';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconClose } from '../../resources/icons';
 import { canStartDrag, clampDragOffset, isPastDragSlop, shouldDismissOnRelease } from './sheetDrag';

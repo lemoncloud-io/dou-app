@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { runtime } from '@chatic/app-runtime';
 
 /**

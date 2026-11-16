@@ -8,7 +8,7 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { ChatRoomHeader, DateDivider, DefaultAvatar, EmptyState, IconClock, MessageInput } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useMyProfile, useRelayInviteMutations, useSentInviteLog } from '../../../hooks';
 import { useInviteCountdown } from '../hooks/useInviteCountdown';

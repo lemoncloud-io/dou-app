@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface SystemMessageProps {
     /** Bold notice line (e.g. "<Friend> has entered the chat room."). */

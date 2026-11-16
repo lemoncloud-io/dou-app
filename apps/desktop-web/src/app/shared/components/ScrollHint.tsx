@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 const FADE = {
     rail: { top: 'bg-gradient-to-b from-rail', bottom: 'bg-gradient-to-t from-rail' },

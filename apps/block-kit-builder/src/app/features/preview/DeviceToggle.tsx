@@ -1,6 +1,6 @@
 import { Monitor, Smartphone } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /** Which client's width the stage draws the message at. */
 export type PreviewDevice = 'desktop' | 'mobile';

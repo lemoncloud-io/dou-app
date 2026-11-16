@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
 import { IconCameraSolid, IconFileSolid, IconGalleryWideSolid, IconMicrophoneSolid } from '../../resources/icons';

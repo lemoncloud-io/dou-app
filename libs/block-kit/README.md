@@ -118,8 +118,8 @@ the colours `hairline`, `well`, `code-inline`, `label`, `description`, `link` an
 type scale `text-body`, `text-callout`, `text-caption` and `text-overline`, and a `focus-ring`
 utility. This lib ships no CSS. An app's Tailwind `content` also has to reach `libs/block-kit/src`,
 or the classes used only here are purged: `apps/desktop-web` names the folder, and `apps/web` and
-the builder reach it through `createGlobPatternsForDependencies`. `cn` comes from `libs/ui-kit`,
-imported as `@chatic/lib/utils`.
+the builder reach it through `createGlobPatternsForDependencies`. `cn` comes from `libs/ui-kit`'s
+barrel, `@chatic/ui-kit`.
 
 ## How to verify
 

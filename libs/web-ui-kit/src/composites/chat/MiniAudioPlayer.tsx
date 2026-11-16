@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { formatAudioClock, PlaybackRateChip } from '../../foundations/audio';
 import { IconClose, IconPauseSolid, IconPlaySolid } from '../../resources/icons';

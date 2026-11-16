@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Copy, Download, Forward, Link2, MessageSquareReply, MoreVertical, Trash2 } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import {
     DropdownMenu,
     DropdownMenuContent,

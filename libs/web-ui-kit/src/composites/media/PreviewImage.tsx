@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface PreviewImageProps {
     /** A preview the browser can draw; empty for an item that has none, which stays a plain tile. */

@@ -3,7 +3,7 @@ import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { type VariantProps, cva } from 'class-variance-authority';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 // The focus ring is 2px behind a 2px gap in the ground colour, as the Switch and the
 // dialog close button draw theirs; the generator's 1px ring with no gap was the one

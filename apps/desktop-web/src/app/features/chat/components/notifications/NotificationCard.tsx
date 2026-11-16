@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { LucideIcon } from 'lucide-react';
 import { Check, Hash, MessageCircle, MessagesSquare, Minus, SmilePlus } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import { avatarStyle, formatListTime, inboxKindOf, isMentionKind, type MentionItem } from '../../../../shared';

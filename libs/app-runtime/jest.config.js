@@ -7,7 +7,6 @@ module.exports = {
     moduleNameMapper: {
         // Mirrors the `@chatic/ui-kit/*` path alias so subpath imports resolve to real files instead
         // of the greedy `libs/$1/src/index.ts` fallback below.
-        '^@chatic/lib/utils$': '<rootDir>/../ui-kit/src/utils/index.ts',
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
         // `@chatic/assets` lives at the repo ROOT (not libs/) and resolves image URLs with
         // `import.meta.url` — the greedy fallback would miss it and the transform cannot parse it.

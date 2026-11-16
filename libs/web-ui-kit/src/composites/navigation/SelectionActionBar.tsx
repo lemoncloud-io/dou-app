@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface SelectionActionBarAction {
     /** Button text, count included (e.g. a localized "Mark as read 2"). */

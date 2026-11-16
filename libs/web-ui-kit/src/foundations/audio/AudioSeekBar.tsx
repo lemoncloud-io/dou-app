@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface AudioSeekBarProps {
     /** Seconds played. */

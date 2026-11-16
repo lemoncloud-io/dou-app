@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Bookmark, MessagesSquare, Search, UserPen } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { Skeleton } from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';

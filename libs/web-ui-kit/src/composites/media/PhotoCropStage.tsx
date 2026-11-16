@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { dragCropRect, type CropHandle } from './cropBox';
 import { cssMatrix, fitPhotoEditPlan } from './editedPhotoLayout';

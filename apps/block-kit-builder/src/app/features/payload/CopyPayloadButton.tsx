@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { Check, Copy } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /**
  * Copy the payload, from the pane's heading row.

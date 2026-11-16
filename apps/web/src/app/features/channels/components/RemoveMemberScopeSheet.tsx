@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { BottomSheet, Button, ListRow } from '@chatic/web-ui-kit';
 
 /** Where a member is removed from: this room only, or the room's place and every group in it. */

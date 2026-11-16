@@ -17,8 +17,9 @@ hears on every screen are required from the caller — the dialog and sheet clos
 `closeLabel` and the `Toaster` region's `label` — because an English default there was the one
 English word a Korean screen reader still read out. Open/selected state belongs to the host.
 
-Unlike every other lib here, **consumers do not import a barrel.** `src/index.ts` is one line
-(`export * from './utils'`), so the barrel carries `cn` and nothing else; a component is reached at
+Unlike every other lib here, **consumers do not import components through a barrel.** `src/index.ts`
+is one line (`export * from './utils'`), so the barrel carries `cn` and nothing else, and every `cn`
+import goes through it; a component is reached at
 its own path, `@chatic/ui-kit/components/ui/<name>`. That is the contract `components.json` encodes,
 and it is what lets the generator overwrite one file without touching the rest.
 
@@ -28,12 +29,14 @@ grep -rn "@chatic/ui-kit" --include='*.ts' --include='*.tsx' apps libs | grep -v
 
 Five projects import components: `apps/web`, `apps/desktop-web`, `apps/admin`, `libs/web-ui-kit`
 and `libs/shared`. Two more — `apps/block-kit-builder` and `libs/block-kit` — reach this module for
-`cn` alone, through the `@chatic/lib/utils` path alias, which resolves to `src/utils/index.ts` here
-and is easy to miss when counting consumers.
+`cn` alone, through the barrel, `@chatic/ui-kit`.
 
 ```bash
-grep -rln "@chatic/lib/utils" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
+grep -rln "from '@chatic/ui-kit'" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
+
+`cn` has one import path, the barrel. `components.json`'s `utils` alias points there too, so a
+generated component imports it the same way as everything else.
 
 This lib does **not** own the tokens its classes resolve against. `bg-surface`, `text-main-accent`
 and the rest are declared in each host's `tailwind.config.js` and `styles.css` — see
@@ -54,7 +57,7 @@ The dependency runs **one way: `web-ui-kit` imports `ui-kit`, and `ui-kit` impor
 components, and the grep is the check:
 
 ```bash
-grep -rn "@chatic/" libs/ui-kit/src | grep -v "@chatic/ui-kit\|@chatic/lib/utils"
+grep -rn "@chatic/" libs/ui-kit/src | grep -v "@chatic/ui-kit"
 ```
 
 The rule's real consequence is that **a primitive here has five independent renderers, so it cannot
@@ -91,7 +94,7 @@ and desktop-web, the other app that raises toasts, no longer renders it.
    (`animate-snackbar-in`, `animate-toast-in`, the `fade-*` and `slide-*` set) are registered for the
    same reason: a toaster swaps the toast primitive's own animations for its own, and unregistered
    both would survive the merge and the config's declaration order would pick the winner. Import
-   `cn` from `@chatic/lib/utils`; never call `twMerge` directly.
+   `cn` from `@chatic/ui-kit`; never call `twMerge` directly.
 6. **English only.** A Korean literal in a primitive is a bug — this lib is rendered by an admin
    console that does not load the app's i18n catalogue.
 
@@ -120,7 +123,7 @@ flowchart TD
 
     C["components/ui × 21<br/><i>@chatic/ui-kit/components/ui/&lt;name&gt;</i>"]:::ui
     T["use-toast.ts<br/><i>module-level toast store</i>"]:::ui
-    U["utils/index.ts<br/><i>cn — @chatic/lib/utils</i>"]:::util
+    U["utils/index.ts<br/><i>cn — @chatic/ui-kit</i>"]:::util
     F["utils/openerFocus.tsx<br/><i>dialog focus on open and close</i>"]:::util
 
     R["@radix-ui/* × 13<br/>lucide-react"]:::ext
@@ -139,11 +142,11 @@ flowchart TD
 ```
 
 The arrow that is missing is the point: **nothing in this lib imports another `@chatic` module.**
-`cn` looks like an exception because it arrives as `@chatic/lib/utils`, but that alias resolves back
-into this same directory.
+`cn` looks like an exception because the primitives import it as `@chatic/ui-kit`, but that is this
+lib's own barrel, which resolves back into this same directory.
 
-Those five counts are files reaching a `components/ui/` path — 154 in all. Nine more files, all in
-`apps/web`, import the barrel itself and get only `cn` from it.
+Those five counts are files reaching a `components/ui/` path — 154 in all. Every file that takes `cn`
+imports the barrel itself and gets only `cn` from it.
 
 ### Directories
 
@@ -284,7 +287,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 const { toast } = useToast();
 

@@ -1,7 +1,7 @@
 import type { JSX, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { DefaultAvatar, ImageAvatar } from '@chatic/web-ui-kit';
 
 export interface InAppNotificationCardProps {

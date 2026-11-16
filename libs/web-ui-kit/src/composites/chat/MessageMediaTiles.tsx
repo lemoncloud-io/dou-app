@@ -1,6 +1,6 @@
 import { useId, useState, type Ref } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconAlert, IconImage, IconPlaySolid, IconSpinner } from '../../resources/icons';
 

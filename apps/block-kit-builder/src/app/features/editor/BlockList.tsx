@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ChevronDown, ChevronUp, GripVertical, Trash2 } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { blockKindOf, describeBlock, useBuilderStore } from '../../store';
 import { BlockFields } from './BlockFields';

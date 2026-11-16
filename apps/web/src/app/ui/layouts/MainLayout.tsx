@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { Outlet } from 'react-router-dom';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useBackHandler } from '../../hooks/useBackHandler';
 

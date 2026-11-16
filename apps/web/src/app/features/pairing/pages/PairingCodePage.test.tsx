@@ -32,7 +32,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/lib/utils', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
+jest.mock('@chatic/ui-kit', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
