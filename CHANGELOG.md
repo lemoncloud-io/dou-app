@@ -2,6 +2,12 @@
 
 ## [2026-11-16] - No version updates
 
+### Features
+
+- (runtime-core,mobile,chatic-apps-sdk) let a mini app read its own cloud, reads only (ADR-0320)
+
+## [2026-11-16] - No version updates
+
 ### Bug Fixes
 
 - (web-ui-kit,web) lay out the room files header as designed, not in a 44px slot
