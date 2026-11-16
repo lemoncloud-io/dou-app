@@ -11,10 +11,14 @@ export const miniAppUrlKey = (cloudId: string) => [...runtime.data.cloudsKeys.de
  * A cloud's mini app link on the relay — the one address its owner sets, `''` for none — and the
  * owner's save. React-query is the only cache: the repository never writes it locally.
  *
- * - `url` is `undefined` until the first read settles, and for no cloud.
- * - `ensureUrl` answers from the cache when it has the link, else reads it, so a press right after the
- *   screen opens still opens what the relay holds rather than the hub.
- * - `freshUrl` always asks the relay, so the owner edits what it holds now, not a cached copy.
+ * The owner can change the link from another device at any time, and nothing tells this one, so the
+ * cache is never trusted to open or edit it: the app's default `staleTime: Infinity` would otherwise
+ * keep the first read for the whole session, and a press would open an address the owner has replaced.
+ *
+ * - `url` is `undefined` until the first read settles, and for no cloud. It is read again whenever a
+ *   screen showing it mounts; it only names the host in a hint.
+ * - `freshUrl` always asks the relay. Opening and editing both go through it, so a press opens — and
+ *   the owner edits — what the relay holds now.
  * - `save` resolves with what the relay stored and puts it in the cache; a refusal rejects and leaves
  *   the cache as it was.
  */
@@ -26,19 +30,10 @@ export const useCloudMiniApp = (cloudId: string | null) => {
         queryKey: miniAppUrlKey(cloudId ?? ''),
         queryFn: () => cloud.fetchMiniAppUrl(cloudId ?? ''),
         enabled: !!cloudId,
+        staleTime: 0,
         refetchOnWindowFocus: false,
     });
 
-    const ensureUrl = useCallback(
-        (forCloudId: string) =>
-            queryClient.ensureQueryData({
-                queryKey: miniAppUrlKey(forCloudId),
-                queryFn: () => cloud.fetchMiniAppUrl(forCloudId),
-            }),
-        [cloud, queryClient]
-    );
-
-    /** Read the link from the relay now, whatever the cache holds — for the owner about to edit it. */
     const freshUrl = useCallback(
         (forCloudId: string) =>
             queryClient.fetchQuery({
@@ -60,5 +55,5 @@ export const useCloudMiniApp = (cloudId: string | null) => {
         [cloud, queryClient]
     );
 
-    return { url: cloudId ? data : undefined, ensureUrl, freshUrl, save };
+    return { url: cloudId ? data : undefined, freshUrl, save };
 };

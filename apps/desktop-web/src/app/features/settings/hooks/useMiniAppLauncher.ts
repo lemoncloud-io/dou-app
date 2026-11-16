@@ -77,8 +77,8 @@ export type MiniAppUrlSave = 'saved' | MiniAppUrlProblem | 'failed';
  *
  * - `available` is false in the Default Cloud (Home): it is the relay's, with no owner and no link.
  * - Only the cloud's owner sets and clears the link; the hub's "set one" result reaches the owner alone.
- * - Opening reads the link first when it is not cached yet, so a press right after the screen opens
- *   opens what the relay holds. A cloud switch while that read is out opens nothing.
+ * - Opening reads the link from the relay on every press, never from the cache: the owner may have
+ *   replaced it from another device. A cloud switch while that read is out opens nothing.
  * - Switching clouds drops what the previous cloud left waiting: its edit dialog, its consent, its
  *   hub's result.
  * - One open at a time: a second press while the first request is out sends nothing.
@@ -96,7 +96,7 @@ export const useMiniAppLauncher = () => {
     const { userId: accountId } = runtime.session.useSessionIdentity();
     const placeNick = viewerPlaceProfile({ uid: accountId, name: '', cloudUid: uid }, useSiteProfileMap())?.nick;
     const profileName = useAccountName();
-    const { url, ensureUrl, freshUrl, save } = useCloudMiniApp(cloudId);
+    const { url, freshUrl, save } = useCloudMiniApp(cloudId);
 
     // The link the owner's dialog starts from, read fresh as it opened; `null` while it is closed.
     const [editSeed, setEditSeed] = useState<string | null>(null);
@@ -189,7 +189,7 @@ export const useMiniAppLauncher = () => {
         try {
             let stored: string;
             try {
-                stored = await ensureUrl(cloudId);
+                stored = await freshUrl(cloudId);
             } catch (error) {
                 logger.warn('BRIDGE', 'mini app link not read', { cloudId, error });
                 toastFailure(t('settings.miniApp.openFailed'), error);
@@ -197,13 +197,14 @@ export const useMiniAppLauncher = () => {
             }
             if (activeCloud.current !== cloudId) return;
             const page = openableMiniAppUrl(stored);
-            if (stored.trim() && !page)
-                {logger.warn('BRIDGE', 'stored mini app link is not one the shell opens', { cloudId });}
+            if (stored.trim() && !page) {
+                logger.warn('BRIDGE', 'stored mini app link is not one the shell opens', { cloudId });
+            }
             await openPage(page);
         } finally {
             opening.current = false;
         }
-    }, [cloudId, ensureUrl, openPage, t]);
+    }, [cloudId, freshUrl, openPage, t]);
 
     /**
      * Open the owner's link dialog on what the relay holds now. Read fresh, not from the cache: a dialog

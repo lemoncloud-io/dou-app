@@ -65,8 +65,9 @@ import { MiniAppRailButton } from './MiniAppRailButton';
 const HUB = 'https://apps-dev.chatic.io/';
 const SHOP = 'https://shop.example/app';
 
+// The app's own client keeps a read for the whole session (`staleTime: Infinity`); so does this one.
 const renderButton = async () => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     render(
         <QueryClientProvider client={client}>
             <MiniAppRailButton />
@@ -108,6 +109,20 @@ describe('MiniAppRailButton', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
 
         await waitFor(() => expect(env.open).toHaveBeenCalledWith(SHOP, expect.anything()));
+    });
+
+    it('opens the link the owner set from another device since the last press, not the one read before', async () => {
+        window.localStorage.setItem('dou.miniAppConsent.uid-session.shop.example', '1');
+        await renderButton();
+        fireEvent.click(railButton() as HTMLElement);
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+        expect(env.open.mock.calls[0][0]).toBe(HUB);
+
+        env.links.c1 = SHOP;
+        fireEvent.click(railButton() as HTMLElement);
+
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(2));
+        expect(env.open.mock.calls[1][0]).toBe(SHOP);
     });
 
     it.each([['reviewed'], [null]])('is absent when the shell opens %s', async scope => {

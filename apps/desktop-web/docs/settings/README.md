@@ -105,9 +105,10 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
 - **Open mini app.** Everyone in the cloud gets this row. It opens the cloud's link when there is one
   the shell would open, and DoU's hub otherwise (`https://apps.chatic.io/` on a PROD build,
   `https://apps-dev.chatic.io/` otherwise) — a stored value the shell would refuse opens the hub and is
-  logged. The row's hint names the link's host, or says the hub will open. A press right after the
-  screen opens reads the link first when it is not cached yet; a cloud switch while that read is out
-  opens nothing, and a read that fails is a failure toast.
+  logged. The row's hint names the link's host, or says the hub will open. Every press reads the link
+  from the relay again rather than trusting the cache — the owner may have changed it from another
+  device, and nothing tells this one; a cloud switch while that read is out opens nothing, and a read
+  that fails is a failure toast.
 - **What a page receives.** `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open place, my id
   in this cloud, and my name, which is my place nick (under my id in this cloud, else my account id),
   else the cloud profile's name. Only the hub is also told whether I own the cloud; its `miniApps` list
