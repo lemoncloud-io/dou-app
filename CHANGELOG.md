@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Features
+
+- (mobile,web,bridge-messages) start production on the app runtime, web names the default
+
 ## [2026-11-16] - root@0.161.0, @chatic/web@0.91.0
 
 ### Features
