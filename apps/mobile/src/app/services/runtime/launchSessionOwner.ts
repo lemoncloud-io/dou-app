@@ -1,13 +1,20 @@
+import Config from 'react-native-config';
+
 import { openSessionOwnerFile } from './runtimeStorageFiles';
-import { readSessionOwner } from './sessionOwner';
+import { defaultSessionOwner, readSessionOwner } from './sessionOwner';
 import type { SessionOwner } from './sessionOwner';
+
+/** This build's owner for an install nobody has switched: the app's runtime on a dev stage build. */
+export const buildDefaultSessionOwner = (): SessionOwner =>
+    defaultSessionOwner(Config.VITE_ENV, Config.VITE_SESSION_OWNER_DEFAULT);
 
 let owner: SessionOwner | null = null;
 
 /**
  * The session owner of this launch, read once from its file and kept for the process: the owner is
  * settled per launch, and everything that asks — the logs, the runtime host — has to hear the same
- * answer. A file that cannot be opened reads as the page's, which is what every launch was before.
+ * answer. With nothing recorded it is the build's default (`buildDefaultSessionOwner`). A file that
+ * cannot be opened reads as the page's, on any build: an unreadable setting must not move the session.
  *
  * Kept apart from the runtime host so reading it costs one MMKV read: the host's module loads the
  * whole runtime, which a launch the page owns never needs.
@@ -15,7 +22,7 @@ let owner: SessionOwner | null = null;
 export const launchSessionOwner = (): SessionOwner => {
     if (owner === null) {
         try {
-            owner = readSessionOwner(openSessionOwnerFile());
+            owner = readSessionOwner(openSessionOwnerFile(), buildDefaultSessionOwner());
         } catch {
             owner = 'web';
         }

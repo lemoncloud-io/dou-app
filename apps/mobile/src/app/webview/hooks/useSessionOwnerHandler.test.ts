@@ -17,7 +17,11 @@ jest.mock('../../services/appRestart', () => ({
     appRestart: { restart: (...args: unknown[]) => mockRestart(...args) },
 }));
 
-jest.mock('../../services/runtime/launchSessionOwner', () => ({ launchSessionOwner: () => 'web' }));
+let mockBuildDefault: 'web' | 'native' = 'web';
+jest.mock('../../services/runtime/launchSessionOwner', () => ({
+    launchSessionOwner: () => 'web',
+    buildDefaultSessionOwner: () => mockBuildDefault,
+}));
 
 const mockEntries = new Map<string, string>();
 jest.mock('../../services/runtime/runtimeStorageFiles', () => ({
@@ -65,6 +69,7 @@ describe('useSessionOwnerHandler', () => {
         mockRestart.mockReset();
         mockEntries.clear();
         mockStage = 'DEV';
+        mockBuildDefault = 'web';
         mockDebug.enabled = false;
         mockDebug.hydrated = true;
         mockDebugListeners.clear();
@@ -116,6 +121,16 @@ describe('useSessionOwnerHandler', () => {
 
     it('answers the current and next owner outside production', async () => {
         mockEntries.set('sessionOwner', 'native');
+        const bridge = fakeBridge();
+        renderHook(() => useSessionOwnerHandler(bridge as any));
+
+        const reply = await bridge.handlers.get('FetchSessionOwner')?.({ type: 'FetchSessionOwner', data: {} });
+
+        expect(reply).toEqual({ type: 'OnFetchSessionOwner', success: true, data: { current: 'web', next: 'native' } });
+    });
+
+    it("answers the build's default as the next owner when nothing is recorded", async () => {
+        mockBuildDefault = 'native';
         const bridge = fakeBridge();
         renderHook(() => useSessionOwnerHandler(bridge as any));
 

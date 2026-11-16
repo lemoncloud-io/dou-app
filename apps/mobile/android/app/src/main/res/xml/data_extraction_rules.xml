@@ -18,8 +18,9 @@
 
     - mmkv/chatic-runtime-plain(.crc), mmkv/chatic-runtime-device(.crc): the runtime's plain and
       device stores.
-    - mmkv/chatic-runtime-mode(.crc): which side owns the session. A new phone starts with the page
-      owning it, as a fresh install does, rather than with the runtime owning stores that stayed behind.
+    - mmkv/chatic-runtime-mode(.crc): which side owns the session. A new phone starts with the owner a
+      fresh install of this build starts with, rather than with a recorded runtime owner whose stores
+      stayed behind.
 -->
 <data-extraction-rules>
     <cloud-backup>

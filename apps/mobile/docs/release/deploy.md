@@ -36,7 +36,9 @@ releasing is a human decision made in App Store Connect / Play Console.
    copied from `apps/web/.env.dev` into `apps/mobile/.env.dev` and from `apps/web/.env.prod` into
    `apps/mobile/.env.prod`. A build without them still works: the runtime cannot start, every launch
    stays the page's, and the debug overlay's Session owner screen shows **This page** as the page's own
-   session even after the switch.
+   session even after the switch. A dev build needs them most: it starts every install nobody switched
+   on the runtime ([runtime](../runtime/README.md#who-owns-the-session)), so a dev build without them
+   tries the runtime on every launch and falls back to the page each time.
 
 ## Deploy flow
 

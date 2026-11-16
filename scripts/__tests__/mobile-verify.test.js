@@ -340,7 +340,17 @@ describe('mobile-verify', () => {
             expect(merged.get('VITE_WEBVIEW_BASE_URL')).toBe('http://localhost:5150');
         });
 
-        it('--web dev: the dev env unchanged', () => {
+        it.each(['local', 'dev'])('--web %s: a fresh install starts on the page, whatever the env files say', web => {
+            const merged = deriveEnv({
+                devText: 'VITE_ENV=DEV\nVITE_SESSION_OWNER_DEFAULT=native\n',
+                localText: 'VITE_SESSION_OWNER_DEFAULT=native\n',
+                web,
+                webUrl: 'http://localhost:5150',
+            });
+            expect(merged.get('VITE_SESSION_OWNER_DEFAULT')).toBe('web');
+        });
+
+        it('--web dev: the dev env unchanged but for the session owner default', () => {
             const merged = deriveEnv({
                 devText: 'VITE_WEBVIEW_BASE_URL=https://dev.example\n',
                 localText: 'VITE_WEBVIEW_BASE_URL=http://localhost:5003\n',

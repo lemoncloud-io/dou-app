@@ -77,8 +77,9 @@ as an item to reset.
 The app runtime's own MMKV files — `chatic-runtime-plain`, `chatic-runtime-device` and
 `chatic-runtime-mode` — are excluded from both too. The plain store holds the session's other half —
 the device id, the cloud identities, the selected cloud — which means nothing beside a vault that
-stayed behind, so a new phone starts both fresh; and it starts with the page owning the session, as a
-fresh install does, rather than with the runtime owning stores that did not come along. The page's copy
+stayed behind, so a new phone starts both fresh; and it starts with the owner a fresh install of that build starts with (the
+page, except on a dev build — mobile docs/runtime), rather than with a recorded runtime owning stores
+that did not come along. The page's copy
 of the same values sits in the WebView's own storage, which these rules do not cover; it is the page's
 until the app runs the session.
 

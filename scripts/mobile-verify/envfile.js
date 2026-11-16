@@ -5,6 +5,10 @@
  *   ID, without which the Android app dies at module load), lays the non-empty values of `.env` (the
  *   local env) over it, and points `VITE_WEBVIEW_BASE_URL` at the harness's own web port.
  * - `--web dev` is `.env.dev` as it is: the deployed dev web.
+ * - Either way `VITE_SESSION_OWNER_DEFAULT` is pinned to `web` (`SESSION_OWNER_DEFAULT`). A dev stage
+ *   build otherwise starts an unswitched install on the app's runtime, and the scenarios expect a fresh
+ *   install on the page: `--session-owner native` reaches the runtime through the switch, as a person
+ *   would, and `--session-owner web` would otherwise not be on the page at all.
  *
  * - A `--web local` build also carries the services the app's own runtime starts with
  *   (`NATIVE_RUNTIME_ENV_KEYS`), so one build serves both session owners. A mobile env leaves them
@@ -31,14 +35,19 @@ function serializeEnv(values) {
     return [...values].map(([key, value]) => `${key}=${value}`).join('\n') + '\n';
 }
 
+/** The session owner every harness build starts a fresh install on; see the module comment. */
+const SESSION_OWNER_DEFAULT = 'web';
+
 /** The merged values for a run; see the module comment for the rule. */
 function deriveEnv({ localText, devText, web, webUrl }) {
     const merged = parseEnv(devText);
-    if (web === 'dev') return merged;
-    for (const [key, value] of parseEnv(localText)) {
-        if (value !== '') merged.set(key, value);
+    if (web !== 'dev') {
+        for (const [key, value] of parseEnv(localText)) {
+            if (value !== '') merged.set(key, value);
+        }
+        merged.set('VITE_WEBVIEW_BASE_URL', webUrl);
     }
-    merged.set('VITE_WEBVIEW_BASE_URL', webUrl);
+    merged.set('VITE_SESSION_OWNER_DEFAULT', SESSION_OWNER_DEFAULT);
     return merged;
 }
 

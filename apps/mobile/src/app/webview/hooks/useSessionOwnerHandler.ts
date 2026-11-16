@@ -4,7 +4,7 @@ import Config from 'react-native-config';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 import { appRestart } from '../../services/appRestart';
-import { launchSessionOwner } from '../../services/runtime/launchSessionOwner';
+import { buildDefaultSessionOwner, launchSessionOwner } from '../../services/runtime/launchSessionOwner';
 import { openSessionOwnerFile } from '../../services/runtime/runtimeStorageFiles';
 import { createSessionOwnerSwitch, isSessionOwnerSwitchAllowed } from '../../services/runtime/sessionOwnerSwitch';
 import { useDebugSettingsStore } from '../../stores/debugSettingsStore';
@@ -22,6 +22,7 @@ export const useSessionOwnerHandler = (bridge: IAppBridgeHost): void => {
             ownerSwitch: createSessionOwnerSwitch({
                 current: launchSessionOwner,
                 file: openSessionOwnerFile,
+                fallback: buildDefaultSessionOwner,
                 restart: appRestart,
             }),
             allowed: () =>
