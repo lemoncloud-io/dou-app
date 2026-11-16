@@ -64,7 +64,7 @@ const show = ({
         replaceablePlan: replaceable,
         resubscribePlan: resubscribe,
         trialEligible,
-        isOnMobileApp: true,
+        sellsInStore: true,
         isIOS: true,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({ options, isLoading: false });

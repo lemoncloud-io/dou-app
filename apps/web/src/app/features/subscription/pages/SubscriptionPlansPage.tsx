@@ -48,7 +48,7 @@ export const SubscriptionPlansPage = () => {
         currentPlan,
         replaceablePlan,
         resubscribePlan,
-        isOnMobileApp,
+        sellsInStore,
         isIOS,
         trialEligible,
     } = usePlanCatalog();
@@ -91,7 +91,7 @@ export const SubscriptionPlansPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) appBridge.openURL(url);
+        if (sellsInStore) appBridge.openURL(url);
         else window.open(url, '_blank');
     };
 
@@ -154,7 +154,7 @@ export const SubscriptionPlansPage = () => {
                             </div>
                         ) : options.length === 0 ? (
                             <span className="py-6 text-center text-[15px] text-muted-foreground">
-                                {isOnMobileApp
+                                {sellsInStore
                                     ? t('mypage.subscription.noProducts')
                                     : t('mypage.subscription.mobileOnly')}
                             </span>

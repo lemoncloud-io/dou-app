@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, IconBack, IconButton, IconSpinner, KeyValueRows, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
@@ -28,7 +28,7 @@ export const SubscriptionPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
-    const isOnMobileApp = isNative();
+    const sellsInStore = host.ports.checkout.kind === 'store';
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership, isLoading } = useMembershipInfo();
@@ -69,9 +69,9 @@ export const SubscriptionPage = () => {
     })();
     const statusLineTone = summary.state === 'active' ? 'text-point-blue' : 'text-destructive';
 
-    // In the app a purchase attaches to the account signed in here, so a guest signs in first. In a
-    // browser the website sells and signs the buyer in itself, so the guide leads straight there.
-    const asksLogin = isGuest && isOnMobileApp;
+    // A store purchase attaches to the account signed in here, so a guest signs in first. Where the
+    // website sells, it signs the buyer in itself, so the guide leads straight there.
+    const asksLogin = isGuest && sellsInStore;
     const handleStart = () => (asksLogin ? goToLogin() : navigate(ROUTES.subscription.guide));
 
     return (

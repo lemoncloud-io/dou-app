@@ -4,7 +4,17 @@ import { usePlanCatalog } from './usePlanCatalog';
 import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership';
 
 let mockNative = true;
-jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+// The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
+// in a browser.
+const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
+const mockWeb = { kind: 'web', open: jest.fn() };
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { checkout: mockNative ? mockStore : mockWeb };
+        },
+    },
+}));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn(), useProductPlans: jest.fn() }));
 
 const NOW = 1_790_000_000_000;
@@ -58,7 +68,6 @@ beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Date, 'now').mockReturnValue(NOW);
     mockNative = true;
-    (window as unknown as { CHATIC_APP_PLATFORM?: string }).CHATIC_APP_PLATFORM = 'ios';
     answerPlans();
 });
 

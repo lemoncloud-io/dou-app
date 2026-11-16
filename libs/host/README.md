@@ -7,15 +7,41 @@ implementation per host — and the app's entry point chooses those implementati
 host declared before the page ran. Only that entry point and `@chatic/bridges`' host profile ask the
 host what it is; lint holds the rest of the code to the ports.
 
-The decision and its reasoning are ADR-0324. This package is its frame: the facade and the port type.
-**No port is defined yet.** Each arrives with the step that moves its domain's features onto it —
-`checkout` first — and is then documented here.
+The decision and its reasoning are ADR-0324. Ports arrive one domain at a time, each with the step that
+moves its domain's features onto it. `checkout` is the first.
+
+## Ports
+
+### `checkout`
+
+How this host sells a subscription. A union, so a result says what actually happens:
+
+| `kind`  | Means                                                             | Offers                                                                                     |
+| ------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `store` | An app store sells, inside the app (`store`: `apple` or `google`) | `products()`, `purchase()`, `finish()`, `currentPurchases()`, `openManagement()`           |
+| `web`   | The website sells; the buyer is handed over                       | `open(url)` — the purchase completes there, and this page learns of it from the membership |
+| `none`  | Nothing is sold here                                              | —                                                                                          |
+
+`resolveCheckoutMethod(profile)` is what the entry point chooses from. It reads the declaration key
+`checkout`, introduced in declaration version 1: a list of `'apple' | 'google' | 'web'`, preferred first.
+The first entry the page knows is taken, so a method added later is skipped by an older page rather
+than misread; `[]` sells nothing. A key missing from a version-1 declaration, or a value that is not a
+list, is a bug in the shell and sells nothing, and so does a declaration that cannot be read at all.
+A shell that declares nothing gets the legacy rule, which is what the screens did before the port: a bridge means a store, Apple's
+when `CHATIC_APP_PLATFORM` is `ios` (any case) and Google's otherwise, and no bridge means the website.
+A desktop shell has a bridge too and so reads as Google's store under that rule; nothing in the desktop
+app sells, and it publishes `none`.
+
+The implementations live in the one app that sells, `apps/web` (`src/app/host/checkout/`); see its
+`docs/bridge/host-ports.md`. Product rules — which tiers may be sold, who bills a membership, whether
+the website may take a buyer (`canCheckoutOnWeb`) — stay in the subscription feature and take the
+port's `kind` as input.
 
 ## Who imports it
 
 `apps/web` and `apps/desktop-web`, each from one file: `src/app/host/publishHostPorts.ts`, which
-`main.tsx` calls right after `config.init()`, before the first render. Features will import `host` to
-read a port; none does yet.
+`main.tsx` calls right after `config.init()`, before the first render. Features import `host` to read a
+port — `apps/web`'s subscription feature reads `checkout`.
 
 ```bash
 git grep -n "@chatic/host" -- apps libs ':!*.md'

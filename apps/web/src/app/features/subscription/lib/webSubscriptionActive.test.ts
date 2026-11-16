@@ -1,4 +1,8 @@
-import { asWebSubscriptionActive, isWebSubscriptionActiveError, WebSubscriptionActiveError } from './webSubscriptionActive';
+import {
+    asWebSubscriptionActive,
+    isWebSubscriptionActiveError,
+    WebSubscriptionActiveError,
+} from './webSubscriptionActive';
 
 const SERVER = '409 CONFLICT - portone subscription is active - verifyMembershipPurchase(membership/MS1)';
 

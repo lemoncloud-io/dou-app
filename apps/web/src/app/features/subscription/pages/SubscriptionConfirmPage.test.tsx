@@ -87,7 +87,7 @@ const show = ({
         summary: { state },
         replaceablePlan: current,
         isIOS,
-        isOnMobileApp: true,
+        sellsInStore: true,
         trialEligible,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({
@@ -116,7 +116,7 @@ const afterRefetch = (plan: typeof tier1) => {
         summary: { state: 'active' },
         replaceablePlan: plan,
         isIOS: true,
-        isOnMobileApp: true,
+        sellsInStore: true,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({
         options: [{ plan, kind: 'current', isSelectable: false, isCurrent: true, displayPrice: '₩8,800' }],

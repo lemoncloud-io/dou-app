@@ -1,7 +1,7 @@
 # ADR-0324: The host declares what it can do, and features reach it through ports chosen at the entry point
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
-> `refactor/host-ports-frame` (step 1); steps 2–7 follow
+> `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2); steps 3–7 follow
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
@@ -109,7 +109,9 @@ list is silently given the legacy guess. With one object:
 So every capability has a legacy rule, including one added long after the first shells declared.
 Where nothing the page did before declarations existed can be reproduced — the capability is new —
 its legacy rule answers "unavailable", so a new key never needs a guess written for it. The first key,
-`checkout`, is version 1 and arrives with step 2; step 0 ships the reader with no keys.
+`checkout`, is version 1 and arrived with step 2: a list of `'apple' | 'google' | 'web'`, preferred
+first, of which the page takes the first it knows; `[]` sells nothing. Its legacy rule is the one the
+screens used: a bridge means a store, Apple's on `ios`, and no bridge means the website.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.

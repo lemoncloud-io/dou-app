@@ -23,8 +23,15 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => isNativeValue,
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+}));
+// The host sells through a store (in the app) or through the website (in a browser).
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { checkout: isNativeValue ? { kind: 'store', store: 'google' } : { kind: 'web' } };
+        },
+    },
 }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {

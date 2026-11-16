@@ -12,14 +12,15 @@ goes through this folder's hooks.
 grep -rln "from '@chatic/bridges'" apps/web/src/app/features --include='*.ts' --include='*.tsx'
 ```
 
-This document is also the index for the category. Two subjects are large enough to own their own
-file, and both are bridge code rather than feature code — there is no `features/notifications/`
-folder:
+This document is also the index for the category. Three subjects are large enough to own their own
+file. Two are bridge code rather than feature code — there is no `features/notifications/` folder —
+and the third is `app/host/`, the ports this app reaches the host through:
 
 | Document                                   | Owns                                                                               |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- |
 | [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack       |
 | [device-token.md](./device-token.md)       | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
+| [host-ports.md](./host-ports.md)           | `app/host/`: the host's ports this app chooses at boot — `checkout` so far         |
 
 ## Outbound: `appBridge`
 

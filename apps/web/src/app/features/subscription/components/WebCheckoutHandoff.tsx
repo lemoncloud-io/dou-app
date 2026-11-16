@@ -1,17 +1,17 @@
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { IconSpinner } from '@chatic/web-ui-kit';
 
 import { useMembershipInfo } from '../../../hooks/useMembership';
 import { WEB_SUBSCRIPTION_URL } from '../consts';
 import { usePlanCatalog } from '../hooks';
 import { canCheckoutOnWeb } from '../lib';
-import { leaveForWeb } from './leaveForWeb';
 
 /**
- * Stands in front of the screens that sell a tier (`plans`, `confirm`), and only outside the app.
+ * Stands in front of the screens that sell a tier (`plans`, `confirm`), and only where the website
+ * sells (`checkout.kind === 'web'`).
  *
  * A browser has no store to sell through, so every way into those screens — MY, the guide, home's
  * banner and cloud switcher, the allowance dialog — goes on to the website's checkout instead. The one
@@ -27,16 +27,16 @@ import { leaveForWeb } from './leaveForWeb';
  */
 export const WebCheckoutHandoff = ({ children }: { children: ReactNode }) => {
     const { t } = useTranslation();
-    const native = isNative();
+    const checkout = host.ports.checkout;
     const { summary } = usePlanCatalog();
     const { data: membership, isSuccess, isError } = useMembershipInfo();
-    const handOff = !native && isSuccess && canCheckoutOnWeb(summary, membership?.platform);
+    const handOff = checkout.kind === 'web' && isSuccess && canCheckoutOnWeb(summary, membership?.platform);
 
     useEffect(() => {
-        if (handOff) leaveForWeb(WEB_SUBSCRIPTION_URL.plans, { replace: true });
-    }, [handOff]);
+        if (handOff && checkout.kind === 'web') checkout.open(WEB_SUBSCRIPTION_URL.plans, { replace: true });
+    }, [handOff, checkout]);
 
-    if (native || isError || (isSuccess && !handOff)) return <>{children}</>;
+    if (checkout.kind !== 'web' || isError || (isSuccess && !handOff)) return <>{children}</>;
     return (
         <div role="status" className="flex h-screen flex-col items-center justify-center gap-3">
             <IconSpinner className="size-6 animate-spin text-muted-foreground" />
