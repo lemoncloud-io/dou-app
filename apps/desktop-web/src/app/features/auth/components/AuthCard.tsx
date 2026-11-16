@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ArrowLeft } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import douMark from '../../../../assets/dou-mark.png';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';

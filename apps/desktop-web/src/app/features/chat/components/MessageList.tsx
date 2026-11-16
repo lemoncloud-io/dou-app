@@ -5,7 +5,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 
 import { isMentioningViewer } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {

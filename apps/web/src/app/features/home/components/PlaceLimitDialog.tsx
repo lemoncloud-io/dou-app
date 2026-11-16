@@ -2,7 +2,7 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 interface PlaceLimitDialogProps {
     open: boolean;

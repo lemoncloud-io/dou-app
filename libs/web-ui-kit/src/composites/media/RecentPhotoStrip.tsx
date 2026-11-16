@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { SLIDE_TIMING, useSlidePresence } from '../overlay/slidePresence';
 import { PreviewImage } from './PreviewImage';

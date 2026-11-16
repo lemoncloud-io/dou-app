@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { defaultPlaceAvatar, douHomeAvatar } from '../../resources/assets';
 import { IconGroup, IconPlus, IconUser } from '../../resources/icons';

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';

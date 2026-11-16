@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 const VARIANT = {
     title: 'text-[21px] font-semibold leading-[1.35] tracking-[-0.025em]',

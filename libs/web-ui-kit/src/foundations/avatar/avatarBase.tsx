@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface AvatarFrameProps {
     /** Diameter in pixels — the outer edge, stroke included. */

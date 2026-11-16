@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/ui-kit/utils';
+import { cn } from '@chatic/ui-kit';
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'textarea'>>(
     ({ className, ...props }, ref) => {

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AtSign, Bell, Check, CheckCheck, ChevronDown, ListChecks, ListFilter, type LucideIcon } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import {
     DropdownMenu,
     DropdownMenuContent,

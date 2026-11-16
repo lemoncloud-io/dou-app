@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { FileText, Film, Pause, Play, X } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import type { ComposerAttachment } from '../../hooks';
 import { MAX_ATTACHMENTS, formatFileSize, formatPlaybackTime } from '../../utils';

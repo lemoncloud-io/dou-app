@@ -1,6 +1,6 @@
 import { Redo2, Trash2, Undo2 } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useBuilderStore } from '../../store';
 import { ICON_CONTROL } from './controlStyles';

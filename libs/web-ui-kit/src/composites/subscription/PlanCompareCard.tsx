@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconBolt } from '../../resources/icons';
 import { PlanBadge } from '../../foundations/badge/PlanBadge';

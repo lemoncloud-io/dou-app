@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useBlockKitLabels } from './blockKitLabels';
 

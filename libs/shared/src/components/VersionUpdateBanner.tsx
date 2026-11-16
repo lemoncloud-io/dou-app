@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { RefreshCw } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import type { JSX } from 'react';

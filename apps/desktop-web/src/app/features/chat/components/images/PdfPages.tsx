@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import type { PdfDocument, PdfRender } from '../../utils/pdf';
 

@@ -63,10 +63,10 @@ Every bar this kit pins to the bottom of the screen (`FloatingButton`, the photo
 `MediaViewer`'s action bar, `PhotoEditor`'s toolbar, `AttachPanel`) publishes its height through it,
 so the app's snackbar rests above the bar instead of on its buttons.
 
-`cn` is the one other thing taken from that package, as `@chatic/lib/utils` — 95 files import it:
+`cn` is the one other thing taken from that package, through its barrel `@chatic/ui-kit` — 123 files import it:
 
 ```bash
-grep -rln "@chatic/lib/utils" libs/web-ui-kit/src | wc -l
+grep -rln "from '@chatic/ui-kit'" libs/web-ui-kit/src | wc -l
 ```
 
 ## Design principles
@@ -128,7 +128,7 @@ flowchart TD
     R["resources<br/><i>tokens.css · 75 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
-    CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
+    CN["@chatic/ui-kit<br/><i>cn</i>"]:::ext
 
     App -->|"barrel only"| C
     App -->|"barrel only"| F

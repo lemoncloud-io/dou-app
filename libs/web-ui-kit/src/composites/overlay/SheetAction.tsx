@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface SheetActionProps extends Omit<React.ComponentPropsWithoutRef<'button'>, 'children'> {
     /** Leading glyph, sized by the caller — the design draws these at 26px. */

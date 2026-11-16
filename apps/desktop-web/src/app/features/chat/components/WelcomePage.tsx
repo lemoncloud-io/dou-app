@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, ChevronRight, Hash, MessageCircle, Sparkles, User, UserPlus, type LucideIcon } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { PANE_HEADER, PANEL_TITLE } from '../../../shared';
 import { welcomeProgress, type WelcomeSignals, type WelcomeStepKey } from '../utils';
@@ -94,7 +94,9 @@ export const WelcomePage = ({
                                         <span
                                             className={cn(
                                                 'flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.625rem]',
-                                                step.done ? 'bg-primary/[0.16] text-foreground' : 'bg-well text-foreground'
+                                                step.done
+                                                    ? 'bg-primary/[0.16] text-foreground'
+                                                    : 'bg-well text-foreground'
                                             )}
                                         >
                                             <Icon size={20} aria-hidden />
@@ -119,7 +121,11 @@ export const WelcomePage = ({
                                         )}
                                         {/* No way in from here: the row stays readable, only the go-arrow is gone. */}
                                         {action && (
-                                            <ChevronRight size={18} aria-hidden className="shrink-0 text-muted-foreground" />
+                                            <ChevronRight
+                                                size={18}
+                                                aria-hidden
+                                                className="shrink-0 text-muted-foreground"
+                                            />
                                         )}
                                     </button>
                                 </li>

@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Bell, Hash, House, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { type NavDestination, useNavStore } from '../../../shared';
 import { AccountMenu } from './AccountMenu';

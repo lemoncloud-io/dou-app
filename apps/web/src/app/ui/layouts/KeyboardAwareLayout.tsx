@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useBottomChromeToastLift } from '../hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../hooks/useChromeInsets';

@@ -15,7 +15,7 @@ import {
     type TextFormatType,
 } from 'lexical';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Hint } from '../../../../shared';
 import { toggleCodeBlock } from './composerPlugins';
 import { $selectedLink, LinkButton } from './LinkButton';

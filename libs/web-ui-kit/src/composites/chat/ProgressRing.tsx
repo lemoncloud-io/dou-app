@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface ProgressRingProps {
     /** 0..1, already clamped. */

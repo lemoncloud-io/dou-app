@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 interface PlaceChipProps {
     name: string;

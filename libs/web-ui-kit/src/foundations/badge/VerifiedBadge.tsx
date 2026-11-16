@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconCheck } from '../../resources/icons';
 

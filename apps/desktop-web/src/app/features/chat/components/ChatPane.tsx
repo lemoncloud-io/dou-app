@@ -8,7 +8,7 @@ import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react'
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { ChatMentionBody, DomainChannel, DomainChat } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {

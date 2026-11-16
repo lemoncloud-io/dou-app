@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface DateDividerProps {
     /** Preformatted date label (e.g. "Monday, January 1, 2025"). */

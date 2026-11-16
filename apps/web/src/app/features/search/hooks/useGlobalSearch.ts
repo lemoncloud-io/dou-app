@@ -10,9 +10,8 @@ import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 import { isEventChat } from '../../../utils/chat';
 
 // Inlined rather than importing `@chatic/shared`'s useDebounce: that package's root barrel
-// re-exports ErrorFallback, which pulls in `@chatic/assets` — a mapping Jest's moduleNameMapper
-// doesn't have (only `@chatic/lib/utils` and `@chatic/ui-kit/*` are special-cased in
-// apps/web/jest.config.js), so any test importing this hook would fail to resolve.
+// re-exports ErrorFallback, which pulls `@chatic/assets` and React components into every test that
+// imports this hook, for the sake of six lines.
 const useDebounce = <T>(value: T, delay: number): T => {
     const [debounced, setDebounced] = useState(value);
     useEffect(() => {

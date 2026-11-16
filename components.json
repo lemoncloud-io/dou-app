@@ -11,7 +11,7 @@
     },
     "aliases": {
         "components": "@chatic/ui-kit/components",
-        "utils": "@chatic/ui-kit/utils",
+        "utils": "@chatic/ui-kit",
         "ui": "@chatic/ui-kit/components/ui",
         "lib": "@chatic/ui-kit/utils",
         "hooks": "@chatic/ui-kit/hooks"

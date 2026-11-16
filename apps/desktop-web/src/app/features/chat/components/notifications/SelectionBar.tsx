@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { CheckCheck, ChevronDown, Trash2, X } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import {
     DropdownMenu,
     DropdownMenuContent,

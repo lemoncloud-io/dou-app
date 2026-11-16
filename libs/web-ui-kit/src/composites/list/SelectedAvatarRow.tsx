@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { ProfileAvatar } from '../../foundations/avatar/ProfileAvatar';
 import { IconClose } from '../../resources/icons';

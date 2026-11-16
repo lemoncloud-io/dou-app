@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface DividerProps {
     /** `line` = 1px hairline; `block` = thick section separator. */

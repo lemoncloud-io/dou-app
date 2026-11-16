@@ -8,7 +8,7 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /** One file that cannot be sent, and why. */
 export interface UnsendableFile {

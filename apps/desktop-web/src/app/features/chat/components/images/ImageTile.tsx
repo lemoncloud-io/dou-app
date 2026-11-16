@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ImageOff } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';

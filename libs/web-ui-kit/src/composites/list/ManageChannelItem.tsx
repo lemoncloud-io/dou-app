@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { Checkbox } from '../../foundations/checkbox/Checkbox';
 import { UnreadBadge } from '../../foundations/badge/UnreadBadge';

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { DefaultAvatar, ListRow, StatusBadge } from '@chatic/web-ui-kit';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { resolveInviteRowBadge } from '../utils/inviteStatus';
 

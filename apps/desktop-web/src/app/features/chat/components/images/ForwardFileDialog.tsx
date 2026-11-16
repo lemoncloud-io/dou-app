@@ -6,7 +6,7 @@ import { create } from 'zustand';
 
 import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { xhrPut } from '@chatic/runtime-web';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';

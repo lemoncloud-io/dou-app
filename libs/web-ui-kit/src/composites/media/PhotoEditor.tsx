@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
 import { IconAlert, IconClose, IconCrop, IconFlipHorizontal, IconRotateLeft, IconSpinner } from '../../resources/icons';

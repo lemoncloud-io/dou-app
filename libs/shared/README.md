@@ -213,7 +213,7 @@ libs/shared/src/
 └── utils/            7 single-purpose helpers + index
 ```
 
-Eight things the filenames do not tell you.
+Seven things the filenames do not tell you.
 
 - **`utils/subWebViewLink.ts` is the only reader of a sub WebView page link**,
   `https://app.chatic.io/apps/<appId>?<query>` (and `app-dev`): an app id and a query, no path, no
@@ -261,8 +261,6 @@ Eight things the filenames do not tell you.
   land that metadata in the initial chunk. Its consumers (the web phone-verification screens, the desktop
   phone sign-in) are behind lazy routes and import the subpath. The alias is in `tsconfig.base.json`'s
   `paths`, and `apps/web/jest.config.js` maps it ahead of its generic `@chatic/*` rule.
-- **`@chatic/lib/utils`, imported by `VersionUpdateBanner`, is `libs/ui-kit/src/utils`.** The alias does
-  not name ui-kit; `tsconfig.base.json`'s `paths` is where that is settled.
 - **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
   `@lemoncloud/react-page-transition` a platform from `@chatic/device-utils`. It is by far the
   most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that

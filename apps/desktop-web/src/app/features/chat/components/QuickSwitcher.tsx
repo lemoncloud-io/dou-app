@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Hash, Search, User } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { bareChannelName, channelKind, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../shared';

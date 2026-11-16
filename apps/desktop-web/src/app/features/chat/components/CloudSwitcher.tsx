@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, ChevronDown, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { useCloudOrder } from '@chatic/shared';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 

@@ -12,7 +12,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
 import type { ChatMentionBody } from '@chatic/data';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useComposerDraftStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';

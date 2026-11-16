@@ -4,7 +4,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { BrandMark } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';

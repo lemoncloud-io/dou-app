@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { FloatingButton, ModalTopBar, ScreenLayout, TextField } from '@chatic/web-ui-kit';
 
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';

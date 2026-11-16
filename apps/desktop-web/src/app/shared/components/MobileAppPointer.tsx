@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { STORE_URLS } from '@chatic/shared';
 
 import type { TranslationKey } from '../../../locales/en';

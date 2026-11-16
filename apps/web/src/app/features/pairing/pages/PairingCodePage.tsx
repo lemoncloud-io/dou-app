@@ -8,7 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { canGoBackInApp } from '../../../navigation';

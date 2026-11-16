@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 interface SkeletonProps {
     className?: string;

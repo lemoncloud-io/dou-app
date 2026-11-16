@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 export interface ThreadSummaryProps extends Omit<React.ComponentPropsWithoutRef<'button'>, 'children'> {
     /**

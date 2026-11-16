@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { useRecentEmojiStore } from '../stores';
 import { EMOJI_CATEGORIES, emojiNameKey } from '../utils';

@@ -2,7 +2,7 @@ import { Check, X, Smartphone, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
 import type { AppIconOption } from '@chatic/bridge-messages';
 

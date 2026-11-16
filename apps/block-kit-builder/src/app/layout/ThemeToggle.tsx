@@ -1,7 +1,7 @@
 import { Moon, Sun } from 'lucide-react';
 
 import { useTheme } from '@chatic/theme';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /**
  * Light or dark.

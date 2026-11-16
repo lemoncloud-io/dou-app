@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconAudioWave, IconClose } from '../../resources/icons';
 import { BottomSheet } from '../overlay/BottomSheet';

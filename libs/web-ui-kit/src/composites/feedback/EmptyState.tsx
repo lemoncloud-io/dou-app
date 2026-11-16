@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { IconChevronRight } from '../../resources/icons';
 import { OutlineButton } from '../../foundations/button/OutlineButton';

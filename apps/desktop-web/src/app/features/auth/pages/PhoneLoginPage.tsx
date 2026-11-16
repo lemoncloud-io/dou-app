@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { runtime } from '@chatic/app-runtime';
 import { listPhoneCountries } from '@chatic/shared/phone';
 import { Button } from '@chatic/ui-kit/components/ui/button';

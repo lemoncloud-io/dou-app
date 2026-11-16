@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 /**
  * The design's primary action, and the one thing on this screen that would

@@ -7,7 +7,7 @@ import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge';

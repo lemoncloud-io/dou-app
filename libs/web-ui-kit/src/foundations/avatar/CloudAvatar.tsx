@@ -1,4 +1,4 @@
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 // `xl` is the identity head on the cloud management screens (Figma 86px), not a list step.
 const SIZE = { sm: 36, md: 40, lg: 46, xl: 86 } as const;

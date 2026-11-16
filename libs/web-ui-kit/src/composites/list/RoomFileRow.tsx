@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { cn } from '@chatic/lib/utils';
+import { cn } from '@chatic/ui-kit';
 
 import { AudioSeekBar, formatAudioClock } from '../../foundations/audio';
 import { Checkbox } from '../../foundations/checkbox/Checkbox';
