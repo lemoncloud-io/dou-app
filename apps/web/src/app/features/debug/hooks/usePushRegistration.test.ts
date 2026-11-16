@@ -11,12 +11,12 @@ jest.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-jest.mock('@chatic/device-utils', () => ({ useDeviceInfo: jest.fn() }));
+jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
 import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { useDeviceInfo } from '@chatic/device-utils';
+import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { appBridge } from '../../../bridge';
 import { usePushRegistration, type PushRegistrationMessages } from './usePushRegistration';

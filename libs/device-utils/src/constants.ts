@@ -1,2 +1,0 @@
-export const USER_AGENT_PREFIX_IOS = 'DOU_IOS';
-export const USER_AGENT_PREFIX_ANDROID = 'DOU_ANDROID';

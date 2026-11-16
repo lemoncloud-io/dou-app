@@ -5,3 +5,4 @@ export * from './provider';
 export * from './logger';
 export * from './version';
 export * from './storage';
+export * from './host';

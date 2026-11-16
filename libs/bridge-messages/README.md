@@ -3,7 +3,8 @@
 **The vocabulary the web and the native shell both compile against.** It declares every message that
 can cross the WebView boundary — 122 web→app request types, 136 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
-almost no runtime code: a single exported value, and types either side of it.
+almost no runtime code: the reply map, a few constant tables — the chat media kinds, the User-Agent
+prefixes the phone app stamps on its WebView — and types either side of them.
 
 [`@chatic/bridges`](../bridges/README.md) is the other half of the boundary. **This package declares
 what a message is; that one decides what happens to it** — matching a reply to the caller waiting for
@@ -388,12 +389,11 @@ npx tsc -b libs/bridge-messages/tsconfig.json --force     # the whole gate
   `nx test @chatic/mobile` and `nx test @chatic/desktop`, not under this package.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves or is deleted — `tsc -b` does
   not clean orphaned `.d.ts` files. `rm -rf dist/out-tsc` and look again.
-- Downstream: 157 files in nine projects import this barrel — `apps/mobile` (79), `apps/web` (43),
-  `libs/db` (9), `libs/data` (9), `libs/bridges` (8), `libs/app-runtime` (6), and one file each in
-  `libs/device-utils`, `apps/desktop` and `apps/desktop-web`. (`apps/admin`, `libs/shared` and
-  `libs/config` name the package in comments only — `libs/config` declares its own `Stage` and
-  `Platform` rather than importing them.) `.github/workflows/verify.yml` type checks all nine except
-  `@chatic/mobile` — that one is for you to run by hand.
+- Downstream: about 300 files in 16 projects import this barrel, most of them in `apps/mobile` and
+  `apps/web`. `git grep -l "from '@chatic/bridge-messages" -- apps libs` lists them. `libs/config` names
+  the package in comments only; it declares its own `Stage` and `Platform` rather than importing them.
+  `.github/workflows/verify.yml` type checks the importers except `@chatic/mobile` — that one is for you
+  to run by hand.
 
 ```bash
 npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup

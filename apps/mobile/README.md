@@ -32,9 +32,9 @@ Eleven workspace packages, and `@chatic/bridge-messages` outnumbers the rest tog
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
 entry contract and the upload queue; [`@chatic/perf`](../../libs/perf/README.md) the performance
-traces; [`@chatic/device-utils`](../../libs/device-utils/README.md),
-[`@chatic/shared`](../../libs/shared/README.md) and `@chatic/chatic-apps-sdk` supply the small shared
-pieces. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md), [`@chatic/storage`](../../libs/storage/README.md) and
+traces; [`@chatic/shared`](../../libs/shared/README.md) and `@chatic/chatic-apps-sdk` supply the small
+shared pieces, and the User-Agent prefixes this app stamps on its WebView are declared in
+`@chatic/bridge-messages`. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md), [`@chatic/storage`](../../libs/storage/README.md) and
 [`@chatic/db`](../../libs/db/README.md) are the runtime's ports the app builds on its own storage (`services/runtime/`), and
 `@chatic/data` is read by tests only.
 

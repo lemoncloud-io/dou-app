@@ -187,7 +187,7 @@ The server files the device by its `platform` — `ios` · `android` are mobile,
 shell, every client sent `web`, so phones and desktops were listed as browsers.
 
 `resolveSocketDevice` decides it from what the platform's `device()` port answers when the client is
-created — in a page, the shell-injected global and the user agent, read straight off `window`:
+created — in a page, the shell-injected global from `@chatic/bridges`' host profile and the user agent:
 
 | Shell                       | `CHATIC_APP_PLATFORM` | `platform` sent                                   | `name` sent                               |
 | --------------------------- | --------------------- | ------------------------------------------------- | ----------------------------------------- |
@@ -195,9 +195,10 @@ created — in a page, the shell-injected global and the user agent, read straig
 | Desktop (Electron)          | `desktop`             | `macos` · `windows` · `linux` from the user agent | none                                      |
 | Browser, or any other value | absent                | `web`                                             | `<browser> · <OS>`, e.g. `Chrome · macOS` |
 
-- The web port reads the globals, not device-utils' `deviceInfoStore`: the store is filled by a React
-  hook on mount, and the first socket can be created before that hook runs. The shells inject the
-  globals before the page's own script.
+- The web port reads the platform from `@chatic/bridges`' host profile, not from `apps/web`'s device
+  store: the store is filled by a React hook on mount, and the first socket can be created before that
+  hook runs. The profile is taken at boot, from the globals the shells inject before the page's own
+  script.
 - The socket itself is opened by the platform too: every client gets the `createSocket` port as its
   `socketFactory`, read when the SDK opens the socket. A page's is `new WebSocket(url, protocols)`, the
   same thing the SDK opens when given no factory.

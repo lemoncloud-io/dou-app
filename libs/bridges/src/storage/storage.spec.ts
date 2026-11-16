@@ -1,4 +1,5 @@
 import { BridgeStorageChannel } from './bridgeStorageChannel';
+import { resetHostProfileForTests } from '../host/hostProfile';
 import { shellKeepsStorageMedium } from './shellStorageMedia.util';
 
 import type { IWebBridgeClient } from '../web';
@@ -49,15 +50,30 @@ describe('BridgeStorageChannel', () => {
 });
 
 describe('shellKeepsStorageMedium', () => {
+    // The answer is the host profile's, which is taken once; each case rebuilds it from `window`.
+    const injecting = (media: unknown) => {
+        window.CHATIC_APP_STORAGE_MEDIA = media;
+        resetHostProfileForTests();
+    };
+
     afterEach(() => {
         delete window.CHATIC_APP_STORAGE_MEDIA;
+        resetHostProfileForTests();
     });
 
     it('answers from the injected list only', () => {
+        injecting(undefined);
         expect(shellKeepsStorageMedium('nativeSecure')).toBe(false);
-        window.CHATIC_APP_STORAGE_MEDIA = ['nativeSecure'];
+        injecting(['nativeSecure']);
         expect(shellKeepsStorageMedium('nativeSecure')).toBe(true);
-        window.CHATIC_APP_STORAGE_MEDIA = 'nativeSecure';
+        injecting('nativeSecure');
         expect(shellKeepsStorageMedium('nativeSecure')).toBe(false);
+    });
+
+    it('keeps the answer taken at boot when the global changes later', () => {
+        injecting(['nativeSecure']);
+        expect(shellKeepsStorageMedium('nativeSecure')).toBe(true);
+        window.CHATIC_APP_STORAGE_MEDIA = [];
+        expect(shellKeepsStorageMedium('nativeSecure')).toBe(true);
     });
 });

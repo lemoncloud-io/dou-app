@@ -122,7 +122,7 @@ local run uses. A second path exists: `babel-plugin-transform-inline-environment
 code reads it:
 
 ```bash
-grep -rn "process\.env\.VITE_" apps/mobile/src libs/bridge-messages libs/bridges libs/device-utils libs/logger libs/shared
+grep -rn "process\.env\.VITE_" apps/mobile/src libs/bridge-messages libs/bridges libs/logger libs/shared
 ```
 
 returns nothing across every lib mobile depends on, so changing `.env`'s meaning does not touch this
@@ -157,7 +157,7 @@ unrecognized value falls back to `'prod'`, the conservative direction, matching 
 event ([`useVersionCheckHandler`](../../src/app/webview/hooks/useVersionCheckHandler.ts)); both payload
 types narrow `stage` to `Env`, so a call site that forgets the conversion fails to compile.
 
-On the web side, [`deviceInfoStore`](../../../../libs/device-utils/src/stores/deviceInfoStore.ts) reads
+On the web side, [`useDeviceInfoStore`](../../../web/src/app/stores/useDeviceInfoStore.ts) reads
 the injected global through a lookup table rather than an `as Env` cast — the cast let
 `'DEV'`/`'dev'` through unmapped. An unrecognized value there falls back to `'local'`.
 

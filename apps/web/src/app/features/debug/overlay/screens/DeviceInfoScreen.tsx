@@ -1,6 +1,6 @@
 import { Smartphone } from 'lucide-react';
 
-import { useDeviceInfo } from '@chatic/device-utils';
+import { useDeviceInfo } from '../../../../hooks/useDeviceInfo';
 
 import type { AppPermissionType } from '@chatic/bridge-messages';
 

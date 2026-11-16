@@ -119,9 +119,8 @@ graph TB
     end
 
     subgraph Native["Native Bridge Libraries"]
-        BRIDGES["bridges<br/>WebView Transport"]
+        BRIDGES["bridges<br/>WebView Transport · Host Profile"]
         APPMSG["bridge-messages<br/>Bridge Message Vocabulary"]
-        DEVICE["device-utils<br/>Injected Device Info"]
         DB["db<br/>Cache Storage Engines"]
         LOGGER["logger<br/>Cross-Platform Logging"]
     end
@@ -131,7 +130,7 @@ graph TB
     WEB --> DATA & UIKIT & WEBUIKIT & SHARED & CONFIG
     WEBUIKIT --> UIKIT
     WEB & DESKWEB & BKB --> BLOCKKIT
-    WEB --> RUNTIME & BRIDGES & DEVICE
+    WEB --> RUNTIME & BRIDGES
     DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
     ADMIN --> UIKIT & SHARED & RUNTIME
     LANDING & BKB --> THEME
@@ -179,11 +178,10 @@ dou-app/
 │   ├── runtime-web/         # Web adapter for the runtime
 │   ├── runtime-mobile/      # Native adapter for the runtime (React Native)
 │   ├── app-runtime/         # The runtime an app mounts: facade, hooks, repository graph
-│   ├── bridges/             # WebView transport between web and native shell
+│   ├── bridges/             # WebView transport between web and native shell; the host profile
 │   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
 │   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
 │   ├── fake-shell/          # Fake native shell core of web-e2e; its answers back the virtual shell's
-│   ├── device-utils/        # Injected device info, reader hooks
 │   ├── logger/              # Cross-platform logging core
 │   ├── policy-content/      # Legal text (terms, privacy, child safety)
 │   ├── block-kit/           # Block Kit reader and renderer for web, desktop-web and the builder

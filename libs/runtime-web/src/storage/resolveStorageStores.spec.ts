@@ -7,7 +7,7 @@ import type { NativeSecureStore } from '@chatic/storage';
 const mockIsNative = jest.fn();
 const mockShellKeeps = jest.fn();
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockIsNative(),
+    hostProfile: () => ({ bridge: mockIsNative() ? 'react-native-webview' : null }),
     shellKeepsStorageMedium: (medium: string) => mockShellKeeps(medium),
     webClient: {},
     BridgeStorageChannel: jest.fn(),

@@ -1,10 +1,12 @@
 import type { CacheType } from '@chatic/bridge-messages';
-import { isNative } from '@chatic/bridges';
+import { hostProfile } from '@chatic/bridges';
 import { isNativeCacheTypeUsable } from './nativeCacheSupport';
 
-/** The page runs inside the phone app's WebView — the one shell with SQLite behind its bridge. */
-export const isInPhoneApp = (): boolean =>
-    typeof window !== 'undefined' && !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+/**
+ * The page runs inside the phone app's WebView — the one shell with SQLite behind its bridge. Its
+ * channel is `ReactNativeWebView`, which the host profile names apart from the other shells'.
+ */
+export const isInPhoneApp = (): boolean => hostProfile().bridge === 'react-native-webview';
 
 /**
  * Which physical store a cache type lands in.
@@ -37,8 +39,8 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
  *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
  *    each tab starts its own, and it ends with the tab. A row kept anywhere longer-lived outlives the
- *    only user who can enter the cloud. The test is `isNative()`, the one the app entry points use
- *    to put the session in `sessionStorage`, so the row and the guest always share a lifetime:
+ *    only user who can enter the cloud. The test is whether the host profile found a bridge, the one
+ *    the app entry points use to put the session in `sessionStorage`, so the row and the guest always share a lifetime:
  *    inside a desktop shell both persist (the shell keeps the session in `localStorage`), and the
  *    type falls through to the checks below.
  * 1. No native shell (plain browser, desktop-web) → `web`; there is no other store to reach.
@@ -52,7 +54,7 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
  */
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
-    if (type === 'invitecloud' && !isNative()) return 'session';
+    if (type === 'invitecloud' && hostProfile().bridge === null) return 'session';
     if (!isInPhoneApp()) return 'web';
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web';
     if (!isNativeCacheTypeUsable(type)) return 'web';

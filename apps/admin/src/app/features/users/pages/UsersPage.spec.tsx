@@ -19,7 +19,8 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
+// No shell: an empty host profile, so the config adapter reads the stage from the build.
+vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() }, hostProfile: () => ({ globals: {} }) }));
 
 import { UsersPage } from './UsersPage';
 

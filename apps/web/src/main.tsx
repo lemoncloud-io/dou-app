@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/bridges';
+import { BridgeStorageChannel, hostProfile, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
@@ -107,13 +107,13 @@ config.init(createWebConfigPorts(stores));
 migrateLegacyPhoneCountry(stores.webLocal);
 
 // Who holds the session this launch, settled before anything boots. A shell that runs its own runtime
-// offers it before the page runs (`window.CHATIC_APP_RUNTIME`); the page asks and, on a `native`
+// offers it before the page runs (`CHATIC_APP_RUNTIME`, kept by the host profile); the page asks and, on a `native`
 // answer, mirrors that runtime instead of running one — no secret store, no sockets, no cache of its
 // own. Without an offer (a browser, any shell that does not run its runtime) it settles on the page at
 // once, without a word to the shell. The build flag is the web's own switch to stop asking: with it
 // set, every launch is the page's again, whatever the installed shell offers.
 const sessionOwner = settleSessionOwner({
-    offer: (window as { CHATIC_APP_RUNTIME?: unknown }).CHATIC_APP_RUNTIME,
+    offer: hostProfile().runtimeOffer,
     disabled: import.meta.env.VITE_SESSION_MIRROR_DISABLED === 'true',
 });
 

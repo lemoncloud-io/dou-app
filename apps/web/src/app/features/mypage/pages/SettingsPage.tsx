@@ -5,7 +5,7 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
-import { useDeviceInfo } from '@chatic/device-utils';
+import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 

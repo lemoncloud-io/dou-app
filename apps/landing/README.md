@@ -751,7 +751,6 @@ the workspace root, inside its own chunk. The table is about the public pages.
 | `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                                  |
 | `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                         |
 | `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                          |
-| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                                                  |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain

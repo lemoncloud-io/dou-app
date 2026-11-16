@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { NavigateWithTransitionFn, PageTransitionConfig, PlatformType } from '@lemoncloud/react-page-transition';
 import { useNavigateWithTransition as useNavigateWithTransitionOriginal } from '@lemoncloud/react-page-transition';
 
-import { useDeviceInfo } from '@chatic/device-utils';
+import { hostProfile } from '@chatic/bridges';
 
 const getPageTransitionPlatform = (platform: string | undefined): PlatformType | undefined => {
     switch (platform) {
@@ -15,10 +15,9 @@ const getPageTransitionPlatform = (platform: string | undefined): PlatformType |
     }
 };
 
-/** Platform detection using @chatic/bridge-messages for native app bridge. */
+/** The platform the shell injected at boot (`CHATIC_APP_PLATFORM`), as the host profile took it. */
 const usePageTransitionConfig = (): PageTransitionConfig => {
-    const { deviceInfo } = useDeviceInfo();
-    const pageTransitionPlatform = getPageTransitionPlatform(deviceInfo?.platform);
+    const pageTransitionPlatform = getPageTransitionPlatform(hostProfile().globals.CHATIC_APP_PLATFORM);
 
     return useMemo(
         () => ({

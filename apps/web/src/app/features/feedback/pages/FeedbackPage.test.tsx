@@ -13,7 +13,7 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
-jest.mock('@chatic/device-utils', () => ({
+jest.mock('../../../hooks/useDeviceInfo', () => ({
     useDeviceInfo: () => ({ deviceInfo: null, versionInfo: null }),
 }));
 jest.mock('@chatic/shared', () => ({

@@ -92,7 +92,7 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
  * inside this injected script. Since the script has no `<script src>` to attribute the error to, the
  * browser reports it as an opaque, locationless "Script error." — this was the suspected root cause
  * of unexplained `[mobile] script-error` reports with no stack/location. `shouldUpdate` is boolean and
- * kept as a raw literal; downstream code reads it back as the string 'true'/'false' (deviceInfoStore.ts).
+ * kept as a raw literal; downstream code reads it back as the string 'true'/'false' (apps/web's useDeviceInfoStore.ts).
  *
  * @param params Device and app information such as app version, OS platform, etc.
  * @returns JavaScript string to be injected into the WebView

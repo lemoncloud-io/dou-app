@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
+
 import { logger } from '@chatic/bridges';
-import { useDeviceInfoStore } from '@chatic/device-utils';
+
+import { useDeviceInfoStore } from '../stores/useDeviceInfoStore';
 import { appBridge } from './appBridge';
 import { useShellDownloadCatchUp } from './shellDownload';
 import { useAppForeground } from './useAppForeground';
@@ -12,6 +15,12 @@ export const GlobalBridgeListener = (): null => {
 
     // Downloads the shell finished while the page was away, for the viewer's save and share.
     useShellDownloadCatchUp();
+
+    // Fills the device and version store once, at the root. `updateVersionInfo` ignores a store that was
+    // never filled, so a version announcement arriving before any screen read the store would be lost.
+    // `@chatic/shared`'s page transition used to fill it as a side effect of every navigation hook; it
+    // now reads the platform from the host profile and no longer touches this store.
+    useEffect(() => useDeviceInfoStore.getState().syncDeviceAndVersionInfo(), []);
 
     useOnUpdateDeviceInfo(message => {
         useDeviceInfoStore.getState().updateVersionInfo(message.data.latestVersion, message.data.shouldUpdate);

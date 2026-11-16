@@ -70,7 +70,7 @@ introduce a way for the two to disagree.
 ## The token does not arrive as a global
 
 Only `CHATIC_APP_PLATFORM`, `CHATIC_APP_DEVICE_ID` and `CHATIC_APP_INSTALLATION_ID` are injected
-into the WebView, and `DeviceInfo` from `@chatic/device-utils` has no token field. **Asking the
+into the WebView, and `DeviceInfo` from `src/app/stores/useDeviceInfoStore.ts` has no token field. **Asking the
 bridge is the only way to hold a token**: it is minted and rotated after the page has loaded, which a
 boot-time global could not follow.
 
