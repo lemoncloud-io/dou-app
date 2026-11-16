@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (web-ui-kit,web) lay out the room files header as designed, not in a 44px slot
+
 ## [2026-11-16] - root@0.157.0, @chatic/web@0.89.0
 
 ### Features
