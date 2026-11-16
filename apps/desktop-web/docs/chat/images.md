@@ -32,10 +32,12 @@ each refused file its reason, checked in this order:
   folder; `useFileDrop` reads the drop's entries to tell it apart (only a drop can carry one).
 - `empty`: a file of zero bytes, of any kind. The server refuses one when its upload completes.
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
-  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX, TXT and HTML
-  (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. HTML is the one format
-  listed ahead of the server: desktop sends it, the phone app does not, and until the server takes
-  `text/html` the upload is refused with a 415 and the message shows the failed file. Audio goes as a document (kind `file`):
+  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, DOC, XLS, PPT, HWP, HWPX, TXT, CSV, Markdown (`.md`), JSON and HTML
+  (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. The server takes all
+  of them; HTML is the one the phone app does not send, as it has no viewer for a page. DOC, XLS and
+  PPT are OLE2 files, not ZIP containers, so they are never read from the extension of a ZIP-typed
+  file. A CSV that Windows types `application/vnd.ms-excel` is refused: the server has no alias for
+  it either. Audio goes as a document (kind `file`):
   the message shows a file card that plays it in place (see below), and the web app does not send it at all. AAC
   and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
@@ -305,8 +307,8 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 `FileViewer` opens a sent PDF, text file or HTML page in the app, in the same frame as the image viewer:
 a header with the sender, the time and the file name, a save button and a close button. `canPreview`
-decides which cards open it: PDF, TXT and HTML are drawn, and M4A, MP3, WAV and OGG are `audio`, which
-plays in its own card instead. Nothing in the page draws a DOCX, XLSX, PPTX or Hancom file without
+decides which cards open it: PDF, TXT, CSV, Markdown, JSON and HTML are drawn, and M4A, MP3, WAV and OGG are `audio`, which
+plays in its own card instead. Nothing in the page draws a DOC, XLS, PPT, DOCX, XLSX, PPTX or Hancom file without
 handing it, and its signed address, to a third party, so those stay save cards. A video already
 plays in place.
 
@@ -335,7 +337,7 @@ the bytes are read from the picked file instead of fetched.
   refuses two drawings on one canvas. A window drag redraws once it settles. The thumbnail of the page most in view is marked, and a
   thumbnail jumps to its page. Closing destroys the document and its worker, and so does a file
   that fails to open.
-- **A text file** shows its first 1 MB in a wrapping monospaced block, with a line saying so when
+- **A text file** (TXT, CSV, Markdown or JSON, all as plain text — nothing is rendered) shows its first 1 MB in a wrapping monospaced block, with a line saying so when
   the file is longer; the save still writes the whole file. Only that first 1 MB is fetched (a
   `Range` request; if storage answers with the whole file, reading stops at 1 MB), and the card's
   size says whether there is more. A UTF-16 byte-order mark picks

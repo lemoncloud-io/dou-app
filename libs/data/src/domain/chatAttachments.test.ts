@@ -12,7 +12,7 @@ import {
 const MiB = 1024 * 1024;
 
 describe('chatAttachmentFormat', () => {
-    it('takes the eighteen formats by their type', () => {
+    it('takes the twenty-four formats by their type', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/png' })).toEqual({
             type: 'image/png',
             kind: 'image',
@@ -24,9 +24,15 @@ describe('chatAttachmentFormat', () => {
             ['a.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
             ['a.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
             ['a.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+            ['a.doc', 'application/msword'],
+            ['a.xls', 'application/vnd.ms-excel'],
+            ['a.ppt', 'application/vnd.ms-powerpoint'],
             ['a.hwp', 'application/x-hwp'],
             ['a.hwpx', 'application/hwp+zip'],
             ['a.txt', 'text/plain'],
+            ['a.csv', 'text/csv'],
+            ['a.md', 'text/markdown'],
+            ['a.json', 'application/json'],
             ['a.html', 'text/html'],
             ['a.zip', 'application/zip'],
             ['a.m4a', 'audio/mp4'],
@@ -36,6 +42,34 @@ describe('chatAttachmentFormat', () => {
         ]) {
             expect(chatAttachmentFormat({ name, type })).toEqual({ type, kind: 'file', name });
         }
+    });
+
+    it('reads the legacy Office, CSV, Markdown and JSON formats from the name when untyped, in any case', () => {
+        for (const [name, type] of [
+            ['old.DOC', 'application/msword'],
+            ['sheet.xls', 'application/vnd.ms-excel'],
+            ['deck.PPT', 'application/vnd.ms-powerpoint'],
+            ['data.csv', 'text/csv'],
+            ['README.MD', 'text/markdown'],
+            ['data.json', 'application/json'],
+        ]) {
+            expect(chatAttachmentFormat({ name, type: '' })).toEqual({ type, kind: 'file', name });
+            expect(chatAttachmentFormat({ name, type: 'application/octet-stream' })?.type).toBe(type);
+        }
+    });
+
+    it('adds the extension to a new-format file named without one, and refuses a name that disagrees', () => {
+        expect(chatAttachmentFormat({ name: 'export', type: 'text/csv' })?.name).toBe('export.csv');
+        expect(chatAttachmentFormat({ name: 'notes', type: 'text/markdown' })?.name).toBe('notes.md');
+        expect(chatAttachmentFormat({ name: 'a.csv', type: 'application/json' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.json', type: 'text/plain' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.doc', type: 'application/vnd.ms-excel' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/msword' })).toBeNull();
+    });
+
+    // The server has no alias for it: a CSV that Windows types as an Excel sheet is refused there with a 400.
+    it('does not alias the type Windows gives a CSV to text/csv', () => {
+        expect(chatAttachmentFormat({ name: 'a.csv', type: 'application/vnd.ms-excel' })).toBeNull();
     });
 
     it('takes an HTML page as a document under either extension, or read from its name when untyped', () => {
@@ -97,7 +131,7 @@ describe('chatAttachmentFormat', () => {
                 'application/zip',
                 'application/x-zip-compressed',
                 'application/x-unknown-office',
-                'application/vnd.ms-excel',
+                'application/vnd.ms-office',
             ]) {
                 expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
             }
@@ -120,7 +154,7 @@ describe('chatAttachmentFormat', () => {
     it('does not read a type the server does not know from any other extension', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/heic' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.pdf', type: 'application/x-unknown' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'a.xls', type: 'application/vnd.ms-excel' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.xls', type: 'application/x-msexcel' })).toBeNull();
     });
 
     it('maps the names Hancom files are sometimes typed with', () => {
@@ -189,6 +223,10 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'a.heic', type: 'image/heic' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.7z', type: 'application/x-7z-compressed' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.mov', type: 'video/quicktime' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.rtf', type: 'application/rtf' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.exe', type: 'application/x-msdownload' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.svg', type: 'image/svg+xml' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.exe', type: '' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'noext', type: '' })).toBeNull();
     });
 });
@@ -240,9 +278,17 @@ describe('CHAT_ATTACHMENT_ACCEPT', () => {
                 '.zip',
                 'text/html',
                 '.htm',
+                'text/csv',
+                'application/msword',
+                '.csv',
+                '.md',
+                '.json',
+                '.doc',
+                '.xls',
+                '.ppt',
             ])
         );
-        expect(accept).toHaveLength(18 + 20);
+        expect(accept).toHaveLength(24 + 26);
     });
 });
 

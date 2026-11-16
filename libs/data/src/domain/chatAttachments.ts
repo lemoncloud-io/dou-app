@@ -43,11 +43,18 @@ const FORMATS: readonly Format[] = [
         extensions: ['pptx'],
         kind: 'file',
     },
+    // The legacy Office formats are OLE2 files, not ZIP containers, so they are not in `OFFICE_CONTAINERS`.
+    { type: 'application/msword', extensions: ['doc'], kind: 'file' },
+    { type: 'application/vnd.ms-excel', extensions: ['xls'], kind: 'file' },
+    { type: 'application/vnd.ms-powerpoint', extensions: ['ppt'], kind: 'file' },
     { type: 'application/x-hwp', extensions: ['hwp'], kind: 'file' },
     { type: 'application/hwp+zip', extensions: ['hwpx'], kind: 'file' },
     { type: 'text/plain', extensions: ['txt'], kind: 'file' },
-    // Sent from desktop only (each app's `ChatAttachmentFilter`). Listed ahead of the server: until it takes
-    // the type, an HTML upload is refused with a 415 and the message shows the failed file.
+    { type: 'text/csv', extensions: ['csv'], kind: 'file' },
+    { type: 'text/markdown', extensions: ['md'], kind: 'file' },
+    { type: 'application/json', extensions: ['json'], kind: 'file' },
+    // The server takes HTML, but only desktop sends it (each app's `ChatAttachmentFilter`): the phone has
+    // no viewer for a page.
     { type: 'text/html', extensions: ['html', 'htm'], kind: 'file' },
     { type: CHAT_ATTACHMENT_ZIP_TYPE, extensions: ['zip'], kind: 'file' },
     { type: 'audio/mp4', extensions: ['m4a'], kind: 'file' },
@@ -60,7 +67,8 @@ const FORMATS: readonly Format[] = [
 // has one, but Chromium on Windows reports the registry's name for it instead. Audio types predate their
 // registration: macOS names an M4A `audio/x-m4a`, Windows a WAV `audio/wav` or `audio/x-wav`. The server
 // keeps no aliases of its own, so each goes up under the canonical type. AAC and WebM are not among the
-// server's audio formats, and Chromium types a WebM from disk `video/webm` anyway.
+// server's audio formats, and Chromium types a WebM from disk `video/webm` anyway. Windows types a CSV
+// `application/vnd.ms-excel`; the server refuses that pairing, so it is not aliased to `text/csv`.
 const ALIASES: Readonly<Record<string, string>> = {
     'application/haansofthwp': 'application/x-hwp',
     'application/vnd.hancom.hwp': 'application/x-hwp',

@@ -8,6 +8,9 @@ export type FilePreview = 'pdf' | 'text' | 'html' | 'audio';
 const PREVIEWS: Readonly<Record<string, FilePreview>> = {
     'application/pdf': 'pdf',
     'text/plain': 'text',
+    'text/csv': 'text',
+    'text/markdown': 'text',
+    'application/json': 'text',
     'text/html': 'html',
     // In the order the drop zone names them: m4a, the phone recorder's, first.
     'audio/mp4': 'audio',
@@ -23,7 +26,7 @@ export const VOICE_EXTENSIONS: readonly string[] = Object.keys(PREVIEWS)
     .filter((extension): extension is string => !!extension);
 
 /**
- * Whether a sent file opens in the viewer, and as what. A PDF, a text file or an HTML page is drawn, a
+ * Whether a sent file opens in the viewer, and as what. A PDF, a text file (TXT, CSV, Markdown or JSON, shown as plain text) or an HTML page is drawn, a
  * voice file played: nothing in the page draws an office or Hancom document without handing it to a third party,
  * and a video already plays in place. A file being sent, failed, or without an address has nothing to
  * open.
