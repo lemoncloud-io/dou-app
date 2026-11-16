@@ -1,39 +1,41 @@
-# notifications — the inbox this device derives from the rooms it watches
+# notifications — the inbox this device works out from its cached rooms
 
-`apps/web/src/app/features/notifications` owns the notification inbox: what gets into it, how it is
-stored, when an item reads as read, and the two screens that show it — the notifications tab
+`apps/web/src/app/features/notifications` owns the notification inbox: what is in it, what the reader
+did to it, when an item reads as read, and the two screens that show it — the notifications tab
 (`/notifications`) and the find-me sheet over home. The bottom-navigation dot and home's room marks
-read the same store. Why it is derived on the device, and apart from desktop's inbox, is ADR-0312.
+read the same store. Why it is worked out on the device, and apart from desktop's inbox, is ADR-0312;
+why it is read from the chat cache rather than captured as snapshots is ADR-0321.
 
 The store and the pure reads over it live app-wide — `app/stores/useNotificationStore` and
-`app/utils/notifications` (the item model, the mark/remove/undo operations, thread participation and
-the selectors) — because home and the room read them as well, and a feature may not import another.
-What fills the inbox and keeps it read stays here: the room feed, the capture, the classification and
-the read sync.
+`app/utils/notifications` (the item model, the overlay and its mark/remove/undo operations, the
+selectors) — because home and the room read them as well, and a feature may not import another. What
+works the items out stays here: the rooms in scope, the room feed and the per-room computation.
 
-There is no notification list on the server. The inbox is **derived on the device**, from the same
-channel records that drive the unread badges, and kept in device storage. What follows from that —
-it starts empty on a new device, and it holds only what this device saw — is in § Limits.
+There is no notification list on the server. The inbox is **worked out on the device**, from the rows
+this device has cached for the current place's rooms. Nothing about an item is stored except what the
+reader did to it. What follows from that — it holds only what this device has cached, within a window —
+is in § Limits.
 
 ## Responsibilities
 
-| Question                                                     | Answered by                                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Which rooms are watched, and how a new message is noticed    | `hooks/useCurrentPlaceChatFeed`                                                |
-| Whether a message becomes an item, and of which kind         | `hooks/useNotificationCapture`, `utils/classify`                               |
-| What is stored, the cap, and the mark/remove/undo operations | `app/stores/useNotificationStore`, `app/utils/notifications/notificationItems` |
-| When a room's items turn read on their own                   | `hooks/useNotificationReadSync`                                                |
-| Which items a tab, a filter, a day or a room row shows       | `app/utils/notifications/selectors`                                            |
+| Question                                               | Answered by                                                                      |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Which rooms are read                                   | `hooks/useCurrentPlaceRooms`                                                     |
+| Which rows of a room are read, and when again          | `hooks/useNotificationFeed`                                                      |
+| Which rows become items, of which kind, read or not    | `utils/roomNotifications`, `utils/classify`, `chatNotificationEntries` (data)    |
+| What the reader did to items, and the mark/remove/undo | `app/stores/useNotificationStore`, `app/utils/notifications/notificationOverlay` |
+| Which items a tab, a filter, a day or a room row shows | `app/utils/notifications/selectors`                                              |
 
-`NotificationsRunner` mounts the two background hooks once, under `AppRuntime` and inside the shared
-active-cloud observation, so the inbox fills and clears on every route.
+`NotificationsRunner` mounts the feed once, under `AppRuntime` and inside the shared active-cloud
+observation, so the inbox follows the cache on every route.
 
 ## The model
 
-One item is one message — or, for a reaction, one person's emoji on one message. Each item is a
-snapshot taken when it was captured (`NotificationItem`): the source row pages out of the chat cache
-long before the inbox forgets the item, so the item keeps its room's name, its author's name, a
-one-line preview and, where it has one, a one-line quote of the message it answers.
+One item is one message — or, for a reaction, one person's emoji on one message (`NotificationItem`).
+An item is worked out from a cached row each time its room is read and is never stored, so an edit
+changes it, a delete removes it, and a mention edited away takes its item with it. It carries its
+room's name, its author's name, a one-line preview and, where it has one, a one-line quote of the
+message it answers — all as the cache has them now.
 
 An item names its cloud. Every cloud numbers its places and channels from the same start, so a place
 or channel id alone names one in every other cloud too; every read and every mark checks the cloud
@@ -58,73 +60,116 @@ the plain 1:1 kind is what is left over. And a reply in a thread is split by who
 not one "reply".
 
 Whether a message calls me out is read from its mention record (`isMentioningViewer` in
-`@chatic/data`), the same rule the home row's `@me` mark and the room's highlight use — never from
-the text.
+`@chatic/data`), the same rule the home row's `@me` mark uses — never from the text. (The room's
+highlight falls back to the text for a row with no record; the inbox does not.)
 
-## Capture
+## Working the items out
 
 ```mermaid
 flowchart LR
-    Rec["channel record<br/>lastChat$ moved ahead"] --> Feed["useCurrentPlaceChatFeed<br/>current cloud + place"]
-    Feed --> Guards{"mine? event?<br/>at or below cursor?"}
-    Guards -- yes --> Drop["left out"]
-    Guards -- no --> Kind["classify<br/>(root read for a thread reply)"]
-    Kind --> Store["useNotificationStore<br/>dou.notifications.v1"]
-    Cursor["read cursor moved"] --> Store
+    Rooms["useCurrentPlaceRooms<br/>current cloud + place"] --> Feed["useNotificationFeed<br/>observeList per room, newest 200"]
+    Feed --> Room["roomNotifications<br/>(entries, viewer ids, cursor, level)"]
+    Room -- "root / target not in the window" --> Read["cache read<br/>(a root: then the server, once)"]
+    Read --> Room
+    Room --> Store["useNotificationStore<br/>computed items"]
+    Overlay["overlay<br/>dou.notifications.state.v1"] --> Items["items shown"]
+    Store --> Items
 ```
 
-**What is watched.** The rooms of the current cloud's current place, from the app's one shared
-channel observation. Message content streams only for the room on screen, so any other room is seen
-through its channel record: the record's `lastChat$` moving ahead means a message arrived, and that
-newest message is what capture looks at. Each room in scope has its channel sync registered while it
-is in scope — the same registration home's rows make, merged by the sync engine — so the record stays
-live on every route. The first record seen for a room is a baseline, not news.
+**What is read.** The rooms of the current cloud's current place, from the app's one shared channel
+observation; the reader's notes room is left out. Each room's channel sync is registered while it is
+in scope, so its record — cursor, level, head — stays live on every route. The rows themselves reach
+the cache through the app-wide chat sync and its catch-up (`ChatSyncRunner`, see
+[home/last-chat.md](../home/last-chat.md)); this feature only reads them.
 
-**What is left out.** My own messages (by any id I am known by in that room — account, cloud user,
-member), join and leave events and edit notices, anything at or below the room's read cursor, and in
-a room whose notifications are off or down to mentions, everything but mentions. The level is read
-through the rooms' own `notifyLevelOf`, so the inbox and the room settings agree about it.
+**When.** Each room's newest **200** rows are observed through the room's own list key
+(`chat.observeList`), so a write to one room re-reads that room only. The query asks for unsent rows
+too (`includeUnsent`), which the judge drops, only so its key never equals the open room's window:
+observers on one key share a group, and the room's window joining this one as it grew to the same
+limit stopped its paging. A room is worked out again when
+its rows change and when what they are judged against changes — the reader's ids, the room's read
+cursor, its notification level, its name. A run whose inputs are the same as the last one's is
+skipped. Rows sent more than **14 days** ago (`NOTIFICATION_RETENTION_MS`) are past the window and
+file nothing; the store also leaves out items that crossed the line since their room was last worked
+out, so a quiet room does not keep showing items the overlay can no longer hold marks for.
 
-**Thread replies.** A reply that does not call me out needs to know whose thread it is. A device-local
-record of the threads I take part in (`useThreadParticipationStore`, `dou.notifications.threads.v1`)
-answers for threads already known; it learns a thread from a reply of mine, and from reading a root.
-Otherwise the root is read — this device's cache first, the server after — once per thread: a thread
-found to be someone else's is remembered for the session, until a reply of mine lands in it.
+**The rows' facts.** `chatNotificationEntries` in `@chatic/data` reads what a row can tell an inbox
+with no reader in mind — whom it names, whether it calls everyone, which thread it replies in, which
+message a reaction event targets — and `isNotifiableMessage` decides whether a row is a settled
+message at all. The reader is applied afterwards, so the same entries can later be stored beside the
+rows and read back through an index (ADR-0321).
 
-**Reactions.** The reaction event carries only its target's id, so the target is read from this
-device's cache — never from the server. A target the cache does not hold is left out rather than
-costing a request per reaction. A reaction taken back adds nothing.
+**What is left out.** My own rows (by any id I am known by in that room — account, cloud user,
+member), anything that is not a settled message or reaction event (unsent, failed, deleted, edit
+notices, other system rows), and in a room whose notifications are off or down to mentions,
+everything but mentions. The level is read through the rooms' own `notifyLevelOf`, so the inbox and
+the room settings agree about it.
 
-## Storage
+**Thread replies.** A reply that does not call me out needs to know whose thread it is. A reply of
+mine in the window makes its thread one I take part in; the root is taken from the window, or read —
+this device's cache first, the server after — once per thread per session, at most three at a time
+(the first run after a launch reads every room of the place at once). While the root is being read,
+the reply is filed as far as the window tells, and filed again when the root arrives. A root that
+cannot be read is not asked for again.
 
-One zustand store persisted to device storage under `dou.notifications.v1` — one key for every
-cloud, since each item names its own.
+**Reactions.** Reaction events are folded per target, emoji and person; the newest event decides, so
+a reaction taken back leaves nothing and one given again comes back — as new, even when the earlier
+one was deleted or marked read, because an overlay entry remembers the event it was made for. Only a
+reaction to my own message is kept. A target outside the window is read from this device's cache — never from the
+server — and a target the cache does not hold is left out.
 
-- **Cap 500, no retention period.** Over the cap, read items go first, oldest first; only when every
-  item left is unread does the oldest unread one go.
-- **Operations:** `add` (an id already held is ignored, so a resync never brings an item back as
-  new), `markRead` and `remove` (each returns what it changed, for an undo), `markUnread` and
-  `restore` (the undos), `markChannelReadUpTo`, `markThreadRead`.
+## The overlay
+
+Only what the reader did is kept, per device, in one zustand store persisted under
+`dou.notifications.state.v1` (one key for every cloud; each entry's id names its cloud):
+
+| What                    | Kept as                              | Effect                                             |
+| ----------------------- | ------------------------------------ | -------------------------------------------------- |
+| marked read by hand     | `entries[id] = { state: 'read' }`    | the item reads as read                             |
+| deleted                 | `entries[id] = { state: 'deleted' }` | the item is not shown, however often it comes back |
+| a thread read on screen | `threads[threadKey] = { no }`        | the thread's items up to `no` read as read         |
+| when the overlay began  | `baselineAt`                         | thread items sent before it read as read           |
+
+- **Operations:** `markRead` and `remove` (each returns what it changed, for an undo), `markUnread`
+  and `restore` (the undos — a deleted item that had been marked read comes back read), and
+  `markThreadRead`. The feed calls `setRoomItems` and `retainRooms`.
+- **Pruned by sent time only.** An entry goes once its item's sent time is past the 14-day window —
+  never because its row left the cache, so a row cleared and fetched again stays deleted.
 - **Writes only on a change.** `persist` rewrites device storage on every `set`, so every action
-  checks its result before setting.
-- **Cleared at sign-out**, with the thread record, through the session's logout callbacks
-  (`clearNotifications`, registered in `main.tsx`). The next account on the device never opens onto
-  the last one's inbox.
+  checks its result before setting; a room that comes back the same writes nothing.
+- **The baseline.** A room's cursor never reads a thread item, so without a starting point every thread
+  reply already in the cache would light up as new the first time the inbox reads it. The overlay is
+  started with `baselineAt` = now the first time this inbox runs on the device (no stored overlay) and
+  again at every sign-out; thread items sent before it read as read. What this device could not have
+  seen is not news — the same rule the old capture had by never looking back past its first record.
+- **An entry belongs to an event.** Marks and deletions carry the item's chat number. A reaction keeps
+  its id however often it is taken back and given again, so an entry made for an earlier event of it
+  does not apply to the reaction given again.
+- **Cleared at sign-out** through the session's logout callbacks (`clearNotifications`, registered in
+  `main.tsx`). The next account on the device never opens onto the last one's overlay, and starts
+  its own baseline.
+- **Retired keys.** `dou.notifications.v1` (the snapshot inbox) and `dou.notifications.threads.v1`
+  (its thread record) are removed once by `NotificationsRunner`; nothing in them is carried over. A
+  top-level item's read state comes from the room cursor and a thread item's from the baseline, and
+  the old inbox kept no record of deletions.
+- **Not yet.** ADR-0321 also names an `archived` state with an archive view, and an explicit `unread`
+  mark. Nothing sets them yet, so the overlay does not hold them.
 
 ## Read
 
-- **The room's read cursor.** When a room's cursor moves ahead — read here, or on another device
-  through the synced cursor — its top-level items up to the cursor turn read
-  (`useNotificationReadSync` → `markChannelReadUpTo`). The cursor is the one the unread badges count
-  from. Only a move ahead is applied, once, so an item an undo turned back to unread stays unread
-  until the reader reads further.
+- **The room's read cursor.** A top-level item at or below its room's cursor reads as read — read
+  here, or on another device through the synced cursor. The cursor is the one the unread badges count
+  from (my join row or the channel's embedded copy, whichever is further along).
 - **A thread's items** are not touched by the room's cursor: a thread is read on its own screen. The
   thread screen (`ThreadPage`) calls `markThreadRead` for its thread while it is open — on opening,
-  and again whenever a new unread item for that thread arrives.
+  and again whenever a new unread item for that thread arrives. A reply that comes later carries a
+  higher number and reads as unread. A thread item the reader has since replied after, in the same
+  thread, reads as read too — they were there — and so does one sent before the overlay's baseline.
+- **The room's mention pills** (`useRoomJumpPills` in features/channels) take the room's unread
+  mentions when it is entered. On a cold launch straight into a room the inbox has not worked the room
+  out yet (`computedRooms`), and entering moves the cursor, so the pills wait for the room's first run
+  and count the top-level mentions above the cursor the room was entered at.
 - **Opening an item** from the inbox marks it read (`markRead`) — the screen's job.
-
-A message in the room on screen is usually captured before the reader's cursor passes it, and then
-turns read as the cursor moves. When the cursor lands first, the message is left out as already read.
 
 ## Selectors
 
@@ -181,14 +226,17 @@ Avatars are the default person glyph for now: an item keeps its author's id and 
 
 ## Limits
 
-- **A background room is seen by its newest message only.** A burst that lands between two record
-  updates collapses to its last message; the ones before it are not captured.
-- **Nothing is captured while the app is closed.** The first record seen after a launch is the
-  baseline, so what arrived meanwhile is in the rooms' unread counts, not in the inbox.
-- **Per device.** Another device of the same account has its own inbox, built from what it saw.
-- **The current place only.** Rooms of other places and other clouds are not watched; switching
-  place starts watching that place's rooms.
-- **Thread membership is what this device saw.** A thread counts as one I joined once this device
-  has seen a reply of mine in it as a room's newest message — sent from any device. A reply of mine
-  that was never a room's newest message while the app was open leaves its thread unknown, and the
-  replies in it are not captured unless they call me out or the root is mine.
+- **What this device has cached, within the window.** The inbox holds what the cache holds for the
+  current place's rooms: a room's newest 200 rows, sent in the last 14 days. A room that gained more
+  while the reader was away than the chat catch-up pulled (see home/last-chat.md) keeps a hole, and
+  nothing in it is filed until the room is opened and scrolled.
+- **Per device.** Another device of the same account has its own overlay. Read state follows the
+  synced room cursor for top-level items, so it agrees across devices; a thread read on its screen, a
+  mark by hand and a deletion are per device.
+- **The current place only.** Rooms of other places and other clouds are not read; switching place
+  reads that place's rooms.
+- **Thread membership is what the window shows.** A thread counts as one I joined when a reply of
+  mine in it is among the room's cached rows in the window. Replies in an older thread I joined are
+  filed only when they call me out or the root is mine.
+- **No index yet.** Every room is judged in memory from its rows (ADR-0321 decision 8). The index
+  that stores the entries beside the rows (decisions 4 and 7) is a later change.

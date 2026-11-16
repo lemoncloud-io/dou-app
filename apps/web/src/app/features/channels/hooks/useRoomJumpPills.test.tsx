@@ -17,7 +17,7 @@ const item = (over: Partial<NotificationItem>): NotificationItem => ({
     kind: 'mention',
     ownerName: 'Sis',
     content: 'hi',
-    createdAt: 1,
+    createdAt: Date.now(),
     read: false,
     ...over,
 });
@@ -68,9 +68,40 @@ describe('useRoomJumpPills', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         useMessageJumpStore.setState({ target: null } as never);
+        const items = { a: item({ id: 'a', chatNo: 10 }), b: item({ id: 'b', chatNo: 20 }) };
         useNotificationStore.setState({
-            items: { a: item({ id: 'a', chatNo: 10 }), b: item({ id: 'b', chatNo: 20 }) },
+            computed: items,
+            items,
+            overlay: { entries: {}, threads: {}, baselineAt: 0 },
+            computedRooms: { 'c:room': true },
         });
+    });
+
+    it('waits for the room to be worked out on a cold entry, then counts mentions above the entry cursor', () => {
+        useNotificationStore.setState({ computed: {}, items: {}, computedRooms: {} });
+        const { result } = renderHook(() =>
+            useRoomJumpPills({
+                channelId: 'room',
+                messages: [],
+                containerRef: container,
+                isAwayFromBottom: false,
+                scrollToBottom,
+                readCursor: 15,
+            })
+        );
+        expect(result.current.pill).toBeNull();
+
+        // By the time the inbox reads the room, entering it has already moved the cursor past both.
+        act(() =>
+            useNotificationStore
+                .getState()
+                .setRoomItems('c', 'room', [
+                    item({ id: 'before', chatNo: 10, read: true }),
+                    item({ id: 'after', chatNo: 20, read: true }),
+                ])
+        );
+
+        expect(result.current.pill).toMatchObject({ variant: 'mention', count: 1 });
     });
 
     it('shows the mentions pill and jumps to the oldest mention, reading it', () => {
@@ -103,13 +134,21 @@ describe('useRoomJumpPills', () => {
                 scrollToBottom,
             })
         );
-        act(() => useNotificationStore.getState().markChannelReadUpTo('c', 'room', 100));
+        // The room's cursor passes both: the feed works them out again, read.
+        act(() =>
+            useNotificationStore
+                .getState()
+                .setRoomItems('c', 'room', [
+                    item({ id: 'a', chatNo: 10, read: true }),
+                    item({ id: 'b', chatNo: 20, read: true }),
+                ])
+        );
 
         expect(result.current.pill).toMatchObject({ variant: 'mention', count: 2 });
     });
 
     it('counts new messages while away from the bottom, and goes back down on a tap', () => {
-        useNotificationStore.setState({ items: {} });
+        useNotificationStore.setState({ computed: {}, items: {} });
         const props = {
             channelId: 'room',
             messages: [message(1), message(2)],

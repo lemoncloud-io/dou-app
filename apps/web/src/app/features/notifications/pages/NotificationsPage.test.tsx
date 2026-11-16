@@ -47,8 +47,15 @@ const item = (over: Partial<NotificationItem>): NotificationItem => ({
     chatNo: 5,
     ...over,
 });
-const seed = (...items: NotificationItem[]) =>
-    useNotificationStore.setState({ items: Object.fromEntries(items.map(it => [it.id, it])) });
+// The items as the feed would have worked them out from the rows, with nothing done to them yet.
+const seed = (...items: NotificationItem[]) => {
+    const byId = Object.fromEntries(items.map(it => [it.id, it]));
+    useNotificationStore.setState({
+        computed: byId,
+        items: byId,
+        overlay: { entries: {}, threads: {}, baselineAt: 0 },
+    });
+};
 
 const rowByContent = (text: string) => screen.getByText(text).closest('[role="button"]') as HTMLElement;
 

@@ -1,6 +1,9 @@
 # ADR-0312: The mobile app derives its notification inbox on the device, separately from desktop
 
 > Status: Accepted · Decided: 2026-11-13 · Implemented: `feat/web-notification-inbox`
+> · Amended in part by [ADR-0321](./0321-the-mobile-inbox-is-computed-from-the-chat-cache-through-a-notification-index.md)
+> — decision 1 (capture the newest message as a snapshot) and decision 5 (the snapshot store) are
+> replaced by a view worked out from the chat cache plus an overlay of what the reader did
 > · Scope: `apps/web` — the store `src/app/stores/useNotificationStore.ts` and the model, items and
 > selectors in `src/app/utils/notifications/` (both shared with home), the feature
 > `src/app/features/notifications/` (`hooks/`, `utils/`, `NotificationsRunner`), its mount in

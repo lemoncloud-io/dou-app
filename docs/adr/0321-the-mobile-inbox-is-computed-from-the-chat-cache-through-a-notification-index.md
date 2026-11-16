@@ -2,7 +2,12 @@
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented in part: decision 6 in
 > `feat/app-wide-chat-catch-up` (`apps/web/src/app/runtime/ChatSyncRunner.tsx`,
-> `apps/web/src/app/hooks/chatCatchUp.ts`); decisions 1–5, 7 and 8 are not implemented yet
+> `apps/web/src/app/hooks/chatCatchUp.ts`); decisions 1, 2, 3 and 5 in `feat/inbox-from-chat-cache`
+> (`libs/data/src/domain/chatNotificationEntries.ts`,
+> `apps/web/src/app/features/notifications/utils/roomNotifications.ts`, `hooks/useNotificationFeed.ts`,
+> `apps/web/src/app/utils/notifications/notificationOverlay.ts`), with decision 8's in-memory judging
+> as the only path for every shell; decisions 4 and 7 (the stored index and its fill) are not
+> implemented yet
 > · Scope (planned): `libs/data/src/domain/` (a new judge, `chatNotificationEntries`, beside
 > `chatMediaEntries`); `libs/data/src/local/data-sources/ChatLocalDataSource.ts` (entries on the chat
 > write, the fill, the cross-room read); `libs/bridge-messages/src/types/model/cache.ts`;
@@ -171,8 +176,11 @@ These are settled when the implementation lands, from measurements on a device:
 - the catch-up's bound per room (decision 6) — it ships at five older pages of 50 after the newest
   page of 30, 280 messages in all, two older pages in flight at a time, with no measurement behind the
   numbers yet; a device measurement of how far rooms fall behind is what should move them;
-- the retention window, which bounds every walk and the overlay;
-- whether the archive view ships with the first change or the state only;
+- the retention window, which bounds every walk and the overlay — it ships at 14 days by sent time,
+  over each room's newest 200 cached rows, again with no measurement behind the numbers;
+- whether the archive view ships with the first change or the state only — neither shipped with the
+  first change: the overlay holds `read` and `deleted`, and `archived` and an explicit `unread` wait
+  for the screen that sets them;
 - the numbers: the shell migration, the IndexedDB version and the bridge minor are whatever is next
   when the change merges.
 

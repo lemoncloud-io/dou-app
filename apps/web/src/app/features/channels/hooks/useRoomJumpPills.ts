@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { haptics } from '../../../bridge/haptics';
 import { useSelectedCloudId } from '../../../hooks/useCloudScope';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { useNotificationStore } from '../../../stores/useNotificationStore';
+import { notificationRoomKey, useNotificationStore } from '../../../stores/useNotificationStore';
 import { MENTION_KINDS, threadRootNo, type NotificationItem } from '../../../utils/notifications';
 import type { ClientChatView } from '../types';
 
@@ -19,15 +19,26 @@ interface MentionTarget {
  * The room's unread mentions of the reader, oldest first, as they stood when the room was opened.
  * Read at entry because entering moves the read cursor, and the cursor reads the room's items in the
  * inbox — after that, nothing would be left to point at.
+ *
+ * `unreadAbove` is the cursor the room was entered at, for a snapshot taken after the cursor may have
+ * moved: a top-level mention above it counts as unread, whatever the cursor says now.
  */
 export const mentionTargetsOf = (
     items: readonly NotificationItem[],
     cloudId: string,
-    channelId: string
+    channelId: string,
+    unreadAbove?: number
 ): MentionTarget[] => {
     const byRow = new Map<number, string[]>();
+    const wasUnread = (item: NotificationItem): boolean =>
+        !item.read || (unreadAbove !== undefined && !item.parentId && (item.chatNo ?? 0) > unreadAbove);
     for (const item of items) {
-        if (item.read || item.cloudId !== cloudId || item.channelId !== channelId || !MENTION_KINDS.has(item.kind)) {
+        if (
+            !wasUnread(item) ||
+            item.cloudId !== cloudId ||
+            item.channelId !== channelId ||
+            !MENTION_KINDS.has(item.kind)
+        ) {
             continue;
         }
         const chatNo = item.parentId ? Number(threadRootNo(item.parentId)) : item.chatNo;
@@ -64,14 +75,30 @@ export const useRoomJumpPills = ({
     containerRef,
     isAwayFromBottom,
     scrollToBottom,
+    readCursor,
 }: {
     channelId: string;
     messages: readonly ClientChatView[];
     containerRef: RefObject<HTMLElement | null>;
     isAwayFromBottom: boolean;
     scrollToBottom: (smooth?: boolean) => void;
+    /** The room's read cursor as the page has it; undefined until its join is known. */
+    readCursor?: number;
 }) => {
     const cloudId = useSelectedCloudId();
+    const roomKey = notificationRoomKey(cloudId, channelId);
+    const isRoomComputed = useNotificationStore(state => !!state.computedRooms[roomKey]);
+
+    // Where the reader entered: the first cursor known for this room, taken before entering moves it.
+    // `late` marks a snapshot taken before the inbox had worked the room out — a cold launch straight
+    // into the room — which is taken again, from this cursor, once it has.
+    const entry = useRef({ channelId, cursor: readCursor, late: !isRoomComputed });
+    if (entry.current.channelId !== channelId) {
+        entry.current = { channelId, cursor: readCursor, late: !isRoomComputed };
+    } else if (entry.current.cursor === undefined) {
+        entry.current.cursor = readCursor;
+    }
+
     const [mentions, setMentions] = useState<MentionTarget[]>(() =>
         mentionTargetsOf(Object.values(useNotificationStore.getState().items), cloudId, channelId)
     );
@@ -82,6 +109,19 @@ export const useRoomJumpPills = ({
         snapshotFor.current = channelId;
         setMentions(mentionTargetsOf(Object.values(useNotificationStore.getState().items), cloudId, channelId));
     }, [channelId, cloudId]);
+    useEffect(() => {
+        const current = entry.current;
+        if (!current.late || !isRoomComputed || current.channelId !== channelId) return;
+        current.late = false;
+        setMentions(
+            mentionTargetsOf(
+                Object.values(useNotificationStore.getState().items),
+                cloudId,
+                channelId,
+                current.cursor ?? 0
+            )
+        );
+    }, [isRoomComputed, channelId, cloudId]);
 
     const reach = useCallback((targets: MentionTarget[]) => {
         if (targets.length === 0) return;
