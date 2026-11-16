@@ -38,15 +38,20 @@ code. Read the part you need before you write code that depends on it.
     request out, and send `'blocked'` to `apps.openSettings()`. Treat the request's answer, not
     `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
 
+13. Read the app's data only through `apps.runtime`, and only after `apps.supports('runtime')`: call
+    `apps.runtime.connect()` first and use only the names in its `allowed`. It reads; it never writes.
+    Handle `CONSENT_REFUSED` (show why the page needs it) and `CLOUD_CHANGED` (finish or show a notice).
+
 ## The page
 
-13. No `window.opener`, no popup logins, no file downloads.
-14. Never put the user's data in errors or in `reportError`.
-15. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
-    `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with
-    `NOT_SUPPORTED` without it.
-16. Do not draw for the safe area: the page already lies inside it on every edge.
-17. The page has no title bar unless the manifest sets `"display": "standard"`: draw your own header and
+14. No `window.opener`, no popup logins, no file downloads.
+15. Never put the user's data in errors or in `reportError`.
+16. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`, and for the app's
+    data `session`, `cloud`, `place`, `channel`, `chat`, `user`) in `/.well-known/chatic-app.json` — and
+    nothing it does not use. A call that needs one fails with `NOT_SUPPORTED` without it; a runtime method
+    outside what the runtime permissions open fails with `RUNTIME_NOT_ALLOWED`.
+17. Do not draw for the safe area: the page already lies inside it on every edge.
+18. The page has no title bar unless the manifest sets `"display": "standard"`: draw your own header and
     title, and keep the top-right corner clear, where the app's close button floats.
 
 ## Before you say it is done

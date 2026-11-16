@@ -1,9 +1,10 @@
 // --- Session Owner Types ---
 //
-// A development switch: which side holds the session on the phone — the page, as it always has, or
-// the shell's own runtime. Shown in the web's debug overlay; answered only by a shell built for a
-// stage other than production, which leaves both requests unregistered (`NOT_FOUND`) in a production
-// build, so the overlay shows nothing there.
+// The owner switch: which side holds the session on the phone — the page, as it always has, or the
+// shell's own runtime. Shown in the web's debug overlay. A shell for a local or test stage answers it
+// always; a production shell from 0.32.0 answers it only while its debug mode is on and refuses it with
+// `NOT_ALLOWED` otherwise; an older production shell leaves both requests unregistered (`NOT_FOUND`).
+// Either refusal makes the overlay show the switch as not offered.
 //
 // The owner is settled when the shell's JS starts. A change is recorded and then takes effect by the
 // shell starting its JS over, which reloads this page with it.

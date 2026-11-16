@@ -417,6 +417,99 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
         expect(events).toEqual([]);
     });
 
+    describe('a write receipt', () => {
+        const turns = async () => {
+            for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+        };
+        const withJoin = (fake: ReturnType<typeof setup>['fake']) => {
+            const deliveries: { resolve: () => void; reject: (error: unknown) => void }[] = [];
+            const join = {
+                updateJoin: jest.fn(async (_payload: unknown) => {
+                    // Handled at once, as the outbox's own promise is.
+                    const delivered = new Promise<void>((resolve, reject) => deliveries.push({ resolve, reject }));
+                    delivered.catch(() => undefined);
+                    return { delivered };
+                }),
+            };
+            fake.raw.data.repositories = (() => ({ join })) as unknown as typeof fake.raw.data.repositories;
+            return { join, deliveries };
+        };
+
+        it("is served as a stream under the method's name: written once made, then delivered", async () => {
+            const { host, fake, events } = setup();
+            const { join, deliveries } = withJoin(fake);
+            await host.hello(hello);
+
+            const answered = host.subscribe({
+                subscriptionId: 'w1',
+                target: 'data',
+                topic: 'join.updateJoin',
+                args: [{ channelId: 'ch1', notify: 'none' }],
+            });
+            // Started as the subscribe arrives, as in-process: a call the page sends next finds it made.
+            expect(join.updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', notify: 'none' });
+            await expect(answered).resolves.toEqual({ value: {} });
+            await turns();
+            expect(events).toEqual([{ subscriptionId: 'w1', seq: 1, event: [{ written: {} }] }]);
+
+            deliveries[0].resolve();
+            await turns();
+            expect(events[1]).toEqual({ subscriptionId: 'w1', seq: 2, event: [{ delivered: true }] });
+        });
+
+        it('ends with the refusal when the server refuses it, and with the failure when it could not be made', async () => {
+            const { host, fake, events } = setup();
+            const { join, deliveries } = withJoin(fake);
+            await host.hello(hello);
+
+            await host.subscribe({ subscriptionId: 'w1', target: 'data', topic: 'join.updateJoin', args: [{}] });
+            await turns();
+            deliveries[0].reject(Object.assign(new Error('403 FORBIDDEN - refused'), { errorCode: 403 }));
+            await turns();
+            expect(events[1]).toEqual({
+                subscriptionId: 'w1',
+                seq: 2,
+                event: {
+                    $ended: expect.objectContaining({
+                        code: RUNTIME_ERROR_CODE,
+                        details: expect.objectContaining({ message: '403 FORBIDDEN - refused', errorCode: 403 }),
+                    }),
+                },
+            });
+
+            join.updateJoin.mockRejectedValueOnce(new Error('no join row'));
+            await host.subscribe({ subscriptionId: 'w2', target: 'data', topic: 'join.updateJoin', args: [{}] });
+            await turns();
+            expect(events[2]).toMatchObject({
+                subscriptionId: 'w2',
+                seq: 1,
+                event: { $ended: { message: 'no join row' } },
+            });
+        });
+
+        it('sends nothing once the page stopped listening, though the write still goes out', async () => {
+            const { host, fake, events } = setup();
+            const { deliveries } = withJoin(fake);
+            await host.hello(hello);
+
+            await host.subscribe({ subscriptionId: 'w1', target: 'data', topic: 'join.updateJoin', args: [{}] });
+            await turns();
+            host.unsubscribe({ subscriptionId: 'w1' });
+            deliveries[0].resolve();
+            await turns();
+            expect(events).toEqual([{ subscriptionId: 'w1', seq: 1, event: [{ written: {} }] }]);
+        });
+
+        it('still answers it as a call, for a page from before receipts streamed', async () => {
+            const { host, fake } = setup();
+            withJoin(fake);
+            await host.hello(hello);
+            await expect(
+                host.call({ target: 'data', method: 'join.updateJoin', args: [{ channelId: 'ch1' }] })
+            ).resolves.toEqual({ value: { value: expect.objectContaining({ delivered: expect.anything() }) } });
+        });
+    });
+
     it('refuses a cloud hold that is handed a listener marker', async () => {
         const { host, fake } = setup();
         await host.hello(hello);

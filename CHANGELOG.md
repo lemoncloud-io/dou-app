@@ -2,6 +2,44 @@
 
 ## [2026-11-16] - No version updates
 
+### Features
+
+- (mobile,web,bridge-messages) open the owner switch on production in debug mode (ADR-0322)
+
+## [2026-11-16] - root@0.157.2, @chatic/web@0.89.1
+
+### Features
+
+- (web,data) keep the place's rooms in the chat cache on every route, not only on home (ADR-0321)
+
+### Bug Fixes
+
+- (web) cache 30 rows on catch-up again, not the room feed's 20
+
+### Documentation
+
+- (adr) compute the mobile inbox from the chat cache, not from snapshots (ADR-0321)
+
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (runtime-core) stream a write receipt across the bridge, not a promise JSON empties (ADR-0318)
+
+## [2026-11-16] - root@0.157.1, @chatic/landing@0.18.3
+
+### Bug Fixes
+
+- (landing) list the plans in won where the build bills in won only
+
+## [2026-11-16] - No version updates
+
+### Features
+
+- (runtime-core,mobile,chatic-apps-sdk) let a mini app read its own cloud, reads only (ADR-0320)
+
+## [2026-11-16] - No version updates
+
 ### Bug Fixes
 
 - (web-ui-kit,web) lay out the room files header as designed, not in a 44px slot

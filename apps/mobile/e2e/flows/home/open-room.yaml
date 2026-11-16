@@ -16,9 +16,10 @@ tags:
       visible: 'Chats.*'
       timeout: 90000
 # The header draws before the list: the rows are skeletons until the shell's cache answers. The
-# row reads "MY Self Chat" (badge + title) to the accessibility tree.
+# row reads "MY Self Chat" (badge + title) to the accessibility tree, followed by the last message
+# once the guest has one — a device keeps its guest across reinstalls.
 - extendedWaitUntil:
-      visible: '.*Self Chat'
+      visible: '.*Self Chat.*'
       timeout: 60000
 # Look for: home drawn under the status bar, the "Chats" tab with the Self Chat row, the tab bar at
 # the bottom — not a blank page, skeleton rows, or a spinner left over from the splash. A banner under
@@ -27,7 +28,7 @@ tags:
 # and a "debug" pill sits bottom right.
 - takeScreenshot: checkpoint-home
 
-- tapOn: '.*Self Chat'
+- tapOn: '.*Self Chat.*'
 # The composer by its attach button: Android's WebView exposes no textarea placeholder, so "Enter a
 # message" is read on iOS only.
 - extendedWaitUntil:

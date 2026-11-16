@@ -32,6 +32,20 @@ export const ko = {
         loadMessage: '네트워크 연결을 확인하고 다시 시도해 주세요.',
         retry: '다시 시도',
         subClose: '닫기',
+        subRuntimeConsent: {
+            title: '이 클라우드의 정보를 볼 수 있게 할까요?',
+            message: '{0}이(가) DoU에서 이 클라우드의 {1}을(를) 읽으려고 해요. 아무것도 바꿀 수는 없어요.',
+            allow: '허용',
+            deny: '허용 안 함',
+        },
+        subRuntimePermission: {
+            session: '내 정보와 현재 위치',
+            cloud: '클라우드 정보',
+            place: '플레이스',
+            channel: '채팅방',
+            chat: '메시지',
+            user: '멤버와 프로필',
+        },
     },
     notification: {
         channel: {

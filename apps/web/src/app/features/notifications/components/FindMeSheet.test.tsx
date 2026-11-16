@@ -44,15 +44,15 @@ const item = (over: Partial<NotificationItem>): NotificationItem => ({
 describe('FindMeSheet', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        useNotificationStore.setState({
-            items: {
-                m: item({ id: 'm', content: 'a mention' }),
-                r: item({ id: 'r', kind: 'replyToMine', content: 'a reply' }),
-                x: item({ id: 'x', kind: 'reaction', content: '❤️' }),
-                p: item({ id: 'p', kind: 'participatedThread', content: 'joined' }),
-                o: item({ id: 'o', content: 'old mention', read: true }),
-            },
-        });
+        const items = {
+            m: item({ id: 'm', content: 'a mention' }),
+            r: item({ id: 'r', kind: 'replyToMine', content: 'a reply' }),
+            x: item({ id: 'x', kind: 'reaction', content: '❤️' }),
+            p: item({ id: 'p', kind: 'participatedThread', content: 'joined' }),
+            o: item({ id: 'o', content: 'old mention', read: true }),
+        };
+        // The items as the feed would have worked them out from the rows, with nothing done to them yet.
+        useNotificationStore.setState({ computed: items, items, overlay: { entries: {}, threads: {}, baselineAt: 0 } });
     });
 
     it('lists only unread mentions and replies to me', () => {

@@ -58,7 +58,8 @@ Three rules hold on every crossing:
 3. **A rejection is reported as it came.** Every command the panel sends is one the oldest app this
    page runs in already handles, so `run` reports a rejection — `NOT_FOUND` included — as
    `"failed: <message>"`, with nothing learned or locked. One screen is the exception: Session owner
-   asks for a switch only a non-production app offers, so it reads a rejected first request as "not
+   asks for a switch a production app offers only while its debug mode is on, so it reads a rejected
+   first request as "not
    offered" and shows that instead of its controls.
 
 ## What stays in apps/mobile

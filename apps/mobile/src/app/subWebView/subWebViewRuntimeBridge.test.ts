@@ -1,0 +1,382 @@
+/**
+ * @jest-environment node
+ */
+// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
+import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
+import type { IAppBridgeHost } from '@chatic/bridges';
+import { RUNTIME_CONTRACTS, createRuntimeBridgeHost } from '@chatic/runtime-mobile';
+import type { RuntimeEngine } from '@chatic/runtime-mobile';
+
+import { pushedEventErrors, pushedEvents } from '../webview/hooks/appEventContract';
+import { createSubWebViewRuntimeBridge, SUB_WEBVIEW_STREAMS_PER_LOAD } from './subWebViewRuntimeBridge';
+import type { SubWebViewReadBudget } from './subWebViewReadBudget';
+import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
+
+// The runtime package reads these at import; nothing here reaches them.
+jest.mock('react-native', () => ({
+    AppState: { currentState: 'active', addEventListener: jest.fn() },
+    Platform: { OS: 'ios' },
+}));
+jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(), fetch: jest.fn() }));
+
+/** An engine with just what these requests reach: the session, two repositories, the session commands. */
+const fakeEngine = () => {
+    let cloudId: string | null = 'c1';
+    const sessionListeners = new Set<() => void>();
+    const channelListeners = new Set<(result: unknown) => void>();
+    const snapshot = () => ({
+        context: {
+            cloud: { cloudId, siteId: 's1', isActive: true, backend: 'https://c1.example', wss: 'wss://c1.example' },
+            identity: { userId: 'u1', isAuthenticated: true, delegatorId: 'guest-device' },
+            relay: { siteId: '0000' },
+        },
+        committedSiteId: 's1',
+        uidByCloud: { c1: 'u1', c9: 'u9' },
+        auth: { isAuthenticated: true },
+    });
+    const repositories = {
+        channel: {
+            cacheReadList: jest.fn(async () => ({ list: [{ id: 'ch1', name: 'General', memberIds: ['u1'] }] })),
+            fetchList: jest.fn(async () => ({ list: [] })),
+            observeList: jest.fn((_query: unknown, listener: (result: unknown) => void) => {
+                channelListeners.add(listener);
+                return () => channelListeners.delete(listener);
+            }),
+        },
+        chat: { sendChat: jest.fn(), cacheRead: jest.fn() },
+    };
+    const engine = {
+        session: {
+            snapshot,
+            subscribe: (listener: () => void) => {
+                sessionListeners.add(listener);
+                return () => sessionListeners.delete(listener);
+            },
+            onLogout: () => () => undefined,
+        },
+        commands: { switchSite: jest.fn(async () => undefined) },
+        data: { repositories: () => repositories },
+    } as unknown as RuntimeEngine;
+    return {
+        engine,
+        repositories,
+        commands: (engine as unknown as { commands: { switchSite: jest.Mock } }).commands,
+        sessionListeners,
+        emitChannels: (result: unknown) => channelListeners.forEach(listener => listener(result)),
+        channelListenerCount: () => channelListeners.size,
+        moveTo: (next: string | null) => {
+            cloudId = next;
+            sessionListeners.forEach(listener => listener());
+        },
+    };
+};
+
+const allow: SubWebViewRuntimeConsent = { ensure: jest.fn(async () => 'allowed' as const) };
+const plenty: SubWebViewReadBudget = { take: () => ({ ok: true }) };
+
+const build = ({
+    granted = ['channel'],
+    consent = allow,
+    budget = plenty,
+}: {
+    granted?: SubWebViewRuntimePermission[];
+    consent?: SubWebViewRuntimeConsent;
+    budget?: SubWebViewReadBudget;
+} = {}) => {
+    const fake = fakeEngine();
+    const bridge = { pushEvent: jest.fn() } as unknown as IAppBridgeHost & { pushEvent: jest.Mock };
+    let current = true;
+    const onRefused = jest.fn();
+    const runtime = createSubWebViewRuntimeBridge({
+        createHost: send => createRuntimeBridgeHost({ engine: async () => fake.engine, send }),
+        session: fake.engine.session,
+        openedCloudId: 'c1',
+        granted: new Set(granted),
+        origin: 'https://quiz.apps.chatic.io',
+        pageHost: () => (current ? bridge : null),
+        consent,
+        budget,
+        onRefused,
+    });
+    const hello = () =>
+        runtime.handlers.RuntimeHello({ type: 'RuntimeHello', data: { contracts: [...RUNTIME_CONTRACTS] } } as never);
+    const call = (target: string, method: string, args: unknown[] = []) =>
+        runtime.handlers.RuntimeCall({ type: 'RuntimeCall', data: { target, method, args } } as never);
+    const subscribe = (subscriptionId: string, topic: string, args: unknown[]) =>
+        runtime.handlers.RuntimeSubscribe({
+            type: 'RuntimeSubscribe',
+            data: { subscriptionId, target: 'data', topic, args },
+        } as never);
+    return { ...fake, bridge, runtime, onRefused, hello, call, subscribe, endLoad: () => (current = false) };
+};
+
+const flush = () => new Promise(resolve => setImmediate(resolve));
+
+describe('createSubWebViewRuntimeBridge', () => {
+    it('answers the hello with the contract and what this page may use, and no session without `session`', async () => {
+        const { hello } = build({ granted: ['channel'] });
+
+        await expect(hello()).resolves.toEqual({
+            type: 'OnRuntimeHello',
+            success: true,
+            data: {
+                sessionOwner: 'native',
+                contract: RUNTIME_CONTRACTS[0],
+                seq: 0,
+                session: null,
+                allowed: {
+                    calls: ['channel.cacheRead', 'channel.cacheReadList', 'channel.fetchList', 'join.cacheReadList'],
+                    streams: ['channel.observeItem', 'channel.observeList', 'join.observeList'],
+                },
+            },
+        });
+    });
+
+    it("hands over the current cloud's part of the session with `session`, and its changes", async () => {
+        const { hello, bridge, sessionListeners } = build({ granted: ['session'] });
+        const forPage = {
+            context: {
+                cloud: { cloudId: 'c1', siteId: 's1', isActive: true },
+                identity: { userId: 'u1', isAuthenticated: true },
+            },
+            committedSiteId: 's1',
+        };
+
+        const answer = await hello();
+        // Not the account's other clouds, the relay, the guest id, or the cloud's server addresses.
+        expect((answer as { data: { session: unknown } }).data.session).toEqual(forPage);
+
+        sessionListeners.forEach(listener => listener());
+        await flush();
+        expect(bridge.pushEvent).toHaveBeenCalledWith({
+            type: 'OnRuntimeSessionChanged',
+            success: true,
+            data: expect.objectContaining({ session: forPage }),
+        });
+    });
+
+    it('pushes no session change without `session`', async () => {
+        const { hello, bridge, sessionListeners } = build({ granted: ['channel'] });
+        await hello();
+
+        sessionListeners.forEach(listener => listener());
+        await flush();
+
+        expect(bridge.pushEvent).not.toHaveBeenCalled();
+    });
+
+    it('answers a hello the user did not allow with CONSENT_REFUSED', async () => {
+        const { hello } = build({ consent: { ensure: async () => 'refused' } });
+
+        await expect(hello()).resolves.toMatchObject({
+            type: 'OnRuntimeHello',
+            success: false,
+            error: { code: 'CONSENT_REFUSED' },
+        });
+    });
+
+    it('pushes nothing once its page load is over', async () => {
+        const { hello, subscribe, bridge, emitChannels, endLoad } = build();
+        await hello();
+        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+
+        endLoad();
+        emitChannels({ list: [{ id: 'ch1' }] });
+
+        expect(bridge.pushEvent).not.toHaveBeenCalled();
+    });
+
+    it('holds subscribes still waiting for consent to the stream cap', async () => {
+        let answer: () => void = () => undefined;
+        const asked = new Promise<void>(resolve => (answer = resolve));
+        const { hello, subscribe } = build({
+            consent: {
+                ensure: jest
+                    .fn()
+                    .mockResolvedValueOnce('allowed')
+                    .mockImplementation(() => asked.then(() => 'allowed')),
+            },
+        });
+        await hello();
+
+        const burst = Array.from({ length: SUB_WEBVIEW_STREAMS_PER_LOAD + 4 }, (_, i) =>
+            subscribe(`b${i}`, 'channel.observeList', [{}, { $listener: true }])
+        );
+        answer();
+        const results = await Promise.all(burst);
+
+        expect(results.filter(result => result.success)).toHaveLength(SUB_WEBVIEW_STREAMS_PER_LOAD);
+        expect(results.filter(result => !result.success)).toHaveLength(4);
+    });
+
+    it('keeps the stream a refused replacement would have replaced', async () => {
+        const { hello, subscribe, bridge, emitChannels } = build();
+        await hello();
+        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+
+        // Two listener markers: the runtime refuses it before it touches the stream under `s1`.
+        await expect(
+            subscribe('s1', 'channel.observeList', [{ $listener: true }, { $listener: true }])
+        ).resolves.toMatchObject({ success: false });
+        emitChannels({ list: [] });
+
+        expect(bridge.pushEvent).toHaveBeenCalledWith(
+            expect.objectContaining({ type: 'OnRuntimeEvent', data: expect.objectContaining({ subscriptionId: 's1' }) })
+        );
+    });
+
+    it('passes an allowed read through and answers what the runtime answered, unchanged', async () => {
+        const { hello, call, repositories } = build();
+        await hello();
+
+        await expect(call('data', 'channel.cacheReadList', [{ sid: 's1' }])).resolves.toEqual({
+            type: 'OnRuntimeCall',
+            success: true,
+            data: { value: { list: [{ id: 'ch1', name: 'General', memberIds: ['u1'] }] } },
+        });
+        expect(repositories.channel.cacheReadList).toHaveBeenCalledWith({ sid: 's1' });
+    });
+
+    it('refuses a write before the runtime sees it, with the reason', async () => {
+        const { hello, call, repositories, onRefused } = build({ granted: ['chat'] });
+        await hello();
+
+        await expect(call('data', 'chat.sendChat', [{ text: 'hi' }])).resolves.toMatchObject({
+            type: 'OnRuntimeCall',
+            success: false,
+            error: {
+                code: 'RUNTIME_NOT_ALLOWED',
+                details: { target: 'data', method: 'chat.sendChat', reason: 'write' },
+            },
+        });
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
+        expect(onRefused).toHaveBeenCalledWith(expect.objectContaining({ method: 'chat.sendChat', reason: 'write' }));
+    });
+
+    it('refuses a place switch: the session commands are closed', async () => {
+        const { hello, call, commands } = build({ granted: ['session', 'place'] });
+        await hello();
+
+        await expect(call('session', 'switchSite', ['s2'])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'account' } },
+        });
+        expect(commands.switchSite).not.toHaveBeenCalled();
+    });
+
+    it('refuses an open method whose permission the page does not hold', async () => {
+        const { hello, call, repositories } = build({ granted: ['channel'] });
+        await hello();
+
+        await expect(call('data', 'chat.cacheRead', ['m1'])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'notGranted' } },
+        });
+        expect(repositories.chat.cacheRead).not.toHaveBeenCalled();
+    });
+
+    it("spends the view's budget on a server read only, and refuses one over it", async () => {
+        const take = jest.fn(() => ({ ok: false as const, retryAfterMs: 120 }));
+        const { hello, call, repositories } = build({ budget: { take } });
+        await hello();
+
+        await expect(call('data', 'channel.cacheReadList', [{}])).resolves.toMatchObject({ success: true });
+        expect(take).not.toHaveBeenCalled();
+
+        await expect(call('data', 'channel.fetchList', [{}])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RATE_LIMITED', details: { retryAfterMs: 120 } },
+        });
+        expect(repositories.channel.fetchList).not.toHaveBeenCalled();
+    });
+
+    it('answers a malformed request INVALID', async () => {
+        const { hello, runtime } = build();
+        await hello();
+
+        await expect(
+            runtime.handlers.RuntimeCall({ type: 'RuntimeCall', data: { target: 'data', method: '' } } as never)
+        ).resolves.toMatchObject({ success: false, error: { code: 'INVALID' } });
+    });
+
+    it("pushes an open stream's events in the shape the vocabulary declares", async () => {
+        const { hello, subscribe, bridge, emitChannels } = build();
+        await hello();
+
+        await expect(subscribe('s1', 'channel.observeList', [{}, { $listener: true }])).resolves.toEqual({
+            type: 'OnRuntimeSubscribe',
+            success: true,
+            data: {},
+        });
+        emitChannels({ list: [{ id: 'ch1' }] });
+
+        expect(bridge.pushEvent).toHaveBeenCalledWith({
+            type: 'OnRuntimeEvent',
+            success: true,
+            data: { subscriptionId: 's1', seq: 1, event: [{ list: [{ id: 'ch1' }] }] },
+        });
+        expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
+    });
+
+    it(`holds a page load to ${SUB_WEBVIEW_STREAMS_PER_LOAD} streams`, async () => {
+        const { hello, subscribe } = build();
+        await hello();
+
+        for (let i = 0; i < SUB_WEBVIEW_STREAMS_PER_LOAD; i += 1) {
+            await expect(subscribe(`s${i}`, 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+                success: true,
+            });
+        }
+        await expect(subscribe('one-more', 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'INVALID' },
+        });
+        // The same id again replaces its stream rather than adding one.
+        await expect(subscribe('s0', 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+            success: true,
+        });
+    });
+
+    it('ends every open stream when the cloud changes, and answers nothing after', async () => {
+        const { hello, subscribe, call, bridge, moveTo, emitChannels, channelListenerCount, repositories } = build();
+        await hello();
+        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+        emitChannels({ list: [] });
+        bridge.pushEvent.mockClear();
+
+        moveTo('c2');
+
+        expect(bridge.pushEvent).toHaveBeenCalledWith({
+            type: 'OnRuntimeEvent',
+            success: true,
+            data: {
+                subscriptionId: 's1',
+                seq: 2,
+                event: { $ended: expect.objectContaining({ code: 'CLOUD_CHANGED' }) },
+            },
+        });
+        expect(channelListenerCount()).toBe(0);
+
+        bridge.pushEvent.mockClear();
+        emitChannels({ list: [{ id: 'late' }] });
+        expect(bridge.pushEvent).not.toHaveBeenCalled();
+
+        // Moving back does not reopen it: the view was bound to the cloud it opened on, once.
+        moveTo('c1');
+        await expect(call('data', 'channel.cacheReadList', [{}])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'CLOUD_CHANGED' },
+        });
+        expect(repositories.channel.cacheReadList).not.toHaveBeenCalled();
+    });
+
+    it('stops its streams and its session watch when disposed', async () => {
+        const { hello, subscribe, runtime, sessionListeners, channelListenerCount } = build();
+        await hello();
+        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+
+        runtime.dispose();
+
+        expect(channelListenerCount()).toBe(0);
+        expect(sessionListeners.size).toBe(0);
+    });
+});

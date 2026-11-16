@@ -164,8 +164,8 @@ Then:
 - **The handshake says the same thing.** The `WebAppReady` reply over that loopback lists exactly the
   registered requests — the vocabulary minus `MOBILE_UNSUPPORTED` — and their paired replies, since
   the web decides photo save and share and where performance traces go from that list. On a launch the
-  app's own runtime owns, it lists the four runtime requests too, and a build for any stage but
-  production lists the two session owner requests.
+  app's own runtime owns, it lists the four runtime requests too, and every build lists the two session owner requests,
+  which answer outside production or while debug mode is on and refuse with `NOT_ALLOWED` otherwise.
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
@@ -175,9 +175,9 @@ sub WebView subset — see [sub-webview.md](./sub-webview.md). `useRuntimeBridge
 runtime requests (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`) only on a
 launch the app's own runtime owns, so the suite, which mounts a launch the page owns, counts them
 among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md). `useSessionOwnerHandler`
-registers the development owner switch (`FetchSessionOwner`, `SetSessionOwner`) only in a build for a
-stage other than production, and the suite counts those two among `MOBILE_UNSUPPORTED` for the same
-reason — see [The switch](../runtime/README.md#the-switch).
+registers the owner switch (`FetchSessionOwner`, `SetSessionOwner`) on every build, answered outside
+production or while the app's debug mode is on. The suite does not mount it, so it counts those two among
+`MOBILE_UNSUPPORTED` — see [The switch](../runtime/README.md#the-switch).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and

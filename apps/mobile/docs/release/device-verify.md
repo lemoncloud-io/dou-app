@@ -109,14 +109,15 @@ runtime-mobile's boot, and a unit test keeps the harness's copy equal to it), so
 session owners and switching needs no rebuild. A mobile env leaves them empty, since nothing else in
 the app reads them, so the harness takes the empty ones from `apps/web/.env`, which names the same
 services — unless the two envs name different stages (`VITE_ENV`). `VITE_ENV` itself always comes from
-the mobile env: it is the app's own stage, which also decides whether the development switch exists.
+the mobile env: it is the app's own stage, which also decides whether the owner switch is answered always
+or, in production, only while debug mode is on.
 With `--session-owner native`, envs for different stages or a key with no value stop the run before the
 build (exit 2), naming the keys and never their values; without them the runtime's boot fails and the
 page silently keeps the session. A page-owned run never reads them.
 
 ### The session owner
 
-On the phone the session is the page's unless the development switch hands it to the app's own
+On the phone the session is the page's unless the owner switch hands it to the app's own
 runtime (mobile [docs/runtime](../runtime/README.md#the-switch)). A scenario run starts from a cleared
 install, which always puts it back on the page, so `--session-owner native` switches it after that:
 `_shared/fresh-guest.yaml` ends by running `_shared/native-session-owner.yaml` when the runner passes

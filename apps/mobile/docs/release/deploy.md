@@ -29,6 +29,14 @@ releasing is a human decision made in App Store Connect / Play Console.
     - Set the `*_DEV` variables only when the dev app uses a separate Apple account — left empty, dev
       deploys fall back to the shared values.
     - Adjust `PLAY_TRACK_DEV` if the Play closed-testing track is not named `alpha` in the console.
+4. **Give the app's env files the runtime's service settings** (from 0.32.0). The app can hold the
+   session itself ([runtime](../runtime/README.md)), and its runtime reads the same services the web
+   build of that stage does: `VITE_PROJECT`, `VITE_HOST`, `VITE_OAUTH_ENDPOINT`,
+   `VITE_SOCIAL_OAUTH_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT` and `VITE_WS_ENDPOINT`,
+   copied from `apps/web/.env.dev` into `apps/mobile/.env.dev` and from `apps/web/.env.prod` into
+   `apps/mobile/.env.prod`. A build without them still works: the runtime cannot start, every launch
+   stays the page's, and the debug overlay's Session owner screen shows **This page** as the page's own
+   session even after the switch.
 
 ## Deploy flow
 

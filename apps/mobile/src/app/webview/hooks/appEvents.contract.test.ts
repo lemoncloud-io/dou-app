@@ -67,12 +67,13 @@ const MOBILE_APP_EVENTS = {
     },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
     // Only on a launch the app's runtime owns, once a page said hello (docs/runtime/).
+    // And to a sub WebView page the runtime gate opened, from its own runtime bridge (docs/webview/).
     OnRuntimeEvent: {
-        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        emittedBy: ['app/services/runtime/runtimeBridge.ts', 'app/subWebView/subWebViewRuntimeBridge.ts'],
         test: 'app/services/runtime/runtimeBridge.test.ts',
     },
     OnRuntimeSessionChanged: {
-        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        emittedBy: ['app/services/runtime/runtimeBridge.ts', 'app/subWebView/subWebViewRuntimeBridge.ts'],
         test: 'app/services/runtime/runtimeBridge.test.ts',
     },
 } satisfies Record<string, Decision>;

@@ -35,6 +35,7 @@ describe('parseSubWebViewManifest', () => {
         expect(manifest).toEqual({
             name: 'DoU Quiz',
             permissions: new Set(['share', 'userKey']),
+            runtimePermissions: new Set(),
             display: 'fullscreen',
             orientation: 'landscape',
         });
@@ -54,14 +55,25 @@ describe('parseSubWebViewManifest', () => {
 
         expect(manifest).toEqual({
             permissions: new Set(['share']),
+            runtimePermissions: new Set(),
             display: 'fullscreen',
             orientation: 'any',
         });
     });
 
+    it('reads the runtime permissions into a set of their own, and drops a name it does not know', () => {
+        const manifest = parseSubWebViewManifest(
+            JSON.stringify({ manifestVersion: 1, permissions: ['share', 'channel', 'chat', 'messages', 'session'] })
+        );
+
+        expect(manifest?.permissions).toEqual(new Set(['share']));
+        expect(manifest?.runtimePermissions).toEqual(new Set(['channel', 'chat', 'session']));
+    });
+
     it('gives a page with no readable manifest the base set, no bar and any orientation', () => {
         expect(DEFAULT_SUB_WEBVIEW_MANIFEST).toEqual({
             permissions: new Set(),
+            runtimePermissions: new Set(),
             display: 'fullscreen',
             orientation: 'any',
         });

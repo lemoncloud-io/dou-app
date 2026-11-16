@@ -75,6 +75,19 @@ describe('W-01 plans', () => {
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
 
+    it('lists won on the English page where the build bills in won only', async () => {
+        // A production build has no dollar products, so a signed-in reader asking for dollars got an
+        // empty catalog and an empty page. The fake server still sells dollars, so the request itself
+        // is what is checked, not an empty list.
+        const setup = { ...mockSetup('?mock=new-trial-used'), foreignBilling: false };
+        const listPlans = vi.spyOn(setup.port, 'listPlans');
+        renderAt('/subscription/plans', setup);
+
+        expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — ₩8,600 today$/ })).toBeTruthy();
+        expect(listPlans).toHaveBeenCalledWith({ currency: 'KRW' });
+        expect(listPlans).not.toHaveBeenCalledWith({ currency: 'USD' });
+    });
+
     it('offers a subscriber the adjacent plans and opens the change for the one picked', async () => {
         renderAt('/subscription/plans', mockSetup('?mock=active'));
 

@@ -18,8 +18,9 @@ export type NotificationKind =
     | 'dmMessage';
 
 /**
- * One inbox entry, snapshotted when it was captured. A snapshot rather than a pointer into the chat
- * cache, because the source row pages out of that cache long before the inbox forgets the item.
+ * One inbox entry, worked out from a cached row each time its room is read (`roomNotifications`). It is
+ * never stored: an edit, a delete or a row leaving the cache changes or removes it on the next run.
+ * What the reader did to it lives in the overlay, keyed by `id`.
  */
 export interface NotificationItem {
     /** The dedupe key — see {@link notificationId} and {@link reactionNotificationId}. */
@@ -32,7 +33,7 @@ export interface NotificationItem {
     /** The place the room is in. Absent when the room belongs to no single place (a relay 1:1). */
     placeId?: string;
     channelId: string;
-    /** The room's name when captured, without `#` — its place's rooms may not be loaded when it is read. */
+    /** The room's name, without `#`, as its channel record has it now. */
     channelName?: string;
     /** Set when the room is a 1:1; such a room is named by its person, so it keeps no name. */
     inDm?: true;
@@ -49,7 +50,7 @@ export interface NotificationItem {
      */
     targetChatNo?: number;
     ownerId?: string;
-    /** The author's name when captured; a screen may resolve a fresher one from `ownerId`. */
+    /** The author's name as the row carries it; a screen may resolve a fresher one from `ownerId`. */
     ownerName: string;
     /** The message as one trimmed line — the emoji itself for a `reaction`. */
     content: string;
@@ -78,7 +79,7 @@ export const FIND_ME_KINDS: ReadonlySet<NotificationKind> = new Set(['mention', 
 
 /**
  * The inbox key of a message: its id under its cloud. Message ids are the cloud's own, so two clouds
- * can hand over the same one, and the second would read as already captured and be dropped.
+ * can hand over the same one, and without the cloud the overlay would mark both at once.
  */
 export const notificationId = (cloudId: string, chatId: string): string => `${cloudId}:${chatId}`;
 
@@ -95,8 +96,8 @@ export const reactionNotificationId = (
 ): string => `${cloudId}:reaction:${targetChatId}:${emoji}:${authorId}`;
 
 /**
- * How much of a message the inbox keeps. A row shows two lines at most, and the whole inbox is
- * rewritten to device storage on every change, so a long tail the reader never sees is not stored.
+ * How much of a message an item carries. A row shows two lines at most, and every item of a room is
+ * compared on each run, so a long tail the reader never sees is not carried.
  */
 export const NOTIFICATION_PREVIEW_CHARS = 240;
 

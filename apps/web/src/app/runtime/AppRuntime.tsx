@@ -19,6 +19,7 @@ import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '..
 import { NotificationsRunner } from '../features/notifications';
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
+import { ChatSyncRunner } from './ChatSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 import { PairedCloudNameRunner } from './PairedCloudNameRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
@@ -78,6 +79,7 @@ export const AppRuntime = () => {
                     <PreferenceLoader />
                     <BackgroundSyncRunner />
                     <BackgroundCloudsRunner />
+                    <ChatSyncRunner />
                     <UnreadBadgeRunner />
                     <CloudPushMarkRunner />
                     <CloudActivatedRunner />

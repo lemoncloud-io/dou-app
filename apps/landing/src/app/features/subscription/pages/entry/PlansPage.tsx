@@ -9,7 +9,7 @@ import { Badge, type BadgeTone, Banner, Button } from '../../components/ui';
 import { useCurrentSubscription, usePlans, usePreviewCheckout, useSession, useSubscriptions } from '../../hooks';
 import { currencyOfLanguage } from '../../lib/billingCountry';
 import { ENTRY_PLAN_SORT } from '../../lib/changeKindOf';
-import { useToday } from '../../lib/port';
+import { useForeignBilling, useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
 import { formatMoney } from '../../utils';
 import { type PlanChoice, type PlanTag, planChoicesOf } from './planChoices';
@@ -38,7 +38,7 @@ const checkoutPath = (plan: Plan) => `${ROUTES.subscription.checkout}?${new URLS
  * W-01 — the plans. A visitor and a signed-in reader with no plan are offered the entry plan only; a
  * subscriber is offered the step up and the step down. Which card is pickable comes from
  * `planChoicesOf`, and every price and trial length from the port. Prices are in the reader's language's
- * currency (`currencyOfLanguage`), or a subscriber's own.
+ * currency (`currencyOfLanguage`), in won wherever only won is billed, or a subscriber's own.
  *
  * Where the account surface is shut (`account` false) the reader is always a visitor and there is
  * nowhere to buy yet: the same plans and notes, with the store links in place of the subscribe button.
@@ -77,10 +77,12 @@ const PlansScene = ({
     const navigate = useNavigate();
     const today = useToday();
     const session = useSession();
+    const foreignBilling = useForeignBilling();
     // Prices are read in the page's language — won in Korean, dollars otherwise — until a subscription
     // is in force, whose own currency they then follow. What a checkout charges is the billing
-    // country's to decide, on the checkout.
-    const currency = subscription ? undefined : currencyOfLanguage(i18n.language);
+    // country's to decide, on the checkout. A build that bills in won only lists won whatever the
+    // language: it has no dollar products to list, so a signed-in reader would get an empty catalog.
+    const currency = subscription ? undefined : foreignBilling ? currencyOfLanguage(i18n.language) : 'KRW';
     const plans = usePlans(currency);
     const account = signedIn ? (session.data ?? null) : null;
     const storeBilled = account?.billingSource === 'appStore' || account?.billingSource === 'googlePlay';
