@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-11-16] - root@0.158.1, @chatic/web@0.90.1, @chatic/landing@0.18.4, @chatic/desktop-web@0.57.1
+
+### Features
+
+- (block-kit,web,desktop-web) draw a webhook card's source link last, not under its title
+- (block-kit,web,desktop-web,block-kit-builder) badge and colour webhook cards from source$
+- (block-kit,data,web,desktop-web) only a webhook send is a card, not a pasted payload (ADR-0253)
+- (block-kit,desktop-web,block-kit-builder) draw desktop webhook cards to the desktop design
+
+### Documentation
+
+- (adr) name the branch ADR-0318 and ADR-0319 land on, now that it is #809's
+- (desktop-web) say the webhook card sizes are at the default text size
+- (adr) name the webhook-card ADR 0254 in its own heading, to match its file
+- (adr) renumber the webhook-card ADR to 0254, since 0253 was taken on another branch
+
+### Other
+
+- build: bump @lemoncloud/chatic-socials-api to 5.26.1104 for the message source$ field
+- build: (web,block-kit-builder) name libs/block-kit in the tailwind content, not only via the nx graph
+
 ## [2026-11-16] - No version updates
 
 ### Refactor
