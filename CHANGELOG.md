@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (runtime-core) stream a write receipt across the bridge, not a promise JSON empties (ADR-0318)
+
 ## [2026-11-16] - root@0.157.1, @chatic/landing@0.18.3
 
 ### Bug Fixes
