@@ -319,8 +319,9 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
      * The observer form of `cacheReadLastList`. The key is determined by the channel set (sorted, so
      * order does not matter), and any chat write wakes this group through the `chats-last|` prefix
      * (`getAffectedListPrefixes`) — set membership cannot be expressed with startsWith, so a
-     * scope-global prefix is used. That cost is affordable because this observer exists only while home
-     * is mounted and re-runs are coalesced by the 50ms flush.
+     * scope-global prefix is used. That cost is affordable because the only long-lived observer is home's
+     * list, open only while home is mounted, and re-runs are coalesced by the 50ms flush. A caller that
+     * runs on every route should take the first answer and close it rather than hold this open.
      */
     public observeLastList(
         channelIds: string[],

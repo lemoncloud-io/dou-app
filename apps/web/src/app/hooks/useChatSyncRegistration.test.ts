@@ -3,13 +3,14 @@ import { act, renderHook } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, DomainLastChat } from '@chatic/data';
 
-import { useChatSyncRegistration } from './useChatSyncRegistration';
+import { readLastNos, useChatSyncRegistration } from './useChatSyncRegistration';
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         sync: {
             registerSyncTarget: jest.fn(),
             updateSyncSnapshot: jest.fn(),
+            fetchRoomFeed: jest.fn(),
         },
         session: {
             useSessionSelection: jest.fn(),
@@ -18,6 +19,7 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         data: {
             useRuntimeRepositories: jest.fn(),
+            getCloudRepositories: jest.fn(),
         },
         connection: {
             useRuntimeSocketState: jest.fn(),
@@ -26,10 +28,22 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
+interface Subscription {
+    ids: string[];
+    emit: (rows: DomainLastChat[]) => void;
+    unsubscribe: jest.Mock;
+}
+
 const registerChat = jest.fn();
 const updateSyncSnapshot = jest.fn();
-const observeLastList = jest.fn();
-const refreshList = jest.fn();
+const fetchRoomFeed = jest.fn();
+const olderRefreshList = jest.fn();
+let subscriptions: Subscription[] = [];
+const observeLastList = jest.fn((ids: string[], cb: (rows: DomainLastChat[]) => void) => {
+    const unsubscribe = jest.fn();
+    subscriptions.push({ ids, emit: cb, unsubscribe });
+    return unsubscribe;
+});
 
 /** Moves the selection, as both the render and a read outside it see it. */
 const select = (cid: string) => {
@@ -38,23 +52,26 @@ const select = (cid: string) => {
 };
 
 const channel = (id: string, chatNo = 0): DomainChannel => ({ id, chatNo }) as unknown as DomainChannel;
-const row = (channelId: string, lastNo: number): DomainLastChat => ({ channelId, lastNo, chat: null });
+const row = (channelId: string, lastNo: number): DomainLastChat => ({ channelId, lastNo, chat: null, activity: null });
 
-/** The last subscription's callback — emit() replays a combined observation result arriving. */
-let emitRows: (rows: DomainLastChat[]) => void = () => undefined;
-/** The same callback without its own act(), for a test that lands it in one batch with a switch. */
-let rawEmit: (rows: DomainLastChat[]) => void = () => undefined;
+/** Lets every promise the hook started settle, inside act. */
+const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+
+/** Answers the newest open reading, then lets what follows from it run. */
+const answer = async (rows: DomainLastChat[]) => {
+    const open = subscriptions[subscriptions.length - 1];
+    open.emit(rows);
+    await settle();
+};
 
 beforeEach(() => {
     jest.clearAllMocks();
-    observeLastList.mockImplementation((_ids: string[], cb: (rows: DomainLastChat[]) => void) => {
-        emitRows = rows => act(() => cb(rows));
-        rawEmit = cb;
-        return () => undefined;
-    });
-    refreshList.mockResolvedValue({ fetchedCount: 0 });
+    subscriptions = [];
+    fetchRoomFeed.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
+    olderRefreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
     registerChat.mockReturnValue(jest.fn());
-    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList, refreshList } });
+    (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList } });
+    (runtime.data.getCloudRepositories as jest.Mock).mockReturnValue({ chat: { refreshList: olderRefreshList } });
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
     select('cloud-a');
@@ -63,17 +80,40 @@ beforeEach(() => {
     (runtime.sync.updateSyncSnapshot as jest.Mock).mockImplementation((...args: unknown[]) =>
         updateSyncSnapshot(...args)
     );
+    (runtime.sync.fetchRoomFeed as jest.Mock).mockImplementation((...args: unknown[]) => fetchRoomFeed(...args));
 });
 
-describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', () => {
-    it('채널마다 chat 타깃을 등록한다', () => {
+describe('readLastNos', () => {
+    it('answers with the first reading and closes the subscription', async () => {
+        const reading = readLastNos({ observeLastList }, ['c1', 'c2']);
+        subscriptions[0].emit([row('c1', 4)]);
+
+        await expect(reading).resolves.toEqual(new Map([['c1', 4]]));
+        expect(subscriptions[0].unsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes a subscription that answered before it returned', async () => {
+        const unsubscribe = jest.fn();
+        const eager = jest.fn((_ids: string[], cb: (rows: DomainLastChat[]) => void) => {
+            cb([row('c1', 9)]);
+            return unsubscribe;
+        });
+
+        await expect(readLastNos({ observeLastList: eager }, ['c1'])).resolves.toEqual(new Map([['c1', 9]]));
+        await Promise.resolve();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('useChatSyncRegistration', () => {
+    it('registers a chat target for every channel', () => {
         renderHook(() => useChatSyncRegistration([channel('c1'), channel('c2')]));
 
         expect(registerChat).toHaveBeenCalledWith({ type: 'chat', id: 'c1' }, { cid: 'cloud-a' });
         expect(registerChat).toHaveBeenCalledWith({ type: 'chat', id: 'c2' }, { cid: 'cloud-a' });
     });
 
-    it('언마운트하면 등록을 모두 해제한다', () => {
+    it('drops every registration on unmount', () => {
         const dispose = jest.fn();
         registerChat.mockReturnValue(dispose);
 
@@ -83,7 +123,7 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         expect(dispose).toHaveBeenCalledTimes(2);
     });
 
-    it('순서만 바뀐 같은 집합은 재등록하지 않는다', () => {
+    it('neither re-registers nor reads again when only the order changes', () => {
         const { rerender } = renderHook(({ channels }) => useChatSyncRegistration(channels), {
             initialProps: { channels: [channel('c1'), channel('c2')] },
         });
@@ -93,19 +133,21 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         expect(observeLastList).toHaveBeenCalledTimes(1);
     });
 
-    it('소켓이 인증되기 전에는 등록하지 않는다', () => {
+    it('does nothing before the socket is verified', () => {
         (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(false);
 
         renderHook(() => useChatSyncRegistration([channel('c1')]));
 
         expect(registerChat).not.toHaveBeenCalled();
+        expect(observeLastList).not.toHaveBeenCalled();
     });
 
-    it('캐시의 lastNo로 plan 기준선을 맞춘다 (메시지 윈도우는 건드리지 않는다)', () => {
-        renderHook(() => useChatSyncRegistration([channel('c1')]));
+    it('aligns the plan baseline from one reading, for the channels the cache holds', async () => {
+        renderHook(() => useChatSyncRegistration([channel('c1'), channel('c2')]));
 
-        emitRows([row('c1', 12)]);
+        await answer([row('c1', 12)]);
 
+        expect(updateSyncSnapshot).toHaveBeenCalledTimes(1);
         expect(updateSyncSnapshot).toHaveBeenCalledWith(
             { type: 'chat', id: 'c1' },
             { id: 'c1', lastNo: 12 },
@@ -113,29 +155,104 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         );
     });
 
-    it('head가 캐시보다 앞선 채널만 최신 페이지를 당긴다', () => {
+    it('closes the reading, so a later chat write wakes nothing', async () => {
+        renderHook(() => useChatSyncRegistration([channel('c1', 7)]));
+        await answer([row('c1', 4)]);
+
+        expect(subscriptions[0].unsubscribe).toHaveBeenCalled();
+        subscriptions[0].emit([row('c1', 4)]);
+        await settle();
+
+        expect(observeLastList).toHaveBeenCalledTimes(1);
+        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
+    });
+
+    it('fetches the newest page through the room feed, only for channels whose head is ahead', async () => {
         renderHook(() => useChatSyncRegistration([channel('c1', 7), channel('c2', 3)]));
 
-        emitRows([row('c1', 4), row('c2', 3)]);
+        await answer([row('c1', 4), row('c2', 3)]);
 
-        expect(refreshList).toHaveBeenCalledTimes(1);
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'c1', limit: 30 });
+        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'hit' });
     });
 
-    it('같은 head로는 두 번 당기지 않는다', () => {
-        renderHook(() => useChatSyncRegistration([channel('c1', 7)]));
+    it('marks a room the cache holds nothing of as a cache miss and does not walk it', async () => {
+        fetchRoomFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
+        renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
 
-        emitRows([row('c1', 4)]);
-        // The response is only non-previewable rows, so it doesn't refire even though lastNo is unchanged.
-        emitRows([row('c1', 4)]);
+        await answer([]);
 
-        expect(refreshList).toHaveBeenCalledTimes(1);
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'miss' });
+        expect(olderRefreshList).not.toHaveBeenCalled();
     });
 
-    it('첫 관측 결과가 오기 전에는 발사하지 않는다 — 비교 기준이 없으면 warm 캐시도 오판한다', () => {
-        renderHook(() => useChatSyncRegistration([channel('c1', 7)]));
+    it('reads again only the room whose head moved', async () => {
+        const { rerender } = renderHook(({ channels }) => useChatSyncRegistration(channels), {
+            initialProps: { channels: [channel('c1', 4), channel('c2', 3)] },
+        });
+        await answer([row('c1', 4), row('c2', 3)]);
 
-        expect(refreshList).not.toHaveBeenCalled();
+        rerender({ channels: [channel('c1', 5), channel('c2', 3)] });
+        await answer([row('c1', 4)]);
+
+        expect(subscriptions[1].ids).toEqual(['c1']);
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'hit' });
+    });
+
+    it('walks one head once', async () => {
+        const { rerender } = renderHook(({ channels }) => useChatSyncRegistration(channels), {
+            initialProps: { channels: [channel('c1', 7)] },
+        });
+        await answer([row('c1', 4)]);
+
+        rerender({ channels: [channel('c1', 7)] });
+        await settle();
+
+        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
+    });
+
+    it('pages older through the cloud repositories until the pages meet the newest cached row', async () => {
+        fetchRoomFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
+        olderRefreshList
+            .mockResolvedValueOnce({ fetchedCount: 50, cursorNo: 131 })
+            .mockResolvedValueOnce({ fetchedCount: 50, cursorNo: 81 });
+        renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
+
+        await answer([row('c1', 100)]);
+
+        expect(runtime.data.getCloudRepositories).toHaveBeenCalledWith('cloud-a');
+        expect(olderRefreshList.mock.calls).toEqual([
+            [{ channelId: 'c1', cursorNo: 181, limit: 50 }, { cursorIsRow: true }],
+            [{ channelId: 'c1', cursorNo: 131, limit: 50 }, { cursorIsRow: true }],
+        ]);
+    });
+
+    it('stops paging older once the selection moves to another cloud', async () => {
+        let answerNewest: (page: { fetchedCount: number; cursorNo: number }) => void = () => undefined;
+        fetchRoomFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
+        renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
+        await answer([row('c1', 100)]);
+
+        // The switch lands while the newest page is in flight.
+        select('cloud-b');
+        await act(async () => answerNewest({ fetchedCount: 20, cursorNo: 181 }));
+        await settle();
+
+        expect(olderRefreshList).not.toHaveBeenCalled();
+    });
+
+    it('stops paging older once the account in the cloud changes', async () => {
+        let answerNewest: (page: { fetchedCount: number; cursorNo: number }) => void = () => undefined;
+        fetchRoomFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
+        const { rerender } = renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
+        await answer([row('c1', 100)]);
+
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('someone-else');
+        rerender();
+        await act(async () => answerNewest({ fetchedCount: 20, cursorNo: 181 }));
+        await settle();
+
+        expect(olderRefreshList).not.toHaveBeenCalled();
     });
 
     it("waits for the selected cloud's own slot before registering", () => {
@@ -153,8 +270,9 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         expect(registerChat).toHaveBeenCalledTimes(2);
     });
 
-    it('re-registers and re-observes under the next cloud after a switch', () => {
+    it('re-registers and reads again under the next cloud after a switch', async () => {
         const { rerender } = renderHook(() => useChatSyncRegistration([channel('c1')]));
+        await answer([row('c1', 3)]);
 
         select('cloud-b');
         rerender();
@@ -163,38 +281,24 @@ describe('useChatSyncRegistration — 활성 사이트 채널들의 chat sync', 
         expect(observeLastList).toHaveBeenCalledTimes(2);
     });
 
-    it('does not push a baseline to a cloud the selection moved to after the observation', () => {
-        const { rerender } = renderHook(() => useChatSyncRegistration([channel('c1')]));
-
-        // The reading lands in the same batch as the switch, so the effect that pushes it runs in a
-        // render whose selection is already the next cloud.
-        select('cloud-b');
-        act(() => {
-            rawEmit([row('c1', 12)]);
-            rerender();
-        });
-
-        expect(updateSyncSnapshot).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), {
-            cid: 'cloud-b',
-        });
-        expect(updateSyncSnapshot).toHaveBeenCalledWith(
-            { type: 'chat', id: 'c1' },
-            { id: 'c1', lastNo: 12 },
-            { cid: 'cloud-a' }
-        );
-    });
-
-    it("does not catch up the next cloud's channels from the cloud the list just left", () => {
+    it('drops a reading that answers after the selection moved, and reads again in the next cloud', async () => {
         const { rerender } = renderHook(({ channels }) => useChatSyncRegistration(channels), {
             initialProps: { channels: [channel('a1', 5)] },
         });
-        emitRows([row('a1', 5)]);
 
         select('cloud-b');
-        rerender({ channels: [channel('b1', 3)] });
+        await answer([row('a1', 5)]);
+        expect(updateSyncSnapshot).not.toHaveBeenCalled();
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
 
-        expect(refreshList).not.toHaveBeenCalled();
-        emitRows([row('b1', 1)]);
-        expect(refreshList).toHaveBeenCalledWith({ channelId: 'b1', limit: 30 });
+        rerender({ channels: [channel('b1', 3)] });
+        await answer([row('b1', 1)]);
+
+        expect(updateSyncSnapshot).toHaveBeenCalledWith(
+            { type: 'chat', id: 'b1' },
+            { id: 'b1', lastNo: 1 },
+            { cid: 'cloud-b' }
+        );
+        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-b', 'b1', { cache: 'hit' });
     });
 });
