@@ -90,8 +90,14 @@ export const useScrollRestoration = (
             // (or, worse, a live container whose scrollTop is now stale/irrelevant) rather than the
             // last real position, so re-deriving anything from `containerRef.current` here would
             // only make things worse, never better.
+            //
+            // Only when nothing newer was recorded, though. A claim can stay unspent through a whole
+            // visit — a list too short to scroll when `ready` turned true, then lengthened without
+            // `ready` changing — and the reader may have scrolled the longer list meanwhile. `onScroll`
+            // wrote that position; putting the stale claim over it would send the next visit back to a
+            // place the reader had already left.
             const unspent = pendingRef.current;
-            if (unspent?.key === key) stashScroll(key, unspent.top);
+            if (unspent?.key === key && !scrollPositions.has(key)) stashScroll(key, unspent.top);
         };
     }, [key]);
 

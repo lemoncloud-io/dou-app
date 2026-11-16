@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigationType } from 'react-router-dom';
+
+import { runtime } from '@chatic/app-runtime';
 
 import {
     AlertDialog,
@@ -11,7 +14,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { haptics } from '../../../bridge/haptics';
-import { useScopedNotifications } from '../../../hooks';
+import { takeScroll, toCloudId, useScopedNotifications, useScrollRestoration } from '../../../hooks';
 import { useBottomNavSuppression } from '../../../stores/useBottomNavSuppression';
 import { BottomNavSpacer } from '../../../ui/components';
 import {
@@ -26,6 +29,7 @@ import {
 } from '../../../utils/notifications';
 import { NotificationListItem } from '../components/NotificationListItem';
 import { QUICK_SELECTIONS, useNotificationActions, useNotificationSelection } from '../hooks';
+import { useNotificationsViewStore } from '../stores/useNotificationsViewStore';
 import { formatDayHeading } from '../utils/rowParts';
 
 /**
@@ -38,8 +42,30 @@ export const NotificationsPage = () => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
     const items = useScopedNotifications();
-    const [tab, setTab] = useState<NotificationTab>('all');
-    const [unreadOnly, setUnreadOnly] = useState(false);
+    // Tab and filter outlive the page so a return from an opened item lands on the same list; the
+    // scroll offset below is only meaningful against that list.
+    const tab = useNotificationsViewStore(state => state.tab);
+    const setTab = useNotificationsViewStore(state => state.setTab);
+    const unreadOnly = useNotificationsViewStore(state => state.unreadOnly);
+    const setUnreadOnly = useNotificationsViewStore(state => state.setUnreadOnly);
+    const resetView = useNotificationsViewStore(state => state.reset);
+    // The offset belongs to one place's list: another place or cloud lists other items, and landing
+    // its reader mid-way down at a position they never scrolled to is no better than the top.
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    const scrollKey = `notifications:${toCloudId(selectedCloudId)}:${selectedSiteId ?? ''}`;
+
+    // Only a return (a back press, POP) lands where the reader left. Any other way in — the bottom
+    // nav's bell, whose dot means something new arrived, and new items sort to the top — is a fresh
+    // look at the inbox: "all", the filter off, the top. Settled before the restore below claims the
+    // offset (layout effects run in order) and before paint, so the old tab never shows.
+    const navigationType = useNavigationType();
+    const enteredFresh = useRef(navigationType !== 'POP');
+    useLayoutEffect(() => {
+        if (!enteredFresh.current) return;
+        resetView();
+        takeScroll(scrollKey);
+        // Once, at entry: a later change of scope while the page is open is not a new entry.
+    }, []);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const actions = useNotificationActions();
 
@@ -49,6 +75,19 @@ export const NotificationsPage = () => {
     const now = Date.now();
     const groups = groupByDay(visible, now);
     const selection = useNotificationSelection(visible);
+    // Opening an item navigates away and unmounts this page, so without this a back press lands at
+    // the top. Ready once rows are drawn: an offset applied to an empty list clamps to 0 and is lost.
+    const {
+        containerRef: scrollContainerRef,
+        onScroll: handleListScroll,
+        consumePendingRestore,
+    } = useScrollRestoration(scrollKey, visible.length > 0);
+    // Changing the filter changes the list under a claim still waiting for rows (say, the return
+    // landed on "nothing unread"): the old offset means nothing against the new list, so drop it.
+    const changeUnreadOnly = (on: boolean) => {
+        consumePendingRestore();
+        setUnreadOnly(on);
+    };
     // The action bar takes the bottom nav's place while selecting, as the design swaps them.
     const setNavSuppressed = useBottomNavSuppression(state => state.setSuppressed);
     useEffect(() => {
@@ -103,7 +142,7 @@ export const NotificationsPage = () => {
             icon={bell}
             title={t('notifications.inbox.empty.unread')}
             actionLabel={t('notifications.inbox.empty.showAll')}
-            onAction={() => setUnreadOnly(false)}
+            onAction={() => changeUnreadOnly(false)}
         />
     ) : null;
 
@@ -163,7 +202,7 @@ export const NotificationsPage = () => {
                 }}
             />
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div ref={scrollContainerRef} onScroll={handleListScroll} className="min-h-0 flex-1 overflow-y-auto">
                 {hasAnything &&
                     (selection.active ? (
                         <div
@@ -193,7 +232,7 @@ export const NotificationsPage = () => {
                                 selected={unreadOnly}
                                 onClick={() => {
                                     tick();
-                                    setUnreadOnly(on => !on);
+                                    changeUnreadOnly(!unreadOnly);
                                 }}
                             />
                             <button

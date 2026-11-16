@@ -204,7 +204,22 @@ not:
   close the mode and show a 3-second toast whose "Undo" puts back exactly what changed
   (`useNotificationActions`). Deleting takes items off the inbox only; the messages stay;
 - three empty states — nothing at all (no filter row, no "Select"), an empty tab (named), and nothing
-  unread under "Unread only" (with "Show all notifications").
+  unread under "Unread only" (with "Show all notifications");
+- **coming back lands where the reader left.** Opening an item navigates away and unmounts the page,
+  so the tab and "Unread only" live outside it, in memory (`stores/useNotificationsViewStore`), and the
+  list's offset is kept by the app's `useScrollRestoration`. The two go together: an offset restored
+  onto a different list would land somewhere meaningless. Hence three rules:
+    - **Only a return restores.** The page reads how it was reached (`useNavigationType`): a back
+      press is `POP` and lands on the tab, filter and offset that were left. Any other way in — the
+      bottom nav's bell replaces rather than pops — starts on "All", filter off, at the top: the
+      bell's dot says something new arrived, and new items sort to the top. Home restores on every
+      entry; the inbox deliberately does not.
+    - **The offset is kept per place** (`notifications:<cloud>:<place>`), since each place lists other
+      items. The tab and filter are one setting for the whole inbox.
+    - **Changing the filter drops an offset still waiting for rows** — a return onto "nothing unread"
+      followed by "Show all" opens the full list at the top, not at a point the reader never saw.
+
+    Memory only — a relaunch starts fresh. Selection mode is not kept; a return always browses.
 
 **The find-me sheet** (`components/FindMeSheet`) — what is looking for the reader now: `findMe` of the
 scope (unread mentions, thread mentions and replies to my messages), narrowed by All / Mentions /

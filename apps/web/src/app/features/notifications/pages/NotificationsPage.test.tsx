@@ -2,8 +2,10 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
+import { takeScroll } from '../../../hooks/useScrollRestoration';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
 import type { NotificationItem } from '../../../utils/notifications';
+import { useNotificationsViewStore } from '../stores/useNotificationsViewStore';
 import { NotificationsPage } from './NotificationsPage';
 
 jest.mock('react-i18next', () => ({
@@ -23,11 +25,32 @@ jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
     ToastAction: ({ children }: any) => <button>{children}</button>,
 }));
 // The inbox where the session is: the real store, unscoped — every test item is in scope.
-jest.mock('../../../hooks', () => ({
-    useScopedNotifications: () => {
-        const { useNotificationStore: store } = jest.requireActual('../../../stores/useNotificationStore');
-        return Object.values(store((state: { items: Record<string, unknown> }) => state.items));
-    },
+jest.mock('../../../hooks', () => {
+    // The real hook and its memory: the return-from-an-item tests depend on both.
+    const restoration = jest.requireActual('../../../hooks/useScrollRestoration');
+    return {
+        useScopedNotifications: () => {
+            const { useNotificationStore: store } = jest.requireActual('../../../stores/useNotificationStore');
+            return Object.values(store((state: { items: Record<string, unknown> }) => state.items));
+        },
+        useScrollRestoration: restoration.useScrollRestoration,
+        takeScroll: restoration.takeScroll,
+        toCloudId: (cid: string | null | undefined) => cid || 'default',
+    };
+});
+// Where the session is, for the scroll memory's key. Mutable so a test can move it.
+let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | null } = {
+    selectedCloudId: 'c',
+    selectedSiteId: 's',
+};
+jest.mock('@chatic/app-runtime', () => ({
+    runtime: { session: { useSessionSelection: () => mockSelection } },
+}));
+// How the page was reached: a back press is POP, the bottom nav REPLACE, opening a link PUSH.
+let mockNavigationType = 'POP';
+jest.mock('react-router-dom', () => ({
+    ...jest.requireActual('react-router-dom'),
+    useNavigationType: () => mockNavigationType,
 }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => null }));
 const mockHaptic = jest.fn();
@@ -63,6 +86,12 @@ describe('NotificationsPage', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seed();
+        // Both outlive a page on purpose, so each test starts from a fresh visit.
+        useNotificationsViewStore.setState({ tab: 'all', unreadOnly: false });
+        mockSelection = { selectedCloudId: 'c', selectedSiteId: 's' };
+        mockNavigationType = 'POP';
+        takeScroll('notifications:c:s');
+        takeScroll('notifications:c:other');
     });
 
     it('lists the items with unread counts on the tabs', () => {
@@ -193,5 +222,106 @@ describe('NotificationsPage', () => {
 
         fireEvent.click(rowByContent('open me'));
         expect(mockHaptic).not.toHaveBeenCalled();
+    });
+
+    describe('coming back from an opened item', () => {
+        // jsdom lays nothing out, so every element reports a zero-height box and a restore would be
+        // skipped as "nothing to scroll". Give the list a scrollable box for these cases only.
+        beforeEach(() => {
+            jest.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
+            jest.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(500);
+        });
+        afterEach(() => jest.restoreAllMocks());
+
+        const scrollList = (view: ReturnType<typeof render>) =>
+            view.container.querySelector('.overflow-y-auto') as HTMLElement;
+        const leaveAt = (view: ReturnType<typeof render>, top: number) => {
+            const list = scrollList(view);
+            list.scrollTop = top;
+            fireEvent.scroll(list);
+            view.unmount();
+        };
+
+        it('lands at the scroll offset it left', () => {
+            seed(item({ id: 'a', content: 'first' }), item({ id: 'b', content: 'second' }));
+            leaveAt(render(<NotificationsPage />), 640);
+
+            const again = render(<NotificationsPage />);
+            expect(scrollList(again).scrollTop).toBe(640);
+        });
+
+        it('keeps the tab and the "unread only" filter it left', () => {
+            seed(item({ id: 'a', content: 'mention me' }), item({ id: 'b', kind: 'replyToMine', content: 'reply' }));
+            const first = render(<NotificationsPage />);
+            fireEvent.click(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.mention/ }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
+            first.unmount();
+
+            render(<NotificationsPage />);
+            expect(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.mention/ })).toHaveAttribute(
+                'aria-selected',
+                'true'
+            );
+            expect(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' })).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
+            expect(screen.getByText('mention me')).toBeInTheDocument();
+            expect(screen.queryByText('reply')).not.toBeInTheDocument();
+        });
+
+        it('keeps the offset per place, so another place starts at the top', () => {
+            seed(item({ id: 'a', content: 'first' }), item({ id: 'b', content: 'second' }));
+            leaveAt(render(<NotificationsPage />), 640);
+
+            mockSelection = { selectedCloudId: 'c', selectedSiteId: 'other' };
+            const elsewhere = render(<NotificationsPage />);
+            expect(scrollList(elsewhere).scrollTop).toBe(0);
+            elsewhere.unmount();
+
+            mockSelection = { selectedCloudId: 'c', selectedSiteId: 's' };
+            const back = render(<NotificationsPage />);
+            expect(scrollList(back).scrollTop).toBe(640);
+        });
+
+        it('starts fresh — all, filter off, at the top — when it is entered rather than returned to', () => {
+            seed(item({ id: 'a', content: 'mention me' }), item({ id: 'b', kind: 'replyToMine', content: 'reply' }));
+            const first = render(<NotificationsPage />);
+            fireEvent.click(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.mention/ }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
+            leaveAt(first, 640);
+
+            // The bottom nav's bell replaces the entry rather than popping back to it.
+            mockNavigationType = 'REPLACE';
+            const entered = render(<NotificationsPage />);
+            expect(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.all/ })).toHaveAttribute(
+                'aria-selected',
+                'true'
+            );
+            expect(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' })).toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
+            expect(screen.getByText('reply')).toBeInTheDocument();
+            expect(scrollList(entered).scrollTop).toBe(0);
+        });
+
+        it('drops the old offset when "show all" replaces a list it was waiting for', () => {
+            seed(item({ id: 'a', content: 'unread one' }), item({ id: 'b', content: 'read one', read: true }));
+            const first = render(<NotificationsPage />);
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
+            leaveAt(first, 640);
+
+            // Opening it read the last unread item, so the return lands on "nothing unread".
+            seed(
+                item({ id: 'a', content: 'unread one', read: true }),
+                item({ id: 'b', content: 'read one', read: true })
+            );
+            const again = render(<NotificationsPage />);
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.empty.showAll' }));
+
+            expect(screen.getByText('read one')).toBeInTheDocument();
+            expect(scrollList(again).scrollTop).toBe(0);
+        });
     });
 });

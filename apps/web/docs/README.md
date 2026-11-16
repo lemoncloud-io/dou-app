@@ -171,10 +171,10 @@ feature's `hooks/` is where that gets wrapped. There is no separate `entities/` 
 either — `types/` is the entity layer, promoted to a cross-cutting `types` only on a second
 consumer.
 
-The 14 feature folders do not all use the same subset. Counting actual subfolders under
-`app/features/*/`: `components` (12), `pages` (12), `hooks` (12), `lib` (9), `routes` (7), `types`
-(4), `consts`/`constants` (4), `utils` (3), `stores` (3), plus one-offs (`invite/accept`,
-`debug/overlay`, `debug/metrics`, `debug/i18n`). `routes/` appears only in features that export their own
+The feature folders do not all use the same subset. `components`, `pages` and `hooks` are in most of
+them; `lib`, `routes`, `types`, `consts`/`constants`, `utils` and `stores` in fewer, plus one-offs
+(`invite/accept`, `debug/overlay`, `debug/metrics`, `debug/i18n`). The command below prints the
+current counts — they are not written here because they go stale with every new folder. `routes/` appears only in features that export their own
 `<Feature>Routes` for the top-level route tables to lazy-compose; `lib/`, `utils/` and `stores/` show
 up where a feature's own logic outgrows `hooks/`. Treat the skeleton above as the common case, not a
 fixed shape — add the subfolder a feature actually needs rather than forcing every feature to carry
