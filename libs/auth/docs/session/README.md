@@ -10,10 +10,10 @@ reads them for React — the hooks — is app-runtime's
 **`session/` runs the use cases, and it does not reach the network directly.** Login, token exchange,
 site selection and teardown all go through the `AuthRepository` (ADR-0036). No file here holds a
 gateway. It is not React, so it reads the repository through a synchronous accessor rather than the
-`useRuntimeRepositories` hook — `authRepositorySource.get()`, which `initAppRuntime()` wires. The
+`useRuntimeRepositories` hook — `authRepositorySource.get()`, which `createRuntime()` wires. The
 graph that holds the repository is assembled in app-runtime's `data/`, a package above this one, so it
 is handed down at boot rather than imported; unwired, `get()` throws a message naming
-`initAppRuntime()`.
+`createRuntime()`.
 
 ## The use cases
 
@@ -30,6 +30,20 @@ Each is a class with a single exported singleton; the class itself stays private
 | `logoutStorageSweeper`   | `sweep()`                                                                                                                                                                          |
 | `secretStorageMigration` | `prepare({ vault, plain, web, afterLogout })`                                                                                                                                      |
 | `relayCredentialProbe`   | `hasSession()` · `isCredentialExpired(now?)` — a plain object, no class                                                                                                            |
+
+**No login hands a screen its token.** The app-facing logins answer with the account's fields
+(`SessionAccountView`, the token view without `Token` — `withoutToken` in
+[`accountView.ts`](../../src/session/accountView.ts)), or less: `createCredentialsByProvider` and the
+app-runtime login hooks. On the phone the session can belong to another process, and the page then
+must not hold a credential. An invite login's answer is the invitee's own cloud token, so
+`registerUserWithInviteCode` keeps it ([`inviteLogins.ts`](../../src/session/inviteLogins.ts)) and
+answers with an `InviteLogin` — a handle (with a random part, so a stale one names nothing) and the
+cloud the answer names. The cloud switch reads the answer by its handle (`readInviteLogin`) and forgets
+it once the cloud is entered, so a switch retried after a network failure enters with the same answer;
+a handle it does not hold is refused with `INVITE_LOGIN_UNKNOWN` rather than entered the ordinary way,
+which would answer for the relay user rather than the invitee. A screen that will not enter with an
+answer forgets it (`forgetInviteLogin`): the owner opening their own invite, an invite without a cloud,
+an accept that failed, desktop's accept. At most four answers wait; the oldest go first.
 
 `loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
 it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin reaches with no session. With
@@ -59,6 +73,33 @@ in memory, which relay user it was asked as (`lastIssuedForOf`), for the owned-c
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 
+**An exchange may not move the account to another user in a cloud.** When a uid is already recorded for
+the cloud and the fresh token names a different one, the exchange throws `CloudIdentityChangedError`
+and writes nothing: the cache, the identity map and the session store keep the recorded user, and every
+caller treats it as a failed issue (a switch shows its failure, a renewal or a background slot backs
+off). The reason is what `delegate-cloud` answers. It issues for the relay user the request comes from
+(for a signed-in account, the guest its sign-in started from), and the exchange finds or creates that
+user's account in the cloud. An invitee whose invite login was made through a different guest
+therefore gets a new, empty user: no place, no room, every request refused. Taking that token hides
+everything the invitee had and overwrites the recorded uid, which is the last trace of the right
+user. The one change that is meant to happen, the owned-cloud reclaim, gets an owner token, and only
+the server can issue one, so a token whose role is `owner` is let through. With no uid recorded (a
+first entry, or after the account signed out and the map was cleared) any answer is taken. An invite
+login's own answer is committed by `cloudSession.switchTo` without an exchange, so accepting an invite
+again can still set the user. A pairing's entry (`prepareEntry`) forgets the cloud's uid before its re-issue, because
+replacing the tab's identity with the approver's is what it is for, and a guest that signs in to an
+account ends its paired clouds the same way.
+
+A refusal is remembered for the page life and answered without a round trip while the recorded uid is
+still the one it was refused over. The server's answer does not change until something on the device
+moves that uid, and without the memo every renewal tick and background retry would repeat the
+`delegate-cloud` and `exchange-token` calls.
+
+What `delegate-cloud` picks was measured on dev. A signed-in account that accepted an invite, and a
+guest that accepted and then signed in, both get back the guest their own session signed in from, so
+their uid stays the same. A flip takes a relay session linked to a guest other than the one whose
+invite login made the invitee.
+
 `relaySession.clearAndRedirect()` performs no server-side logout; notifying the sockets is
 [`logoutSession`](../socket/README.md)'s job, in `socket/`. It ends the account on this device, in
 this order, and only then leaves the page:
@@ -67,7 +108,7 @@ this order, and only then leaves the page:
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
 2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
-   keys declare them, and the app hands them to `initAppRuntime({ signedOutKeyPrefixes })`, which
+   keys declare them, and the app hands them to `createWebRuntime({ signedOutKeyPrefixes })`, whose `createRuntime`
    registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
@@ -75,12 +116,14 @@ this order, and only then leaves the page:
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
    into the plain store and the next boot empties the vault before reading it.
-4. **`location.replace('/?logout=1')`.**
+4. **Home, with `logout=1`.** `authPlatform.ports().leaveToHome(params)` — in a page,
+   `location.replace('/?logout=1')`, plus the sign-in parameters of the address it was opened with
+   (`code`, `provider`, `_backend`, `_wss`) when `preserveUrl` is set.
 
 The HTTP transport has nothing of its own to clear: it signs every request from the session's relay
 token, which step 1 removed.
 
-`logoutStorageSweeper.sweep()` reads that flag on the next document and runs step 2 once more, for a
+`logoutStorageSweeper.sweep()` reads that flag (through `authPlatform.ports().currentSearch()`) on the next document and runs step 2 once more, for a
 log batch written between the clear and the navigation. It used to wipe the whole `@` namespace of the
 session's storage instead, keeping the language key and the config lane; that took lemon-web-core's
 bundle, which nothing writes any more, and whatever else later moved in under `@`.
@@ -89,7 +132,8 @@ bundle, which nothing writes any more, and whatever else later moved in under `@
 
 An app or desktop shell that keeps a vault lists it in `window.CHATIC_APP_STORAGE_MEDIA`. Its entry
 point then builds a `nativeSecure` store for the session's secret port and awaits
-`secretStorageMigration.prepare` (app-facing as `runtime.boot.prepareSecretStorage`) before the runtime
+`secretStorageMigration.prepare` (as runtime-core's `prepareSecretStorage`, app-facing as
+`runtime.boot.prepareSecretStorage`; the phone app's own runtime runs the same step) before the runtime
 boots. It loads the vault and moves the four tokens out of the origin's `localStorage`, where they
 lived before, deleting the web copy only once the shell confirmed the vault holds them:
 
@@ -110,8 +154,30 @@ device key that was invalidated, data from another device): it empties it and th
 again. Every row is decided from what the vault and web storage hold, so a boot that dies half-way does
 the move again next time.
 
+**The rows are decided by the tokens alone.** The vault may also hold the device guest's id (below),
+and a vault holding only that id is not a signed-in one: it takes the `empty` rows, so a web copy of
+the tokens is still moved rather than deleted.
+
+**The device guest's id is copied, never moved.** In three rows the boot copies `chatic-delegator-id`
+from the plain store into the vault if the vault lacks it, and leaves the plain copy where it is:
+`values`; `empty` with no web copy; and `empty` with a web copy, once the move is confirmed. It does not
+overwrite an id the vault already holds. It does not run in the logout row, in the unavailable rows, or
+after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
+unanswered offer leaves the store on the vault with the session's tokens, where a refused `set` would
+switch the whole run to the tab. The boot does not wait for it either, so a shell that never answers
+does not hold every launch for the full timeout. A copy that does not land is logged, the reader
+(`identityStore`) falls back to the plain copy, and the next boot tries again. The vault's own shell
+may still stop accepting writes for the process after a keychain failure; a token write in that run
+would have met the same failure. The tab sweeps (once the vault answers again, and at a logout) take
+the id along with the tokens: a run whose vault was unavailable wrote it there through the fallback. The id has to reach the vault because the phone app's runtime reads only the vault and
+its own file, and an install signed in to an account never logs in as a guest again, the one moment the
+id is written. It is copied rather than moved because deleting it would be the one way this step could
+lose it: an older web build, a run whose vault cannot be read, and this step itself read the plain copy.
+That is also why the id is not on `SESSION_KEYS.secret` — every key there has its web copy deleted by
+the `values` row above.
+
 lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
-`initAppRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
+`createRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
 signed from the session's relay token now and nothing writes under that prefix, so a bundle in web
 storage is left from an older build.
 
@@ -128,18 +194,18 @@ reloads onto it.
 and the relay credential has expired when `credentialFreshness` measures nothing left on it — or
 nothing to measure. `relaySession.initialize()` reads the first to decide whether the boot is signed
 in; nothing is rebuilt from the token, because signed HTTP reads it per request.
-`useSessionStalenessGuard` reads both. They used to be asked of lemon-web-core's own stored token
+runtime-core's `RelayCredentialGuard` reads both. They used to be asked of lemon-web-core's own stored token
 bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
-[`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three
-apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the
-repository takes an object. Keeping that translation in one place is its entire reason to exist.
+[`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: its callers
+(runtime-core's `loginWithInviteCode` command, app-runtime's `fetchInviteInfoWithCode`) pass positional
+arguments and the repository takes an object. Keeping that translation in one place is its entire reason to exist.
 
 [`clearSiteSelection.ts`](../../src/session/clearSiteSelection.ts) empties the active cloud's place
 selection and does nothing else — no `auth.switch`, no switch token, the socket session stays put. It is
 on the barrel for one case: the user has just left the last place of a cloud, so there is no place to
 switch to, and keeping the old id would leave the app on a place they are no longer in (apps/web's
-`useSwitchPlace` calls it). Moving between places stays `useSiteSwitch`'s job.
+`useSwitchPlace` asks for it, through runtime-core's `clearSiteSelection` command). Moving between places stays `useSiteSwitch`'s job.
 
 ## Further reading
 

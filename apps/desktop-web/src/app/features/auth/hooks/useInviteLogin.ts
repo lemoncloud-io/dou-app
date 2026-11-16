@@ -47,7 +47,8 @@ const BLOCKED_STATE: Record<string, 'used' | 'expired' | 'canceled'> = {
  * 1. parse a full invite link OR a bare `invt:<id>:<code>` (link yields a backend override)
  * 2. guest-login the device (yields the delegatorId the invite exchange needs + hydrates session)
  * 3. resolve $envs.wss / cloudId / siteId from the target backend (best-effort)
- * 4. exchange the code -> cloud token against that backend (runtime.session.registerUserWithInviteCode)
+ * 4. exchange the code against that backend (runtime.session.registerUserWithInviteCode) -> an invite login:
+ *    a handle and the cloud id; the runtime keeps the cloud token
  * 5. persist the invited cloud locally, then enter cloud + site via the v2 session switches
  *
  * web-core owns credential/cloud/site state + socket re-auth — no manual cloudCore /
@@ -110,12 +111,15 @@ export const useInviteLogin = () => {
             // Read before the exchange, which can replace the relay session: the rail looks for the cloud
             // under the account that is signed in now.
             const acceptorId = runtime.data.getAcceptorId();
-            const tokenView = await runtime.session.registerUserWithInviteCode(code, delegatorId, backend);
+            const inviteLogin = await runtime.session.registerUserWithInviteCode(code, delegatorId, backend);
+            // Only its cloud id is used: the cloud is entered the ordinary way below, never with the
+            // answer, so the runtime need not keep it.
+            runtime.session.forgetInviteLogin(inviteLogin.handle);
 
-            // `tokenView.cloudId` is the cloud's AWS account-no; the invite carries no real
+            // `inviteLogin.cloudId` is the cloud's AWS account-no; the invite carries no real
             // cloud id, so it's the only identifier for this invited cloud and is used purely
             // as its restore key. The session switch guards against an account-no target.
-            const cloudId = info?.cloudId ?? tokenView.cloudId;
+            const cloudId = info?.cloudId ?? inviteLogin.cloudId;
             if (cloudId) {
                 // Invited clouds aren't in the relay catalog — persist locally (with the
                 // invite's backend/wss) so the rail surfaces it and the cloud switch can

@@ -71,6 +71,21 @@ describe('AttachPanel', () => {
 
     // The app's back handler finds the topmost overlay by `[data-state="open"][role="dialog"]`; the
     // panel has to match it to be closed by back, and must not claim the page as a modal would.
+    it('centres its entries in the panel when there is no recent row, and puts them under the row when there is', () => {
+        const { rerender } = render(<AttachPanel {...props()} />);
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
+        expect(screen.getByTestId('attach-entries')).not.toHaveClass('pt-6');
+
+        rerender(<AttachPanel {...props({ recent: <div data-testid="recent" /> })} />);
+        expect(screen.getByTestId('attach-entries')).toHaveClass('pt-6');
+        expect(screen.getByTestId('attach-entries')).not.toHaveClass('my-auto');
+
+        // A row with nothing to draw stays mounted to fold away; the entries centre all the same.
+        rerender(<AttachPanel {...props({ recent: <div data-testid="recent" />, recentEmpty: true })} />);
+        expect(screen.getByTestId('recent')).toBeInTheDocument();
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
+    });
+
     it('is an open, named, non-modal dialog while open', () => {
         render(<AttachPanel {...props()} />);
 

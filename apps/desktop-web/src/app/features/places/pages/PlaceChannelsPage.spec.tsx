@@ -60,7 +60,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useRuntimeSocketState: () => ({ isVerified: true }),
             useCloudVerified: () => true,
         },
-        sync: { getSyncManager: () => ({ registerJoin: () => () => undefined }) },
+        sync: { registerSyncTarget: () => () => undefined },
     },
 }));
 

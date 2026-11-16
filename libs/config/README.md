@@ -196,13 +196,15 @@ One file per app assembles the ports, and `main.tsx` calls `init` once.
 main.tsx
   ├─ syncThemeFromSharedKey()    apps/web only: seeds storageKeyFor('ui.theme')    ── must be first
   ├─ config.init(createWebConfigPorts(stores)) hydrateShell() then hydrateStorage()
-  └─ runtime.boot.initAppRuntime()
-        └─ attachConfigStateLog()      libs/app-runtime — logs overridden keys, then each change
+  └─ runtime.boot.initAppRuntime(createWebRuntime(...))
+        └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
 ```
 
-Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile`
-does **not** — it implements the other side of the shell port instead. Among libs, only
-`libs/app-runtime` and `libs/shared` import this one.
+Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile` does not import
+this lib — it implements the other side of the shell port instead — but on a launch whose session the
+app's own runtime holds, `libs/runtime-mobile`'s boot calls `init` in the app's process, with the env
+port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/app-runtime`,
+`libs/shared` and `libs/runtime-mobile` import this one.
 
 Anything that seeds a local-lane value runs **before** `init`, because `init`'s `hydrateStorage()` is
 what reads it into the local lane. A seed that runs after it writes a value nobody will read until the

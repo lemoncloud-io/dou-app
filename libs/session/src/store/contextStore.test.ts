@@ -16,6 +16,8 @@ const mockCloudGetDelegationToken = jest.fn();
 const mockCloudGetCloudToken = jest.fn();
 const mockCloudGetCloudTokenOf = jest.fn();
 const mockCloudGetCloudIdentity = jest.fn();
+const mockCloudGetCachedCloudIds = jest.fn((): string[] => []);
+const mockCloudGetCloudIdentities = jest.fn((): Record<string, { uid: string }> => ({}));
 
 const mockIdentityGetDelegatorId = jest.fn();
 
@@ -38,6 +40,8 @@ jest.mock('./stores', () => ({
         getCloudToken: (...a: unknown[]) => mockCloudGetCloudToken(...a),
         getCloudTokenOf: (...a: unknown[]) => mockCloudGetCloudTokenOf(...a),
         getCloudIdentity: (...a: unknown[]) => mockCloudGetCloudIdentity(...a),
+        getCachedCloudIds: () => mockCloudGetCachedCloudIds(),
+        getCloudIdentities: () => mockCloudGetCloudIdentities(),
     },
     identityStore: {
         getDelegatorId: (...a: unknown[]) => mockIdentityGetDelegatorId(...a),
@@ -194,6 +198,50 @@ describe('getUidInCloud — the uid this account has in one cloud, committed or 
             seedRelayOnly();
 
             expect(require('./contextStore').getUidInCloud('cloud-z')).toBeNull();
+        });
+    });
+});
+
+describe('getUidsInClouds — every uid getUidInCloud answers, as one map', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCloudGetCloudTokenOf.mockReturnValue(null);
+        mockCloudGetCloudIdentity.mockReturnValue(null);
+        mockCloudGetCachedCloudIds.mockReturnValue([]);
+        mockCloudGetCloudIdentities.mockReturnValue({});
+        mockCloudGetDelegationToken.mockReturnValue(null);
+    });
+
+    it('answers the relay, the committed cloud, cached-token clouds and recorded identities', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly({ uid: 'relay-uid', Token: 't' });
+            mockCloudGetDelegationToken.mockReturnValue({ cloudId: 'committed' });
+            mockCloudGetCachedCloudIds.mockReturnValue(['cached']);
+            mockCloudGetCloudIdentities.mockReturnValue({ recorded: { uid: 'uid-recorded' } });
+            const tokens: Record<string, { uid: string }> = {
+                committed: { uid: 'uid-committed' },
+                cached: { uid: 'uid-cached' },
+            };
+            mockCloudGetCloudTokenOf.mockImplementation((cid: string) => tokens[cid] ?? null);
+            mockCloudGetCloudIdentity.mockImplementation((cid: string) =>
+                cid === 'recorded' ? { uid: 'uid-recorded' } : null
+            );
+
+            expect(require('./contextStore').getUidsInClouds()).toEqual({
+                default: 'relay-uid',
+                committed: 'uid-committed',
+                cached: 'uid-cached',
+                recorded: 'uid-recorded',
+            });
+        });
+    });
+
+    it('leaves out a cloud getUidInCloud has no uid for', () => {
+        jest.isolateModules(() => {
+            seedRelayOnly();
+            mockCloudGetCachedCloudIds.mockReturnValue(['tokenless']);
+
+            expect(require('./contextStore').getUidsInClouds()).not.toHaveProperty('tokenless');
         });
     });
 });

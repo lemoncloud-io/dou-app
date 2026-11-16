@@ -4,3 +4,5 @@ export * from './PlanBadge';
 export * from './StatusBadge';
 export * from './UnreadBadge';
 export * from './VerifiedBadge';
+export * from './NotificationTypeChip';
+export * from './ActivityCountBadge';

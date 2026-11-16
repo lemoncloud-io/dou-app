@@ -5,17 +5,16 @@ import { renderHook } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
 import { useUpdateProfile } from './useUpdateProfile';
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             patchRelaySessionUser: jest.fn(),
+            updateAccountProfile: (...args: unknown[]) => updateMock(...args),
         },
     },
 }));
-jest.mock('../../../runtime/relayAccountGateway', () => ({ getRelayAccountGateway: jest.fn() }));
 
 const updateMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>
@@ -23,17 +22,15 @@ const wrapper = ({ children }: { children: ReactNode }) =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    (getRelayAccountGateway as jest.Mock).mockReturnValue({ update: updateMock });
 });
 
 describe('useUpdateProfile', () => {
-    it('writes through the RELAY-pinned user gateway, not the active slot', async () => {
+    it("writes through the runtime's relay account update, not the active slot", async () => {
         updateMock.mockResolvedValue({ id: 'me', name: 'Neo', photo: 'server.png' });
 
         const { result } = renderHook(() => useUpdateProfile(), { wrapper });
         const returned = await result.current.mutateAsync({ name: 'Neo', photo: 'p' });
 
-        expect(getRelayAccountGateway).toHaveBeenCalled();
         expect(updateMock).toHaveBeenCalledWith({ name: 'Neo', photo: 'p' });
         expect(returned).toEqual({ name: 'Neo', photo: 'p' });
     });

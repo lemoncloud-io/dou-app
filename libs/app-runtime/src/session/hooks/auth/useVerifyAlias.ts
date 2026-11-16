@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
-import { verifyAlias } from '@chatic/auth';
+import { verifyAlias } from '../../authLookups';
 import type { VerifyAliasBody, VerifyAliasView } from '@chatic/auth';
 import type { AxiosError } from 'axios';
 

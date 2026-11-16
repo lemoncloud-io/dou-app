@@ -1,6 +1,7 @@
 export * from './models';
 export * from './mappers';
 export * from './chatPreview';
+export * from './chatSender';
 export * from './joinWindow';
 export * from './channelScope';
 export * from './messageEdit';
@@ -10,3 +11,5 @@ export * from './chatMedia';
 export * from './mention';
 export * from './pushCloudId';
 export * from './chatId';
+export * from './messageTokens';
+export * from './chatMediaEntries';

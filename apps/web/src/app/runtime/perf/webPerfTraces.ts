@@ -3,11 +3,13 @@ import {
     FanOutPerfTraceBackend,
     FirebaseDimensionsPerfTraceBackend,
     PipelinePerfTraceBackend,
+    SESSION_OWNER_ATTRIBUTE,
     configurePerfTraces,
 } from '@chatic/perf';
 
 import { appBridge } from '../../bridge/appBridge';
 import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
+import { readLaunchSessionOwner } from '../launchSessionOwner';
 
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import type { Logger } from '@chatic/logger';
@@ -35,8 +37,14 @@ export const setPerfTelemetryRecorder = (recorder: PerfTelemetryRecorder | undef
     pipelineRecorder = recorder;
 };
 
-/** The pipeline branch every host gets. Reads the recorder on each stop, so it can arrive late. */
-export const pipelinePerfTraceBackend: PerfTraceBackend = new PipelinePerfTraceBackend(() => pipelineRecorder);
+/**
+ * The pipeline branch every host gets. Reads the recorder on each stop, so it can arrive late, and
+ * stamps who holds the session on the traces the catalog compares between the two ways of running.
+ */
+export const pipelinePerfTraceBackend: PerfTraceBackend = new PipelinePerfTraceBackend(
+    () => pipelineRecorder,
+    () => ({ [SESSION_OWNER_ATTRIBUTE]: readLaunchSessionOwner() })
+);
 
 /**
  * Turns tracing on for this WebView, before its destination is known.

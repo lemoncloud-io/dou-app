@@ -2,7 +2,6 @@ import { hashRunId, isPageHidden, PERF_SAMPLE_PERCENT, recordPerfSample } from '
 
 import type { runtime } from '@chatic/app-runtime';
 
-type ISocketManager = runtime.connection.ISocketManager;
 type SocketRequestSample = runtime.connection.SocketRequestSample;
 
 /**
@@ -41,7 +40,8 @@ export const isSocketRequestSampledRun = (runId: string | undefined): boolean =>
 };
 
 interface ObserveSocketRequestsOptions {
-    manager: Pick<ISocketManager, 'setRequestObserver'>;
+    /** Hands every settled socket request to the observer until the returned function stops it (`runtime.connection.observeSocketRequests`). */
+    observe: (observer: (sample: SocketRequestSample) => void) => () => void;
     runId: string | undefined;
     /** Overridable for tests; production records through the process-wide perf slot. */
     record?: typeof recordPerfSample;
@@ -65,7 +65,7 @@ interface ObserveSocketRequestsOptions {
  * @returns Stops observing.
  */
 export const observeSocketRequests = ({
-    manager,
+    observe,
     runId,
     record = recordPerfSample,
     now = Date.now,
@@ -79,7 +79,7 @@ export const observeSocketRequests = ({
     let recordedByType = new Map<string, number>();
     let recordedWhileHeld = 0;
 
-    manager.setRequestObserver((sample: SocketRequestSample) => {
+    return observe((sample: SocketRequestSample) => {
         if (isHidden()) return;
         const at = now();
         if (at - windowStart >= MINUTE_MS) {
@@ -101,6 +101,4 @@ export const observeSocketRequests = ({
         if (sample.closeReason) attributes.close_reason = sample.closeReason;
         record('socket_request', { attributes, metrics: { rtt_ms: sample.roundTripMs } });
     });
-
-    return () => manager.setRequestObserver(undefined);
 };

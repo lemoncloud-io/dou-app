@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
  * Provider assembly only. Session readiness and the runtime connection (transport bootstrap,
  * socket lifecycle, re-auth) are both owned by `DesktopRuntime` (see `./runtime`) — the app
  * no longer mounts `DataProvider` / `WebSocketV2Connection` / `GlobalChatSync` nor gates the
- * render on `useRelaySessionInit` / `useTokenRefresh`.
+ * render on a session-init hook / `useTokenRefresh`.
  */
 export function App() {
     const { isAuthenticated } = runtime.session.useSessionAuth();

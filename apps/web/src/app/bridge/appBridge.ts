@@ -4,6 +4,7 @@ import type {
     OnFetchPushMarksPayload,
     OnWebAppReadyPayload,
     PushCloudMarkRecord,
+    SessionOwnerName,
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
@@ -411,6 +412,19 @@ export const appBridge = {
     /** What is applied now, and whether this build allows applying at all. */
     fetchCustomZipStatus(): Promise<WebMessageResponse<'FetchCustomZipStatus'>> {
         return webClient.request({ type: 'FetchCustomZipStatus', data: {} });
+    },
+
+    /**
+     * Which side holds the session on the phone — now, and from the next start. A production app build
+     * does not answer (`NOT_FOUND`): the switch exists only outside production.
+     */
+    fetchSessionOwner(): Promise<WebMessageResponse<'FetchSessionOwner'>> {
+        return webClient.request({ type: 'FetchSessionOwner', data: {} });
+    },
+
+    /** Records the owner; when it differs from the current one the app restarts, reloading this page. */
+    setSessionOwner(owner: SessionOwnerName): Promise<WebMessageResponse<'SetSessionOwner'>> {
+        return webClient.request({ type: 'SetSessionOwner', data: { owner } });
     },
 
     /** Which alternate app icon is active, and whether this platform supports changing it. */

@@ -93,7 +93,11 @@ export type Probe = Exclude<keyof AppMessageDataMap, (typeof WEB_MESSAGE_RESPONS
 
 // The message as the web receives it: the bridge sends JSON, so a string enum member (react-native-iap's
 // `ErrorCode`) arrives as its plain string value. `any` passes through untouched.
-const WIRE = `type Wire<T> = 0 extends 1 & T ? T : T extends string ? \`\${T}\` : T extends object ? { [K in keyof T]: Wire<T[K]> } : T;`;
+//
+// The depth stops at ten: a payload may be declared as plain JSON (`RuntimeWireValue`), a type that
+// refers to itself, and unbounded the mapping would expand it forever. Below ten levels it is the
+// declared type itself, which a JSON value satisfies as it is.
+const WIRE = `type Wire<T, D extends 0[] = []> = 0 extends 1 & T ? T : D['length'] extends 10 ? T : T extends string ? \`\${T}\` : T extends object ? { [K in keyof T]: Wire<T[K], [...D, 0]> } : T;`;
 
 /**
  * What the compiler says about each message, read as `AppMessageData<its type>` after JSON — the

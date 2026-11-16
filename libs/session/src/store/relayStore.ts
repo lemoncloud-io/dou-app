@@ -9,7 +9,7 @@ import { sessionSignal, type ISessionSignal } from './signal';
  * imported `getDynamicRelayBackend`/`getDynamicRelayWss` directly — the single measured violation of
  * store passivity — which also meant the store transitively knew about env and the transport.
  *
- * Wiring lives in `session/store/configure.ts`, which `initAppRuntime()` runs from the app entry
+ * Wiring lives in `session/store/configure.ts`, which `createRuntime()` runs from the app entry
  * (ADR-0070 Step 5) — NOT a barrel import side effect any more. The observable behavior is unchanged:
  * deeplink overrides are honored because the resolvers are functions, read lazily per call.
  * Throwing rather than returning '' on an unconfigured read keeps a wiring mistake loud instead of
@@ -19,7 +19,7 @@ type EndpointResolver = () => string;
 
 const notConfigured = (name: string): EndpointResolver => {
     return () => {
-        throw new Error(`relayStore: ${name} resolver not injected — call initAppRuntime() from the app entry`);
+        throw new Error(`relayStore: ${name} resolver not injected — call createRuntime() from the app entry`);
     };
 };
 

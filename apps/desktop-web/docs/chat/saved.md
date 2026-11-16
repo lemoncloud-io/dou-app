@@ -36,6 +36,8 @@ conversation, and the row stays marked while it is there.
   this place's list), or a channel, with the channel's name when this place lists it. Then the author,
   the time it was sent, the text, and a tile for its first file.
 - A file-only message's text is only the line it was saved with ("Photo"), so the tile stands in for it.
+  A message of voice files only is saved as "Voice file" / "2 voice files" and flagged `voice`, so its
+  tile says the same, with a sound-wave icon, and the line is still not drawn twice.
 
 ### Live cards
 

@@ -15,7 +15,6 @@ describe('SubscriptionHttpDataSource', () => {
             updateMembershipByAdmin: jest.fn(),
             refundSubscriptionByAdmin: jest.fn(),
             adminClouds: jest.fn(),
-            mySubscription: jest.fn(),
             subscriptionCards: jest.fn(),
             issueBillingKey: jest.fn(),
             startSubscription: jest.fn(),
@@ -130,10 +129,8 @@ describe('SubscriptionHttpDataSource', () => {
 
     it('forwards the web subscription calls, wrapping a product id into the body the gateway sends', async () => {
         const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
-        gateway.mySubscription.mockResolvedValue({ subscription: { id: 'U1:portone' } });
         gateway.subscriptionCards.mockResolvedValue([{ id: 'c1', isDefault: true }]);
 
-        await expect(dataSource.fetchMySubscription()).resolves.toEqual({ subscription: { id: 'U1:portone' } });
         await expect(dataSource.fetchSubscriptionCards()).resolves.toEqual([{ id: 'c1', isDefault: true }]);
 
         await dataSource.issueBillingKey('p1');

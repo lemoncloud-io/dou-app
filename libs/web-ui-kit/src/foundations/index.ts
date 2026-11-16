@@ -1,5 +1,6 @@
 export * from './button';
 export * from './badge';
+export * from './chip';
 export * from './input';
 export * from './text';
 export * from './checkbox';
@@ -7,5 +8,6 @@ export * from './switch';
 export * from './divider';
 export * from './avatar';
 export * from './bubble';
+export * from './audio';
 export * from './toast';
 export * from './brand';

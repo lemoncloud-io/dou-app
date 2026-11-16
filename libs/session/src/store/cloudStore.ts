@@ -1,7 +1,7 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-import { msUntilExpiration } from './expiry';
+import { msUntilTokenExpiry } from './expiry';
 import { JsonSlot } from './jsonSlot';
 import { plainPort, secretPort, type StoragePortPair } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
@@ -14,8 +14,8 @@ const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
 // token instead of re-issuing them over 2 HTTP round trips, so the cloud identity (uid) — and thus
 // the cid+uid-scoped local cache — is available instantly on switch.
 const CLOUD_TOKEN_CACHE_KEY = 'chatic-cloud-token-cache';
-// Skip a cached cloud token whose AWS credential expires within this margin — the fresh token is
-// re-issued instead so the socket never connects with a credential about to lapse.
+// Skip a cached cloud token whose identity token runs out within this margin: past it the socket could
+// not authenticate with it, so there is nothing left to refresh.
 const CLOUD_TOKEN_CACHE_MARGIN_MS = 60_000;
 // Which uid this account has in each cloud, kept past the token that carried it. A cloud token
 // expires within about an hour, but the cid+uid the local cache partitions under does not change
@@ -55,7 +55,10 @@ export interface ICloudStore {
     getDelegationToken(): CloudDelegationTokenView | null;
     saveCloudToken(token: UserTokenView): void;
     getCloudToken(): UserTokenView | null;
-    /** Cached tokens for `cloudId` when still valid (credential not within the expiry margin), else null. */
+    /**
+     * Cached tokens for `cloudId` unless their identity token runs out within the margin. An entry
+     * whose lifetime cannot be read is returned as it is.
+     */
     getCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
     /**
      * Cached tokens for `cloudId` exactly as stored — no expiry margin, nothing dropped. For signing:
@@ -63,6 +66,8 @@ export interface ICloudStore {
      * margin-checked read that deleted the entry would leave that socket with nothing to sign from.
      */
     peekCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
+    /** The clouds the token cache holds tokens for. */
+    getCachedCloudIds(): string[];
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void;
     /** Forgets one cloud's cached tokens. The other clouds' entries, and the identities, stay. */
     dropCachedCloudTokens(cloudId: string): void;
@@ -84,6 +89,14 @@ export interface ICloudStore {
     dropCloudIdentity(cloudId: string): void;
     /** Forgets every cloud identity — the account is changing, and its uids change with it. */
     clearCloudIdentities(): void;
+    /**
+     * Hears every write to the token cache and the recorded identities — the two sources of a cloud's
+     * uid that change without a session signal. Not a session signal: these writes are not session
+     * state, and its listeners re-render screens. For a reader that holds the uids between signals
+     * (runtime-core's session view), so a cloud re-issued for another account does not keep the old
+     * uid. Returns the unsubscribe.
+     */
+    subscribeUidSources(listener: () => void): () => void;
     /** Moves `cloudId` to the front of the recently entered clouds. */
     recordCloudUse(cloudId: string): void;
     /** The clouds this account has entered, most recent first. */
@@ -115,6 +128,7 @@ class CloudStore implements ICloudStore {
     private readonly identities: JsonSlot<Record<string, CloudIdentity>>;
     private readonly recent: JsonSlot<string[]>;
     private readonly reclaimed: JsonSlot<Record<string, string>>;
+    private readonly uidSourceListeners = new Set<() => void>();
 
     /** The plain port — the selection keys are read and written on it directly. */
     private readonly storage: StoragePortPair['plain'];
@@ -156,9 +170,15 @@ class CloudStore implements ICloudStore {
         const entry = map?.[cloudId];
         if (!map || !entry) return null;
 
-        // Valid only while the cloud token's AWS credential is still comfortably in-date.
-        const remaining = msUntilExpiration(entry.cloudToken?.Token?.credential?.Expiration, Date.now());
-        if (remaining == null || remaining <= CLOUD_TOKEN_CACHE_MARGIN_MS) {
+        // Measured by the identity token, not by an AWS credential. A cloud server answers with no
+        // credential at all, and an entry judged by one read as lapsed the moment it was written: every
+        // entry into a cloud with no live socket then threw the stored token away and re-issued it
+        // through `delegate-cloud`, which answers for whichever guest the relay session is linked to —
+        // for an invitee, possibly not the user the invite made. The stored token is what the cloud
+        // socket refreshes from, so it is kept for as long as it can still authenticate. One whose
+        // lifetime cannot be read is kept too: there is no clock to refuse it by.
+        const remaining = msUntilTokenExpiry(entry.cloudToken?.Token?.identityToken, Date.now());
+        if (remaining != null && remaining <= CLOUD_TOKEN_CACHE_MARGIN_MS) {
             delete map[cloudId];
             this.cache.write(map);
             return null;
@@ -170,12 +190,17 @@ class CloudStore implements ICloudStore {
         return this.cache.read()?.[cloudId] ?? null;
     }
 
+    getCachedCloudIds(): string[] {
+        return Object.keys(this.cache.read() ?? {});
+    }
+
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void {
         // No signal: this is a pure cache write, not session state. The kinds regulation
         // (ADR-0076 Decision 2) names this the one legitimate exception, and the name says so.
         const map = this.cache.read() ?? {};
         map[cloudId] = tokens;
         this.cache.write(map);
+        this.uidSourcesChanged();
     }
 
     dropCachedCloudTokens(cloudId: string): void {
@@ -184,11 +209,13 @@ class CloudStore implements ICloudStore {
         if (!map || !(cloudId in map)) return;
         delete map[cloudId];
         this.cache.write(map);
+        this.uidSourcesChanged();
     }
 
     clearCachedCloudTokens(): void {
         // No signal, for the same reason as `setCachedCloudTokens`.
         this.cache.clear();
+        this.uidSourcesChanged();
     }
 
     getCloudTokenOf(cloudId: string): UserTokenView | null {
@@ -203,13 +230,14 @@ class CloudStore implements ICloudStore {
     }
 
     setCloudIdentity(cloudId: string, identity: CloudIdentity): void {
-        // No signal: a uid moves only with a new account, which announces itself through the relay
-        // token. Readers of `getUidInCloud` that must follow a cloud being issued its first tokens
-        // listen to the background store, which the issuer invalidates.
+        // No session signal: a uid moves only with a new account, which announces itself through the
+        // relay token. A reader that holds uids between signals hears it through `subscribeUidSources`;
+        // a hook that re-reads on the background store hears the issuer's invalidation.
         const map = this.identities.read() ?? {};
         if (map[cloudId]?.uid === identity.uid) return;
         map[cloudId] = identity;
         this.identities.write(map);
+        this.uidSourcesChanged();
     }
 
     getCloudIdentities(): Record<string, CloudIdentity> {
@@ -223,10 +251,23 @@ class CloudStore implements ICloudStore {
         if (!map || !(cloudId in map)) return;
         delete map[cloudId];
         this.identities.write(map);
+        this.uidSourcesChanged();
     }
 
     clearCloudIdentities(): void {
         this.identities.clear();
+        this.uidSourcesChanged();
+    }
+
+    subscribeUidSources(listener: () => void): () => void {
+        this.uidSourceListeners.add(listener);
+        return () => {
+            this.uidSourceListeners.delete(listener);
+        };
+    }
+
+    private uidSourcesChanged(): void {
+        for (const listener of [...this.uidSourceListeners]) listener();
     }
 
     recordCloudUse(cloudId: string): void {

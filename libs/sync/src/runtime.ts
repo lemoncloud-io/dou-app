@@ -36,9 +36,10 @@ export const getSyncManager = (): ISyncManager => {
 let backgroundReceiver: BackgroundReceiver | null = null;
 
 /**
- * Starts receiving for every bound slot that is not the active one, and returns the stop. Owned by the
- * connection host, which starts it once its slots are its own to bind — not lazily on first use like
- * the managers above, because a receiver runs timers and nothing else would ever stop them.
+ * Starts receiving for every bound slot that is not the active one, and returns the stop. Owned by
+ * runtime-core's connection controller, whose background half starts and stops it — not lazily on
+ * first use like the managers above, because a receiver runs timers and nothing else would ever stop
+ * them.
  *
  * Starting again replaces the running receiver, so a remount (StrictMode's double effect among them)
  * never leaves two polling the same clouds.

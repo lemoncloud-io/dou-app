@@ -97,16 +97,17 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * relay slot bound`, `503 SOCKET NOT CONNECTED`, `401 UNAUTHORIZED` — none of which `resolveNotice`
  * can map, so the user got the useless "generic" dialog on a perfectly valid invite.
  *
- * Kind-pinned, not `waitUntilVerified`: that one tracks the ACTIVE slot, which is cloud whenever a
- * cloud session is up, and would let a relay request through mid-handshake.
+ * Pinned to the relay slot, not the active one (`waitUntilVerified` with no slot): the active slot is
+ * cloud whenever a cloud session is up, and would let a relay request through mid-handshake.
  *
  * Best-effort — a timeout still proceeds, so a genuinely broken socket surfaces the server's own
  * error rather than being swallowed as a wait.
  */
 const awaitRelaySocket = async (): Promise<boolean> => {
-    const verified = await runtime.connection
-        .getSocketManager()
-        .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, HANDSHAKE_WAIT_TIMEOUT_MS);
+    const verified = await runtime.connection.waitUntilVerified(
+        runtime.connection.RELAY_SLOT,
+        HANDSHAKE_WAIT_TIMEOUT_MS
+    );
     if (verified) return true;
     logger.warn('INVITE', '[useRelayInviteFlow] relay handshake not verified; proceeding best-effort');
     return false;

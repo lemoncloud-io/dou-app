@@ -7,7 +7,7 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { ChatMentionBody, DomainChannel } from '@chatic/data';
+import type { ChatMentionBody, DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -129,6 +129,14 @@ export const ChatPane = ({
                 ? { chatNo: jumpRequest.chatNo, nonce: jumpRequest.nonce, restore: jumpRequest.restore }
                 : undefined,
         [jumpRequest, channelId]
+    );
+    // "Show in chat" from a voice file's detail: the same centred, flashed landing as a search hit.
+    const requestJump = useMessageJumpStore(s => s.request);
+    const showMessage = useCallback(
+        (message: DomainChat) => {
+            if (channelId && typeof message.chatNo === 'number') requestJump(channelId, message.chatNo);
+        },
+        [requestJump, channelId]
     );
     // The feed reports what the reader is looking at, so a jump can record it as the way back.
     const setReadingPosition = useMessageJumpStore(s => s.setPosition);
@@ -406,6 +414,7 @@ export const ChatPane = ({
                     onRetry={composer.retry}
                     canRetry={composer.canRetry}
                     onDiscard={composer.discard}
+                    onCancelUpload={composer.cancelUpload}
                     onLoadOlder={handleLoadOlder}
                     hasMore={hasMore}
                     isLoadingOlder={isLoadingOlder}
@@ -414,6 +423,7 @@ export const ChatPane = ({
                     openAtBottom={openAtBottom}
                     threadMeta={threadIndex}
                     onOpenThread={openThread}
+                    onShowMessage={showMessage}
                     jumpTarget={jumpTarget}
                     onJumpConsumed={clearJump}
                     onReadingPosition={reportPosition}

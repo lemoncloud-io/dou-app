@@ -12,11 +12,12 @@ credential _per cloud_: the committed cloud's lives in the session store, every 
 per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either. That is what lets a
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
-It is spread over two folders of this package and one of app-runtime, and the split follows
-dependency direction rather than subject: `socket/` holds the wiring and the policy (19 source files,
-17 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
-and the two guards that _trigger_ renewal are React hooks in app-runtime's `session/hooks/app/`
-([its session doc](../../../app-runtime/docs/session/README.md#the-two-guards)). The renewers live
+It is spread over two folders of this package and one of runtime-core, and the split follows
+dependency direction rather than subject: `socket/` holds the wiring and the policy (20 source files,
+18 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
+and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
+starts through app-runtime's hooks
+([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
 in `socket/` because `socket → session` is an existing edge and the reverse is not; putting them under
 `session/` would close a cycle.
 
@@ -127,7 +128,8 @@ stateDiagram-v2
 
 There is no `wedged` state ("unverified for a long time"). Persistence needs a clock, and this is a
 read-only projection with no timer of its own; what stands in for it is the self-loop — the wake kick
-that `needsSocketKick` drives.
+that `needsSocketKick` drives. The kick owns the clock it needs: it reads from the socket manager when
+the slot's first connection began, and leaves a young one alone (below).
 
 Two predicates keep the callers from re-deriving conditions:
 
@@ -199,7 +201,8 @@ Two situations reach it, and only one is watched automatically:
 **A cloud _switch_ is in neither list.** The cid is the slot's key, so a switch either lands on a
 cloud with no slot — `SocketBinder` boots it fresh and it registers from scratch — or on a cloud whose
 background slot is already up. In the second case the switch commits **the tokens that slot
-registered with**, as they are: `useSwitchCloudSession` tells `cloudSession.switchTo` the slot is
+registered with**, as they are: [`switchCloudSession`](../../src/socket/switchCloudSession.ts) — the
+selection's switch, runtime-core's `switchCloud` command — tells `cloudSession.switchTo` the slot is
 live, and the switch reads the cache margin-blind instead of re-issuing a token it would otherwise
 consider too close to expiry. The committed store then holds exactly what the socket signs with, so
 there is nothing to re-authenticate either way. A lapsing token on that slot is the credential
@@ -212,11 +215,21 @@ cloud change does. Otherwise the selection keeps naming a place the socket has l
 `switchSite` into that place returns early as a no-op while every site-scoped call lands on the
 default site.
 
-[`applySessionToken($token, options?)`](../../src/socket/applySessionToken.ts) is the one
-app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates
-the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token` actually became the
-new identity token. It **throws** when `$token.$auth.id` is missing, because relay registration is
-impossible without it and failing at the source beats failing on every later refresh.
+[`applySessionToken($token, options?)`](../../src/socket/applySessionToken.ts) commits a token view,
+re-authenticates the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token`
+actually became the new identity token. It **throws** when `$token.$auth.id` is missing, because relay
+registration is impossible without it and failing at the source beats failing on every later refresh.
+It is no longer app-facing: a screen must not hold the token it takes.
+
+[`phoneLogin.ts`](../../src/socket/phoneLogin.ts) is the app-facing phone login built on it.
+`confirmPhoneLogin(phone, code, { countryCode })` proves the code in login mode and applies the
+`$token` the confirm answers with, answering only `{ isNew }`. It throws what the check throws (the
+socket error's status tells a wrong, spent or expired code), `PHONE_LOGIN_NO_TOKEN` when the confirm
+carried no session token, and `PHONE_LOGIN_SWITCH_FAILED` when the switch failed — the token is then
+kept here, and `retryPhoneLogin()` re-runs the switch without proving the spent code again. One login
+waits at a time: a new confirm replaces it, and `cancelPhoneLogin()` drops it — the phone screens call
+it when they close. A retry with nothing waiting throws `PHONE_LOGIN_NOTHING_PENDING`, and the screen
+goes back to the code.
 
 ## Renewal: two strategies, one renewer per server
 
@@ -309,7 +322,7 @@ A background slot signs with its cloud's cached entry, so that entry has two own
 the slot is bound, and never both at once:
 
 - **Not bound yet** — [`BackgroundCloudTokens`](../../src/socket/backgroundCloudTokens.ts),
-  driven from the connection host. It issues (`delegate-cloud` + `exchange-token`, cache bypassed)
+  driven by runtime-core's connection controller (its background half, which the host starts). It issues (`delegate-cloud` + `exchange-token`, cache bypassed)
   when the entry is missing or has less than one refresh cycle left, and the slot is derived only once
   `isBackgroundCloudReady` says the entry is good. Booting on a nearly lapsed entry and re-issuing
   under it would leave the socket registered with one token and signing with another.
@@ -438,15 +451,37 @@ has no CORS header and reaches the browser as a network failure.
 [`recoverUnverifiedSockets(deps?)`](../../src/socket/recoverUnverifiedSockets.ts) is what an app
 calls on its own foreground signal. It walks both kinds, skips unbound slots, and acts only where
 `needsSocketKick(status)` holds — a slot that looks `verified` is left alone, because churning a warm
-connection costs more than it fixes. For each one it disconnects with code 1000, re-registers from
+connection costs more than it fixes. For each one — except a slot on its first connection, below —
+it disconnects with code 1000, re-registers from
 the delegate when the slot was terminally expired (and closes the gate again), and reconnects. It
 marks the slot with `noteResumeKick` before disconnecting and clears the mark after reconnecting, so
 `socket_verify` records that attempt as a `resume` and no later one inherits it. Concurrent calls
 share one pass through a `Coalescer`.
 
+**A slot's first connection is left to finish.** A `handshaking` slot that has not begun to connect
+yet (`idle`), or whose first connection since it was bound began less than `FIRST_CONNECT_GRACE_MS`
+(10 s) ago, is skipped, with one log line, `[recoverUnverifiedSockets] leaving a first connect`,
+carrying `firstConnectAgeMs`. The first connection belongs to whoever bound the slot — the boot, a
+cloud switch — and an app's first foreground report arrives while it is under way: on a cold start
+the phone shell reports `active` as soon as the page listens. Kicking there closed the boot's own
+connect — a 499 for everything waiting on it — only to open the same connection again, and an `idle`
+slot kicked while its boot was still fetching the registration opened its socket before the
+`device.save:ok` listener was attached.
+
+- **A reconnect is kicked however young.** It is the SDK's backoff-driven retry, and the kick is what
+  restarts it at once with the backoff reset — after a network comes back, say.
+- **The grace is ten seconds.** A first connection that opens normally is verified in a second or
+  two. One older than that has stalled — on a link that is not up, or waiting for a handshake reply
+  the SDK would give half a minute — or was under way when the app was suspended. The age comes from
+  the socket manager's `firstConnectSince(key)`, read on the wall clock so a suspension counts, and
+  such a slot is kicked as before.
+- **An `expired` controller is kicked whatever its age**, and so is a `closed` slot waiting out its
+  reconnect backoff, since connecting it now is the point.
+
 [`recoverSocketsOnResume(deps?)`](../../src/socket/recoverUnverifiedSockets.ts) is the same pass
-plus a **liveness probe** for the slots it leaves alone (`needsLivenessProbe` — `verified` and
-`stale`), and it is what apps/web calls. After a suspension a half-open connection keeps the flags of
+plus a **liveness probe** for the `verified` and `stale` slots it leaves alone (`needsLivenessProbe`;
+a first connection it spares is not probed either), and it is what apps/web and the phone shell's
+runtime call. After a suspension a half-open connection keeps the flags of
 the handshake it completed before, so it reads verified while nothing reaches the server; left to the
 SDK keep-alive it closes 40–80 s later, and every refetch sent on that foreground fails with it.
 
@@ -493,7 +528,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.
 - Nothing in this package imports the package barrel — eslint refuses it — so in-package callers import by concrete path, which is what keeps the barrel out of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. The barrel leaves out what nothing above imports: `alignSessionSite.ts`, `authIdRegistry.ts`, `revokedSession.ts` and `renewCloudSession.ts`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.
-- The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `useCloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
+- The per-cloud paths — a registration, a signature, a writeback, a renewal or a terminal expiry for a cloud that is not committed — have no caller in a running app until something binds such a slot. They are proved by the unit tests of `sessionAuthAdapter`, `cloudTokens`, `renewers`, `renewCloudSession`, `CloudCredentialGuard` and `cloudStore`; a change there is a change to a contract the next steps build on.
 
 ## Further reading
 

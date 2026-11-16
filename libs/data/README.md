@@ -31,8 +31,9 @@ makes no difference.
 4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
 5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
-7. **This lib does not choose a cache adapter.** Which domain uses IndexedDB, native SQLite or the tab's sessionStorage is decided by `resolveCacheBackend` in `libs/app-runtime`.
+7. **This lib does not choose a cache adapter.** It declares the platform's side as `LocalCachePorts` (`local/ports/platform.ts`): where each domain's rows live, the storage for it, the search across clouds and the metrics. Which domain uses IndexedDB, native SQLite or the tab's sessionStorage in a page is `@chatic/runtime-web`'s answer (`resolveCacheBackend`); the runtime's assembly asks once per domain per session.
 8. **This lib does not import `@chatic/bridges`.** Its eslint config refuses the package, type-only imports included, and `logger` comes from `@chatic/logger`. Repositories and their storage ports have to be able to run in a runtime with no WebView bridge; a storage adapter that does talk to the bridge is handed in through a port by whoever assembles the graph, as principle 7 already has it.
+9. **This lib reads no page.** The root lint refuses the page's globals here (`window`, `navigator`, `indexedDB`, `XMLHttpRequest`, …), because the data layer runs in the native process too. The page's own upload, `xhrPut`, lives in `@chatic/runtime-web` as an implementation of this lib's `PutPort`. Unlike session, transport, sync and auth, this lib still compiles with the DOM's types: its IndexedDB port is declared in them (`local/ports/indexeddb.ts`), until the IndexedDB assembly moves out of the core.
 
 ## Scope
 
@@ -108,7 +109,7 @@ sequenceDiagram
 ```text
 libs/data/src/
 ├── index.ts          public barrel (10 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — and pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID`)
+├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — chatSender.ts — whether a message came in through the webhook, which draws it as a card and its sender as a bot — pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID` — messageTokens.ts — the message bubble's tokenizer, moved here from apps/web — and chatMediaEntries.ts — a message's room media index entries)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
 │   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports

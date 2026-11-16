@@ -16,13 +16,13 @@ picked files for as long as a retry could still need them.
 
 What differs between shells enters as two ports, so every shell runs the same orchestration:
 
-| Port                | Browser and desktop          | Mobile app (`apps/web` inside the native shell)                     |
-| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `put`               | `xhrPut` from `@chatic/data` | the native transfer module, falling back to `xhrPut` in old builds  |
-| `beforeSweep`       | none                         | catch up with transfers the app finished while the page was away    |
-| `putShellFile`      | none                         | the transfer module, sending a file the shell keeps from its folder |
-| `prepareVideo`      | none                         | `PrepareVideo`: the shell converts a video and makes its poster     |
-| `waitForConnection` | none                         | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
+| Port                | Browser and desktop                 | Mobile app (`apps/web` inside the native shell)                     |
+| ------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| `put`               | `xhrPut` from `@chatic/runtime-web` | the native transfer module, falling back to `xhrPut` in old builds  |
+| `beforeSweep`       | none                                | catch up with transfers the app finished while the page was away    |
+| `putShellFile`      | none                                | the transfer module, sending a file the shell keeps from its folder |
+| `prepareVideo`      | none                                | `PrepareVideo`: the shell converts a video and makes its poster     |
+| `waitForConnection` | none                                | `data.waitForCloudSocket`: wait up to 10 s for the cloud's socket   |
 
 `waitForConnection` runs inside the cloud's hold, before the sequence's first request. A send can
 start the moment the page comes back to the front — an OS picker answers as the person returns, and
@@ -39,11 +39,21 @@ app's attach panel puts the text in the photo message instead (`content`).
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
-`getCloudRepositories(cid)`, and the upload and the send run inside
-`runInCloud(cid, …)`, which holds that cloud's socket until the send settles. An upload
-takes seconds, and a cloud switch in that time used to put the finished message on the next cloud's
-socket while its row stayed in the first; now the row, the upload and the send stay together
-whichever cloud is on screen by the time it ends.
+`getCloudRepositories(cid)`, and the upload and the send run inside one hold of that cloud's socket
+(`holdCloud(cid)`), taken before the first request and released once the send settles, sent or
+failed. An upload takes seconds, and a cloud switch in that time used to put the finished message on
+the next cloud's socket while its row stayed in the first; now the row, the upload and the send stay
+together whichever cloud is on screen by the time it ends.
+
+**The session is reached only through the engine; the bytes never leave the page.** The hold is the
+engine's `data.holdCloud`; the upload targets (`startUploads`), their completion (`completeUploads`)
+and the send (`sendPendingImageChat`) are repository calls on the cloud's graph the engine hands over,
+each a value in and a value out. Between them the page
+puts the bytes itself, through the `put` port, from the files it holds. So the same send runs whether
+the session is in the page or in the app's own process with the page mirroring it: a function or a
+`File` would not cross to that process, and none is handed over. The hold is a value too — a release
+to call — and across that bridge it is a subscription that stands until the page ends it, so a page
+that reloads mid-send leaves no hold behind.
 
 ## What happens on send
 
@@ -288,6 +298,13 @@ does not sweep.
 The sweep waits for `beforeSweep` first: a shell that finishes transfers while the page is away
 catches up there, so a row it finished is settled rather than failed as a leftover.
 
+**A sender that is not the room's screen** passes `attach: false` — desktop's Forward, which sends a
+file into a channel the reader picked rather than the one in front of them. It shares the map with
+that room's screen, which may be open at the same time, so it does neither of the two things an
+attach does: it does not sweep, and unmounting it drops nothing. A row it writes keeps its files only
+while a screen of that room is attached (and so offers Retry); with none, the files are dropped as
+soon as the send settles, the way a left screen's are.
+
 ## Progress — `useImageSendProgress`
 
 `data.useImageSendProgress(pendingId)` says how far an unsent message's slots have gone: one ratio
@@ -307,13 +324,22 @@ It is `undefined` as a whole for a row with nothing moving on this page.
 - **What counts the bytes** is the shell's PUT: `xhr.upload` in the page, the transfer module's
   `running` states inside the app (one per transfer at most every 200 ms).
 
+## Cancel
+
+`cancel(pendingId)` stops a send that is still running and returns whether there was one. A page
+upload's `PUT` is aborted through the `AbortSignal` the put port is handed; a shell transfer cannot be
+stopped mid-file, so it finishes and the send stops at the next step (complete, or the chat send). The
+pending row is then removed from the cache rather than marked failed — the reader asked for the
+message not to be sent, so there is nothing to retry. Uploads already declared stay on the server
+with no message pointing at them; there is no call to take them back.
+
 ## Not done here
 
 - **Rendering.** The pending slots are `{ localStatus, localThumbUrl }`, plus `localName`,
   `localContentType` and `localSize` for a video or document. The tile that draws them,
   the retry and delete buttons and the picker belong to each app's composer. `apps/desktop-web`
-  does not read the progress yet; its tiles still spin.
-- **Cancel, a hash.** Neither is offered or sent.
+  reads the progress on its voice cards only; its other tiles still spin.
+- **A hash.** None is sent.
 - **Surviving a reload.** An image message is sent from memory only. A reload or an OS kill mid-send
   loses it, and the row becomes a failed, delete-only leftover.
 

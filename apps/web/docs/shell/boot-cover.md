@@ -18,6 +18,11 @@ It sits **outside** `#root`, fixed over the page. Inside `#root` React's first c
 it, which is exactly the point at which the app is still a blank provider tree behind session and
 router gates that render `null` while they wait.
 
+On a launch whose shell offered to hold the session, the page asks who holds it before it boots at
+all (see [Who holds the session](../bridge/README.md#who-holds-the-session-the-hello-at-boot)), so the
+cover also stands over that wait; when no answer settles it, the error screen that replaces the app
+lifts the cover with reason `error`.
+
 ## What "first screen" means
 
 The cover lifts once the router has mounted its first route **and** no hold remains, after a
@@ -37,8 +42,8 @@ A hold taken inside the two-frame window cancels the release, so a deep link rep
 route right after home mounts does not lift the cover onto home or onto the skeleton.
 
 Two things lift it early, on purpose: the app error boundary and the router's error element
-(`bootSplash.release('error')`), so a failure is seen at once. A 10s cap, armed first thing in
-`main.tsx`, lifts it whatever is pending — not a budget, just the guarantee that a stalled gate shows
+(`bootSplash.release('error')`), so a failure is seen at once. A 10s cap, armed once the app starts
+booting (after the session owner is settled), lifts it whatever is pending — not a budget, just the guarantee that a stalled gate shows
 what it rendered rather than an endless blank page.
 
 The handshake (`WebAppReady`) carries `holdsBootSplash: true`. That is how a shell tells this build

@@ -125,6 +125,24 @@ export const getUidInCloud = (cloudId: string): string | null => {
 };
 
 /**
+ * `getUidInCloud` for every cloud it answers for, as one map: the relay, the committed cloud, every
+ * cloud the token cache holds tokens for and every cloud with a recorded identity. A cloud missing
+ * from the map is one `getUidInCloud` answers `null` for. For a reader that cannot ask this store per
+ * cloud — a page mirroring a session that lives in another process gets the session as one value.
+ */
+export const getUidsInClouds = (): Record<string, string> => {
+    const cloudIds = new Set<string>([RELAY_CLOUD_ID, ...cloudStore.getCachedCloudIds(), ...getRecordedCloudIds()]);
+    const committed = cloudStore.getDelegationToken()?.cloudId;
+    if (committed) cloudIds.add(committed);
+    const uids: Record<string, string> = {};
+    for (const cloudId of cloudIds) {
+        const uid = getUidInCloud(cloudId);
+        if (uid) uids[cloudId] = uid;
+    }
+    return uids;
+};
+
+/**
  * Every cloud this account has a recorded uid in — so every cloud whose cache partition this device
  * can name. `recordCloudIdentity` writes one for each cloud a token was ever minted for, and the entry
  * outlives the token, so this reaches clouds that are neither on screen nor in any catalog.
@@ -221,13 +239,13 @@ const getGlobalSessionContext = (): GlobalSessionContext => {
 };
 
 /**
- * The two slices `useRuntimeSocketSlots` reads — and nothing else (ADR-0076 E5).
+ * The two slices `deriveSocketSlots` (runtime-core's connection controller) reads — and nothing else.
  *
- * That hook subscribes to `['relay:token', 'cloud:token', 'selection']` only, because the socket
+ * The controller re-derives on `['relay:token', 'cloud:token', 'selection']` only, because the socket
  * slots are derived from those three and identity moves on its own signal (boot alone emits
  * `identity` twice through `setSessionIdentityState`, and every login adds one). Narrowing the
  * SUBSCRIPTION without narrowing the SNAPSHOT is the dangerous half: reaching `identity` through a
- * wide snapshot while not listening for it renders a stale value, and nothing would say so. This
+ * wide snapshot while not listening for it derives from a stale value, and nothing would say so. This
  * type is what makes that a compile error instead — a reader that needs identity has to widen both
  * halves together.
  */

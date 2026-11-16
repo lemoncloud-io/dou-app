@@ -1,20 +1,27 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { ChatAttachmentSource, DomainChat, SendImageResult, ShellFileRef } from '@chatic/data';
+import type { ChatAttachmentSource, DomainChat, SendImagePorts, SendImageResult, ShellFileRef } from '@chatic/data';
 
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '../cloudChat';
-import { beginMediaSendTiming } from '../mediaSendTrace';
+import { getCloudRepositories } from '@chatic/runtime-core';
+import { beginMediaSendTiming } from '@chatic/runtime-core';
+import { holdCloud } from '../dataCommands';
 import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
-jest.mock('../cloudChat', () => ({ getCloudRepositories: jest.fn(), runInCloud: jest.fn() }));
+jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
+// The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
+jest.mock('../dataCommands', () => ({
+    getCloudRepositories: (cid: string) =>
+        jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
+    holdCloud: jest.fn(),
+}));
 // The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
 const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
-jest.mock('../mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
+jest.mock('@chatic/runtime-core/data/mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
-/** The clouds whose socket is held right now, as `runInCloud` would hold them. */
+/** The clouds whose socket is held right now, as the engine's `holdCloud` would hold them. */
 const held: string[] = [];
 
 const mockSendImageMessage = jest.fn();
@@ -39,6 +46,7 @@ const chat = {
     listPendingImageChats: jest.fn(async (): Promise<DomainChat[]> => []),
     startUploads: jest.fn(),
     completeUploads: jest.fn(),
+    cacheDelete: jest.fn(async () => undefined),
 };
 
 let urlSeq = 0;
@@ -55,16 +63,15 @@ beforeEach(() => {
     revoked.length = 0;
     held.length = 0;
     (getCloudRepositories as jest.Mock).mockReturnValue({ chat });
-    (runInCloud as jest.Mock).mockImplementation(
-        async (cid: string, work: (repositories: { chat: typeof chat }) => Promise<unknown>) => {
-            held.push(cid);
-            try {
-                return await work({ chat });
-            } finally {
-                held.splice(held.indexOf(cid), 1);
-            }
-        }
-    );
+    (holdCloud as jest.Mock).mockImplementation((cid: string) => {
+        held.push(cid);
+        let released = false;
+        return () => {
+            if (released) return;
+            released = true;
+            held.splice(held.indexOf(cid), 1);
+        };
+    });
     chat.createPendingImageChat.mockImplementation(
         async ({ pendingId }: { pendingId?: string }) => pendingId ?? `row-${++rowSeq}`
     );
@@ -92,8 +99,51 @@ describe('useSendImages', () => {
         await act(() => result.current.sendImages(files()));
 
         expect(getCloudRepositories).toHaveBeenCalledWith('cloud-a');
-        expect(runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(heldDuringSend).toEqual([['cloud-a']]);
+        expect(held).toEqual([]);
+        unmount();
+    });
+
+    it("asks the room's cloud for upload targets, completes and sends there, each inside the hold", async () => {
+        const heldAt: Record<string, string[]> = {};
+        chat.startUploads.mockImplementation(async () => {
+            heldAt.start = [...held];
+            return { tickets: [] };
+        });
+        chat.completeUploads.mockImplementation(async () => {
+            heldAt.complete = [...held];
+            return { results: [] };
+        });
+        chat.sendPendingImageChat.mockImplementation(async () => {
+            heldAt.send = [...held];
+            return { id: 'ch-1:9' };
+        });
+        mockSendImageMessage.mockImplementation(
+            async (_files: unknown, ports: SendImagePorts<ChatAttachmentSource>) => {
+                await ports.start({ channelId: 'ch-1', uploads: [] } as never);
+                await ports.complete({ uploads: [] } as never);
+                await ports.send({ uploadIds: ['up-1'] } as never);
+                return sent;
+            }
+        );
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()));
+
+        expect(heldAt).toEqual({ start: ['cloud-a'], complete: ['cloud-a'], send: ['cloud-a'] });
+        expect(chat.sendPendingImageChat).toHaveBeenCalledWith(expect.any(String), { uploadIds: ['up-1'] });
+        expect(held).toEqual([]);
+        unmount();
+    });
+
+    it('lets the hold go when the sequence throws', async () => {
+        mockSendImageMessage.mockRejectedValue(new Error('bridge timeout'));
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        await act(() => result.current.sendImages(files()).catch(() => undefined));
+
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(held).toEqual([]);
         unmount();
     });
@@ -155,8 +205,8 @@ describe('useSendImages', () => {
             await sending;
         });
 
-        expect(runInCloud).toHaveBeenCalledTimes(1);
-        expect(runInCloud).toHaveBeenCalledWith('cloud-a', expect.any(Function));
+        expect(holdCloud).toHaveBeenCalledTimes(1);
+        expect(holdCloud).toHaveBeenCalledWith('cloud-a');
         expect(getCloudRepositories).toHaveBeenCalledWith('cloud-a');
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(pendingId);
         unmount();
@@ -183,7 +233,13 @@ describe('useSendImages', () => {
         // A page file goes to the shell's own PUT, untouched.
         put.mockResolvedValueOnce({ kind: 'responded', httpStatus: 200 });
         await ports.put({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
-        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, picked[0], 'slot-0/original', undefined);
+        expect(put).toHaveBeenCalledWith(
+            { url: 'u', headers: {} },
+            picked[0],
+            'slot-0/original',
+            undefined,
+            expect.any(AbortSignal)
+        );
         await ports.send({ uploadIds: ['up-1'] });
         expect(chat.sendPendingImageChat).toHaveBeenCalledWith(await pendingId, { uploadIds: ['up-1'] });
         unmount();
@@ -269,6 +325,56 @@ describe('useSendImages', () => {
         expect(chat.createPendingImageChat).toHaveBeenLastCalledWith(expect.objectContaining({ pendingId }));
         expect(mockSendImageMessage.mock.calls[1][0]).toEqual(picked);
         expect(result.current.canRetry(pendingId)).toBe(false);
+        unmount();
+    });
+
+    it('cancels a send in flight: aborts its PUT, sends no message and removes the row', async () => {
+        let signal: AbortSignal | undefined;
+        let finish: (result: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementationOnce(
+            (_files: unknown, ports: { put: (...args: unknown[]) => Promise<unknown> }) =>
+                new Promise<SendImageResult>(resolve => {
+                    finish = resolve;
+                    void ports.put({ url: 'https://s/u', headers: {} }, new File(['a'], 'a.jpg'), 'slot-0/original');
+                })
+        );
+        put.mockImplementationOnce((...args: unknown[]) => {
+            signal = args[4] as AbortSignal;
+            return new Promise(() => undefined);
+        });
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(files());
+        });
+        await waitFor(() => expect(signal).toBeDefined());
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+
+        let cancelled = false;
+        act(() => {
+            cancelled = result.current.cancel(pendingId);
+        });
+        expect(cancelled).toBe(true);
+        expect(signal?.aborted).toBe(true);
+
+        // The sequence sees its PUT fail and settles as failed; the row is removed, not marked failed.
+        finish(failed);
+        await act(() => sending);
+        expect(chat.cacheDelete).toHaveBeenCalledWith(pendingId);
+        expect(chat.failPendingImageChat).not.toHaveBeenCalled();
+        expect(result.current.canRetry(pendingId)).toBe(false);
+        expect(revoked.length).toBeGreaterThan(0);
+        unmount();
+    });
+
+    it('refuses to cancel a row that is not sending', async () => {
+        mockSendImageMessage.mockResolvedValueOnce(failed);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        await act(() => result.current.sendImages(files()));
+        const pendingId = await chat.createPendingImageChat.mock.results[0].value;
+        expect(result.current.cancel(pendingId)).toBe(false);
+        expect(result.current.cancel('nothing')).toBe(false);
         unmount();
     });
 
@@ -384,6 +490,38 @@ describe('useSendImages', () => {
         expect(revoked).toHaveLength(2);
         expect(result.current.canRetry(pendingId)).toBe(false);
         unmount();
+    });
+
+    it('leaves the room screen’s rows alone when a sender that does not attach unmounts', async () => {
+        mockSendImageMessage.mockResolvedValue(failed);
+        const room = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        await act(() => room.result.current.sendImages(files()));
+        const roomRow = await chat.createPendingImageChat.mock.results[0].value;
+        await waitFor(() => expect(chat.listPendingImageChats).toHaveBeenCalledTimes(1));
+
+        const forward = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1', attach: false }));
+        forward.unmount();
+
+        expect(room.result.current.canRetry(roomRow)).toBe(true);
+        expect(revoked).toHaveLength(0);
+        // Nor does it sweep the room it sends to: only the room's own attach did.
+        expect(chat.listPendingImageChats).toHaveBeenCalledTimes(1);
+        room.unmount();
+    });
+
+    it('keeps a non-attached send’s failed files only while the room’s screen is open', async () => {
+        mockSendImageMessage.mockResolvedValue(failed);
+        const room = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1' }));
+        const forward = renderHook(() => useBound({ cid: 'cloud-a', channelId: 'ch-1', attach: false }));
+        await act(() => forward.result.current.sendImages([new File(['a'], 'a.m4a')]));
+        const shown = await chat.createPendingImageChat.mock.results[0].value;
+        expect(room.result.current.canRetry(shown)).toBe(true);
+        room.unmount();
+
+        await act(() => forward.result.current.sendImages([new File(['b'], 'b.m4a')]));
+        const unseen = await chat.createPendingImageChat.mock.results[1].value;
+        expect(forward.result.current.canRetry(unseen)).toBe(false);
+        forward.unmount();
     });
 
     it('lets a send that is still running finish after unmount, then drops its files', async () => {
@@ -580,6 +718,39 @@ describe('useSendImages — one message per file', () => {
         unmount();
     });
 
+    // Every row shows as sending from the start, so each one's cancel has to hold while it waits its turn.
+    it('cancels a row still waiting behind the one being sent', async () => {
+        let finish: (result: SendImageResult) => void = () => undefined;
+        mockSendImageMessage.mockImplementationOnce(
+            () =>
+                new Promise<SendImageResult>(resolve => {
+                    finish = resolve;
+                })
+        );
+        mockSendImageMessage.mockResolvedValue(sent);
+        const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
+
+        let sending: Promise<void> = Promise.resolve();
+        act(() => {
+            sending = result.current.sendImages(three().slice(0, 2), separately);
+        });
+        await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(1));
+        const [, second] = await rowsWritten();
+
+        let cancelled = false;
+        act(() => {
+            cancelled = result.current.cancel(second);
+        });
+        expect(cancelled).toBe(true);
+
+        finish(sent);
+        await act(() => sending);
+        expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
+        expect(chat.cacheDelete).toHaveBeenCalledWith(second);
+        expect(chat.failPendingImageChat).not.toHaveBeenCalled();
+        unmount();
+    });
+
     // Timed from the row, a later message would count the earlier ones' sends as its own, and a pick of
     // ten would spend the whole per-minute sample budget at the press.
     it("starts each message's send sample at its own turn, not when the rows are written", async () => {
@@ -750,7 +921,7 @@ describe('useSendImages — one message per file', () => {
             localThumbUrls: [expect.stringMatching(/^blob:/)],
         });
         expect(separate).toEqual({ ...bundled, localThumbUrls: [expect.stringMatching(/^blob:/)] });
-        expect(runInCloud).toHaveBeenCalledTimes(2);
+        expect(holdCloud).toHaveBeenCalledTimes(2);
         mockSendImageMessage.mock.calls.forEach(([files]) => {
             expect(files).toHaveLength(1);
             expect(files[0]).toBe(photo);
@@ -1701,7 +1872,13 @@ describe('useSendImages — shell files', () => {
 
         expect(putShellFile).toHaveBeenCalledWith({ url: 'u', headers: {} }, doc, 'slot-0/original', undefined);
         expect(put).toHaveBeenCalledTimes(1);
-        expect(put).toHaveBeenCalledWith({ url: 'u', headers: {} }, page, 'slot-1/original', undefined);
+        expect(put).toHaveBeenCalledWith(
+            { url: 'u', headers: {} },
+            page,
+            'slot-1/original',
+            undefined,
+            expect.any(AbortSignal)
+        );
         unmount();
     });
 

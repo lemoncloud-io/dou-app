@@ -32,7 +32,7 @@ const MAX_TARGETED_PER_FIRE = 10;
  *    backend also fans out for the active cloud; and
  *  - the raw socket chat broadcast — the active cloud's socket covers all of its places, so even
  *    though the sync plan ignores a background channel's chat frame, the frame still reaches
- *    `onMessage`; it's the reliable "something in this cloud got a message" signal.
+ *    `onServerMessage`; it's the reliable "something in this cloud got a message" signal.
  *
  * A signal that names its channel refreshes just that row (`channel.get`); anything unattributed
  * falls back to re-pulling `channel.mine`. Debounced so a burst is one fire. A push deeplink also
@@ -104,24 +104,16 @@ export const useRefreshOnPush = (): void => {
             schedule(target.channelId, target.placeId || undefined);
         });
 
-        // onMessage needs a live client (and isn't rebind-safe), so bind it through subscribeClient.
-        const manager = runtime.connection.getSocketManager();
-        let offMessage: (() => void) | undefined;
-        const offClient = manager.subscribeClient(client => {
-            offMessage?.();
-            offMessage = undefined;
-            if (!client) return;
-            offMessage = manager.onMessage(({ message }) => {
-                const type = (message as { type?: string })?.type ?? '';
-                if (!type.startsWith('chat')) return;
-                schedule(chatFrameChannelIdOf(message) || undefined);
-            });
+        // Every frame on the active slot, re-attached across reconnects and slot changes.
+        const offMessage = runtime.connection.onServerMessage(message => {
+            const type = (message as { type?: string })?.type ?? '';
+            if (!type.startsWith('chat')) return;
+            schedule(chatFrameChannelIdOf(message) || undefined);
         });
 
         return () => {
             offPush();
-            offMessage?.();
-            offClient();
+            offMessage();
             if (timerRef.current) clearTimeout(timerRef.current);
         };
     }, [channel]);

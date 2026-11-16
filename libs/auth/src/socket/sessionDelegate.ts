@@ -16,7 +16,7 @@ import type { SocketSessionDelegate } from './types';
  * socket's slot, so each slot seeds/signs/writes back against the cloud it serves.
  *
  * Module-level (not a hook) so non-React callers — recoverUnverifiedSockets — can build the same
- * delegate; the React side wraps it in useSocketSessionDelegate. Every member forwards to a
+ * delegate; runtime-core's connection controller makes one for its binders. Every member forwards to a
  * module-level singleton, so instances are interchangeable and carry no state.
  *
  * The re-auth path does NOT come here: it takes the narrow `createReauthDelegate` directly, which

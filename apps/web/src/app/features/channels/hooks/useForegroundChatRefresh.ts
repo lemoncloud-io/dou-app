@@ -44,13 +44,11 @@ export const useForegroundChatRefresh = (channelId: string): void => {
             // Cold room: usePrimeChat owns the first fetch — fetching here too would double it.
             if (lastNo === 0) return;
 
-            runtime.sync
-                .getSyncManager()
-                .updateLocalSnapshot(
-                    { type: 'chat', id: channelId },
-                    { id: channelId, lastNo, minNo: 0, messages: [] },
-                    { cid }
-                );
+            runtime.sync.updateSyncSnapshot(
+                { type: 'chat', id: channelId },
+                { id: channelId, lastNo, minNo: 0, messages: [] },
+                { cid }
+            );
             // A warm room's sync is this fetch (a cold room's is usePrimeChat's). `fetchRoomFeed` joins a
             // fetch the tap already started, marks the `chat_room_sync` phases if it is the first fetch for
             // the trace, and ends the trace itself on failure. The room page ends it otherwise.

@@ -20,6 +20,7 @@ import {
     DefaultAvatar,
     FloatingDateChip,
     ImageAvatar,
+    JumpPill,
     MessageInput,
     type MessageInputProps,
     SystemNotice,
@@ -75,6 +76,7 @@ import {
     useMessageJump,
     useReactions,
     useReadMarker,
+    useRoomJumpPills,
     useRoomOpenTrace,
     useRoomSyncTrace,
     useStartDm,
@@ -86,7 +88,7 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
-import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
+import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
@@ -101,6 +103,8 @@ import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToast
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
+import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
+import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
 
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
@@ -431,8 +435,11 @@ export const ChannelRoomPage = () => {
             limit: 100,
             joinedNo: myJoin?.joinedNo,
             readingHistoryRef,
+            // Only the record of this room: on a switch without a remount, `channel` is the previous
+            // room's for a render.
+            channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
         }),
-        [stableChannelId, myJoin?.joinedNo]
+        [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
     );
 
     const {
@@ -452,6 +459,14 @@ export const ChannelRoomPage = () => {
         fetchThrough,
         isFetched,
     } = useChats(memoizedChatParams);
+
+    // Audio: what this device hid, and stopping what plays once its message or file is gone.
+    const { hiddenMedia } = useRoomAudioSurface({
+        cid: roomCid,
+        uid: userId ?? undefined,
+        channelId: stableChannelId,
+        messages,
+    });
 
     // Debug mode only: hands what this room holds to the overlay's Room screen.
     useDebugRoomMirror('room', { channelId, channel, rendered: messages, rows: rawChats, focused: actionMessage });
@@ -662,7 +677,12 @@ export const ChannelRoomPage = () => {
 
     // Scrolling (following new messages to the bottom, holding a reader in history in place,
     // resize/focus correction, prefetching older pages) is owned by useChatScroll.
-    const { containerRef: messagesEndRef, handleScroll: handleChatScroll } = useChatScroll({
+    const {
+        containerRef: messagesEndRef,
+        handleScroll: handleChatScroll,
+        isAwayFromBottom,
+        scrollToBottom: scrollChatToBottom,
+    } = useChatScroll({
         messages,
         hasMore,
         isLoadingMore,
@@ -746,10 +766,21 @@ export const ChannelRoomPage = () => {
         floatingHideTimerRef.current = window.setTimeout(() => setShowFloatingDate(false), 1200);
     }, [messagesEndRef]);
 
+    // The floating shortcuts over the list: the reader's unread mentions here, or the messages that
+    // arrived while they read history (Figma 6002:40133 · 6002:41749). See useRoomJumpPills.
+    const { pill: jumpPill, checkInView: checkMentionsInView } = useRoomJumpPills({
+        channelId: stableChannelId,
+        messages,
+        containerRef: messagesEndRef,
+        isAwayFromBottom,
+        scrollToBottom: scrollChatToBottom,
+    });
+
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();
         handleFloatingDateScroll();
-    }, [handleChatScroll, handleFloatingDateScroll]);
+        checkMentionsInView();
+    }, [handleChatScroll, handleFloatingDateScroll, checkMentionsInView]);
 
     // Clear the pending hide timer on unmount.
     useEffect(() => {
@@ -840,8 +871,8 @@ export const ChannelRoomPage = () => {
 
     /** Copies what the message SAYS, not what it is made of: a Block Kit body is flattened
      *  here rather than at the call site, so its payload cannot reach the clipboard. */
-    const handleCopyMessage = async (rawContent?: string) => {
-        const text = messagePlainText(rawContent);
+    const handleCopyMessage = async (message?: ClientChatView | null) => {
+        const text = message ? chatPlainText(message) : '';
         if (!text || isCopyingMessage) return;
 
         setIsCopyingMessage(true);
@@ -1459,6 +1490,7 @@ export const ChannelRoomPage = () => {
                                                             <ChannelMessageRow
                                                                 message={message}
                                                                 mentionViewer={mentionViewer}
+                                                                hiddenMedia={hiddenMedia}
                                                                 showProfileAndName={showProfileAndName}
                                                                 showTimeAndStatus={showTimeAndStatus}
                                                                 ownerDisplayName={ownerDisplayName}
@@ -1474,7 +1506,7 @@ export const ChannelRoomPage = () => {
                                                                 onLongPress={() => handleOpenMessageActions(message)}
                                                                 onExpand={() =>
                                                                     setExpandedMessage({
-                                                                        content: messagePlainText(message.content),
+                                                                        content: chatPlainText(message),
                                                                         ownerName: message.ownerName,
                                                                     })
                                                                 }
@@ -1533,12 +1565,37 @@ export const ChannelRoomPage = () => {
                     )}
                 </div>
 
+                <RoomMiniPlayer
+                    channelId={stableChannelId}
+                    containerRef={messagesEndRef}
+                    rowsVersion={messages}
+                    top={headerHeight + 16}
+                />
+
                 <div
                     className="pointer-events-none absolute inset-x-0 flex justify-center"
                     style={{ top: headerHeight + 8 }}
                 >
                     <FloatingDateChip label={floatingDate} visible={showFloatingDate && !!floatingDate} />
                 </div>
+
+                {jumpPill && (
+                    // Centred over the list, just above the composer.
+                    <div
+                        className="pointer-events-none absolute inset-x-0 flex justify-center"
+                        style={{ bottom: composerHeight + 16 }}
+                    >
+                        <JumpPill
+                            key={jumpPill.variant}
+                            variant={jumpPill.variant}
+                            label={t(jumpPill.variant === 'mention' ? 'chat.jump.mentions' : 'chat.jump.latest', {
+                                count: jumpPill.count,
+                            })}
+                            onClick={jumpPill.onClick}
+                            className="pointer-events-auto"
+                        />
+                    </div>
+                )}
             </div>
 
             <div
@@ -1652,7 +1709,7 @@ export const ChannelRoomPage = () => {
                 isCopying={isCopyingMessage}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setEmojiPickerOpen(true)}
-                onCopy={() => void handleCopyMessage(actionMessage?.content)}
+                onCopy={() => void handleCopyMessage(actionMessage)}
                 onReply={handleReplyAction}
                 onEdit={handleEditAction}
                 onDelete={handleDeleteAction}

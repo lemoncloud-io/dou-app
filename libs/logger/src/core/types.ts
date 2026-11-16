@@ -66,6 +66,11 @@ export interface LogContext {
      * matched, rather than filled with the actual path.
      */
     routeTemplate?: string;
+    /**
+     * Which side holds the session this run: `web` (the page, as in a browser) or `native` (the
+     * phone app's own runtime). Stamped by the app; absent where only the page could hold it.
+     */
+    sessionOwner?: string;
 }
 
 /**

@@ -13,39 +13,39 @@ import * as api from './index';
  * grouping a contract instead of a comment — moving a symbol between groups is a breaking change for
  * every call site, so it has to be a deliberate edit to this file.
  *
- * Type-only exports (`SessionProfile` · `ISocketManager` · `DeviceTokenDelegate` · the option types)
+ * Type-only exports (`SessionProfile` · `SlotStatus` · `DeviceTokenDelegate` · the option types)
  * are erased at runtime and do not appear in `GROUPS` — those lists hold the value exports only, and a
  * type a call site cannot do without is checked by the compiler instead (the last test). Internal wiring
- * (socket auth bootstrap/reauth, the connection binders, raw session actions, `useSyncTarget`,
- * `useRuntimeSocketSlots`) can therefore never leak back into the barrel unnoticed.
+ * (socket auth bootstrap/reauth, the connection controller, raw session actions, `useSyncTarget`,
+ * `useHostControllers`) can therefore never leak back into the barrel unnoticed.
  */
 const GROUPS: Record<string, readonly string[]> = {
     // What an app entry point touches once — the boot call, env constants, platform probe, transport.
     // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
-    boot: [
-        'LATE_VAULT_MARK',
-        'initAppRuntime',
-        'isNativeApp',
-        'prepareSecretStorage',
-        'readStorageEnvironment',
-        'resolveStorageStores',
-        'setNativeCacheSupport',
-        'webTransport',
-    ],
-    // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
-    // to a consumer, all three are "session".
+    // The stores an app keeps state in are chosen in `@chatic/runtime-web` (`resolveStorageStores`), which
+    // also builds the runtime; this group hands the React surface the engine it built.
+    boot: ['initAppRuntime', 'isNativeApp', 'prepareSecretStorage', 'webTransport'],
+    // Session state · auth. `confirmPhoneLogin`/`logoutSession` live in `@chatic/auth`'s socket/ —
+    // to a consumer, all of them are "session".
     session: [
+        'INVITE_LOGIN_UNKNOWN',
+        'PHONE_LOGIN_NOTHING_PENDING',
+        'PHONE_LOGIN_NO_TOKEN',
+        'PHONE_LOGIN_SWITCH_FAILED',
         'SWITCH_CLOUD_MUTATION_KEY',
         'SWITCH_SITE_MUTATION_KEY',
-        'applySessionToken',
         'authFailureReaction',
+        'cancelPhoneLogin',
         'classifyPairingError',
         'clearSiteSelection',
+        'confirmPhoneLogin',
         'createCredentialsByProvider',
+        'fetchAccountProfile',
         'deviceDisplayName',
         'fetchInviteInfoWithCode',
+        'forgetInviteLogin',
         'forgetRefusedPairedCloud',
         'getActiveServerContext',
         'getActiveSessionUser',
@@ -63,6 +63,8 @@ const GROUPS: Record<string, readonly string[]> = {
         'patchRelaySessionUser',
         'registerSessionLogoutCallback',
         'registerUserWithInviteCode',
+        'retryPhoneLogin',
+        'updateAccountProfile',
         'useCloudCredentialGuard',
         'useDynamicDeviceId',
         'useFindAlias',
@@ -91,12 +93,18 @@ const GROUPS: Record<string, readonly string[]> = {
         'useUidInCloud',
         'useVerifyAlias',
     ],
-    // Hosts + socket state reads + wake recovery + the background-cloud and owned-cloud lists.
+    // Hosts + socket state reads + waits, slot requests and pushes + wake recovery + the background-cloud
+    // and owned-cloud lists — all through the engine; the socket manager itself is not sold.
     connection: [
         'RELAY_SLOT',
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
-        'getSocketManager',
+        'getRuntimeSocketState',
+        'getSlotStatuses',
+        'observeSocketRequests',
+        'onServerEvent',
+        'onServerMessage',
+        'reconnectSocket',
         'recoverSocketsOnResume',
         'recoverUnverifiedSockets',
         'useBackgroundClouds',
@@ -106,6 +114,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useRuntimeSocketState',
         'useSlotVerified',
         'useVerifiedClouds',
+        'waitUntilVerified',
     ],
     // Repository · cache tier · outbox.
     data: [
@@ -134,12 +143,14 @@ const GROUPS: Record<string, readonly string[]> = {
     ],
     sync: [
         'fetchRoomFeed',
-        'getSyncManager',
         'isChannelRefused',
+        'listSyncTargets',
         'prefetchRoomFeed',
         'refreshBackgroundClouds',
+        'registerSyncTarget',
         'subscribeBackgroundDeltas',
         'subscribeRefusedChannels',
+        'updateSyncSnapshot',
         'useChannelSync',
         'useChatSync',
         'usePlaceSync',

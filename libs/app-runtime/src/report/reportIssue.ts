@@ -1,9 +1,10 @@
 import { config } from '@chatic/config';
 
-import { getRepositories } from '../data/runtime';
+import { runtimeData } from '../data/dataCommands';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
-import { isNative, logger } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { IssueReportWireBody } from '@chatic/http';
 import type { AppType, IssueReportExtras } from './types';
@@ -62,10 +63,10 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
         const sessionUser = getActiveSessionUser() as { userRole?: string; name?: string } | null;
         const userRole = sessionUser?.userRole;
 
+        // The session as the app reads it carries no token, so "a cloud session" is the cloud half
+        // being active, and its user's name is the active token's user fields while it is.
         const cloudState = state.cloud;
-        const cloudToken = cloudState.cloudToken;
-        const backend = cloudState.backend;
-        const hasCloud = !!cloudToken && !!backend;
+        const hasCloud = cloudState.isActive;
 
         const payload = {
             title,
@@ -91,7 +92,7 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
             cloud: {
                 connected: hasCloud,
                 cloudId: hasCloud ? (cloudState.cloudId ?? undefined) : undefined,
-                name: hasCloud ? (cloudToken?.name ?? undefined) : undefined,
+                name: hasCloud ? (sessionUser?.name ?? undefined) : undefined,
                 placeId: cloudState.siteId ?? undefined,
             },
             // User-facing screen context (recent logs, device/version snapshot, attachments, ...).
@@ -122,9 +123,10 @@ export const reportIssue = async (title: string, message: string, extras: IssueR
         }
 
         // repository → data source → gateway, like every other data call. Resolved per
-        // call, not captured at module load: this file must stay importable before the data runtime
-        // is configured — same rule `session/auth` follows.
-        await getRepositories().report.submitIssue(body);
+        // call, not captured at module load: this file must stay importable before the entry point
+        // hands the runtime its engine — same rule `session/auth` follows. Through the engine, like
+        // every data call.
+        await runtimeData().repositories().report.submitIssue(body);
     } catch (reportingError) {
         logger.error('ERROR_REPORT', 'Failed to report issue', { error: reportingError });
         throw reportingError;

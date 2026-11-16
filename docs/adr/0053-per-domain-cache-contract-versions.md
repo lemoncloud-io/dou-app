@@ -9,8 +9,8 @@
 ## Context
 
 ADR-0051 gathered "where does this cache type get stored" into one place,
-[cacheStorageRouting.ts](../../libs/app-runtime/src/data/cacheStorageRouting.ts), and
-[nativeCacheSupport.ts](../../libs/app-runtime/src/data/nativeCacheSupport.ts) owns the deploy-skew
+[routing.ts](../../libs/runtime-web/src/localCache/routing.ts), and
+[nativeCacheSupport.ts](../../libs/runtime-web/src/localCache/nativeCacheSupport.ts) owns the deploy-skew
 gate, one axis of that judgment. The gate today is **a combination of three different mechanisms**:
 
 - **`LEGACY_NATIVE_CACHE_TYPES`** — a frozen set of 8 types that every already-shipped app can store.
@@ -81,7 +81,7 @@ domain refills from a server resync. **This premise is false for exactly one typ
 
 `invitecloud` has no server list API, making it **the one type where the cache itself is
 authoritative**
-([invitedCloudDurability.ts:56](../../libs/app-runtime/src/data/invitedCloudDurability.ts) —
+([invitedCloudDurability.ts:56](../../libs/runtime-core/src/data/invitedCloudDurability.ts) —
 _"the only local-only cache type (no server list API)"_). Moving its storage does not leave rows
 unfilled — it makes them **vanish.** The one recovery path is
 `issueCloudDelegationToken(cloudId)`, but that `cloudId` lived inside the row that was lost, and
@@ -203,9 +203,9 @@ exhausted the active-user tail.
 
 **Removed** — `migrateInvitedCloudsIntoNativeStore`, `useInvitedCloudMigration`, `SEED_FLAG_KEY` and
 `hasSeeded`/`markSeeded`
-([invitedCloudDurability.ts](../../libs/app-runtime/src/data/invitedCloudDurability.ts)) ·
+([invitedCloudDurability.ts](../../libs/runtime-core/src/data/invitedCloudDurability.ts)) ·
 `createWebInviteCloudStorage`
-([localFactory.ts:70](../../libs/app-runtime/src/data/factories/localFactory.ts) — since its only
+([localFactory.ts:70](../../libs/runtime-core/src/data/factories/localFactory.ts) — since its only
 consumer disappears, ADR-0051 Decision 1's "keep it" is reversed here) · the barrel export
 ([index.ts:59](../../libs/app-runtime/src/index.ts)) · the call site
 ([InvitedCloudDurabilityRunner.tsx:28](../../apps/web/src/app/runtime/InvitedCloudDurabilityRunner.tsx)) ·
@@ -271,7 +271,7 @@ rewritten `isNativeCacheTypeUsable` (keeping the floor's meaning), introducing
 `LOCAL_AUTHORITY_CACHE_TYPES` and a test pinning that its domains are never gated, removing
 `MIN_SCHEMA_VERSION_BY_TYPE`, removing the web→native migration bridge (Decision 5's list), updating
 the routing table tests, updating
-[cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md) and
+[runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md) and
 `libs/app-runtime/docs/data/invite-cloud-durability.md`.
 
 **Out** — removing the `supportedCacheTypes`/`cacheSchemaVersion` fields (after the backward-compat

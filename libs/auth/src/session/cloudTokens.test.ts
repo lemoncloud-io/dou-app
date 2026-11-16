@@ -1,11 +1,15 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
+import { logger } from '@chatic/logger';
+
 import {
+    CloudIdentityChangedError,
     isExchangeInFlight,
     isInviteLoginEntry,
     issueCloudTokens,
     lastIssuedForOf,
     reissueCloudTokens,
+    resetCloudIdentityRefusals,
     tokensFromInviteLogin,
 } from './cloudTokens';
 
@@ -22,6 +26,7 @@ const mockGetCredential = jest.fn();
 const mockSaveSelectedCloudId = jest.fn();
 const mockClearSelectedSite = jest.fn();
 const mockSetCloudIdentity = jest.fn();
+const mockGetCloudIdentity = jest.fn();
 
 const mockRebuildSessionIdentity = jest.fn();
 const mockGetUidInCloud = jest.fn();
@@ -50,6 +55,7 @@ jest.mock('@chatic/session/store/stores', () => ({
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         clearSelectedSite: (...args: unknown[]) => mockClearSelectedSite(...args),
         setCloudIdentity: (...args: unknown[]) => mockSetCloudIdentity(...args),
+        getCloudIdentity: (...args: unknown[]) => mockGetCloudIdentity(...args),
     },
 }));
 
@@ -87,6 +93,7 @@ const cloudToken = (identityToken: string, uid?: string): UserTokenView =>
 
 beforeEach(() => {
     jest.resetAllMocks();
+    resetCloudIdentityRefusals();
     mockDelegateCloud.mockResolvedValue(delegation());
     mockExchangeToken.mockResolvedValue(cloudToken('fresh-identity'));
 });
@@ -357,6 +364,131 @@ describe('reissueCloudTokens', () => {
 
         await expect(reissueCloudTokens('cloud-1')).rejects.toThrow('403');
         expect(mockSaveCloudToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('identity guard', () => {
+    // The account is recorded as `invitee-uid` in cloud-1 — the user its invite login made there.
+    beforeEach(() => {
+        mockGetCloudIdentity.mockImplementation((cloudId: string) =>
+            cloudId === 'cloud-1' ? { uid: 'invitee-uid' } : null
+        );
+    });
+
+    it('refuses an issue that names a different user than the one recorded for the cloud', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('stranger-identity', 'new-empty-uid'));
+
+        const issued = issueCloudTokens('cloud-1', { allowCache: false });
+
+        await expect(issued).rejects.toBeInstanceOf(CloudIdentityChangedError);
+        await expect(issued).rejects.toMatchObject({
+            cloudId: 'cloud-1',
+            recordedUid: 'invitee-uid',
+            issuedUid: 'new-empty-uid',
+        });
+        expect(logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('writes nothing when it refuses — the cache and the identity map keep the recorded user', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('stranger-identity', 'new-empty-uid'));
+
+        await issueCloudTokens('cloud-1', { allowCache: false }).catch(() => undefined);
+
+        expect(mockSetCachedCloudTokens).not.toHaveBeenCalled();
+        expect(mockSetCloudIdentity).not.toHaveBeenCalled();
+        expect(lastIssuedForOf('cloud-1')).toBeUndefined();
+    });
+
+    it('leaves the committed session untouched when a renewal is refused', async () => {
+        mockGetDelegationToken.mockReturnValue(delegation());
+        mockGetCloudToken.mockReturnValue(cloudToken('invitee-identity', 'invitee-uid'));
+        mockExchangeToken.mockResolvedValue(cloudToken('stranger-identity', 'new-empty-uid'));
+
+        await expect(reissueCloudTokens('cloud-1')).rejects.toBeInstanceOf(CloudIdentityChangedError);
+
+        expect(mockSaveDelegationToken).not.toHaveBeenCalled();
+        expect(mockSaveCloudToken).not.toHaveBeenCalled();
+        expect(mockClearSelectedSite).not.toHaveBeenCalled();
+    });
+
+    it('lets an owner token through — the owned-cloud reclaim is the change that is meant to happen', async () => {
+        const owner = { ...cloudToken('owner-identity', 'owner-uid'), userRole: 'owner' } as UserTokenView;
+        mockExchangeToken.mockResolvedValue(owner);
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).resolves.toMatchObject({ cloudToken: owner });
+
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-1', { uid: 'owner-uid' });
+    });
+
+    it('reads the owner role off `$user` too', async () => {
+        const owner = {
+            ...cloudToken('owner-identity', 'owner-uid'),
+            $user: { userRole: 'owner' },
+        } as unknown as UserTokenView;
+        mockExchangeToken.mockResolvedValue(owner);
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).resolves.toMatchObject({ cloudToken: owner });
+    });
+
+    it('does not take a member role for an owner', async () => {
+        const member = { ...cloudToken('member-identity', 'other-uid'), userRole: 'user' } as UserTokenView;
+        mockExchangeToken.mockResolvedValue(member);
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).rejects.toBeInstanceOf(
+            CloudIdentityChangedError
+        );
+    });
+
+    it('takes a renewal that names the recorded user', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('renewed-identity', 'invitee-uid'));
+
+        await issueCloudTokens('cloud-1', { allowCache: false });
+
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledTimes(1);
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-1', { uid: 'invitee-uid' });
+    });
+
+    it('takes any answer for a cloud with no recorded user — a first entry has nobody to keep', async () => {
+        mockDelegateCloud.mockResolvedValue(delegation('cloud-2'));
+        mockExchangeToken.mockResolvedValue(cloudToken('first-identity', 'first-uid'));
+
+        await issueCloudTokens('cloud-2', { allowCache: false });
+
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-2', { uid: 'first-uid' });
+    });
+
+    it('answers a repeat from the refusal it already saw, without asking the server again', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('stranger-identity', 'new-empty-uid'));
+        await issueCloudTokens('cloud-1', { allowCache: false }).catch(() => undefined);
+        mockDelegateCloud.mockClear();
+        mockExchangeToken.mockClear();
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).rejects.toMatchObject({
+            recordedUid: 'invitee-uid',
+            issuedUid: 'new-empty-uid',
+        });
+
+        expect(mockDelegateCloud).not.toHaveBeenCalled();
+        expect(mockExchangeToken).not.toHaveBeenCalled();
+    });
+
+    it('asks the server again once the recorded uid has moved — a re-accept or a pairing changed it', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('stranger-identity', 'new-empty-uid'));
+        await issueCloudTokens('cloud-1', { allowCache: false }).catch(() => undefined);
+        mockGetCloudIdentity.mockReturnValue(null);
+        mockDelegateCloud.mockClear();
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).resolves.toBeDefined();
+
+        expect(mockDelegateCloud).toHaveBeenCalledTimes(1);
+        expect(mockSetCloudIdentity).toHaveBeenCalledWith('cloud-1', { uid: 'new-empty-uid' });
+    });
+
+    it('takes an answer that names no uid — there is nothing to compare it with', async () => {
+        mockExchangeToken.mockResolvedValue(cloudToken('no-uid-identity'));
+
+        await expect(issueCloudTokens('cloud-1', { allowCache: false })).resolves.toBeDefined();
+        expect(mockSetCachedCloudTokens).toHaveBeenCalledTimes(1);
     });
 });
 

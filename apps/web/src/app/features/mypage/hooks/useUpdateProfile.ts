@@ -3,8 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import type { UserView } from '@lemoncloud/chatic-backend-api';
 import { runtime } from '@chatic/app-runtime';
 
-import { getRelayAccountGateway } from '../../../runtime/relayAccountGateway';
-
 interface UpdateProfileData {
     name?: string;
     photo?: string;
@@ -30,7 +28,7 @@ interface UpdateProfileData {
 export const useUpdateProfile = () => {
     return useMutation({
         mutationFn: async (data: UpdateProfileData) => {
-            const updated = await getRelayAccountGateway().update<UserView>(data as never);
+            const updated: UserView = await runtime.session.updateAccountProfile(data);
             // Prefer the server's echo; fall back to what we sent so the header still updates when
             // the response comes back thin.
             const view = (updated ?? {}) as unknown as Record<string, unknown>;

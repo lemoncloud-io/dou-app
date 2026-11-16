@@ -10,7 +10,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useCloudVerified: jest.fn(),
         },
         sync: {
-            getSyncManager: jest.fn(),
+            registerSyncTarget: jest.fn(),
         },
         session: {
             useUidInCloud: jest.fn(),
@@ -18,7 +18,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-const registerJoin = jest.fn(() => () => undefined);
+const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 
 /** The cursor map is now built by useChannelJoins — this hook just takes that result and handles registration and counting. */
 const cursors = (entries: Record<string, number>) => new Map(Object.entries(entries));
@@ -27,7 +27,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
     (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me');
-    (runtime.sync.getSyncManager as jest.Mock).mockReturnValue({ registerJoin });
+    registerSyncTarget.mockReturnValue(() => undefined);
 });
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
@@ -35,10 +35,10 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         // active (the denominator) is u1/u2, but registration happens against the full roster (u1/u2/u3).
         renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2', 'u3'], cursors({}), true));
 
-        expect(registerJoin).toHaveBeenCalledTimes(3);
-        expect(registerJoin).toHaveBeenCalledWith('c1@u1', undefined, { cid: 'cloud-a' });
-        expect(registerJoin).toHaveBeenCalledWith('c1@u2', undefined, { cid: 'cloud-a' });
-        expect(registerJoin).toHaveBeenCalledWith('c1@u3', undefined, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledTimes(3);
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u1' }, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u2' }, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u3' }, { cid: 'cloud-a' });
     });
 
     // The server only returns someone else's join to a member of that channel. Polling the
@@ -47,7 +47,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     it('멤버가 아니면(isMember=false) 로스터 폴링을 등록하지 않는다', () => {
         renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2', 'me'], cursors({}), false));
 
-        expect(registerJoin).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     // Membership can only be determined once the channel row and my join row have arrived.
@@ -57,13 +57,13 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
             ({ isMember }) => useJoinPositions('cloud-a', 'c1', ['u1'], ['u1', 'me'], cursors({}), isMember),
             { initialProps: { isMember: false } }
         );
-        expect(registerJoin).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
 
         rerender({ isMember: true });
 
-        expect(registerJoin).toHaveBeenCalledTimes(2);
-        expect(registerJoin).toHaveBeenCalledWith('c1@u1', undefined, { cid: 'cloud-a' });
-        expect(registerJoin).toHaveBeenCalledWith('c1@me', undefined, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledTimes(2);
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u1' }, { cid: 'cloud-a' });
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@me' }, { cid: 'cloud-a' });
     });
 
     it('세션 미검증(isVerified=false)이면 join sync를 등록하지 않는다', () => {
@@ -71,7 +71,7 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
 
         renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2'], cursors({}), true));
 
-        expect(registerJoin).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     it('로스터가 그대로면 재등록하지 않는다 (커서만 바뀌는 흔한 경우)', () => {
@@ -81,12 +81,12 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
                 initialProps: { byUser: cursors({ u1: 1 }) },
             }
         );
-        expect(registerJoin).toHaveBeenCalledTimes(1);
+        expect(registerSyncTarget).toHaveBeenCalledTimes(1);
 
         // A new Map identity but the same roster — the registration effect only re-runs on memberKey.
         rerender({ byUser: cursors({ u1: 7 }) });
 
-        expect(registerJoin).toHaveBeenCalledTimes(1);
+        expect(registerSyncTarget).toHaveBeenCalledTimes(1);
     });
 
     it('커서는 넘겨받은 max(readNo, chatNo) 맵을 그대로 쓴다', () => {
@@ -142,16 +142,16 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
 
         expect(runtime.connection.useCloudVerified).toHaveBeenCalledWith('cloud-b');
         expect(runtime.session.useUidInCloud).toHaveBeenCalledWith('cloud-b');
-        expect(registerJoin).toHaveBeenCalledWith('c1@u1', undefined, { cid: 'cloud-b' });
+        expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u1' }, { cid: 'cloud-b' });
     });
 
     it('re-registers when my uid in the cloud changes', () => {
         const { rerender } = renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1'], ['u1'], cursors({}), true));
-        expect(registerJoin).toHaveBeenCalledTimes(1);
+        expect(registerSyncTarget).toHaveBeenCalledTimes(1);
 
         (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('me-again');
         rerender();
 
-        expect(registerJoin).toHaveBeenCalledTimes(2);
+        expect(registerSyncTarget).toHaveBeenCalledTimes(2);
     });
 });

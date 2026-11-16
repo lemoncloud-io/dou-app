@@ -21,12 +21,15 @@ describe('Checkbox', () => {
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
-    it('fills with primary by default and with main-accent for tone="accent"', () => {
+    it('fills with primary by default, main-accent for tone="accent" and chip-ink for tone="ink"', () => {
         const { rerender } = render(<Checkbox checked label="x" />);
         expect(screen.getByRole('checkbox', { name: 'x' })).toHaveClass('bg-primary', 'text-primary-foreground');
 
         rerender(<Checkbox checked tone="accent" label="x" />);
         expect(screen.getByRole('checkbox', { name: 'x' })).toHaveClass('bg-main-accent', 'text-white');
+
+        rerender(<Checkbox checked tone="ink" label="x" />);
+        expect(screen.getByRole('checkbox', { name: 'x' })).toHaveClass('bg-chip-ink', 'text-white');
     });
 
     it('does not toggle when disabled', () => {

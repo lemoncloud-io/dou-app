@@ -99,7 +99,7 @@ grep -rln "@chatic/lib/utils" libs/web-ui-kit/src | wc -l
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 103 spec files and 82 story files against 98 exported
+6. **Every component has a test and a story.** 136 spec files and 109 story files against 117 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -123,9 +123,9 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 63 icons · 7 assets</i>"]:::res
+    C["composites × 81<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    F["foundations × 44<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    R["resources<br/><i>tokens.css · 75 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
@@ -167,15 +167,15 @@ flowchart TD
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
-│   ├── styles/tokens.css   134 lines of HSL channels, light + `.dark`
-│   ├── icons/              63 exports: lucide aliases + Figma-exported glyphs
+│   ├── styles/tokens.css   155 lines of HSL channels, light + `.dark`
+│   ├── icons/              75 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   11 groups, 38 components
-│   avatar(7) · button(9) · input(8) · badge(6) · brand(2) ·
+├── foundations/   13 groups, 44 components
+│   avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) · audio(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 60 components
-    chat(17) · list(6) · media(9) · overlay(6) · section(4) · header(3) ·
-    layout(4) · subscription(7) · feedback(2) · navigation(2)
+└── composites/    10 groups, 81 components
+    chat(22) · list(9) · media(12) · overlay(9) · section(5) · header(5) ·
+    layout(4) · subscription(7) · feedback(3) · navigation(5)
 ```
 
 Ten files are internal — used across a group but absent from every barrel, so grepping the public
@@ -236,6 +236,25 @@ its hook is not:
 - `composites/chat/ProgressRing.tsx` — the determinate ring: `MessageFileCard`'s download (with a
   stop mark, since another press cancels) and upload, and a sending `MessageMediaTiles` tile's mark
   with the percentage inside it. The hosts give it its accessible name and value.
+
+### Audio and room files
+
+The audio pieces share one vocabulary so every surface that shows an audio file reads the same:
+`foundations/audio` holds the two numbers they print (`formatAudioClock` — `0:07`, `35:47`, `1:12:05` —
+and `formatAudioSize` — `17.0MB`, whatever the magnitude), the seek bar (`AudioSeekBar`) and the speed chip
+(`PlaybackRateChip`). The seek bar holds only the drag in progress: it reports where the finger is
+(`onScrub`) and seeks once, when the drag ends. `AudioMessageBubble`, `MiniAudioPlayer`, `AudioDetailLayout`
+and `RoomFileRow` build on them; none of them plays anything — the host owns the one player and passes its
+state down.
+
+`Waveform` draws bars the host computed, or, without them, a decorative shape seeded by a string
+(`decorativeWaveform`) so the same file always draws the same shape. The room-file screens add
+`RoomFilesSummary`, `RoomFilesTabs`, `RoomFileRow`, `RoomMediaGrid`, `MonthGroupHeader`,
+`RoomFilesHeader` (the screen's own header: its right side holds a search icon and a text action, which
+`ModalTopBar`'s 44px slots cannot), `FileSelectionHeader`, `FileSelectionActionBar` (icon actions with an optional notice — not the
+notifications' two-button `SelectionActionBar`) and `RoomFileMoreSheet`; the detail adds
+`AudioDetailMoreSheet`, a failed send `FailedSendActions`, and sending audio `AudioSendSheet` and
+`UnsendableFilesDialog`.
 
 ### Photo editing
 
@@ -388,7 +407,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 103 spec files and the stories
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 136 spec files and the stories
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 

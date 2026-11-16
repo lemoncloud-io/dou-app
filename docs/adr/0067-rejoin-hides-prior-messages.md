@@ -40,7 +40,7 @@ already searchable today, independent of rejoining).
 
 [`ChannelRepository`](../../libs/data/src/repositories/ChannelRepository.ts)'s `leftChannelIds` is an in-memory Set
 that filters **both** `refreshList` and `syncChannels`, but it's only ever cleared on a leave-failure rollback.
-[`DataManager`](../../libs/app-runtime/src/data/DataManager.ts) constructs repositories once in its constructor and
+[`DataManager`](../../libs/runtime-core/src/data/DataManager.ts) constructs repositories once in its constructor and
 only swaps context via `ensure()`, so this Set survives even a cloud switch. In other words, **leave, then get
 reinvited, and the channel doesn't come back to the list until a refresh.** Rejoin behavior can't even be verified
 without fixing this first.

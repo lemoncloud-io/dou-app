@@ -10,6 +10,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 
 import {
+    NotifyLevelSection,
     PageShell,
     SettingsActionRow,
     SettingsNavRow,
@@ -20,6 +21,7 @@ import {
     useRemoveCloud,
     useRenameCloud,
     toastFailure,
+    useCloudNotify,
 } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
@@ -58,6 +60,7 @@ export const CloudHubPage = () => {
             if (!approvalsConfirmed.current) signOut();
         },
     };
+    const cloudNotify = useCloudNotify(cloudId);
     const [name, setName] = useState('');
     const [confirmingRelease, setConfirmingRelease] = useState(false);
 
@@ -164,6 +167,20 @@ export const CloudHubPage = () => {
                         onClick={() => navigate(`/account/clouds/${cloudId}/places`)}
                     />
                 </SettingsRowGroup>
+            </section>
+
+            <section className="mt-8 flex flex-col gap-4">
+                <h2 className="text-overline uppercase text-muted-foreground">{t('cloud.hub.notifications')}</h2>
+                {cloudNotify.isActive ? (
+                    <NotifyLevelSection
+                        title={t('cloud.hub.notify.title')}
+                        hint={t('cloud.hub.notify.hint')}
+                        mode={cloudNotify.mode}
+                        onSelect={cloudNotify.setMode}
+                    />
+                ) : (
+                    <p className="text-caption text-muted-foreground">{t('cloud.hub.notify.switchHint')}</p>
+                )}
             </section>
 
             <section className="mt-8 flex flex-col gap-4">

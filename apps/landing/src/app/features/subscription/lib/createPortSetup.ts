@@ -1,5 +1,6 @@
 import { type ComponentType, type ReactNode } from 'react';
 
+import { isProductionHost, readProductionBuild } from '../../../config/stage';
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
 import { tabStore } from '../../../storage';
 import { createCatalogPort } from './catalogPort';
@@ -28,6 +29,11 @@ export interface PortSetup {
     cardEntry?: CardEntryChannel;
     /** Present whenever the port is the server's: the sandbox payments switch and its settings. */
     sandbox?: SandboxSetup;
+    /**
+     * Whether a checkout may be billed outside Korea, in dollars; true when omitted. False in a build
+     * whose addresses are production's: the server has no production dollar products yet.
+     */
+    foreignBilling?: boolean;
 }
 
 /** The renewal periods a sandboxed start can ask for; `''` is the product's own month. */
@@ -128,26 +134,34 @@ const turnSandbox = (on: boolean): void => {
  *   tests bring their own fake.
  * - A server tab may run on sandbox payments (`sandboxOf`): the server's real subscription flow on the
  *   payment server's mock provider, with no card and no charge. Only here, so only where the account
- *   surface is open — never on the production host, whatever its address says — and never with a build
- *   whose addresses are production's (`VITE_ENV=PROD`), even on a development host. The server does not
- *   refuse the query on production, so not sending it there is the first defence.
+ *   surface is open, and even there never on the production host (`app.chatic.io`, whatever the build)
+ *   and never with a build whose addresses are production's (`VITE_ENV=PROD`, whatever the host). The
+ *   server does not refuse the query on production, so not sending it there is the first defence:
+ *   sandbox records would sit among real users'.
+ * - A build whose addresses are production's bills in Korea only (`foreignBilling`): checkout stops at a
+ *   notice for any other billing country, since the server has no production dollar products.
  */
 export const createPortSetup = ({
     account,
     server = subscriptionServer ?? null,
     search = window.location.search,
+    productionHost = isProductionHost,
     createHttp = createHttpSetup,
 }: {
     account: boolean;
     /** `null`: the build has no server. */
     server?: SubscriptionServer | null;
     search?: string;
+    /** Whether the page is served from the production host. */
+    productionHost?: boolean;
     createHttp?: (server: SubscriptionServer, options: { sandbox?: HttpSandbox }) => HttpSetup;
 }): PortSetup => {
     if (!account || !server) return { port: createCatalogPort(), clock: systemClock };
 
-    // A build pointed at production's servers has no sandbox, whatever host it runs on.
-    const sandboxAllowed = server.env('VITE_ENV') !== 'PROD';
+    // A build pointed at production's servers has no sandbox, whatever host it runs on; nor has the
+    // production host, whatever build it serves.
+    const productionBuild = readProductionBuild(server.env('VITE_ENV'));
+    const sandboxAllowed = !productionBuild && !productionHost;
     const enabled = sandboxAllowed && sandboxOf(search, read(SANDBOX_KEY));
     if (sandboxAllowed) {
         save(SANDBOX_KEY, enabled ? '1' : '0');
@@ -174,5 +188,6 @@ export const createPortSetup = ({
                   turn: turnSandbox,
               }
             : undefined,
+        foreignBilling: !productionBuild,
     };
 };

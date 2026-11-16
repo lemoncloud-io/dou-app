@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 
-import { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid } from './NavIcons';
+import { IconNavBell, IconNavBellSolid, IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid } from './NavIcons';
 
 describe('NavIcons', () => {
     // The app sets a `<base href>`, against which a `url(#…)` reference can resolve to nothing on
@@ -10,6 +10,8 @@ describe('NavIcons', () => {
         ['IconNavChatSolid', IconNavChatSolid],
         ['IconNavMy', IconNavMy],
         ['IconNavMySolid', IconNavMySolid],
+        ['IconNavBell', IconNavBell],
+        ['IconNavBellSolid', IconNavBellSolid],
     ])('%s references no mask, clip path or other fragment url', (_name, Icon) => {
         const { container } = render(<Icon />);
 
@@ -34,6 +36,8 @@ describe('NavIcons', () => {
         ['IconNavChatSolid', IconNavChatSolid],
         ['IconNavMy', IconNavMy],
         ['IconNavMySolid', IconNavMySolid],
+        ['IconNavBell', IconNavBell],
+        ['IconNavBellSolid', IconNavBellSolid],
     ])('%s is decorative and sized by the size prop', (_name, Icon) => {
         const { container } = render(<Icon size={20} />);
 

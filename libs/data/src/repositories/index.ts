@@ -25,6 +25,7 @@ export * from './types';
 export * from './AuthRepository';
 export * from './ChannelRepository';
 export * from './ChatRepository';
+export { uncoveredIn } from './feedCoverage';
 export type { FeedRange } from './feedCoverage';
 export * from './CloudRepository';
 export * from './DeviceRepository';

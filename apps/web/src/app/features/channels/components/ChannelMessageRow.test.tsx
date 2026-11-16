@@ -69,12 +69,19 @@ jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boo
 // The tile is a real button so the long-press cases can tell a swallowed tap from one that opens the
 // viewer, and the viewer is portalled to the body as the real Radix one is — React still bubbles its
 // events through the row, which is the case the gesture has to ignore.
+// `data-hidden` surfaces which slots the row told the tiles to leave out — the tiles honouring it is
+// pinned in MessageImages' own test.
 const mockOpenTile = jest.fn();
 jest.mock('./MessageImages', () => {
     const { createPortal } = jest.requireActual('react-dom');
     return {
-        MessageImages: ({ uploads, align }: any) => (
-            <div data-testid="message-images" data-count={uploads?.length ?? 0} data-align={align}>
+        MessageImages: ({ uploads, align, hiddenSlots }: any) => (
+            <div
+                data-testid="message-images"
+                data-count={uploads?.length ?? 0}
+                data-align={align}
+                data-hidden={hiddenSlots ? [...hiddenSlots].join(',') : ''}
+            >
                 <button data-testid="image-tile" onClick={mockOpenTile} />
                 {createPortal(<div data-testid="image-viewer" />, document.body)}
             </div>
@@ -553,12 +560,24 @@ describe('ChannelMessageRow', () => {
         });
     });
 
-    // A webhook send arrives as ordinary `stereo: 'user'` chat whose `content` is Block Kit
-    // JSON (docs/specs/block-kit-messages.md §2). Without this branch the row hands that JSON
-    // to MessageText and the reader sees the payload.
+    // A webhook send (`stereo: 'webhook'`) can carry its Block Kit as JSON in `content`. Without
+    // this branch the row hands that JSON to MessageText and the reader sees the payload.
     describe('Block Kit content', () => {
         const blockMessage = (blocks: unknown[]) =>
-            ({ ...message, content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
+            ({ ...message, stereo: 'webhook', content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
+
+        // Only an integration's post is a card. A person who pastes a payload wrote that text, and a
+        // card from the composer would look exactly like an alert.
+        it("keeps a person's pasted payload as the text they sent, in a bubble", () => {
+            const pasted = {
+                ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: '배포 실패' } }]),
+                stereo: 'user',
+            } as unknown as ClientChatView;
+            render(<ChannelMessageRow {...baseProps} message={pasted} />);
+
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.queryByRole('heading', { name: '배포 실패' })).not.toBeInTheDocument();
+        });
 
         it('draws the blocks instead of the payload JSON', () => {
             render(
@@ -932,6 +951,19 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(avatarButton()).not.toBeInTheDocument();
     });
 
+    // A webhook's sender is not a member; its system account has no profile behind the avatar.
+    it('is inert for a webhook message', () => {
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={{ ...message, stereo: 'webhook' } as unknown as ClientChatView}
+                onOpenProfile={jest.fn()}
+            />
+        );
+
+        expect(avatarButton()).not.toBeInTheDocument();
+    });
+
     // A grouped follow-up draws a spacer where the avatar would be — nothing to press.
     it('is inert on a grouped follow-up row', () => {
         render(<ChannelMessageRow {...baseProps} showProfileAndName={false} onOpenProfile={jest.fn()} />);
@@ -1102,5 +1134,113 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             rerender(<ChannelMessageRow {...baseProps} message={mine} isEditTarget />);
             expect(screen.queryByText('chat.room.edited')).not.toBeInTheDocument();
         });
+    });
+});
+
+describe('ChannelMessageRow — items hidden on this device', () => {
+    const photo = (id: string) => ({ id, status: 'stored', orgUrl: `https://s3/${id}` });
+    const row = (extra: Record<string, unknown>) =>
+        ({
+            ...message,
+            channelId: 'ch-1',
+            content: '',
+            upload$$: [photo('u1')],
+            ...extra,
+        }) as unknown as ClientChatView;
+    const renderRow = (extra: Record<string, unknown>, hidden: string[]) =>
+        render(<ChannelMessageRow {...baseProps} message={row(extra)} hiddenMedia={new Set(hidden)} />);
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('leaves out a hidden attachment and keeps the text', () => {
+        renderRow({ content: '사진 보내요' }, ['ch-1:5:0']);
+
+        expect(screen.queryByTestId('message-images')).not.toBeInTheDocument();
+        expect(screen.getByTestId('bubble')).toHaveTextContent('사진 보내요');
+    });
+
+    it('tells the tiles which slot to leave out when others are still shown', () => {
+        renderRow({ upload$$: [photo('u1'), photo('u2')] }, ['ch-1:5:1']);
+
+        expect(screen.getByTestId('message-images')).toHaveAttribute('data-hidden', '1');
+    });
+
+    it('draws nothing of a message whose only attachment is hidden and which has no text', () => {
+        const { container } = renderRow({}, ['ch-1:5:0']);
+
+        expect(container).toBeEmptyDOMElement();
+    });
+
+    it('ignores keys of another room or another message', () => {
+        renderRow({}, ['ch-2:5:0', 'ch-1:6:0']);
+
+        expect(screen.getByTestId('message-images')).toHaveAttribute('data-hidden', '');
+    });
+
+    // A link's key comes after the uploads': with one attachment the first link is slot 1.
+    it('drops the preview card of a hidden link, keeping the text and the attachment', () => {
+        renderRow({ content: 'look https://one.com' }, ['ch-1:5:1']);
+
+        expect(screen.queryByTestId('link-preview')).not.toBeInTheDocument();
+        expect(screen.getByTestId('bubble')).toHaveTextContent('look https://one.com');
+        expect(screen.getByTestId('message-images')).toBeInTheDocument();
+    });
+
+    it('keeps the preview card when only the attachment is hidden', () => {
+        renderRow({ content: 'look https://one.com' }, ['ch-1:5:0']);
+
+        expect(screen.getByTestId('link-preview')).toHaveAttribute('data-url', 'https://one.com');
+        expect(screen.queryByTestId('message-images')).not.toBeInTheDocument();
+    });
+});
+
+describe('ChannelMessageRow — a failed audio message of mine', () => {
+    const failedSlot = (localContentType: string, localName: string) => ({
+        localStatus: 'failed',
+        localContentType,
+        localName,
+    });
+    const failed = (slot: Record<string, unknown>) =>
+        ({
+            ...message,
+            channelId: 'ch-1',
+            chatNo: undefined,
+            content: '',
+            isOwner: true,
+            isFailed: true,
+            upload$$: [slot],
+        }) as unknown as ClientChatView;
+
+    beforeEach(() => jest.clearAllMocks());
+
+    // The audio bubble draws the failure with its own retry and delete chips; the row saying it again
+    // would put two sets of the same buttons on one message.
+    it('leaves the failure and its buttons to the bubble', () => {
+        render(
+            <ChannelMessageRow {...baseProps} message={failed(failedSlot('audio/mp4', 'voice-20261102-101500.m4a'))} />
+        );
+
+        expect(screen.getByTestId('message-images')).toBeInTheDocument();
+        expect(screen.queryByTitle('chat.room.retry')).not.toBeInTheDocument();
+        expect(screen.queryByTitle('chat.room.delete')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.room.failed')).not.toBeInTheDocument();
+        expect(screen.getByTestId('status-slot')).toBeEmptyDOMElement();
+    });
+
+    it('still draws the row’s own retry and delete for a failed photo', () => {
+        render(<ChannelMessageRow {...baseProps} message={failed(failedSlot('image/jpeg', 'a.jpg'))} />);
+
+        expect(screen.getByTitle('chat.room.retry')).toBeInTheDocument();
+        expect(screen.getByTitle('chat.room.delete')).toBeInTheDocument();
+    });
+
+    it('still draws them for a failed audio message that has text', () => {
+        const withText = {
+            ...failed(failedSlot('audio/mp4', 'voice-20261102-101500.m4a')),
+            content: 'listen',
+        } as ClientChatView;
+        render(<ChannelMessageRow {...baseProps} message={withText} />);
+
+        expect(screen.getByTitle('chat.room.retry')).toBeInTheDocument();
     });
 });

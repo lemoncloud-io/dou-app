@@ -12,7 +12,7 @@ vi.mock('@chatic/bridges', () => ({
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 // v2: socket verification comes from app-runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
-// `getSocketManager().getSnapshot()` (imperative, re-checked inside the grace timer) —
+// `runtime.connection.getRuntimeSocketState()` (imperative, re-checked inside the grace timer) —
 // back both with one zustand store so they stay consistent. Auth is `runtime.session.useSessionAuth()`.
 vi.mock('@chatic/app-runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
@@ -21,7 +21,7 @@ vi.mock('@chatic/app-runtime', async () => {
         runtime: {
             connection: {
                 useRuntimeSocketState: socketStore,
-                getSocketManager: () => ({ getSnapshot: () => socketStore.getState() }),
+                getRuntimeSocketState: () => socketStore.getState(),
             },
             // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 step 3). Still
             // a zustand store because the test drives it with setState.

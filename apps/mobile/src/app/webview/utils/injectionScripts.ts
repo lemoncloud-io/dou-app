@@ -1,5 +1,5 @@
 import type { EdgeInsets } from 'react-native-safe-area-context';
-import type { Env, StorageMedium } from '@chatic/bridge-messages';
+import type { Env, RuntimeOffer, StorageMedium } from '@chatic/bridge-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
 
@@ -205,6 +205,14 @@ export const getStorageMediaScript = (media: readonly StorageMedium[]): string =
 `;
 
 /**
+ * Generates the shell's offer to own the session (`window.CHATIC_APP_RUNTIME`), or nothing. Like the
+ * storage media it is read before the page's own scripts run: a page asks for the runtime handshake
+ * only when it finds an offer, so a launch the page owns offers nothing and is never asked.
+ */
+export const getRuntimeOfferScript = (offer: RuntimeOffer | null | undefined): string =>
+    offer ? `\n    window.CHATIC_APP_RUNTIME = ${JSON.stringify(offer)};\n` : '';
+
+/**
  * Parameters for generating the combined synchronous injection script.
  */
 export interface SyncInjectionScriptParams {
@@ -221,6 +229,8 @@ export interface SyncInjectionScriptParams {
     configBag?: Readonly<Record<string, string>>;
     /** The storage media this shell keeps (`StorageGet` and friends answer for these). None when absent. */
     storageMedia?: readonly StorageMedium[];
+    /** The offer to own the session, on a launch the app's runtime owns. Nothing otherwise. */
+    runtimeOffer?: RuntimeOffer | null;
 }
 
 /**
@@ -245,6 +255,7 @@ export interface SyncInjectionScriptParams {
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
         ${getStorageMediaScript(params.storageMedia ?? [])}
+        ${getRuntimeOfferScript(params.runtimeOffer)}
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
         ${getDeviceInfoScript(params.deviceInfo)}
         ${getDebugModeScript(params.debugModeEnabled ?? false)}

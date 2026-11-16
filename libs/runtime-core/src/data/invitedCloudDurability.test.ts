@@ -1,0 +1,148 @@
+/**
+ * @jest-environment jsdom
+ *
+ * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
+ * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.
+ */
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
+import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
+
+const mockIssue = jest.fn();
+
+// `delegateCloud` comes from the `auth` repository — data no longer has any reason to reach back into
+// the session folder.
+jest.mock('./runtime', () => ({
+    getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
+}));
+const mockRelayUser: { current: { uid: string } | null } = { current: { uid: 'account-b' } };
+jest.mock('@chatic/session', () => ({
+    ...jest.requireActual('@chatic/session'),
+    getRelaySessionUser: () => mockRelayUser.current,
+    getIdentityContext: () => ({ delegatorId: null }),
+}));
+
+const createCloud = () => ({
+    cacheReadList: jest.fn().mockResolvedValue({ list: [] }),
+    cacheWrite: jest.fn().mockResolvedValue(undefined),
+    cacheRead: jest.fn().mockResolvedValue(null),
+    getCloud: jest.fn().mockResolvedValue(null),
+});
+
+describe('invitedCloudDurability', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('recoverInvitedCloudIfMissing (push safety net)', () => {
+        it('no-ops on an empty cid', async () => {
+            const cloud = createCloud();
+            await recoverInvitedCloudIfMissing(cloud as any, undefined);
+            expect(cloud.cacheRead).not.toHaveBeenCalled();
+            expect(mockIssue).not.toHaveBeenCalled();
+        });
+
+        it('no-ops for the relay, which delegate-cloud does not serve', async () => {
+            const cloud = createCloud();
+            await recoverInvitedCloudIfMissing(cloud as any, RELAY_CLOUD_ID);
+            expect(cloud.cacheRead).not.toHaveBeenCalled();
+            expect(mockIssue).not.toHaveBeenCalled();
+        });
+
+        it('no-ops when the cloud is already cached', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue({ id: 'c1', cloudType: 'invited' });
+            await recoverInvitedCloudIfMissing(cloud as any, 'c1');
+            expect(mockIssue).not.toHaveBeenCalled();
+        });
+
+        it('re-derives a missing cloud (endpoints only; name is synced on connect)', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue(null);
+            mockIssue.mockResolvedValue({ cloudId: 'c1', backend: 'https://b', wss: 'wss://w' });
+
+            await recoverInvitedCloudIfMissing(cloud as any, 'c1');
+
+            expect(mockIssue).toHaveBeenCalledWith('c1');
+            expect(cloud.cacheWrite).toHaveBeenCalledWith({
+                id: 'c1',
+                cid: 'c1',
+                backend: 'https://b',
+                wss: 'wss://w',
+                cloudType: 'invited',
+                acceptedBy: ['account-b'],
+            });
+        });
+
+        it('records the signed-in user on a rebuilt row, so another account on the device does not list it', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue(null);
+            mockIssue.mockResolvedValue({ cloudId: 'c1', backend: 'https://b', wss: 'wss://w' });
+            mockRelayUser.current = { uid: 'account-c' };
+
+            await recoverInvitedCloudIfMissing(cloud as any, 'c1');
+
+            expect(cloud.cacheWrite).toHaveBeenCalledWith(expect.objectContaining({ acceptedBy: ['account-c'] }));
+            mockRelayUser.current = { uid: 'account-b' };
+        });
+
+        it('best-effort: swallows a relay failure', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue(null);
+            mockIssue.mockRejectedValue(new Error('403 FORBIDDEN'));
+
+            await expect(recoverInvitedCloudIfMissing(cloud as any, 'c1')).resolves.toBeUndefined();
+            expect(cloud.cacheWrite).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('syncInvitedCloudName (authoritative name via cloud.get)', () => {
+        it('no-ops on an empty cid', async () => {
+            const cloud = createCloud();
+            await syncInvitedCloudName(cloud as any, undefined);
+            expect(cloud.getCloud).not.toHaveBeenCalled();
+        });
+
+        it('no-ops when the active cloud is not an invited row', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue({ id: 'c1', cloudType: 'owner' });
+            await syncInvitedCloudName(cloud as any, 'c1');
+            expect(cloud.getCloud).not.toHaveBeenCalled();
+        });
+
+        it('fetches and persists the fresh name when it differs', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue({ id: 'c1', cid: 'c1', name: 'Old', cloudType: 'invited' });
+            cloud.getCloud.mockResolvedValue({ id: 'c1', name: 'Fresh' });
+
+            await syncInvitedCloudName(cloud as any, 'c1');
+
+            expect(cloud.getCloud).toHaveBeenCalledWith({ id: 'c1' });
+            expect(cloud.cacheWrite).toHaveBeenCalledWith({
+                id: 'c1',
+                cid: 'c1',
+                name: 'Fresh',
+                cloudType: 'invited',
+            });
+        });
+
+        it('no-ops when the fetched name is unchanged', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue({ id: 'c1', name: 'Same', cloudType: 'invited' });
+            cloud.getCloud.mockResolvedValue({ id: 'c1', name: 'Same' });
+
+            await syncInvitedCloudName(cloud as any, 'c1');
+
+            expect(cloud.cacheWrite).not.toHaveBeenCalled();
+        });
+
+        it('best-effort: swallows a getCloud failure', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue({ id: 'c1', name: 'Old', cloudType: 'invited' });
+            cloud.getCloud.mockRejectedValue(new Error('socket not ready'));
+
+            await expect(syncInvitedCloudName(cloud as any, 'c1')).resolves.toBeUndefined();
+            expect(cloud.cacheWrite).not.toHaveBeenCalled();
+        });
+    });
+});

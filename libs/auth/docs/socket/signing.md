@@ -53,6 +53,11 @@ answering it once cost a production database read.
 the user agent, nesting the HMAC keys `authId → accountId → identityId`. **The identity-token slot
 is always the empty string**, so the payload carries no token at all.
 
+The user agent is the transport's `device().userAgent` port — `navigator.userAgent` in a page — and
+not a value of this package's own. The server checks it against the User-Agent of the socket's
+handshake, and in a native process the socket is opened by the same platform adapter that answers
+`device()`, so both come from one string.
+
 Two consequences:
 
 - The `token` the SDK passes into `sign` is **ignored**. The signature is computed from that server's stored material, by cloud id.

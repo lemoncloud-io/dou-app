@@ -105,6 +105,25 @@ export class NativeSecureStore implements NativeStore {
         if (this.unavailable) throw new Error('the vault is unavailable this run');
     }
 
+    offer(key: string, value: string): Promise<boolean> {
+        const isFree = () =>
+            !this.unavailable && !this.pendingClear && !this.pending.has(key) && this.values.get(key) === null;
+        const run = this.chain.then(async () => {
+            if (!isFree()) return false;
+            if (!(await this.ask(this.channel.save({ [key]: value }, [])))) return false;
+            // A write made while this one was in flight is still pending, and its own send comes after
+            // this one, so the vault ends up with it; memory takes this value only when nothing did.
+            if (isFree()) this.values.set(key, value);
+            return true;
+        });
+        // Chained like a send, so the vault sees it in order with the writes around it.
+        this.chain = run.then(
+            () => undefined,
+            () => undefined
+        );
+        return run.catch(() => false);
+    }
+
     private queue(key: string, value: string | null): void {
         this.pending.set(key, value);
         this.schedule();

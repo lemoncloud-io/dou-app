@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 
+import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
+import { resetAudioTypeProbe } from '../utils/audioPlayback';
 import { MessageImages } from './MessageImages';
 
 jest.mock('react-i18next', () => ({
@@ -31,6 +33,11 @@ jest.mock('@chatic/app-runtime', () => {
         },
     };
 });
+const mockNavigate = jest.fn();
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => mockNavigate,
+}));
 const refresh = jest.fn().mockResolvedValue(true);
 jest.mock('../hooks/useImageAddressRefresh', () => ({ useImageAddressRefresh: () => refresh }));
 
@@ -444,39 +451,60 @@ describe('MessageImages — videos and documents', () => {
             orgUrl: `https://s3/${id}`,
         }) as Uploads[number];
 
-    it('plays a sent audio upload in its own card, in place among the documents', () => {
-        const { container } = render(
-            <MessageImages uploads={[pdf('d1', 'quote.pdf'), voice('a1')]} chatId="c:1" cid="c" align="start" />
-        );
+    const audioContext = {
+        channelId: 'ch',
+        chatNo: 7,
+        senderName: 'Sunny',
+        mine: false,
+    };
 
-        expect(container.querySelector('audio')).toHaveAttribute('src', 'https://s3/a1');
-        expect(screen.getByText('chat.attach.audio.voiceMessage')).toBeInTheDocument();
-        expect(screen.getByText('quote')).toBeInTheDocument();
+    beforeEach(() => {
+        // jsdom's player decodes nothing and says so; a real one says it may play an m4a.
+        jest.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('maybe');
+        resetRoomAudioStore();
+        useRoomAudioStore.getState().attach({
+            src: '',
+            currentTime: 0,
+            playbackRate: 1,
+            defaultPlaybackRate: 1,
+            play: jest.fn(() => Promise.resolve()),
+            pause: jest.fn(),
+        } as unknown as HTMLMediaElement);
     });
 
-    it('reads the message again once when the audio cannot be played, in case its address expired', () => {
-        refresh.mockClear();
-        const { container, rerender } = render(
-            <MessageImages uploads={[voice('a1')]} chatId="c:1" cid="c" align="start" />
-        );
-
-        act(() => void fireEvent.error(container.querySelector('audio') as HTMLAudioElement));
-        expect(refresh).toHaveBeenCalledWith({ cid: 'c', chatId: 'c:1', src: 'https://s3/a1' });
-
-        // A file this system cannot decode fails at its fresh address too: no second re-read.
-        rerender(
+    it('draws a sent audio upload as an audio bubble in place among the documents, played by the room player', () => {
+        render(
             <MessageImages
-                uploads={[{ ...voice('a1'), orgUrl: 'https://s3/a1-fresh' } as Uploads[number]]}
-                chatId="c:1"
+                uploads={[pdf('d1', 'quote.pdf'), voice('a1')]}
+                chatId="ch:7"
                 cid="c"
                 align="start"
+                audio={audioContext}
             />
         );
-        act(() => void fireEvent.error(container.querySelector('audio') as HTMLAudioElement));
-        expect(refresh).toHaveBeenCalledTimes(1);
+
+        expect(screen.getByText('quote')).toBeInTheDocument();
+        // No element of its own: the page's one player plays it.
+        expect(document.querySelector('audio')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.play' }));
+        expect(useRoomAudioStore.getState().current).toMatchObject({
+            key: 'c/a1',
+            channelId: 'ch',
+            chatNo: 7,
+            idx: 1,
+            url: 'https://s3/a1',
+            senderName: 'Sunny',
+        });
     });
 
-    it('draws an audio slot still on its way as a document card, with nothing to play yet', () => {
+    it('opens the audio detail from the bubble body', () => {
+        render(<MessageImages uploads={[voice('a1')]} chatId="ch:7" cid="c" align="start" audio={audioContext} />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.open' }));
+        expect(mockNavigate).toHaveBeenCalledWith('/channels/ch/audio/7/0');
+    });
+
+    it("draws an audio slot still on its way as the bubble's upload, whose cancel deletes the unsent row", () => {
+        const onDelete = jest.fn();
         const pending = {
             localStatus: 'sending',
             localThumbUrl: '',
@@ -484,9 +512,70 @@ describe('MessageImages — videos and documents', () => {
             localContentType: 'audio/mp4',
             localSize: 64_000,
         } as unknown as Uploads[number];
-        const { container } = render(<MessageImages uploads={[pending]} chatId="c:1" cid="c" align="start" />);
+        render(
+            <MessageImages
+                uploads={[pending]}
+                chatId="c:1"
+                cid="c"
+                align="end"
+                audio={{ ...audioContext, mine: true, onDelete }}
+            />
+        );
 
-        expect(container.querySelector('audio')).toBeNull();
-        expect(screen.getByText('voice-20261102-101500')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'chat.attach.audio.play' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.cancelSend' }));
+        expect(onDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers retry and delete under a failed audio message of mine', () => {
+        const onRetry = jest.fn();
+        const onDelete = jest.fn();
+        const failed = {
+            localStatus: 'failed',
+            localThumbUrl: '',
+            localName: 'take.m4a',
+            localContentType: 'audio/mp4',
+            localSize: 64_000,
+        } as unknown as Uploads[number];
+        render(
+            <MessageImages
+                uploads={[failed]}
+                chatId="c:1"
+                cid="c"
+                align="end"
+                audio={{ ...audioContext, mine: true, failed: true, onRetry, onDelete }}
+            />
+        );
+
+        expect(screen.getByText('chat.attach.audio.failed')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.retry' }));
+        fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.delete' }));
+        expect(onRetry).toHaveBeenCalledTimes(1);
+        expect(onDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws an audio file this system cannot play with a download instead of play', () => {
+        jest.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('');
+        resetAudioTypeProbe();
+        render(<MessageImages uploads={[voice('a1')]} chatId="ch:7" cid="c" align="start" audio={audioContext} />);
+        expect(screen.queryByRole('button', { name: 'chat.attach.audio.play' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'chat.attach.fileCard.download' })).toBeInTheDocument();
+        resetAudioTypeProbe();
+    });
+
+    it('leaves out slots hidden on this device and keeps the rest in place', () => {
+        render(
+            <MessageImages
+                uploads={[pdf('d1', 'quote.pdf'), voice('a1'), pdf('d2', 'notes.pdf')]}
+                chatId="ch:7"
+                cid="c"
+                align="start"
+                audio={audioContext}
+                hiddenSlots={new Set([0, 1])}
+            />
+        );
+        expect(screen.queryByText('quote')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'chat.attach.audio.play' })).toBeNull();
+        expect(screen.getByText('notes')).toBeInTheDocument();
     });
 });

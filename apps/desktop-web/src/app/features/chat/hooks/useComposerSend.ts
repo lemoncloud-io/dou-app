@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
-import { xhrPut } from '@chatic/data';
+import { xhrPut } from '@chatic/runtime-web';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { ChatMentionBody, DomainChat } from '@chatic/data';
@@ -42,6 +42,7 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         retry: retryImages,
         canRetry: canRetryImages,
         discard: discardImages,
+        cancel: cancelImages,
     } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
 
     const failed = useCallback((error: unknown) => toastFailure(t('toast.messageFailed'), error), [t]);
@@ -95,5 +96,13 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         [discardImages, discardMessage]
     );
 
-    return { send, retry, canRetry, discard };
+    /** Stops an attachment message's send while it uploads; its row goes once the send settles. */
+    const cancelUpload = useCallback(
+        (message: DomainChat) => {
+            if (isUnsentImageMessage(message)) cancelImages(message.id);
+        },
+        [cancelImages]
+    );
+
+    return { send, retry, canRetry, discard, cancelUpload };
 };

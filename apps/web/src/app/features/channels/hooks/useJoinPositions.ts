@@ -18,7 +18,7 @@ interface ReadCount {
  * (read-state) sync for EVERY member off this set so all participants' read cursors stay live
  * while the room is mounted — the home surface (useJoinSyncRegistration) only keeps MY join
  * current, which
- * leaves other members' cursors stale for read receipts. `registerJoin` refcounts by key, so
+ * leaves other members' cursors stale for read receipts. A join registration refcounts by key, so
  * re-registering my own join here dedups with the home registration (no double polling).
  *
  * `isMember` gates that registration (see `isChannelMember`). The server refuses another member's
@@ -61,8 +61,9 @@ export const useJoinPositions = (
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!channelId || !isVerified || !isMember || memberIds.length === 0) return;
-        const sync = runtime.sync.getSyncManager();
-        const disposers = memberIds.map(userId => sync.registerJoin(`${channelId}@${userId}`, undefined, { cid }));
+        const disposers = memberIds.map(userId =>
+            runtime.sync.registerSyncTarget({ type: 'join', id: `${channelId}@${userId}` }, { cid })
+        );
         return () => disposers.forEach(dispose => dispose());
     }, [cid, channelId, isVerified, isMember, memberKey, uid]);
 

@@ -1,0 +1,28 @@
+{
+    "name": "@chatic/runtime-mobile",
+    "version": "0.0.1",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "test": "jest"
+    },
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./polyfills": {
+            "types": "./src/polyfills.ts",
+            "import": "./src/polyfills.ts",
+            "default": "./src/polyfills.ts"
+        },
+        "./package.json": "./package.json"
+    },
+    "nx": {
+        "tags": [
+            "layer:adapter",
+            "platform:native"
+        ]
+    }
+}

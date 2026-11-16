@@ -7,7 +7,7 @@ import { MemoryStore } from '@chatic/storage';
 
 import { cloudStore } from '../cloudStore';
 import { identityStore } from '../identityStore';
-import { isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionStores } from '.';
+import { DELEGATOR_ID_KEY, isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionStores } from '.';
 import { SessionStores } from './sessionStores';
 import { relayStore } from '../relayStore';
 
@@ -40,8 +40,8 @@ describe('session storage ports', () => {
         // A fresh holder, not the shared one: other cases here configure that one.
         const unconfigured = new SessionStores();
 
-        expect(() => unconfigured.of('secret')).toThrow(/'secret'.*initAppRuntime/);
-        expect(() => unconfigured.of('plain')).toThrow(/'plain'.*initAppRuntime/);
+        expect(() => unconfigured.of('secret')).toThrow(/'secret'.*createRuntime/);
+        expect(() => unconfigured.of('plain')).toThrow(/'plain'.*createRuntime/);
     });
 
     it('puts the credentials in the secret port and everything else in the plain port, under the same names', () => {
@@ -59,7 +59,8 @@ describe('session storage ports', () => {
             'chatic-secret-logout-pending',
         ];
         const plainWrittenHere = SESSION_KEYS.plain.filter(key => !writtenByAuth.includes(key));
-        expect(secret.keys().sort()).toEqual([...SESSION_KEYS.secret].sort());
+        // The device guest's id is the one plain key written to the secret port as well.
+        expect(secret.keys().sort()).toEqual([...SESSION_KEYS.secret, DELEGATOR_ID_KEY].sort());
         expect(plain.keys().sort()).toEqual([...plainWrittenHere].sort());
 
         // Value shapes: tokens stay JSON, selections and ids stay raw strings.
@@ -105,6 +106,48 @@ describe('session storage ports', () => {
         pairedCloudNamesSlot.clear();
         expect(plain.keys()).toEqual([]);
         expect(secret.keys()).toEqual([]);
+    });
+
+    it('writes the device guest id to both ports, and clears it from both', () => {
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
+
+        identityStore.setDelegatorId('guest-1');
+        expect(secret.get(DELEGATOR_ID_KEY)).toBe('guest-1');
+        expect(plain.get(DELEGATOR_ID_KEY)).toBe('guest-1');
+
+        identityStore.setDelegatorId(null);
+        expect(secret.get(DELEGATOR_ID_KEY)).toBeNull();
+        expect(plain.get(DELEGATOR_ID_KEY)).toBeNull();
+    });
+
+    it('reads the device guest id from the secret port first', () => {
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
+        secret.set(DELEGATOR_ID_KEY, 'in-secret');
+        plain.set(DELEGATOR_ID_KEY, 'in-plain');
+
+        expect(identityStore.getDelegatorId()).toBe('in-secret');
+    });
+
+    it('falls back to the plain copy when the secret port has no guest id, as on an install from before', () => {
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
+        plain.set(DELEGATOR_ID_KEY, 'in-plain');
+
+        expect(identityStore.getDelegatorId()).toBe('in-plain');
+    });
+
+    it('reads the guest id from the secret port alone, as the phone app runtime with an empty file of its own does', () => {
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
+        secret.set(DELEGATOR_ID_KEY, 'in-secret');
+
+        expect(identityStore.getDelegatorId()).toBe('in-secret');
     });
 
     it('recognises its own keys and nothing else', () => {

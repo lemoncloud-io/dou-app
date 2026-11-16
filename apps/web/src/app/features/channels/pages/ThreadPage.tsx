@@ -1,3 +1,6 @@
+import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
+import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
+import { hiddenPartsOf } from '../lib/localMediaPrefs';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +59,7 @@ import { canStartDmFromProfile, channelKindOf, isRoomOwner, profilePlaceOf } fro
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
-import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
+import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
@@ -65,7 +68,9 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { toCloudId } from '../../../hooks/useCloudScope';
+import { toCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';
+import { useNotificationStore } from '../../../stores/useNotificationStore';
+import { threadRootNo } from '../../../utils/notifications';
 import { useDebugRoomMirror } from '../../debug';
 
 const MAX_INPUT_LENGTH = 5000;
@@ -119,6 +124,26 @@ export const ThreadPage = () => {
     const stableChannelId = channelId || 'default';
     // This thread's own conversation for the composer's draft and its waiting files — not the room's.
     const draftScope = `${stableChannelId}#${rootNo ?? ''}`;
+
+    // This thread's items in the notification inbox read while it is open: the room's read cursor
+    // clears only top-level items, so a thread clears its own — on opening, and as new ones arrive.
+    const notifyCloudId = useSelectedCloudId();
+    const unreadThreadItems = useNotificationStore(state =>
+        rootNo
+            ? Object.values(state.items).filter(
+                  item =>
+                      !item.read &&
+                      item.cloudId === notifyCloudId &&
+                      item.channelId === stableChannelId &&
+                      !!item.parentId &&
+                      threadRootNo(item.parentId) === rootNo
+              ).length
+            : 0
+    );
+    useEffect(() => {
+        if (!rootNo || unreadThreadItems === 0) return;
+        useNotificationStore.getState().markThreadRead(notifyCloudId, stableChannelId, rootNo);
+    }, [notifyCloudId, stableChannelId, rootNo, unreadThreadItems]);
 
     // The composer's text is this thread's draft: kept when the thread is left, and swapped when the
     // route moves to another thread without remounting.
@@ -184,8 +209,14 @@ export const ThreadPage = () => {
     // ADR-0067's rule is one rule for every surface; a second surface does not get a second
     // reading of it.
     const chatParams = useMemo(
-        () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
-        [stableChannelId, myJoin?.joinedNo]
+        () => ({
+            channelId: stableChannelId,
+            limit: 100,
+            joinedNo: myJoin?.joinedNo,
+            // Only the record of this thread's room — see the room page.
+            channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
+        }),
+        [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
     );
     const {
         rawChats,
@@ -201,6 +232,14 @@ export const ThreadPage = () => {
         gapStatus,
         fillGap,
     } = useChats(chatParams);
+
+    // Audio: what this device hid, and stopping what plays once its message or file is gone.
+    const { hiddenMedia } = useRoomAudioSurface({
+        cid: threadCid,
+        uid: userId ?? undefined,
+        channelId: stableChannelId,
+        messages: rawChats,
+    });
 
     /**
      * Is the root this URL names from before my current membership?
@@ -670,7 +709,7 @@ export const ThreadPage = () => {
     const handleCopy = async () => {
         // What the message SAYS, not what it is made of — a Block Kit body would otherwise
         // put its payload on the clipboard.
-        const text = messagePlainText(actionMessage?.content);
+        const text = actionMessage ? chatPlainText(actionMessage) : '';
         if (!text || isCopying) return;
         setIsCopying(true);
         try {
@@ -792,7 +831,7 @@ export const ThreadPage = () => {
                         hasMessageText(message) && (
                             <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
                                 <MessageText
-                                    text={messagePlainText(message.content)}
+                                    text={chatPlainText(message)}
                                     mentions={mentionMarksFor(message, mentionViewer)}
                                     onMentionClick={person =>
                                         openMemberProfile({ id: person.id, name: person.name, avatar: person.avatar })
@@ -805,7 +844,20 @@ export const ThreadPage = () => {
                     {/* A photo can root a thread like a line of text can, and then the photo is the
                         subject — without it the page opens on a name over nothing. */}
                     {!isDeleted && (message.upload$$?.length ?? 0) > 0 && (
-                        <MessageImages uploads={message.upload$$} chatId={message.id} cid={message.cid} align="start" />
+                        <MessageImages
+                            uploads={message.upload$$}
+                            chatId={message.id}
+                            cid={message.cid}
+                            align="start"
+                            hiddenSlots={hiddenPartsOf(message, hiddenMedia)?.slots}
+                            audio={{
+                                channelId: message.channelId,
+                                chatNo: message.chatNo,
+                                senderName: message.ownerName,
+                                sentAt: message.timestamp?.getTime?.(),
+                                mine: message.isOwner,
+                            }}
+                        />
                     )}
                     {tallies && tallies.length > 0 && (
                         <ReactionChips
@@ -827,6 +879,8 @@ export const ThreadPage = () => {
             <ChannelMessageRow
                 message={message}
                 mentionViewer={mentionViewer}
+                hiddenMedia={hiddenMedia}
+                threadRootNo={rootNo}
                 showProfileAndName={!message.isOwner}
                 showTimeAndStatus
                 ownerDisplayName={message.ownerName}
@@ -838,7 +892,7 @@ export const ThreadPage = () => {
                 time={formatTime(message.timestamp)}
                 read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
                 onLongPress={() => canOpenMessageActions(message) && setActionMessage(message)}
-                onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
+                onExpand={() => setExpandedMessage({ content: chatPlainText(message) })}
                 onRetry={() => undefined}
                 onDelete={() => undefined}
                 reactions={message.id ? reactions.get(message.id) : undefined}
@@ -867,6 +921,14 @@ export const ThreadPage = () => {
                     className="border-b border-border"
                 />
             </div>
+
+            <RoomMiniPlayer
+                channelId={stableChannelId}
+                threadRootNo={rootNo}
+                containerRef={listRef}
+                rowsVersion={rawChats}
+                top={headerHeight + 16}
+            />
 
             <div
                 ref={listRef}

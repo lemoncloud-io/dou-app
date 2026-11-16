@@ -12,17 +12,14 @@ const channelMocks = {
     fetchList: vi.fn(async () => ({ list: [] })),
 };
 
-type MessageHandler = (event: { message: unknown }) => void;
-type ClientCallback = (client: unknown) => void;
+type MessageHandler = (message: unknown) => void;
 
-const managerMocks = {
+// `onServerMessage` hears every frame on the active slot; the runtime keeps it attached across
+// reconnects, so the mock just keeps the latest listener.
+const connectionMocks = {
     onMessageHandler: null as MessageHandler | null,
-    onMessage: vi.fn((handler: MessageHandler) => {
-        managerMocks.onMessageHandler = handler;
-        return () => undefined;
-    }),
-    subscribeClient: vi.fn((callback: ClientCallback) => {
-        callback({ id: 'client-1' });
+    onServerMessage: vi.fn((handler: MessageHandler) => {
+        connectionMocks.onMessageHandler = handler;
         return () => undefined;
     }),
 };
@@ -36,7 +33,7 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: {
             useRuntimeSocketState: () => ({ isVerified: true }),
-            getSocketManager: () => managerMocks,
+            onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler),
         },
     },
 }));
@@ -77,7 +74,7 @@ const emitPush = () => {
 
 const emitSocketFrame = (message: unknown) => {
     act(() => {
-        managerMocks.onMessageHandler?.({ message });
+        connectionMocks.onMessageHandler?.(message);
     });
 };
 
@@ -98,7 +95,7 @@ describe('usePlaceUnreadCounts live-read skip', () => {
         vi.useFakeTimers();
         vi.clearAllMocks();
         liveIds.clear();
-        managerMocks.onMessageHandler = null;
+        connectionMocks.onMessageHandler = null;
     });
 
     afterEach(() => {
@@ -242,7 +239,7 @@ describe('usePlaceUnreadCounts mentions', () => {
         vi.useFakeTimers();
         vi.clearAllMocks();
         liveIds.clear();
-        managerMocks.onMessageHandler = null;
+        connectionMocks.onMessageHandler = null;
         useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
         useMentionsStore.setState({ items: {} });
     });

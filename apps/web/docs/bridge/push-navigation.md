@@ -35,7 +35,7 @@ badges.
 - Banner assembly and delivery on the device, permission prompts, notification channels, and the
   deep-link plumbing on the native side — [apps/mobile](../../../mobile/README.md).
 - Registering this install's token — [device-token](./device-token.md), and the policy behind it in
-  [app-runtime push](../../../../libs/app-runtime/docs/push/README.md).
+  [runtime-core push](../../../../libs/runtime-core/docs/push/README.md).
 - The cross-cloud unread dot a background push marks — [home](../feature/home/README.md).
 - Per-device push mute, which is an account setting — [mypage](../feature/mypage/README.md).
 
@@ -294,10 +294,10 @@ nothing until they happen to look at the cloud list.
 subscription. It listens for the `cloud.activated` envelope, whose `data` carries `{ id, name }`.
 
 **It pins to the relay slot.** The unicast targets a user and is delivered by the relay deployment,
-so it arrives on the relay socket even while a cloud socket is active. `onType` binds to the
-_active_ slot, which would miss this exactly when it matters most — sitting inside cloud A while
-cloud B finishes provisioning is the common case, not the edge one. `onSlotType('relay', …)` is the
-primitive that fixes it, and the slot model behind it is in
+so it arrives on the relay socket even while a cloud socket is active. `runtime.connection.onServerEvent`
+without a slot binds to the _active_ slot, which would miss this exactly when it matters most —
+sitting inside cloud A while cloud B finishes provisioning is the common case, not the edge one.
+`onServerEvent(type, listener, { slot: RELAY_SLOT })` is what fixes it, and the slot model behind it is in
 [transport socket](../../../../libs/transport/docs/socket/README.md).
 
 Two effects, independent on purpose:

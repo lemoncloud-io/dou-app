@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-// The session package, not the `session` facade group: the group PUBLISHES this hook, so importing
-// it back here would be a cycle (session/index.ts's header states the convention).
-import { getActiveSessionUser } from '@chatic/session';
+// The session's reads module, not the `session` facade group: the group PUBLISHES this hook, so
+// importing it back here would be a cycle (session/index.ts's header states the convention).
+import { getActiveSessionUser } from '../../../sessionReads';
 import { useGlobalSession } from './useGlobalSession';
 
 import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';

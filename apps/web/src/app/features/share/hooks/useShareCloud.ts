@@ -84,9 +84,7 @@ export const useShareCloud = () => {
             if (cid === selectedCloudId) return Promise.resolve(false);
             return run('cloud switch', cid, async () => {
                 // The switch rides the current socket, so it waits for that socket to be up.
-                const verified = await runtime.connection
-                    .getSocketManager()
-                    .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                const verified = await runtime.connection.waitUntilVerified(null, HANDSHAKE_WAIT_TIMEOUT_MS);
                 if (!verified) throw new Error('socket handshake not verified');
                 await switchCloud(cid);
             });

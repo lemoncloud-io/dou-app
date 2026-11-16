@@ -601,6 +601,76 @@
         },
         "inApp": {
             "now": "지금"
+        },
+        "inbox": {
+            "title": "내 알림",
+            "select": "선택",
+            "cancel": "취소",
+            "selectedCount": "{{count}}개 선택",
+            "tabs": {
+                "all": "전체",
+                "group": "그룹 대화",
+                "dm": "1:1 대화",
+                "thread": "스레드",
+                "mention": "멘션"
+            },
+            "unreadOnly": "안 읽은 알림만",
+            "markAllRead": "모두 읽음",
+            "today": "오늘",
+            "yesterday": "어제",
+            "chip": {
+                "mention": "멘션",
+                "thread": "스레드"
+            },
+            "dmLocation": "1:1 대화",
+            "context": {
+                "threadMention": "스레드 멘션",
+                "replyToMine": "내 메시지에 답글",
+                "participatedThread": "참여한 스레드",
+                "reaction": "내 메시지에 반응 {{emoji}}",
+                "dmMessage": "새 메시지"
+            },
+            "quote": "원글: {{text}}",
+            "unread": "안 읽음",
+            "unknownSender": "알 수 없음",
+            "quick": {
+                "all": "전체 선택",
+                "unread": "안 읽은 메시지",
+                "read": "읽은 메시지만"
+            },
+            "markRead": "읽음으로 표시 {{count}}",
+            "delete": "삭제 {{count}}",
+            "deleteConfirm": {
+                "title": "{{count}}개 알림을 삭제할까요?",
+                "description": "알림 목록에서만 지워지고 대화방 메시지는 남습니다.",
+                "confirm": "삭제"
+            },
+            "markedRead": "{{count}}개를 읽음으로 표시했어요",
+            "deleted": "{{count}}개 알림을 삭제했어요",
+            "undo": "실행 취소",
+            "empty": {
+                "none": "아직 알림이 없습니다",
+                "noneHint": "이 플레이스에서 나를 멘션하거나\n내 메시지에 답글·반응이 달리면 여기에 모입니다.",
+                "tab": "{{tab}} 알림이 없습니다",
+                "unread": "안 읽은 알림이 없습니다",
+                "showAll": "모든 알림 보기",
+                "tabHint": {
+                    "group": "그룹 대화에서 나를 부르거나\n내 메시지에 답글·반응이 달리면 여기에 표시됩니다.",
+                    "dm": "1:1 대화의 새 메시지와\n내 메시지에 달린 반응이 여기에 표시됩니다.",
+                    "thread": "내 메시지에 답글이 달리거나\n참여한 스레드에 새 답글이 오면 여기에 표시됩니다.",
+                    "mention": "누군가 @나를 부르면 여기에 표시됩니다."
+                }
+            }
+        },
+        "findMe": {
+            "title": "나를 찾는 메시지",
+            "filters": {
+                "all": "전체",
+                "mention": "멘션",
+                "thread": "스레드"
+            },
+            "empty": "지금 나를 찾는 메시지가 없어요",
+            "footnote": "누르면 대화방의 그 메시지 위치로 바로 이동합니다.\n읽은 메시지는 이 목록에서 사라지고, 알림 탭에 남습니다."
         }
     },
     "globalLoader": {
@@ -635,7 +705,14 @@
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
         "loadingCloud": "클라우드를 불러오는 중이에요",
         "refreshing": "새로고침 중",
-        "selectPlaceFirst": "플레이스를 먼저 선택해주세요"
+        "selectPlaceFirst": "플레이스를 먼저 선택해주세요",
+        "tabs": {
+            "all": "전체",
+            "group": "그룹 대화",
+            "dm": "1:1 대화",
+            "chats": "대화"
+        },
+        "findMe": "나를 찾는 메시지 {{count}}"
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
@@ -758,7 +835,11 @@
             "leave": "나가기",
             "delete": "삭제"
         },
-        "draft": "초안"
+        "draft": "초안",
+        "activity": {
+            "mentions": "안 읽은 멘션 {{count}}개",
+            "threads": "안 읽은 스레드 답글 {{count}}개"
+        }
     },
     "channelManage": {
         "title": "대화방 관리",
@@ -792,7 +873,9 @@
     "bottomNav": {
         "chat": "대화",
         "my": "MY",
-        "unread": "{{count}}개 안 읽음"
+        "unread": "{{count}}개 안 읽음",
+        "notifications": "알림",
+        "newNotifications": "새 알림 있음"
     },
     "explore": {
         "title": "탐색",
@@ -1110,7 +1193,8 @@
                 },
                 "unreadable": "읽을 수 없는 파일이 있어요",
                 "duplicate": "같은 항목이 두 번 선택됐어요",
-                "limit": "한 번에 {{max}}개까지 보낼 수 있어요"
+                "limit": "한 번에 {{max}}개까지 보낼 수 있어요",
+                "empty": "빈 파일은 보낼 수 없어요"
             },
             "permission": {
                 "cameraTitle": "카메라에 대한 액세스 권한이 없어요",
@@ -1199,8 +1283,30 @@
                 "pause": "{{name}} 일시정지",
                 "seek": "{{name}} 재생 위치",
                 "playFailed": "재생할 수 없어요",
-                "menu": "{{name}} 더보기",
-                "save": "저장"
+                "save": "저장",
+                "back": "뒤로",
+                "broken": "재생할 수 없는 파일",
+                "cancelSend": "{{name}} 업로드 취소",
+                "closePlayer": "플레이어 닫기",
+                "collection": "대화방 파일",
+                "delete": "삭제",
+                "detailLoading": "파일을 불러오는 중이에요",
+                "detailMissing": "파일을 찾을 수 없어요",
+                "failed": "전송하지 못했어요",
+                "loading": "불러오는 중",
+                "more": "더보기",
+                "open": "{{name}} 자세히 보기",
+                "playFailedToast": "재생할 수 없는 파일이에요",
+                "rate": "재생 속도",
+                "retry": "재전송",
+                "sending": "{{done}} / {{total}}",
+                "share": "공유",
+                "skipBack": "15초 뒤로",
+                "skipForward": "15초 앞으로",
+                "unsupported": "재생 불가 형식",
+                "unsupportedSized": "재생 불가 형식 · {{size}}",
+                "viewInChat": "대화에서 보기",
+                "waveform": "{{name}} 파형"
             },
             "voice": {
                 "entry": "음성",
@@ -1214,6 +1320,27 @@
                 "tooShort": "1초 이상 녹음해 주세요",
                 "interrupted": "녹음이 중단됐어요",
                 "failed": "녹음하지 못했어요"
+            },
+            "audioSend": {
+                "cancel": "취소",
+                "send_one": "{{count}}개 보내기",
+                "send_other": "{{count}}개 보내기",
+                "title_one": "음성 파일 {{count}}개 보내기",
+                "title_other": "음성 파일 {{count}}개 보내기"
+            },
+            "files": {
+                "retry": "다시 시도",
+                "saveFailedMany_one": "{{count}}개를 저장하지 못했어요",
+                "saveFailedMany_other": "{{count}}개를 저장하지 못했어요",
+                "savedMany_one": "파일 {{count}}개를 저장했어요",
+                "savedMany_other": "파일 {{count}}개를 저장했어요"
+            },
+            "unsendable": {
+                "title": "보낼 수 없는 파일이 있어요",
+                "description": "아래 파일을 빼고 나머지를 보낼까요?",
+                "ok": "확인",
+                "sendRest_one": "나머지 {{count}}개 보내기",
+                "sendRest_other": "나머지 {{count}}개 보내기"
             }
         },
         "preview": {
@@ -1226,6 +1353,55 @@
             "unlock": "입력 잠금 해제",
             "locked": "입력을 잠갔어요",
             "unlocked": "입력 잠금을 해제했어요"
+        },
+        "jump": {
+            "mentions": "멘션 {{count}}",
+            "latest": "최신 메시지 {{count}}"
+        },
+        "files": {
+            "title": "대화방 파일",
+            "seeAll": "전체 보기",
+            "tab": {
+                "media": "사진·동영상",
+                "file": "파일",
+                "audio": "음성",
+                "link": "링크"
+            },
+            "empty": {
+                "media": "공유된 사진·동영상이 없어요",
+                "file": "공유된 파일이 없어요",
+                "audio": "공유된 음성이 없어요",
+                "link": "공유된 링크가 없어요"
+            },
+            "search": "파일명, 보낸 사람 검색",
+            "searchLinks": "주소, 보낸 사람 검색",
+            "searchLabel": "대화방 파일 검색",
+            "noMatch": "검색 결과가 없어요",
+            "searching": "찾는 중…",
+            "findOlder": "이전 파일 더 찾기",
+            "select": "선택",
+            "selectItems": "항목 선택",
+            "selectedCount_one": "{{count}}개 선택",
+            "selectedCount_other": "{{count}}개 선택",
+            "selectAll": "전체 선택",
+            "deselectAll": "선택 해제",
+            "cancel": "취소",
+            "more": "{{name}} 더보기",
+            "details": "상세 보기",
+            "copyLink": "링크 복사",
+            "shareOut": "외부 공유",
+            "delete": "삭제",
+            "exportLimit": "저장·공유는 한 번에 10개까지 할 수 있어요",
+            "linkCopied_one": "링크를 복사했어요",
+            "linkCopied_other": "링크를 복사했어요",
+            "linkCopyFailed": "링크를 복사하지 못했어요",
+            "hideTitleOne": "이 파일을 삭제할까요?",
+            "hideTitleMany_one": "파일 {{count}}개를 삭제할까요?",
+            "hideTitleMany_other": "파일 {{count}}개를 삭제할까요?",
+            "hideDescription": "내 화면에서만 지워지고, 다른 참여자에게는 그대로 보여요.",
+            "hidden_one": "파일 {{count}}개를 삭제했어요",
+            "hidden_other": "파일 {{count}}개를 삭제했어요",
+            "undo": "실행 취소"
         }
     },
     "search": {

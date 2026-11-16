@@ -28,6 +28,11 @@ export interface AttachPanelProps {
      * away with the tiles rising after it, where dropping it would make them jump.
      */
     recent?: React.ReactNode;
+    /**
+     * The recent row is given but has nothing to draw — it is folding away, or stays empty. The entries
+     * then sit in the middle of the panel, as with no row at all, and move there as the row folds.
+     */
+    recentEmpty?: boolean;
     onPhoto: () => void;
     onCamera: () => void;
     /** Omit to hide the files entry. */
@@ -144,6 +149,7 @@ export const AttachPanel = React.forwardRef<AttachPanelHandle, AttachPanelProps>
             open,
             height,
             recent,
+            recentEmpty = false,
             onPhoto,
             onCamera,
             onFile,
@@ -222,7 +228,16 @@ export const AttachPanel = React.forwardRef<AttachPanelHandle, AttachPanelProps>
                 {/* Scrolls only where the keyboard it stands in for was shorter than the content. */}
                 <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-8">
                     {recent}
-                    <div className="flex w-full shrink-0 justify-center gap-6 pt-6">
+                    {/* Under the recent row, the entries sit where the design puts them. With no row —
+                        a browser, a library that cannot be read or holds nothing — they sit in the middle
+                        of the space the keyboard left, rather than at its top over an empty band. */}
+                    <div
+                        data-testid="attach-entries"
+                        className={cn(
+                            'flex w-full shrink-0 justify-center gap-6',
+                            recent && !recentEmpty ? 'pt-6' : 'my-auto pt-8'
+                        )}
+                    >
                         <AttachActionTile
                             icon={<IconGalleryWideSolid className="text-glyph-green" />}
                             label={text.photo}

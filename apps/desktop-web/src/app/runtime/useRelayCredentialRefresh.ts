@@ -6,8 +6,8 @@ import { runtime } from '@chatic/app-runtime';
  * Re-mints the stale relay HTTP signing credential (the relay token's AWS credential).
  *
  * desktop-web had NO caller for this — apps/web (`useRelayCredentialRefresh`) and admin
- * (`useRelaySessionGuard`) each grew one, and `runtime.session.useSessionStalenessGuard`'s own doc names this app as
- * the gap. The symptom that closed it: a cloud switch reported as a bare `AxiosError: Network Error`
+ * (`useRelaySessionGuard`) each grew one, and the relay guard's own doc (runtime-core's
+ * `RelayCredentialGuard`) names this app as the gap. The symptom that closed it: a cloud switch reported as a bare `AxiosError: Network Error`
  * with no status. `POST {relay}/users/0/delegate-cloud` is relay-SIGNED HTTP, and API Gateway
  * rejects a stale/absent SigV4 signature at the IAM layer with a 403 that carries no
  * `access-control-allow-origin` — so the browser blocks the response and axios can only report
@@ -42,10 +42,9 @@ export const useRelayCredentialRefresh = (): void => {
         // Both triggers are EDGES, and at exactly those moments the stored `expired_time` is a bad
         // proxy for "the credential still signs": the handshake's `auth.update` emits no token, so
         // boot runs on the pre-sleep credential until the SDK's own 5-min timer fires. Refresh
-        // regardless of the expiry probe — the hub throttles this to once a minute and never counts
-        // a preemptive miss as a failure.
+        // regardless of the expiry probe — the guard throttles this to once a minute and only logs a
+        // preemptive miss.
         forceRefresh: true,
-        consecutiveFailureLimit: null,
     });
 
     const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);

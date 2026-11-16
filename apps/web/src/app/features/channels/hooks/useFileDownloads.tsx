@@ -139,9 +139,17 @@ const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome
     }
 };
 
-/** One open, save or share of a card's file inside the app. */
-const perform = async (context: Context, use: FileUse, file: ChatFileSlot): Promise<void> => {
-    if (!file.url || busy.has(file.key)) return;
+/**
+ * One open, save or share of a card's file inside the app. It speaks for its own outcome unless
+ * `quiet`, in which case the caller reports — a batch says once what happened to all of them.
+ */
+const perform = async (
+    context: Context,
+    use: FileUse,
+    file: ChatFileSlot,
+    quiet = false
+): Promise<FileExportOutcome | undefined> => {
+    if (!file.url || busy.has(file.key)) return undefined;
     busy.add(file.key);
     const controller = new AbortController();
     let outcome: FileExportOutcome;
@@ -168,7 +176,38 @@ const perform = async (context: Context, use: FileUse, file: ChatFileSlot): Prom
         downloading.delete(file.key);
         changed();
     }
-    report(context, file, outcome);
+    if (!quiet) report(context, file, outcome);
+    return outcome;
+};
+
+/**
+ * What a batch save says: how many were kept, or how many were not with a way to try those again.
+ * A batch that needs the app updated or a storage permission says that instead, once.
+ */
+const reportBatch = (
+    context: Context,
+    outcomes: readonly (FileExportOutcome | undefined)[],
+    retry: () => void
+): void => {
+    const { t } = context;
+    const first = outcomes.find(outcome => outcome?.kind === 'permission' || outcome?.kind === 'save-update-required');
+    if (first) {
+        report(context, {} as ChatFileSlot, first);
+        return;
+    }
+    // A file skipped — already being saved, or with no address — is not counted as failed.
+    const failed = outcomes.filter(outcome => outcome?.kind === 'failed').length;
+    if (failed > 0) {
+        const again = t('chat.attach.files.retry');
+        toast({
+            title: t('chat.attach.files.saveFailedMany', { count: failed }),
+            variant: 'destructive',
+            action: actionButton(again, retry),
+        });
+        return;
+    }
+    const saved = outcomes.filter(outcome => outcome?.kind === 'saved').length;
+    if (saved > 0) toast({ title: t('chat.attach.files.savedMany', { count: saved }) });
 };
 
 /** The browser's download: fetch, then save under the upload's own name. */
@@ -193,6 +232,24 @@ const downloadHere = async ({ cid, chatId, t }: Context, file: ChatFileSlot, ref
 
 type Refresh = ReturnType<typeof useImageAddressRefresh>;
 
+/** A file of a batch, with the message it came from — each is re-signed through its own message. */
+export interface BatchFile {
+    file: ChatFileSlot;
+    chatId?: string;
+}
+
+/** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
+const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {
+    if (!isNative()) {
+        for (const { file, chatId } of list) await downloadHere({ ...context, chatId }, file, refresh);
+        return;
+    }
+    const outcomes: (FileExportOutcome | undefined)[] = [];
+    for (const { file, chatId } of list) outcomes.push(await perform({ ...context, chatId }, 'save', file, true));
+    const failed = list.filter((_, at) => outcomes[at]?.kind === 'failed');
+    reportBatch(context, outcomes, () => void saveFiles(context, failed, refresh));
+};
+
 /**
  * A message's document cards: what each download button shows, and what pressing a card does.
  *
@@ -205,6 +262,9 @@ type Refresh = ReturnType<typeof useImageAddressRefresh>;
  * card body opens it (`OpenFile`, or the share sheet when nothing opens the format), and the action
  * sheet shares it. The downloaded file is remembered for the session, so the card turns `done` and
  * every later use skips the download.
+ *
+ * A list that mixes messages (the room's file list) passes each file's own message (`fromChatId`), so
+ * an expired address is signed again through the message the file belongs to.
  */
 export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
@@ -228,34 +288,43 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
 
     /** The download button: in the app, download if needed and keep it on the device. */
     const download = useCallback(
-        async (file: ChatFileSlot) => {
-            const context = { cid, chatId, t };
+        async (file: ChatFileSlot, fromChatId?: string) => {
+            const context = { cid, chatId: fromChatId ?? chatId, t };
             if (!isNative()) return downloadHere(context, file, refresh);
-            return perform(context, 'save', file);
+            await perform(context, 'save', file);
         },
         [chatId, cid, refresh, t]
     );
 
     /** The card body, and a `done` button: in the app, download if needed and open it. */
     const open = useCallback(
-        async (file: ChatFileSlot) => {
-            const context = { cid, chatId, t };
+        async (file: ChatFileSlot, fromChatId?: string) => {
+            const context = { cid, chatId: fromChatId ?? chatId, t };
             if (!isNative()) return downloadHere(context, file, refresh);
-            return perform(context, 'open', file);
+            await perform(context, 'open', file);
         },
         [chatId, cid, refresh, t]
     );
 
     /** The action sheet's "Share file": in the app only, download if needed and put it on the share sheet. */
     const share = useCallback(
-        async (file: ChatFileSlot) => {
+        async (file: ChatFileSlot, fromChatId?: string) => {
             if (!isNative()) return;
-            return perform({ cid, chatId, t }, 'share', file);
+            await perform({ cid, chatId: fromChatId ?? chatId, t }, 'share', file);
         },
         [chatId, cid, t]
     );
 
     const cancel = useCallback((file: ChatFileSlot) => downloading.get(file.key)?.controller.abort(), []);
 
-    return { stateOf, progressOf, download, open, share, cancel };
+    /**
+     * Saves several files one after another — the room file list's selection — and reports once at the
+     * end. In a browser each is downloaded as the button does.
+     */
+    const saveAll = useCallback(
+        (list: readonly BatchFile[]): Promise<void> => saveFiles({ cid, chatId, t }, list, refresh),
+        [chatId, cid, refresh, t]
+    );
+
+    return { stateOf, progressOf, download, open, share, cancel, saveAll };
 };

@@ -13,6 +13,7 @@ import { useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
 import { formatMoney } from '../../utils';
 import { type PlanChoice, type PlanTag, planChoicesOf } from './planChoices';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { Plan, Subscription } from '../../types';
 
@@ -57,7 +58,7 @@ const SignedInPlans = (): JSX.Element => {
     // and the guess would offer a subscriber their first subscription.
     const subscriptions = useSubscriptions();
     if (isLoading) return <PageLoader />;
-    if (subscriptions.isError) return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
+    if (subscriptions.isError) return <Banner tone="danger" title={t(commonErrorKey(subscriptions.error))} />;
     return <PlansScene signedIn subscription={subscription} current={subscription ? current : undefined} />;
 };
 

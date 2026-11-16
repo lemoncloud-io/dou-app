@@ -16,6 +16,9 @@ const makeDataSourceMock = (): jest.Mocked<AnyDataSource> =>
         removeAll: jest.fn(),
         clear: jest.fn(),
         clearByChannel: jest.fn(),
+        fetchMediaPage: jest.fn(),
+        countMedia: jest.fn(),
+        saveMediaFill: jest.fn(),
     }) as any;
 
 const makeLoggerMock = (): ILogService =>
@@ -230,5 +233,59 @@ describe('CacheCrudService.clearByChannel (ADR-0067)', () => {
             'clearByChannel requires a channelId'
         );
         expect(chat.clearByChannel).not.toHaveBeenCalled();
+    });
+});
+
+describe('CacheCrudService — room media index reads', () => {
+    it('hands a page read to the chat data source with its scope', async () => {
+        const { service, chat } = setup();
+        const page = { items: [], nextCursorNo: null };
+        (chat as any).fetchMediaPage.mockResolvedValueOnce(page);
+
+        await expect(
+            service.fetchChatMedia({
+                type: 'chat',
+                channelId: 'ch-1',
+                kind: 'link',
+                cursorNo: 9,
+                limit: 20,
+                cid: 'c1',
+                uid: 'u1',
+            })
+        ).resolves.toBe(page);
+        expect((chat as any).fetchMediaPage).toHaveBeenCalledWith(
+            { channelId: 'ch-1', kind: 'link', cursorNo: 9, limit: 20 },
+            'c1',
+            'u1'
+        );
+    });
+
+    it('hands a count to the chat data source', async () => {
+        const { service, chat } = setup();
+        (chat as any).countMedia.mockResolvedValueOnce({ image: 1, video: 0, file: 0, audio: 0, link: 0 });
+
+        await expect(
+            service.countChatMedia({ type: 'chat', channelId: 'ch-1', cid: 'c1', uid: 'u1' })
+        ).resolves.toMatchObject({
+            image: 1,
+        });
+        expect((chat as any).countMedia).toHaveBeenCalledWith('ch-1', 'c1', 'u1');
+    });
+
+    it('hands a fill to the chat data source with its version and scope', async () => {
+        const { service, chat } = setup();
+        const items = [{ chatId: 'ch-1:1', channelId: 'ch-1', chatNo: 1, entries: [] }];
+
+        await service.saveChatMedia({ type: 'chat', items, version: 1, cid: 'c1', uid: 'u1' });
+
+        expect((chat as any).saveMediaFill).toHaveBeenCalledWith(items, 1, 'c1', 'u1');
+    });
+
+    it('throws rather than answer an empty page for a read with no room, so the web is not told "none"', async () => {
+        const { service } = setup();
+
+        await expect(service.countChatMedia({ type: 'chat', channelId: '', cid: 'c1', uid: 'u1' })).rejects.toThrow(
+            'countChatMedia requires a chat channelId'
+        );
     });
 });

@@ -66,6 +66,15 @@ const MOBILE_APP_EVENTS = {
         test: 'app/subWebView/SubWebView.test.tsx',
     },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
+    // Only on a launch the app's runtime owns, once a page said hello (docs/runtime/).
+    OnRuntimeEvent: {
+        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        test: 'app/services/runtime/runtimeBridge.test.ts',
+    },
+    OnRuntimeSessionChanged: {
+        emittedBy: ['app/services/runtime/runtimeBridge.ts'],
+        test: 'app/services/runtime/runtimeBridge.test.ts',
+    },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '../../..');

@@ -52,13 +52,17 @@ would make the store a participant in the flow it is supposed to merely record.
 exists to keep the exemption to one file: it reads `@chatic/config` at boot and hands `relayStore`
 two endpoint **resolvers**. Functions, not values — a deeplink override (`?_backend=`) can be
 captured after module load and still be picked up, because every access re-resolves. Until
-`initAppRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
+`createRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
 naming that function. A loud failure beats a request going out to an empty host.
 
 **Nothing in this package imports `@chatic/bridges`**, and the same eslint config refuses it in
 every file, `store/configure.ts` and type-only imports included. Who is signed in is not a WebView
 concern: the package has to be able to run in a runtime that has no bridge, and a logger, should one
 be needed here, comes from `@chatic/logger`.
+
+**Nothing in this package reads a page either.** It compiles without the DOM's types (`lib: ["es2022"]`
+in `tsconfig.lib.json`) and the root lint refuses the page's globals: the session runs in the native
+process too, and the media behind its ports are handed in.
 
 **`credentialFreshness` sits in `store/`, not with the use cases in app-runtime.** It answers "how long is left on this
 server's credential" by reading the stores and nothing else, and the HTTP transport and the socket
@@ -92,16 +96,31 @@ The keys stay in the file of the store that reads and writes them rather than mo
 `setDeviceId`. `getDeviceId` is the page's own id, which app-runtime's `useDynamicDeviceId` reads and
 makes on first use; an app or desktop shell injects an id of its own that wins over it.
 
+`chatic-delegator-id` is the one key kept in **both** ports (below): `setDelegatorId` writes and clears
+both copies, and `getDelegatorId` reads the secret one first and falls back to the plain one. The id is
+the guest the server registers for this device, the user an invited cloud is accepted under, so it has
+to be readable by whichever side owns the session. In a shell the plain port is the page's own
+`localStorage` on one side and the phone runtime's own file on the other; the secret port is the device
+vault both sides open under the same item and keys. A copy kept only in the plain port never reached
+the other side, and an account signed in for a long time never logs in as a guest again to write it, so
+the invited clouds it accepted were hidden from it there and a new invite could not be accepted.
+
+The plain copy is kept rather than moved, for three readers: a web build from before this reads only
+it, a run whose vault cannot be read falls back to it, and the vault boot copies it into a vault that
+lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies only ever hold this device's guest
+— the server registers one per device id — so when they differ, because the other side ended a session
+and wrote only its own copies, either one names the same user.
+
 ### Two ports: secret and plain
 
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
 [`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which `KeyValueStore`
 ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
-`initAppRuntime({ storage })`, which calls `sessionStores.configure`.
+`createWebRuntime({ storage })` in a page, whose `createRuntime` calls `sessionStores.configure`.
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache`                                                                                                                                                                        |
+| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache` · `chatic-delegator-id` (a copy; see `identityStore`)                                                                                                                  |
 | `plain`  | `chatic-relay-selected-site-id` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` · `chatic-delegator-id` · `chatic-device-id` · `chatic-paired-cloud-ids` · `chatic-paired-cloud-names` |
 
 The split is by what a value would cost if it leaked: whoever holds a `secret` key signs as the user.
@@ -110,12 +129,15 @@ The split is by what a value would cost if it leaked: whoever holds a `secret` k
 auth those two keys (`pairedCloudsSlot`, `pairedCloudNamesSlot`), not the plain port — nothing outside
 may write the session's other keys.
 `chatic-secret-logout-pending` is in the plain list too: a logout whose vault clear was not confirmed
-leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
+leaves it, and the next boot empties the vault before reading it. `chatic-delegator-id` is listed under
+`plain` in `SESSION_KEYS` and its secret copy is not: every key on the secret list has its web copy
+deleted by the vault boot, and this key's web copy is the only one an existing install has.
+`SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
 copy of the list.
 
 **There is no default store.** Until `configure` runs, reading either port throws, and the error names
-`initAppRuntime({ storage })`. A default would have to be one platform's storage — this tab's
+`createRuntime({ storage })`. A default would have to be one platform's storage — this tab's
 `sessionStorage` — and the session runs in more than one place: a runtime never handed its stores would
 keep credentials wherever that default landed, and the first sign would be a session that quietly does
 not survive. Every app that boots the runtime names its stores, the landing site included, and a test
@@ -132,14 +154,18 @@ The stores reach the ports through forwarding objects, so they can be built at i
 `cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the
 cache with no expiry margin (the served read, `getCachedCloudTokens`, deletes what it refuses to
-serve, and a socket still signing with that token must not lose it); `dropCachedCloudTokens(cid)`
+serve, and a socket still signing with that token must not lose it). The served read measures an
+entry by its identity token's `exp`, not by an AWS credential: cloud servers answer with no credential,
+and judging by one read every entry as lapsed, so each entry into a cloud with no live socket re-issued
+a token that still had weeks left. An entry whose `exp` cannot be read is served as it is.
+`dropCachedCloudTokens(cid)`
 forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. The identity map —
 `getCloudIdentity` · `setCloudIdentity` · `getCloudIdentities` · `clearCloudIdentities` — records
 which uid this account has in each cloud and outlives the tokens. It is what a reader of another
 cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
 `getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
 successful switch and decides which clouds keep a background socket session when there are more of
-them than the cap ([app-runtime docs/connection/](../app-runtime/docs/connection/README.md#background-slots)). The reclaim records —
+them than the cap ([runtime-core docs/connection/](../runtime-core/docs/connection/README.md#background-slots)). The reclaim records —
 `getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
 cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
 `delegate-cloud` once per account rather than on every trigger
@@ -222,6 +248,17 @@ the account a different uid. The sync registry and the scoped repository graphs 
 read it as `session.getUidInCloud` / `session.useUidInCloud(cid)` wherever they build an id or match
 "is this me" for a named cloud — a join id `<channel>@<uid>` built from the session uid is wrong for
 every cloud but the committed one.
+
+`getUidsInClouds()` is the same answer for every cloud at once — the relay, the committed cloud, every
+cloud the token cache holds tokens for (`cloudStore.getCachedCloudIds()`) and every recorded identity.
+It is how the session goes into a single value for a reader that cannot ask per cloud: runtime-core's
+session view, which app-runtime's readers go through.
+
+Two of its sources change without a session signal — the token cache and the recorded identities are
+caches, not session state. `cloudStore.subscribeUidSources(listener)` hears every write to them, so a
+reader that holds uids between signals (that session view) does not keep a uid the cache has moved
+past: a cloud re-issued into the cache for another account, or a paired cloud whose identity was
+dropped. It is not a session signal, and nothing that re-renders listens to it directly.
 
 ### The scope: three views that are supposed to disagree
 

@@ -1,5 +1,379 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (web-ui-kit,web) lay out the room files header as designed, not in a 44px slot
+
+## [2026-11-16] - root@0.157.0, @chatic/web@0.89.0
+
+### Features
+
+- (web-ui-kit,web) centre the attach panel's entries when there are no recent photos
+- (web) play room audio through one player, with a detail screen and a room file list
+- (data,runtime-core) hand the room media reads through the chat repository
+- (web-ui-kit) add the audio file and room file components
+
+### Documentation
+
+- (adr) record one room audio player, on-device waveforms and local hiding (ADR-0317)
+
+### Other
+
+- test: (web-e2e) cover the audio send sheet and a sent audio file's way through the room
+
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) withdraw the background clouds at the end of the task, not at once on unmount
+
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (web,web-e2e) stop asking google fonts for pretendard, a request that failed on every boot
+
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
+- (auth,transport) leave a socket's first connect alone on the boot's own foreground report
+
+## [2026-11-15] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,web) keep background cloud sockets across a page reload, not drop them on an unread list
+- (runtime-core) number a reloaded page's runtime streams from 1, not after the last page's
+
+## [2026-11-15] - root@0.156.1, @chatic/landing@0.18.2
+
+### Bug Fixes
+
+- (landing) keep the reader signed in when the server refuses the account
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (data,db,mobile) index a room's attachments and links in the device cache (ADR-0316)
+
+### Documentation
+
+- (adr) record the simulator first-read cost of a room media fill
+
+### Other
+
+- test: (data) pin photo-only and captioned photo messages in the media judge
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (mobile,web,perf) run the device scenarios on either session owner and tag perf with it
+
+## [2026-11-15] - No version updates
+
+### Bug Fixes
+
+- (session,auth,storage) keep the device guest id in the vault, not only in the page (ADR-0315)
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (runtime-web,web) settle the session owner at boot and mirror a shell that holds it
+
+## [2026-11-15] - No version updates
+
+### Refactor
+
+- (data,web,runtime-core) stream a room's answered feed ranges instead of reading them inline
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (mobile,web,bridge-messages) restart the JS context when a native session ends (ADR-0314)
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (runtime-core,runtime-web,sync,perf) add the page's mirror engine for a shell-owned session
+
+## [2026-11-15] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime) hold a media send's cloud through the engine, not runInCloud
+
+## [2026-11-15] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime,sync) route the page's remaining reads through the engine
+
+## [2026-11-15] - No version updates
+
+### Features
+
+- (runtime-core,mobile,bridges) answer the page's runtime requests from the app's runtime
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (runtime-mobile,mobile,runtime-core,logger) boot the session runtime in the phone app
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (web/channels) add the room's mention and latest-message jump pills
+
+## [2026-11-13] - root@0.156.0, @chatic/web@0.88.0
+
+### Features
+
+- (web/home) give the relay home one Chats tab and a direct 1:1 plus
+- (web) give the relay home the same tabbed room list as a cloud
+- (web) add haptics and motion to the home and notification screens
+- (web) add the notifications tab, the find-me sheet and a 3-tab bottom nav
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (runtime-mobile,db,mobile) build the native runtime's stores and cache on the app's storage
+
+## [2026-11-13] - No version updates
+
+### Bug Fixes
+
+- (desktop) hide mini apps on prod, align quiet-hours mention switch
+
+## [2026-11-13] - root@0.155.0, @chatic/desktop-web@0.57.0
+
+### Features
+
+- (desktop-web) give images and documents the voice file's menu
+- (desktop-web) copy a link to a voice file and forward it
+- (desktop-web) draw the voice file's own waveform in its dialog
+- (desktop-web) call a voice-only message a voice file
+- (desktop-web) cancel a file upload from its card
+- (desktop) say when a download ends and show it in Finder
+- (desktop-web) name each file that can't be sent in a dialog
+- (desktop-web) show voice length in the tray and voice in the drop zone
+- (desktop-web) open a voice file in a detail dialog
+- (desktop-web) head two or more files with a count and download all
+- (desktop-web) redesign the voice card with length, speed and menu
+
+### Bug Fixes
+
+- (desktop-web) lift a toast with an action over an open dialog
+- (desktop-web) paint the waveform fill when the dialog opens mid-file
+- (desktop-web) fill the voice waveform smoothly as it plays
+- (desktop-web) close file dialogs with home, notify saves anywhere
+- (desktop-web) keep message links to known clouds, forward anywhere
+- (desktop-web) fold the attachment list for real
+
+### Refactor
+
+- (desktop-web) tidy the deeplink decode and download batch
+- (desktop-web) tidy the voice and attachment changes
+- (desktop-web) share one voice player per file across views
+
+## [2026-11-13] - root@0.154.2, @chatic/landing@0.18.1
+
+### Bug Fixes
+
+- (landing) sign in by the provider's account id, as the apps do, not by its email
+
+## [2026-11-13] - root@0.154.1, @chatic/web@0.87.1
+
+### Features
+
+- (web/home,web-ui-kit) match the home header to the redesign — 36px cloud avatar, no tier pill
+- (web/home,web-ui-kit) lay a cloud's home out as a place row and chat tabs, not folding sections
+
+### Refactor
+
+- (web) hold the notification store and its reads app-wide, not in the notifications feature
+
+### Other
+
+- test: (web-e2e) find a cloud's places by their chips, not the old place rows
+
+## [2026-11-13] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime,web,desktop-web) hand the page its repositories via the engine
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (runtime-mobile,mobile) build the runtime from react native's ports, not booted yet
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (web/notifications) derive the notification inbox on the device (ADR-0312)
+
+## [2026-11-13] - No version updates
+
+### Features
+
+- (web-ui-kit) add the notification parts — rows, chips, selection bar and jump pills
+
+### Documentation
+
+- (web-ui-kit) keep the FilterChip's quoted Figma name on one line
+
+## [2026-11-13] - root@0.154.0, @chatic/landing@0.18.0
+
+### Features
+
+- (landing) open the account surface on app.chatic.io for production builds, won only (ADR-0311)
+
+## [2026-11-13] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime,web,desktop-web) reach the sockets and sync through the engine
+
+## [2026-11-13] - root@0.153.1, @chatic/landing@0.17.2
+
+### Refactor
+
+- (data,http) remove the subscriptions/0/mine read, not called any more
+- (landing) read the web subscription off the membership, not subscriptions/0/mine
+
+## [2026-11-13] - No version updates
+
+### Refactor
+
+- (runtime-core,auth,app-runtime) run the session's commands through the engine
+
+## [2026-11-11] - No version updates
+
+### Bug Fixes
+
+- (session) keep a cloud token while its identity token is valid, not its absent credential
+- (auth,app-runtime) refuse a cloud token that names another user, not commit it (ADR-0310)
+
+## [2026-11-11] - No version updates
+
+### Bug Fixes
+
+- (web,runtime-core) match invited clouds by the guest id too, not the relay uid alone
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (auth,app-runtime,web,desktop-web) keep session tokens out of the screens' hands
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime,session) read the session through the engine, without tokens
+
+## [2026-11-11] - No version updates
+
+### Features
+
+- (bridge-messages,bridges,runtime-core) declare the runtime bridge contract (ADR-0309)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,runtime-web,app-runtime) start the react surface from an engine (ADR-0308)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime) register push tokens and prime chat rooms outside react
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime) run the credential guards outside react (ADR-0307)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,runtime-web,app-runtime) keep the relay session up outside react
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime) keep the connections with a controller outside react (ADR-0306)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (runtime-core,app-runtime) assemble the runtime in runtime-core (ADR-0305)
+
+## [2026-11-11] - root@0.153.0, @chatic/desktop-web@0.56.0
+
+### Features
+
+- (desktop-web) set one notification level for a whole cloud
+- (desktop-web) give a new channel its place's notification level
+- (desktop-web) set one notification level for a whole place
+
+### Bug Fixes
+
+- (desktop-web) write a place level only in the session's own place
+- (desktop-web) skip channels with no join of mine in place levels
+
+### Documentation
+
+- (desktop-web) document place and cloud notification levels
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (data,runtime-web,app-runtime) open the local cache backend as a platform port
+
+## [2026-11-11] - No version updates
+
+### Bug Fixes
+
+- (web/channels) catch an open room up to the channel record, not only its push
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (session,transport,sync,auth,data,runtime-web) the core packages read no page (ADR-0304)
+
+## [2026-11-11] - No version updates
+
+### Features
+
+- (web/channels) offer me last in the @ list, not leave me out
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
+- (auth,runtime-web,app-runtime) open the session's address as platform ports
+
 ## [2026-11-10] - No version updates
 
 ### Refactor

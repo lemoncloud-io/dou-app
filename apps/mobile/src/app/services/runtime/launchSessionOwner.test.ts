@@ -1,0 +1,62 @@
+import type * as LaunchSessionOwnerModule from './launchSessionOwner';
+import { SESSION_OWNER_KEY } from './sessionOwner';
+
+const mockOpen = jest.fn();
+jest.mock('./runtimeStorageFiles', () => ({ openSessionOwnerFile: () => mockOpen() }));
+
+/** A fresh copy of the module, so each test starts before the owner was read. */
+const load = (): typeof LaunchSessionOwnerModule.launchSessionOwner => {
+    let launchSessionOwner: typeof LaunchSessionOwnerModule.launchSessionOwner = () => 'web';
+    jest.isolateModules(() => {
+        launchSessionOwner = (require('./launchSessionOwner') as typeof LaunchSessionOwnerModule).launchSessionOwner;
+    });
+    return launchSessionOwner;
+};
+
+describe('launchSessionOwner', () => {
+    beforeEach(() => mockOpen.mockReset());
+
+    it('reads the file once and keeps the answer for the process', () => {
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? 'native' : undefined) });
+        const launchSessionOwner = load();
+
+        expect(launchSessionOwner()).toBe('native');
+        expect(launchSessionOwner()).toBe('native');
+        expect(mockOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("reads a file that cannot be opened as the page's", () => {
+        mockOpen.mockImplementation(() => {
+            throw new Error('mmkv');
+        });
+        expect(load()()).toBe('web');
+    });
+});
+
+describe('settledSessionOwner', () => {
+    beforeEach(() => mockOpen.mockReset());
+
+    const loadModule = (setting: string | undefined): typeof LaunchSessionOwnerModule => {
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? setting : undefined) });
+        let module: typeof LaunchSessionOwnerModule | undefined;
+        jest.isolateModules(() => {
+            module = require('./launchSessionOwner') as typeof LaunchSessionOwnerModule;
+        });
+        return module as typeof LaunchSessionOwnerModule;
+    };
+
+    it("is the page's on a launch the page owns, whatever was answered", () => {
+        const { settledSessionOwner } = loadModule(undefined);
+        expect(settledSessionOwner()).toBe('web');
+    });
+
+    it("is nothing on a launch set to the app's runtime until a hello is answered, then the answer", () => {
+        const { recordAnsweredSessionOwner, settledSessionOwner } = loadModule('native');
+        expect(settledSessionOwner()).toBeUndefined();
+
+        recordAnsweredSessionOwner('web');
+        expect(settledSessionOwner()).toBe('web');
+        recordAnsweredSessionOwner('native');
+        expect(settledSessionOwner()).toBe('native');
+    });
+});

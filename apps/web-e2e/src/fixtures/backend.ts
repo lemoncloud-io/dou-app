@@ -180,11 +180,6 @@ export class FakeBackend {
     private async answerHttp(route: Route): Promise<void> {
         const request = route.request();
         const url = new URL(request.url());
-        // `index.html` links its font from Google. An empty stylesheet keeps the page off the network
-        // and its layout on the fallback font, which is the same on every run.
-        if (url.hostname === 'fonts.googleapis.com') {
-            return route.fulfill({ contentType: 'text/css', body: '' });
-        }
         const relay = new URL(E2E_ENDPOINTS.relay);
         const onRelay = url.origin === relay.origin && url.pathname.startsWith(relay.pathname);
         const handler =

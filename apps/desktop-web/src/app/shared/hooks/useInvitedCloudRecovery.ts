@@ -23,7 +23,6 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
  * it was.
  */
 export const useInvitedCloudRecovery = (): void => {
-    const { cloud } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     const { selectedCloudId } = runtime.session.useSessionSelection();
@@ -42,8 +41,8 @@ export const useInvitedCloudRecovery = (): void => {
         // reads and writes around those are outside their try blocks, so a rejection here would
         // otherwise surface as an unhandled rejection rather than leaving the rail as it was.
         void (async () => {
-            await runtime.data.recoverInvitedCloudIfMissing(cloud, selectedCloudId);
-            await runtime.data.syncInvitedCloudName(cloud, selectedCloudId);
+            await runtime.data.recoverInvitedCloudIfMissing(selectedCloudId);
+            await runtime.data.syncInvitedCloudName(selectedCloudId);
         })().catch(() => undefined);
-    }, [cloud, isVerified, isRelayVerified, selectedCloudId, isOwned]);
+    }, [isVerified, isRelayVerified, selectedCloudId, isOwned]);
 };

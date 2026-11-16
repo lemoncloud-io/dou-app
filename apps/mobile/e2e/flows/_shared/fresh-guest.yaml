@@ -14,11 +14,11 @@ appId: ${APP_ID}
       optional: true
 # Onboarding shows on a fresh install only, and not steadily: it can mount, blink out while the boot
 # route settles, and mount again. A single "if SKIP is visible" check lands in the blink and leaves
-# onboarding up, so tap SKIP until home's list header shows. Onboarding's illustration is an image,
+# onboarding up, so tap SKIP until home's "Chats" tab shows. Onboarding's illustration is an image,
 # so its sample chat list never matches a text selector.
 - repeat:
       while:
-          notVisible: 'Chat Rooms.*'
+          notVisible: 'Chats.*'
       times: 8
       commands:
           - tapOn:
@@ -26,3 +26,9 @@ appId: ${APP_ID}
                 optional: true
           - waitForAnimationToEnd:
                 timeout: 10000
+# A run started with `--session-owner native` hands the session to the app's own runtime here; the
+# cleared state above has always put it back on the page.
+- runFlow:
+      when:
+          true: ${typeof SESSION_OWNER !== 'undefined' && SESSION_OWNER == 'native'}
+      file: native-session-owner.yaml

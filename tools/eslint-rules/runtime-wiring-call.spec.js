@@ -15,16 +15,16 @@ const options = [
             { object: 'sessionStores', name: 'configure' },
             { object: 'syncDataGraph', name: 'provide' },
         ],
-        allowedFiles: ['libs/app-runtime/src/init.ts'],
+        allowedFiles: ['libs/runtime-core/src/createRuntime.ts'],
     },
 ];
 
-const ASSEMBLY = at('libs/app-runtime/src/init.ts');
+const ASSEMBLY = at('libs/runtime-core/src/createRuntime.ts');
 const ELSEWHERE = at('apps/web/src/main.tsx');
 
 const outside = call => ({
     messageId: 'outsideAssembly',
-    data: { call, allowed: 'libs/app-runtime/src/init.ts' },
+    data: { call, allowed: 'libs/runtime-core/src/createRuntime.ts' },
 });
 
 new RuleTester({

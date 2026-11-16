@@ -14,13 +14,13 @@ import { cn, formatDate, formatMoney } from '../../utils';
 import { DOWNGRADE_COMPLETE_URL, checkoutUrl, formatShortDate, statusUrl } from './flow';
 import { CheckoutLayout, FactRows, LoadError, primaryLink, secondaryLink } from './parts';
 import { usePlanRoute } from './usePlanRoute';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { ChangePreview, Money, Plan, Subscription } from '../../types';
 
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'conflict')) return 'subscription.checkout.change.error.conflict';
-    if (isPortError(error, 'network')) return 'subscription.common.error.network';
-    return 'subscription.common.error.unknown';
+    return commonErrorKey(error);
 };
 
 /**

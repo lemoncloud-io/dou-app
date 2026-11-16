@@ -1,6 +1,7 @@
 # ADR-0263: Landing runs sandbox payments on the payment server's mock provider, on development hosts only
 
 > Status: Accepted · Decided: 2026-11-02
+> · Decision 1 amended by [ADR-0311](./0311-landing-opens-the-account-surface-on-the-production-host-in-won-only.md) (no sandbox on the production host either, whatever the build)
 > Scope: `apps/landing` (`README.md` § Sandbox payments, `src/app/features/subscription/lib/createPortSetup.ts`,
 > `lib/port/http/` — `createHttpPort.ts`, `sandboxWindow.ts`, `live.ts`, `index.ts` —,
 > `components/DevScenarioPanel.tsx`, `components/MockPaymentWindow.tsx`); the payer-scoped subscription

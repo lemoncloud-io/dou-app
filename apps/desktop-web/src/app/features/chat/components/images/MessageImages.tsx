@@ -9,8 +9,10 @@ import { ConfirmDialog } from '../../../channels';
 import { useChatImages } from '../../hooks';
 import { useChatImagesStore } from '../../stores';
 import { copyImageToClipboard, downloadImage, downloadImages, layoutImageGrid, type ChatImage } from '../../utils';
+import { useForwardFileStore } from './ForwardFileDialog';
 import { ImageTile } from './ImageTile';
 import { ImageSetMeta, ImageViewer, type ImageAuthor } from './ImageViewer';
+import { useCopyMessageLink } from './useCopyMessageLink';
 
 interface MessageImagesProps {
     /** The message the images belong to — its images are read from it. */
@@ -76,6 +78,12 @@ const MessageImageGrid = ({
     const deletesMessage = !!message.upload$$?.length;
     const canDeleteHere = canDelete && (!deletesMessage || !!onDeleteMessage);
     const requestDelete = canDeleteHere ? (image: ChatImage) => setPendingDelete(image) : undefined;
+    const copyLink = useCopyMessageLink(message);
+    const openForward = useForwardFileStore(s => s.open);
+    // Only a sent upload is forwarded: a debug sample has no message of its own to have come with.
+    const forward = deletesMessage
+        ? (image: ChatImage) => openForward({ url: image.url, name: image.name })
+        : undefined;
 
     return (
         <div className="mt-2 flex flex-col gap-2">
@@ -102,6 +110,9 @@ const MessageImageGrid = ({
                             onDownload={() => download(image)}
                             onCopy={() => copy(image)}
                             onDelete={requestDelete && (() => requestDelete(image))}
+                            onReply={onReply}
+                            onCopyLink={copyLink}
+                            onForward={forward && (() => forward(image))}
                         />
                     );
                 })}

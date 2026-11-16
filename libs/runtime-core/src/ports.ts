@@ -1,5 +1,10 @@
+import type { AuthPlatformPorts } from '@chatic/auth';
+import type { LocalCachePorts } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
+
+import type { ForegroundSignal } from './session/foreground';
+import type { RuntimeStorePorts } from './storage/runtimeStores';
 
 /**
  * Everything the runtime takes from the platform it runs on, in one object.
@@ -20,10 +25,21 @@ import type { TransportPlatformPorts } from '@chatic/transport';
  * port.
  */
 export interface RuntimePorts {
-    /** The stores behind the session's two ports — the credentials and everything else it keeps. */
-    storage: SessionStoragePorts;
+    /**
+     * The stores the runtime keeps state in, chosen by the entry point for its environment. `secret`
+     * and `plain` back the session's two ports — the credentials and everything else it keeps;
+     * `device` backs the runtime's own non-session state (the sync cursor watermark). In a page they
+     * come from `resolveStorageStores()`.
+     */
+    storage: SessionStoragePorts & RuntimeStorePorts;
     /** The network signal, the device's self-description and how a socket is opened. */
     transport: TransportPlatformPorts;
+    /** The address the boot reads the logout flag from, and the way home when a session ends. */
+    auth: AuthPlatformPorts;
+    /** Where the cache's rows live: each domain's store, the search across clouds, the metrics. */
+    cache: LocalCachePorts;
+    /** Whether the app is in front of the user — the edge the session's background retries wait for. */
+    foreground: ForegroundSignal;
 }
 
 /** The keys of `T` a caller may leave out. */

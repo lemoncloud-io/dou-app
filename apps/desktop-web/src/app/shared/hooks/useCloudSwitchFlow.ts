@@ -41,7 +41,6 @@ export const useCloudSwitchFlow = () => {
     const { switchCloud: switchCloudSession, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession } = runtime.session.useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
-    const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const ownedCloudIds = useOwnedCloudIds();
     const { t } = useTranslation();
 
@@ -78,7 +77,7 @@ export const useCloudSwitchFlow = () => {
                 // an invited row for one would mislabel it. The relay returned above.
                 if (cloudId && !ownedCloudIds.has(cloudId)) {
                     try {
-                        await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
+                        await runtime.data.recoverInvitedCloudIfMissing(cloudId);
                     } catch {
                         // Best-effort (see above).
                     }
@@ -116,7 +115,7 @@ export const useCloudSwitchFlow = () => {
                 busyRef.current = false;
             }
         },
-        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t]
+        [switchCloudSession, logoutCloudSession, selectedCloudId, ownedCloudIds, isSwitching, t]
     );
 
     latestRef.current = switchCloud;

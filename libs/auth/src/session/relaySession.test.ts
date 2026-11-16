@@ -1,3 +1,5 @@
+import { authPlatform } from '../platform';
+import { fakeAuthPorts } from '../testing/platform';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { MemoryStore, NativeSecureStore } from '@chatic/storage';
@@ -134,6 +136,9 @@ jest.mock('@chatic/logger', () => ({
 
 const mockPairedCloudsClear = jest.fn();
 jest.mock('../pairing/pairedClouds', () => ({ pairedClouds: { clear: () => mockPairedCloudsClear() } }));
+
+// The address the session ends to: a jsdom page, which reports the navigation and does not perform it.
+beforeEach(() => authPlatform.configure(fakeAuthPorts()));
 
 describe('session/auth/relaySession', () => {
     beforeEach(() => {
@@ -334,6 +339,35 @@ describe('session/auth/relaySession', () => {
         expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
     });
 
+    describe('where the ended session goes', () => {
+        const leaveToHome = jest.fn();
+
+        beforeEach(() => {
+            leaveToHome.mockReset();
+            authPlatform.configure(
+                fakeAuthPorts({
+                    currentSearch: () => '?code=c-1&provider=google&_wss=wss%3A%2F%2Fw&other=x',
+                    leaveToHome,
+                })
+            );
+        });
+
+        it('leaves for home through the platform, carrying logout=1 and nothing of the old address', async () => {
+            await relaySession.clearAndRedirect();
+
+            expect(leaveToHome).toHaveBeenCalledTimes(1);
+            expect(leaveToHome.mock.calls[0][0].toString()).toBe('logout=1');
+        });
+
+        it('with preserveUrl, keeps the sign-in parameters of the address the app was opened with', async () => {
+            await relaySession.clearAndRedirect({ preserveUrl: true });
+
+            expect(leaveToHome.mock.calls[0][0].toString()).toBe(
+                'code=c-1&provider=google&_wss=wss%3A%2F%2Fw&logout=1'
+            );
+        });
+    });
+
     // ⑪ device registration: deviceId persisted through identityStore ONLY
     it('the full teardown ends the account in every cloud — tokens, uids, recent order and reclaims all go', async () => {
         // jsdom does not navigate; the redirect is not what this case is about.
@@ -402,6 +436,22 @@ describe('session/auth/relaySession', () => {
             await relaySession.clearAndRedirect();
 
             expect(plain.get('chatic-secret-logout-pending')).toBe('1');
+            consoleError.mockRestore();
+        });
+
+        // The plain copy is cleared by `clearRelaySession` (mocked here; see the session ports test).
+        it('takes the guest id with it, from the vault and from a copy an unavailable run left in the tab', async () => {
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { store, vault } = vaultWith(true);
+            vault['chatic-delegator-id'] = 'guest-1';
+            await store.hydrate();
+            sessionStores.configure({ secret: store, plain: new MemoryStore() });
+            sessionStorage.setItem('chatic-delegator-id', 'left-by-an-unavailable-run');
+
+            await relaySession.clearAndRedirect();
+
+            expect(vault).toEqual({});
+            expect(sessionStorage.getItem('chatic-delegator-id')).toBeNull();
             consoleError.mockRestore();
         });
     });

@@ -1,6 +1,7 @@
 # ADR-0262: Landing bills outside Korea in dollars, through a card field in its own dialog
 
 > Status: Accepted · Decided: 2026-10-30
+> · The "test mode only" consequence amended by [ADR-0311](./0311-landing-opens-the-account-surface-on-the-production-host-in-won-only.md) (production opens in won only; dollars stay shut there)
 > Scope: `apps/landing` (`README.md` § The server, `src/app/features/subscription/lib/billingCountry.ts`,
 > `lib/paymentMethods.ts`, `lib/port/cardEntry.ts`, `lib/port/http/`, `components/CardEntryWindow.tsx`,
 > `pages/checkout/CheckoutPage.tsx`, `pages/billing/PaymentMethodsPage.tsx`); the root `package.json`

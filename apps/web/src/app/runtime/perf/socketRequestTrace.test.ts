@@ -36,13 +36,17 @@ const sample = (
 
 const setup = (runId: string | undefined, options: { hidden?: boolean; held?: () => boolean } = {}) => {
     let observer: ((sample: runtime.connection.SocketRequestSample) => void) | undefined;
-    const manager = {
-        setRequestObserver: jest.fn((next?: (s: runtime.connection.SocketRequestSample) => void) => (observer = next)),
-    };
+    const stopObserving = jest.fn(() => {
+        observer = undefined;
+    });
+    const observe = jest.fn((next: (s: runtime.connection.SocketRequestSample) => void) => {
+        observer = next;
+        return stopObserving;
+    });
     const record = jest.fn();
     let clock = 0;
     const stop = observeSocketRequests({
-        manager,
+        observe,
         runId,
         record,
         now: () => clock,
@@ -50,7 +54,8 @@ const setup = (runId: string | undefined, options: { hidden?: boolean; held?: ()
         isHeld: options.held,
     });
     return {
-        manager,
+        observe,
+        stopObserving,
         record,
         stop,
         emit: (value: runtime.connection.SocketRequestSample = sample()) => observer?.(value),
@@ -90,8 +95,8 @@ describe('observeSocketRequests', () => {
     });
 
     it('attaches nothing in a run it does not sample', () => {
-        expect(setup(UNSAMPLED_RUN).manager.setRequestObserver).not.toHaveBeenCalled();
-        expect(setup(BRIDGE_RUN).manager.setRequestObserver).not.toHaveBeenCalled();
+        expect(setup(UNSAMPLED_RUN).observe).not.toHaveBeenCalled();
+        expect(setup(BRIDGE_RUN).observe).not.toHaveBeenCalled();
     });
 
     it('keeps a few of each type a minute, so a frequent type cannot use the whole budget', () => {
@@ -133,8 +138,8 @@ describe('observeSocketRequests', () => {
         hidden.emit();
         expect(hidden.record).not.toHaveBeenCalled();
 
-        const { manager, stop } = setup(SAMPLED_RUN);
+        const { stopObserving, stop } = setup(SAMPLED_RUN);
         stop();
-        expect(manager.setRequestObserver).toHaveBeenLastCalledWith(undefined);
+        expect(stopObserving).toHaveBeenCalledTimes(1);
     });
 });

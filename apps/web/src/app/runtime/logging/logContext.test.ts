@@ -10,6 +10,7 @@ import { runtime } from '@chatic/app-runtime';
 import { logger, setLogContextProvider } from '@chatic/bridges';
 
 import { attachLogContext, readLogContext, reportRunIdJoin, resetWebRunId } from './logContext';
+import { setLaunchSessionOwner } from '../launchSessionOwner';
 import { recordRoute, resetRouteTrail } from '../../utils/routeTrail';
 
 const mockSession = runtime.session.getGlobalSessionContext as jest.Mock;
@@ -23,6 +24,7 @@ const sessionState = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
     jest.clearAllMocks();
     resetWebRunId();
+    setLaunchSessionOwner(undefined);
     resetRouteTrail();
     mockSession.mockReturnValue(sessionState());
     delete (window as Record<string, unknown>).CHATIC_APP_RUN_ID;
@@ -167,5 +169,22 @@ describe('readLogContext — statistics context', () => {
         (window as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
 
         expect(readLogContext()).toMatchObject({ platform: 'ios', host: 'app' });
+    });
+});
+
+describe('the session owner', () => {
+    it('stamps who holds the session inside the app, once the entry point has settled it', () => {
+        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        expect(readLogContext().sessionOwner).toBeUndefined();
+
+        setLaunchSessionOwner('native');
+
+        expect(readLogContext().sessionOwner).toBe('native');
+    });
+
+    it('leaves it out in a browser tab, where only the page can hold it', () => {
+        setLaunchSessionOwner('web');
+
+        expect(readLogContext().sessionOwner).toBeUndefined();
     });
 });

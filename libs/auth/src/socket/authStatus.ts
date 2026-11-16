@@ -11,7 +11,7 @@ import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
  *
  * Before this, answering "is relay's auth healthy?" meant reading seven values from seven modules
  * and combining them — and that combination was written out three separate times
- * (`useSessionStalenessGuard` · `requestRelaySessionRefresh` · `recoverUnverifiedSockets`), each with
+ * (`RelayCredentialGuard` · `requestRelaySessionRefresh` · `recoverUnverifiedSockets`), each with
  * its own 20~40 line justification that did not reference the others. (`useConnectivity` looked like
  * a fourth but is not: it answers what to TELL THE USER, and the credential clock has no place in
  * that answer — ADR-0076 §Decision 1.)
@@ -24,10 +24,10 @@ import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
  * **`wedged` is deliberately NOT one of these.** An earlier draft had it for "bound but unverified
  * for too long", which reads well but cannot be derived: "too long" needs a duration, and this
  * projection is read-only by contract (holding an `unverifiedSince` clock would make it a fifth copy
- * of session state — the failure ADR-0070 spent itself removing). The instantaneous fact is
- * `handshaking`, and the current code does not distinguish the two either: `recoverUnverifiedSockets`
- * kicks ANY bound-and-unverified slot. A caller that genuinely needs "still unverified after N
- * seconds" owns that timer itself.
+ * of session state, and copies of it are what drift apart). The instantaneous fact is
+ * `handshaking`. A caller that genuinely needs "still unverified after N seconds" owns that timer
+ * itself: `recoverUnverifiedSockets` reads when the slot's first connection began from the socket
+ * manager, and leaves a young one alone.
  */
 export type AuthStatus =
     /** No token for this server — logged out, or before the first login. Nothing to do. */

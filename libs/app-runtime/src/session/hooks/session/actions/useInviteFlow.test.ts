@@ -2,19 +2,19 @@ import { createElement } from 'react';
 import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-const mockRegisterUserWithInviteCode = jest.fn();
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
+
 const mockUseSessionIdentity = jest.fn();
-
-jest.mock('@chatic/auth/session/authActions', () => ({
-    registerUserWithInviteCode: (...args: unknown[]) => mockRegisterUserWithInviteCode(...args),
-}));
-
 jest.mock('../readers/useSessionIdentity', () => ({
     useSessionIdentity: () => mockUseSessionIdentity(),
 }));
 
 const { useInviteFlow } = require('./useInviteFlow');
 
+const loginWithInviteCode = jest.fn();
 const createWrapper = () => {
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
     return ({ children }: { children: React.ReactNode }) => createElement(QueryClientProvider, { client }, children);
@@ -23,30 +23,24 @@ const createWrapper = () => {
 describe('useInviteFlow', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockRegisterUserWithInviteCode.mockResolvedValue({
-            Token: {},
-            cloudId: 'cloud-1',
-            siteId: 'site-1',
-            name: 'My Cloud',
-        });
+        loginWithInviteCode.mockResolvedValue({ handle: 'invite-login-1', cloudId: 'cloud-1' });
+        initAppRuntime({ ...coreEngine, commands: fakeSessionCommands({ loginWithInviteCode }) });
     });
 
-    it('logs in with the invite code and returns the token view', async () => {
+    afterEach(() => resetRuntimeEngine());
+
+    it("logs in with the invite code through the engine and answers with the runtime's handle", async () => {
         mockUseSessionIdentity.mockReturnValue({ delegatorId: 'delegator-1' });
 
         const { result } = renderHook(() => useInviteFlow(), { wrapper: createWrapper() });
 
-        const token = await result.current.runInviteFlow({
+        const login = await result.current.runInviteFlow({
             code: 'INVITE',
             backend: 'https://cloud.example.com',
         });
 
-        expect(mockRegisterUserWithInviteCode).toHaveBeenCalledWith(
-            'INVITE',
-            'delegator-1',
-            'https://cloud.example.com'
-        );
-        expect(token).toEqual({ Token: {}, cloudId: 'cloud-1', siteId: 'site-1', name: 'My Cloud' });
+        expect(loginWithInviteCode).toHaveBeenCalledWith('INVITE', 'delegator-1', 'https://cloud.example.com');
+        expect(login).toEqual({ handle: 'invite-login-1', cloudId: 'cloud-1' });
     });
 
     it('throws when no delegatorId is available', async () => {
@@ -55,6 +49,6 @@ describe('useInviteFlow', () => {
         const { result } = renderHook(() => useInviteFlow(), { wrapper: createWrapper() });
 
         await expect(result.current.runInviteFlow({ code: 'INVITE' })).rejects.toThrow('No delegatorId');
-        expect(mockRegisterUserWithInviteCode).not.toHaveBeenCalled();
+        expect(loginWithInviteCode).not.toHaveBeenCalled();
     });
 });

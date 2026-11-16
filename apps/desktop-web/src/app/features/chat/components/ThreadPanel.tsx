@@ -246,6 +246,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}
+                        onCancelUpload={composer.cancelUpload}
                         readCountOf={readCountOf}
                     />
                 ) : (

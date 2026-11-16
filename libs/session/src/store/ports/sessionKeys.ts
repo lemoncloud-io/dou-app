@@ -17,6 +17,15 @@ export const PAIRED_CLOUD_NAMES_KEY = 'chatic-paired-cloud-names';
  */
 export const SECRET_LOGOUT_PENDING_KEY = 'chatic-secret-logout-pending';
 
+/**
+ * The device guest's id, the user invited clouds are accepted under. Listed in the plain port, and
+ * also written to the secret port: the secret port is the store a page and the phone app's runtime
+ * share, and either may own the session (see `identityStore`). It stays out of the secret list on
+ * purpose — the vault migration deletes the web copy of every key there, and this one's web copy is
+ * the only source an existing install has.
+ */
+export const DELEGATOR_ID_KEY = 'chatic-delegator-id';
+
 /** Which port each session key lives in. Nothing else may write these keys. */
 export const SESSION_KEYS = {
     secret: ['chatic-relay-token', 'chatic-cloud-delegation-token', 'chatic-cloud-token', 'chatic-cloud-token-cache'],
@@ -27,7 +36,7 @@ export const SESSION_KEYS = {
         'chatic-cloud-identities',
         'chatic-recent-clouds',
         'chatic-reclaimed-clouds',
-        'chatic-delegator-id',
+        DELEGATOR_ID_KEY,
         'chatic-device-id',
         PAIRED_CLOUDS_KEY,
         PAIRED_CLOUD_NAMES_KEY,

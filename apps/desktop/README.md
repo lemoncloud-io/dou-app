@@ -35,6 +35,16 @@ handled or listed there.
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
 `DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `index.ts` and the contract suite both use.
 
+## Downloads
+
+Every download the app's own page starts is reported back to it when it ends
+(`chatic-download:done`, `downloadsContract.ts`): the saved file's name, completed or interrupted —
+a cancelled save dialog is not reported. A completed one carries an id; the page shows the file in
+Finder or Explorer by sending that id back (`chatic-download:reveal`), behind the same trusted-frame
+gate as every renderer channel. The shell keeps the last 50 finished paths (`createDownloadLog` in
+`downloads.ts`) and never takes a path from the page, so the page can reveal only what the shell
+itself saved. An image whose name matches its type still saves into Downloads with no dialog.
+
 ## Sub view
 
 `src/main/subWebView/`. The web opens a page on another origin with `OpenSubWebView`; the shell shows

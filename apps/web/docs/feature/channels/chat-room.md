@@ -4,7 +4,7 @@
 it owns data, derivation and orchestration (send, read, scroll, gestures) and nothing visual.
 Everything drawn comes from `@chatic/web-ui-kit` primitives, assembled here — `ChatRoomHeader`,
 `DateDivider`, `SystemNotice`, `SystemMessage`, `MessageRow`, `MessageBubble`, `ReadReceipt`,
-`MessageInput`, `FloatingDateChip`.
+`MessageInput`, `FloatingDateChip`, `JumpPill`.
 
 This document covers the room's own surface. Reactions, the action sheet and the thread page are in
 [reactions-and-threads.md](./reactions-and-threads.md); the hooks feeding this screen are in
@@ -94,9 +94,12 @@ The order of the first two is the argument for the whole list: `attach$` is part
 sent, the unfurl is something the client found. The last three sit **outside** the long-press
 target, or the gesture would eat taps on them.
 
-**Block Kit or a bubble.** A webhook send arrives as an ordinary `stereo: 'user'` chat carrying
-Block Kit in `blocks$`, or as JSON in `content`. `resolveChatBlocks` + `hasDrawableBlocks` (both
-from `@chatic/block-kit`, so the row and the renderer cannot disagree) decide whether the row draws
+**Block Kit or a bubble.** A webhook send arrives as a `stereo: 'webhook'` chat carrying Block Kit
+in `blocks$`, or as JSON in `content`. Only a webhook send is a card: a person who pastes a Block Kit
+payload into the composer wrote text, and a card from them would look exactly like an integration's
+alert, so `resolveChatBlocks` reads no blocks from any other `stereo` and their message stays the
+bubble they sent. `resolveChatBlocks` + `hasDrawableBlocks` (both from `@chatic/block-kit`, so the
+row and the renderer cannot disagree) decide whether the row draws
 a `BlockKitMessage` card instead of a bubble. Nothing drawable falls back to the plain body in a
 bubble. Three states never reach the card: a tombstone, a pending send and a failed send — the
 bubble draws those states, and a card would show a finished-looking message for a send that has not
@@ -207,8 +210,10 @@ What the sheet then holds is the page's call, through `utils/messageActions.ts`:
 Copy, so a text message opens even before it lands; an image-only message has no text to copy or
 edit, so it opens only once persisted, when a reaction, a thread and delete apply.
 
-Copy puts on the clipboard what was sent, markup included (a Block Kit body as its text), and the
-expanded view draws it with `MessageText` like a text bubble — both read `messagePlainText`. The delete
+Copy puts on the clipboard what was sent, markup included (a webhook's Block Kit body as its text),
+and the expanded view draws it with `MessageText` like a text bubble — both read `chatPlainText`,
+which reads the body as Block Kit only for a webhook send, the same rule the row follows. A person's
+pasted payload is copied and expanded as the text they wrote. The thread root's body reads it too. The delete
 confirmation only prints, so it quotes the message the way the home list previews it: markers
 dropped, a link as its words, one line cut at 60 characters (`deleteConfirmQuote`). The thread
 screen shares all three.
@@ -267,7 +272,9 @@ over the peer through `resolveUserName` and the peer's place-profile photo. The 
 person opened after the sheet closes, so the name stays on screen while the sheet slides away.
 
 Only a row that shows its sender is tappable. My own rows, system notices and grouped follow-up rows
-(which draw a spacer instead of an avatar) are inert, and so is a row with no owner id. The avatar is
+(which draw a spacer instead of an avatar) are inert, and so is a row with no owner id. So is a
+webhook send's (`isWebhookChat` from `@chatic/data`): its sender is not a member, and its system
+account has no profile to show. The avatar is
 a real `<button>` labelled `chat.room.openProfile`, in the row's avatar slot, outside the bubble's
 long-press target. A tap on it can't open the action sheet or the image viewer. The name is a second
 target for the same action. It is left out of the tab order, so keyboard users reach the action
@@ -344,7 +351,7 @@ and linkifying their text widens it.
 
 Message text is a small markdown-like dialect, the one the desktop composer writes: `**bold**`,
 `*italic*`, `~~strike~~`, `` `code` ``, triple-backtick fences, `> ` quote lines and labelled links.
-[`messageTokens.ts`](../../../src/app/features/channels/utils/messageTokens.ts) reads exactly that set,
+[`messageTokens.ts`](../../../../../libs/data/src/domain/messageTokens.ts) in `@chatic/data` reads exactly that set,
 with the desktop reader's rules for quotes and marks, so a formatted message reads the same on both.
 Headings and lists stay literal, and there is no escape syntax: a backslash is a backslash.
 
@@ -472,8 +479,10 @@ the rules. The room and the thread wire it the same way.
   Its rows cancel `mousedown`, so a tap keeps the field focused (in WebKit the focus moves there), and
   `pointerdown` for a mouse only: on touch, cancelling it would stop the list panning. The thread's bar
   does not cancel them itself.
-- **The rows** are "Everyone" first, then the room's active members other than me, by the name every
-  row in the room draws them by, sorted by that name. A member with no name yet is left out: there is
+- **The rows** are "Everyone" first, then the room's active members by the name every row in the room
+  draws them by, sorted by that name, and me last. I am offered so a message can call me too — a note
+  to myself that lands as a mention of me, as the desktop's list allows — and I sort last so a short
+  query's first row is someone else. A member with no name yet is left out: there is
   nothing to write. The everyone row writes the UI language's word — `@전체` in Korean, `@all` in
   English (`chat.mention.everyoneWord`) — and is found by either word, by its title ("모두에게",
   "Everyone"), and by `channel`, `here` and `everyone`. Readers mark every one of those words in any
@@ -657,6 +666,25 @@ the top, or a gap filled — goes through the same anchor hold as an arrival whe
 history. Rows added at the top move nothing, but a gap filled below a reader who jumped into old
 history pushes them up in WebKit, just as an arrival does.
 
+## Jump pills
+
+One floating pill sits centred above the composer when there is somewhere to jump
+(`useRoomJumpPills`, the kit's `JumpPill`, Figma 6002:40133 · 6002:41749). Mentions win when both
+apply.
+
+- **Mentions** — the reader's unread mentions in this room, from the device's notification inbox
+  (`app/stores/useNotificationStore`; [notifications](../notifications/README.md)), oldest first. A
+  thread mention points at its root's row in the room. They are taken **when the room opens**:
+  entering moves the read cursor, and the cursor reads the room's inbox items, so a later read would
+  find nothing. A tap jumps to the oldest one left through `useMessageJumpStore` — the same scroll,
+  older-page loading and highlight a search hit gets — and reads its items; a mention whose row
+  scrolls into view by hand counts as reached too (checked on scroll and as the list changes).
+- **Latest messages** — while the reader is away from the newest messages (`useChatScroll`'s
+  `isAwayFromBottom`, the same slack that decides the bottom pin), how many messages from others have
+  arrived since they left; a tap scrolls smoothly back to the bottom, and arriving there clears it.
+
+Both play the selection haptic when tapped.
+
 ## What not to do
 
 - **Do not add a stereo branch to the page.** Pass a variant into a component. Scroll anchoring,
@@ -678,8 +706,8 @@ history pushes them up in WebKit, just as an arrival does.
 - `ChannelRoomPage` is the largest file in the feature, and its test (`ChannelRoomPage.test.tsx`)
   renders it with every hook mocked, so it pins what the page draws, not the logic behind it. Logic
   added for this screen goes into a pure util, a hook or a component so it can be tested — that
-  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` and
-  `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
+  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` (now in
+  `@chatic/data`, where the room media index reads links with it) and `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
   `useChatScroll`.
 - Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
   colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a

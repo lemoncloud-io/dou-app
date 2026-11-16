@@ -1,6 +1,11 @@
 import { logger } from '@chatic/logger';
 
-import { RESUME_PROBE_TIMEOUT_MS, recoverSocketsOnResume, recoverUnverifiedSockets } from './recoverUnverifiedSockets';
+import {
+    FIRST_CONNECT_GRACE_MS,
+    RESUME_PROBE_TIMEOUT_MS,
+    recoverSocketsOnResume,
+    recoverUnverifiedSockets,
+} from './recoverUnverifiedSockets';
 import { clearResumeKick, noteResumeKick } from '@chatic/transport/socket/socketVerifyTrace';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import type { ISocketManager } from '@chatic/transport/socket/types';
@@ -79,7 +84,9 @@ type FakeClient = ReturnType<typeof makeClient>;
 const makeManager = (
     slots: Partial<Record<'relay' | 'cloud', FakeClient>>,
     verified: Record<string, boolean> = {},
-    active: string | null = null
+    active: string | null = null,
+    /** When each logical slot's first connection began, while it lasts; none when left out. */
+    firstConnect: Partial<Record<'relay' | 'cloud', number>> = {}
 ) =>
     ({
         getBoundCid: jest.fn(() => active),
@@ -91,6 +98,7 @@ const makeManager = (
         }),
         getClient: jest.fn((key: string) => (key === RELAY ? (slots.relay ?? null) : (slots.cloud ?? null))),
         isSlotVerified: jest.fn((key: string) => verified[key === RELAY ? 'relay' : 'cloud'] ?? false),
+        firstConnectSince: jest.fn((key: string) => firstConnect[key === RELAY ? 'relay' : 'cloud']),
     }) as unknown as ISocketManager;
 
 const makeDelegate = (registration: { token: string; authId: string } | null): jest.Mocked<SocketSessionDelegate> =>
@@ -184,6 +192,102 @@ describe('recoverUnverifiedSockets', () => {
         expect(cloud.disconnect).not.toHaveBeenCalled();
     });
 
+    it("leaves a slot's first connect that began moments ago to finish, and says so", async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { state: 'connecting' });
+        const now = () => 50_000;
+        (logger.info as jest.Mock).mockClear();
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay }, {}, null, { relay: now() - 300 }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual([]);
+        expect(logger.info).toHaveBeenCalledWith(
+            'SOCKET',
+            '[recoverUnverifiedSockets] leaving a first connect',
+            expect.objectContaining({ data: expect.objectContaining({ kind: 'relay', firstConnectAgeMs: 300 }) })
+        );
+    });
+
+    it('leaves a slot that is bound but has not begun to connect: its boot is still on the way', async () => {
+        const order: string[] = [];
+        const cloud = makeClient('cloud', order, { state: 'idle' });
+
+        await recoverUnverifiedSockets({ manager: makeManager({ cloud }), delegate: makeDelegate(null) });
+
+        expect(order).toEqual([]);
+    });
+
+    it('kicks a first connect that has run for the grace or longer, as a stalled or stranded one', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { state: 'connected' });
+        const now = () => 500_000;
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay }, {}, null, { relay: now() - FIRST_CONNECT_GRACE_MS }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual(['relay:disconnect', 'relay:connect']);
+    });
+
+    it('kicks a reconnect however young, so it restarts at once with the backoff reset', async () => {
+        const order: string[] = [];
+        // Connecting, but not the slot's first attempt: the manager reports no first connect.
+        const relay = makeClient('relay', order, { state: 'connecting' });
+
+        await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate: makeDelegate(null) });
+
+        expect(order).toEqual(['relay:disconnect', 'relay:connect']);
+    });
+
+    it('kicks a terminally expired controller however young its first connect is', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { authState: 'expired' });
+        const now = () => 50_000;
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay }, {}, null, { relay: now() - 100 }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual(['relay:disconnect', 'relay:connect']);
+    });
+
+    it('kicks when the clock has moved back past the first connect, which says nothing about its age', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { state: 'connecting' });
+        const now = () => 50_000;
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay }, {}, null, { relay: now() + 60_000 }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual(['relay:disconnect', 'relay:connect']);
+    });
+
+    it('spares only the slot on its first connect when another one is stranded', async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { state: 'connecting' });
+        const cloud = makeClient('cloud', order, { state: 'closed' });
+        const now = () => 50_000;
+
+        await recoverUnverifiedSockets({
+            manager: makeManager({ relay, cloud }, {}, null, { relay: now() - 1_000 }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual(['cloud:disconnect', 'cloud:connect']);
+    });
+
     it('routes the re-seeded sign callback through the delegate with the slot key', async () => {
         const order: string[] = [];
         const relay = makeClient('relay', order, { authState: 'expired' });
@@ -270,6 +374,22 @@ describe('recoverSocketsOnResume', () => {
         expect(relay.request).toHaveBeenCalledWith('system.ping', null, { timeoutMs: RESUME_PROBE_TIMEOUT_MS });
         expect(relay.disconnect).not.toHaveBeenCalled();
         expect(cloud.disconnect).not.toHaveBeenCalled();
+    });
+
+    it("leaves a slot's first connect alone too: neither kicked nor pinged", async () => {
+        const order: string[] = [];
+        const relay = makeClient('relay', order, { state: 'connecting' });
+        const cloud = makeClient('cloud', order);
+        const now = () => 50_000;
+
+        await recoverSocketsOnResume({
+            manager: makeManager({ relay, cloud }, { cloud: true }, null, { relay: now() - 500 }),
+            delegate: makeDelegate(null),
+            now,
+        });
+
+        expect(order).toEqual(['cloud:ping']);
+        expect(relay.request).not.toHaveBeenCalled();
     });
 
     it('logs every probe of the pass on one line, answered ones included', async () => {

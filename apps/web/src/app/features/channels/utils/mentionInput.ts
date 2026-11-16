@@ -207,7 +207,7 @@ export const EVERYONE_CANDIDATE_ID = '@everyone';
 interface MentionCandidateSources {
     /** The room's active members. */
     memberIds: readonly string[];
-    /** My uid in the room's cloud — never offered, since I do not mention myself. */
+    /** My uid in the room's cloud — offered last, so the first row is never me. */
     me: string | null | undefined;
     /** The name every row in the room draws a person by; the text will read it after the pick. */
     nameOf: (id: string) => string;
@@ -220,7 +220,13 @@ interface MentionCandidateSources {
     everyoneLabel: string;
 }
 
-/** The suggestion list's rows for a group room: everyone first, then the members by name. */
+/**
+ * The suggestion list's rows for a group room: everyone first, then the members by name, me last.
+ *
+ * I stay in the list so a message can call me too (a reminder to myself), as the desktop's list
+ * does. I sort after everyone else because a short query matches several rows, and the one a
+ * thumb reaches first should not be me.
+ */
 export const buildMentionCandidates = ({
     memberIds,
     me,
@@ -231,10 +237,10 @@ export const buildMentionCandidates = ({
     everyoneLabel,
 }: MentionCandidateSources): MentionCandidate[] => {
     const people = memberIds
-        .filter(id => !!id && id !== me)
+        .filter(id => !!id)
         .map(id => ({ id, label: nameOf(id), thumbnail: avatarOf(id) }))
         .filter(person => person.label !== unknownLabel)
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => Number(a.id === me) - Number(b.id === me) || a.label.localeCompare(b.label));
     return [
         { id: EVERYONE_CANDIDATE_ID, label: everyoneLabel, everyone: true, keywords: [everyoneKeyword] },
         ...people,

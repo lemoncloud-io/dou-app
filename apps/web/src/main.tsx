@@ -8,7 +8,15 @@ import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/brid
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webTransportPorts } from '@chatic/runtime-web';
+import {
+    LATE_VAULT_MARK,
+    createBridgedRuntime,
+    createWebRuntime,
+    resolveStorageStores,
+    setNativeCacheSupport,
+    settleSessionOwner,
+} from '@chatic/runtime-web';
+import type { SessionOwnerChoice } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
@@ -19,12 +27,12 @@ import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { clearInputLocks } from './app/features/channels/stores/useInputLockStore';
+import { clearNotifications } from './app/stores/useNotificationStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
 import { attachLogContext, readInjectedRunId, readLogContext, reportRunIdJoin } from './app/runtime/logging/logContext';
 import { startLogUploader } from './app/runtime/logging/logUploader';
-import { LOG_KEY_PREFIX } from './app/runtime/logging/logUploadStore';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
 import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
@@ -35,9 +43,11 @@ import {
     observeStateOutbox,
 } from './app/runtime/perf';
 import { startTelemetry } from './app/runtime/telemetry';
-import { TELEMETRY_POLICY_KEY_PREFIX } from './app/runtime/telemetry/policy';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
+import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
+import { showSessionOwnerUnsettled } from './app/runtime/sessionOwnerUnsettled';
+import { SIGNED_OUT_KEY_PREFIXES, dropSignedOutKeys } from './app/runtime/signedOutKeys';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
 // which the barrel deliberately keeps out (see its comment).
 import { initWebVitals } from './app/utils/webVitals';
@@ -76,7 +86,7 @@ reportRunIdJoin();
 // session's secret and plain ports, the device vault when the shell keeps one, and the `device`/`tab`
 // stores the app's own features and the runtime write through. Reads only what the shell injected and
 // the tab's own mark, so it is safe this early; the features take their stores from here on.
-const stores = runtime.boot.resolveStorageStores();
+const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
 
 // `vite-ui-theme` is the durable, cross-app theme key (five apps' pre-paint scripts and
@@ -96,27 +106,37 @@ config.init(createWebConfigPorts(stores));
 // carried over once, now that the setting can be written.
 migrateLegacyPhoneCountry(stores.webLocal);
 
-// The session's secrets — its four tokens. When `resolveStorageStores` chose the device vault, it is
-// loaded — and anything left in localStorage moved into it — before the runtime boots, so every read
-// after that is synchronous. A shell from before the vault keeps them in localStorage as it always did,
-// and a browser in the tab's sessionStorage.
+// Who holds the session this launch, settled before anything boots. A shell that runs its own runtime
+// offers it before the page runs (`window.CHATIC_APP_RUNTIME`); the page asks and, on a `native`
+// answer, mirrors that runtime instead of running one — no secret store, no sockets, no cache of its
+// own. Without an offer (a browser, any shell that does not run its runtime) it settles on the page at
+// once, without a word to the shell. The build flag is the web's own switch to stop asking: with it
+// set, every launch is the page's again, whatever the installed shell offers.
+const sessionOwner = settleSessionOwner({
+    offer: (window as { CHATIC_APP_RUNTIME?: unknown }).CHATIC_APP_RUNTIME,
+    disabled: import.meta.env.VITE_SESSION_MIRROR_DISABLED === 'true',
+});
+
+// The session's secrets — its four tokens — on a launch the page owns. When `resolveStorageStores`
+// chose the device vault, it is loaded — and anything left in localStorage moved into it — before the
+// runtime boots, so every read after that is synchronous. A shell from before the vault keeps them in
+// localStorage as it always did, and a browser in the tab's sessionStorage. On a launch the shell owns,
+// the vault is the shell's alone: the page never opens it.
 const vault = stores.vault;
-const secretStorageReady: Promise<unknown> = vault
-    ? runtime.boot.prepareSecretStorage({
-          vault,
-          plain: stores.plain,
-          web: stores.webLocal,
-          tab: stores.webSession,
-          afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
-      })
-    : Promise.resolve();
-// Only for a vault that could not be READ at launch; one whose write failed later reads fine and would
-// reload the page on every return to the foreground.
-if (vault) {
-    void secretStorageReady.then(outcome => {
-        if (outcome === 'unavailable' || outcome === 'unavailable-with-web-copy') watchUnavailableVault(vault);
+const bootReady: Promise<SessionOwnerChoice> = sessionOwner.then(async choice => {
+    if (choice.sessionOwner !== 'web' || !vault) return choice;
+    const outcome = await runtime.boot.prepareSecretStorage({
+        vault,
+        plain: stores.plain,
+        web: stores.webLocal,
+        tab: stores.webSession,
+        afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
     });
-}
+    // Only for a vault that could not be READ at launch; one whose write failed later reads fine and
+    // would reload the page on every return to the foreground.
+    if (outcome === 'unavailable' || outcome === 'unavailable-with-web-copy') watchUnavailableVault(vault);
+    return choice;
+});
 
 /**
  * A shell that keeps a vault without having said so before the page ran — it lists `StorageGet` in
@@ -125,7 +145,7 @@ if (vault) {
  * marked and reloaded once, and the next boot takes the vault from the start.
  */
 const adoptLateVault = (): void => {
-    stores.webSession.set(runtime.boot.LATE_VAULT_MARK, '1');
+    stores.webSession.set(LATE_VAULT_MARK, '1');
     window.location.reload();
 };
 
@@ -148,7 +168,7 @@ const watchUnavailableVault = (store: NonNullable<typeof vault>): void => {
 };
 
 /** Everything after the secrets are loaded — the runtime boot, the collectors and the first render. */
-const startApp = (): void => {
+const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): void => {
     // Boot the runtime. Placed HERE by contract, between two boundaries:
     //   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
     //   - BEFORE anything below that can read the session. Nothing currently does before render, and
@@ -160,23 +180,43 @@ const startApp = (): void => {
     // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
     // cache only on the relay scope, so a cloud partition never receives the default place row
     //. It must land before the data runtime is lazily created on first repository access.
-    runtime.boot.initAppRuntime({
-        // The runtime's `tab` store holds a cache (a tab's invited clouds), which must hear a failed write,
-        // so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
-        transport: webTransportPorts(),
-        // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
-        signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
-        data: {
-            repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
-        },
-    });
+    //
+    // On a launch the shell owns, the engine mirrors the shell's runtime instead, from the session its
+    // answer to the hello carried; none of the page's own ports are wired.
+    runtime.boot.initAppRuntime(
+        owner.sessionOwner === 'native'
+            ? createBridgedRuntime({ hello: owner.hello, port: owner.port })
+            : createWebRuntime({
+                  storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
+                  // The cache's tab-lifetime store holds a tab's invited clouds — a cache, which must hear
+                  // a failed write, so it gets the raw `webSession` rather than the tolerant `tab` the
+                  // features use.
+                  cacheTab: stores.webSession,
+                  // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
+                  signedOutKeyPrefixes: SIGNED_OUT_KEY_PREFIXES,
+                  data: {
+                      repositories: {
+                          user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' },
+                      },
+                  },
+              })
+    );
+
+    // On a launch the shell owns, its runtime cannot reach the page's storage, so the page takes its
+    // own signed-out keys: at each sign-out, and at the boot that follows one (`?logout=1` — the shell
+    // restarts the page there when its session ends), as the page's runtime does on its own launches.
+    if (owner.sessionOwner === 'native') {
+        runtime.session.registerSessionLogoutCallback(() => dropSignedOutKeys(stores.plain));
+        if (new URLSearchParams(window.location.search).get('logout') === '1') dropSignedOutKeys(stores.plain);
+    }
 
     // A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
     // next account on this device never opens a room onto them.
     runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
     // The same for the rooms whose composer was locked: they are the signed-in person's rooms.
     runtime.session.registerSessionLogoutCallback(clearInputLocks);
+    // And the notification inbox: what was captured for the signed-in person, from their rooms.
+    runtime.session.registerSessionLogoutCallback(clearNotifications);
 
     // Read the previous session's fate — a session that died without a clean
     // pagehide is logged as page-crash. It carries no buffer: the dead
@@ -229,7 +269,7 @@ const startApp = (): void => {
     // Times every socket request of a sampled run (a different tenth of runs from the bridge's), per
     // request type, so the server's answer time can be read apart from what the screens add to it.
     observeSocketRequests({
-        manager: runtime.connection.getSocketManager(),
+        observe: runtime.connection.observeSocketRequests,
         runId: readInjectedRunId(),
         isHeld: webPerfTraces.isHeld,
     });
@@ -265,10 +305,13 @@ const startApp = (): void => {
         webPerfTraces.resolveWith(report);
         // Until this lands the viewer shows no save or share: it does not yet know what this shell handles.
         shellCapabilities.setReport(report);
-        if (report) runtime.boot.setNativeCacheSupport(report);
+        if (report) setNativeCacheSupport(report);
         // A shell that keeps a vault but did not say so before the page ran is found here instead,
         // and the session moves into its vault for the rest of the run.
-        if (!vault && report?.supportedWebMessages?.includes('StorageGet')) void adoptLateVault();
+        // Only on a launch the page owns: on one the shell owns, the vault is the shell's.
+        if (owner.sessionOwner === 'web' && !vault && report?.supportedWebMessages?.includes('StorageGet')) {
+            void adoptLateVault();
+        }
     });
 
     // Force the native debug menu off on every web start — the OTA-controllable kill switch for the
@@ -292,5 +335,11 @@ const startApp = (): void => {
     );
 };
 
-// Never rejects: the vault boot answers every failure with a fallback, never with an error.
-void secretStorageReady.then(startApp);
+// Never rejects: the owner is settled or given up on, and the vault boot answers every failure with a
+// fallback. A launch whose owner could not be settled boots neither runtime — the shell may hold the
+// session, and a page that ran its own then would be a second owner — and says so, with a reload.
+void bootReady.then(choice => {
+    setLaunchSessionOwner(choice.sessionOwner ?? undefined);
+    if (choice.sessionOwner === null) showSessionOwnerUnsettled(choice);
+    else startApp(choice);
+});

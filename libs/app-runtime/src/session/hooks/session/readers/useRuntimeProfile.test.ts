@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
-import { getActiveSessionUser } from '@chatic/session/store';
+import { getActiveSessionUser } from '../../../sessionReads';
 import { useGlobalSession } from './useGlobalSession';
 
 import { useRuntimeProfile } from './useRuntimeProfile';
 import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';
 
 // useRuntimeProfile sources uid/isCloudActive from useGlobalSession + the token seed accessor from
-// the session store. Mocked by CONCRETE path, matching what the subject imports: mocking the
+// the session's reads module. Mocked by CONCRETE path, matching what the subject imports: mocking the
 // `../../session` barrel stopped working the day the barrel started publishing this hook (a barrel
 // re-exporting its own consumer is the cycle the facade groups avoid), and a barrel mock also drags
 // in transport's `import.meta`. The repositories hook is mocked locally.
-jest.mock('@chatic/session/store', () => ({ getActiveSessionUser: jest.fn() }));
+jest.mock('../../../sessionReads', () => ({ getActiveSessionUser: jest.fn() }));
 jest.mock('./useGlobalSession', () => ({ useGlobalSession: jest.fn() }));
 jest.mock('../../../../data/hooks/useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
 

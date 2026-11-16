@@ -22,10 +22,10 @@ const CATCH_UP_LIMIT = 30;
  *
  * Two mechanisms, because `ChatSyncPlan.run` is a no-op — registering alone loads nothing:
  *
- * 1. **Target registration** — `registerChat(channelId)` per channel. A `chat.sync` frame is
+ * 1. **Target registration** — a `chat` sync target per channel (`registerSyncTarget`). A `chat.sync` frame is
  *    dispatched to every registered chat target (each filters by its own channelId), so a message
  *    arriving in any of the site's channels is appended live, and a reconnect catches the target up
- *    from its baseline. `registerChat` refcounts by key, so the room's own registration for the
+ *    from its baseline. A chat registration refcounts by key, so the room's own registration for the
  *    channel being viewed dedups into this one rather than doubling it.
  * 2. **Head-triggered catch-up** — a channel whose polled head (`channel.chatNo`, kept fresh by the
  *    per-row `useChannelSync` and the cloud-wide `syncChannels` delta) runs ahead of what the chat
@@ -68,8 +68,9 @@ export const useChatSyncRegistration = (
 
     useEffect(() => {
         if (!enabled || !cloudVerified || !channelKey) return;
-        const sync = runtime.sync.getSyncManager();
-        const disposers = channelKey.split(',').map(id => sync.registerChat(id, undefined, { cid }));
+        const disposers = channelKey
+            .split(',')
+            .map(id => runtime.sync.registerSyncTarget({ type: 'chat', id }, { cid }));
         return () => disposers.forEach(dispose => dispose());
     }, [channelKey, enabled, cloudVerified, cid, uid]);
 
@@ -99,9 +100,8 @@ export const useChatSyncRegistration = (
 
     useEffect(() => {
         if (!enabled || !cloudVerified || !observation) return;
-        const sync = runtime.sync.getSyncManager();
         for (const [channelId, lastNo] of observation.lastNoByChannel) {
-            sync.updateLocalSnapshot(
+            runtime.sync.updateSyncSnapshot(
                 { type: 'chat', id: channelId },
                 { id: channelId, lastNo },
                 { cid: observation.cid }

@@ -1,3 +1,6 @@
+import { PERF_TRACE_CATALOG } from '../catalog';
+
+import type { PerfTraceCatalog } from '../catalog';
 import type { PerfTraceBackend } from '../PerfTrace';
 import type { PerfTraceName, PerfTraceResult } from '../types';
 
@@ -28,9 +31,18 @@ export interface PerfTelemetryRecorder {
  * later than the first traces: it needs the sampling policy, which arrives after boot. Until there is
  * one, a stop records nothing. There is nothing to do on a start — the pipeline only records a
  * finished trace.
+ *
+ * `ambientAttributes` are dimensions of the run rather than of one trace — which side holds the
+ * session, say. Each is added to a trace whose catalog entry lists it and that does not carry it
+ * already; the others never see it, so the recorder has nothing to refuse. A value that is
+ * `undefined` is left off.
  */
 export class PipelinePerfTraceBackend implements PerfTraceBackend {
-    constructor(private readonly getRecorder: () => PerfTelemetryRecorder | undefined) {}
+    constructor(
+        private readonly getRecorder: () => PerfTelemetryRecorder | undefined,
+        private readonly ambientAttributes?: () => Readonly<Record<string, string | undefined>>,
+        private readonly catalog: PerfTraceCatalog = PERF_TRACE_CATALOG
+    ) {}
 
     public start(): void {
         // Nothing until the trace finishes.
@@ -43,7 +55,7 @@ export class PipelinePerfTraceBackend implements PerfTraceBackend {
 
             recorder.record(result.sample ? 'sample' : 'trace', result.name, {
                 ...(result.sample ? {} : { durationMs: result.durationMs }),
-                attrs: result.attributes,
+                attrs: this.attributesOf(result),
                 metrics: result.metrics,
                 ...(result.endedAt !== undefined ? { timestamp: result.endedAt } : {}),
             });
@@ -52,5 +64,17 @@ export class PipelinePerfTraceBackend implements PerfTraceBackend {
             // messages), where nothing above it would catch: a measurement must never become the
             // call site's exception.
         }
+    }
+
+    private attributesOf(result: PerfTraceResult): Record<string, string> | undefined {
+        const ambient = this.ambientAttributes?.();
+        const allowed = this.catalog[result.name]?.attributes;
+        if (!ambient || !allowed) return result.attributes;
+        let attributes = result.attributes;
+        for (const [key, value] of Object.entries(ambient)) {
+            if (value === undefined || !allowed[key] || attributes?.[key] !== undefined) continue;
+            attributes = { ...attributes, [key]: value };
+        }
+        return attributes;
     }
 }

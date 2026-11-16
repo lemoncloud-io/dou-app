@@ -61,9 +61,9 @@ export const CloudActivatedRunner = (): null => {
 
     useEffect(
         () =>
-            runtime.connection
-                .getSocketManager()
-                .onSlotType<CloudActivatedEvent>(runtime.connection.RELAY_SLOT, CLOUD_ACTIVATED_EVENT, ({ data }) => {
+            runtime.connection.onServerEvent<CloudActivatedEvent>(
+                CLOUD_ACTIVATED_EVENT,
+                ({ data }) => {
                     void queryClient.invalidateQueries({ queryKey: runtime.data.cloudsKeys.all });
 
                     if (!i18n.exists(TITLE_KEY)) return;
@@ -77,7 +77,9 @@ export const CloudActivatedRunner = (): null => {
                         duration: TOAST_DURATION_MS,
                         position: 'top-center',
                     });
-                }),
+                },
+                { slot: runtime.connection.RELAY_SLOT }
+            ),
         [queryClient, i18n]
     );
 

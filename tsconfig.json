@@ -110,6 +110,9 @@
         },
         {
             "path": "./tools/eslint-rules"
+        },
+        {
+            "path": "./libs/runtime-mobile"
         }
     ]
 }

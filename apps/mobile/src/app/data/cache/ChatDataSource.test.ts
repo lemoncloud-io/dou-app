@@ -139,26 +139,29 @@ describe('ChatDataSource.clearByChannel (ADR-0067)', () => {
     it('채널과 스코프를 모두 조건에 걸어 지운다', async () => {
         const sqlite = createSqliteMock();
         const dataSource = new ChatDataSource(sqlite, TABLE);
-        (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
+        (sqlite.executeBatch as jest.Mock).mockResolvedValue({ rowsAffected: 0 });
 
         await dataSource.clearByChannel('ch-1', 'c1', 'u1');
 
-        const [sql, params] = (sqlite.execute as jest.Mock).mock.calls[0];
-        expect(sql).toBe(`DELETE FROM ${TABLE} WHERE channel_id = ? AND cid = ? AND uid = ?`);
+        // The room's media entries go in the same batch as its rows.
         // The same device's other cloud accounts or other users could share the same channel id —
         // leaving one room shouldn't wipe their history too.
-        expect(params).toEqual(['ch-1', 'c1', 'u1']);
+        expect((sqlite.executeBatch as jest.Mock).mock.calls[0][0]).toEqual([
+            [`DELETE FROM ${TABLE} WHERE channel_id = ? AND cid = ? AND uid = ?`, ['ch-1', 'c1', 'u1']],
+            ['DELETE FROM chat_media WHERE channel_id = ? AND cid = ? AND uid = ?', ['ch-1', 'c1', 'u1']],
+        ]);
     });
 
     it('스코프가 없으면 채널 조건만 건다', async () => {
         const sqlite = createSqliteMock();
         const dataSource = new ChatDataSource(sqlite, TABLE);
-        (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
+        (sqlite.executeBatch as jest.Mock).mockResolvedValue({ rowsAffected: 0 });
 
         await dataSource.clearByChannel('ch-1');
 
-        const [sql, params] = (sqlite.execute as jest.Mock).mock.calls[0];
-        expect(sql).toBe(`DELETE FROM ${TABLE} WHERE channel_id = ?`);
-        expect(params).toEqual(['ch-1']);
+        expect((sqlite.executeBatch as jest.Mock).mock.calls[0][0]).toEqual([
+            [`DELETE FROM ${TABLE} WHERE channel_id = ?`, ['ch-1']],
+            ['DELETE FROM chat_media WHERE channel_id = ?', ['ch-1']],
+        ]);
     });
 });

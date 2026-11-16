@@ -1,7 +1,2 @@
-import { secretStorageMigration } from '@chatic/auth';
-
-import type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
-
-/** Loads the device vault and moves secrets left in web storage into it. See `@chatic/auth`'s `secretStorageMigration`. */
-export const prepareSecretStorage = (boot: SecretStorageBoot): Promise<SecretStorageOutcome> =>
-    secretStorageMigration.prepare(boot);
+// The step itself is runtime-core's, shared with the phone app's runtime; the React surface hands it on.
+export { prepareSecretStorage } from '@chatic/runtime-core';

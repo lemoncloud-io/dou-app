@@ -11,6 +11,7 @@ import { isPortError } from '../../lib/port';
 import { changePlanUrl, checkoutUrl } from './flow';
 import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './parts';
 import { usePlanRoute } from './usePlanRoute';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { BillingEmail } from '../../types';
 
@@ -174,8 +175,7 @@ export const CheckoutEmailPage = (): JSX.Element => {
 
 const errorKeyOf = (err: unknown): string => {
     if (isPortError(err, 'limit')) return 'subscription.common.email.error.limit';
-    if (isPortError(err, 'network')) return 'subscription.common.error.network';
-    return 'subscription.common.error.unknown';
+    return commonErrorKey(err);
 };
 
 /** "Email (required)" and what the address is for, above the field in every scene. */

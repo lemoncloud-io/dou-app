@@ -20,3 +20,50 @@ export const msUntilExpiration = (expiration: unknown, now: number): number | nu
     const expiresAt = new Date(expiration as string).getTime();
     return Number.isFinite(expiresAt) ? expiresAt - now : null;
 };
+
+const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+/**
+ * Decodes a base64url segment to text, or null when it is not one. Written out rather than taken from
+ * `atob`: this layer runs outside a browser too, and a JWT payload is plain ASCII JSON, so a byte per
+ * character is all the decoding it needs.
+ */
+const decodeBase64Url = (segment: string): string | null => {
+    let bits = 0;
+    let value = 0;
+    let out = '';
+    for (const char of segment.replace(/=+$/, '')) {
+        const index = BASE64URL.indexOf(char === '+' ? '-' : char === '/' ? '_' : char);
+        if (index < 0) return null;
+        value = (value << 6) | index;
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out += String.fromCharCode((value >> bits) & 0xff);
+        }
+    }
+    return out;
+};
+
+/**
+ * Milliseconds until a token's own `exp` — the JWT claim in seconds — or null when the token is absent
+ * or its payload cannot be read. Negative means already lapsed.
+ *
+ * A cloud token is measured by this, not by an AWS credential: a cloud server answers with an identity
+ * token and no credential at all, and nothing signs with a cloud credential anyway. The identity token
+ * is what the cloud socket authenticates and refreshes with, so its `exp` is when the stored token
+ * stops being usable.
+ */
+export const msUntilTokenExpiry = (token: unknown, now: number): number | null => {
+    if (typeof token !== 'string') return null;
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = decodeBase64Url(payload);
+    if (json === null) return null;
+    try {
+        const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+        return typeof exp === 'number' && Number.isFinite(exp) ? exp * 1000 - now : null;
+    } catch {
+        return null;
+    }
+};

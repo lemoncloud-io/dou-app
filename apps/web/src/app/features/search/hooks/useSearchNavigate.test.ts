@@ -9,7 +9,7 @@ import { useSearchNavigate } from './useSearchNavigate';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
-            getSocketManager: jest.fn(),
+            waitUntilVerified: jest.fn(),
         },
         session: {
             useSiteSwitch: jest.fn(),
@@ -41,7 +41,9 @@ beforeEach(() => {
     (runtime.session.useSiteSwitch as jest.Mock).mockReturnValue({ switchSite });
     (useToast as jest.Mock).mockReturnValue({ toast });
     waitUntilVerified.mockResolvedValue(true);
-    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilVerified });
+    (runtime.connection.waitUntilVerified as jest.Mock).mockImplementation((...args: unknown[]) =>
+        waitUntilVerified(...args)
+    );
     setSelection('default');
 });
 

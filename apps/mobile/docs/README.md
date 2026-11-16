@@ -22,6 +22,7 @@ before, around, and underneath the web client. Product behaviour inside the WebV
 | [native/](./native/README.md)   | How the shell wraps the OS — the three-way parity contract and the service execution boundary                |
 | [push/](./push/README.md)       | Notification delivery, click routing, and the app icon badge                                                 |
 | [storage/](./storage/README.md) | What the shell persists for the web client — SQLite, MMKV, the device vault, and resumable uploads           |
+| [runtime/](./runtime/README.md) | The session run by the app itself — who owns it per launch, how the runtime boots, and what it keeps running |
 | [system/](./system/README.md)   | OS-level state both sides must agree on — theme, language and deep links                                     |
 | [release/](./release/README.md) | Building, shipping, updating, running against a local web server, and device scenarios                       |
 

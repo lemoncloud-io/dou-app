@@ -12,13 +12,25 @@ describe('MIGRATIONS', () => {
         }
     });
 
-    it('drops the retired upload task table and its index in the latest migration', () => {
-        const latest = MIGRATIONS[TARGET_VERSION - 1];
-
-        expect(latest).toEqual([
+    it('drops the retired upload task table and its index in migration 11', () => {
+        expect(MIGRATIONS[11]).toEqual([
             'DROP INDEX IF EXISTS idx_upload_tasks_status_updated;',
             'DROP TABLE IF EXISTS upload_tasks;',
         ]);
+    });
+
+    it('adds the chat media table, its index and the restored newest-first chat index in the latest migration', () => {
+        expect(TARGET_VERSION).toBe(13);
+        const latest = MIGRATIONS[TARGET_VERSION - 1].join('\n');
+
+        expect(latest).toContain('CREATE TABLE IF NOT EXISTS chat_media (');
+        expect(latest).toContain('PRIMARY KEY (cid, uid, chat_id, idx)');
+        expect(latest).toContain(
+            'CREATE INDEX IF NOT EXISTS idx_chat_media_cid_uid_channel_kind_chatno ON chat_media (cid, uid, channel_id, kind, chat_no DESC, idx);'
+        );
+        expect(latest).toContain(
+            'CREATE INDEX IF NOT EXISTS idx_chats_cid_uid_channel_chatno ON chats (cid, uid, channel_id, chat_no DESC);'
+        );
     });
 
     it('still creates the table in migration 7, so the chain replays unchanged on a fresh install', () => {

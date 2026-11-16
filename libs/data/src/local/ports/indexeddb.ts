@@ -1,4 +1,4 @@
-import type { CacheQueryOf, CacheTtlMeta, CacheType } from '@chatic/bridge-messages';
+import type { CacheQueryOf, CacheTtlMeta, CacheType, ChatMediaKind } from '@chatic/bridge-messages';
 import type { CacheSchema } from './cacheStorage';
 
 /**
@@ -11,6 +11,46 @@ export type IndexedDbRow<TType extends CacheType> = CacheSchema<TType> & {
     channel_id?: string;
     chat_no?: number;
 };
+
+/**
+ * One media index entry as an IndexedDB record, in the same store as the chat rows. `channel_id` and
+ * `chat_no` are copied from the message's row so the entry can be found and ordered without it.
+ */
+export interface IndexedDbChatMediaRow {
+    key: string;
+    type: 'chatmedia';
+    cid: string;
+    uid: string;
+    channel_id: string;
+    chat_no: number;
+    kind: ChatMediaKind;
+    chat_id: string;
+    idx: number;
+    ref: string;
+}
+
+/** Anything the cache store holds. */
+export type IndexedDbRecord = IndexedDbRow<CacheType> | IndexedDbChatMediaRow;
+
+/**
+ * One message's entries from a room fill. The entries carry no channel or number: those are copied
+ * from the chat row the write checks, so they are the row's as it stands, not as the fill read it.
+ */
+export interface IndexedDbChatMediaFill {
+    /** The message's chat row. */
+    chatKey: string;
+    /** Every entry key of the message. */
+    entriesRange: IDBKeyRange;
+    entries: Array<Omit<IndexedDbChatMediaRow, 'channel_id' | 'chat_no'>>;
+}
+
+/** Writes that land together or not at all: deletes first, then puts, in one `readwrite` transaction. */
+export interface IndexedDbWriteBatch {
+    deleteKeys?: string[];
+    /** Primary-key ranges to delete. */
+    deleteRanges?: IDBKeyRange[];
+    put?: IndexedDbRecord[];
+}
 
 /**
  * Options for a cursor-based query.
@@ -91,6 +131,34 @@ export interface IIndexedDB {
      * changing in between shifts the boundary) cannot structurally occur.
      */
     findNewestKeyBeyond(indexName: string, range: IDBKeyRange, skip: number): Promise<IDBValidKey | null>;
+
+    /**
+     * Applies one batch in a single `readwrite` transaction — a chat row and its media index entries
+     * are written this way, so a failed write leaves neither.
+     */
+    writeBatch(batch: IndexedDbWriteBatch): Promise<void>;
+
+    /**
+     * Walks an index range in `direction`, handing each record to `visit` until it returns `false` or
+     * the range ends. One `readonly` transaction; for a read whose stopping point depends on what it
+     * has seen (a page that must not split a message, plus a look past its end).
+     */
+    walkIndex<T>(
+        indexName: string,
+        range: IDBKeyRange,
+        direction: IDBCursorDirection,
+        visit: (record: T) => boolean
+    ): Promise<void>;
+
+    /** How many records an index range holds, without reading them. */
+    count(indexName: string, range: IDBKeyRange): Promise<number>;
+
+    /**
+     * Applies a room fill in one `readwrite` transaction: for each message, reads its chat row and —
+     * only when the row exists and its `data.mediaEntriesVersion` (absent = 0) is below `version` —
+     * replaces the message's entries. Never writes a chat row. Answers how many messages were applied.
+     */
+    applyChatMediaFill(fills: IndexedDbChatMediaFill[], version: number): Promise<number>;
 }
 
 /**

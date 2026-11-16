@@ -62,6 +62,8 @@ export type AppLogInfo = AppLogStructuredFields & {
     locale?: string;
     /** Route template (`/channels/:id/room`) — the screen axis statistics aggregate on. */
     routeTemplate?: string;
+    /** Which side holds the session this run: `web` (the page) or `native` (the app's runtime). */
+    sessionOwner?: string;
     tag: string; // Log identifying tag
     message?: string; // Log message
     data?: unknown; // Attached data
@@ -92,6 +94,7 @@ export type SendLogPayload = AppLogStructuredFields & {
     network?: string;
     locale?: string;
     routeTemplate?: string;
+    sessionOwner?: string;
     level?: AppLogLevel;
     tag?: string;
     message: string;

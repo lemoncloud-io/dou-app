@@ -6,7 +6,7 @@ import type { IAuthRepository } from '@chatic/data';
  * **Why it is handed in.** The repository graph is assembled in `data/`, which sits above this layer:
  * it builds its socket data sources from the socket manager and its scope from the session, and the
  * auth use cases sit beside those, not under them. Importing `data/runtime` from here was an upward
- * edge, so `initAppRuntime()` hands the accessor down instead and this file imports nothing at runtime.
+ * edge, so `createRuntime()` hands the accessor down instead and this file imports nothing at runtime.
  *
  * The accessor is a function, resolved on every call: the graph is built lazily on first access, so a
  * captured instance could pin a graph that does not exist yet.
@@ -30,7 +30,7 @@ class AuthRepositorySource implements IAuthRepositorySource {
 
     get(): IAuthRepository {
         if (!this.accessor) {
-            throw new Error('[auth] no AuthRepository — initAppRuntime() wires it before anything logs in');
+            throw new Error('[auth] no AuthRepository — createRuntime() wires it before anything logs in');
         }
         return this.accessor();
     }

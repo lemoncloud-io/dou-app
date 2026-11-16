@@ -10,9 +10,11 @@ import { resolveChatBlocks } from './resolveChatBlocks';
 interface ChatFields {
     content?: string;
     blocks$?: unknown[];
+    stereo?: string;
 }
 
-const chat = (fields: ChatFields) => ({ id: 'C1:1', channelId: 'C1', chatNo: 1, ...fields });
+// A webhook message unless a case says otherwise: that is the only kind with Block Kit content.
+const chat = (fields: ChatFields) => ({ id: 'C1:1', channelId: 'C1', chatNo: 1, stereo: 'webhook', ...fields });
 
 describe('resolveChatBlocks', () => {
     // Tracer bullet: the server fixture is the client contract — header 1 +
@@ -51,6 +53,19 @@ describe('resolveChatBlocks', () => {
         const result = resolveChatBlocks(chat({ content: 'hello there' }));
         expect(result.source).toBeNull();
         expect(result.blocks).toBeNull();
+    });
+
+    // A person's message is the text they sent, even when that text is a Block Kit payload: a card
+    // from the composer would look exactly like an integration's alert.
+    it.each(['user', 'system', undefined])('reads no blocks from a %s message', stereo => {
+        const result = resolveChatBlocks(
+            chat({
+                stereo,
+                content: JSON.stringify({ blocks: [{ type: 'divider' }] }),
+                blocks$: [{ type: 'divider' }],
+            })
+        );
+        expect(result).toEqual({ blocks: null, source: null });
     });
 
     // blocks$ elements must go through toBlock individually — a type the client

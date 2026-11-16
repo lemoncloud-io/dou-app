@@ -168,6 +168,8 @@ jest.mock('../hooks', () => ({
         fillGap: jest.fn(),
         revalidateAround: jest.fn(),
     }),
+    // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
+    useRoomJumpPills: () => ({ pill: null, checkInView: jest.fn() }),
     useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn() }),
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
     useDmPeer: () => mockDmPeer,

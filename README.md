@@ -443,20 +443,20 @@ Which file a build reads is decided by the build configuration (iOS `ENVFILE` bu
 Android `envConfigFiles`), not by the script. See
 [apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
 
-| Variable                              | Description                          |
-| ------------------------------------- | ------------------------------------ |
-| `VITE_ENV`                            | Environment (`LOCAL`, `DEV`, `PROD`) |
-| `VITE_WEBVIEW_BASE_URL`               | WebView base URL                     |
-| `VITE_WS_ENDPOINT`                    | Unused — no code reads it            |
-| `VITE_SUBSCRIPTION_IAP_SKUS_IOS`      | iOS IAP product SKUs                 |
-| `VITE_SUBSCRIPTION_IAP_SKUS_ANDROID`  | Android IAP product SKUs             |
-| `VITE_SUBSCRIPTION_IAP_PLANS_ANDROID` | Android IAP plan IDs                 |
-| `VIEW_APP_NAME`                       | Display app name                     |
-| `VITE_GOOGLE_WEB_CLIENT_ID`           | Google OAuth web client ID           |
-| `ANDROID_KEYSTORE_FILE`               | Android keystore file path           |
-| `ANDROID_KEYSTORE_PASSWORD`           | Android keystore password            |
-| `ANDROID_KEY_ALIAS`                   | Android key alias                    |
-| `ANDROID_KEY_PASSWORD`                | Android key password                 |
+| Variable                              | Description                                |
+| ------------------------------------- | ------------------------------------------ |
+| `VITE_ENV`                            | Environment (`LOCAL`, `DEV`, `PROD`)       |
+| `VITE_WEBVIEW_BASE_URL`               | WebView base URL                           |
+| `VITE_WS_ENDPOINT`                    | Read only by the app's own session runtime |
+| `VITE_SUBSCRIPTION_IAP_SKUS_IOS`      | iOS IAP product SKUs                       |
+| `VITE_SUBSCRIPTION_IAP_SKUS_ANDROID`  | Android IAP product SKUs                   |
+| `VITE_SUBSCRIPTION_IAP_PLANS_ANDROID` | Android IAP plan IDs                       |
+| `VIEW_APP_NAME`                       | Display app name                           |
+| `VITE_GOOGLE_WEB_CLIENT_ID`           | Google OAuth web client ID                 |
+| `ANDROID_KEYSTORE_FILE`               | Android keystore file path                 |
+| `ANDROID_KEYSTORE_PASSWORD`           | Android keystore password                  |
+| `ANDROID_KEY_ALIAS`                   | Android key alias                          |
+| `ANDROID_KEY_PASSWORD`                | Android key password                       |
 
 </details>
 

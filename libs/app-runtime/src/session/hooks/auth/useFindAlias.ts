@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
-import { findAlias } from '@chatic/auth';
+import { findAlias } from '../../authLookups';
 import type { FindAliasBody, FindAliasView } from '@chatic/auth';
 import type { AxiosError } from 'axios';
 

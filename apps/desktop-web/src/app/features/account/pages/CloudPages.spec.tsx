@@ -26,6 +26,10 @@ vi.mock('../../../shared/hooks/useRemoveCloud', () => ({
     useRemoveCloud: () => ({ deleteOwnedCloud, isDeleting: false }),
 }));
 
+// The cloud's notification level lists the cloud's channels and writes joins; its hook has its own spec.
+const cloudNotify = vi.hoisted(() => ({ isActive: true, mode: null as string | null, setMode: vi.fn() }));
+vi.mock('../../../shared/hooks/useCloudNotify', () => ({ useCloudNotify: () => cloudNotify }));
+
 const resetAccount = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock('../../../shared/hooks/useAccountResetOnLogout', () => ({
     useAccountResetOnLogout: () => ({ resetAccount }),
@@ -140,6 +144,26 @@ describe('CloudHubPage', () => {
         catalog.clouds = [...clouds];
         catalog.isPendingClouds = false;
         navProbe.path = '';
+        cloudNotify.isActive = true;
+        cloudNotify.mode = null;
+    });
+
+    it("sets the active cloud's notification level", () => {
+        cloudNotify.mode = 'mention';
+        renderAt('/account/clouds/c1');
+
+        expect(screen.getByRole('radio', { name: 'Mentions only' }).getAttribute('aria-checked')).toBe('true');
+        fireEvent.click(screen.getByRole('radio', { name: 'Off' }));
+
+        expect(cloudNotify.setMode).toHaveBeenCalledWith('none');
+    });
+
+    it('offers no level for a cloud the session is not in', () => {
+        cloudNotify.isActive = false;
+        renderAt('/account/clouds/c2');
+
+        expect(screen.queryByRole('radiogroup', { name: "This cloud's notifications" })).toBeNull();
+        expect(screen.getByText('Switch to this cloud to set its notifications.')).toBeTruthy();
     });
 
     it('leaves a cloud the account does not own', () => {

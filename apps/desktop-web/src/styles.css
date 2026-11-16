@@ -472,7 +472,8 @@
     }
 
     /* A voice file card's seek bar: the played part filled up to `--seek-progress` (set inline from
-       the playback time), the rest a faint track, and a small thumb. Native for the same reasons. */
+       the playback time, or inherited from the detail dialog, which moves it every
+       frame), the rest a faint track, and a small thumb. Native for the same reasons. */
     .seek-slider {
         appearance: none;
         background: transparent;

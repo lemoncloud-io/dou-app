@@ -8,6 +8,62 @@ messages and `src/app/shared/hooks/useCrossCloudPushNotifications.ts` for
 pushes; whether a message calls you is decided in
 `src/app/shared/utils/mentionMatch.ts`.
 
+## Place and cloud levels
+
+A person can set one notification level — all messages, mentions only, or off — for a whole place
+(the place's settings page) or a whole cloud (the cloud's hub). The server keeps no such field: its
+notification setting is per member per channel (`join.notify`), and a device can only mute push as a
+whole. So a place level is not stored as a level on the server at all. Choosing one writes that
+level to each channel of the place, exactly as the channel's own setting would: the local pref at
+once, and `join.notify` through the join outbox, which resends it until the server has it. Other
+devices follow those channel records. A cloud level is the same choice for every place of the cloud.
+
+**Only the place the session is in is written at once.** The server takes a join write only for
+the place the session is in; for a channel of any other place it answers
+`403 NOT ALLOWED - action[update] is invalid`, and the outbox puts the old level back. So a level
+chosen for another place — from its settings page while the session is elsewhere, or from the cloud
+hub, which covers every place — is only remembered, with no channel known, and written the next time
+the session enters that place. "Is in" is judged after any running place switch has settled, since
+during one the selection already names the new place while the session is still in the old one. The
+place page says so when it is not the current place ("You're in another place …") and shows no
+exception count there, because its channels have not been written yet.
+
+- A 1:1 has no "mentions only" (see the channel settings), so a place set to mentions only leaves
+  its 1:1s at all messages.
+- My notes-to-self room is listed in every place and never notifies, so a place level skips it.
+- A listed channel with no join row of mine (`$join.userId`) is skipped and not counted as known:
+  my account id is not the id my join is filed under outside the relay, so there is nothing safe to
+  write yet. It takes the place level once its join arrives.
+- A write the inheritance runner makes on its own is not announced when refused; only a level the
+  person chose raises the failure toast.
+- A channel already at the chosen level is not written again.
+- A refused batch raises one toast (`place.settings.notify.failed`), not one per channel or place.
+
+**Exceptions.** Once a place has a level, a channel set differently is an exception, and the place
+page counts them ("Channels set differently: N") with a link to the place's channel list, where each
+one is changed from its own settings. With no level chosen and channels that differ, no option is
+checked and the count is against "all messages".
+
+**New channels.** The level is also remembered on this device (`placeNotify` in the notification
+prefs, keyed by cloud and place), together with the channels it was applied to. `usePlaceNotifyInheritance`
+watches the active cloud's channel cache and writes the place level to a channel the first time this
+device sees it in that place while the session is in it, then adds it to the known list. A known
+channel is never written again, so an exception stays one. Choosing the same level again adds to the
+known list, so a channel that was not loaded at that moment is still treated as known; choosing a
+different level starts the list over, so every channel takes the new one.
+
+Three limits follow from there being no server field. A level reaches a place only once the session
+has been in it on this device, so a place set from the cloud hub and never opened keeps the levels
+the server has. A channel inherits only once this app has seen it while in its place, so a message in
+a channel created while the app was closed, and never listed since, can still be pushed at the
+server's default. And the remembered level is per device: another device sees the
+channel records, not the place level, so it shows a level for the place only when every channel
+agrees. A cloud level is offered only for the cloud the session is in, because listing another
+cloud's channels needs that cloud's session; the hub of any other cloud says to switch first.
+
+The device-wide controls on the Settings page — desktop banners, quiet hours, snooze — stay
+device-wide and sit on top of these levels.
+
 ## Banner titles
 
 A group channel names the kind of call first. The body stays `sender: message`.

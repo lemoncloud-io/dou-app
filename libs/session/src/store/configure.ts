@@ -8,7 +8,7 @@ import { relayStore } from './relayStore';
  * no sibling folder. This module is the seam, and it is the only file under `store/` exempt from the
  * `@chatic/config` ban.
  *
- * Called by [`initAppRuntime`](../../init.ts), not by loading the session barrel. It used to run at
+ * Called by `createRuntime` (`@chatic/runtime-core`), not by loading the session barrel. It used to run at
  * barrel load so resolvers existed the moment anything touched the session surface; the explicit boot
  * ADR-0070 Step 5 named now owns it, which is what makes the boot visible in each app's entry point.
  *

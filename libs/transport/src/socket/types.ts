@@ -214,6 +214,17 @@ export interface ISocketManager {
      */
     isSlotVerified(key: SlotKey): boolean;
     /**
+     * When slot `key`'s first connection attempt since it was bound began, by `Date.now()`, while that
+     * attempt lasts — from its `connecting` through the open socket's handshake and after it, until the
+     * socket starts closing. `undefined` before the slot first connects, once that first socket has
+     * closed (a reconnect is not a first attempt), and for a slot that is not bound.
+     *
+     * The first attempt belongs to whoever bound the slot — a boot, a cloud switch — where a later one
+     * is the SDK's own reconnect. The wall clock on purpose: a suspension counts toward the attempt's
+     * age, so a first attempt under way when the app went to the background reads old when it returns.
+     */
+    firstConnectSince(key: SlotKey): number | undefined;
+    /**
      * Continuous per-slot counterpart of waitUntilSlotVerified: fires immediately with the current
      * value, then again on every change, until unsubscribed. Backs reactive consumers (e.g.
      * `useQuery({ enabled })`) of a getScopedClient-pinned request/send, which must re-gate on every

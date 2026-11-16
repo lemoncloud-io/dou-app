@@ -52,7 +52,7 @@ export interface ChannelReadCounts {
  * Desktop only kept MY join current (`useChannelReadCursors`), which leaves everybody else's cursor
  * stale, so while a room is open a join sync is registered for each member. The server refuses a
  * member's join to anyone outside the room, so nothing is registered until I am known to be in it,
- * and nothing before the room's own cloud is verified — `registerJoin` refcounts by key, so my own
+ * and nothing before the room's own cloud is verified — a sync target is refcounted by key, so my own
  * join dedups with the sidebar's.
  *
  * Returns `readCountOf(chatNo, authorId)`, or null from it where the room shows no count: my
@@ -111,8 +111,9 @@ export const useChannelReadCounts = (channel: DomainChannel | undefined): Channe
 
     useEffect(() => {
         if (!channelId || !isVerified || !isMember) return;
-        const sync = runtime.sync.getSyncManager();
-        const disposers = memberIds.map(memberId => sync.registerJoin(`${channelId}@${memberId}`, undefined, { cid }));
+        const disposers = memberIds.map(memberId =>
+            runtime.sync.registerSyncTarget({ type: 'join', id: `${channelId}@${memberId}` }, { cid })
+        );
         return () => disposers.forEach(dispose => dispose());
         // userId is the uid in this cloud: a target only runs while it matches, so a change re-registers.
     }, [cid, channelId, isVerified, isMember, memberKey, userId]);

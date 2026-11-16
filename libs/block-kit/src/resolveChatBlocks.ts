@@ -18,6 +18,12 @@ interface ResolvedChatBlocks {
  * array) → `parseBlocks(content)` → plain text. Every insertion point goes
  * through this one function so the priority lives in exactly one place.
  *
+ * Only a webhook message (`stereo === 'webhook'`) has Block Kit content at all.
+ * The card is how an integration's post looks; a person who pastes Block Kit
+ * JSON into the composer wrote text, and drawing it as a card would let anyone
+ * post something indistinguishable from an alert. Their message stays the text
+ * they sent.
+ *
  * The server promises `blocks$` is `undefined` when there is nothing to draw
  * (SPEC §3), but this reads defensively: an empty array falls through to the
  * `content` parse instead of rendering an empty bubble.
@@ -32,7 +38,12 @@ interface ResolvedChatBlocks {
  * `join.metaNo` (see desktop-web's `channelUnread.ts`). Declaring it here as
  * `unknown` is what lets callers pass a `DomainChat` that has no such field.
  */
-export const resolveChatBlocks = (chat: { content?: string; blocks$?: unknown }): ResolvedChatBlocks => {
+export const resolveChatBlocks = (chat: {
+    content?: string;
+    blocks$?: unknown;
+    stereo?: string;
+}): ResolvedChatBlocks => {
+    if (chat.stereo !== 'webhook') return { blocks: null, source: null };
     const field = chat.blocks$;
     if (Array.isArray(field) && field.length) {
         return { blocks: toBlocks(field), source: 'field' };

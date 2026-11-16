@@ -4,10 +4,10 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import { webTransportPorts } from '@chatic/runtime-web';
+import { createWebRuntime } from '@chatic/runtime-web';
 
 import { webConfigPorts } from './app/config/adapters';
-import { tabStore } from './app/storage';
+import { deviceStore, tabStore } from './app/storage';
 
 import App from './app/app';
 import { authFailureNotice } from './app/session/authFailureNotice';
@@ -24,10 +24,12 @@ const sessionStore = tabStore;
 // profile), and the session store refuses to resolve endpoints until this call wires them —
 // previously it happened as a side effect of importing the session barrel (a follow-up to ADR-0070 step 5).
 // No data policies: the console uses the default repository and cache assembly.
-runtime.boot.initAppRuntime({
-    storage: { secret: sessionStore, plain: sessionStore },
-    transport: webTransportPorts(),
-});
+runtime.boot.initAppRuntime(
+    createWebRuntime({
+        storage: { secret: sessionStore, plain: sessionStore, device: deviceStore },
+        cacheTab: tabStore,
+    })
+);
 
 // What this console does when the server CONFIRMS the session is over (the credential was re-minted
 // and the request replayed once, and it was refused again): raise a banner and leave the screen

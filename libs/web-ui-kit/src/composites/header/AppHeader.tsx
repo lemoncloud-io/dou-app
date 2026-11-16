@@ -126,17 +126,18 @@ export const AppHeader = ({
     const isLoading = loading && kind === 'cloud';
     const left = isLoading ? (
         <span role="status" aria-label={loadingLabel} className="flex min-w-0 items-center gap-2">
-            <span className="size-[46px] shrink-0 animate-pulse rounded-full bg-muted" />
+            <span className="size-9 shrink-0 animate-pulse rounded-full bg-muted" />
             <span className="h-[18px] w-28 animate-pulse rounded bg-muted" />
         </span>
     ) : kind === 'cloud' ? (
         <>
-            <span className="size-[46px] shrink-0 overflow-hidden rounded-full bg-muted">
-                {cloudAvatar ?? <CloudAvatar name={name ?? ''} size="lg" />}
+            {/* 36px with a hairline, as the home redesign draws it (Figma "헤더" 5953:30571). */}
+            <span className="size-9 shrink-0 overflow-hidden rounded-full border border-input-border bg-muted">
+                {cloudAvatar ?? <CloudAvatar name={name ?? ''} size="sm" />}
             </span>
             <span className="flex min-w-0 flex-col">
-                <span className="flex items-center gap-1">
-                    <span className="truncate text-[16px] font-medium leading-[25px] tracking-[-0.5px] text-foreground">
+                <span className="flex items-center gap-0.5">
+                    <span className="truncate text-[16px] font-semibold leading-[25px] tracking-[-0.5px] text-notify-name">
                         {name}
                     </span>
                     {hasSwitcher && <IconChevronDown className="size-4 shrink-0 text-foreground" />}
@@ -183,8 +184,11 @@ export const AppHeader = ({
         <header
             className={cn(
                 'flex w-full items-center justify-between bg-surface px-4 pb-2',
-                // Keep at least the base 8px top padding, plus the safe-area inset.
-                safeArea ? 'pt-[calc(var(--safe-top,0px)+0.5rem)]' : 'pt-2',
+                // Keep at least the base 8px top padding, plus the safe-area inset. The bar is 64px
+                // tall below the inset whatever its content, as the design's header frame is.
+                safeArea
+                    ? 'min-h-[calc(var(--safe-top,0px)+4rem)] pt-[calc(var(--safe-top,0px)+0.5rem)]'
+                    : 'min-h-16 pt-2',
                 className
             )}
         >

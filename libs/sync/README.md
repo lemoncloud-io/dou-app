@@ -38,7 +38,7 @@ libs/sync/src/                        12 source files, 9 tests
 ├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
 ├── refusedChannels.ts                 what the server refused, for a room to read
 ├── roomFeed.ts                        fetchRoomFeed · prefetchRoomFeed — one chat.feed per room entry, 2s reuse
-├── dataGraph.ts                       syncDataGraph — the scoped repository graphs, handed down by initAppRuntime()
+├── dataGraph.ts                       syncDataGraph — the scoped repository graphs, handed down by createRuntime()
 ├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
 ├── unrefTimer.ts                      keeps a pending timer from holding a Node process (and jest) open
 └── index.ts                           the package barrel
@@ -129,9 +129,9 @@ is a request or two.
 (`syncDataGraph.get().getScopedRepositories(cid)`), under that graph's context: that cloud, and the uid
 this account has there. Not the selected cloud's graph: a frame from a slot is data of that slot's
 cloud whatever the screen is showing. The graph is assembled in app-runtime's `data/`, a package above
-this one, so `initAppRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
+this one, so `createRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
 sync importing `data/runtime` ([Layers](../app-runtime/README.md#layers)). See
-[app-runtime docs/data/](../app-runtime/docs/data/README.md#scoped-repository-graphs) for what a scoped
+[runtime-core docs/data/](../runtime-core/docs/data/README.md#scoped-repository-graphs) for what a scoped
 graph is.
 
 **A failed cache write is logged, not retried here.** The sync library advances its own snapshot
@@ -139,8 +139,8 @@ before it calls a plan's callback and ignores what the callback returns, so a wr
 cannot be handed back to the plan for another try. `plans.ts` routes every one of those writes
 through one helper that catches the rejection and logs it (`logger.error('SYNC', …)`) instead of
 leaving an unhandled promise. Only a new chat message has a way back, through paths that already
-exist: the next `chat.feed` refetch, and on desktop the room's freshness check, which refetches the
-newest page when the channel record's newest `chatNo` runs ahead of the cache. A failed edit or delete
+exist: the next `chat.feed` refetch, and the open room's freshness check (desktop and web), which
+refetches the newest page when the channel record's newest `chatNo` runs ahead of the cache. A failed edit or delete
 of an older message, and a failed channel, place, profile or join write, stay stale until the server
 changes that record again. There is no retry queue.
 
@@ -269,7 +269,7 @@ announcement. The reason is the consumer: a list filters out rooms whose place i
 so a message into a place the cache has not learned yet would be in storage and on no screen, and
 the mark waiting on the announcement would come off with nothing to show for it. A kick folded into
 a run already in flight, or into a pending push debounce, keeps its kind. The listener set
-lives outside the receiver, so a subscriber keeps hearing across the connection host restarting the
+lives outside the receiver, so a subscriber keeps hearing across the connection controller restarting the
 receiver, and a listener that throws is logged rather than reported as a failed delta.
 
 ### Handing a cloud over
@@ -321,8 +321,9 @@ is, a minute is the latency to plan for.
 
 ### Registering outside React
 
-The screens register through the hooks in app-runtime. Outside React, `getSyncManager().register*`
-registers and returns the dispose:
+The screens register through the hooks in app-runtime, and an app registers outside them through
+`runtime.sync.registerSyncTarget`, which goes through the engine to the manager's `register`. Inside the
+runtime, `getSyncManager().register*` registers and returns the dispose:
 
 ```ts
 const off = getSyncManager().registerChannel(channelId, undefined, { cid: 'cloud-a' });
@@ -362,7 +363,9 @@ registers every channel of the active place), but `prefetchRoomFeed` does not re
 The prime then joins that fetch when it gets there. The two-second reuse covers a fetch that already
 finished by then; without it, the room's own sync would send the same request a second time.
 `prefetchRoomFeed` never rejects. When it did not start, or it failed, the room fetches as it always
-did.
+did. It resolves with the fetch's result, or `null` when it did not start or failed: a page that mirrors
+a runtime in another process marks the room's trace from that result, since the fetch ran where the
+trace is not.
 
 `fetchRoomFeed` is also where the `chat_room_sync` trace's fetch phases are marked: the fetch that
 starts takes the room's trace if no fetch has, and a caller that joined marks nothing. The exception
@@ -379,6 +382,7 @@ that finished before it began; it sends its own.
 - **Do not put domain knowledge into `SyncManager`.** Chat prime lives in the chat hook precisely because it needs a chat policy and a repository; the manager stays domain-agnostic so a new domain is a plan, not a branch.
 - **Do not remove the grace window** to make a test deterministic. Advance timers past it instead — the window is the fix for a measured write storm.
 - **Do not import `@chatic/bridges`.** The eslint config refuses it, type-only imports included; `logger` comes from `@chatic/logger`. Deciding what to fetch after a reconnect is not a WebView concern, and this package has to be able to run in a runtime that has no bridge.
+- **Do not read a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in `tsconfig.lib.json`) and the root lint refuses the page's globals: sync runs in the native process too.
 
 ## Notes for implementers and tests
 
@@ -399,7 +403,7 @@ that finished before it began; it sends its own.
 - [docs/plans/](./docs/plans/README.md) — what the SDK scheduler underneath does, and the behaviours only its source shows
 - [app-runtime docs/sync/](../app-runtime/docs/sync/README.md) — the registration hooks and chat prime a screen mounts
 - [transport docs/socket/](../transport/docs/socket/README.md) — `subscribeSlotClients` and slot keys
-- [app-runtime docs/data/](../app-runtime/docs/data/README.md) — the scoped repository graph every plan writes through
+- [runtime-core docs/data/](../runtime-core/docs/data/README.md) — the scoped repository graph every plan writes through
 - [`libs/data`](../data/README.md) — the repositories every plan callback writes through
 
 ## Testing

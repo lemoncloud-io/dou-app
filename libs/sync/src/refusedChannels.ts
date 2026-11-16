@@ -26,7 +26,10 @@ const refused = new Set<string>();
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
-const notify = (): void => listeners.forEach(listener => listener());
+const notify = (): void => {
+    listed = null;
+    listeners.forEach(listener => listener());
+};
 
 /**
  * Records that the server refused to sync this channel.
@@ -67,6 +70,17 @@ export const clearRefusedChannels = (): void => {
 
 /** Whether the server has refused to sync this channel in this session. */
 export const isChannelRefused = (channelId: string): boolean => refused.has(channelId);
+
+let listed: string[] | null = null;
+
+/**
+ * Every room refused now — what a reader in another process mirrors. The same array until the set
+ * changes, so it can stand as a snapshot.
+ */
+export const listRefusedChannels = (): string[] => {
+    listed ??= [...refused];
+    return listed;
+};
 
 /** Subscribes to refusal changes; returns the unsubscribe. */
 export const subscribeRefusedChannels = (listener: Listener): (() => void) => {

@@ -29,9 +29,11 @@ file every importer reaches, this package's own modules included. This package r
 ```text
 libs/auth/src/
 ├── index.ts                    the package barrel
-├── session/   11 files · 8 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
+├── platform.ts                 the ports the platform fills: the address, and the way home at logout
+├── testing/platform.ts         `fakeAuthPorts()` — a jsdom page's ports, for tests in any package
+├── session/   13 files · 9 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
 ├── pairing/    6 files · 6 tests   device pairing: the request flow, paired clouds, the secondary-device check, errors
-├── socket/    19 files · 17 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
+├── socket/    20 files · 18 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
 └── utils/      2 files · 2 tests   Coalescer · Throttle — the concurrency guards the renewals use
 ```
 
@@ -43,7 +45,7 @@ hooks that share them depend on this package anyway.
 1. **The use cases are the only writers of the session.** `@chatic/session`'s barrel sells the raw
    stores so that this package can write them; nothing above writes a store directly.
 2. **No server call bypasses a repository.** Login, token exchange and site selection go through
-   the `AuthRepository`, which `initAppRuntime()` hands down (`authRepositorySource`) because the
+   the `AuthRepository`, which `createRuntime()` hands down (`authRepositorySource`) because the
    graph that holds it is assembled in app-runtime.
 3. **Nothing here refreshes a credential or builds an `auth.update` packet.** The SDK's auth
    controller owns both; app-runtime's `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` walk
@@ -54,6 +56,31 @@ hooks that share them depend on this package anyway.
 6. **Nothing here imports `@chatic/bridges`.** The eslint config refuses it, type-only imports
    included, and `logger` comes from `@chatic/logger`. Signing in and keeping a session alive must
    not need a WebView bridge to exist, so this package can run in a runtime that has none.
+7. **Where the app is open comes through `authPlatform`, and there is no default.** Ending a session
+   is a navigation in a page, and the boot reads the flag it carries back off the address; a native
+   process has neither. So `AuthPlatformPorts` ([`platform.ts`](./src/platform.ts)) has two:
+   `currentSearch()` — the address's query string, which the boot sweep and `preserveUrl` read — and
+   `leaveToHome(params)` — the navigation at the end of `clearAndRedirect`. In a page
+   (filled by `createWebRuntime` in `@chatic/runtime-web`) they are `location.search` and
+   `location.replace('/?<params>')`. In React Native (`createNativeRuntime` in
+   `@chatic/runtime-mobile`) there is no address: `leaveToHome` saves the parameters in the plain store
+   and hands over to the app's own way home, and the next boot's `currentSearch` answers them — the
+   second lifetime a page gets from its navigation. Used before it is configured, `authPlatform.ports()` throws and
+   names `createRuntime`; the boot sweep reads it outside its storage `try`, so a missing wiring fails
+   the boot rather than skipping the sweep.
+
+    The user agent the socket signature is computed over is **not** an auth port: it is the transport's
+    `device().userAgent`, the value a native socket sends on its handshake. The server checks the two
+    against each other, and one source is what keeps them equal.
+
+    One browser read is left: a logout in a shell whose vault was unavailable earlier also clears the
+    tokens that run left in the tab's `sessionStorage` (`WebStore.session()` in `relaySession.ts`). It
+    only runs when the secret store is the shell's vault, and outside a page `WebStore` answers with a
+    memory store, so it does nothing there.
+
+8. **Nothing here reads a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in
+   `tsconfig.lib.json`) and the root lint refuses the page's globals, because it runs in the native
+   process too; what the platform answers comes through rule 7's ports and the transport's.
 
 ## Documents
 

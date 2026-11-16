@@ -12,7 +12,7 @@ what the app layer does with them.
 
 ## Layout
 
-One hook per file under `features/channels/hooks/`, exported from one barrel. Fifteen stay out of it
+One hook per file under `features/channels/hooks/`, exported from one barrel. Twenty-five stay out of it
 and are imported by path from the components that use them: `useSendImages` (see [Writes](#writes)); the
 composer's two, `useComposerDraft`, its unsent text, and `useMentionComposer`, its `@` lookup (both
 in [chat-room.md § The composer](./chat-room.md#the-composer)); `useStackIn`, the entrance a row I just
@@ -23,13 +23,20 @@ photo grid's three, `usePhotoPicker` and the two choices it remembers, `usePhoto
 `ChatImageAttach`, and the room and the thread take the composer's motion classes from the last); and
 the six behind a message's attachments,
 `useImageAddressRefresh`, `useCachedImages`, `useVideoFrames`, `useInView`, `useFileDownloads` and
-`useImageExports` ([image-send.md](./image-send.md), [image-export.md](./image-export.md)). They fall
+`useImageExports` ([image-send.md](./image-send.md), [image-export.md](./image-export.md)); the voice
+message's two, `useVoiceMessage`, its recording sheet, and `useInlineAudio`, whose `pauseInlineAudio` pauses
+the room's audio player before a recording starts (both in [image-send.md](./image-send.md)); the audio
+files' seven, `useAudioWaveform`, `useChatMessage`, `useFreshAudioAddress`, `useLocalAudioDurations` and
+`useRoomAudioSurface` ([audio-files.md](./audio-files.md)), `useRoomFiles` and `useRoomSenderName`
+([room-files.md](./room-files.md)); and `usePeerCloudNames`, a cloud 1:1 peer's name from the user
+cache ([dm-and-self-chat.md](./dm-and-self-chat.md)). They fall
 into five groups: the observers (`useChannel`, `useChannelJoins`, `useChannelMembers`, `useChannelProfiles`,
-`useChats`), the sync registrars (`useJoinPositions`, `useForegroundChatRefresh`), the screen
+`useChats`), the sync registrars and refreshers (`useJoinPositions`, `useForegroundChatRefresh`,
+`useChannelHeadRefresh`), the screen
 mechanics (`useChatScroll`, `useReadMarker`, `useMessageJump`, `useUrlMetadata`), the four
 `use*Mutations` write hooks, and `useSendImages`.
 
-43 hooks, 36 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which seven have none:
+57 hooks, 49 of them with a co-located `*.test.ts` or `*.test.tsx`. The command that says which eight have none:
 
 ```bash
 cd apps/web/src/app/features/channels/hooks && \
@@ -52,22 +59,55 @@ so that the room, settings, the home list and place channel management cannot di
 The read path is always `repository.observe*` — a subscription to the local cache, never a fetch.
 Keeping the cache fresh is a second, separate act:
 
-| Hook                 | Observes                                             | Registers                                                                         |
-| -------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                                          |
-| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                                             |
-| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                                            |
-| `useJoinPositions`   | nothing                                              | `sync.registerJoin` on `<channelId>@<userId>`, per member                         |
-| `useChannelProfiles` | `profile.observeList({ sid })`                       | `sync.registerProfile` on `<sid>@<userId>`, per active member with a profile here |
-| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                                      |
+| Hook                 | Observes                                             | Registers                                                                          |
+| -------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `useChannel`         | `channel.observeItem(channelId)`                     | `runtime.sync.useChannelSync(channelId)`                                           |
+| `useChats`           | `chat.observeList({ channelId, limit })`             | `runtime.sync.useChatSync(channelId)`                                              |
+| `useChannelJoins`    | `join.observeList({ channelId, activeOnly: false })` | nothing — the screen registers (below)                                             |
+| `useJoinPositions`   | nothing                                              | a `join` sync target on `<channelId>@<userId>`, per member                         |
+| `useChannelProfiles` | `profile.observeList({ sid })`                       | a `profile` sync target on `<sid>@<userId>`, per active member with a profile here |
+| `useChannelMembers`  | `user.observeList({ channelId, detail })`            | nothing — it calls `syncChannelUsers` itself                                       |
 
 Both registrars register with an explicit `{ cid }`: `useJoinPositions` takes the room's cloud from
 its caller (the channel row's `cid`), `useChannelProfiles` uses the selected cloud — the one its
 observation reads. A target registered without a cloud lands on whichever cloud is selected when the
 effect runs, and during a switch that is not necessarily the cloud the screen is showing.
 
-`registerJoin` and `registerProfile` are refcounted by key, so the room re-registering my own join
-dedups with whatever the home surface already holds.
+Both kinds of target (`runtime.sync.registerSyncTarget`) are refcounted by key, so the room
+re-registering my own join dedups with whatever the home surface already holds.
+
+### An open room follows the channel record, not only its push
+
+A room's chat target receives new messages only as `chat.sync` pushes (and the catch-up after a
+reconnect): the chat plan does not poll,
+and the room re-reads its newest page only on entry and on foreground return
+(`useForegroundChatRefresh`). That leaves a room open on screen with no way to learn of a message
+whose push it did not get. One case is reliable: as the server behaves today, the push for a new
+message leaves out the author's own devices, so a message the same account sends from another device
+(the desktop app, a second phone) never reached a room left open here.
+
+The channel record does reach it. The channel target polls `channel.get`, and the server's
+`channel.sync` (which, as observed, does not leave the author out) moves it sooner, so `useChannel`'s
+`channel.chatNo` moves whenever the room gains a row.
+`useChats` takes that number (`channelChatNo`, passed by the room and the thread pages) and
+`useChannelHeadRefresh` compares it with the newest number its cache window holds, counted before the
+join window filters it. When the record is ahead, it fetches the newest page through `fetchRoomFeed`.
+
+- **Once per number, never on a timer.** It adds no polling of its own — it reads a number that is
+  already arriving — and asks once per number per cloud and channel. A number the newest page never
+  carries (a deleted message) is not asked for again on every render. A fetch that fails gives its
+  number back for the next change to either side.
+- **Entry costs one request, two at most.** It waits for the window's first read — of this room, not
+  the one a switch without a remount just left — and for the socket to verify, leaves a cold room to
+  the prime, and joins the fetch already in flight, so on entry it shares the entry refresh's request
+  instead of adding one. The number it asked for is remembered per mount, so a number the newest page
+  never carries costs the fresh request below once more on each entry.
+- **A joined page can be stale.** `fetchRoomFeed` hands back a page that finished up to two seconds
+  ago. When that page stops short of the number and the cache has not caught up by a push in the
+  meantime, one fresh request follows — unless the room has been left or the cloud switched by then.
+
+`channel.chatNo` counts every row — reactions, revision notices and thread replies take a number too —
+so each of those costs one page read as well. The desktop app's `useChats` runs the same check.
 
 ### The user cache has no sync plan
 
@@ -87,7 +127,7 @@ read mark, a notification setting, a room name) are the exception: the repositor
 outbox, which does its own waiting (§ Reads advance in two stages). Which socket depends on where the
 call goes:
 
-- A sync target registered for a named cloud (`registerJoin`, `registerProfile`) runs on that
+- A sync target registered for a named cloud (a `join` or `profile` target) runs on that
   cloud's own slot, so it waits for that slot — `runtime.connection.useCloudVerified(cid)`, which
   reads a missing id as the relay.
 - A call through the app graph (`syncChannelUsers`, a `refreshList`) goes out on the active slot, so
@@ -196,9 +236,16 @@ its own, and the cache keeps priority throughout — every cached row is shown a
 is asked only for numbers it does not hold (ADR-0206).
 
 - **Finding a gap.** `gaps` lists each run of missing chat numbers between two rows in the window
-  that no page has answered for this run (`chatRepository.uncoveredFeed` — what a page proves is
+  that no page has answered for this run. The hook holds the channel's answered ranges from
+  `chatRepository.observeFeedCoverage` and works the rest out with `uncoveredIn` — what a page proves is
   described in
-  [libs/data's repository doc](../../../../../libs/data/docs/repositories/README.md#what-a-feed-page-proves)).
+  [libs/data's repository doc](../../../../../libs/data/docs/repositories/README.md#what-a-feed-page-proves).
+  A stream rather than a question asked in the same turn, so the record can sit in the phone app's
+  runtime when the page mirrors it. A range answered for by any fetch — the hook's own, the room's
+  entry page, live sync — reaches the hook as a change and the gaps are worked out again. The
+  repository binds a subscription to the cloud and account selected when it is made, and the
+  repository object is one for every cloud, so the hook keys it on the selected cloud, its uid and the
+  channel; until the new key's first value arrives the hook reads nothing as answered.
   A missing number inside an answered range is a deleted message, not a gap. A run of up to 10
   unanswered numbers is not listed either: most such holes are deletions, and the re-check below
   settles them without a divider flashing in and out.
@@ -361,7 +408,8 @@ observer per cache per screen, not a convenience.
 ### What not to do
 
 - **Do not fetch the newest page on mount.** The sync layer primes a cold room
-  (`usePrimeChat`) and `useForegroundChatRefresh` covers a warm one. The two conditions are
+  (`usePrimeChat`) and `useForegroundChatRefresh` covers a warm one; on entry `useChannelHeadRefresh`
+  joins the entry refresh in flight rather than sending its own. The two conditions are
   mirrored on purpose — cold fetches there, warm fetches here, every entry fetches the newest page
   exactly once. Add a third and every room entry doubles its requests. The home row tap's
   `prefetchRoomFeed` is not a third: it starts the same `fetchRoomFeed` the two join, so a list entry

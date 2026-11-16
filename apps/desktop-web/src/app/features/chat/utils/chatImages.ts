@@ -5,9 +5,11 @@ import {
     isChatAttachmentNameTooLong,
     isPendingUploadSlot,
     uploadSlotKind,
-    type ChatAttachmentKind,
     type DomainChat,
 } from '@chatic/data';
+
+import type { SavedAttachment } from '../../../shared/stores/useSavedItemsStore';
+import { isVoiceSlot } from '../../../shared/utils/messagePreview';
 
 /**
  * One image on a message or in the composer tray.
@@ -57,6 +59,8 @@ export interface ChatFile {
     contentType?: string;
     /** The signed original. Empty while sending, when failed, or when the address is not one to load. */
     url: string;
+    /** A pending slot's place in its message — where the send's progress for it is kept. */
+    slot?: number;
     isUploading?: boolean;
     isFailed?: boolean;
 }
@@ -89,6 +93,7 @@ export const toChatFiles = (messageId: string, slots: DomainChat['upload$$']): C
                     ...(slot.localSize !== undefined ? { size: slot.localSize } : {}),
                     ...(slot.localContentType ? { contentType: slot.localContentType } : {}),
                     url: '',
+                    slot: index,
                     isUploading: slot.localStatus === 'sending',
                     isFailed: slot.localStatus === 'failed',
                 },
@@ -155,16 +160,20 @@ export const MAX_VISIBLE_TILES = 4;
  * What a message carries, as a saved item keeps it: the kinds and count, and the first attachment's
  * name and size where it has them. `undefined` when nothing is attached.
  */
-export const savedAttachmentOf = (
-    message: Pick<DomainChat, 'upload$$' | 'uploadIds'>
-): { kind: ChatAttachmentKind; count: number; name?: string; size?: number } | undefined => {
+export const savedAttachmentOf = (message: Pick<DomainChat, 'upload$$' | 'uploadIds'>): SavedAttachment | undefined => {
     const summary = chatAttachmentSummary(message);
     if (!summary) return undefined;
     const first = message.upload$$?.[0];
     if (!first) return summary;
     const name = isPendingUploadSlot(first) ? first.localName : first.name;
     const size = isPendingUploadSlot(first) ? first.localSize : first.contentSize;
-    return { ...summary, ...(name ? { name } : {}), ...(size !== undefined ? { size } : {}) };
+    const voice = message.upload$$?.every(isVoiceSlot);
+    return {
+        ...summary,
+        ...(name ? { name } : {}),
+        ...(size !== undefined ? { size } : {}),
+        ...(voice ? { voice: true as const } : {}),
+    };
 };
 
 /** A size as a person reads it: "820 B", "1.5 KB", "12.3 MB". */
@@ -188,24 +197,31 @@ export const attachmentKey = (file: Pick<File, 'name' | 'size' | 'lastModified'>
     `${file.name}:${file.size}:${file.lastModified}`;
 
 /** Why a file in a drop or pick was refused. */
-export type AttachmentRejection = 'limit' | 'duplicate' | 'unsupported' | 'too-large' | 'name-too-long';
-
-/** How many files each reason refused; a reason that refused nothing is absent. */
-export type AttachmentRejections = Partial<Record<AttachmentRejection, number>>;
+export type AttachmentRejection =
+    | 'folder'
+    | 'empty'
+    | 'unsupported'
+    | 'too-large'
+    | 'name-too-long'
+    | 'duplicate'
+    | 'limit';
 
 export interface AttachmentValidation<T> {
     accepted: T[];
     /**
-     * Every refusal, counted. Only the first used to be kept, so a drop of nine into a
-     * tray of two said "up to 10" and never that one of the nine was left out.
+     * Every refused file with its reason, in incoming order. Counts per reason were all a toast could
+     * say; the dialog that replaced it names each file, so a reader knows which ones to fix. `max` is
+     * the ceiling it went over: bytes for `too-large`, files for `limit`.
      */
-    rejected: AttachmentRejections;
+    refused: { file: T; reason: AttachmentRejection; max?: number }[];
 }
 
 /**
  * Splits an incoming batch into what fits the tray and why the rest did not.
  *
- * A format the server does not take is refused outright, and so is a file over its
+ * A folder (`isFolder`: only a drop can carry one, and only the drop can tell) and an empty file are
+ * refused first — the server takes neither, and a folder's name would otherwise read as an unknown
+ * format. A format the server does not take is refused outright, and so is a file over its
  * kind's size limit (the server would refuse it only after the whole transfer), and so is a
  * name over the server's byte limit, measured as it will be sent. A file
  * already in the tray (or twice in this batch) is a duplicate, and whatever would push
@@ -214,41 +230,39 @@ export interface AttachmentValidation<T> {
  */
 export const validateAttachments = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
     existingKeys: readonly string[],
-    incoming: readonly T[]
+    incoming: readonly T[],
+    isFolder: (file: T) => boolean = () => false
 ): AttachmentValidation<T> => {
     const seen = new Set(existingKeys);
     const accepted: T[] = [];
-    const rejected: AttachmentRejections = {};
-    const reject = (reason: AttachmentRejection) => {
-        rejected[reason] = (rejected[reason] ?? 0) + 1;
-    };
+    const refused: AttachmentValidation<T>['refused'] = [];
     for (const file of incoming) {
-        const format = chatAttachmentFormat(file);
-        if (!format) {
-            reject('unsupported');
+        const refusal = refusalOf(file, seen, isFolder);
+        if (refusal) {
+            refused.push({ file, ...refusal });
             continue;
         }
-        if (file.size > CHAT_ATTACHMENT_MAX_BYTES[format.kind]) {
-            reject('too-large');
-            continue;
-        }
-        if (isChatAttachmentNameTooLong(format.name)) {
-            reject('name-too-long');
-            continue;
-        }
-        const key = attachmentKey(file);
-        if (seen.has(key)) {
-            reject('duplicate');
-            continue;
-        }
-        if (seen.size >= MAX_ATTACHMENTS) {
-            reject('limit');
-            continue;
-        }
-        seen.add(key);
+        seen.add(attachmentKey(file));
         accepted.push(file);
     }
-    return { accepted, rejected };
+    return { accepted, refused };
+};
+
+const refusalOf = <T extends Pick<File, 'name' | 'size' | 'lastModified' | 'type'>>(
+    file: T,
+    seen: ReadonlySet<string>,
+    isFolder: (file: T) => boolean
+): { reason: AttachmentRejection; max?: number } | undefined => {
+    if (isFolder(file)) return { reason: 'folder' };
+    if (file.size === 0) return { reason: 'empty' };
+    const format = chatAttachmentFormat(file);
+    if (!format) return { reason: 'unsupported' };
+    const maxBytes = CHAT_ATTACHMENT_MAX_BYTES[format.kind];
+    if (file.size > maxBytes) return { reason: 'too-large', max: maxBytes };
+    if (isChatAttachmentNameTooLong(format.name)) return { reason: 'name-too-long' };
+    if (seen.has(attachmentKey(file))) return { reason: 'duplicate' };
+    if (seen.size >= MAX_ATTACHMENTS) return { reason: 'limit', max: MAX_ATTACHMENTS };
+    return undefined;
 };
 
 export interface ImageGridLayout {

@@ -1,7 +1,7 @@
 import { logger } from '@chatic/logger';
-import { SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from '@chatic/session';
+import { DELEGATOR_ID_KEY, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from '@chatic/session';
 
-import type { KeyValueStore } from '@chatic/storage';
+import type { KeyValueStore, NativeStore } from '@chatic/storage';
 import { dropLemonLeftovers } from './lemonLeftovers.util';
 
 import type { ISecretStorageMigration, SecretStorageBoot, SecretStorageOutcome } from './types';
@@ -27,6 +27,13 @@ import type { ISecretStorageMigration, SecretStorageBoot, SecretStorageOutcome }
  *
  * lemon-web-core's old bundle (`@<project>.*`) goes with the web copy: nothing writes it any more, so
  * whatever is left in web storage is an older build's and nobody's.
+ *
+ * The rows are decided by the four tokens alone. The device guest's id may sit in the vault as well
+ * (see `copyDelegatorId`), and a vault holding only that id is not a signed-in one.
+ *
+ * In three rows the device guest's id is then copied into the vault from the plain store, if the vault
+ * lacks it: `values`; `empty` with no web copy; and `empty` with a web copy, once the move is
+ * confirmed. Never in the logout row, the unavailable rows, or a move the vault refused.
  */
 class SecretStorageMigration implements ISecretStorageMigration {
     async prepare({ vault, plain, web, tab, afterLogout }: SecretStorageBoot): Promise<SecretStorageOutcome> {
@@ -65,12 +72,17 @@ class SecretStorageMigration implements ISecretStorageMigration {
 
         if (read.reset) logger.warn('SESSION', '[secretStorage] the vault could not be decrypted and was emptied');
 
-        if (Object.keys(read.values).length > 0) {
+        const tokensInVault = SESSION_KEYS.secret.some(key => key in read.values);
+        if (tokensInVault) {
             this.dropWebCopy(web);
+            this.copyDelegatorId(vault, plain);
             return 'vault';
         }
 
-        if (webCopy.length === 0) return 'empty';
+        if (webCopy.length === 0) {
+            this.copyDelegatorId(vault, plain);
+            return 'empty';
+        }
 
         webCopy.forEach(([key, value]) => vault.set(key, value));
         try {
@@ -81,7 +93,43 @@ class SecretStorageMigration implements ISecretStorageMigration {
             return 'migration-refused';
         }
         this.dropWebCopy(web);
+        this.copyDelegatorId(vault, plain);
         return 'migrated';
+    }
+
+    /**
+     * Copies the device guest's id from the plain store into a vault that lacks it. Never deletes and
+     * never overwrites: the plain copy stays where an older build reads it, and a vault that already
+     * holds an id keeps it.
+     *
+     * Before this, the id lived only in the plain store — the page's `localStorage` — where the phone
+     * app's own runtime cannot read it. An install signed in to an account does not log in as a guest
+     * again, the only moment the id is written, so without this copy it would never reach the vault.
+     * The copy is retried on every boot until the vault holds it, which makes a failed write cost
+     * nothing but the wait: the reader falls back to the plain copy meanwhile.
+     *
+     * So it is sent as an `offer`, not a `set`. A refused `set` switches the store to the tab for the
+     * rest of the run and takes the session's tokens with it, which is too high a price for a copy.
+     * The boot does not wait for it either. A vault that never answers would otherwise hold the boot
+     * for the full timeout on every launch until the write lands. The offer is queued in order with
+     * the writes after it, so a logout made meanwhile still wins.
+     */
+    private copyDelegatorId(vault: NativeStore, plain: KeyValueStore): void {
+        const inPlain = plain.get(DELEGATOR_ID_KEY);
+        const inVault = vault.get(DELEGATOR_ID_KEY);
+        if (!inPlain) return;
+        if (inVault) {
+            // Both name this device's guest, so they should agree. Kept as it is either way; the
+            // vault is what the reader takes first.
+            if (inVault !== inPlain) {
+                logger.warn('session.guest_id_copies_differ', 'the vault and the plain store name different guests');
+            }
+            return;
+        }
+        void vault.offer(DELEGATOR_ID_KEY, inPlain).then(confirmed => {
+            if (confirmed) logger.info('session.guest_id_copied', 'copied the device guest id into the vault');
+            else logger.warn('session.guest_id_copy_refused', 'the vault took no guest id; the next boot tries again');
+        });
     }
 
     private webCopy(web: KeyValueStore): [string, string][] {
@@ -91,8 +139,13 @@ class SecretStorageMigration implements ISecretStorageMigration {
         });
     }
 
+    /**
+     * The guest id goes too: a run whose vault was unavailable wrote it into the tab through the
+     * store's fallback, and a tab copy left behind would be read ahead of the plain one by the next
+     * such run. The tab is never the plain store: every caller passes the tab's own storage, or memory.
+     */
     private dropTabCopy(tab: KeyValueStore): void {
-        SESSION_KEYS.secret.forEach(key => tab.remove(key));
+        [...SESSION_KEYS.secret, DELEGATOR_ID_KEY].forEach(key => tab.remove(key));
     }
 
     private dropWebCopy(web: KeyValueStore): void {

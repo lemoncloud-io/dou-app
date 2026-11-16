@@ -81,12 +81,11 @@ describe('PairingRequestFlow', () => {
 
     it('applies a relay approval once and finishes', async () => {
         const { flow, deps, settle, advance } = setup();
-        const session = { id: 'u-1', $auth: { id: 'a-1' } };
         deps.claim.mockResolvedValueOnce({ status: 'pending' }).mockResolvedValueOnce({
             status: 'approved',
             target: { type: 'relay' },
             approver: { name: 'developer' },
-            session,
+            sessionHandle: 'held-session',
         });
 
         flow.start();
@@ -94,7 +93,7 @@ describe('PairingRequestFlow', () => {
         await advance(10_000);
 
         expect(deps.applySession).toHaveBeenCalledTimes(1);
-        expect(deps.applySession).toHaveBeenCalledWith(session);
+        expect(deps.applySession).toHaveBeenCalledWith('held-session');
         expect(flow.getState()).toEqual({ phase: 'done', target: { type: 'relay' }, approverName: 'developer' });
         await advance(60_000);
         expect(deps.claim).toHaveBeenCalledTimes(2);
@@ -119,7 +118,12 @@ describe('PairingRequestFlow', () => {
 
     it('ends lost when applying the session throws', async () => {
         const { flow, deps, settle, advance } = setup();
-        deps.claim.mockResolvedValueOnce({ status: 'approved', target: { type: 'relay' }, approver: {}, session: {} });
+        deps.claim.mockResolvedValueOnce({
+            status: 'approved',
+            target: { type: 'relay' },
+            approver: {},
+            sessionHandle: 'held-session',
+        });
         deps.applySession.mockRejectedValueOnce(new Error('$auth.id missing'));
 
         flow.start();
@@ -244,7 +248,12 @@ describe('PairingRequestFlow', () => {
             () =>
                 new Promise(resolve => {
                     release = () =>
-                        resolve({ status: 'approved', target: { type: 'relay' }, approver: {}, session: { id: 'u' } });
+                        resolve({
+                            status: 'approved',
+                            target: { type: 'relay' },
+                            approver: {},
+                            sessionHandle: 'held-session',
+                        });
                 })
         );
 
@@ -284,7 +293,7 @@ describe('PairingRequestFlow', () => {
             status: 'approved',
             target: { type: 'relay' },
             approver: {},
-            session: { id: 'u' },
+            sessionHandle: 'held-session',
         });
 
         flow.start();
@@ -316,7 +325,12 @@ describe('PairingRequestFlow', () => {
             () =>
                 new Promise(resolve => {
                     release = () =>
-                        resolve({ status: 'approved', target: { type: 'relay' }, approver: {}, session: { id: 'u' } });
+                        resolve({
+                            status: 'approved',
+                            target: { type: 'relay' },
+                            approver: {},
+                            sessionHandle: 'held-session',
+                        });
                 })
         );
         deps.request.mockResolvedValueOnce(CODE).mockResolvedValueOnce({ ...CODE, pairingId: 'p-2', code: '11112222' });

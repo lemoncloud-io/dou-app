@@ -100,7 +100,7 @@ const Demo = ({
 
 export const WithRecentRow: Story = { render: () => <Demo /> };
 
-/** A browser, or an app that cannot read the library: the three entry points alone. */
+/** A browser, or an app that cannot read the library: the entry points alone, in the middle of the panel. */
 export const ActionsOnly: Story = { render: () => <Demo withRecent={false} /> };
 
 /** A keyboard shorter than the content: the panel keeps the keyboard's height and scrolls. */

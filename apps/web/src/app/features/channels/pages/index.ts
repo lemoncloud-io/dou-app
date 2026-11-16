@@ -4,3 +4,5 @@ export { ChannelSettingsPage } from './ChannelSettingsPage';
 export { InvitePage } from './InvitePage';
 export { InviteLinkPage } from './InviteLinkPage';
 export { CloudDmPickerPage } from './CloudDmPickerPage';
+export { AudioDetailPage } from './AudioDetailPage';
+export { RoomFilesPage } from './RoomFilesPage';

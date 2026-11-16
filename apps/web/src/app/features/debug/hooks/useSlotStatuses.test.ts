@@ -4,30 +4,50 @@ import { useSlotStatuses } from './useSlotStatuses';
 
 const mockGetSlotStatuses = jest.fn();
 jest.mock('@chatic/app-runtime', () => ({
-    runtime: { connection: { getSocketManager: () => ({ getSlotStatuses: () => mockGetSlotStatuses() }) } },
+    runtime: { connection: { getSlotStatuses: () => mockGetSlotStatuses() } },
 }));
 
 const relay = { key: 'default', kind: 'relay', active: true, state: 'connected', verified: true, connectCount: 1 };
 const cloud = { key: 'cloud-a', kind: 'cloud', active: false, state: 'connected', verified: true, connectCount: 1 };
 
+/** Lets the pending `getSlotStatuses` answers land. */
+const settle = () => act(async () => undefined);
+
 describe('useSlotStatuses', () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
 
-    it('reads the slots at once and again every second', () => {
-        mockGetSlotStatuses.mockReturnValue([relay]);
+    it('starts empty, fills in with the first read, and reads again every second', async () => {
+        mockGetSlotStatuses.mockResolvedValue([relay]);
         const { result } = renderHook(() => useSlotStatuses());
+        expect(result.current).toEqual([]);
+
+        await settle();
         expect(result.current).toEqual([relay]);
 
-        mockGetSlotStatuses.mockReturnValue([relay, cloud]);
+        mockGetSlotStatuses.mockResolvedValue([relay, cloud]);
         act(() => jest.advanceTimersByTime(1_000));
+        await settle();
 
         expect(result.current).toEqual([relay, cloud]);
     });
 
-    it('stops reading on unmount', () => {
-        mockGetSlotStatuses.mockReturnValue([]);
+    it('keeps the last list when a read fails', async () => {
+        mockGetSlotStatuses.mockResolvedValue([relay]);
+        const { result } = renderHook(() => useSlotStatuses());
+        await settle();
+
+        mockGetSlotStatuses.mockRejectedValue(new Error('gone'));
+        act(() => jest.advanceTimersByTime(1_000));
+        await settle();
+
+        expect(result.current).toEqual([relay]);
+    });
+
+    it('stops reading on unmount', async () => {
+        mockGetSlotStatuses.mockResolvedValue([]);
         const { unmount } = renderHook(() => useSlotStatuses());
+        await settle();
         unmount();
         mockGetSlotStatuses.mockClear();
 

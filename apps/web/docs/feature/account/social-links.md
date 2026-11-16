@@ -61,8 +61,8 @@ and write have to agree, or a link made on relay reads as unlinked from inside a
 
 `auth.link-account` with `mode: 'link'` hangs one more credential on a session that is **already** a
 main user. No token comes back, the session does not change, and no navigation happens. That is the
-whole difference from `mode: 'login'`, which promotes a device user and returns a `$token` the caller
-must install. The mode is chosen from the session role, never from the response —
+whole difference from `mode: 'login'`, which promotes a device user and returns a `$token` that the
+runtime installs (`runtime.session.confirmPhoneLogin`) — the screen never sees it. The mode is chosen from the session role, never from the response —
 [auth](../auth/README.md) owns that contract in full.
 
 A device user's social **login** — the path that does change the session — is the backend's REST

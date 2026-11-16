@@ -2,6 +2,11 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "outDir": "dist",
+        // No `dom`: this package runs in the native process too, where a page's globals and types do not
+        // exist. A page-only name (`document`, `window`, `navigator`, `location`, the IndexedDB types)
+        // fails to compile; names React Native also declares still type-check, and the root lint refuses
+        // the page globals among them. Node's types stay for the timers, `URL` and `TextEncoder`.
+        "lib": ["es2022"],
         "types": ["node"],
         "rootDir": "src",
         "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"

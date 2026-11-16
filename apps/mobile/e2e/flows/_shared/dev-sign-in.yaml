@@ -23,16 +23,32 @@ appId: ${APP_ID}
 - extendedWaitUntil:
       visible: 'Verify phone number'
       timeout: 15000
-# iOS exposes the field's placeholder; Android exposes its label and hint instead.
-- tapOn: 'Enter your phone number|Phone number Digits only.*'
+# iOS exposes the field's placeholder; Android exposes only its hint, which the code field shares — the
+# phone field comes first.
+- tapOn:
+      text: 'Enter your phone number|Digits only, no hyphens\.'
+      index: 0
 - inputText: ${DOU_TEST_PHONE}
 # Typing into a WebView field can drop a character; the number must be whole before a code is asked for.
 - assertVisible: ${DOU_TEST_PHONE}
 # With the keyboard up, the next tap only dismisses it. `hideKeyboard` cannot close a WebView's
 # keyboard on iOS, so tap the sheet's static description instead.
 - tapOn: 'Enter your phone number and the code.*'
-- tapOn: 'Skip delivery \(dryRun\)'
-- tapOn: 'Receive via Slack'
+# Android's WebView exposes a checkbox without its label, so there the switches are found by id.
+- runFlow:
+      when:
+          platform: iOS
+      commands:
+          - tapOn: 'Skip delivery \(dryRun\)'
+          - tapOn: 'Receive via Slack'
+- runFlow:
+      when:
+          platform: Android
+      commands:
+          - tapOn:
+                id: 'dev-delivery-dry-run'
+          - tapOn:
+                id: 'dev-delivery-slack'
 # Both switches must read as checked before anything is requested, so a tap that did not land fails
 # the scenario instead of requesting a real delivery. That holds on iOS only: Android's WebView reports
 # a web checkbox as unchecked to Maestro whatever its state (both hierarchy modes were tried). There
@@ -60,6 +76,13 @@ appId: ${APP_ID}
 - extendedWaitUntil:
       visible: 'Extend time'
       timeout: 15000
+# The "code sent" toast covers this button on a tall Android screen for about three seconds, and a tap
+# that lands on it holds it open. The toast is not in the accessibility tree, so its going cannot be
+# waited on: wait out its time instead — a wait for text that never shows, which ends at its timeout.
+- extendedWaitUntil:
+      visible: 'A wait for the code-sent toast to clear'
+      timeout: 5000
+      optional: true
 - tapOn: 'Skip the code \(#\)'
 - extendedWaitUntil:
       notVisible: 'Verify phone number'
