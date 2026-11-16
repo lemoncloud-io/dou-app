@@ -109,7 +109,7 @@ sequenceDiagram
 ```text
 libs/data/src/
 ├── index.ts          public barrel (10 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID` — messageTokens.ts — the message bubble's tokenizer, moved here from apps/web — and chatMediaEntries.ts — a message's room media index entries)
+├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID` — messageTokens.ts — the message bubble's tokenizer, moved here from apps/web — chatMediaEntries.ts — a message's room media index entries — and chatNotificationEntries.ts — what a row can tell an inbox, with no reader in mind)
 ├── local/
 │   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
 │   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports
