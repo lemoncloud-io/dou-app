@@ -59,7 +59,7 @@ describe('SessionOwnerScreen', () => {
         expect(await screen.findByText('Mirrors the app’s runtime')).toBeInTheDocument();
     });
 
-    // The app decides whether the switch exists; a production build leaves both requests unanswered.
+    // The app decides whether the switch is offered; a production build refuses it outside debug mode.
     it('says the switch is not offered when the app does not answer', async () => {
         fetchSessionOwner.mockRejectedValue(new Error('NOT_FOUND'));
         render(<SessionOwnerScreen />);

@@ -4,12 +4,15 @@ import { readSessionOwner, writeSessionOwner } from './sessionOwner';
 import type { SessionOwner, SessionOwnerFile } from './sessionOwner';
 
 /**
- * Whether this build offers the owner switch: a local or a test stage build, never production. The
- * stage is the one baked into the build (`VITE_ENV`), which nothing in a page can change. A value this
- * build does not recognise — an env file that failed to load — counts as production, as it does
- * everywhere the app reads its stage: a production build must not open the switch by accident.
+ * Whether this build offers the owner switch right now. A local or a test stage build always does. A
+ * production build does only while the app's debug mode is on — the same 10-tap and entry-code unlock
+ * the overlay sits behind — so internal testers can move a production install onto the app's runtime
+ * and nobody else meets the switch. The stage is the one baked into the build (`VITE_ENV`), which
+ * nothing in a page can change; a value this build does not recognise — an env file that failed to
+ * load — counts as production, as it does everywhere the app reads its stage.
  */
-export const isSessionOwnerSwitchAllowed = (stage: string | undefined): boolean => toEnvStage(stage) !== 'prod';
+export const isSessionOwnerSwitchAllowed = (stage: string | undefined, debugModeEnabled: boolean): boolean =>
+    toEnvStage(stage) !== 'prod' || debugModeEnabled;
 
 /**
  * How long a switch waits before restarting, so its answer reaches the page first. The page is reloaded
@@ -32,7 +35,7 @@ const scheduleTimeout = (run: () => void, ms: number): (() => void) => {
 };
 
 /**
- * The development switch for who holds the session. Reading answers the current owner and the one
+ * The owner switch for who holds the session. Reading answers the current owner and the one
  * recorded for the next start; setting records the owner and, when it differs from the current one,
  * starts the JS context over so it takes effect now — the owner is settled once per context, so nothing
  * short of a restart can change it.
@@ -69,3 +72,6 @@ export const createSessionOwnerSwitch = ({
         },
     };
 };
+
+/** The switch `createSessionOwnerSwitch` makes. */
+export type SessionOwnerSwitch = ReturnType<typeof createSessionOwnerSwitch>;

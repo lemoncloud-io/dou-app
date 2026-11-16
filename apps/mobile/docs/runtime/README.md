@@ -6,7 +6,9 @@ opens the sockets and reads the cache. The app can hold it instead, in its own J
 runs, on the app's own storage and network. This document is how the app does that: who decides, how
 the runtime starts, and what it keeps running.
 
-**Nothing turns it on yet.** The owner is `web` unless the development switch says otherwise (see
+**Nothing turns it on by default.** 0.32.0 is the first app version that carries the runtime, and it ships
+switched off: the owner is `web` unless the owner switch says otherwise — in a production build, only
+while the app's debug mode is on, for internal testing (see
 [The switch](#the-switch)). On a launch whose owner is `native`, the app offers the session to the page
 and answers the runtime handshake; the web page says hello and, on the `native` answer, mirrors the
 runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-web`). It then opens no
@@ -20,15 +22,15 @@ The same runtime also answers a mini app in the sub WebView on such a launch —
 current cloud, through a whitelist and a runtime bridge host of each page load's own (see
 [the sub WebView](../webview/sub-webview.md)). On a launch the page owns, a mini app reads nothing.
 
-| File (`src/app/services/runtime/`)           | Role                                                                                     |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `sessionOwner.ts` · `launchSessionOwner.ts`  | Who owns the session this launch, read once from its own MMKV file                       |
-| `nativeRuntimeHost.ts`                       | The host: boots and runs the runtime once per process, reports a session's end           |
-| `nativeRuntime.ts`                           | The app's one host, wired to the app's services — loaded only when the runtime is wanted |
-| `runtimePorts.ts` · `runtimeStorageFiles.ts` | The runtime's stores and cache on the app's vault, MMKV files and SQLite                 |
-| `runtimeOffer.ts` · `runtimeBridge.ts`       | The offer injected into the page, and the four runtime requests answered over the host   |
-| `restartOnSessionEnd.ts`                     | A session's end restarts the JS context, which opens the WebView home                    |
-| `sessionOwnerSwitch.ts`                      | The development switch: records the owner and restarts to apply it, outside production   |
+| File (`src/app/services/runtime/`)           | Role                                                                                                      |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `sessionOwner.ts` · `launchSessionOwner.ts`  | Who owns the session this launch, read once from its own MMKV file                                        |
+| `nativeRuntimeHost.ts`                       | The host: boots and runs the runtime once per process, reports a session's end                            |
+| `nativeRuntime.ts`                           | The app's one host, wired to the app's services — loaded only when the runtime is wanted                  |
+| `runtimePorts.ts` · `runtimeStorageFiles.ts` | The runtime's stores and cache on the app's vault, MMKV files and SQLite                                  |
+| `runtimeOffer.ts` · `runtimeBridge.ts`       | The offer injected into the page, and the four runtime requests answered over the host                    |
+| `restartOnSessionEnd.ts`                     | A session's end restarts the JS context, which opens the WebView home                                     |
+| `sessionOwnerSwitch.ts`                      | The owner switch: records the owner and restarts to apply it; offered outside production or in debug mode |
 
 ## Who owns the session
 
@@ -55,12 +57,26 @@ run's owner, and the one recorded for the next start) and `SetSessionOwner`, whi
 when it differs from this run's, restarts the JS context a moment later — after its answer has reached
 the page, which the restart reloads.
 
-Only a local or test stage build registers the two requests (`useSessionOwnerHandler`, gated on the
-baked `VITE_ENV` read through `toEnvStage`). A value the build does not recognise — an env file that
-failed to load — counts as production, so the switch fails closed. A production build leaves them
-`NOT_FOUND`, so the screen says the switch is not offered and nothing a page sends can move the session
-there. The stage rather than `__DEV__` is the gate so that the stage builds testers install, which are
-release builds, have it too.
+Every build registers the two requests (`useSessionOwnerHandler`, answered by
+`sessionOwnerHandlers.ts`); whether they are answered is decided on each request
+(`isSessionOwnerSwitchAllowed`):
+
+- **A local or test stage build** answers them always. The stage is the baked `VITE_ENV` read through
+  `toEnvStage`; a value the build does not recognise — an env file that failed to load — counts as
+  production. The stage rather than `__DEV__` is the gate so that the stage builds testers install,
+  which are release builds, have it too.
+- **A production build** answers them only while the app's debug mode is on — the overlay's own unlock
+  (ten taps on the Lab page and the entry code), which the app records in its debug settings
+  (`debugModeEnabled`). That is how internal testers move a production install onto the runtime. While
+  it is off both requests are refused with `NOT_ALLOWED` and the screen says the switch is not offered.
+  The app does not check the unlock itself: it takes the flag from the page's `SetDebugMode`, which the
+  overlay sends only after its unlock, so a page cannot move the session without first turning debug
+  mode on.
+
+**Debug mode gates changing the owner, not keeping it.** A production install moved onto the runtime
+stays there until someone unlocks debug mode again and moves it back, or the app is removed (the owner
+file goes with the app's data). It cannot follow the debug flag instead: the page turns the app's flag
+off on every boot (`main.tsx`), so the switch would last one launch.
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
@@ -207,7 +223,7 @@ cover is what the person sees.
 ## What is not done yet
 
 These are the conditions the steps that turn the runtime on have to meet. None of them matters on a
-launch the page owns, which is every launch but the ones the development switch makes.
+launch the page owns, which is every launch but the ones the owner switch makes.
 
 - **The offer does not say whether the session is already held.** A page that does not ask — one whose
   own switch is off, or one sharing no contract with the runtime — cannot tell a launch whose runtime
@@ -217,7 +233,7 @@ launch the page owns, which is every launch but the ones the development switch 
   before a web deploy can be the rollback mid-process.
 - **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
-  change while one is set. The development switch does not check for one.
+  change while one is set. The owner switch does not check for one.
 - **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
   restarted context sends a `boot` trace and a `first_screen` sample as a launch would; while the switch
   is the only way onto a runtime-owned launch these are a tester's, but they need a type of their own

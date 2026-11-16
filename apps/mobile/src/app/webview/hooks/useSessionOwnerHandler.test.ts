@@ -27,6 +27,27 @@ jest.mock('../../services/runtime/runtimeStorageFiles', () => ({
     }),
 }));
 
+const mockDebug = { enabled: false, hydrated: true };
+const mockDebugListeners = new Set<() => void>();
+jest.mock('../../stores/debugSettingsStore', () => ({
+    useDebugSettingsStore: {
+        getState: () => ({ debugModeEnabled: mockDebug.enabled }),
+        subscribe: (listener: () => void) => (
+            mockDebugListeners.add(listener),
+            () => mockDebugListeners.delete(listener)
+        ),
+        persist: {
+            hasHydrated: () => mockDebug.hydrated,
+            onFinishHydration: () => () => undefined,
+        },
+    },
+}));
+
+const setDebugMode = (enabled: boolean) => {
+    mockDebug.enabled = enabled;
+    mockDebugListeners.forEach(listener => listener());
+};
+
 const fakeBridge = () => {
     const handlers = new Map<string, (message: unknown) => Promise<any>>();
     return {
@@ -44,17 +65,53 @@ describe('useSessionOwnerHandler', () => {
         mockRestart.mockReset();
         mockEntries.clear();
         mockStage = 'DEV';
+        mockDebug.enabled = false;
+        mockDebug.hydrated = true;
+        mockDebugListeners.clear();
     });
 
     afterEach(() => jest.useRealTimers());
 
-    it('registers nothing in a production build, so the overlay hears NOT_FOUND', () => {
+    it('refuses the switch in a production build while debug mode is off', async () => {
         mockStage = 'PROD';
         const bridge = fakeBridge();
-
         renderHook(() => useSessionOwnerHandler(bridge as any));
 
-        expect(bridge.registerHandler).not.toHaveBeenCalled();
+        const reply = await bridge.handlers.get('SetSessionOwner')?.({
+            type: 'SetSessionOwner',
+            data: { owner: 'native' },
+        });
+
+        expect(reply).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'NOT_ALLOWED' }) })
+        );
+        expect(mockEntries.size).toBe(0);
+    });
+
+    it('offers the switch in a production build once debug mode is on', async () => {
+        mockStage = 'PROD';
+        const bridge = fakeBridge();
+        renderHook(() => useSessionOwnerHandler(bridge as any));
+        setDebugMode(true);
+
+        const reply = await bridge.handlers.get('SetSessionOwner')?.({
+            type: 'SetSessionOwner',
+            data: { owner: 'native' },
+        });
+
+        expect(reply).toEqual({ type: 'OnSetSessionOwner', success: true, data: { next: 'native', restarting: true } });
+        expect(mockEntries.get('sessionOwner')).toBe('native');
+    });
+
+    it('keeps a production install on the runtime when debug mode goes off', () => {
+        mockStage = 'PROD';
+        mockDebug.enabled = true;
+        mockEntries.set('sessionOwner', 'native');
+        renderHook(() => useSessionOwnerHandler(fakeBridge() as any));
+
+        setDebugMode(false);
+
+        expect(mockEntries.get('sessionOwner')).toBe('native');
     });
 
     it('answers the current and next owner outside production', async () => {

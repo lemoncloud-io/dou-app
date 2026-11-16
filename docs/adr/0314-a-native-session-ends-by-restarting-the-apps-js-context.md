@@ -13,6 +13,9 @@
 > · The behaviour is documented in [apps/mobile docs/runtime](../../apps/mobile/docs/runtime/README.md)
 > · Amends: [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md) — "per launch"
 > now means per JS context, which the app can start over itself
+> **Amended by [ADR-0322](./0322-the-apps-runtime-ships-switched-off-and-production-opens-the-owner-switch-in-debug-mode.md) (2026-11-16):**
+> decision 5's switch is also answered by a production build while the app's debug mode is on; a
+> production install moved onto the runtime stays there until it is moved back.
 
 ## Context
 

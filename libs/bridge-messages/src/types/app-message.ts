@@ -313,7 +313,7 @@ export type AppMessageDataMap = {
     OnRuntimeUnsubscribe: OnRuntimeUnsubscribePayload;
     OnRuntimeEvent: OnRuntimeEventPayload;
     OnRuntimeSessionChanged: OnRuntimeSessionChangedPayload;
-    // 13. Session owner — replies to the development switch.
+    // 13. Session owner — replies to the owner switch.
     OnFetchSessionOwner: OnFetchSessionOwnerPayload;
     OnSetSessionOwner: OnSetSessionOwnerPayload;
 };
