@@ -388,12 +388,19 @@ that safe is which methods can be reached at all, and two rules decide every one
 - **Read only, in what it does.** Nothing that writes on the server or in the device cache, nothing
   that moves a sync cursor or a read cursor, and nothing the server may answer by creating something
   (`profile.get-mine` creates a missing profile row; `channel.get-self` creates the self chat). A read
-  that writes what it fetched — every `refresh*`, `chat.getChat`, `cloud.getCloud`,
-  `user.getMyProfile`, `syncChannelUsers`, `syncProfilesOf`, and the room media reads that fill a
-  room's media index — is a write here, not a read: the page's arguments decide where its rows land
+  that writes what it fetched — every `refresh*`, `chat.getChat`, `user.getMyProfile`,
+  `syncChannelUsers`, `syncProfilesOf`, and the room media reads that fill a room's media index — is a
+  write here, not a read: the page's arguments decide where its rows land
   (`channel.refreshList({ sid })` with another place's id files this place's rooms under it), and a
-  later sync does not undo it. So the server reads open to a page are the two that write nothing,
-  `channel.fetchList` and `place.isPlaceDeleted`, and the member list under guards (below).
+  later sync does not undo it. So the server reads open to a page are the two that write nothing
+  whatever their arguments, `channel.fetchList` and `place.isPlaceDeleted`, and under guards (below)
+  the member list and `cloud.getCloud`, which writes nothing once the page passes `{ cache: false }`.
+
+    One write is the exception, and it is written down as one: `chat.sendChat`, under a permission no
+    read carries (`chatSend`), of plain text to a room of the place the view opened on — a line the user
+    could have typed into that room. A page that runs a game in a room needs its own player to call
+    into the room and the page to announce the result; nothing else a message can carry is open.
+
 - **The current cloud, and no switching.** Only `data` is open, which is the live scope. `session` is
   closed — the cloud and place switches are session commands — and so are `connection`, `sync`,
   `data@cloud`, and every method that reaches another cloud (`*InCloud`, the cloud list and catalog,
@@ -401,28 +408,40 @@ that safe is which methods can be reached at all, and two rules decide every one
 
 Arguments pass through as the main web sends them, except where an entry guards one
 (`SubWebViewArgGuard`): `cloud.observeItem` and `cloud.cacheRead` pass only for the current cloud's id;
+`cloud.getCloud` passes only as `({ id }, { cache: false })` with `id` the current cloud's and no
+`cid` — it is how a page reads the cloud it is in, since an owned cloud's cache row often does not
+exist (the app names owned clouds from the relay catalog, which is never written into the cache) and
+the row holds only a name when it does;
 `user.listPlaceMembers`, which loads the members' place profiles into the cache, passes only with
 `placeId` and `sessionPlaceId` both the place the session is on (`SubWebViewRuntimeScope.placeId`, the
 committed place — the one the server answers profiles for) and no `pageSize`, so one call stays the
-server's page size. Table lookups read only a table's own keys: a page names them, and `__proto__`
+server's page size. `chat.sendChat` passes only one argument (`argCount`), a plain object holding `channelId` and
+`content` and nothing else (`onlyFields`), each a string with something besides white space in it, the content at
+most `SUB_WEB_VIEW_MESSAGE_LIMIT` (1,000) long (`text`) — no attachments, mention, reply, content type,
+system or webhook row. Its room has to be one of the place the view opened on, with the session still there, which only the
+shell and the device cache can say: the entry carries `roomInCurrentPlace`, and the shell reads the room
+before the message goes. Table lookups read only a table's own keys: a page names them, and `__proto__`
 names nothing.
 
 Each allowed method sits under one permission a page's manifest declares (`session`, `cloud`, `place`,
-`channel`, `chat`, `user`) with its cost — `local` for the device cache and its streams, `server` for a
-read that asks the server, which the shell budgets. Each closed one names its reason (`write`,
+`channel`, `chat`, `user`, `chatSend`) with its cost — `local` for the device cache and its streams,
+`server` for a read that asks the server, `send` for the message, each of the last two budgeted by the
+shell on its own. Each closed one names its reason (`write`,
 `cacheWrite`, `cursor`, `serverSideEffect`, `otherCloud`, `account`, `device`, `admin`, `internal`), and
 whole repositories are closed with one: `auth`, `pairing`, `invite`, `subscription`, `device`, `report`,
 `syncMeta`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
 of `RuntimeData`, so **a method added to the runtime does not compile until it is decided here** — the
 moment to ask the two questions above. The spec typecheck also refuses allowing a name that writes
-(`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like), anything `…InCloud`, a
-server read other than the three above, and a stream that is not an `observe…`; and the test lists the
+(`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than
+`chat.sendChat`, an entry budgeted as a send other than that one, anything `…InCloud`, a server read
+other than the four above, and a stream that is not an `observe…`; and the test lists the
 allowed methods by name, so a flipped entry shows as a diff.
 
 `checkSubWebViewRuntimeRequest` answers, for one request, the page's granted permissions and where the
-session is, whether it may go and at what cost, or the reason it may not; `subWebViewAllowedFor` lists what a set of
-permissions opens, which the page's hello reports. The view's cloud, the user's consent and the read
-budget are the shell's to check around it (`apps/mobile` docs, the sub WebView).
+session is, whether it may go and at what cost — and for the message, which argument names the room
+the shell must check — or the reason it may not; `subWebViewAllowedFor` lists what a set of
+permissions opens, which the page's hello reports. The view's cloud, the user's consent, the message's
+room and the budgets are the shell's to check around it (`apps/mobile` docs, the sub WebView).
 
 ## Where it lives
 

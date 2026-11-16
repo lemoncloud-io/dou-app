@@ -244,6 +244,17 @@ describe('createRuntimeBridgeHost — the views and the sign-out', () => {
         expect(pushes).toEqual([]);
     });
 
+    it('runs no call once the bridge has closed', async () => {
+        const { host, fake } = setup();
+        await host.hello(hello);
+        host.dispose();
+
+        await expect(host.call({ target: 'session', method: 'switchSite', args: ['s3'] })).resolves.toMatchObject({
+            failure: { code: RUNTIME_NOT_STARTED_CODE },
+        });
+        expect(fake.raw.commands.switchSite).not.toHaveBeenCalled();
+    });
+
     it("mirrors the connection's snapshot as a stream: now, then each change once per turn", async () => {
         const { host, fake, events, flush } = setup();
         await host.hello(hello);

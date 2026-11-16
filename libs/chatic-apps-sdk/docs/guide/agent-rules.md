@@ -39,8 +39,14 @@ code. Read the part you need before you write code that depends on it.
     `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
 
 13. Read the app's data only through `apps.runtime`, and only after `apps.supports('runtime')`: call
-    `apps.runtime.connect()` first and use only the names in its `allowed`. It reads; it never writes.
+    `apps.runtime.connect()` first and use only the names in its `allowed`. It reads; the one write is
+    `chat.sendChat` with `chatSend`, as `{ channelId, content }` and nothing more, to a room of the
+    place the page opened in — send only what the user chose to send, since it goes out in their name.
     Handle `CONSENT_REFUSED` (show why the page needs it) and `CLOUD_CHANGED` (finish or show a notice).
+    Read the cloud the page is in with `call('cloud.getCloud', { id }, { cache: false })`, not
+    `cloud.cacheRead`, which is often `null` for a cloud the user owns. Take `id` from the session's
+    `context.cloud.cloudId` (needs `session`) or `params.cloud.id`. Show or store only the fields the
+    page needs: for an owned cloud the answer carries account and server details.
 
 ## The page
 

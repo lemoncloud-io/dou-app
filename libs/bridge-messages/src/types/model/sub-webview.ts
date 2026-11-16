@@ -58,7 +58,8 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
 
 /**
  * (2.26.0) What a page may read of the app's runtime, by area, declared in its manifest beside the
- * capabilities above. Each opens a fixed set of the runtime's own read methods — the table is the
+ * capabilities above. Each opens a fixed set of the runtime's own read methods (`chatSend`, its one
+ * text send) — the table is the
  * runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`) — and answers them exactly
  * as it answers the main web:
  *
@@ -67,15 +68,18 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
  * - `place` — the current cloud's places;
  * - `channel` — channels and their joins, in any place of the current cloud;
  * - `chat` — messages;
- * - `user` — users, place profiles and place member lists.
+ * - `user` — users, place profiles and place member lists;
+ * - `chatSend` (2.27.0) — the one write: a plain text message, in the user's name, to a room of the
+ *   place the view opened on. Nothing else a message can carry — attachments, mentions, a reply, a
+ *   system or webhook row — and it is asked for apart from the reads, by name.
  *
  * Any one of them registers the four runtime requests (`RuntimeHello`, `RuntimeCall`,
  * `RuntimeSubscribe`, `RuntimeUnsubscribe`) on the page's host — on the phone only, on a launch whose
  * session the app's runtime holds, for a `reviewed` page, opened while a cloud other than Home was
- * selected. Nothing they open writes, moves a cursor, switches the cloud or the place, or reads
- * another cloud.
+ * selected. Apart from `chatSend`'s message, nothing they open writes, moves a cursor, switches the
+ * cloud or the place, or reads another cloud.
  */
-export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user';
+export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
 
 /** Every name a manifest's `permissions` may hold. A shell drops the names it does not know. */
 export type SubWebViewManifestPermission = SubWebViewPermission | SubWebViewRuntimePermission;
@@ -148,20 +152,22 @@ export type SubWebViewPageErrorCode =
 /**
  * (2.26.0) What the sub host's runtime requests fail with before the runtime is asked:
  * - `RUNTIME_NOT_ALLOWED` — the target, the method or the way it is asked (call or stream) is not one
- *   this page may use, or a cloud id argument names another cloud. `details` carries
- *   `SubWebViewRuntimeRefusal`.
+ *   this page may use, or an argument it is held to was not met — a cloud or place that is not the
+ *   current one, a message that is not plain text, a room outside the place the view opened on.
+ *   `details` carries `SubWebViewRuntimeRefusal`.
  * - `CLOUD_CHANGED` — the session's cloud is no longer the one the view opened on. Final for the view:
  *   every open stream ends with it too.
  * - `CONSENT_REFUSED` — the user declined to let this page read in this cloud. Asked again next open.
- * - `RATE_LIMITED` — a read that asks the server, over the view's budget. `details` carries
- *   `{ retryAfterMs }`.
+ * - `RATE_LIMITED` — a read that asks the server, or a message sent, over the view's budget for it.
+ *   `details` carries `{ retryAfterMs }`.
  */
 export type SubWebViewRuntimeErrorCode = 'RUNTIME_NOT_ALLOWED' | 'CLOUD_CHANGED' | 'CONSENT_REFUSED' | 'RATE_LIMITED';
 
 /**
  * Why a runtime request was refused: the whitelist's reason for a closed method or target, `notGranted`
- * for an open method whose permission the manifest does not hold, `guard` for a cloud id argument that
- * is not the current cloud's, `unknown` for a name the whitelist does not have.
+ * for an open method whose permission the manifest does not hold, `guard` for arguments an entry holds
+ * the page to and it did not meet — a cloud or place that is not the current one, a message that is not
+ * plain text, a room outside the current place — and `unknown` for a name the whitelist does not have.
  */
 export type SubWebViewRuntimeRefusalReason =
     | 'write'

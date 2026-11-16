@@ -476,6 +476,8 @@ export const createRuntimeBridgeHost = ({
         },
 
         call: async ({ target, method, args }) => {
+            // A call that reaches a closed bridge does nothing: nothing it did would be answered.
+            if (disposed) return { failure: { code: RUNTIME_NOT_STARTED_CODE, message: 'the bridge has closed' } };
             if (!engine) return notStarted();
             const member = resolveMember(engine, 'call', target, method, Array.isArray(args) ? args : []);
             if (!member) return { failure: runtimeNotAvailableFailure(target, method) };

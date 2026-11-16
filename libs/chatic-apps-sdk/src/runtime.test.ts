@@ -1,7 +1,9 @@
 import { connect, type ChaticApps } from './chaticApps';
 import { ChaticAppsError } from './errors';
 import { installChaticAppsMock, type MockController, type MockOptions } from './mock';
-import { LISTENER, browserRuntime } from './runtime';
+import { createBridgeClient } from './client';
+import { LISTENER, browserRuntime, runtimeOver } from './runtime';
+import type { Transport } from './transport';
 
 /** Lets the mock's asynchronous replies and pushes land. */
 const settle = () => new Promise(resolve => setTimeout(resolve, 5));
@@ -183,5 +185,94 @@ describe('browserRuntime', () => {
         );
         expect(runtime.can('channel.fetchList')).toBe(false);
         expect(runtime.session()).toBeNull();
+    });
+});
+
+describe('apps.runtime.connect, against a slow answer', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('waits for the user however long they take, past the default request timeout', async () => {
+        jest.useFakeTimers();
+        const sent: Array<Record<string, any>> = [];
+        let deliver: ((message: string) => void) | undefined;
+        const transport: Transport = {
+            send: message => sent.push(JSON.parse(message)),
+            listen: next => {
+                deliver = next;
+                return () => (deliver = undefined);
+            },
+        };
+        const runtime = runtimeOver(
+            createBridgeClient(transport, 1_000),
+            () => true,
+            () => undefined
+        );
+
+        const connecting = runtime.connect();
+        const outcome = jest.fn();
+        connecting.then(outcome, outcome);
+        // The app is showing the consent question; a request with the default timeout would have failed.
+        await jest.advanceTimersByTimeAsync(60_000);
+        expect(outcome).not.toHaveBeenCalled();
+
+        const hello = sent.find(message => message.type === 'RuntimeHello')!;
+        deliver?.(
+            JSON.stringify({
+                type: 'OnRuntimeHello',
+                success: true,
+                refId: hello.refId,
+                data: {
+                    sessionOwner: 'native',
+                    contract: 1,
+                    seq: 1,
+                    session: null,
+                    allowed: { calls: [], streams: [] },
+                },
+            })
+        );
+
+        await expect(connecting).resolves.toEqual({ contract: 1, allowed: { calls: [], streams: [] } });
+    });
+});
+
+describe('apps.runtime.connect, across a back-forward-cache restore', () => {
+    it('ends a hello still waiting for the user, and asks afresh on the next connect', async () => {
+        const sent: Array<Record<string, any>> = [];
+        let deliver: ((message: string) => void) | undefined;
+        const transport: Transport = {
+            send: message => sent.push(JSON.parse(message)),
+            listen: next => {
+                deliver = next;
+                return () => (deliver = undefined);
+            },
+        };
+        const runtime = runtimeOver(
+            createBridgeClient(transport),
+            () => true,
+            () => undefined
+        );
+
+        const waiting = runtime.connect();
+        runtime.reset();
+        await expect(waiting).rejects.toEqual(expect.objectContaining({ code: 'DISCONNECTED' }));
+
+        const again = runtime.connect();
+        const hellos = sent.filter(message => message.type === 'RuntimeHello');
+        expect(hellos).toHaveLength(2);
+        deliver?.(
+            JSON.stringify({
+                type: 'OnRuntimeHello',
+                success: true,
+                refId: hellos[1].refId,
+                data: {
+                    sessionOwner: 'native',
+                    contract: 1,
+                    seq: 1,
+                    session: null,
+                    allowed: { calls: [], streams: [] },
+                },
+            })
+        );
+        await expect(again).resolves.toEqual({ contract: 1, allowed: { calls: [], streams: [] } });
     });
 });

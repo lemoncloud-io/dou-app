@@ -70,7 +70,9 @@
 //         RuntimeUnsubscribe (web -> app) and pushes OnRuntimeEvent and OnRuntimeSessionChanged —
 //         through a whitelist of the runtime's read methods its manifest opens, with the
 //         `SubWebViewRuntimePermission` names; only where the app's runtime holds the session.
-export const BRIDGE_VERSION = '2.26.0' as const;
+// 2.27.0: a sub WebView page's runtime permissions add `chatSend` — `chat.sendChat` of a plain text
+//         message to a room of the place the view opened on, budgeted apart from the server reads.
+export const BRIDGE_VERSION = '2.27.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

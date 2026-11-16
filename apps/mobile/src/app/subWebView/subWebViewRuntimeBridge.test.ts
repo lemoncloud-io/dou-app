@@ -22,6 +22,7 @@ jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(
 /** An engine with just what these requests reach: the session, two repositories, the session commands. */
 const fakeEngine = () => {
     let cloudId: string | null = 'c1';
+    let placeId = 's1';
     const sessionListeners = new Set<() => void>();
     const channelListeners = new Set<(result: unknown) => void>();
     const snapshot = () => ({
@@ -30,12 +31,18 @@ const fakeEngine = () => {
             identity: { userId: 'u1', isAuthenticated: true, delegatorId: 'guest-device' },
             relay: { siteId: '0000' },
         },
-        committedSiteId: 's1',
+        committedSiteId: placeId,
         uidByCloud: { c1: 'u1', c9: 'u9' },
         auth: { isAuthenticated: true },
     });
+    // The rooms this device holds: one in the session's place, one in another place of the cloud.
+    const rooms: Record<string, { id: string; cid: string; sid: string }> = {
+        ch1: { id: 'ch1', cid: 'c1', sid: 's1' },
+        ch2: { id: 'ch2', cid: 'c1', sid: 's2' },
+    };
     const repositories = {
         channel: {
+            cacheRead: jest.fn(async (id: string) => rooms[id] ?? null),
             cacheReadList: jest.fn(async () => ({ list: [{ id: 'ch1', name: 'General', memberIds: ['u1'] }] })),
             fetchList: jest.fn(async () => ({ list: [] })),
             observeList: jest.fn((_query: unknown, listener: (result: unknown) => void) => {
@@ -43,7 +50,10 @@ const fakeEngine = () => {
                 return () => channelListeners.delete(listener);
             }),
         },
-        chat: { sendChat: jest.fn(), cacheRead: jest.fn() },
+        chat: {
+            sendChat: jest.fn(async (payload: { channelId: string; content: string }) => ({ id: 'm9', ...payload })),
+            cacheRead: jest.fn(),
+        },
     };
     const engine = {
         session: {
@@ -68,6 +78,10 @@ const fakeEngine = () => {
             cloudId = next;
             sessionListeners.forEach(listener => listener());
         },
+        moveToPlace: (next: string) => {
+            placeId = next;
+            sessionListeners.forEach(listener => listener());
+        },
     };
 };
 
@@ -78,10 +92,12 @@ const build = ({
     granted = ['channel'],
     consent = allow,
     budget = plenty,
+    sends = plenty,
 }: {
     granted?: SubWebViewRuntimePermission[];
     consent?: SubWebViewRuntimeConsent;
     budget?: SubWebViewReadBudget;
+    sends?: SubWebViewReadBudget;
 } = {}) => {
     const fake = fakeEngine();
     const bridge = { pushEvent: jest.fn() } as unknown as IAppBridgeHost & { pushEvent: jest.Mock };
@@ -91,11 +107,13 @@ const build = ({
         createHost: send => createRuntimeBridgeHost({ engine: async () => fake.engine, send }),
         session: fake.engine.session,
         openedCloudId: 'c1',
+        openedPlaceId: 's1',
         granted: new Set(granted),
         origin: 'https://quiz.apps.chatic.io',
         pageHost: () => (current ? bridge : null),
         consent,
         budget,
+        sends,
         onRefused,
     });
     const hello = () =>
@@ -241,16 +259,129 @@ describe('createSubWebViewRuntimeBridge', () => {
         const { hello, call, repositories, onRefused } = build({ granted: ['chat'] });
         await hello();
 
-        await expect(call('data', 'chat.sendChat', [{ text: 'hi' }])).resolves.toMatchObject({
+        await expect(call('data', 'chat.deleteChat', [{ id: 'm1' }])).resolves.toMatchObject({
             type: 'OnRuntimeCall',
             success: false,
             error: {
                 code: 'RUNTIME_NOT_ALLOWED',
-                details: { target: 'data', method: 'chat.sendChat', reason: 'write' },
+                details: { target: 'data', method: 'chat.deleteChat', reason: 'write' },
             },
         });
+        expect(onRefused).toHaveBeenCalledWith(expect.objectContaining({ method: 'chat.deleteChat', reason: 'write' }));
+    });
+
+    it('sends a text message to a room of the place with chatSend, and answers the sent message', async () => {
+        const { hello, call, repositories } = build({ granted: ['chatSend'] });
+        await hello();
+
+        await expect(call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }])).resolves.toEqual({
+            type: 'OnRuntimeCall',
+            success: true,
+            data: { value: { id: 'm9', channelId: 'ch1', content: '3' } },
+        });
+        expect(repositories.chat.sendChat).toHaveBeenCalledWith({ channelId: 'ch1', content: '3' });
+    });
+
+    it.each([
+        ['in another place of the cloud', 'ch2'],
+        ['this device does not hold', 'ch404'],
+    ])('refuses a message to a room %s, before it is sent', async (_case, room) => {
+        const { hello, call, repositories, onRefused } = build({ granted: ['chatSend'] });
+        await hello();
+
+        await expect(call('data', 'chat.sendChat', [{ channelId: room, content: '3' }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { method: 'chat.sendChat', reason: 'guard' } },
+        });
         expect(repositories.chat.sendChat).not.toHaveBeenCalled();
-        expect(onRefused).toHaveBeenCalledWith(expect.objectContaining({ method: 'chat.sendChat', reason: 'write' }));
+        expect(onRefused).toHaveBeenCalledWith(expect.objectContaining({ method: 'chat.sendChat', reason: 'guard' }));
+    });
+
+    it('refuses a message without chatSend, whatever reads the page holds', async () => {
+        const { hello, call, repositories } = build({ granted: ['channel', 'chat'] });
+        await hello();
+
+        await expect(call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'notGranted' } },
+        });
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
+    });
+
+    it('refuses a message once the session left the place the view opened on, and reads on', async () => {
+        const { hello, call, repositories, moveToPlace } = build({ granted: ['chatSend', 'channel'] });
+        await hello();
+        moveToPlace('s2');
+
+        await expect(call('data', 'chat.sendChat', [{ channelId: 'ch2', content: '3' }])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+        });
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
+        await expect(call('data', 'channel.cacheReadList', [{ sid: 's2' }])).resolves.toMatchObject({ success: true });
+    });
+
+    it('asks a page that may send per place, and a page that only reads per cloud', async () => {
+        const ensure = jest.fn(async () => 'allowed' as const);
+        await build({ granted: ['chatSend'], consent: { ensure } }).hello();
+        await build({ granted: ['chat'], consent: { ensure } }).hello();
+
+        expect(ensure).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ cloudId: 'c1', placeId: 's1' }),
+            expect.anything()
+        );
+        expect(ensure).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ cloudId: 'c1', placeId: undefined }),
+            expect.anything()
+        );
+    });
+
+    it('sends nothing from a view that closed while the message waited on the user', async () => {
+        let answer: (allowed: 'allowed') => void = () => undefined;
+        const ensure = jest
+            .fn()
+            .mockResolvedValueOnce('allowed')
+            .mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
+        const { hello, call, runtime, repositories } = build({ granted: ['chatSend'], consent: { ensure } });
+        await hello();
+        // The hello was allowed; the message's own check then waits on a question still on screen.
+        const sending = call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }]);
+        await flush();
+        runtime.dispose();
+        answer('allowed');
+
+        await expect(sending).resolves.toMatchObject({ success: false, error: { code: 'RUNTIME_NOT_STARTED' } });
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
+    });
+
+    it("answers the room read's own failure, not a guard", async () => {
+        const { hello, call, repositories } = build({ granted: ['chatSend'] });
+        await hello();
+        repositories.channel.cacheRead.mockRejectedValueOnce(new Error('cache closed'));
+
+        const answer = await call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }]);
+        expect(answer).toMatchObject({ success: false });
+        expect((answer as { error: { code: string } }).error.code).not.toBe('RUNTIME_NOT_ALLOWED');
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
+    });
+
+    it('spends the send budget on a message, apart from the read budget', async () => {
+        const reads = jest.fn(() => ({ ok: true as const }));
+        const sent = jest.fn(() => ({ ok: false as const, retryAfterMs: 300 }));
+        const { hello, call, repositories } = build({
+            granted: ['chatSend'],
+            budget: { take: reads },
+            sends: { take: sent },
+        });
+        await hello();
+
+        await expect(call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RATE_LIMITED', details: { retryAfterMs: 300 } },
+        });
+        expect(reads).not.toHaveBeenCalled();
+        expect(sent).toHaveBeenCalledTimes(1);
+        expect(repositories.chat.sendChat).not.toHaveBeenCalled();
     });
 
     it('refuses a place switch: the session commands are closed', async () => {

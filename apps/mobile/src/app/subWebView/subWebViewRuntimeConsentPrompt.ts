@@ -1,3 +1,4 @@
+import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
 import { Alert } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 
@@ -27,15 +28,38 @@ const openStore = (): SubWebViewConsentStore => {
     return store;
 };
 
+/**
+ * The words of the question. Sending is named on its own, never listed among the reads: a page that may
+ * post in the user's name says so in the title, and the "cannot change anything" line is dropped.
+ */
+export const consentQuestion = (
+    host: string,
+    permissions: readonly SubWebViewRuntimePermission[]
+): { title: string; message: string } => {
+    const reads = permissions.filter(permission => permission !== 'chatSend');
+    const what = reads.map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey)).join(', ');
+    if (!permissions.includes('chatSend')) {
+        return {
+            title: t('webview.subRuntimeConsent.title'),
+            message: t('webview.subRuntimeConsent.message').replace('{0}', host).replace('{1}', what),
+        };
+    }
+    return {
+        title: t('webview.subRuntimeConsent.titleWithSend'),
+        message:
+            reads.length === 0
+                ? t('webview.subRuntimeConsent.messageSendOnly').replace('{0}', host)
+                : t('webview.subRuntimeConsent.messageWithSend').replace('{0}', host).replace('{1}', what),
+    };
+};
+
 /** The question, as a system alert; dismissing it is a refusal. */
 const ask: AskSubWebViewConsent = ({ host, permissions }) =>
     new Promise(resolve => {
-        const what = permissions
-            .map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey))
-            .join(', ');
+        const { title, message } = consentQuestion(host, permissions);
         Alert.alert(
-            t('webview.subRuntimeConsent.title'),
-            t('webview.subRuntimeConsent.message').replace('{0}', host).replace('{1}', what),
+            title,
+            message,
             [
                 { text: t('webview.subRuntimeConsent.deny'), style: 'cancel', onPress: () => resolve(false) },
                 { text: t('webview.subRuntimeConsent.allow'), onPress: () => resolve(true) },

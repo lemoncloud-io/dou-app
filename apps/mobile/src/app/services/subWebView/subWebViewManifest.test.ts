@@ -63,11 +63,14 @@ describe('parseSubWebViewManifest', () => {
 
     it('reads the runtime permissions into a set of their own, and drops a name it does not know', () => {
         const manifest = parseSubWebViewManifest(
-            JSON.stringify({ manifestVersion: 1, permissions: ['share', 'channel', 'chat', 'messages', 'session'] })
+            JSON.stringify({
+                manifestVersion: 1,
+                permissions: ['share', 'channel', 'chat', 'messages', 'session', 'chatSend'],
+            })
         );
 
         expect(manifest?.permissions).toEqual(new Set(['share']));
-        expect(manifest?.runtimePermissions).toEqual(new Set(['channel', 'chat', 'session']));
+        expect(manifest?.runtimePermissions).toEqual(new Set(['channel', 'chat', 'session', 'chatSend']));
     });
 
     it('gives a page with no readable manifest the base set, no bar and any orientation', () => {

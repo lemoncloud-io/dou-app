@@ -167,8 +167,10 @@ describe('SubWebView', () => {
             mockRuntimeAccess = {
                 engine: { session: { snapshot: jest.fn(), subscribe: jest.fn() } },
                 openedCloudId: 'c1',
+                openedPlaceId: 's1',
                 granted: new Set(['channel']),
                 budget: { take: jest.fn() },
+                sends: { take: jest.fn() },
                 consent: { ensure: jest.fn() },
             };
             const view = renderView({ runtimePermissions: new Set(['channel'] as const) });

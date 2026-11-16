@@ -138,10 +138,12 @@ export type {
     RuntimeHostSend,
     RuntimePayloadSample,
 } from './bridge/host';
-// What a sub WebView page may ask of the runtime: a whitelist of read methods, by permission.
+// What a sub WebView page may ask of the runtime: a whitelist of read methods and one text send, by
+// permission.
 export {
     SUB_WEB_VIEW_ALLOWED,
     SUB_WEB_VIEW_DATA_MEMBER_WHITELIST,
+    SUB_WEB_VIEW_MESSAGE_LIMIT,
     SUB_WEB_VIEW_REPOSITORY_WHITELIST,
     SUB_WEB_VIEW_TARGETS,
     checkSubWebViewRuntimeRequest,
@@ -153,7 +155,7 @@ export type {
     SubWebViewDecision,
     SubWebViewDeny,
     SubWebViewDenyReason,
-    SubWebViewReadCost,
+    SubWebViewRequestCost,
     SubWebViewRuntimeCheck,
     SubWebViewRuntimeRequest,
     SubWebViewRuntimeScope,

@@ -17,6 +17,17 @@
 > whose `reviewed` tier is the only one answered;
 > [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md), whose runtime messages
 > and contract this reuses
+>
+> **Amended by [ADR-0323](./0323-a-sub-webview-page-reads-its-cloud-from-the-server-and-its-hello-waits-for-the-user.md) (2026-11-16):**
+> decision 2's `cloud.getCloud` is open under `cloud` as `({ id }, { cache: false })`, which writes
+> nothing, held to the current cloud with no `cid`; decision 4's server reads are four, and decision 5's
+> table opens 29 methods; decision 11's `connect` waits for the user's answer with no timeout.
+>
+> **Amended by [ADR-0325](./0325-a-sub-webview-page-may-send-a-text-message-to-a-room-of-its-place.md) (2026-11-16):**
+> decision 2 gains one write, `chat.sendChat` of plain text to a room of the place the view opened on,
+> under a seventh permission, `chatSend` (decision 5), and decision 5's table opens 30 methods;
+> decision 8 reads the room before a message goes; decision 9's question names sending, and its yes
+> is kept per place; decision 10 budgets messages apart, at one per 500 ms and 30 a minute.
 
 ## Context
 

@@ -47,6 +47,7 @@ const RUNTIME_PERMISSIONS: readonly SubWebViewRuntimePermission[] = [
     'channel',
     'chat',
     'user',
+    'chatSend',
 ];
 const DISPLAYS: readonly SubWebViewDisplay[] = ['standard', 'fullscreen'];
 const ORIENTATIONS: readonly SubWebViewOrientation[] = ['any', 'portrait', 'landscape'];

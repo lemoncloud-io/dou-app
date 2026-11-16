@@ -19,7 +19,8 @@
 // answer; the handshake below is where the two settle it for this launch.
 //
 // (2.26.0) A sub WebView page is answered the same four requests on its own host, through a whitelist:
-// only read methods of the current cloud's data, as its manifest opens them, and its hello settles
+// only read methods of the current cloud's data — and, with `chatSend` (2.27.0), one text send — as its
+// manifest opens them, and its hello settles
 // nothing (`OnSubWebViewRuntimeHelloPayload`). No other origin is answered.
 
 /** A JSON value as it crosses the bridge. */
