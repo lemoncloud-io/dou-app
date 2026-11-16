@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import hostFactsAllowlist from './tools/eslint-rules/host-facts-allowlist.js';
+
 /**
  * The log areas, read out of `@chatic/logger`'s own list so this file never holds a second copy.
  * A config cannot import TypeScript, so the array literal is read as text; if that ever finds
@@ -162,6 +164,9 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   React surface, and a port is not UI, so no React either.
  * - `layer:react-surface` — `@chatic/app-runtime`, what apps render against. It never imports an
  *   adapter: which platform fills the ports is the entry point's choice, not the surface's.
+ * - `layer:host` — `@chatic/host`, the capability ports screens reach the host through. A port talks
+ *   to the host, not to the relay or the session: the bridge and the host profile are within reach;
+ *   the core libs, the runtime, its adapters, the React surface and React are not.
  * - `platform:web` — a package that only runs in a web page. It may not pull React Native in.
  * - `platform:native` — a package that only runs in React Native's JS process
  *   (`@chatic/runtime-mobile`). It may not depend on a `platform:web` package: what is true of a page
@@ -209,6 +214,13 @@ const runtimeLayerConstraints = [
     {
         sourceTag: 'platform:native',
         notDependOnLibsWithTags: ['platform:web'],
+    },
+    {
+        // `@chatic/host`'s ports talk to the host, not to the relay or the session: the host profile and
+        // the bridge are within reach, the data layer and the runtime are not, and neither is React.
+        sourceTag: 'layer:host',
+        notDependOnLibsWithTags: ['layer:core-lib', 'layer:runtime-core', 'layer:adapter', 'layer:react-surface'],
+        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
 ];
 
@@ -515,6 +527,19 @@ export default [
         rules: {
             // tools/eslint-rules/runtime-wiring-call.js
             '@nx/workspace-runtime-wiring-call': ['error', RUNTIME_WIRING],
+        },
+    },
+    {
+        // Asking the host what it is — `isNative()`, a `CHATIC_APP_*` global — belongs to the entry
+        // point and `@chatic/bridges`; features reach the host through `@chatic/host`'s ports. The rule
+        // says why; the allow-list (tools/eslint-rules/host-facts-allowlist.js) starts with every file
+        // that did it and shrinks as each domain moves onto its port. Tests and fakes play the host on
+        // purpose and are left out. The shells only write the globals, which the rule does not report.
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx', '**/testing/**', '**/__mocks__/**'],
+        rules: {
+            // tools/eslint-rules/host-facts.js
+            '@nx/workspace-host-facts': ['error', { allowedFiles: hostFactsAllowlist }],
         },
     },
     {

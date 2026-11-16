@@ -8,6 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { createWebRuntime, readStorageEnvironment, resolveStorageStores } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
+import { publishHostPorts } from './app/host/publishHostPorts';
 import { configureAppStores } from './app/storage';
 import { applyAppearance, useAppearancePrefsStore } from './app/shared/stores/useAppearancePrefsStore';
 
@@ -27,6 +28,8 @@ configureAppStores({ device: stores.device, tab: stores.tab, plain: stores.plain
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
 config.init(createWebConfigPorts(stores));
+// The host's ports, chosen once, before anything that renders could read one.
+publishHostPorts();
 
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.

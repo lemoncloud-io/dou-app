@@ -12,6 +12,9 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../libs/host/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/runtime-web/tsconfig.lib.json"
         },
         {
