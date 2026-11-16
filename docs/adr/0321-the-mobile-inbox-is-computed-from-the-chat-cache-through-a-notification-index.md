@@ -139,8 +139,10 @@ fallback for shells without the index.
    cache already holds, up to a bound per room. What lies past the bound stays a hole, as it is today.
    A room the cache holds nothing of gets its newest page only: it has no hole, only history, and
    walking every such room would pull the bound for each one on a fresh install.
-    - **The newest page joins the room's.** It goes through the same room-feed call as the room's entry
-      and head refresh, so an open room that is behind sends one request, not two.
+    - **The newest page is 30 rows, asked on its own.** Sharing the room-feed call the room's entry
+      uses would save an open room that is behind a second request, but that call asks for the
+      server's default of 20, and a room opened on fewer than two screens of rows asks for an older
+      page straight away. The 30 rows are what let a room open on its newest messages without one.
     - **Older pages are gated.** At most two run at a time across every room, so a long absence in a
       big place does not put every room's walk on the socket at once.
     - **The cache is read on a head move, not on a write.** The comparison point comes from the
@@ -167,7 +169,7 @@ fallback for shells without the index.
 These are settled when the implementation lands, from measurements on a device:
 
 - the catch-up's bound per room (decision 6) — it ships at five older pages of 50 after the newest
-  page of 20, 270 messages in all, two older pages in flight at a time, with no measurement behind the
+  page of 30, 280 messages in all, two older pages in flight at a time, with no measurement behind the
   numbers yet; a device measurement of how far rooms fall behind is what should move them;
 - the retention window, which bounds every walk and the overlay;
 - whether the archive view ships with the first change or the state only;

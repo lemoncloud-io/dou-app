@@ -3,7 +3,13 @@ import { useEffect, useRef } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel, IChatRepository } from '@chatic/data';
 
-import { CATCH_UP_OLDER_CONCURRENCY, catchUpChannel, createPageGate, type PageGate } from './chatCatchUp';
+import {
+    CATCH_UP_LIMIT,
+    CATCH_UP_OLDER_CONCURRENCY,
+    catchUpChannel,
+    createPageGate,
+    type PageGate,
+} from './chatCatchUp';
 import { readSelectedCloudId, useSelectedCloudId } from './useCloudScope';
 
 /**
@@ -153,10 +159,9 @@ export const useChatSyncRegistration = (
             const { chat } = runtime.data.getCloudRepositories(readCid);
             void catchUpChannel({
                 knownNo,
-                // The room's entry and its head refresh fetch the newest page through this same call,
-                // which joins a request already in flight instead of sending a second one.
-                fetchNewest: () =>
-                    runtime.sync.fetchRoomFeed(readCid, channelId, { cache: knownNo > 0 ? 'hit' : 'miss' }),
+                // Not the room feed the room's own entry shares: that asks for the server's default of
+                // 20, and a room opened on fewer than two screens of rows asks for an older page at once.
+                fetchNewest: () => chat.refreshList({ channelId, limit: CATCH_UP_LIMIT }),
                 // The cursor is a number the previous page counted, so the head is at or above it.
                 fetchOlder: (cursorNo, limit) =>
                     gate(() => chat.refreshList({ channelId, cursorNo, limit }, { cursorIsRow: true })),

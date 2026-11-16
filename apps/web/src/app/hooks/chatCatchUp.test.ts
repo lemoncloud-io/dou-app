@@ -1,4 +1,5 @@
 import {
+    CATCH_UP_LIMIT,
     CATCH_UP_MAX_OLDER_PAGES,
     CATCH_UP_OLDER_LIMIT,
     catchUpChannel,
@@ -6,8 +7,8 @@ import {
     type CatchUpPage,
 } from './chatCatchUp';
 
-/** The server's page size when a request names none — what the newest page is counted with. */
-const NEWEST_LIMIT = 20;
+/** The newest page is counted with the catch-up's own size. */
+const NEWEST_LIMIT = CATCH_UP_LIMIT;
 
 /**
  * A feed that counts down like the server: a page below `cursorNo` (or below the head) covers `limit`
@@ -38,21 +39,21 @@ describe('catchUpChannel', () => {
     });
 
     it('pages older until the pages meet the newest cached row', async () => {
-        // Head 200, cache up to 100: the newest page covers 181–200, then 131–180, then 81–130.
+        // Head 200, cache up to 100: the newest page covers 171–200, then 121–170, then 71–120.
         const feed = feedWithHead(200);
 
         const result = await catchUpChannel({ knownNo: 100, ...feed, shouldContinue: always });
 
         expect(feed.fetchOlder.mock.calls).toEqual([
-            [181, CATCH_UP_OLDER_LIMIT],
-            [131, CATCH_UP_OLDER_LIMIT],
+            [171, CATCH_UP_OLDER_LIMIT],
+            [121, CATCH_UP_OLDER_LIMIT],
         ]);
         expect(result).toEqual({ olderPages: 2, reachedCache: true });
     });
 
     it('treats a page that starts right above the cached row as meeting it', async () => {
-        // Head 120, cache up to 100: the newest page covers 101–120, nothing is missing.
-        const feed = feedWithHead(120);
+        // Head 130, cache up to 100: the newest page covers 101–130, nothing is missing.
+        const feed = feedWithHead(130);
 
         const result = await catchUpChannel({ knownNo: 100, ...feed, shouldContinue: always });
 

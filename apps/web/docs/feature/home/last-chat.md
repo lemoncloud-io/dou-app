@@ -63,18 +63,21 @@ that cache — the notification inbox among them — rely on. It has two mechani
   arriving for any of the site's channels is appended live. Registration is ref-counted by key, so
   an open room's own registration for the same channel dedups into this one.
 - **Head-triggered catch-up** — a channel whose polled head (`channel.chatNo`) has run ahead of
-  what the chat cache holds gets its newest page pulled through `runtime.sync.fetchRoomFeed`, the
-  call the room's own entry and head refresh use, so an open room that is behind gets one request,
-  not two. This is the convergence guarantee: it does not care whether a push was delivered, missed
-  or scoped away, and it fires only for channels that actually moved.
-- **Older pages until the gap closes** (`hooks/chatCatchUp.ts`) — when the newest page (the server's
-  default of 20) does not reach the newest row the cache held, older pages of 50 follow until they do,
-  so a room that gained more while the reader was away keeps no hole between its old rows and its new
-  ones. The server counts each page down from the cursor and returns the lowest number it counted;
-  the walk stops once that number is at or below the cached row plus one, at the start of history
-  (0), after five older pages (270 messages in all — past that the hole stays until the room is opened
-  and scrolled), or as soon as the selected cloud or account is no longer the one it started under.
-  The older pages are written through that cloud's own repositories, marked `cursorIsRow` (the cursor
+  what the chat cache holds gets its newest page of `CATCH_UP_LIMIT` (30) pulled. This is the
+  convergence guarantee: it does not care whether a push was delivered, missed or scoped away, and it
+  fires only for channels that actually moved. It does not go through `runtime.sync.fetchRoomFeed`,
+  the call the room's own entry shares, although that would save an open room a second request: the
+  room feed asks for the server's default of 20, and a room opened on fewer than two screens of rows
+  asks for an older page straight away. The 30 rows home's catch-up caches are what let a room open
+  on its newest messages without one (`apps/web-e2e` `chat-paging.spec.ts` holds this).
+- **Older pages until the gap closes** (`hooks/chatCatchUp.ts`) — when the newest page does not reach
+  the newest row the cache held, older pages of 50 follow until they do, so a room that gained more
+  than 30 messages while the reader was away keeps no hole between its old rows and its new ones. The
+  server counts each page down from the cursor and returns the lowest number it counted; the walk
+  stops once that number is at or below the cached row plus one, at the start of history (0), after
+  five older pages (280 messages in all — past that the hole stays until the room is opened and
+  scrolled), or as soon as the selected cloud or account is no longer the one it started under.
+  Every page is written through that cloud's own repositories; the older ones are marked `cursorIsRow` (the cursor
   is a number the previous page counted, so the coverage record runs right up to it), and go through
   one gate that lets two run at a time across every room, so a long absence in a big place does not
   put them all on the socket together. A room the cache holds nothing of gets the newest page only:

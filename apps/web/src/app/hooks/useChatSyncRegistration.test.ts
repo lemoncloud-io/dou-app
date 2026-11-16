@@ -10,7 +10,6 @@ jest.mock('@chatic/app-runtime', () => ({
         sync: {
             registerSyncTarget: jest.fn(),
             updateSyncSnapshot: jest.fn(),
-            fetchRoomFeed: jest.fn(),
         },
         session: {
             useSessionSelection: jest.fn(),
@@ -36,7 +35,9 @@ interface Subscription {
 
 const registerChat = jest.fn();
 const updateSyncSnapshot = jest.fn();
-const fetchRoomFeed = jest.fn();
+/** The cloud repository's newest-page requests (no cursor). */
+const newestFeed = jest.fn();
+/** The cloud repository's older-page requests (with a cursor). */
 const olderRefreshList = jest.fn();
 let subscriptions: Subscription[] = [];
 const observeLastList = jest.fn((ids: string[], cb: (rows: DomainLastChat[]) => void) => {
@@ -67,11 +68,14 @@ const answer = async (rows: DomainLastChat[]) => {
 beforeEach(() => {
     jest.clearAllMocks();
     subscriptions = [];
-    fetchRoomFeed.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
+    newestFeed.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
     olderRefreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
     registerChat.mockReturnValue(jest.fn());
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList } });
-    (runtime.data.getCloudRepositories as jest.Mock).mockReturnValue({ chat: { refreshList: olderRefreshList } });
+    // One repository answers both: the newest page asks with no cursor, an older page with one.
+    const refreshList = (query: { cursorNo?: number }, options?: unknown) =>
+        query.cursorNo === undefined ? newestFeed(query) : olderRefreshList(query, options);
+    (runtime.data.getCloudRepositories as jest.Mock).mockReturnValue({ chat: { refreshList } });
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: true });
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
     select('cloud-a');
@@ -80,7 +84,6 @@ beforeEach(() => {
     (runtime.sync.updateSyncSnapshot as jest.Mock).mockImplementation((...args: unknown[]) =>
         updateSyncSnapshot(...args)
     );
-    (runtime.sync.fetchRoomFeed as jest.Mock).mockImplementation((...args: unknown[]) => fetchRoomFeed(...args));
 });
 
 describe('readLastNos', () => {
@@ -164,25 +167,25 @@ describe('useChatSyncRegistration', () => {
         await settle();
 
         expect(observeLastList).toHaveBeenCalledTimes(1);
-        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
+        expect(newestFeed).toHaveBeenCalledTimes(1);
     });
 
-    it('fetches the newest page through the room feed, only for channels whose head is ahead', async () => {
+    it('fetches a newest page of 30, only for channels whose head is ahead', async () => {
         renderHook(() => useChatSyncRegistration([channel('c1', 7), channel('c2', 3)]));
 
         await answer([row('c1', 4), row('c2', 3)]);
 
-        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
-        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'hit' });
+        expect(newestFeed).toHaveBeenCalledTimes(1);
+        expect(newestFeed).toHaveBeenCalledWith({ channelId: 'c1', limit: 30 });
     });
 
-    it('marks a room the cache holds nothing of as a cache miss and does not walk it', async () => {
-        fetchRoomFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
+    it('does not walk a room the cache holds nothing of', async () => {
+        newestFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
         renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
 
         await answer([]);
 
-        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'miss' });
+        expect(newestFeed).toHaveBeenCalledWith({ channelId: 'c1', limit: 30 });
         expect(olderRefreshList).not.toHaveBeenCalled();
     });
 
@@ -196,7 +199,7 @@ describe('useChatSyncRegistration', () => {
         await answer([row('c1', 4)]);
 
         expect(subscriptions[1].ids).toEqual(['c1']);
-        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'c1', { cache: 'hit' });
+        expect(newestFeed).toHaveBeenCalledWith({ channelId: 'c1', limit: 30 });
     });
 
     it('walks one head once', async () => {
@@ -208,11 +211,11 @@ describe('useChatSyncRegistration', () => {
         rerender({ channels: [channel('c1', 7)] });
         await settle();
 
-        expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
+        expect(newestFeed).toHaveBeenCalledTimes(1);
     });
 
     it('pages older through the cloud repositories until the pages meet the newest cached row', async () => {
-        fetchRoomFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
+        newestFeed.mockResolvedValue({ fetchedCount: 20, cursorNo: 181 });
         olderRefreshList
             .mockResolvedValueOnce({ fetchedCount: 50, cursorNo: 131 })
             .mockResolvedValueOnce({ fetchedCount: 50, cursorNo: 81 });
@@ -229,7 +232,7 @@ describe('useChatSyncRegistration', () => {
 
     it('stops paging older once the selection moves to another cloud', async () => {
         let answerNewest: (page: { fetchedCount: number; cursorNo: number }) => void = () => undefined;
-        fetchRoomFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
+        newestFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
         renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
         await answer([row('c1', 100)]);
 
@@ -243,7 +246,7 @@ describe('useChatSyncRegistration', () => {
 
     it('stops paging older once the account in the cloud changes', async () => {
         let answerNewest: (page: { fetchedCount: number; cursorNo: number }) => void = () => undefined;
-        fetchRoomFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
+        newestFeed.mockImplementationOnce(() => new Promise(resolve => (answerNewest = resolve)));
         const { rerender } = renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
         await answer([row('c1', 100)]);
 
@@ -289,7 +292,7 @@ describe('useChatSyncRegistration', () => {
         select('cloud-b');
         await answer([row('a1', 5)]);
         expect(updateSyncSnapshot).not.toHaveBeenCalled();
-        expect(fetchRoomFeed).not.toHaveBeenCalled();
+        expect(newestFeed).not.toHaveBeenCalled();
 
         rerender({ channels: [channel('b1', 3)] });
         await answer([row('b1', 1)]);
@@ -299,6 +302,6 @@ describe('useChatSyncRegistration', () => {
             { id: 'b1', lastNo: 1 },
             { cid: 'cloud-b' }
         );
-        expect(fetchRoomFeed).toHaveBeenCalledWith('cloud-b', 'b1', { cache: 'hit' });
+        expect(newestFeed).toHaveBeenCalledWith({ channelId: 'b1', limit: 30 });
     });
 });

@@ -1,11 +1,18 @@
+/**
+ * Size of the newest page. Deep enough to reach a real message when the newest rows are not
+ * previewable (a reaction burst), and enough for a room opened later to start with more than two
+ * screens of rows, so entering it does not ask for an older page straight away.
+ */
+export const CATCH_UP_LIMIT = 30;
+
 /** Size of each older page, once the newest one did not reach what the cache holds. */
 export const CATCH_UP_OLDER_LIMIT = 50;
 
 /**
  * Most older pages one head may pull after the newest. Past this a room that gained more while the
  * reader was away keeps a hole below what was pulled, filled when the room is opened and scrolled —
- * as every gap was before catch-up paged at all. Five pages of 50 over the newest page (the server's
- * default of 20) is 270 messages.
+ * as every gap was before catch-up paged at all. Five pages of 50 over the newest page of 30 is 280
+ * messages.
  */
 export const CATCH_UP_MAX_OLDER_PAGES = 5;
 
