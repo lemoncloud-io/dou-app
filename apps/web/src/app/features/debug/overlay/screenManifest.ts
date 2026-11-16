@@ -105,7 +105,7 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen })),
     },
     {
-        // Which side holds the session on the phone. Production builds leave it unanswered.
+        // Which side holds the session on the phone. A production app answers it only in debug mode.
         key: 'SessionOwner',
         requiresShell: true,
         icon: 'ArrowLeftRight',

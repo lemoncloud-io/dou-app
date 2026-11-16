@@ -8,7 +8,7 @@ name: Dev sign-in from a fresh guest
 ---
 - runFlow: ../_shared/fresh-guest.yaml
 - extendedWaitUntil:
-      visible: '.*Self Chat'
+      visible: '.*Self Chat.*'
       timeout: 90000
 - runFlow: ../_shared/dev-sign-in.yaml
 # A signed-in MY shows the account's entries instead of "Sign in required".

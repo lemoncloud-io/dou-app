@@ -23,12 +23,12 @@ const OWNERS: readonly SessionOwnerName[] = ['web', 'native'];
 export const RESTART_WAIT_MS = 5000;
 
 /**
- * The development switch for who holds the session on the phone — the page, or the app's own runtime.
+ * The switch for who holds the session on the phone — the page, or the app's own runtime.
  *
- * **The app decides whether it is offered.** A production app build registers neither request, so the
- * read fails and this screen says the switch is not there; nothing a page does can move the session in
- * production. A change is recorded by the app and applied by restarting its JS, which reloads this page
- * — so a successful switch is the last thing this screen shows.
+ * **The app decides whether it is offered.** A production app build answers only while its debug mode
+ * is on, for internal testing; otherwise the read fails and this screen says the switch is not there. A change is recorded by the app and applied by
+ * restarting its JS, which reloads this page — so a successful switch is the last thing this screen
+ * shows.
  */
 export const SessionOwnerScreen = () => {
     const { result, run } = useDebugOperation();

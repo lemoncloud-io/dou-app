@@ -11,7 +11,7 @@ const NATIVE_LAUNCH_ONLY =
     "The runtime conversation; registered on its own (useRuntimeBridgeHandler) and only on a launch the app's runtime owns, which offers it in CHATIC_APP_RUNTIME";
 
 const OWNER_SWITCH =
-    'The development session owner switch; registered on its own (useSessionOwnerHandler) and only by a non-production build';
+    'The session owner switch; registered on its own (useSessionOwnerHandler), and answered outside production or while debug mode is on';
 
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
@@ -140,8 +140,8 @@ describe('mobile bridge contract', () => {
             'useWebViewNavigation.ts',
             // The runtime requests, registered only on a launch the app's runtime owns.
             'useRuntimeBridgeHandler.ts',
-            // The session owner switch, registered only by a non-production build. Listed in
-            // MOBILE_UNSUPPORTED above because this suite does not mount it.
+            // The session owner switch, answered outside production or while debug mode is on. Listed
+            // in MOBILE_UNSUPPORTED above because this suite does not mount it.
             'useSessionOwnerHandler.ts',
             '../../subWebView/createSubBridgeHost.ts',
         ];

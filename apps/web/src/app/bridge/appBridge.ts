@@ -416,7 +416,7 @@ export const appBridge = {
 
     /**
      * Which side holds the session on the phone — now, and from the next start. A production app build
-     * does not answer (`NOT_FOUND`): the switch exists only outside production.
+     * answers only while its debug mode is on (`NOT_ALLOWED` otherwise; an older one, `NOT_FOUND`).
      */
     fetchSessionOwner(): Promise<WebMessageResponse<'FetchSessionOwner'>> {
         return webClient.request({ type: 'FetchSessionOwner', data: {} });

@@ -297,7 +297,7 @@ export type WebMessagePayloadMap = {
     RuntimeCall: RuntimeCallPayload;
     RuntimeSubscribe: RuntimeSubscribePayload;
     RuntimeUnsubscribe: RuntimeUnsubscribePayload;
-    // 13. Session owner. A development switch, answered only by a non-production shell.
+    // 13. Session owner. The owner switch, answered outside production or while the shell's debug mode is on.
     FetchSessionOwner: FetchSessionOwnerPayload;
     SetSessionOwner: SetSessionOwnerPayload;
 };

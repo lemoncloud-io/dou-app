@@ -4,7 +4,8 @@ const en = {
     title: 'Session owner',
     subtitle:
         'Which side holds the session on the phone: this page, or the app’s own runtime. Changing it restarts the app, which reloads this page.',
-    unavailable: 'This app build does not offer the switch (a production build, or one from before it).',
+    unavailable:
+        'This app build does not offer the switch right now: a production build offers it only while debug mode is on, and a build from before it never does.',
     statusSection: 'Owner',
     currentLabel: 'This run',
     nextLabel: 'From the next start',
@@ -24,7 +25,8 @@ const ko: typeof en = {
     title: '세션 소유자',
     subtitle:
         '폰에서 세션을 누가 쥐는지 — 이 페이지인지, 앱의 런타임인지. 바꾸면 앱이 다시 시작되고 이 페이지도 다시 로드됩니다.',
-    unavailable: '이 앱 빌드는 이 전환을 제공하지 않습니다 (PROD 빌드이거나 그 이전 빌드).',
+    unavailable:
+        '지금 이 앱 빌드는 이 전환을 제공하지 않습니다. PROD 빌드는 디버그 모드가 켜져 있을 때만 제공하고, 이 전환이 생기기 전 빌드는 제공하지 않습니다.',
     statusSection: '소유자',
     currentLabel: '이번 실행',
     nextLabel: '다음 시작부터',

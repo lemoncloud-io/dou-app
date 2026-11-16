@@ -44,8 +44,12 @@ describe('isSessionOwnerSwitchAllowed', () => {
         [undefined, false],
         ['', false],
         ['STAGING', false],
-    ])('stage %p → %p', (stage, allowed) => {
-        expect(isSessionOwnerSwitchAllowed(stage)).toBe(allowed);
+    ])('stage %p with debug mode off → %p', (stage, allowed) => {
+        expect(isSessionOwnerSwitchAllowed(stage, false)).toBe(allowed);
+    });
+
+    it.each(['PROD', undefined, 'STAGING', 'DEV'])('stage %p with debug mode on → offered', stage => {
+        expect(isSessionOwnerSwitchAllowed(stage, true)).toBe(true);
     });
 });
 
