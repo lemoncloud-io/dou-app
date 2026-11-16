@@ -1,8 +1,9 @@
 # ADR-0324: The host declares what it can do, and features reach it through ports chosen at the entry point
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0 of
-> the migration; steps 1–7 follow)
-> · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile)
+> Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
+> `refactor/host-ports-frame` (step 1); steps 2–7 follow
+> · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
+> the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
 > `libs/runtime-web`, `libs/shared`; the config adapters of `apps/web`, `apps/desktop-web` and
 > `apps/admin`; `apps/web` (the device store, the runtime offer)

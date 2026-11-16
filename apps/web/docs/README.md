@@ -114,7 +114,8 @@ Source comments in this app are English. So are these documents.
 ## Notes for implementers
 
 - **`main.tsx` is ordered by contract, not by taste.** The log listeners are attached before
-  anything can log, `config.init()` precedes every lazy setting read, and building the runtime
+  anything can log, `config.init()` precedes every lazy setting read, `publishHostPorts()` (the one
+  file that chooses `@chatic/host`'s ports) follows it before anything renders, and building the runtime
   (`createWebRuntime`, handed to `runtime.boot.initAppRuntime`) precedes every session read. Each boundary carries a comment saying what breaks
   if a line moves across it. Read those before inserting anything.
 - **`app/utils/index.ts` deliberately excludes the modules that read `import.meta.env`.** Import

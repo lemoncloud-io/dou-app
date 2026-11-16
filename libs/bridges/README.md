@@ -506,7 +506,9 @@ that its handshake advertises exactly the registered ones — the vocabulary min
 `isNative()` is false, nothing is ever injected, and after 10 seconds every request rejects
 `NATIVE_NOT_SUPPORTED`. Callers are expected to branch on `isNative()` first rather than pay the
 deadline; `useDesktopNotifications` in `apps/desktop-web` does exactly that, and skips the round trip
-entirely.
+entirely. That branch is now the entry point's to make: a feature asks a port of
+[`@chatic/host`](../host/README.md), and `@nx/workspace-host-facts` reports `isNative()` outside the
+entry point and the files on its allow-list.
 
 ### 6. A web log crossing to the native console
 

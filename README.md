@@ -166,6 +166,7 @@ dou-app/
 ├── libs/
 │   ├── data/                # Headless data layer (models, cache, repositories)
 │   ├── db/                  # Cache storage engines (IndexedDB / native SQLite)
+│   ├── host/                # The host's capability ports, chosen at each app's entry point
 │   ├── http/                # Request execution, retry & logging policy
 │   ├── config/              # Runtime settings facade
 │   ├── storage/             # Key-value stores split by where a value lives

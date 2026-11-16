@@ -19,6 +19,7 @@ import {
 import type { SessionOwnerChoice } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
+import { publishHostPorts } from './app/host/publishHostPorts';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
 
 import App from './app/app';
@@ -101,6 +102,8 @@ syncThemeFromSharedKey(stores.webLocal);
 // boot) resolves it lazily, well after this line, so placement here — before `initAppRuntime` and
 // well before anything renders — is early enough with room to spare.
 config.init(createWebConfigPorts(stores));
+// The host's ports, chosen once, before anything that renders could read one.
+publishHostPorts();
 
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.
