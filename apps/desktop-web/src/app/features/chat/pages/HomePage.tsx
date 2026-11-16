@@ -20,6 +20,7 @@ import {
 } from '../../channels';
 import { DebugPanel } from '../../debug';
 import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
+import { MiniAppRailButton } from '../../settings/components/MiniAppRailButton';
 import {
     ProfilePanel,
     lastChatNoOf,
@@ -931,6 +932,7 @@ export const HomePage = () => {
                         items={NAV_ITEMS}
                         unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
                         place={isDefaultMode ? undefined : places.find(p => p.id === selectedPlaceId)}
+                        extra={<MiniAppRailButton />}
                     />
                 }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}

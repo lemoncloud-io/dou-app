@@ -935,6 +935,7 @@ export const ko: EnTranslation = {
     'nav.notifications': '알림',
     'nav.channels': '채널',
     'nav.dm': 'DM',
+    'nav.miniApp': '미니앱',
     'nav.unread': '{{name}}, 읽지 않은 항목 있음',
     'chat.loadingChannels': '채널 불러오는 중',
     'shell.skip.composer': '메시지 입력창으로 건너뛰기',

@@ -1,7 +1,8 @@
 # Nav rail
 
 The rail between the place tiles and the sidebar column (`NavRail`). It decides what the sidebar
-shows for the active place: **Home**, **Notifications**, **Channels** or **DM**. The account menu is
+shows for the active place: **Home**, **Notifications**, **Channels** or **DM**. Under DM sits the
+**Mini app** action, where it is available. The account menu is
 pinned to its bottom.
 
 ## Destinations
@@ -51,6 +52,16 @@ The Home tile draws the open place's logo in place of the house glyph, so a user
 sees which one the rail is in. A place without a logo, and the Home cloud (no places), keep the glyph.
 Its label and accessible name stay "Home". The same logo on the place rail would hide that tile's lime
 fill, so a place tile with a logo marks the open place with a ring instead.
+
+## Mini app
+
+Under DM, the rail can carry one action that is not a destination: **Mini app** (`MiniAppRailButton`,
+passed by `HomePage` through `NavRail`'s `extra` slot). It opens the cloud's mini app link in the
+desktop shell's sub view, or DoU's hub when the cloud has none; the sidebar and the open destination
+do not change. It is the settings row's launcher placed on the rail, with the same consent and owner
+dialogs, and it shows under the same conditions: a shell that opens any https page, a LOCAL or DEV
+build, and a cloud other than the Default Cloud ([settings](../settings/README.md#mini-apps)). The tile
+is drawn by `RailTile`, the component the destinations use, so it looks like one.
 
 ## Width
 

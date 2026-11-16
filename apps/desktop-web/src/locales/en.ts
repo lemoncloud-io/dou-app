@@ -933,6 +933,7 @@ export const en = {
     'nav.notifications': 'Notifications',
     'nav.channels': 'Channels',
     'nav.dm': 'DM',
+    'nav.miniApp': 'Mini app',
     'nav.unread': '{{name}}, something unread',
     'chat.loadingChannels': 'Loading channels',
     'shell.skip.composer': 'Skip to message box',

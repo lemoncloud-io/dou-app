@@ -1,10 +1,9 @@
 import type { LucideIcon } from 'lucide-react';
 import { Bell, Hash, House, MessageCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/ui-kit';
-
-import { type NavDestination, useNavStore } from '../../../shared';
+import { type NavDestination, RailTile, useNavStore } from '../../../shared';
 import { AccountMenu } from './AccountMenu';
 
 const ICONS: Record<NavDestination, LucideIcon> = {
@@ -21,14 +20,19 @@ interface NavRailProps {
     unread?: Partial<Record<NavDestination, boolean>>;
     /** The open place. Its logo stands in for Home's glyph, so the rail says which place it is in. */
     place?: { thumbnail?: string };
+    /**
+     * Actions drawn under the destinations, as rail tiles (`RailTile`). They open something over the app
+     * rather than swap the sidebar, so they are never the open destination.
+     */
+    extra?: ReactNode;
 }
 
 /**
  * The second rail: where in the active place the sidebar column looks — Home, Notifications,
- * Channels or DM — with the account menu pinned under them. Picking a destination swaps the
- * sidebar and leaves the open conversation where it is.
+ * Channels or DM — then any extra actions, with the account menu pinned under them. Picking a
+ * destination swaps the sidebar and leaves the open conversation where it is.
  */
-export const NavRail = ({ items, unread = {}, place }: NavRailProps) => {
+export const NavRail = ({ items, unread = {}, place, extra }: NavRailProps) => {
     const { t } = useTranslation();
     const active = useNavStore(s => s.active);
     const go = useNavStore(s => s.go);
@@ -42,44 +46,23 @@ export const NavRail = ({ items, unread = {}, place }: NavRailProps) => {
                     const isActive = destination === active;
                     const hasUnread = !!unread[destination];
                     return (
-                        <button
+                        <RailTile
                             key={destination}
-                            type="button"
+                            label={label}
+                            accessibleName={hasUnread ? t('nav.unread', { name: label }) : label}
+                            active={isActive}
+                            dot={hasUnread}
                             onClick={() => go(destination)}
-                            aria-label={hasUnread ? t('nav.unread', { name: label }) : label}
-                            aria-current={isActive ? 'page' : undefined}
-                            className="group flex flex-col items-center gap-1 rounded-lg focus-ring"
                         >
-                            <span
-                                className={cn(
-                                    'relative flex h-11 w-11 items-center justify-center rounded-xl text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                                    // Light mode takes the palette's tile; dark mode keeps its lime tint.
-                                    isActive
-                                        ? 'bg-rail-active text-rail-active-foreground dark:bg-primary/[0.24] dark:text-rail-foreground'
-                                        : 'group-hover:bg-accent'
-                                )}
-                            >
-                                {destination === 'home' && place?.thumbnail ? (
-                                    <img src={place.thumbnail} alt="" className="h-7 w-7 rounded-lg object-cover" />
-                                ) : (
-                                    <Icon size={20} strokeWidth={isActive ? 2.25 : 2} aria-hidden />
-                                )}
-                                {hasUnread && (
-                                    <span className="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-badge-unread" />
-                                )}
-                            </span>
-                            <span
-                                aria-hidden
-                                className={cn(
-                                    'text-micro leading-tight',
-                                    isActive ? 'font-bold text-foreground' : 'font-medium text-rail-foreground'
-                                )}
-                            >
-                                {label}
-                            </span>
-                        </button>
+                            {destination === 'home' && place?.thumbnail ? (
+                                <img src={place.thumbnail} alt="" className="h-7 w-7 rounded-lg object-cover" />
+                            ) : (
+                                <Icon size={20} strokeWidth={isActive ? 2.25 : 2} aria-hidden />
+                            )}
+                        </RailTile>
                     );
                 })}
+                {extra}
             </div>
             <AccountMenu />
         </div>

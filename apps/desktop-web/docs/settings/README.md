@@ -85,6 +85,8 @@ store applies each change.
 ## Mini apps
 
 A section of its own, after Startup (`components/MiniAppSettingsItem.tsx`, `hooks/useMiniAppLauncher.ts`).
+The nav rail's Mini app tile under DM (`components/MiniAppRailButton.tsx`) is the same launcher, with
+the same dialogs and conditions ([nav rail](../shell/nav-rail.md#mini-app)).
 It opens a cloud's mini apps in the desktop shell's sub view, a modal over the app. The shell side is
 in `apps/desktop` (Sub view), and what the page receives is in the sub WebView protocol
 (`apps/mobile/docs/webview/sub-webview-protocol.md`).
