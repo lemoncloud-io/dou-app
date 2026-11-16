@@ -6,9 +6,9 @@ import { host } from '@chatic/host';
  *
  * It is also the one file, beside `@chatic/bridges`' host profile, that may ask the host what it is —
  * `isNative()` and the shell's `CHATIC_APP_*` globals — and lint holds that (`@nx/workspace-host-facts`).
- * A feature asks a port, never the host. No port is defined yet; each arrives with the step that
- * moves its domain's features onto it, and is chosen here.
+ * A feature asks a port, never the host.
  */
 export const publishHostPorts = (): void => {
-    host.publish({});
+    // The desktop app sells nothing: no screen of it offers a subscription.
+    host.publish({ checkout: { kind: 'none' } });
 };

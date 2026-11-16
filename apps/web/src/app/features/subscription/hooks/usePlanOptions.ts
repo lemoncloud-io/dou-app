@@ -45,8 +45,8 @@ const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
  * subscribe sheet. Deriving it in each screen is how the two drifted apart the first time.
  *
  * Reads the catalog directly rather than borrowing `useTierPurchase.changeKindOf`: the screens call
- * both hooks, and going through the purchase hook would stand up a second `useSubscriptionIap` —
- * meaning a duplicate `OnPurchaseSuccess` bridge subscription and a second, unused resolver ref.
+ * both hooks, and going through the purchase hook would stand up a second `useSubscriptionIap` for
+ * nothing.
  */
 export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } => {
     const { t } = useTranslation();

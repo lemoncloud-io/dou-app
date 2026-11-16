@@ -6,11 +6,9 @@ import { SubscriptionDetailPage } from './SubscriptionDetailPage';
 import { usePlanCatalog, usePlanPrice } from '../hooks';
 import { useClouds } from '../../../hooks/useCloudCatalog';
 import { useMembershipInfo } from '../../../hooks/useMembership';
-import { appBridge } from '../../../bridge';
 import { ROUTES } from '../../../routes/paths';
 import { useRestoredSignal } from '../stores/useRestoredSignal';
 import { WEB_SUBSCRIPTION_URL } from '../consts';
-import { leaveForWeb } from '../components/leaveForWeb';
 import type { SubscriptionSummary } from '../lib';
 
 // Echo the key, plus the values a scenario cares about, so assertions can name both.
@@ -22,7 +20,17 @@ jest.mock('react-i18next', () => ({
 }));
 
 let mockNative = true;
-jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+// The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
+// in a browser.
+const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
+const mockWeb = { kind: 'web', open: jest.fn() };
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { checkout: mockNative ? mockStore : mockWeb };
+        },
+    },
+}));
 
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({
@@ -32,14 +40,12 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('react-router-dom', () => ({
     Navigate: ({ to }: { to: string }) => <div data-testid="redirect">{to}</div>,
 }));
-jest.mock('../../../bridge', () => ({ appBridge: { openSubscriptionManagement: jest.fn() } }));
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn(), usePlanPrice: jest.fn() }));
 jest.mock('../consts', () => ({
     WEB_SUBSCRIPTION_URL: { plans: 'https://web.example/subscription/plans', list: 'https://web.example/subscription' },
 }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useClouds: jest.fn() }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
-jest.mock('../components/leaveForWeb', () => ({ leaveForWeb: jest.fn() }));
 
 const DAY = 86_400_000;
 const NOW = 1_790_000_000_000;
@@ -120,7 +126,7 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.queryByText(`${K}.info.endsOn`)).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: new RegExp(`${K}.banner.autoRenew.title`) }));
-        expect(appBridge.openSubscriptionManagement).toHaveBeenCalled();
+        expect(mockStore.openManagement).toHaveBeenCalled();
 
         fireEvent.click(screen.getByRole('button', { name: `${K}.detail.changePlan` }));
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
@@ -246,7 +252,7 @@ describe('Subscription detail — scenarios', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
 
         fireEvent.click(screen.getByRole('button', { name: `${K}.detail.manageOnWeb` }));
-        expect(leaveForWeb).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.list);
+        expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.list);
         expect(screen.getByText(`${K}.notice.manageAt.web`)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
         // How a store applies a tier change says nothing about the website's.
@@ -264,8 +270,8 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.queryByRole('button', { name: `${K}.detail.changePlan` })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageOnWeb` })).not.toBeInTheDocument();
-        expect(appBridge.openSubscriptionManagement).not.toHaveBeenCalled();
-        expect(leaveForWeb).not.toHaveBeenCalled();
+        expect(mockStore.openManagement).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
         // Nor names it: no "manage it at …" line for the website, and none for a store either.
         expect(screen.queryByText(`${K}.notice.manageAt.web`)).not.toBeInTheDocument();
         expect(screen.queryByText(new RegExp(`${K}.notice.manageAt`))).not.toBeInTheDocument();

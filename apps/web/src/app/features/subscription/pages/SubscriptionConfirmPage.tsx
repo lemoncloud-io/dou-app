@@ -63,8 +63,8 @@ interface PurchaseTerms {
  * read here, not discovered on a receipt. The first purchase uses the upgrade layout without a
  * "current plan" row; the design draws no separate scene for it.
  *
- * The store-result subscription (`useTierPurchase` → `useSubscriptionIap`) lives on this screen and
- * nowhere else in the flow, so there is exactly one listener for the purchase answer.
+ * The purchase answer is settled by the `checkout` port, which listens for the shell's purchase
+ * events from boot on (`app/host/checkout/storeCheckout.ts`), so nothing here subscribes to them.
  */
 export const SubscriptionConfirmPage = () => {
     const { t, i18n } = useTranslation();
@@ -74,7 +74,7 @@ export const SubscriptionConfirmPage = () => {
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership } = useMembershipInfo();
-    const { summary, replaceablePlan: liveReplaceablePlan, isIOS, isOnMobileApp } = usePlanCatalog();
+    const { summary, replaceablePlan: liveReplaceablePlan, isIOS, sellsInStore } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const priceOf = usePlanPrice();
     const { pageState, isBlocked, resolveNativeProduct, purchaseTier } = useTierPurchase();
@@ -230,7 +230,7 @@ export const SubscriptionConfirmPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) appBridge.openURL(url);
+        if (sellsInStore) appBridge.openURL(url);
         else window.open(url, '_blank');
     };
 

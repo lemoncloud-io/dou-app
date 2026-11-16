@@ -31,7 +31,7 @@ const K = 'mypage.subscription.cloudGuide';
 /** `sellablePlans` is empty off-native — no store applies there. See usePlanCatalog. */
 const setProduct = (product: { trialDays?: number } | undefined) =>
     (usePlanCatalog as jest.Mock).mockReturnValue({
-        isOnMobileApp: !!product,
+        sellsInStore: !!product,
         isIOS: false,
         platform: product ? 'google' : undefined,
         sellablePlans: product ? [product] : [],

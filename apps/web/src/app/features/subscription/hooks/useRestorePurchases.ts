@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -13,7 +14,8 @@ export interface RestorePurchases {
     /** Store round-trip in flight — disable the control rather than letting it re-enter. */
     isRestoring: boolean;
     /**
-     * Whether a restore control should be rendered at all. Off-native there is no store to ask, and
+     * Whether a restore control should be rendered at all. Where this host sells through no store
+     * there is none to ask, and
      * a guest has no account for a recovered receipt to attach to.
      */
     canRestore: boolean;
@@ -63,5 +65,5 @@ export const useRestorePurchases = (): RestorePurchases => {
         }
     }, [isRestoring, restorePurchases, t, toast]);
 
-    return { restore, isRestoring, canRestore: isNative() && !isGuest };
+    return { restore, isRestoring, canRestore: host.ports.checkout.kind === 'store' && !isGuest };
 };
