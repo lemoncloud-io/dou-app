@@ -75,6 +75,7 @@ const item = (id: string, over: Partial<SavedItem> = {}): SavedItem => ({
     chatNo: 4,
     content: `${id} body`,
     ownerName: 'Ada',
+    cloudId: 'K1',
     placeId: 'P1',
     savedAt: NOW - MIN,
     ...over,
@@ -89,10 +90,11 @@ const CHANNELS = [
 ] as DomainChannel[];
 const PLACES = [{ id: 'P1', name: 'Lemon' }] as DomainPlace[];
 
-const renderPage = (onSelect = vi.fn()) => {
-    render(<SavedPage cloudId="K1" channels={CHANNELS} places={PLACES} currentPlaceId="P1" onSelect={onSelect} />, {
-        wrapper,
-    });
+const renderPage = (onSelect = vi.fn(), cloudId = 'K1') => {
+    render(
+        <SavedPage cloudId={cloudId} channels={CHANNELS} places={PLACES} currentPlaceId="P1" onSelect={onSelect} />,
+        { wrapper }
+    );
     return onSelect;
 };
 
@@ -202,6 +204,39 @@ describe('SavedPage', () => {
 
         expect(screen.getByText('Nothing saved yet')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Files' }).hasAttribute('disabled')).toBe(true);
+    });
+
+    // Opening an item jumps inside this cloud, so another cloud's place would be sent as a site of this one.
+    it("lists only this cloud's messages, and counts only those", () => {
+        seed(
+            item('here', { cloudId: 'K1' }),
+            item('there', { cloudId: 'K2' }),
+            item('home', { cloudId: 'default', placeId: 'default' })
+        );
+        const onSelect = renderPage();
+
+        expect(cards().map(card => /(here|there|home) body/.exec(card.textContent ?? '')?.[1])).toEqual(['here']);
+        expect(screen.getByRole('heading', { name: /Saved items/ }).textContent).toContain('1');
+        fireEvent.click(screen.getByRole('button', { name: /here body/ }));
+        expect(onSelect).toHaveBeenCalledWith('C1', 4, 'P1', undefined);
+    });
+
+    // Every cloud numbers its places from the same start, so an older item's place says which cloud
+    // only for the Default Cloud's 'default'.
+    it('places a message saved before its cloud was kept by the place it names, as far as that tells', () => {
+        const legacy = (id: string, placeId?: string) => item(id, { cloudId: undefined, placeId });
+        seed(legacy('real', 'P9'), legacy('home', 'default'), legacy('placeless'));
+        const bodies = () =>
+            cards()
+                .map(card => /(real|home|placeless) body/.exec(card.textContent ?? '')?.[1])
+                .sort();
+
+        renderPage();
+        expect(bodies()).toEqual(['placeless', 'real']);
+
+        cleanup();
+        renderPage(vi.fn(), 'default');
+        expect(bodies()).toEqual(['home', 'placeless']);
     });
 
     it("does not name another place's message after this place's same-id channel or DM", () => {
@@ -342,6 +377,14 @@ describe('SavedPage live cards', () => {
 
         await waitFor(() => expect(getChat).toHaveBeenCalledWith({ id: 'C1:9' }));
         expect(screen.getByText('snap 9')).toBeTruthy();
+    });
+
+    it('never reads live a message that does not record its cloud, even under this place and channel', () => {
+        seed(item('C1:9', { chatNo: 9, cloudId: undefined, content: 'snap 9' }));
+        renderPage();
+
+        expect(screen.getByText('snap 9')).toBeTruthy();
+        expect(getCloudRepositories).not.toHaveBeenCalled();
     });
 
     it('never reads live a message saved in another place, whose channel id means another room', () => {
