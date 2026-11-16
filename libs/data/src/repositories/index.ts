@@ -14,6 +14,7 @@ import { ReportRepository, type IReportRepository } from './ReportRepository';
 import { PlaceRepository, type IPlaceRepository } from './PlaceRepository';
 import { SubscriptionRepository, type ISubscriptionRepository } from './SubscriptionRepository';
 import { SyncMetaRepository, type ISyncMetaRepository } from './SyncMetaRepository';
+import { WebhookRepository, type IWebhookRepository } from './WebhookRepository';
 import { UserRepository, type IUserRepository, type UserRepositoryOptions } from './UserRepository';
 import type { DataContext, DataContextProvider } from './types';
 import { createSnapshotDataContextProvider } from './types';
@@ -38,6 +39,7 @@ export * from './PlaceRepository';
 export * from './SubscriptionRepository';
 export * from './SyncMetaRepository';
 export * from './UserRepository';
+export * from './WebhookRepository';
 
 /** App-injected repository policies. Every field is optional — omitted means current behavior. */
 export interface DataRepositoriesOptions {
@@ -65,6 +67,7 @@ export interface DataRepositories {
     place: IPlaceRepository;
     subscription: ISubscriptionRepository;
     user: IUserRepository;
+    webhook: IWebhookRepository;
     syncMeta: ISyncMetaRepository;
     withContext(context: DataContext): DataRepositories;
     dispose(): void;
@@ -123,6 +126,8 @@ const buildRepositories = (
             httpDataSources?.user,
             profile
         ),
+        // Remote-only with no cache: the list is read on open and a token is shown once.
+        webhook: new WebhookRepository(socketDataSources.webhook, context),
         syncMeta: new SyncMetaRepository(localDataSources.syncMeta, context),
     };
 };
@@ -181,6 +186,7 @@ export const createRepositories = ({
             repositories.place.dispose();
             repositories.subscription.dispose();
             repositories.user.dispose();
+            repositories.webhook.dispose();
             repositories.syncMeta.dispose();
         },
     };

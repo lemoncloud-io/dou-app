@@ -3,7 +3,9 @@
 An integration — an alerting service, a deploy bot — can post into a group channel without being a
 person in it. The server stores that post as a chat with `stereo: 'webhook'` and turns the card the
 sender described into Block Kit blocks (`blocks$`). Desktop only reads these; nothing in the app can
-create one, and the sender's token never reaches the client. This page is about how such a message
+create one, and the sender's token never reaches the client. The channel owner issues and
+manages the tokens in the settings panel ([Webhooks](./channel-settings.md#webhooks)); a token is shown
+once, when it is issued, and kept nowhere. This page is about how such a message
 looks and behaves on the reader's side.
 
 ## The card
