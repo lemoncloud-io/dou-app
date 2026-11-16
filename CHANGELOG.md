@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-11-16] - root@0.157.0, @chatic/web@0.89.0
+
+### Features
+
+- (web-ui-kit,web) centre the attach panel's entries when there are no recent photos
+- (web) play room audio through one player, with a detail screen and a room file list
+- (data,runtime-core) hand the room media reads through the chat repository
+- (web-ui-kit) add the audio file and room file components
+
+### Documentation
+
+- (adr) record one room audio player, on-device waveforms and local hiding (ADR-0317)
+
+### Other
+
+- test: (web-e2e) cover the audio send sheet and a sent audio file's way through the room
+
 ## [2026-11-16] - No version updates
 
 ### Bug Fixes
