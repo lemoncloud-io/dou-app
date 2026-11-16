@@ -69,7 +69,6 @@ import { useAddCloudFlow, usePlaceProfileNudge, useSwitchPlace } from '../hooks'
 import {
     useActiveCloudPlaces,
     useCachedCloudNames,
-    useChatSyncRegistration,
     useHomeChannels,
     useInvitedClouds,
     useJoinSyncRegistration,
@@ -263,10 +262,8 @@ export const HomePage = () => {
     // What actually had to stay scoped to home: registering MY read-cursor sync for the ACTIVE
     // site's channels, so it tears down when home unmounts rather than living app-wide.
     useJoinSyncRegistration(channels);
-    // Same shape for messages: the ACTIVE site's channels get a chat sync while home is mounted, so
-    // a new message reaches the cache — and therefore the row's preview and the activity order —
-    // without waiting for the room to be opened. See useChatSyncRegistration for the two mechanisms.
-    useChatSyncRegistration(channels);
+    // Messages are not scoped to home: `ChatSyncRunner` keeps the place's rooms' chat sync running on
+    // every route, so the row previews and the activity order read a cache that is already current.
 
     // Cross-cloud dot — one observation shared by the switcher-button dot (below, on AppHeader) and
     // CloudSessionSheet's row dots, so the two surfaces never disagree.

@@ -49,28 +49,62 @@ no preview.
 
 Because the list only reads, something else has to put newer messages into the cache, or the
 previews sit still until the room is opened. `apps/web/src/app/hooks/useChatSyncRegistration.ts`
-is that writer, and it is mounted by the surface rather than by a row. It has two mechanisms,
-because `ChatSyncPlan.run` is a no-op and registering alone loads nothing:
+is that writer. It is not mounted by home but once for the app, by `runtime/ChatSyncRunner`, for the
+rooms home lists: the session place's slice (`useHomeChannels`) plus the cloud's notes-to-self room
+(`useCloudSelfChannels`), which belongs to the account and sits in the place slice only in the place
+it was tagged with. It used to be home's own, and home unmounts when the reader navigates away, so a
+message in another room that arrived while a room or another tab was open was dropped until home came
+back. App-wide, the cache holds the place's rooms whatever screen is open, which other readers of
+that cache — the notification inbox among them — rely on. It has two mechanisms, because
+`ChatSyncPlan.run` is a no-op and registering alone loads nothing:
 
 - **Target registration** — `runtime.sync.registerSyncTarget({ type: 'chat', id: channelId }, { cid })` per channel, under the
   cloud whose rows the list shows, so a `chat.sync` frame
   arriving for any of the site's channels is appended live. Registration is ref-counted by key, so
   an open room's own registration for the same channel dedups into this one.
 - **Head-triggered catch-up** — a channel whose polled head (`channel.chatNo`) has run ahead of
-  what the chat cache holds gets one page of `CATCH_UP_LIMIT` (30) pulled. This is the convergence
-  guarantee: it does not care whether a push was delivered, missed or scoped away, and it fires only
-  for channels that actually moved.
+  what the chat cache holds gets its newest page of `CATCH_UP_LIMIT` (30) pulled. This is the
+  convergence guarantee: it does not care whether a push was delivered, missed or scoped away, and it
+  fires only for channels that actually moved. It does not go through `runtime.sync.fetchRoomFeed`,
+  the call the room's own entry shares, although that would save an open room a second request: the
+  room feed asks for the server's default of 20, and a room opened on fewer than two screens of rows
+  asks for an older page straight away. The 30 rows home's catch-up caches are what let a room open
+  on its newest messages without one (`apps/web-e2e` `chat-paging.spec.ts` holds this).
+- **Older pages until the gap closes** (`hooks/chatCatchUp.ts`) — when the newest page does not reach
+  the newest row the cache held, older pages of 50 follow until they do, so a room that gained more
+  than 30 messages while the reader was away keeps no hole between its old rows and its new ones. The
+  server counts each page down from the cursor and returns the lowest number it counted; the walk
+  stops once that number is at or below the cached row plus one, at the start of history (0), after
+  five older pages (280 messages in all — past that the hole stays until the room is opened and
+  scrolled), or as soon as the selected cloud or account is no longer the one it started under.
+  Every page is written through that cloud's own repositories; the older ones are marked `cursorIsRow` (the cursor
+  is a number the previous page counted, so the coverage record runs right up to it), and go through
+  one gate that lets two run at a time across every room, so a long absence in a big place does not
+  put them all on the socket together. A room the cache holds nothing of gets the newest page only:
+  it has no hole, only history, and walking every such room would pull the bound for each one on a
+  fresh install.
 
 The catch-up lives in the registration hook and not in the list component on purpose — rendering a
 row must never be the thing that makes a network call.
 
-The targets are the selected cloud's, registered with `{ cid }` and gated on that cloud's own slot.
-The plan baseline (`runtime.sync.updateSyncSnapshot`) is sent to the cloud the observation was **made** in,
-carried with the reading: the observation and the effect that pushes it are separate renders, and a
-switch between them would otherwise hand one cloud's `lastNo` to the next cloud's plan.
+**When the cache is read.** The comparison point — the newest cached number per room — comes from
+`observeLastList`, but the hook does not hold that observation open: it takes the first answer and
+closes it (`readLastNos`). It reads every room once when it starts, then a room again only when that
+room's head moves. Held open, the observation wakes on every chat write anywhere (its key is a set
+of channels, so it listens on the scope-wide `chats-last|` prefix) and re-reads every room's tail.
+Home could afford that while it alone ran this; app-wide, a busy open room would pay it for each
+message. Home's own `useLastChats` still observes, while home is mounted.
 
-Both hooks derive their key the same way, from the same sorted channel ids, so the two
-`observeLastList` calls resolve to one shared observation rather than two.
+**What it does not close.** A hole whose newest rows reached the cache before the head moved — a
+reconnect's own catch-up wrote them — leaves the head no longer ahead, so nothing walks it. A walk cut
+short by a cloud switch or a failed page is not retried: its head is spent. Both are left to the room,
+which pages the hole when it is opened.
+
+The targets are the selected cloud's, registered with `{ cid }` and gated on that cloud's own slot.
+The plan baseline (`runtime.sync.updateSyncSnapshot`) is sent from the same reading, and only while
+the selection is still the cloud the reading was taken in: a switch landing between the read and its
+answer would otherwise hand one cloud's `lastNo` to the next cloud's plan. Such a reading is dropped
+and the rooms are read again under the next cloud.
 
 ## Ordering — the same time the row prints
 
@@ -181,7 +215,7 @@ management reads the same two maps at page level; and search deliberately reads 
   channel and reopens them all on any re-order. `apps/desktop-web` still has one; it is a separate
   app with a separate list and is not a precedent for this one.
 - A preview that will not update is almost always a missing write, not a missing read — check that
-  the surface mounts `useChatSyncRegistration`, not that the observation fired.
+  `ChatSyncRunner` is mounted and the room is in the session's place, not that the observation fired.
 - An empty preview on a re-joined channel is correct behaviour, not a bug.
 
 ## Further reading

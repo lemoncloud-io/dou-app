@@ -482,7 +482,7 @@ export const ChannelList = ({
     // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
     // list costs a single bridge round trip on a current app, and per-row chat sync targets are
     // gone with it. This read stays PURE — freshness (live push + head-triggered catch-up) is owned
-    // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
+    // by the app-wide ChatSyncRunner (useChatSyncRegistration), so rendering a row never makes a network call.
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
     const lastActivities = useLastActivities(channels, joinByChannel);
