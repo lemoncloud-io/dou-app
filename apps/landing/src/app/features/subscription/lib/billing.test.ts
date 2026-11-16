@@ -4,6 +4,7 @@ import {
     currencyOfCountry,
     currencyOfLanguage,
     currencyOfProvider,
+    foreignBillingOf,
     isBillingCountry,
     lockedCountryOf,
     payerRequiredFor,
@@ -106,13 +107,46 @@ describe('billing country', () => {
         expect(BILLING_COUNTRY_OPTIONS).not.toContain('IN');
     });
 
-    it('bills Korea everywhere, and any other country only where the build may bill outside Korea', () => {
+    it('bills Korea everywhere, and any other country only where billing outside Korea is open', () => {
         expect(billableIn('KR', true)).toBe(true);
         expect(billableIn('KR', false)).toBe(true);
         for (const country of ['US', 'JP', 'OTHER']) {
             expect(billableIn(country, true)).toBe(true);
             expect(billableIn(country, false)).toBe(false);
         }
+    });
+});
+
+// Whether dollars are open is the server's dollar catalog's to say, and nothing else's: the build has no
+// part in it, so these are the same on every stage.
+describe('billing outside Korea', () => {
+    const plan = { id: 'pro-tier-01' };
+
+    it('is open once a signed-in reader is listed at least one dollar product', () => {
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: [plan], failed: false })).toBe('open');
+    });
+
+    it('is shut where the server lists no dollar product', () => {
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: [], failed: false })).toBe('shut');
+    });
+
+    it('is shut where the dollar catalog could not be read', () => {
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: undefined, failed: true })).toBe('shut');
+    });
+
+    it('is still being read — not open — while the session or the dollar catalog is', () => {
+        expect(foreignBillingOf({ signedIn: undefined, dollarPlans: undefined, failed: false })).toBe('reading');
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: undefined, failed: false })).toBe('reading');
+    });
+
+    it('is shut without a session, whatever a catalog says: the server lists products to a signed request only', () => {
+        expect(foreignBillingOf({ signedIn: false, dollarPlans: undefined, failed: false })).toBe('shut');
+        expect(foreignBillingOf({ signedIn: false, dollarPlans: [plan], failed: false })).toBe('shut');
+    });
+
+    it('keeps a list already read over a later failure', () => {
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: [plan], failed: true })).toBe('open');
+        expect(foreignBillingOf({ signedIn: true, dollarPlans: [], failed: true })).toBe('shut');
     });
 });
 

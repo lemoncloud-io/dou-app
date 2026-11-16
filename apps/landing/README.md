@@ -8,8 +8,8 @@ no data layer and no backend call of its own. Its **account surface**, `/subscri
 signed-in account holder buys and manages a subscription outside the stores; it is open on local and
 dev hosts, and on `app.chatic.io` with a production build, wherever the build carries the subscription
 server's addresses, and runs against that server (see [Two surfaces](#two-surfaces) and
-[The server](#the-server)) — in production it bills in won only (see
-[Billing outside Korea](#billing-outside-korea)) —
+[The server](#the-server)) — it bills outside Korea, in dollars, only where the server sells dollar
+products (see [Billing outside Korea](#billing-outside-korea)) —
 except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
 [Plans before checkout opens](#plans-before-checkout-opens)).
 
@@ -378,7 +378,7 @@ features/subscription/
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
-├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
+├── hooks/            one react-query hook per port method, useCurrentSubscription, useForeignBilling, useNow
 ├── components/       PublicShell (logo + account bar, SiteFooter; in a purchase flow a back button and no footer), AuthCard, AccountShell (sidebar; on a phone a
 │                     back/title bar and a row of tabs; both shells take `children` for a page outside their
 │                     routes — a scheduled downgrade's confirmation is framed by AccountShell, an upgrade's by
@@ -474,8 +474,8 @@ The pages read the same flag where it changes what they offer:
 `lib/catalog.ts` is therefore a published price list, not test data: the tests' fake server sells
 exactly this catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
 dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
-won in Korean, dollars otherwise (won in every language in a build that bills in won only) — or, for a
-subscriber, the subscription's own. What a checkout charges is decided by its billing country, not by
+won in Korean, dollars otherwise (for a signed-in reader, won while the server sells no dollars) — or,
+for a subscriber, the subscription's own. What a checkout charges is decided by its billing country, not by
 the language. Where the account surface opens, the catalog port is not used; it remains wherever the
 gate is shut — a host the gate shuts, and a build without the server's addresses.
 
@@ -531,25 +531,42 @@ names the country and the currency and never a provider — the last boundary co
   it reads the won window's. The dialog is not modal, so the card's 3-D Secure overlay can take clicks,
   and nothing closes it while a confirmation runs. The keys come from the `issue` answer only and are
   never stored or logged.
-- **Won only in production.** A production build (`VITE_ENV=PROD`) bills in Korea only: the server has
-  no production dollar products yet. W-08 stops any other billing country at a notice ("paying from
-  outside Korea is not available yet", no provider named) — no currency line, no amount, no consents and
-  no way on — and W-05 sends a dollar checkout handed to it back to W-08 (`billableIn`, read through
-  `useForeignBilling`, which `createPortSetup` sets from the build). W-01 lists won in every language
-  there, to visitors and signed-in readers alike: the server has no dollar products to list, so a reader
-  asking for dollars would get an empty catalog. No production subscription is billed in dollars, so
-  W-12 and W-14's dollar paths are not reached there. Every other build bills both, and the decision to
-  open dollars in production is a later one (ADR-0311).
+- **Dollars where the server sells them.** Whether a checkout may be billed outside Korea is decided by
+  the server's dollar catalog alone — on every stage and for every build: `useForeignBilling`
+  (`hooks/foreignBilling.ts`, over `foreignBillingOf` in `lib/billingCountry.ts`) reads
+  `GET /products/0/plans?platform=stripe` with the reader's session, and dollars are open once it lists
+  at least one product. The server is to add its dollar products only once it can take dollar payments,
+  so the list is the server saying it is ready, and the app and server releases need no order between
+  them.
+  An empty list, a failed read and no session are all shut; while the list is being read nothing is open.
+  It is asked for only where it changes what is shown: a signed-in W-01 in any language but Korean
+  (which shows the page loader until it is in, so no price switches currency), and W-08 and W-05 once a
+  country outside Korea is in play — W-08 keeps everything after the country back while it waits, and a
+  dollar checkout handed to either page waits for it before that state is read. A checkout in Korea
+  never asks. The answer is the dollar plans query itself (`usePlans('USD')`'s key), and the HTTP port
+  keeps each provider's catalog for the page, so it adds no call of its own.
+    - **Open:** W-08 bills any other country in dollars, a signed-in reader's W-01 is in their language's
+      currency, and W-12 and W-14 take dollar cards for a dollar subscription.
+    - **Shut:** W-08 stops any other billing country at a notice ("paying from outside Korea is not
+      available yet", no provider named) — no currency line, no amount, no consents and no way on — and
+      W-05 sends a dollar checkout handed to it back to W-08 (`billableIn`, `checkoutDetailsOf`). A
+      signed-in reader's W-01 lists won in every language, as the checkout would bill it, rather than an
+      empty dollar catalog.
+    - **A visitor** cannot be asked about: the server lists its products to a signed request only. W-01
+      shows them the published catalog in their language's currency on every stage; the checkout behind
+      sign-in decides what is charged (ADR-0327).
+- **The build has no say in dollars.** `VITE_ENV` still shuts the sandbox (see
+  [Sandbox payments](#sandbox-payments-development)) but not the dollar checkout (ADR-0327).
 - **After the checkout.** A subscription stays with its provider: a plan change, a card added and the
   plans it is offered are all in its currency, and W-12's add-card dialog shows its billing country as
   fixed. W-08 itself only opens for a first subscription.
 - **Not done.** Consent is shown and required but not recorded. India-issued cards register but will be
   refused monthly (no e-mandate without the provider's own subscriptions), so India is not in the country
   list on any stage; a reader there can still pick "another country" and name India in the dollar card
-  field, which only the production build's won-only rule shuts. How tax applies to a dollar price is not
-  settled, so a dollar price carries no VAT note (won prices still say VAT is included). The dollar
-  products exist on the dev stage only. ADR-0262 records the decision and these costs, ADR-0311 the
-  won-only production.
+  field, which only a server selling no dollars shuts. How tax applies to a dollar price is not
+  settled, so a dollar price carries no VAT note (won prices still say VAT is included). ADR-0262
+  records the decision and these costs, ADR-0311 the won-only production it opened with, and ADR-0327
+  the server's dollar catalog as the switch that replaced it.
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
@@ -814,8 +831,9 @@ The public pages read nothing from the `.env` but the `DEV` flag in `src/app/con
 environment selection there is done by sniffing the hostname for `-dev`, which is what picks the
 `chatic-dev` URL scheme, the `io.chatic.dou.dev` package id and the dev web origin. The account
 surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`), and `VITE_ENV`,
-read by `stage.ts` for the production-host gate and by `lib/createPortSetup.ts` for the sandbox and
-dollar checkout (the sandbox is also shut on the production host by its name alone). The four
+read by `stage.ts` for the production-host gate and by `lib/createPortSetup.ts` for the sandbox only
+(the sandbox is also shut on the production host by its name alone); whether a checkout takes dollars
+is the server's to say, not the build's (see [Billing outside Korea](#billing-outside-korea)). The four
 addresses are the web app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
 app's relay session, so its OAuth, relay and socket addresses must be the web app's. Without the four
 addresses a build opens the plans page alone, on the catalog port.

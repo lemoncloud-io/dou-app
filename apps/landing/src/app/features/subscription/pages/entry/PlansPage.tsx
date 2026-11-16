@@ -6,10 +6,17 @@ import { storeUrls } from '../../../../config/links';
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, PlanCard } from '../../components';
 import { Badge, type BadgeTone, Banner, Button } from '../../components/ui';
-import { useCurrentSubscription, usePlans, usePreviewCheckout, useSession, useSubscriptions } from '../../hooks';
+import {
+    useCurrentSubscription,
+    useForeignBilling,
+    usePlans,
+    usePreviewCheckout,
+    useSession,
+    useSubscriptions,
+} from '../../hooks';
 import { currencyOfLanguage } from '../../lib/billingCountry';
 import { ENTRY_PLAN_SORT } from '../../lib/changeKindOf';
-import { useForeignBilling, useToday } from '../../lib/port';
+import { useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
 import { formatMoney } from '../../utils';
 import { type PlanChoice, type PlanTag, planChoicesOf } from './planChoices';
@@ -38,7 +45,8 @@ const checkoutPath = (plan: Plan) => `${ROUTES.subscription.checkout}?${new URLS
  * W-01 — the plans. A visitor and a signed-in reader with no plan are offered the entry plan only; a
  * subscriber is offered the step up and the step down. Which card is pickable comes from
  * `planChoicesOf`, and every price and trial length from the port. Prices are in the reader's language's
- * currency (`currencyOfLanguage`), in won wherever only won is billed, or a subscriber's own.
+ * currency (`currencyOfLanguage`), a subscriber's own, or — for a signed-in reader while the server sells
+ * no dollars (`useForeignBilling`) — won.
  *
  * Where the account surface is shut (`account` false) the reader is always a visitor and there is
  * nowhere to buy yet: the same plans and notes, with the store links in place of the subscribe button.
@@ -77,12 +85,19 @@ const PlansScene = ({
     const navigate = useNavigate();
     const today = useToday();
     const session = useSession();
-    const foreignBilling = useForeignBilling();
     // Prices are read in the page's language — won in Korean, dollars otherwise — until a subscription
     // is in force, whose own currency they then follow. What a checkout charges is the billing
-    // country's to decide, on the checkout. A build that bills in won only lists won whatever the
-    // language: it has no dollar products to list, so a signed-in reader would get an empty catalog.
-    const currency = subscription ? undefined : foreignBilling ? currencyOfLanguage(i18n.language) : 'KRW';
+    // country's to decide, on the checkout.
+    const language = currencyOfLanguage(i18n.language);
+    // A signed-in reader's plans come from the server, which may sell no dollars yet: then the list is
+    // in won, as the checkout would bill it, rather than empty. It is the checkout's own answer
+    // (`useForeignBilling`), read the same way. A visitor's come from the published catalog,
+    // which has dollars on every stage, and there is no session to ask the server with.
+    const dollarsAsked = signedIn && !subscription && language !== 'KRW';
+    const foreignBilling = useForeignBilling({ enabled: dollarsAsked });
+    const currency = subscription ? undefined : dollarsAsked && foreignBilling === 'shut' ? 'KRW' : language;
+    // While the answer is read the dollar list is what is asked for — the same query the answer reads,
+    // so no other call goes out — and nothing is drawn until it is in, so the prices never switch.
     const plans = usePlans(currency);
     const account = signedIn ? (session.data ?? null) : null;
     const storeBilled = account?.billingSource === 'appStore' || account?.billingSource === 'googlePlay';
@@ -92,7 +107,7 @@ const PlansScene = ({
     const entryPlan = plans.data?.find(p => p.sort === ENTRY_PLAN_SORT);
     const preview = usePreviewCheckout(signedIn && !current && !storeBilled ? entryPlan?.id : undefined, currency);
 
-    if (plans.isLoading || preview.isLoading) return <PageLoader />;
+    if (foreignBilling === 'reading' || plans.isLoading || preview.isLoading) return <PageLoader />;
     if (!plans.data) {
         return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
     }

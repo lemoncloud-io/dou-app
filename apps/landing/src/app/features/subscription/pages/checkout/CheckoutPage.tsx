@@ -4,13 +4,12 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
 import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
-import { Badge, Banner, Button, Card } from '../../components/ui';
-import { useBillingInfo, usePreviewCheckout } from '../../hooks';
-import { billableIn, currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
+import { Badge, Banner, Button, Card, Spinner } from '../../components/ui';
+import { useBillingInfo, useForeignBilling, usePreviewCheckout } from '../../hooks';
+import { KOREA, currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { useManagementScreens } from '../../lib/screens';
 import { EMPTY_PAYER, type PayerDraft, payerOf } from '../../lib/payer';
-import { useForeignBilling } from '../../lib/port';
 import { cn, formatDate, formatMoney } from '../../utils';
 import {
     BILLING_COUNTRY_OPTIONS,
@@ -23,6 +22,7 @@ import {
     checkoutDetailsOf,
     checkoutEmailUrl,
     checkoutPaymentUrl,
+    handedAbroad,
     setAllConsents,
 } from './flow';
 import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './parts';
@@ -44,34 +44,50 @@ const CARD_TITLE = 'text-sm font-bold text-ink';
  * currency (won for Korea, US dollars for any other country), so until it is chosen the summary shows no
  * amount and the payer is not asked for; once it is, the summary is priced in its currency and, for
  * Korea only, the payer fields appear. Which payment provider that means is the port's business, and
- * the page never names one. A build that bills in Korea only (`useForeignBilling` false — production,
- * until the server has dollar products there) stops any other country at a notice: no amount, no
- * consents and no way on.
+ * the page never names one. Where the server sells no dollars (`useForeignBilling` shut — its dollar
+ * catalog empty, or unread) any other country stops at a notice: no amount, no consents and no way on.
+ * The answer is asked for only once a country outside Korea is in play, so a checkout in Korea costs no
+ * call for it; while it is out, nothing after the country is shown. A dollar checkout handed back from
+ * W-05 waits for it before the form opens, since that state is read once, then.
  *
  * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
  * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
  * primary address — a link pasted past W-24, or one removed since — is sent to W-24 with the plan kept.
  */
 export const CheckoutPage = (): JSX.Element => {
+    const location = useLocation();
+    const handed = useForeignBilling({ enabled: handedAbroad(location.state) });
+    if (handed === 'reading') return <PageLoader />;
+    return <CheckoutForm handedOpen={handed === 'open'} />;
+};
+
+const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     // Back from W-05, what was settled here comes back in the navigation state and fills the form in
     // again: the country, the payer and the consents — given already, or W-05 would not have opened.
     const location = useLocation();
-    const foreignBilling = useForeignBilling();
-    const [returned] = useState(() => checkoutDetailsOf(location.state, foreignBilling));
+    const [returned] = useState(() => checkoutDetailsOf(location.state, handedOpen));
     const { loading, error, retry, target: plan, route } = usePlanRoute();
     const [country, setCountry] = useState(returned?.country ?? '');
     const [countryMissing, setCountryMissing] = useState(false);
-    // A country this build cannot bill: chosen, but nothing is priced or asked for after it.
-    const blocked = !!country && !billableIn(country, foreignBilling);
+    // Korea is always billed; another country only once the answer says dollars are open. The same
+    // query as the one above, so a country handed back is not asked about twice.
+    const abroad = !!country && country !== KOREA;
+    const dollars = useForeignBilling({ enabled: abroad });
+    const foreignBilling = dollars === 'open';
+    // Waiting for that answer: nothing is priced or asked for yet, and nothing says no.
+    const awaiting = abroad && dollars === 'reading';
+    // A country that cannot be billed: chosen, but nothing is priced or asked for after it.
+    const blocked = abroad && dollars === 'shut';
+    const decided = !blocked && !awaiting;
     const countryField = useRef<HTMLSelectElement>(null);
     // The account and the trial come from a preview in won; the amounts from one in the country's currency,
     // once there is a country. A failure of the second stays in the summary, so another country can be picked.
     const base = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
     const pricedPreview = usePreviewCheckout(
-        route === 'checkout' && country && !blocked ? plan?.id : undefined,
-        country && !blocked ? currencyOfCountry(country) : undefined
+        route === 'checkout' && country && decided ? plan?.id : undefined,
+        country && decided ? currencyOfCountry(country) : undefined
     );
     const { emails: management } = useManagementScreens();
     // The billing-email screens are hidden: nothing here reads the billing emails then.
@@ -102,7 +118,7 @@ export const CheckoutPage = (): JSX.Element => {
     const emailAddress = management ? billingEmail?.address : account.email;
     const needsPayer = !!country && payerRequiredIn(country);
     // The amounts are the country's only once its own preview is in, not the one before it.
-    const priced = !!country && !blocked && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
+    const priced = !!country && decided && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
     const preview = { data: priced && pricedPreview.data ? pricedPreview.data : base.data };
     const ready = canContinueCheckout({ country, email: emailAddress, payer, consents, foreignBilling });
 
@@ -141,8 +157,8 @@ export const CheckoutPage = (): JSX.Element => {
             summary={
                 // A block, not a flex column: the summary's own `self-start` would shrink it to its content.
                 <div className="space-y-3">
-                    <CheckoutSummary preview={preview.data} priced={priced} unpricedHint={!blocked} />
-                    {country && !blocked && pricedPreview.isError && (
+                    <CheckoutSummary preview={preview.data} priced={priced} unpricedHint={decided} />
+                    {country && decided && pricedPreview.isError && (
                         <Banner
                             tone="danger"
                             title={t('subscription.common.error.unknown')}
@@ -253,7 +269,8 @@ export const CheckoutPage = (): JSX.Element => {
                         {t('subscription.checkout.billing.countryMissing')}
                     </p>
                 )}
-                {country && !blocked && (
+                {awaiting && <Spinner />}
+                {country && decided && (
                     <p className="text-sm font-semibold text-ink">
                         {t(`subscription.checkout.billing.currency.${currencyOfCountry(country)}`)}
                     </p>
@@ -285,7 +302,7 @@ export const CheckoutPage = (): JSX.Element => {
                 </Card>
             )}
 
-            {!blocked && (
+            {decided && (
                 <Card className={cn(CARD, 'gap-3')}>
                     <label className="flex items-center gap-2 text-sm font-medium text-ink">
                         <input
@@ -343,7 +360,7 @@ export const CheckoutPage = (): JSX.Element => {
             )}
 
             {/* Without a country the button stays pressable, so pressing it can say what is missing. */}
-            {!blocked && (
+            {decided && (
                 <Button
                     size="lg"
                     className="w-full max-md:h-[54px]"

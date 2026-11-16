@@ -29,11 +29,6 @@ export interface PortSetup {
     cardEntry?: CardEntryChannel;
     /** Present whenever the port is the server's: the sandbox payments switch and its settings. */
     sandbox?: SandboxSetup;
-    /**
-     * Whether a checkout may be billed outside Korea, in dollars; true when omitted. False in a build
-     * whose addresses are production's: the server has no production dollar products yet.
-     */
-    foreignBilling?: boolean;
 }
 
 /** The renewal periods a sandboxed start can ask for; `''` is the product's own month. */
@@ -138,8 +133,9 @@ const turnSandbox = (on: boolean): void => {
  *   and never with a build whose addresses are production's (`VITE_ENV=PROD`, whatever the host). The
  *   server does not refuse the query on production, so not sending it there is the first defence:
  *   sandbox records would sit among real users'.
- * - A build whose addresses are production's bills in Korea only (`foreignBilling`): checkout stops at a
- *   notice for any other billing country, since the server has no production dollar products.
+ *
+ * Whether a checkout may be billed outside Korea is not decided here: the build has no say in it, the
+ * server's dollar catalog does (`useForeignBilling`).
  */
 export const createPortSetup = ({
     account,
@@ -188,6 +184,5 @@ export const createPortSetup = ({
                   turn: turnSandbox,
               }
             : undefined,
-        foreignBilling: !productionBuild,
     };
 };

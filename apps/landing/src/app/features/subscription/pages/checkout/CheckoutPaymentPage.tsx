@@ -8,6 +8,7 @@ import { PageLoader } from '../../components';
 import { Banner, Button, Card } from '../../components/ui';
 import {
     useCompletePaymentMethodRegistration,
+    useForeignBilling,
     usePreviewCheckout,
     useStartCheckout,
     useStartPaymentMethodRegistration,
@@ -15,7 +16,7 @@ import {
 import { currencyOfCountry } from '../../lib/billingCountry';
 import { toIsoDate } from '../../lib/calendar';
 import { clearPendingCheckout, peekPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
-import { isPortError, useForeignBilling, useToday } from '../../lib/port';
+import { isPortError, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import {
     type CheckoutDetails,
@@ -24,6 +25,7 @@ import {
     checkoutUrl,
     dayBefore,
     formatShortDate,
+    handedAbroad,
     registrationOutcomeUrl,
     statusUrl,
     withCheckoutDetails,
@@ -52,9 +54,25 @@ const errorKeyOf = (error: unknown): string => {
  *
  * It needs what W-08 settled (country, billing email, payer), carried in the navigation state; without it —
  * a pasted link, or a return after signing in again — it goes back to W-08 rather than skip the
- * consents given there.
+ * consents given there. A dollar checkout goes back the same way while the server sells no dollars
+ * (`useForeignBilling`), which is read before anything here starts — for a dollar checkout only, so one
+ * in Korea costs no call for it.
  */
 export const CheckoutPaymentPage = (): JSX.Element => {
+    const location = useLocation();
+    const [params] = useSearchParams();
+    const abroad =
+        handedAbroad(location.state) ||
+        handedAbroad({ checkout: comesBack(params) ? peekPendingCheckout(params.get('plan'))?.details : undefined });
+    const foreignBilling = useForeignBilling({ enabled: abroad });
+    if (foreignBilling === 'reading') return <PageLoader />;
+    return <CheckoutPayment foreignBilling={foreignBilling === 'open'} />;
+};
+
+/** Whether the page was come back to from the provider's own page, with its result in the query. */
+const comesBack = (params: URLSearchParams): boolean => [...params.keys()].some(key => key !== 'plan');
+
+const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
@@ -63,7 +81,6 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const completeRegistration = useCompletePaymentMethodRegistration();
     const startCheckout = useStartCheckout();
     const [params] = useSearchParams();
-    const foreignBilling = useForeignBilling();
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
     const [detail, setDetail] = useState<string>();
@@ -75,10 +92,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     // A phone's payment window is the provider's own page: the browser left for it and came back here
     // with the result in the query. The state W-08 handed over did not survive the trip, so the checkout
     // saved when the window opened stands in for it.
-    const [returning] = useState(() => {
-        const comesBack = [...params.keys()].some(key => key !== 'plan');
-        return comesBack ? peekPendingCheckout(params.get('plan')) : undefined;
-    });
+    const [returning] = useState(() => (comesBack(params) ? peekPendingCheckout(params.get('plan')) : undefined));
     const [resuming, setResuming] = useState(!!returning);
     const resumed = useRef(false);
     // A card dialog left open when the reader goes elsewhere ends as closed; by then this page is gone and

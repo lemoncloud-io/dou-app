@@ -1,5 +1,5 @@
 import { ROUTES } from '../../../../routes/paths';
-import { billableIn, isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
+import { KOREA, billableIn, isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { addDays } from '../../lib/calendar';
 import { changeKindOf } from '../../lib/changeKindOf';
 import { type PayerDraft, isPayerComplete } from '../../lib/payer';
@@ -45,7 +45,7 @@ export const setAllConsents = (value: boolean): Consents => ({ terms: value, pri
  * The checkout continues only once a billing country is chosen and every consent is given; where the
  * country is billed in won, also once the payer is filled in and there is an address for the card
  * company. Elsewhere there is no payer to ask for — the card field asks for what it needs itself — and
- * where the build bills in Korea only (`foreignBilling` false), no other country goes on at all.
+ * where billing outside Korea is shut (`foreignBilling` false), no other country goes on at all.
  */
 export const canContinueCheckout = (input: {
     /** Empty until the reader picks one: nothing is chosen for them. */
@@ -54,7 +54,7 @@ export const canContinueCheckout = (input: {
     email?: string;
     payer: PayerDraft;
     consents: Consents;
-    /** Whether the build may bill outside Korea; true when omitted. */
+    /** Whether billing outside Korea is open (`useForeignBilling`); true when omitted. */
     foreignBilling?: boolean;
 }): boolean =>
     isBillingCountry(input.country) &&
@@ -101,8 +101,9 @@ const isPayer = (value: unknown): value is Payer => {
 };
 
 /**
- * The details W-08 handed on, if they are whole. `foreignBilling` false (a production build) refuses a
- * country outside Korea here too, so a state W-08 would not have produced cannot open a payment window.
+ * The details W-08 handed on, if they are whole. `foreignBilling` false (billing outside Korea shut)
+ * refuses a country outside Korea here too, so a state W-08 would not have produced cannot open a payment
+ * window.
  */
 export const checkoutDetailsOf = (state: unknown, foreignBilling = true): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
@@ -115,6 +116,15 @@ export const checkoutDetailsOf = (state: unknown, foreignBilling = true): Checko
         ...(typeof details.emailId === 'string' ? { emailId: details.emailId } : {}),
         ...(isPayer(details.payer) ? { payer: details.payer } : {}),
     };
+};
+
+/**
+ * Whether the state handed to a checkout page names a country outside Korea, read before any judgement:
+ * only then does the page need to know whether dollars are open before it reads that state.
+ */
+export const handedAbroad = (state: unknown): boolean => {
+    const country = (state as { checkout?: { country?: unknown } } | null)?.checkout?.country;
+    return typeof country === 'string' && country !== KOREA;
 };
 
 export const withCheckoutDetails = (details: CheckoutDetails | undefined) =>
