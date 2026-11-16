@@ -20,6 +20,8 @@ export interface BlockKitScaleClasses {
     fence: string;
     /** The fold toggle under a long fenced run. */
     toggle: string;
+    /** The type badge over the title (`source$.key`). */
+    badge: string;
 }
 
 /**
@@ -45,6 +47,7 @@ export const BLOCK_KIT_SCALE: Record<BlockKitScale, BlockKitScaleClasses> = {
         context: 'text-[0.875rem] leading-5 tracking-normal',
         fence: 'text-[0.8125rem] leading-normal',
         toggle: 'text-[0.8125rem]',
+        badge: 'text-[0.75rem] leading-[normal]',
     },
     desktop: {
         // The desktop column has room for a heading a step above the body, and the design takes it.
@@ -61,6 +64,9 @@ export const BLOCK_KIT_SCALE: Record<BlockKitScale, BlockKitScaleClasses> = {
         context: 'text-[0.875rem] leading-normal tracking-normal',
         fence: 'text-[0.875rem] leading-normal tracking-normal',
         toggle: 'text-[0.875rem]',
+        // The design draws the badge at 12px in both cards: it labels the card, and a larger one would
+        // compete with the title under it.
+        badge: 'text-[0.75rem] leading-[normal]',
     },
 };
 

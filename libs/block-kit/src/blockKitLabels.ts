@@ -14,7 +14,7 @@ export interface BlockKitLabels {
     /** Toggle on a folded code block; `hiddenLines` is how many lines the fold hides. */
     expandCode: (hiddenLines: number) => string;
     collapseCode: string;
-    /** Heard after the heading when the heading opens the message's source; not drawn. */
+    /** The link under the title that opens the message's source — a webhook's full report. */
     openSource: string;
 }
 

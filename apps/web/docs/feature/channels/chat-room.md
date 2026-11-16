@@ -87,11 +87,8 @@ and fades once scrolling stops.
 
 [`ChannelMessageRow`](../../../src/app/features/channels/components/ChannelMessageRow.tsx) renders
 the body and then, as separate rows in the same column, its images when it has text too (pressed
-like the body — see **Long press**), then the things that comment on it: the sender's own `attach$`
-card, then the link preview the client derived, then the reaction chips, then the thread footer.
-
-The order of the first two is the argument for the whole list: `attach$` is part of what the sender
-sent, the unfurl is something the client found. The last three sit **outside** the long-press
+like the body — see **Long press**), then the things that comment on it: the link preview the client
+derived, then the reaction chips, then the thread footer. Those three sit **outside** the long-press
 target, or the gesture would eat taps on them.
 
 **Block Kit or a bubble.** A webhook send arrives as a `stereo: 'webhook'` chat carrying Block Kit
@@ -107,12 +104,34 @@ landed. The card's links (a Slack `<url|label>` such as a webhook's source link)
 `handleUrlClick` through `BlockKitMessage`'s `onLinkClick`, the same path as a link in a bubble.
 The lib's own default is a plain `target="_blank"` anchor, which the iOS shell's WebView answers by
 loading the page over the app itself. The card is as wide as what it holds, up to the row — a
-short attendance note is a small card and a stack trace fills the row — and its links take the
-`--link` token, which this app sets to the design's purple. When the sender gave a source (its
-`meta.sourceUrl`, the full report), the server writes it as the last link of the card's last line,
-`<url|원문 보기>`; `takeSourceLink` moves it up, so the card's first heading becomes the link (no
-icon; underlined on hover) and the line below loses it. Without a source the title is plain text:
-there is no report to open. The link opens through `handleUrlClick` like any other.
+short attendance note is a small card and a stack trace fills the row. Its links take the card's
+accent colour when the sender gave one, and otherwise the `--link` token, which this app sets to the
+design's purple.
+
+**Type badge, accent colour and source link.** These come from the message's `source$`, which the
+server stores on every webhook message beside `blocks$`: the sender's alert channel name (`key`), the
+full report's address (`url`) and the sender's `color` exactly as sent. The row hands `source$` to
+`BlockKitMessage`; a person's message is never a card, so a `source$` on one is never read, and a
+hidden message's `source$: null` reads as none. Messages stored before the server wrote it (10
+November 2026) have neither badge nor accent.
+
+- The **badge** is a 12px bold pill at the top of the card saying the channel name in capitals
+  (a style — the text stays the name), with hyphens and underscores read as spaces, cut to one line
+  and printed as text. No `key`, no badge.
+- The **accent** is read the way the server reads `color` for the emoji it puts before the title, so
+  the two agree: `danger`/`red`, `warning`/`orange`/`yellow`, `good`/`green` in any case take the
+  design's ERROR red, an amber, and the ATTENDANCE green; a 3- or 6-digit hex keeps its hue; anything
+  else, and any grey, is the neutral card — a grey badge and the plain `--link` colour. What the card
+  paints is always computed from the input, never the input itself, and each colour is moved in
+  lightness until it clears 4.5:1 in each theme against a reference ground a step past every
+  client's card (light `#F7F7F7`, dark `#333333`). This app's `--card` has to stay lighter than the
+  first and darker than the second for that to hold on its cards; no spec here checks it. The emoji before the title stays as the
+  server wrote it.
+- The **source link** is a "View source" (`chat.room.attachment.openSource`) line right under the
+  title (last when there is no title); the title stays plain text. `takeSourceLink` reads the address
+  from `source$.url` first, and for an older message from the server's `<url|원문 보기>` element at the
+  end of the card's last line, which it takes off either way so the link shows once. Only an
+  `http`/`https` address is linked. It opens through `handleUrlClick` like any other card link.
 
 **Truncation is the bubble's affordance.** Over 200 characters the bubble cuts, appends an ellipsis
 outside the tokenizer's output, and offers "view all" → `MessageDetailDialog`. A card never
@@ -312,40 +331,13 @@ their own subject. System rows are also excluded from grouping, and they never s
 Unread badges count user messages only; the home list subtracts `channel.metaNo` (the non-counting
 event total) for that, which is the home feature's concern.
 
-## Attachments (`attach$`)
+## Legacy `attach$`
 
-A legacy field: the server now turns the sender's `meta` into `blocks$` (drawn as the Block Kit card
-above) and no longer writes `attach$`. What follows still holds for records written before that.
-
-`ChatModel.attach$` is a Slack-lineage payload — `pretext`, `title`, `text`, `color`, `username`,
-`ts`, `footer`, `sourceUrl`, `fields[]` — that the sender fills in as `meta` on the send body
-(`meta` itself is reserved by `CoreModel`). **The server preserves it and never interprets it**, so
-every check is the client's:
-
-Three predicates carry it: whether there is anything to draw at all (an empty `{}` renders no card),
-what colour the left rail is, and whether `sourceUrl` is a link the client may offer.
-
-Nothing in the domain or cache layer handles `attach$` specially: `ChatView` does not exclude it,
-`toDomainChat` spreads, `ClientChatView` extends `DomainChat`, and the native cache stores the row
-as a `data` blob. A package version bump is the whole integration.
-
-**Colour.** `danger` → `--destructive`, `good` → `--main-accent`, `warning` → the literal `#F5A623`
-(the kit has no amber token), a `#hex` verbatim. Anything else, including nothing, falls to the
-neutral `--input-border`: inventing a colour would misstate severity, and leaving it blank would
-erase the rail.
-
-**Links, guarded twice.** Only `http`/`https` survive `safeAttachmentUrl`; a filtered link means no
-button is drawn at all. This matters because the body is webhook input stored verbatim, and the
-value is handed to `openExternalUrl`, which in the native shell passes it to the OS browser. Opening
-externally rather than in the WebView is the second guard — the same rule every URL in a message
-follows.
-
-`ts` is in **epoch seconds**, the only timestamp in this app that is; everything else is
-milliseconds.
-
-Known limits: `fields` render in one column (the contract has no `short` flag), and `text` is drawn
-as plain text — no markdown, no URL tokenizing — because the sender is outside the trust boundary
-and linkifying their text widens it.
+Before the server built `blocks$`, it stored a webhook's card as `attach$`, a Slack-style attachment
+the row drew as a card of its own under the body. The server no longer stores it on new messages, but
+still returns it on the old ones, and this row no longer draws it: an old message shows as its
+`content` in a bubble. That text is whatever the sender sent as `content` — the server does not write
+it — so an old message whose sender left `content` empty shows an empty bubble.
 
 ## Message text is the desktop's dialect
 
@@ -706,12 +698,13 @@ Both play the selection haptic when tapped.
 - `ChannelRoomPage` is the largest file in the feature, and its test (`ChannelRoomPage.test.tsx`)
   renders it with every hook mocked, so it pins what the page draws, not the logic behind it. Logic
   added for this screen goes into a pure util, a hook or a component so it can be tested — that
-  constraint is why `orderMemberIds`, `systemMessage`, `chatAttachment`, `messageTokens` (now in
+  constraint is why `orderMemberIds`, `systemMessage`, `messageTokens` (now in
   `@chatic/data`, where the room media index reads links with it) and `displayName` exist as pure modules, and why paging and scrolling live in `useChats` and
   `useChatScroll`.
-- Attachment behaviour is pinned by `chatAttachment.test.ts` (scheme filter, empty attachment,
-  colour mapping) and `MessageAttachment.test.tsx` (field rendering, external open, no link for a
-  dangerous scheme, rail colour, seconds-based `ts`).
+- A webhook card's badge, accent colour and source link are pinned by `@chatic/block-kit`'s
+  `cardAccent.spec.ts`, `sourceLink.spec.ts` and `BlockKitMessage.spec.tsx`, and in this row by
+  `ChannelMessageRow.test.tsx` (`source$` badge and accent, `source$: null`, the link under the title,
+  an `attach$`-only message read as its summary).
 - The send entrance is pinned by `useStackIn.test.ts` (the keyframes, mount-only decision, reduced
   motion, clip release) and by the stacking cases in `ChannelRoomPage.test.tsx` (only my pending row
   asks for it, and the optimistic-to-server id swap does not remount the row).

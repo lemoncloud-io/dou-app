@@ -9,9 +9,11 @@ import {
     HistoryControls,
     PayloadPane,
     PreviewPane,
+    EMPTY_PREVIEW_SOURCE,
     blocksToPayloadJson,
     type PayloadParseFailure,
     type PreviewDevice,
+    type PreviewSource,
 } from './features';
 import { BuilderLayout } from './layout';
 import { useBuilderStore } from './store';
@@ -41,6 +43,10 @@ export const App = () => {
     // it: the editor marks the line, the preview says what happened. Neither owns
     // the other, so the thing they share sits above both.
     const [failure, setFailure] = useState<PayloadParseFailure | null>(null);
+    // The message's `source$` — badge, accent colour, source link. Outside the store for the same
+    // reason as `device`: the server builds it from the send's `meta`, so it is not in the payload
+    // this tool exports, and undo or a saved payload must not carry it.
+    const [source, setSource] = useState<PreviewSource>(EMPTY_PREVIEW_SOURCE);
 
     // The store decides whether this builder has ever held a message; `seed` is a
     // no-op once it has. Waiting for hydration first, or the check runs against
@@ -54,7 +60,16 @@ export const App = () => {
     return (
         <BuilderLayout
             rail={<BuilderRail />}
-            preview={<PreviewPane blocks={blocks} raw={json} device={device} failure={failure} />}
+            preview={
+                <PreviewPane
+                    blocks={blocks}
+                    raw={json}
+                    device={device}
+                    failure={failure}
+                    source={source}
+                    onSource={setSource}
+                />
+            }
             previewActions={
                 <div className="flex items-center gap-2">
                     {/* Nothing to choose below `lg`: the pane is already narrower

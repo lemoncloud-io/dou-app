@@ -41,6 +41,7 @@ stores in `src/app/shared/`.
 - [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no
   escapes.
 - [webhook-messages.md](./webhook-messages.md): how a message posted by an integration looks (the
-  card, the app badge and the sender's name), and how notifications, unread counts and previews treat it.
+  card with its type badge, accent colour and source link, and the sender's name), and how
+  notifications, unread counts and previews treat it.
 - [notifications.md](./notifications.md): the OS banner's title for a mention, what the title promises,
   and how a push from another cloud or the relay is shown and opened.

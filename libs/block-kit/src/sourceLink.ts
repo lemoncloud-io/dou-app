@@ -1,12 +1,12 @@
 import type { KnownBlock } from './blockKit';
 
 /**
- * Only `http`/`https` become the heading's link. The source is webhook input the
+ * Only `http`/`https` become the card's source link. The source is webhook input the
  * server stores without reading it, and a caller hands this link to the OS
  * browser — a `javascript:` or `data:` value must not reach either.
  */
-export const isWebUrl = (url?: string): url is string => {
-    if (!url?.trim()) return false;
+export const isWebUrl = (url?: unknown): url is string => {
+    if (typeof url !== 'string' || !url.trim()) return false;
     try {
         const { protocol } = new URL(url.trim());
         return protocol === 'http:' || protocol === 'https:';
@@ -23,50 +23,53 @@ export const isWebUrl = (url?: string): url is string => {
  * The label is how the link is found, not a trust boundary: Block Kit JSON sent
  * as a message's `content` can end with the same text. Moving it is still safe
  * because it never adds a link — it moves an `http(s)` one the card already
- * showed, from the last line to the title.
+ * showed.
  */
 const SERVER_SOURCE_LINK = /^<([^<>|]+)\|원문 보기>$/;
 
-/**
- * The heading that can carry the source link: the first one, and only when it is
- * `plain_text`. A mrkdwn heading can hold links or a fenced run of its own, and an
- * interactive element inside the link would open the source as well as itself.
- */
-export const linkableHeaderIndex = (blocks: KnownBlock[]): number => {
-    const at = blocks.findIndex(block => block.type === 'header');
-    const header = blocks[at];
-    return header?.type === 'header' && header.text.type === 'plain_text' ? at : -1;
-};
+/** What `takeSourceLink` reads off the message itself — the shape of the server's `source$`. */
+export interface SourceLinkInput {
+    url?: unknown;
+}
 
 interface SourceLink {
-    /** The blocks to draw, without the context link when it was taken. */
+    /** The blocks to draw, without the server's source line when it was taken. */
     blocks: KnownBlock[];
     /** Where the whole message can be read, for `BlockKitMessage`'s `sourceUrl`. */
     sourceUrl?: string;
 }
 
 /**
- * Moves the server's source link from the card's last line up to its heading.
+ * Finds the card's source link, and takes the server's `원문 보기` element off the
+ * last line so the card does not offer it twice.
  *
- * The design puts the way to the full report beside the title — the first thing
- * a reader looks at, and the thing they want more of — rather than as a small
- * link under everything else. Left where it is as well, the card would offer the
- * same link twice.
+ * Read in order: the message's own `source$.url`, then the server's context
+ * element. The field is the server's record of the source and does not depend on
+ * the label's wording; the context element is all a message stored before the
+ * field existed has. Both come from the same `meta.sourceUrl` on the server, so
+ * when both are there they agree — and if they ever did not, the field wins and
+ * the line still goes.
  *
- * Takes it only when there is a plain-text heading to carry it and the address
- * is a web one; otherwise the blocks come back unchanged and the link stays reachable
- * where the server put it. A context block emptied by the move is dropped.
+ * `BlockKitMessage` draws the link as its own labelled line under the title. When
+ * neither gives a web address the blocks come back unchanged, so whatever the
+ * server put on the last line stays where it can still be pressed — or, for a
+ * `javascript:` one, stays inert text-shaped markup the renderer never links.
+ * A context block emptied by the move is dropped.
  */
-export const takeSourceLink = (blocks: KnownBlock[]): SourceLink => {
-    if (linkableHeaderIndex(blocks) < 0) return { blocks };
+export const takeSourceLink = (blocks: KnownBlock[], source?: SourceLinkInput | null): SourceLink => {
+    const field = isWebUrl(source?.url) ? source.url.trim() : undefined;
+
     const at = blocks.map(block => block.type).lastIndexOf('context');
     const context = blocks[at];
-    if (context?.type !== 'context') return { blocks };
-    const last = context.elements[context.elements.length - 1];
+    const last = context?.type === 'context' ? context.elements[context.elements.length - 1] : undefined;
     const match = last?.type === 'mrkdwn' ? SERVER_SOURCE_LINK.exec(last.text.trim()) : null;
-    if (!match || !isWebUrl(match[1])) return { blocks };
+    const lineUrl = match && isWebUrl(match[1]) ? match[1].trim() : undefined;
+
+    const sourceUrl = field ?? lineUrl;
+    if (!sourceUrl) return { blocks };
+    if (!match || context?.type !== 'context') return { blocks, sourceUrl };
 
     const elements = context.elements.slice(0, -1);
     const rest = elements.length ? [{ ...context, elements }] : [];
-    return { blocks: [...blocks.slice(0, at), ...rest, ...blocks.slice(at + 1)], sourceUrl: match[1].trim() };
+    return { blocks: [...blocks.slice(0, at), ...rest, ...blocks.slice(at + 1)], sourceUrl };
 };

@@ -343,11 +343,13 @@ export const MessageRow = memo(
                     const plain = !blocks || source === 'field' ? content : blocksToPlainText(blocks);
                     // A card only when something in it draws: a message whose every block is
                     // unknown falls back to its own text, and that text is a message, not a
-                    // card. `sourceUrl` is the webhook's full report, which the card's title
-                    // links to — the server puts it on the card's last line and
-                    // `takeSourceLink` moves it up. Only the drawing moves: `plain` above reads the
-                    // blocks as they came, so Copy and Save say what they said before.
-                    const card = blocks && hasDrawableBlocks(blocks) ? takeSourceLink(blocks) : null;
+                    // card. `sourceUrl` is the webhook's full report, drawn as a link under the
+                    // card's title: `takeSourceLink` reads it from `source$.url`, or from the
+                    // server's `원문 보기` element on the last line for a message stored before
+                    // that field, and takes that element off so the link shows once. Only the
+                    // drawing moves: `plain` above reads the blocks as they came, so Copy and
+                    // Save say what they said before.
+                    const card = blocks && hasDrawableBlocks(blocks) ? takeSourceLink(blocks, message.source$) : null;
                     return { content, blocks, plain, card };
                 }),
             [group.messages]
@@ -426,14 +428,11 @@ export const MessageRow = memo(
                         {group.namePending ? (
                             <Skeleton className="h-3.5 w-24 rounded" />
                         ) : group.isWebhook ? (
-                            <>
-                                <span className="truncate text-lead font-bold leading-tight text-foreground">
-                                    {group.ownerName}
-                                </span>
-                                <span className="shrink-0 rounded bg-muted px-1 py-px text-caption font-semibold uppercase leading-tight text-description">
-                                    {t('chat.webhook.badge')}
-                                </span>
-                            </>
+                            // No "App" mark beside the name: the card under it carries its own type
+                            // badge, and two labels on one message read as two different things.
+                            <span className="truncate text-lead font-bold leading-tight text-foreground">
+                                {group.ownerName}
+                            </span>
                         ) : (
                             <UserProfilePopover {...profileProps}>
                                 <button
@@ -624,6 +623,7 @@ export const MessageRow = memo(
                                                 raw={content}
                                                 scale="desktop"
                                                 sourceUrl={card?.sourceUrl}
+                                                source={card ? message.source$ : undefined}
                                                 labels={{
                                                     expandCode: count => t('chat.codeBlock.expand', { count }),
                                                     collapseCode: t('chat.codeBlock.collapse'),

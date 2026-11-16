@@ -562,6 +562,22 @@ describe('ChannelMessageRow', () => {
 
     // A webhook send (`stereo: 'webhook'`) can carry its Block Kit as JSON in `content`. Without
     // this branch the row hands that JSON to MessageText and the reader sees the payload.
+    // A webhook stored before `blocks$` kept its card in `attach$`, which this row no longer draws:
+    // the message reads as the plain-text summary the sender put in `content`.
+    it('shows an attach$-only message as its plain summary, with no attachment card', () => {
+        const legacy = {
+            ...message,
+            stereo: 'webhook',
+            content: 'error-report: example-api',
+            attach$: { title: 'error-report', text: 'TypeError', sourceUrl: 'https://example.com/r.json' },
+        } as unknown as ClientChatView;
+        render(<ChannelMessageRow {...baseProps} message={legacy} />);
+
+        expect(screen.getByText('error-report: example-api')).toBeInTheDocument();
+        expect(screen.queryByText('TypeError')).not.toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
     describe('Block Kit content', () => {
         const blockMessage = (blocks: unknown[]) =>
             ({ ...message, stereo: 'webhook', content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
@@ -628,6 +644,45 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
         });
 
+        // The badge and the card's accent come from `source$`, the server's copy of the sender's channel
+        // name and colour, kept beside the blocks.
+        it("badges the card with the sender's channel and gives it the sender's colour", () => {
+            const { container } = render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={
+                        {
+                            ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: '오늘 근태' } }]),
+                            source$: { key: 'attendance', color: 'good' },
+                        } as unknown as ClientChatView
+                    }
+                />
+            );
+
+            expect(screen.getByText('attendance').closest('.uppercase')).not.toBeNull();
+            const card = screen.getByRole('heading', { name: '오늘 근태' }).parentElement as HTMLElement;
+            expect(card.style.getPropertyValue('--block-kit-link-light')).toMatch(/^#[0-9A-F]{6}$/);
+            expect(container.innerHTML).not.toContain('good');
+        });
+
+        // A hidden message carries `source$: null`; it must read as "no source", not throw.
+        it('draws the card with no badge when source$ is null', () => {
+            render(
+                <ChannelMessageRow
+                    {...baseProps}
+                    message={
+                        {
+                            ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: 'Title' } }]),
+                            source$: null,
+                        } as unknown as ClientChatView
+                    }
+                />
+            );
+
+            expect(screen.getByRole('heading', { name: 'Title' })).toBeInTheDocument();
+            expect(document.querySelector('.rounded-full')).toBeNull();
+        });
+
         // The unfurl reads what the reader can see, not the payload. A Slack link token
         // (`<url|label>`) shows only its label, so the URL inside it was never on screen —
         // unfurling it would card a page nobody was offered.
@@ -662,15 +717,16 @@ describe('ChannelMessageRow', () => {
             it('opens a tapped link outside the webview instead of following the anchor', () => {
                 render(<ChannelMessageRow {...baseProps} message={linkMessage()} />);
 
-                const followed = fireEvent.click(screen.getByRole('link', { name: '원문 보기' }));
+                // The server's `원문 보기` element is drawn as the card's own source line.
+                const followed = fireEvent.click(screen.getByRole('link', { name: 'chat.room.attachment.openSource' }));
 
                 expect(followed).toBe(false);
                 expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/r.json');
             });
 
-            // The server writes the sender's `meta.sourceUrl` as the card's last link; the title is
-            // the way to it now, and it leaves the app the same way a link in the body does.
-            it("moves the server's source link to the title and opens it outside the webview", () => {
+            // The server writes the sender's `meta.sourceUrl` as the card's last link; the card draws it
+            // as its own line under the title instead, and it leaves the app the way a body link does.
+            it("draws the server's source link under the title and opens it outside the webview", () => {
                 render(
                     <ChannelMessageRow
                         {...baseProps}
@@ -685,13 +741,41 @@ describe('ChannelMessageRow', () => {
                 );
 
                 expect(screen.queryByRole('link', { name: '원문 보기' })).not.toBeInTheDocument();
-                const followed = fireEvent.click(screen.getByRole('link', { name: /503 ECONNRESET/ }));
+                const title = screen.getByRole('heading', { name: '503 ECONNRESET' });
+                expect(title.closest('a')).toBeNull();
+                const link = screen.getByRole('link', { name: 'chat.room.attachment.openSource' });
+                expect(title.nextElementSibling).toBe(link);
+                const followed = fireEvent.click(link);
 
                 expect(followed).toBe(false);
                 expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/report.json');
             });
 
-            it('leaves the title unlinked when the source is not a web address', () => {
+            it('reads source$.url first and shows the link once', () => {
+                render(
+                    <ChannelMessageRow
+                        {...baseProps}
+                        message={
+                            {
+                                ...blockMessage([
+                                    { type: 'header', text: { type: 'plain_text', text: '배포 완료' } },
+                                    {
+                                        type: 'context',
+                                        elements: [{ type: 'mrkdwn', text: '<https://old.example.com/r|원문 보기>' }],
+                                    },
+                                ]),
+                                source$: { url: 'https://example.com/actions/runs/1' },
+                            } as unknown as ClientChatView
+                        }
+                    />
+                );
+
+                const links = screen.getAllByRole('link');
+                expect(links).toHaveLength(1);
+                expect(links[0]).toHaveAttribute('href', 'https://example.com/actions/runs/1');
+            });
+
+            it('draws no source link when the source is not a web address', () => {
                 render(
                     <ChannelMessageRow
                         {...baseProps}
@@ -706,6 +790,7 @@ describe('ChannelMessageRow', () => {
                 );
 
                 expect(screen.getByRole('heading', { name: '503 ECONNRESET' }).closest('a')).toBeNull();
+                expect(screen.queryByRole('link', { name: 'chat.room.attachment.openSource' })).not.toBeInTheDocument();
             });
 
             it('swallows the click that ends a long press, so the action sheet wins', () => {

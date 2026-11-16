@@ -1,4 +1,4 @@
-import { useContext, type ReactNode } from 'react';
+import { useContext, type CSSProperties, type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -17,8 +17,9 @@ import {
     type BlockKitScaleClasses,
 } from './blockKitScale';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
-import { BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
-import { isWebUrl, linkableHeaderIndex } from './sourceLink';
+import { resolveCardAccent, type CardAccent } from './cardAccent';
+import { BLOCK_KIT_LINK_COLOR_CLASS, BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
+import { isWebUrl } from './sourceLink';
 
 // Newlines are significant in every Slack text object — a field is routinely
 // "*Label*\nvalue" — and nothing else in the block reinstates them.
@@ -36,38 +37,97 @@ const textOf = (text: BlockTextObject): ReactNode =>
 // what supports it.
 const BODY_CLASS = 'font-medium text-label';
 
-const Header = ({ text, level, sourceUrl }: { text: BlockTextObject; level?: number; sourceUrl?: string }) => {
-    const onLinkClick = useContext(BlockKitLinkContext);
-    const labels = useBlockKitLabels();
+const Header = ({ text, level }: { text: BlockTextObject; level?: number }) => {
     const scale = useBlockKitScale();
     const depth = Math.min(Math.max(level ?? 1, 1), 4);
     const Tag = `h${depth}` as 'h1' | 'h2' | 'h3' | 'h4';
-    const heading = <Tag className={cn('text-foreground', TEXT_FLOW, scale.heading[depth - 1])}>{textOf(text)}</Tag>;
-    if (!sourceUrl) return heading;
-    // The title itself is the link, drawn as the title: a webhook card's heading names
-    // the event, and the event's full report is what a reader pressing it wants. No
-    // icon beside it — every card from a sender that attaches its source would carry
-    // the same mark, which says nothing once it is on all of them. An underline on
-    // hover tells a pointer it is a link; a screen reader hears it from the hidden label.
+    return <Tag className={cn('text-foreground', TEXT_FLOW, scale.heading[depth - 1])}>{textOf(text)}</Tag>;
+};
+
+/**
+ * The way to the message's full source — a webhook's report — as a labelled link of its own under
+ * the title. The title stays plain text: a reader looking for "the original" finds a word that says
+ * so, which a heading that is secretly a link does not offer. In the card's link colour, like every
+ * other link inside it.
+ */
+const SourceLink = ({ url }: { url: string }) => {
+    const onLinkClick = useContext(BlockKitLinkContext);
+    const labels = useBlockKitLabels();
+    const scale = useBlockKitScale();
     return (
         <a
-            href={sourceUrl}
+            href={url}
             target="_blank"
             rel="noreferrer noopener"
-            className="focus-ring block w-fit max-w-full rounded underline-offset-2 hover:underline"
+            className={cn(
+                'focus-ring w-fit rounded font-semibold underline-offset-2 hover:underline',
+                BLOCK_KIT_LINK_COLOR_CLASS,
+                scale.context
+            )}
             onClick={
                 onLinkClick &&
                 (event => {
                     event.preventDefault();
-                    onLinkClick(sourceUrl);
+                    onLinkClick(url);
                 })
             }
         >
-            {heading}
-            <span className="sr-only">{labels.openSource}</span>
+            {labels.openSource}
         </a>
     );
 };
+
+/**
+ * The type badge's words: the sender's channel name (`source$.key`) as plain text, with its hyphens
+ * and underscores read as spaces (`ci-deploy` → `ci deploy`, drawn CI DEPLOY). Null when there is
+ * none. The capitals are the badge's style, not its text, so a copied badge and a screen reader get
+ * the words rather than a run of letters.
+ *
+ * The name is untrusted and unbounded, so it is never read as markup — React prints it as text — and
+ * the badge cuts it to one line.
+ */
+export const cardBadgeText = (key: unknown): string | null => {
+    if (typeof key !== 'string') return null;
+    const words = key.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return words || null;
+};
+
+const Badge = ({ text, accented }: { text: string; accented: boolean }) => {
+    const scale = useBlockKitScale();
+    return (
+        <span
+            className={cn(
+                'inline-flex min-w-0 max-w-full self-start rounded-full px-2.5 py-1 font-bold uppercase',
+                scale.badge,
+                // The accent's colours are CSS variables the card root sets per theme; without one the
+                // badge is the design's grey.
+                accented
+                    ? 'bg-[var(--block-kit-badge-bg)] text-[color:var(--block-kit-badge-text)]'
+                    : 'bg-well text-label'
+            )}
+        >
+            <span className="truncate">{text}</span>
+        </span>
+    );
+};
+
+/** The accent as CSS variables: both themes' values, picked by the classes below. Computed colours only. */
+const accentStyle = (accent: CardAccent): CSSProperties =>
+    ({
+        '--block-kit-link-light': accent.light.link,
+        '--block-kit-link-dark': accent.dark.link,
+        '--block-kit-badge-text-light': accent.light.badgeText,
+        '--block-kit-badge-text-dark': accent.dark.badgeText,
+        '--block-kit-badge-bg-light': accent.light.badgeBackground,
+        '--block-kit-badge-bg-dark': accent.dark.badgeBackground,
+    }) as CSSProperties;
+
+// Every caller marks its dark theme with a `.dark` class on the document, which is what `dark:` reads.
+const ACCENT_CLASS = cn(
+    '[--block-kit-link:var(--block-kit-link-light)] dark:[--block-kit-link:var(--block-kit-link-dark)]',
+    '[--block-kit-badge-text:var(--block-kit-badge-text-light)] dark:[--block-kit-badge-text:var(--block-kit-badge-text-dark)]',
+    '[--block-kit-badge-bg:var(--block-kit-badge-bg-light)] dark:[--block-kit-badge-bg:var(--block-kit-badge-bg-dark)]'
+);
 
 // Slack's convention for a field is "*Label*\nvalue" — bold first line, value under
 // it. Read that shape as what it means, a small caption over its value, rather than
@@ -92,10 +152,10 @@ const Field = ({ field }: { field: BlockTextObject }): ReactNode => {
     );
 };
 
-const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses, sourceUrl?: string): ReactNode => {
+const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses): ReactNode => {
     switch (block.type) {
         case 'header':
-            return <Header key={key} text={block.text} level={block.level} sourceUrl={sourceUrl} />;
+            return <Header key={key} text={block.text} level={block.level} />;
         case 'divider':
             // Capped rather than full-bleed: in a wide pane the card can stretch, and a
             // rule that runs its whole width reads as a separator between messages.
@@ -175,13 +235,20 @@ interface BlockKitMessageProps {
      */
     scale?: BlockKitScale;
     /**
-     * Where the whole message can be read in full — a webhook's report, say. The
-     * first heading becomes a link to it. Not a block: Slack's
-     * `header` carries no URL, so the caller takes it from wherever its message keeps
-     * one. Ignored unless it is `http(s)`, and when the first heading is not plain text
-     * (a mrkdwn heading can hold links of its own, which cannot sit inside this one).
+     * Where the whole message can be read in full — a webhook's report, say — drawn as
+     * a labelled link (`labels.openSource`) under the first heading, or last when there
+     * is none. Not a block: Slack's `header` carries no URL, so the caller finds it
+     * (`takeSourceLink`). Ignored unless it is `http(s)`.
      */
     sourceUrl?: string;
+    /**
+     * The message's `source$` as the server stored it: `key` (the sender's channel
+     * name) becomes the type badge over the title, `color` the card's accent — the
+     * badge's colours and every link inside the card (`resolveCardAccent`). Both are
+     * the sender's raw values; neither reaches the page as markup or as a style.
+     * `null` (a hidden message) and absent both mean no badge and no accent.
+     */
+    source?: { key?: unknown; color?: unknown } | null;
 }
 
 /**
@@ -201,24 +268,43 @@ export const BlockKitMessage = ({
     onLinkClick,
     scale = 'phone',
     sourceUrl,
+    source,
 }: BlockKitMessageProps): ReactNode => {
-    if (!hasDrawableBlocks(blocks)) {
-        return (
-            <p className={cn('select-text break-words text-body text-foreground', TEXT_FLOW)}>
-                {renderFallback ? renderFallback(raw) : raw}
-            </p>
-        );
-    }
-    const linkedHeader = isWebUrl(sourceUrl) ? linkableHeaderIndex(blocks) : -1;
+    const link = isWebUrl(sourceUrl) ? <SourceLink key="source" url={sourceUrl.trim()} /> : null;
+    const drawable = hasDrawableBlocks(blocks);
+    const fallback = (
+        <p className={cn('select-text break-words text-body text-foreground', TEXT_FLOW)}>
+            {renderFallback ? renderFallback(raw) : raw}
+        </p>
+    );
+    if (!drawable && !link) return fallback;
     const classes = BLOCK_KIT_SCALE[scale];
+    const badge = cardBadgeText(source?.key);
+    const accent = resolveCardAccent(source?.color);
+    // Under the title, which is what the link is the full version of; with no title, last.
+    const linkAfter = link && drawable ? blocks.findIndex(block => block.type === 'header') : -1;
     return (
         <BlockKitLabelsContext.Provider value={{ ...DEFAULT_BLOCK_KIT_LABELS, ...labels }}>
             <BlockKitScaleContext.Provider value={classes}>
                 <BlockKitLinkContext.Provider value={onLinkClick}>
-                    <div className="flex select-text flex-col gap-3.5 break-words text-body text-foreground">
-                        {blocks.map((block, i) =>
-                            drawBlock(block, i, classes, i === linkedHeader ? sourceUrl?.trim() : undefined)
+                    <div
+                        className={cn(
+                            'flex select-text flex-col gap-3.5 break-words text-body text-foreground',
+                            accent && ACCENT_CLASS
                         )}
+                        style={accent ? accentStyle(accent) : undefined}
+                    >
+                        {badge && <Badge text={badge} accented={!!accent} />}
+                        {/* Nothing left to draw once the server's source line moved out — the
+                            caller judged the card on the blocks before `takeSourceLink` — so the
+                            body is the message's own text, with the link still under it. */}
+                        {drawable
+                            ? blocks.flatMap((block, i) => {
+                                  const drawn = drawBlock(block, i, classes);
+                                  return i === linkAfter ? [drawn, link] : [drawn];
+                              })
+                            : fallback}
+                        {linkAfter < 0 && link}
                     </div>
                 </BlockKitLinkContext.Provider>
             </BlockKitScaleContext.Provider>

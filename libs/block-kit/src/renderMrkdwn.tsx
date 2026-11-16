@@ -48,6 +48,14 @@ const INLINE = new RegExp(
  */
 export const BlockKitLinkContext = createContext<((url: string) => void) | undefined>(undefined);
 
+/**
+ * A card link's colour: the card's accent when `BlockKitMessage` set one (`--block-kit-link`, which
+ * it computes per theme from the sender's colour), else the app's own `--link`. A CSS variable rather
+ * than a class per colour, because the colour is only known at run time and Tailwind only emits the
+ * classes it can read in the source.
+ */
+export const BLOCK_KIT_LINK_COLOR_CLASS = 'text-[color:var(--block-kit-link,hsl(var(--link)))]';
+
 const BlockLink = ({ href, label }: { href: string; label: string }) => {
     const onLinkClick = useContext(BlockKitLinkContext);
     return (
@@ -55,7 +63,7 @@ const BlockLink = ({ href, label }: { href: string; label: string }) => {
             href={href}
             target="_blank"
             rel="noreferrer noopener"
-            className="font-semibold text-link underline-offset-2 hover:underline"
+            className={`font-semibold ${BLOCK_KIT_LINK_COLOR_CLASS} underline-offset-2 hover:underline`}
             onClick={
                 onLinkClick &&
                 (event => {

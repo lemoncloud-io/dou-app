@@ -17,9 +17,10 @@ subset is the one the server produces — `header`, `section` (with `fields`), `
 `context`. A block type this build does not know is shown as a short `unsupported block` line
 rather than dropped, so the card still reads.
 Links in the mrkdwn text open in a new window: the row passes no `onLinkClick`, because the Electron
-shell hands a `_blank` anchor to the OS browser, the same way `RichText`'s links leave. They take
-the `--link` token, which here is also every message link's and the composer's link colour, so a card
-link is this app's blue rather than the purple apps/web gives its card links.
+shell hands a `_blank` anchor to the OS browser, the same way `RichText`'s links leave. Their colour is
+the card's accent (below) when the sender gave one, and otherwise the `--link` token, which here is also
+every message link's and the composer's link colour — this app's blue rather than the purple apps/web
+gives its card links.
 
 A message with at least one drawable block sits in a card: the card surface with a hairline border,
 10px corners and 24px inside it, as wide as what it holds up to the message column — a short alert is a
@@ -49,13 +50,41 @@ is not monospaced, as the design draws a trace — the cost is that a fence hold
 output, a table or pretty-printed JSON, loses its alignment. None of this touches the composer's own
 code styles, which are for code a person typed.
 
-When the sender gave a source (its `meta.sourceUrl`, the full report), the card's heading is the
-link to it. The server writes that source as the last element of the card's last context line,
-`<url|원문 보기>`; `takeSourceLink` takes it off that line and the row hands it to `BlockKitMessage` as
-`sourceUrl`, so the heading is drawn as the heading and underlines on hover, with no icon beside it.
-A screen reader hears "View source" (`chat.webhook.openSource`) after the title. Only an `http`/`https`
-address moves, and only onto a plain-text heading; otherwise the link stays where the server put it.
-The move is drawing only: what Copy and Save read (below) is unchanged.
+### Type badge, accent colour and source link
+
+These three come from the message's `source$`, not from its blocks: the server copies the sender's
+alert channel name (`key`), the full report's address (`url`) and the sender's `color` exactly as sent
+onto every webhook message, beside `blocks$`. The row passes `source$` to `BlockKitMessage` with the
+blocks. A person's message is never a card, so a `source$` on one is never read. A hidden message
+carries `source$: null`, which reads as none. Messages the server stored before it wrote `source$`
+(10 November 2026) have neither badge nor accent; nothing is backfilled.
+
+- **Type badge.** A pill at the top of the card saying the channel name in capitals (a style; the
+  text stays the name), hyphens and underscores read as spaces (`ci-deploy` → CI DEPLOY), 12px bold,
+  cut to one line. No `key`, no badge. The name is not mapped through any table: whatever a
+  sender registers is what shows, and it is printed as text, never read as mrkdwn or markup.
+- **Accent colour.** `color` decides the badge's colours and the colour of every link in the card.
+  The app reads it with the same rules the server uses to pick the emoji it puts before the title, so
+  the two never disagree: `danger`/`red`, `warning`/`orange`/`yellow` and `good`/`green` in any case
+  take the design's ERROR red, an amber, and the ATTENDANCE green; a 3- or 6-digit hex, with or without
+  `#`, keeps its hue; anything else, and any grey (HSL saturation under 0.2), is the neutral card — the
+  design's grey badge and the app's own link colour. The title's emoji stays as the server wrote it, so
+  an error card shows 🔴 and an ERROR badge together.
+    - What the card paints is always a colour computed from the input, never the input: a value that
+      would run as CSS has nowhere to go.
+    - Each colour is fitted to 4.5:1 per theme by moving its lightness only — darker on the light card,
+      lighter on the dark one. The ground it is fitted to is a reference a step past every client's card
+      (light `#F7F7F7`, dark `#333333`), which `tokenContrast.spec.ts` holds this app's `--card` to.
+    - The colours reach the links as CSS variables on the card root, one per theme, chosen by the
+      `.dark` class; a colour known only at run time cannot be a Tailwind class.
+- **Source link.** When the sender gave a source, the card draws "View source" (`chat.webhook.openSource`)
+  as its own link line right under the title (last, when there is no title). The title stays plain
+  text. `takeSourceLink` reads the address from `source$.url` first, and for a message stored before
+  that field from the server's own `<url|원문 보기>` element at the end of the card's last context line;
+  either way it takes that element off the line, so the link shows once. Only an `http`/`https`
+  address becomes a link. When nothing drawable is left once that element is off — it was the card's only drawable line — the
+  card shows the message's own text with the link under it.
+  The move is drawing only: what Copy and Save read (below) is unchanged.
 
 `content` is not the card: for a message with `blocks$` it is the server's plain-text summary, and it
 is what Copy, Save, the delete confirmation and the link unfurl use. Folding the blocks back into text
@@ -75,8 +104,9 @@ member, so the member sync never brings it into the user cache, and the server h
 reads a user by id. The `owner$` a message carries is no substitute — the server stores only its id
 and name.
 
-- **Badge.** The name is followed by an "App" badge (`chat.webhook.badge`), which tells an
-  integration's card apart from a person with the same name.
+- **No app badge.** The name stands alone. It used to be followed by an "App" mark; the card under it
+  now carries its own type badge, and two labels on one message read as two different things. Until
+  per-integration bot names exist, nothing beside the name says it is not a person — an accepted gap.
 - **No profile.** The avatar and name are plain content, not popover triggers. There is no profile to
   open, and nothing to start a direct message with.
 - **Name.** `owner$.name` when the server embeds it, else "Webhook". The roster and Place Profiles are

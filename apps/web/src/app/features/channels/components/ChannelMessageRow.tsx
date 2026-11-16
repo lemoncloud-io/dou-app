@@ -26,7 +26,6 @@ import type { ThreadMeta } from '../utils/buildThread';
 import { LONG_PRESS_DELAY_MS, MOVE_CANCEL_PX } from '../utils/longPress';
 import { mentionMarksFor, type MentionPerson, type MentionViewer } from '../utils/mentionHighlight';
 import { openExternalUrl } from '../utils/openExternalUrl';
-import { MessageAttachment } from './MessageAttachment';
 import { MessageCodeBlock } from './MessageCodeBlock';
 import { MessageText } from './MessageText';
 import { MessageImages } from './MessageImages';
@@ -220,13 +219,15 @@ export const ChannelMessageRow = ({
     // send this is a `JSON.parse` plus the mrkdwn passes. Ordinary messages cost a `trim`
     // and a `startsWith` either way (`parseBlocks` bails on the first character).
     //
-    // `sourceUrl` is the webhook's full report, which the card's title links to. The server puts it
-    // on the card's last line, and `takeSourceLink` moves it up.
+    // `sourceUrl` is the webhook's full report, drawn as a link under the card's title.
+    // `takeSourceLink` reads it from `source$.url`, or from the server's `원문 보기` element on the
+    // card's last line for a message stored before that field, and takes that element off so the
+    // link shows once.
     const { drawnBlocks, plain, sourceUrl } = useMemo(() => {
         if (skipBlocks) return { drawnBlocks: null, plain: content, sourceUrl: undefined };
         const { blocks, source } = resolveChatBlocks(message);
         const drawable = blocks && hasDrawableBlocks(blocks) ? blocks : null;
-        const linked = drawable ? takeSourceLink(drawable) : null;
+        const linked = drawable ? takeSourceLink(drawable, message.source$) : null;
         return {
             drawnBlocks: linked?.blocks ?? null,
             plain: drawable && source === 'content' ? blocksToPlainText(drawable) : content,
@@ -574,6 +575,7 @@ export const ChannelMessageRow = ({
                                     raw={content}
                                     onLinkClick={handleUrlClick}
                                     sourceUrl={sourceUrl}
+                                    source={message.source$}
                                     labels={{
                                         expandCode: count => t('chat.room.codeBlock.expand', { count }),
                                         collapseCode: t('chat.room.codeBlock.collapse'),
@@ -633,12 +635,9 @@ export const ChannelMessageRow = ({
                 content, reactions and the thread footer comment on it. All three sit outside the
                 long-press target — inside it the gesture would eat taps on the card — so each
                 becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
-            {/* Before the unfurl card: `attach$` IS the sender's structured body, while the unfurl
-                is something we derived from a URL we found in the text. */}
             {/* Images that came with text sit under the bubble, as their own row in the column —
                 and, unlike the rows below, are pressed like the bubble: they are the message. */}
             {hasImages && !imageOnly && renderImages()}
-            <MessageAttachment attach={message.attach$} />
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
                 <ReactionChips

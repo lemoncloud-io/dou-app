@@ -38,9 +38,18 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 
 import { MessageList } from './MessageList';
+import { en } from '../../../../locales/en';
+import { ko } from '../../../../locales/ko';
 import { useSavedItemsStore } from '../../../shared';
 import type { ThreadMeta } from '../utils';
-import { MSG_MENTION_CLASS, WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
+import {
+    MSG_MENTION_CLASS,
+    WEBHOOK_BLOCKS_DEPLOYMENT,
+    WEBHOOK_BLOCKS_ERROR_REPORT,
+    WEBHOOK_SEND_DEPLOYMENT,
+    WEBHOOK_SEND_ERROR_REPORT,
+    WEBHOOK_SOURCE_DEPLOYMENT,
+} from '@chatic/block-kit';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.
@@ -215,9 +224,9 @@ describe('MessageList', () => {
     });
 
     // The server writes the sender's report link as the card's last context element; the card
-    // draws it as the title instead, once — a second copy on the last line would offer the same
-    // link twice.
-    it("links a webhook card's title to its report and drops the source line", () => {
+    // draws it as its own "View source" line under the title instead, once — a second copy on the
+    // last line would offer the same link twice. The title itself stays plain text.
+    it("draws a webhook card's report link under its title and drops the source line", () => {
         const webhook = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
@@ -228,11 +237,49 @@ describe('MessageList', () => {
             wrapper,
         });
 
-        const title = screen.getByRole('link', { name: /error-report.*View source/ });
-        expect(title.getAttribute('href')).toBe(WEBHOOK_SEND_ERROR_REPORT.meta.sourceUrl);
-        expect(within(title).getByRole('heading')).toBeDefined();
+        const link = screen.getByRole('link', { name: 'View source' });
+        expect(link.getAttribute('href')).toBe(WEBHOOK_SEND_ERROR_REPORT.meta.sourceUrl);
+        const title = screen.getByRole('heading', { name: /error-report/ });
+        expect(title.closest('a')).toBeNull();
+        expect(title.nextElementSibling).toBe(link);
         expect(screen.queryByText('원문 보기')).toBeNull();
-        expect(screen.getAllByRole('link', { name: /View source/ })).toHaveLength(1);
+    });
+
+    // `source$` is the server's record of the sender's channel, report and colour: the card reads its
+    // badge and its link from there.
+    it("badges a webhook card with its sender's channel and links it to source$.url", () => {
+        const webhook = {
+            ...message(1, 'ada', WEBHOOK_SEND_DEPLOYMENT.content),
+            blocks$: [...WEBHOOK_BLOCKS_DEPLOYMENT],
+            stereo: WEBHOOK_SEND_DEPLOYMENT.stereo,
+            source$: { ...WEBHOOK_SOURCE_DEPLOYMENT, url: 'https://example.com/actions/runs/860' },
+        } as DomainChat;
+
+        render(<MessageList messages={[webhook]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        expect(screen.getByText('deployment').closest('.uppercase')).not.toBeNull();
+        expect(screen.getByRole('link', { name: 'View source' }).getAttribute('href')).toBe(
+            'https://example.com/actions/runs/860'
+        );
+        expect(screen.getAllByRole('link', { name: 'View source' })).toHaveLength(1);
+    });
+
+    // A person's message never reads source$: it is not a card, so nothing of it is drawn.
+    it("ignores source$ on a person's message", () => {
+        const pasted = {
+            ...message(1, 'ada', 'just text'),
+            stereo: 'user',
+            source$: { key: 'error', color: 'danger', url: 'https://x.dev' },
+        } as DomainChat;
+
+        render(<MessageList messages={[pasted]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        expect(screen.queryByText('error')).toBeNull();
+        expect(screen.queryByRole('link')).toBeNull();
     });
 
     // A card frames what the blocks draw. A payload where nothing draws falls back to the
@@ -244,7 +291,10 @@ describe('MessageList', () => {
 
         render(
             <MessageList
-                messages={[message(1, 'ada', drawable), message(2, 'ada', undrawable)]}
+                messages={[
+                    { ...message(1, 'ada', drawable), stereo: 'webhook' } as DomainChat,
+                    { ...message(2, 'ada', undrawable), stereo: 'webhook' } as DomainChat,
+                ]}
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}
@@ -1005,7 +1055,8 @@ describe('MessageList webhook sender', () => {
             ...(owner ? { owner$: owner } : {}),
         }) as unknown as DomainChat;
 
-    it('badges the sender as an app and renders its name as plain text, not a profile trigger', () => {
+    // The card carries its own type badge now, so the name has no "App" mark beside it.
+    it('renders the sender name as plain text with no app badge, not a profile trigger', () => {
         render(
             <MessageList
                 messages={[webhookCard(1, 'hook', { name: 'Alarm Bot' })]}
@@ -1015,7 +1066,7 @@ describe('MessageList webhook sender', () => {
             { wrapper }
         );
 
-        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.queryByText('App')).toBeNull();
         expect(screen.getByText('Alarm Bot')).toBeDefined();
         expect(screen.queryByRole('button', { name: 'Alarm Bot' })).toBeNull();
         // The avatar is no popover trigger either: its only possible name is the initial.
@@ -1027,8 +1078,13 @@ describe('MessageList webhook sender', () => {
         render(<MessageList messages={[webhookCard(1, 'hook')]} isLoading={false} viewer={VIEWER} />, { wrapper });
 
         expect(screen.getByText('Webhook')).toBeDefined();
-        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.queryByText('App')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Webhook' })).toBeNull();
+    });
+
+    it('no longer carries copy for the app badge', () => {
+        expect('chat.webhook.badge' in en).toBe(false);
+        expect('chat.webhook.badge' in ko).toBe(false);
     });
 
     it('keeps a person as a profile trigger with no app badge', () => {

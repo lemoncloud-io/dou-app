@@ -15,4 +15,5 @@ export * from './CollapsibleCode';
 export * from './renderMrkdwn';
 export * from './BlockKitMessage';
 export * from './sourceLink';
+export * from './cardAccent';
 export * from './sampleWebhookBlocks';
