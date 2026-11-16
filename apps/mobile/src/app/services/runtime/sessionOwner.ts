@@ -1,35 +1,59 @@
-import { toEnvStage } from '../../utils/stage';
-
 /** Who holds the session this launch: the page, as it always has, or the app's own runtime. */
 export type SessionOwner = 'web' | 'native';
 
 /** The key the choice is kept under, in its own file (`RUNTIME_STORAGE_IDS.mode`). */
 export const SESSION_OWNER_KEY = 'sessionOwner';
 
+/**
+ * The key the page's default is kept under, beside the switch's choice: the owner of an install nobody
+ * switched, as the web build last named it (`SetDefaultSessionOwner`).
+ */
+export const DEFAULT_SESSION_OWNER_KEY = 'defaultSessionOwner';
+
 /** The part of an MMKV instance the choice is read and written through. */
 export interface SessionOwnerFile {
     getString(key: string): string | undefined;
     set(key: string, value: string): void;
+    remove(key: string): boolean;
 }
 
 const isSessionOwner = (value: string | undefined): value is SessionOwner => value === 'web' || value === 'native';
 
 /**
- * The owner a launch runs with when nobody has chosen one: the app's runtime on a development stage
- * build (`VITE_ENV` `DEV`), so the DoU Dev app runs on it without a trip to the switch; the page on
- * every other stage. A production build — and any value this build does not recognise, which counts as
- * production — always answers the page, whatever else the build carries: turning the runtime on for
- * real installs is not a build setting.
+ * The owner a launch runs with when nobody has chosen one: the app's runtime on a dev or production
+ * build (`VITE_ENV` `DEV` or `PROD`), the page on a `LOCAL` one. A value this build does not recognise —
+ * an env file that failed to load — keeps the page: such a build lacks the runtime's service settings
+ * too, and a setting the app cannot read must not move the session.
  *
- * `override` is the build's `VITE_SESSION_OWNER_DEFAULT`, which lets a non-production build start on
- * the other owner — the device scenarios pin it to the page, so a fresh install starts where their
- * switch step expects it. A value that is not an owner is ignored.
+ * `override` is the build's `VITE_SESSION_OWNER_DEFAULT`, which lets a build start on the other owner —
+ * the device scenarios pin it to the page, so a fresh install starts where their switch step expects it.
+ * A value that is not an owner is ignored, and so is any override on an unrecognised stage.
  */
 export const defaultSessionOwner = (stage: string | undefined, override?: string): SessionOwner => {
-    const envStage = toEnvStage(stage);
-    if (envStage === 'prod') return 'web';
+    const raw = (stage ?? '').toUpperCase();
+    if (raw !== 'LOCAL' && raw !== 'DEV' && raw !== 'PROD') return 'web';
     if (isSessionOwner(override)) return override;
-    return envStage === 'stage' ? 'native' : 'web';
+    return raw === 'LOCAL' ? 'web' : 'native';
+};
+
+const isRecognisedStage = (stage: string | undefined): boolean =>
+    ['LOCAL', 'DEV', 'PROD'].includes((stage ?? '').toUpperCase());
+
+/**
+ * The owner of an install nobody switched, in order: the build's pin (`override`), then the page's
+ * default (`SetDefaultSessionOwner`), then the stage's own default. The pin outranks the page because it
+ * is how a test build fixes where a fresh install starts — a web build that names an owner must not move
+ * a scenario run. A build whose stage cannot be recognised keeps the page whatever either says: its env
+ * file did not load, so it lacks the runtime's service settings too.
+ */
+export const unswitchedSessionOwner = (
+    stage: string | undefined,
+    override: string | undefined,
+    pageDefault: SessionOwner | undefined
+): SessionOwner => {
+    if (!isRecognisedStage(stage)) return 'web';
+    if (isSessionOwner(override)) return override;
+    return pageDefault ?? defaultSessionOwner(stage);
 };
 
 /**
@@ -47,3 +71,19 @@ export const readSessionOwner = (file: SessionOwnerFile, fallback: SessionOwner 
  */
 export const writeSessionOwner = (file: SessionOwnerFile, owner: SessionOwner): void =>
     file.set(SESSION_OWNER_KEY, owner);
+
+/** The page's default, as last recorded — `undefined` with none, or with a value this build does not know. */
+export const readDefaultSessionOwner = (file: SessionOwnerFile): SessionOwner | undefined => {
+    const stored = file.getString(DEFAULT_SESSION_OWNER_KEY);
+    return isSessionOwner(stored) ? stored : undefined;
+};
+
+/**
+ * Records the page's default for the NEXT launch, or clears it with `null` so the build's own default
+ * applies again. It is kept apart from the switch's choice, which it never overwrites: a person who
+ * switched one install keeps that install where they put it.
+ */
+export const writeDefaultSessionOwner = (file: SessionOwnerFile, owner: SessionOwner | null): void => {
+    if (owner === null) file.remove(DEFAULT_SESSION_OWNER_KEY);
+    else file.set(DEFAULT_SESSION_OWNER_KEY, owner);
+};

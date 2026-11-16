@@ -176,8 +176,8 @@ runtime requests (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUns
 launch the app's own runtime owns, so the suite, which mounts a launch the page owns, counts them
 among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md). `useSessionOwnerHandler`
 registers the owner switch (`FetchSessionOwner`, `SetSessionOwner`) on every build, answered outside
-production or while the app's debug mode is on. The suite does not mount it, so it counts those two among
-`MOBILE_UNSUPPORTED` — see [The switch](../runtime/README.md#the-switch).
+production or while the app's debug mode is on, and the page's default (`SetDefaultSessionOwner`),
+answered on every build. The suite does not mount it, so it counts all three among `MOBILE_UNSUPPORTED` — see [The switch](../runtime/README.md#the-switch).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and

@@ -166,6 +166,7 @@ const DESKTOP_UNSUPPORTED = {
     RuntimeUnsubscribe: WEB_OWNS_SESSION,
     FetchSessionOwner: WEB_OWNS_SESSION,
     SetSessionOwner: WEB_OWNS_SESSION,
+    SetDefaultSessionOwner: WEB_OWNS_SESSION,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

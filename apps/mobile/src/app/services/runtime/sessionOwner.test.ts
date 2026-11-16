@@ -1,10 +1,22 @@
-import { SESSION_OWNER_KEY, defaultSessionOwner, readSessionOwner, writeSessionOwner } from './sessionOwner';
+import {
+    DEFAULT_SESSION_OWNER_KEY,
+    SESSION_OWNER_KEY,
+    defaultSessionOwner,
+    readDefaultSessionOwner,
+    readSessionOwner,
+    unswitchedSessionOwner,
+    writeDefaultSessionOwner,
+    writeSessionOwner,
+} from './sessionOwner';
 
-const fakeFile = (initial?: string) => {
+const fakeFile = (initial?: string, initialDefault?: string) => {
     const entries = new Map<string, string>(initial === undefined ? [] : [[SESSION_OWNER_KEY, initial]]);
+    if (initialDefault !== undefined) entries.set(DEFAULT_SESSION_OWNER_KEY, initialDefault);
     return {
+        entries,
         getString: (key: string) => entries.get(key),
         set: (key: string, value: string) => void entries.set(key, value),
+        remove: (key: string) => entries.delete(key),
     };
 };
 
@@ -40,8 +52,9 @@ describe('defaultSessionOwner', () => {
         ['DEV', 'native'],
         ['dev', 'native'],
         ['LOCAL', 'web'],
-        ['PROD', 'web'],
-        // An env file that failed to load, or a stage this build does not know, counts as production.
+        ['PROD', 'native'],
+        ['prod', 'native'],
+        // An env file that failed to load, or a stage this build does not know, keeps the page.
         [undefined, 'web'],
         ['STAGING', 'web'],
     ])('stage %p starts an unswitched install on %p', (stage, owner) => {
@@ -50,17 +63,66 @@ describe('defaultSessionOwner', () => {
 
     it.each([
         ['DEV', 'web', 'web'],
+        ['PROD', 'web', 'web'],
         ['LOCAL', 'native', 'native'],
+        ['PROD', 'shell', 'native'],
         ['DEV', 'shell', 'native'],
         ['DEV', '', 'native'],
     ])('stage %p with the build override %p starts on %p', (stage, override, owner) => {
         expect(defaultSessionOwner(stage, override)).toBe(owner);
     });
 
-    it.each(['PROD', undefined, 'STAGING'])(
-        'never starts a production stage %p on the runtime, override or not',
+    it.each([undefined, '', 'STAGING'])(
+        'never starts an unrecognised stage %p on the runtime, override or not',
         stage => {
             expect(defaultSessionOwner(stage, 'native')).toBe('web');
         }
     );
+});
+
+describe('readDefaultSessionOwner', () => {
+    it.each([
+        [undefined, undefined],
+        ['web', 'web'],
+        ['native', 'native'],
+        ['shell', undefined],
+    ])("reads the page's default %p as %p", (stored, owner) => {
+        expect(readDefaultSessionOwner(fakeFile(undefined, stored))).toBe(owner);
+    });
+});
+
+describe('writeDefaultSessionOwner', () => {
+    it("records the page's default beside the switch's choice, without touching it", () => {
+        const file = fakeFile('web');
+
+        writeDefaultSessionOwner(file, 'native');
+
+        expect(file.entries.get(DEFAULT_SESSION_OWNER_KEY)).toBe('native');
+        expect(file.entries.get(SESSION_OWNER_KEY)).toBe('web');
+    });
+
+    it("clears the page's default with null", () => {
+        const file = fakeFile(undefined, 'native');
+
+        writeDefaultSessionOwner(file, null);
+
+        expect(file.entries.has(DEFAULT_SESSION_OWNER_KEY)).toBe(false);
+    });
+});
+
+describe('unswitchedSessionOwner', () => {
+    it.each([
+        // stage, build pin, page default, owner
+        ['PROD', undefined, undefined, 'native'],
+        ['PROD', undefined, 'web', 'web'],
+        ['DEV', undefined, 'web', 'web'],
+        ['LOCAL', undefined, 'native', 'native'],
+        ['PROD', 'web', 'native', 'web'],
+        ['DEV', 'web', 'native', 'web'],
+        ['PROD', 'shell', 'web', 'web'],
+        [undefined, undefined, 'native', 'web'],
+        ['STAGING', 'native', 'native', 'web'],
+    ] as const)('stage %p, pin %p, page default %p starts on %p', (stage, pin, pageDefault, owner) => {
+        expect(unswitchedSessionOwner(stage, pin, pageDefault)).toBe(owner);
+    });
 });

@@ -6,12 +6,13 @@ opens the sockets and reads the cache. The app can hold it instead, in its own J
 runs, on the app's own storage and network. This document is how the app does that: who decides, how
 the runtime starts, and what it keeps running.
 
-**Production does not turn it on by default; a dev build does.** 0.32.0 is the first app version that
-carries the runtime, and it ships switched off: in a production build the owner is `web` unless the owner
-switch says otherwise, which it answers only while the app's debug mode is on, for internal testing (see
-[The switch](#the-switch)). A dev stage build — the DoU Dev app — starts every install nobody switched on
-the runtime, so the internal builds run it without a trip to the switch (see
-[Who owns the session](#who-owns-the-session)). On a launch whose owner is `native`, the app offers the session to the page
+**A dev or production build runs it by default; the web can send installs back to the page.** 0.32.0
+was the first app version that carried the runtime, and it shipped switched off in production. From
+0.32.1 a production build starts every install nobody switched on the runtime, as the dev build already
+did; the web build can name the page instead for those installs, from their next start, without an app
+release (see [The page's default](#the-pages-default)). The owner switch still moves one install either
+way, answered in production only while the app's debug mode is on (see [The switch](#the-switch)). On a
+launch whose owner is `native`, the app offers the session to the page
 and answers the runtime handshake; the web page says hello and, on the `native` answer, mirrors the
 runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-web`). It then opens no
 vault and runs no session of its own, so while the page asks, only one side holds the session's tokens
@@ -38,26 +39,31 @@ The same runtime also answers a mini app in the sub WebView on such a launch —
 
 `launchSessionOwner()` answers `web` or `native`, read from the `sessionOwner` key of the MMKV file
 `chatic-runtime-mode`, where the switch records a choice. With no choice recorded — no key, or a value
-this build does not know — it is the build's default (`defaultSessionOwner`):
+this build does not know — it is the page's default from the `defaultSessionOwner` key when the web
+build named one ([The page's default](#the-pages-default)), and otherwise the build's own
+(`defaultSessionOwner`):
 
-| Build (`VITE_ENV`)                       | Install nobody switched |
-| ---------------------------------------- | ----------------------- |
-| `DEV` (the DoU Dev app)                  | `native`                |
-| `LOCAL`                                  | `web`                   |
-| `PROD`, or a value the build cannot read | `web`, always           |
+| Build (`VITE_ENV`)                 | Install nobody switched |
+| ---------------------------------- | ----------------------- |
+| `DEV` (the DoU Dev app)            | `native`                |
+| `PROD`                             | `native` (from 0.32.1)  |
+| `LOCAL`                            | `web`                   |
+| A value the build cannot recognise | `web`, always           |
 
 The stage is the baked `VITE_ENV`, not where the page is served from: a local run whose `apps/mobile/.env`
 says `DEV` is a dev build, and starts on the runtime like the DoU Dev app — and, without the runtime's
 service settings in that file, falls back to the page on every launch with a failed start in the log.
-A non-production build can name its default instead with `VITE_SESSION_OWNER_DEFAULT` (`web` or
-`native`); the device scenarios pin their builds to `web` that way, so a fresh install starts where their
-switch step expects it. Production ignores the setting: turning the runtime on for real installs is a
-decision about installs, not about a build file. A recorded choice outranks the default either way, so a
-dev install switched to the page stays there. A file that cannot be opened reads as `web` on every
+A build can name its default instead with `VITE_SESSION_OWNER_DEFAULT` (`web` or `native`); the device
+scenarios pin their builds to `web` that way, so a fresh install starts where their switch step expects
+it. A build whose stage cannot be recognised — an env file that failed to load, which also lacks the
+runtime's service settings — ignores it and keeps the page. The order is: the switch's recorded choice,
+then the build's pin (`VITE_SESSION_OWNER_DEFAULT`), then the page's default, then the stage's own
+(`unswitchedSessionOwner`). So an install switched to the page stays there whatever the web names, and a
+scenario build pinned to the page is not moved by a web build that names the runtime. A file that cannot be opened reads as `web` on every
 build: a setting the app cannot read must not move the session.
 
-A dev install that ran the page before it got a build with this default moves to the runtime on its first
-launch of that build. What it kept in the page's plain storage does not come along (see
+An install that ran the page before it got a build with this default — every production install updating
+from 0.32.0 — moves to the runtime on its first launch of that build. What it kept in the page's plain storage does not come along (see
 [The device, as the page knows it](#the-device-as-the-page-knows-it)): the selected cloud starts empty
 once, as after a switch.
 
@@ -100,6 +106,32 @@ Every build registers the two requests (`useSessionOwnerHandler`, answered by
 stays there until someone unlocks debug mode again and moves it back, or the app is removed (the owner
 file goes with the app's data). It cannot follow the debug flag instead: the page turns the app's flag
 off on every boot (`main.tsx`), so the switch would last one launch.
+
+### The page's default
+
+The switch moves one install, by hand. `SetDefaultSessionOwner` is the web's word for every install
+nobody switched: the web build carries `VITE_APP_SESSION_OWNER` (`web` or `native`), and the page sends it
+on every boot once the app's `WebAppReady` reply lists the request (`runtime/sessionOwnerDefault.ts` in
+`apps/web`). The app records it under `defaultSessionOwner`, beside the switch's own key, which it never
+overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `useSessionOwnerHandler`).
+
+- **Any build answers it, production included, with no debug mode.** It is the rollback for the runtime
+  being the production default: a web deploy naming `web` sends real installs back to the page, with no
+  app release and no store review.
+- **It takes effect from the next start and never restarts.** The owner is settled once per launch, so the
+  launch that hears it keeps its owner. An install therefore moves two starts after the deploy at the
+  earliest: one to hear the new value, one to run on it.
+- **A launch whose owner could not be settled sends it too**, without asking the app first: that launch
+  never reaches `WebAppReady`, and it is the one a rollback must reach — a runtime that stops answering
+  the page leaves installs on the error screen, and a web build naming `web` moves their next start back.
+- **A build that names nothing sends `null`**, which clears what an earlier web build recorded, and the
+  install falls back to the build's own default. Removing the setting is a rollback of the setting, not a
+  no-op. A web build with `VITE_SESSION_MIRROR_DISABLED` names `web`: it does not mirror a shell that holds
+  the session, so it does not send the next start there either.
+- **Deploys read it from a repository variable**, `WEB_DEV_APP_SESSION_OWNER` or
+  `WEB_PROD_APP_SESSION_OWNER`, which the deploy workflows write into the web's `.env`. Changing the
+  variable does nothing until the next web deploy.
+- An app from before 2.28.0 of the bridge does not list the request, and the page sends it nothing.
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
@@ -158,18 +190,19 @@ registration fetches the token the way the page's `FetchFcmToken` does (`acquire
 token on iOS, the FCM token elsewhere) and keeps its record in the same `pushRegistration` preference.
 
 What the page keeps in its own storage does not move yet: the selected cloud, the cloud identities and
-the other plain session values start empty in the runtime's file. Carrying them over belongs with the
-switch that turns the runtime on.
+the other plain session values start empty in the runtime's file. Carrying them over is not done: an install
+that moves to the runtime starts them empty once.
 
 The device guest's id is the exception, because without it the invited clouds an account accepted are
 hidden from it and a new invite cannot be accepted. It is kept in the vault as well as in the plain
 store, and a launch the page owns copies it from the page's storage into a vault that lacks it
 (`libs/session` README, `identityStore`). The runtime reads it from the vault. So an install that has
 had one launch of a page build that copies it has the id on either side. One switched to the runtime
-before such a launch reads none until it logs in as a guest, which also writes it — a gap the switch
-has to close before it becomes a default in production. A dev build accepts it: a DoU Dev install that
-never ran a copying page build before it got the runtime default starts without the id, so it does not
-see the invited clouds it accepted until it signs in as a guest again.
+before such a launch reads none until it logs in as a guest, which also writes it. Dev and production
+builds accept that gap since they default to the runtime: an install that never ran a copying page
+build before it got the runtime default starts without the id, so it does not see the invited clouds
+it accepted until it signs in as a guest again. A production install updating from 0.32.0 ran the
+production web on its earlier launches, so it has the id once that web build copies it.
 
 ## The page's side of the bridge
 
@@ -247,9 +280,9 @@ cover is what the person sees.
 
 ## What is not done yet
 
-These are the conditions the steps that turn the runtime on have to meet. None of them matters on a
-launch the page owns, which is every production launch but the ones the owner switch makes. A dev
-build's unswitched installs run the runtime, so its testers meet these gaps on every launch.
+These are the gaps a launch the runtime owns still has. None of them matters on a launch the page owns.
+Dev and production builds (from 0.32.1) run the runtime on every install nobody switched, so those
+installs meet them on every launch unless the web names the page ([The page's default](#the-pages-default)).
 
 - **The offer does not say whether the session is already held.** A page that does not ask — one whose
   own switch is off, or one sharing no contract with the runtime — cannot tell a launch whose runtime
@@ -261,9 +294,8 @@ build's unswitched installs run the runtime, so its testers meet these gaps on e
   side's own plain store. A launch owned by one side does not see the other's, so the owner must not
   change while one is set. The owner switch does not check for one.
 - **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
-  restarted context sends a `boot` trace and a `first_screen` sample as a launch would; while the switch
-  is the only way onto a runtime-owned launch these are a tester's, but they need a type of their own
-  before the runtime is turned on.
+  restarted context sends a `boot` trace and a `first_screen` sample as a launch would; they need a type
+  of their own now that production runs the runtime.
 - **The paired-cloud check** — which ends a paired cloud with a toast and a sign-out — has a screen in
   it and runs only with the page today. On a launch the runtime owns, nothing runs it; where it lives
-  is to be settled before the runtime is turned on.
+  is to be settled now that production runs the runtime.

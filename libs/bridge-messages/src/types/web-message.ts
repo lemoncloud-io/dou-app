@@ -124,6 +124,7 @@ import type {
     RuntimeUnsubscribePayload,
     FetchSessionOwnerPayload,
     SetSessionOwnerPayload,
+    SetDefaultSessionOwnerPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -300,6 +301,8 @@ export type WebMessagePayloadMap = {
     // 13. Session owner. The owner switch, answered outside production or while the shell's debug mode is on.
     FetchSessionOwner: FetchSessionOwnerPayload;
     SetSessionOwner: SetSessionOwnerPayload;
+    // The page's word on the owner of an install nobody switched, recorded for the next start; any build.
+    SetDefaultSessionOwner: SetDefaultSessionOwnerPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */

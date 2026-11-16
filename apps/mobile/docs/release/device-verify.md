@@ -117,10 +117,11 @@ page silently keeps the session. A page-owned run never reads them.
 
 ### The session owner
 
-On a production or `LOCAL` build the session is the page's unless the owner switch hands it to the app's own
-runtime (mobile [docs/runtime](../runtime/README.md#the-switch)); a dev build starts an install nobody
-switched on the runtime. The harness pins every build it makes to the page instead
-(`VITE_SESSION_OWNER_DEFAULT=web` in the derived env file), so a scenario run starts from a cleared
+On a `LOCAL` build the session is the page's unless the owner switch hands it to the app's own runtime
+(mobile [docs/runtime](../runtime/README.md#the-switch)); a dev or production build (from 0.32.1) starts an
+install nobody switched on the runtime, or wherever the web's default names. The harness pins every build it makes to the page instead
+(`VITE_SESSION_OWNER_DEFAULT=web` in the derived env file; a default the web names with
+`VITE_APP_SESSION_OWNER` outranks that pin from an install's second start), so a scenario run starts from a cleared
 install on the page whatever the stage, and `--session-owner native` switches it after that:
 `_shared/fresh-guest.yaml` ends by running `_shared/native-session-owner.yaml` when the runner passes
 `SESSION_OWNER=native`. That sub-flow presses **App (native)** on the debug overlay's **Session owner**

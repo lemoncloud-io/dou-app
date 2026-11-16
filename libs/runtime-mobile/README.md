@@ -7,7 +7,8 @@ socket opened by React Native with the handshake header the relay checks — and
 them. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/README.md).
 
 The mobile app can boot it (`apps/mobile/docs/runtime/`), on a launch whose owner is set to the app;
-nothing sets it yet, so the page owns the session on every launch today. An app boots it with
+a dev or production build (from app 0.32.1) sets it for installs nobody switched, unless the web names
+the page. An app boots it with
 `bootNativeRuntime` and keeps it alive with `runNativeRuntime`:
 
 ```ts

@@ -262,8 +262,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.27.0',
-                    protocolVersion: '2.27.0',
+                    appVersion: '2.28.0',
+                    protocolVersion: '2.28.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },
