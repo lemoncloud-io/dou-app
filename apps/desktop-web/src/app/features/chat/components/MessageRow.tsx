@@ -58,7 +58,13 @@ import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
 import { ReadReceiptPill, type ReadMarker } from './ReadReceiptPill';
 import { ReactionBar } from './ReactionBar';
-import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
+import {
+    BlockKitMessage,
+    blocksToPlainText,
+    hasDrawableBlocks,
+    resolveChatBlocks,
+    takeSourceLink,
+} from '@chatic/block-kit';
 
 import { RichText, type MentionResolver } from './RichText';
 
@@ -335,7 +341,16 @@ export const MessageRow = memo(
                     // (SPEC §6-5); folding `blocks` back through `blocksToPlainText`
                     // there would throw that summary away.
                     const plain = !blocks || source === 'field' ? content : blocksToPlainText(blocks);
-                    return { content, blocks, plain };
+                    // A card only when something in it draws: a message whose every block is
+                    // unknown falls back to its own text, and that text is a message, not a
+                    // card. `sourceUrl` is the webhook's full report, drawn as a link on the
+                    // card's last line: `takeSourceLink` reads it from `source$.url`, or from the
+                    // server's `원문 보기` element on the last line for a message stored before
+                    // that field, and takes that element off so the link shows once. Only the
+                    // drawing moves: `plain` above reads the blocks as they came, so Copy and
+                    // Save say what they said before.
+                    const card = blocks && hasDrawableBlocks(blocks) ? takeSourceLink(blocks, message.source$) : null;
+                    return { content, blocks, plain, card };
                 }),
             [group.messages]
         );
@@ -413,14 +428,11 @@ export const MessageRow = memo(
                         {group.namePending ? (
                             <Skeleton className="h-3.5 w-24 rounded" />
                         ) : group.isWebhook ? (
-                            <>
-                                <span className="truncate text-lead font-bold leading-tight text-foreground">
-                                    {group.ownerName}
-                                </span>
-                                <span className="shrink-0 rounded bg-muted px-1 py-px text-caption font-semibold uppercase leading-tight text-description">
-                                    {t('chat.webhook.badge')}
-                                </span>
-                            </>
+                            // No "App" mark beside the name: the card under it carries its own type
+                            // badge, and two labels on one message read as two different things.
+                            <span className="truncate text-lead font-bold leading-tight text-foreground">
+                                {group.ownerName}
+                            </span>
                         ) : (
                             <UserProfilePopover {...profileProps}>
                                 <button
@@ -448,7 +460,7 @@ export const MessageRow = memo(
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
-                            const { content, blocks, plain } = bodies[i];
+                            const { content, blocks, plain, card } = bodies[i];
                             // A deleted message keeps its `content` (soft delete), so the
                             // link would otherwise unfurl under "This message was deleted."
                             const firstUrl = message.hidden ? undefined : plain.match(/https?:\/\/[^\s]+/)?.[0];
@@ -592,13 +604,30 @@ export const MessageRow = memo(
                                         // rather than sitting inside one: a header or a divider
                                         // nested in a paragraph is invalid markup and the browser
                                         // would close the <p> out from under the rest of the row.
-                                        <div className={cn(isPending && 'opacity-50')}>
+                                        //
+                                        // A drawable message sits in a card that hugs its content,
+                                        // so a short alert stays short instead of spanning the
+                                        // column; the design's desktop card is the phone's with more
+                                        // room inside it and a larger type scale. Its links need no
+                                        // `onLinkClick`: the shell hands a `_blank` anchor to the
+                                        // OS browser, as it does for `RichText`'s links.
+                                        <div
+                                            className={cn(
+                                                card &&
+                                                    'w-fit min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-6',
+                                                isPending && 'opacity-50'
+                                            )}
+                                        >
                                             <BlockKitMessage
-                                                blocks={blocks}
+                                                blocks={card?.blocks ?? blocks}
                                                 raw={content}
+                                                scale="desktop"
+                                                sourceUrl={card?.sourceUrl}
+                                                source={card ? message.source$ : undefined}
                                                 labels={{
                                                     expandCode: count => t('chat.codeBlock.expand', { count }),
                                                     collapseCode: t('chat.codeBlock.collapse'),
+                                                    openSource: t('chat.webhook.openSource'),
                                                 }}
                                                 renderFallback={raw => (
                                                     <RichText

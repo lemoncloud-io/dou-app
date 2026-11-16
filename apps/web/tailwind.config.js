@@ -7,6 +7,10 @@ module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
+        // Named outright, as desktop-web does: `createGlobPatternsForDependencies` reads the nx
+        // project graph and returns [] when vite runs without one. The Block Kit card's type sizes
+        // are classes only that lib writes, so a missed scan would draw every card at inherited sizes.
+        join(__dirname, '../../libs/block-kit/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
     prefix: '',

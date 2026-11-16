@@ -92,10 +92,12 @@ dark pane) and is underlined at rest. Sharing the accent made a link and a butto
 same colour, which spends the one thing the accent is for, and colour alone cannot carry
 "this is a link" inside body text (WCAG 1.4.1). Mobile web already read links as blue
 (`--point-blue` `#2A7EF4`); desktop's is a darker blue because that one measures 3.6:1 on
-white, under the body-text floor. `libs/block-kit` links take `text-link` too, so every
-app that renders blocks defines `--link` (web keeps its blue, the builder previews
-desktop's). Block links still underline only on hover: underlining them at rest would
-change every message on mobile, which is a separate decision.
+white, under the body-text floor. `libs/block-kit` links take `--link` too when the card has no
+accent, so every app that renders blocks defines `--link` (web keeps its blue, the builder
+previews desktop's). A webhook card whose sender gave a `color` overrides it: its links take the
+card's accent (`--block-kit-link`, computed per theme to 4.5:1 — see the renderer below). Block
+links still underline only on hover: underlining them at rest would change every message on
+mobile, which is a separate decision.
 
 ### Desktop palette (light, from Figma `247-10714`)
 
@@ -327,6 +329,15 @@ slot based, i18n-agnostic, tokens only. Button system is `solid | outline | ghos
 with hairline border, quote with a lime left rule, mention `bg-primary/10
 text-primary-ink`, self-mention `bg-warning/30`. The desktop composer imports these same
 classes so what you type is what readers see.
+
+A webhook card adds three things from the message's `source$`, outside the blocks: a type badge
+over the first line (a 12px bold pill in capitals — the design's ERROR red `#FF4C35` on
+`#FDECEC`, ATTENDANCE green `#43946C` on `#E4F0EA`, the shared `--warning` amber, a sender's hex,
+or `bg-well` / `text-label` grey), the accent colour every link in the card takes, and a "View
+source" link as the card's last line. Colours are computed in `cardAccent.ts` and reach the card as
+CSS variables, never as the sender's value; they are fitted to reference grounds a step past
+every app's `--card` (light `#F7F7F7`, dark `#333333`), so a `--card` that moves past them breaks
+the 4.5:1 guarantee.
 
 ### Desktop shared shapes
 

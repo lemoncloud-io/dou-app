@@ -38,9 +38,18 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 
 import { MessageList } from './MessageList';
+import { en } from '../../../../locales/en';
+import { ko } from '../../../../locales/ko';
 import { useSavedItemsStore } from '../../../shared';
 import type { ThreadMeta } from '../utils';
-import { MSG_MENTION_CLASS, WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
+import {
+    MSG_MENTION_CLASS,
+    WEBHOOK_BLOCKS_DEPLOYMENT,
+    WEBHOOK_BLOCKS_ERROR_REPORT,
+    WEBHOOK_SEND_DEPLOYMENT,
+    WEBHOOK_SEND_ERROR_REPORT,
+    WEBHOOK_SOURCE_DEPLOYMENT,
+} from '@chatic/block-kit';
 
 // jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
 // layout effect to land on the newest message.
@@ -169,7 +178,7 @@ describe('MessageList', () => {
 
         render(
             <MessageList
-                messages={[message(1, 'ada', payload)]}
+                messages={[{ ...message(1, 'ada', payload), stereo: 'webhook' } as DomainChat]}
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}
@@ -211,57 +220,147 @@ describe('MessageList', () => {
             screen.getByText(/^TypeError: Cannot read properties of undefined \(reading 'channelId'\)$/)
         ).toBeDefined();
         expect(screen.getByText(/^\{"service":/)).toBeDefined();
-        expect(screen.getAllByText(/원문 보기/).length).toBeGreaterThan(0);
+        expect(screen.getByText(/hello-alarm/)).toBeDefined();
+    });
+
+    // The server writes the sender's report link as the card's last context element; the card
+    // draws it as its own "View source" line at the foot of the card instead, once — a second copy
+    // in the context line would offer the same link twice. The title itself stays plain text.
+    it("draws a webhook card's report link as its last line and drops the source element", () => {
+        const webhook = {
+            ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
+            blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
+        } as DomainChat;
+
+        render(<MessageList messages={[webhook]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        const link = screen.getByRole('link', { name: 'View source' });
+        expect(link.getAttribute('href')).toBe(WEBHOOK_SEND_ERROR_REPORT.meta.sourceUrl);
+        expect(screen.getByRole('heading', { name: /error-report/ }).closest('a')).toBeNull();
+        expect(link.nextElementSibling).toBeNull();
+        expect(link.previousElementSibling?.textContent).toBe('hello-alarm example-api/production#1.0.0');
+        expect(screen.queryByText('원문 보기')).toBeNull();
+    });
+
+    // `source$` is the server's record of the sender's channel, report and colour: the card reads its
+    // badge and its link from there.
+    it("badges a webhook card with its sender's channel and links it to source$.url", () => {
+        const webhook = {
+            ...message(1, 'ada', WEBHOOK_SEND_DEPLOYMENT.content),
+            blocks$: [...WEBHOOK_BLOCKS_DEPLOYMENT],
+            stereo: WEBHOOK_SEND_DEPLOYMENT.stereo,
+            source$: { ...WEBHOOK_SOURCE_DEPLOYMENT, url: 'https://example.com/actions/runs/860' },
+        } as DomainChat;
+
+        render(<MessageList messages={[webhook]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        expect(screen.getByText('deployment').closest('.uppercase')).not.toBeNull();
+        expect(screen.getByRole('link', { name: 'View source' }).getAttribute('href')).toBe(
+            'https://example.com/actions/runs/860'
+        );
+        expect(screen.getAllByRole('link', { name: 'View source' })).toHaveLength(1);
+    });
+
+    // A person's message never reads source$: it is not a card, so nothing of it is drawn.
+    it("ignores source$ on a person's message", () => {
+        const pasted = {
+            ...message(1, 'ada', 'just text'),
+            stereo: 'user',
+            source$: { key: 'error', color: 'danger', url: 'https://x.dev' },
+        } as DomainChat;
+
+        render(<MessageList messages={[pasted]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
+            wrapper,
+        });
+
+        expect(screen.queryByText('error')).toBeNull();
+        expect(screen.queryByRole('link')).toBeNull();
+    });
+
+    // A card frames what the blocks draw. A payload where nothing draws falls back to the
+    // message's own text, and a frame around that would make a plain message look like an
+    // integration's card.
+    it('frames a drawable block message as a card, and leaves an undrawable one as text', () => {
+        const drawable = JSON.stringify({ blocks: [{ type: 'section', text: { type: 'mrkdwn', text: 'drawn' } }] });
+        const undrawable = JSON.stringify({ blocks: [{ type: 'actions', elements: [] }] });
+
+        render(
+            <MessageList
+                messages={[
+                    { ...message(1, 'ada', drawable), stereo: 'webhook' } as DomainChat,
+                    { ...message(2, 'ada', undrawable), stereo: 'webhook' } as DomainChat,
+                ]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
+            { wrapper }
+        );
+
+        const cardOf = (node: HTMLElement) => node.closest('.rounded-\\[10px\\]');
+        expect(cardOf(screen.getByText('drawn'))).not.toBeNull();
+        expect(cardOf(screen.getByText(undrawable))).toBeNull();
     });
 
     // `content` on a `blocks$` message is already the server's plain-text summary
     // (SPEC §6-5). Folding `blocks$` through `blocksToPlainText` here instead would
     // pull this fixture's context line ("hello-alarm") and section-3 raw error JSON
-    // into the dialog — neither is in `content`, so their absence proves which one
-    // the dialog quotes. Scoped to the dialog: the row underneath legitimately shows
-    // both, since they are real section/context content, not a leak.
-    it('quotes the server summary, not the folded blocks, when deleting a blocks$ message', () => {
+    // into what Save keeps — neither is in `content`, so their absence proves which one
+    // it reads. A webhook message is never mine, so Save is the action that reaches it.
+    it('saves the server summary, not the folded blocks, for a blocks$ message', () => {
+        useSavedItemsStore.setState({ items: {} });
         const withBlocksField = {
-            ...message(1, 'me', WEBHOOK_SEND_ERROR_REPORT.content),
-            // Mine, so the delete menu is reachable: a webhook message is never mine, and what this
-            // pins is the dialog's quoting, which does not depend on the sender.
+            ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
         } as DomainChat;
 
         render(<MessageList messages={[withBlocksField]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
             wrapper,
         });
-        clickRowMenuItem('Delete message');
+        clickRowMenuItem('Save for later');
 
-        const dialog = within(screen.getByRole('alertdialog'));
-        expect(dialog.getByText(/TypeError: Cannot read properties/)).toBeDefined();
-        expect(dialog.queryByText(/hello-alarm/)).toBeNull();
-        expect(dialog.queryByText(/"service":/)).toBeNull();
+        const saved = useSavedItemsStore.getState().items['C1:1'];
+        expect(saved).toMatchObject({ content: WEBHOOK_SEND_ERROR_REPORT.content });
+        expect(saved?.content).not.toMatch(/hello-alarm|"service":/);
+        // The store is module state; the file-only cases further down expect nothing saved.
+        useSavedItemsStore.setState({ items: {} });
     });
 
-    // The dialog quotes the message so the answer is about *this* message. Quoting the
-    // payload instead answers nothing and buries the buttons under 1900 characters of
-    // JSON — this was the fourth place reading `content` where it meant "what it says".
-    it('quotes what a block message says when asking to delete it', () => {
+    // Only an integration's post is a card. A person who pastes a Block Kit payload wrote that
+    // text, and a card from the composer would look exactly like an alert.
+    it("draws a person's Block Kit payload as the text they sent, not as a card", () => {
         const payload = JSON.stringify({
             blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied' } }],
         });
 
         render(
-            <MessageList messages={[message(1, 'me', payload)]} isLoading={false} viewer={VIEWER} names={new Map()} />,
+            <MessageList
+                messages={[{ ...message(1, 'ada', payload), stereo: 'user' } as DomainChat]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
             { wrapper }
         );
-        clickRowMenuItem('Delete message');
 
-        expect(screen.queryByText(payload)).toBeNull();
-        expect(screen.getByText('403 denied')).toBeDefined();
+        // The composer's own dialect reads the payload (it makes `*403*` italic), so the row is
+        // matched by what it still says rather than by one text node.
+        const row = screen.getByText((_, node) => node?.tagName === 'P' && !!node.textContent?.includes('{"blocks":['));
+        expect(row.textContent).toContain('"type":"section"');
+        expect(screen.queryByText('403', { selector: 'strong' })).toBeNull();
     });
 
     // A payload we cannot read must not take the pane down or blank the row.
     it('falls back to the raw text when the payload is broken', () => {
         render(
             <MessageList
-                messages={[message(1, 'ada', '{"blocks": [')]}
+                messages={[{ ...message(1, 'ada', '{"blocks": ['), stereo: 'webhook' } as DomainChat]}
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}
@@ -956,7 +1055,8 @@ describe('MessageList webhook sender', () => {
             ...(owner ? { owner$: owner } : {}),
         }) as unknown as DomainChat;
 
-    it('badges the sender as an app and renders its name as plain text, not a profile trigger', () => {
+    // The card carries its own type badge now, so the name has no "App" mark beside it.
+    it('renders the sender name as plain text with no app badge, not a profile trigger', () => {
         render(
             <MessageList
                 messages={[webhookCard(1, 'hook', { name: 'Alarm Bot' })]}
@@ -966,7 +1066,7 @@ describe('MessageList webhook sender', () => {
             { wrapper }
         );
 
-        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.queryByText('App')).toBeNull();
         expect(screen.getByText('Alarm Bot')).toBeDefined();
         expect(screen.queryByRole('button', { name: 'Alarm Bot' })).toBeNull();
         // The avatar is no popover trigger either: its only possible name is the initial.
@@ -978,8 +1078,13 @@ describe('MessageList webhook sender', () => {
         render(<MessageList messages={[webhookCard(1, 'hook')]} isLoading={false} viewer={VIEWER} />, { wrapper });
 
         expect(screen.getByText('Webhook')).toBeDefined();
-        expect(screen.getByText('App')).toBeDefined();
+        expect(screen.queryByText('App')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Webhook' })).toBeNull();
+    });
+
+    it('no longer carries copy for the app badge', () => {
+        expect('chat.webhook.badge' in en).toBe(false);
+        expect('chat.webhook.badge' in ko).toBe(false);
     });
 
     it('keeps a person as a profile trigger with no app badge', () => {

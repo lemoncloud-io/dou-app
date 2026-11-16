@@ -5,6 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { BlockTextObject, KnownBlock } from './blockKit';
 import { blocksToPlainText } from './blocksToPlainText';
 import { BlockKitMessage } from './BlockKitMessage';
+import { resolveCardAccent, type CardAccent } from './cardAccent';
 
 const draw = (blocks: KnownBlock[], raw = '{"blocks":[]}') => render(<BlockKitMessage blocks={blocks} raw={raw} />);
 
@@ -149,18 +150,55 @@ describe('BlockKitMessage', () => {
         ];
         const report = 'https://example.com/reports/report.json';
 
-        it('links the first heading to the source, named for a screen reader', () => {
-            render(<BlockKitMessage blocks={blocks} raw="" sourceUrl={report} labels={{ openSource: '원문 보기' }} />);
-            const link = screen.getByRole('link', { name: /503 Service Unavailable.*원문 보기/ });
+        // The design's place for it: after everything the card says, as its own line.
+        it("draws a labelled link as the card's last line, and leaves the heading plain text", () => {
+            const { container } = render(
+                <BlockKitMessage blocks={blocks} raw="" sourceUrl={report} labels={{ openSource: '원문 보기' }} />
+            );
+            const link = screen.getByRole('link', { name: '원문 보기' });
             expect(link.getAttribute('href')).toBe(report);
-            expect(screen.getByRole('heading', { level: 2 }).closest('a')).toBeNull();
+            expect(screen.getByRole('heading', { name: '503 Service Unavailable' }).closest('a')).toBeNull();
+            expect(link.previousElementSibling).toBe(screen.getByRole('heading', { name: 'Second' }));
+            expect(link.nextElementSibling).toBeNull();
+            expect(container.querySelectorAll('a')).toHaveLength(1);
+        });
+
+        it('is last with no heading too', () => {
+            render(<BlockKitMessage blocks={[blocks[0]]} raw="" sourceUrl={report} />);
+            const link = screen.getByRole('link', { name: 'View source' });
+            expect(link.previousElementSibling?.textContent).toBe('lead');
+            expect(link.nextElementSibling).toBeNull();
+        });
+
+        it("comes after a mrkdwn heading's own links", () => {
+            const mrkdwnHeader: KnownBlock = {
+                type: 'header',
+                text: { type: 'mrkdwn', text: 'Deploy <https://x.dev|#42>' },
+            };
+            render(<BlockKitMessage blocks={[mrkdwnHeader]} raw="" sourceUrl={report} />);
+            expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual([
+                'https://x.dev',
+                report,
+            ]);
+        });
+
+        // The caller judged the card on the blocks before the server's source line moved out, so
+        // nothing drawable may be left: the body is then the message's own text, the link after it.
+        it('draws the message text with the link when no block is left to draw', () => {
+            const unknown: KnownBlock[] = [{ type: 'unknown', raw: '{"type":"actions"}' } as KnownBlock];
+            for (const remaining of [[], unknown]) {
+                const { unmount } = render(<BlockKitMessage blocks={remaining} raw="deploy done" sourceUrl={report} />);
+                expect(screen.getByText('deploy done')).toBeDefined();
+                expect(screen.getByRole('link', { name: 'View source' }).getAttribute('href')).toBe(report);
+                expect(screen.queryByText(/unsupported block/)).toBeNull();
+                unmount();
+            }
         });
 
         it('hands the press to the caller instead of following it', () => {
             const onLinkClick = vi.fn();
             render(<BlockKitMessage blocks={blocks} raw="" sourceUrl={report} onLinkClick={onLinkClick} />);
-            const link = screen.getByRole('link', { name: /503/ });
-            const notPrevented = fireEvent.click(link);
+            const notPrevented = fireEvent.click(screen.getByRole('link', { name: 'View source' }));
             expect(onLinkClick).toHaveBeenCalledWith(report);
             expect(notPrevented).toBe(false);
         });
@@ -172,19 +210,143 @@ describe('BlockKitMessage', () => {
                 expect(screen.queryByRole('link')).toBeNull();
             }
         );
+    });
 
-        it('does not wrap a mrkdwn heading, whose own links cannot sit inside it', () => {
-            const mrkdwnHeader: KnownBlock = {
-                type: 'header',
-                text: { type: 'mrkdwn', text: 'Deploy <https://x.dev|#42>' },
-            };
-            render(<BlockKitMessage blocks={[mrkdwnHeader]} raw="" sourceUrl={report} />);
-            expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['https://x.dev']);
+    describe('type badge', () => {
+        const card: KnownBlock[] = [{ type: 'header', text: { type: 'plain_text', text: 'Title' } }];
+        const badgeOf = (container: HTMLElement) => container.querySelector('.rounded-full');
+
+        // Capitals by style: the text stays the words, so copying it and a screen reader get those.
+        it("draws the channel name in capitals over the title, as the card's first line", () => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key: 'attendance' }} />);
+            const badge = badgeOf(container);
+            expect(badge?.textContent).toBe('attendance');
+            expect(badge?.className).toContain('uppercase');
+            expect(container.firstElementChild?.firstElementChild).toBe(badge);
         });
 
-        it('draws no link when there is no heading to carry it', () => {
-            render(<BlockKitMessage blocks={[blocks[0]]} raw="" sourceUrl={report} />);
-            expect(screen.queryByRole('link')).toBeNull();
+        it('is still the first line when the card has no title', () => {
+            const section: KnownBlock = { type: 'section', text: { type: 'mrkdwn', text: 'body' } };
+            const { container } = render(<BlockKitMessage blocks={[section]} raw="" source={{ key: 'error' }} />);
+            expect(container.firstElementChild?.firstElementChild?.textContent).toBe('error');
+        });
+
+        it.each([
+            ['ci-deploy', 'ci deploy'],
+            ['nightly_build', 'nightly build'],
+            ['a--b__c', 'a b c'],
+            ['  Chatic  ', 'Chatic'],
+        ])('reads %j as %j', (key, text) => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key }} />);
+            expect(badgeOf(container)?.textContent).toBe(text);
+        });
+
+        it.each([
+            ['no source', undefined],
+            ['a hidden message (source$: null)', null],
+            ['no key', { color: 'danger' }],
+            ['an empty key', { key: '   ' }],
+            ['a key that is not text', { key: 42 }],
+        ])('draws no badge for %s', (_, source) => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={source} />);
+            expect(badgeOf(container)).toBeNull();
+        });
+
+        // The name is unchecked input: it is printed, never parsed as markup.
+        it.each(['*bold* <https://x.dev|link>', '<img src=x onerror=alert(1)>'])('prints %j as text', key => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key }} />);
+            const badge = badgeOf(container) as HTMLElement;
+            expect(badge.textContent).toBe(key);
+            expect(badge.querySelector('a, img, strong, b')).toBeNull();
+        });
+
+        it('keeps a long name on one line and cuts it there', () => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key: 'x'.repeat(300) }} />);
+            expect(badgeOf(container)?.querySelector('.truncate')).not.toBeNull();
+        });
+
+        it('is the grey badge when the colour is neutral, and the accent when it is not', () => {
+            const neutral = render(<BlockKitMessage blocks={card} raw="" source={{ key: 'a', color: 'purple' }} />);
+            expect(badgeOf(neutral.container)?.className).toContain('bg-well');
+            neutral.unmount();
+            const accented = render(<BlockKitMessage blocks={card} raw="" source={{ key: 'a', color: 'danger' }} />);
+            expect(badgeOf(accented.container)?.className).toContain('bg-[var(--block-kit-badge-bg)]');
+        });
+    });
+
+    describe('accent', () => {
+        const card: KnownBlock[] = [
+            { type: 'header', text: { type: 'plain_text', text: 'Title' } },
+            { type: 'section', text: { type: 'mrkdwn', text: 'see <https://x.dev/run|the run>' } },
+        ];
+        const rootOf = (container: HTMLElement) => container.firstElementChild as HTMLElement;
+
+        it('sets the computed link colour for both themes on the card, which its links read', () => {
+            const { container } = render(
+                <BlockKitMessage blocks={card} raw="" source={{ color: 'good' }} sourceUrl="https://x.dev/r" />
+            );
+            const root = rootOf(container);
+            const accent = resolveCardAccent('good') as CardAccent;
+            expect(root.style.getPropertyValue('--block-kit-link-light')).toBe(accent.light.link);
+            expect(root.style.getPropertyValue('--block-kit-link-dark')).toBe(accent.dark.link);
+            for (const link of screen.getAllByRole('link')) {
+                expect(link.className).toContain('var(--block-kit-link,hsl(var(--link)))');
+            }
+        });
+
+        it('sets nothing when there is no colour, so links keep the app link colour', () => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" />);
+            expect(rootOf(container).getAttribute('style')).toBeNull();
+        });
+
+        // A value a style would run is never written into one: only computed colours reach the page.
+        it.each(['red; background: url(https://x.dev/t)', 'expression(alert(1))', '#ff0000;color:red'])(
+            'writes no part of %j into the card',
+            color => {
+                const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ color }} />);
+                expect(container.innerHTML).not.toContain('url(');
+                expect(container.innerHTML).not.toContain('expression');
+                expect(rootOf(container).getAttribute('style')).toBeNull();
+            }
+        );
+
+        it('writes only #RRGGBB values for a colour it accepts', () => {
+            const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ color: ' Danger ' }} />);
+            const style = rootOf(container).getAttribute('style') ?? '';
+            const values = [...style.matchAll(/--block-kit-[a-z-]+:\s*([^;]+)/g)].map(m => m[1].trim());
+            expect(values).toHaveLength(6);
+            for (const value of values) expect(value).toMatch(/^#[0-9A-F]{6}$/);
+            expect(style).not.toContain('Danger');
+        });
+    });
+
+    // The design draws the card twice, a step larger on desktop. Written-out sizes rather than the
+    // app's tokens, because the callers size the same token names differently.
+    describe('scale', () => {
+        const card: KnownBlock[] = [
+            { type: 'header', text: { type: 'plain_text', text: 'Title' } },
+            { type: 'section', text: { type: 'mrkdwn', text: 'Body' } },
+            { type: 'context', elements: [{ type: 'mrkdwn', text: 'Footer' }] },
+        ];
+        const sizeOf = (text: string) =>
+            (screen.getByText(text).closest('[class*="rem]"]')?.className ?? '').match(/text-\[[\d.]+rem\]/)?.[0];
+
+        it('draws the phone card by default, at the sizes apps/web shipped', () => {
+            draw(card);
+            expect([sizeOf('Title'), sizeOf('Body'), sizeOf('Footer')]).toEqual([
+                'text-[1rem]',
+                'text-[0.875rem]',
+                'text-[0.875rem]',
+            ]);
+        });
+
+        it('draws the desktop card a step larger, keeping the context line at the phone size', () => {
+            render(<BlockKitMessage blocks={card} raw="" scale="desktop" />);
+            expect([sizeOf('Title'), sizeOf('Body'), sizeOf('Footer')]).toEqual([
+                'text-[1.125rem]',
+                'text-[1rem]',
+                'text-[0.875rem]',
+            ]);
         });
     });
 

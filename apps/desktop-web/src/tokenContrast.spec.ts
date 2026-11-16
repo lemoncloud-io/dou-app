@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { CARD_ACCENT_MIN_CONTRAST, contrastRatio, resolveCardAccent } from '@chatic/block-kit';
+
 import { contrast } from './app/shared/theme/shellPalette';
 import { avatarStyle } from './app/shared/utils/avatarColor';
 import { darkPage as dark, lightPage as light, ratio, resolve, tokensOf } from './testing/cssTokens';
@@ -48,6 +50,16 @@ const PAIRS: [string, string, number][] = [
     // Switch on: the ink edge against the card it sits on, and the ink thumb on the fill.
     ['primary-ink', 'card', 3],
     ['primary-foreground', 'primary', 3],
+    // A Block Kit card (webhook messages) draws its text on --card rather than the page: the
+    // title in the foreground, the body in the label grey, its context line and field captions
+    // in the description grey — that one also on the well of an inline value chip — and links.
+    ['foreground', 'card', 4.5],
+    ['label', 'card', 4.5],
+    ['description', 'card', 4.5],
+    ['description', 'well', 4.5],
+    ['link', 'card', 4.5],
+    // A webhook card's type badge with no colour of the sender's: the design's grey pill.
+    ['label', 'well', 4.5],
 ];
 
 describe.each([
@@ -88,4 +100,45 @@ describe.each([
         );
         expect(weakest).toBeGreaterThanOrEqual(4.5);
     });
+});
+
+/** `H S% L%` as styles.css writes a token, to `#RRGGBB`. */
+const hexOf = (hsl: string): string => {
+    const [h, s, l] = hsl.split(/\s+/).map(parseFloat) as [number, number, number];
+    const [S, L] = [s / 100, l / 100];
+    const k = (n: number) => (n + h / 30) % 12;
+    const f = (n: number) => L - S * Math.min(L, 1 - L) * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+    return (
+        '#' +
+        [0, 8, 4]
+            .map(n =>
+                Math.round(f(n) * 255)
+                    .toString(16)
+                    .padStart(2, '0')
+            )
+            .join('')
+    );
+};
+
+/**
+ * A webhook card's accent (the sender's `color`, read by `@chatic/block-kit`) is fitted against a
+ * reference ground rather than this app's `--card`, because the lib serves three apps. These hold
+ * this app's own cards to it: every accent link the sender's colours can produce reads on them.
+ */
+describe.each([
+    ['light', light, 'light'],
+    ['dark', dark, 'dark'],
+] as const)('%s theme webhook card accent', (_, tokens, theme) => {
+    const card = hexOf(resolve(tokens, 'card'));
+
+    it.each(['danger', 'warning', 'good', '#6A52E0', '#FFB71B', '#00FF00', '#0000FF', '#1F2A6B', '#FFFF00'])(
+        'a %s link clears 4.5:1 on --card',
+        color => {
+            const accent = resolveCardAccent(color);
+            expect(accent).not.toBeNull();
+            expect(contrastRatio(accent?.[theme].link as string, card)).toBeGreaterThanOrEqual(
+                CARD_ACCENT_MIN_CONTRAST
+            );
+        }
+    );
 });

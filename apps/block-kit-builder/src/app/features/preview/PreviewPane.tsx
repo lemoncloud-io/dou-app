@@ -1,9 +1,11 @@
 import { AlertTriangle } from 'lucide-react';
 
-import { BlockKitMessage, type KnownBlock } from '@chatic/block-kit';
+import { BlockKitMessage, hasDrawableBlocks, takeSourceLink, type KnownBlock } from '@chatic/block-kit';
+import { cn } from '@chatic/lib/utils';
 
 import type { PayloadParseFailure } from '../payload';
 import { DEVICE_WIDTH, type PreviewDevice } from './DeviceToggle';
+import { SourceFields, toCardSource, type PreviewSource } from './SourceFields';
 
 interface PreviewPaneProps {
     blocks: KnownBlock[];
@@ -13,6 +15,9 @@ interface PreviewPaneProps {
     device: PreviewDevice;
     /** Why this card is behind the payload pane, or null when it is current. */
     failure: PayloadParseFailure | null;
+    /** The message's `source$` as typed above the card: badge, accent colour and source link. */
+    source: PreviewSource;
+    onSource: (source: PreviewSource) => void;
 }
 
 /**
@@ -39,6 +44,40 @@ const StaleNotice = ({ failure }: { failure: PayloadParseFailure }) => (
         </p>
     </div>
 );
+
+/**
+ * The body as a channel draws it, in the card frame the client draws around it: the source link is
+ * found the way the clients find it (`takeSourceLink`, `source$.url` first), the badge and accent
+ * come from the typed `source$`, and the card takes the size and padding of the client the toggle
+ * names — desktop-web's card hugs its content at 24px inside, apps/web's spans the column at 16px.
+ * The frame is the clients' `--card` surface, which is what the accent's contrast is measured on.
+ */
+const PreviewMessage = ({
+    blocks,
+    raw,
+    device,
+    source,
+}: Pick<PreviewPaneProps, 'blocks' | 'raw' | 'device' | 'source'>) => {
+    const cardSource = toCardSource(source);
+    const { blocks: drawn, sourceUrl } = takeSourceLink(blocks, cardSource);
+    const framed = hasDrawableBlocks(blocks);
+    return (
+        <div
+            className={cn(
+                framed && 'min-w-0 max-w-full rounded-[10px] border border-hairline bg-card',
+                framed && (device === 'desktop' ? 'w-fit p-6' : 'p-4')
+            )}
+        >
+            <BlockKitMessage
+                blocks={framed ? drawn : blocks}
+                raw={raw}
+                scale={device === 'desktop' ? 'desktop' : 'phone'}
+                sourceUrl={framed ? sourceUrl : undefined}
+                source={framed ? cardSource : undefined}
+            />
+        </div>
+    );
+};
 
 /** Fixed so the preview is stable to compare against; the builder has no clock. */
 const SENDER = { name: 'ReleaseBot', initial: 'R', time: '11:11 PM' };
@@ -67,7 +106,7 @@ const SENDER = { name: 'ReleaseBot', initial: 'R', time: '11:11 PM' };
  * `background` because in the dark theme `--background` and `--well` are one
  * percent of lightness apart and a stage drawn in it would not be visible at all.
  */
-export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) => (
+export const PreviewPane = ({ blocks, raw, device, failure, source, onSource }: PreviewPaneProps) => (
     <div className="h-full overflow-auto bg-well p-3 lg:p-5">
         <div className="flex min-h-full justify-center rounded-xl bg-elevated px-4 py-6 lg:px-8 lg:py-10">
             {/* The notice is clamped to the same width as the card so the two share
@@ -77,6 +116,7 @@ export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) 
                 className="flex h-fit w-full flex-col transition-[max-width] duration-200 ease-tactile"
                 style={{ maxWidth: DEVICE_WIDTH[device] }}
             >
+                <SourceFields value={source} onValue={onSource} />
                 {failure && <StaleNotice failure={failure} />}
 
                 {/* An empty message has no card. `BlockKitMessage` falls back to the
@@ -103,7 +143,7 @@ export const PreviewPane = ({ blocks, raw, device, failure }: PreviewPaneProps) 
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-0.5">
-                                    <BlockKitMessage blocks={blocks} raw={raw} />
+                                    <PreviewMessage blocks={blocks} raw={raw} device={device} source={source} />
                                 </div>
                             </div>
                         </div>
