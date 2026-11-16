@@ -47,6 +47,7 @@ import { startTelemetry } from './app/runtime/telemetry';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
+import { sendSessionOwnerDefault, sendSessionOwnerDefaultUnasked } from './app/runtime/sessionOwnerDefault';
 import { showSessionOwnerUnsettled } from './app/runtime/sessionOwnerUnsettled';
 import { SIGNED_OUT_KEY_PREFIXES, dropSignedOutKeys } from './app/runtime/signedOutKeys';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -168,6 +169,12 @@ const watchUnavailableVault = (store: NonNullable<typeof vault>): void => {
         window.location.reload();
     };
     document.addEventListener('visibilitychange', onVisible);
+};
+
+/** The two settings `sendSessionOwnerDefault` reads, named here so the bundle keeps only these. */
+const sessionOwnerDefaultEnv = {
+    VITE_APP_SESSION_OWNER: import.meta.env.VITE_APP_SESSION_OWNER,
+    VITE_SESSION_MIRROR_DISABLED: import.meta.env.VITE_SESSION_MIRROR_DISABLED,
 };
 
 /** Everything after the secrets are loaded — the runtime boot, the collectors and the first render. */
@@ -315,6 +322,10 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
         if (owner.sessionOwner === 'web' && !vault && report?.supportedWebMessages?.includes('StorageGet')) {
             void adoptLateVault();
         }
+        // The owner this web build names for installs nobody switched, recorded by the app for its next
+        // start. On every boot, so a web deploy is what moves production installs onto the app's runtime
+        // and back; the owner of this launch is already settled and does not change.
+        void sendSessionOwnerDefault(report, appBridge, sessionOwnerDefaultEnv);
     });
 
     // Force the native debug menu off on every web start — the OTA-controllable kill switch for the
@@ -343,6 +354,8 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
 // session, and a page that ran its own then would be a second owner — and says so, with a reload.
 void bootReady.then(choice => {
     setLaunchSessionOwner(choice.sessionOwner ?? undefined);
-    if (choice.sessionOwner === null) showSessionOwnerUnsettled(choice);
-    else startApp(choice);
+    if (choice.sessionOwner === null) {
+        showSessionOwnerUnsettled(choice);
+        void sendSessionOwnerDefaultUnasked(appBridge, sessionOwnerDefaultEnv);
+    } else startApp(choice);
 });

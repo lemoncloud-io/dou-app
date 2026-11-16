@@ -41,6 +41,8 @@ const MOBILE_UNSUPPORTED = {
     RuntimeUnsubscribe: NATIVE_LAUNCH_ONLY,
     FetchSessionOwner: OWNER_SWITCH,
     SetSessionOwner: OWNER_SWITCH,
+    SetDefaultSessionOwner:
+        "The page's default session owner; registered on its own (useSessionOwnerHandler) with the switch, and answered on every build",
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.

@@ -427,6 +427,14 @@ export const appBridge = {
         return webClient.request({ type: 'SetSessionOwner', data: { owner } });
     },
 
+    /**
+     * Names the owner of an install nobody switched, for the app's next start — `null` clears it. Any app
+     * build that lists it in its `WebAppReady` reply answers, production included; it never restarts.
+     */
+    setDefaultSessionOwner(owner: SessionOwnerName | null): Promise<WebMessageResponse<'SetDefaultSessionOwner'>> {
+        return webClient.request({ type: 'SetDefaultSessionOwner', data: { owner } });
+    },
+
     /** Which alternate app icon is active, and whether this platform supports changing it. */
     fetchAppIcon(): Promise<WebMessageResponse<'FetchAppIcon'>> {
         return webClient.request({ type: 'FetchAppIcon', data: {} });

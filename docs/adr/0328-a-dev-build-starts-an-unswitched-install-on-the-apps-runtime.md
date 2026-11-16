@@ -1,6 +1,7 @@
 # ADR-0328: A dev build starts an unswitched install on the app's runtime
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/dev-native-session-owner`
+> · Amended by: [ADR-0330](./0330-production-starts-on-the-apps-runtime-and-the-web-names-the-default.md) decisions 1 and 3
 > · Scope: `apps/mobile/src/app/services/runtime/sessionOwner.ts` (`defaultSessionOwner`,
 > `readSessionOwner`), `launchSessionOwner.ts`, `sessionOwnerSwitch.ts`; `scripts/mobile-verify/envfile.js`
 > · The behaviour is documented in [apps/mobile docs/runtime](../../apps/mobile/docs/runtime/README.md#who-owns-the-session)
