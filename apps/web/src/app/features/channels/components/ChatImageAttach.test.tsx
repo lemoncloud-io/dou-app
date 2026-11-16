@@ -1394,6 +1394,20 @@ describe('useChatImageAttach — the recent row while the app is asked for its l
         fireEvent.click(openButton());
 
         expect(row()).not.toBeInTheDocument();
+        // No row to sit under: the panel's entries sit in the middle instead of over an empty band.
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
+    });
+
+    it('centres the entries once the app turns out to have no library, while the row folds away', async () => {
+        const { picker, answer } = unasked();
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(openButton());
+        // Asking: skeleton tiles hold the row's place, and the entries sit under it.
+        expect(screen.getByTestId('attach-entries')).toHaveClass('pt-6');
+
+        rerender(<Harness sendImages={jest.fn()} picker={{ ...picker, supported: false }} />);
+        await answer();
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
     });
 });
 

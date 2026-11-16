@@ -836,8 +836,11 @@ export const useChatImageAttach = ({
     // draws before it answers. The row stands there in skeleton tiles meanwhile, so the panel's entries
     // under it are where they will stay once the photos come; told there is no library, the row closes
     // and they rise with it. Kept in the panel for that, as long as the app may have a library, even
-    // with nothing to draw — it draws nothing then. A browser never has one, and never gets the row.
+    // with nothing to draw — it draws nothing then, and the panel is told so (`recentEmpty`), so its
+    // entries settle in the middle as the row folds. A browser never has one, and never gets the row.
     const recentPending = picker.supported === null && probing;
+    // Nothing to draw and nothing on its way: the library refused, cannot be read, or holds nothing.
+    const recentKnownEmpty = !recentPending && recentItems.length === 0;
     const recent =
         isNative() || inGrid ? (
             <RecentPhotoStrip
@@ -1004,6 +1007,7 @@ export const useChatImageAttach = ({
                 enter={slot.panel.enter}
                 exit={slot.panel.exit}
                 recent={recent}
+                recentEmpty={recentKnownEmpty}
                 onPhoto={inGrid ? openGrid : pickFrom(libraryRef)}
                 onCamera={openCamera}
                 onFile={openSources}

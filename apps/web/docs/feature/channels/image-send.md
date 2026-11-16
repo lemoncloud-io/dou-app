@@ -217,8 +217,9 @@ comes — 170 ms on an iOS simulator, seconds on an Android emulator. Meanwhile 
 full size in skeleton tiles (the kit's `RecentPhotoStrip` `loading`), so "사진", "카메라" and "파일"
 under it are where they will stay; the photos take the tiles' places as they come. Told there is no
 library, denied access, an empty library, or a probe that failed this time,
-the row closes on the slide's timing and the entries rise with it. A browser never has a library and
-never draws the row.
+the row closes on the slide's timing and the entries move with it to the middle of the panel
+(`AttachPanel` `recentEmpty`), rather than staying at its top over the empty space the keyboard left. A
+browser never has a library, never draws the row, and shows the entries in the middle the same way.
 
 **The composer's send button sends the pick.** While anything is picked — in the open panel, or
 waiting above the field once the panel has closed (below) — the send button is live even with an empty
