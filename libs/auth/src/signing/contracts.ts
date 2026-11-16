@@ -1,6 +1,6 @@
 export interface SignaturePayload {
     /** First HMAC key. Which key this is — a relay socket's `$auth.id` or a cloud socket's
-     * `Token.authId` — is the caller's choice; this lib only computes with what it is given. */
+     * `Token.authId` — is the caller's choice; the formula only computes with what it is given. */
     authId: string;
     accountId: string;
     identityId: string;

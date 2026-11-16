@@ -31,9 +31,10 @@ libs/auth/src/
 ├── index.ts                    the package barrel
 ├── platform.ts                 the ports the platform fills: the address, and the way home at logout
 ├── testing/platform.ts         `fakeAuthPorts()` — a jsdom page's ports, for tests in any package
-├── session/   13 files · 9 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
-├── pairing/    6 files · 6 tests   device pairing: the request flow, paired clouds, the secondary-device check, errors
-├── socket/    20 files · 18 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
+├── session/   20 files · 11 tests  the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
+├── pairing/    7 files · 7 tests   device pairing: the request flow, paired clouds, the secondary-device check, errors
+├── socket/    21 files · 19 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
+├── signing/    3 files · 2 tests   the lemon HMAC formula — a leaf that imports nothing from this package
 └── utils/      2 files · 2 tests   Coalescer · Throttle — the concurrency guards the renewals use
 ```
 
@@ -82,6 +83,12 @@ hooks that share them depend on this package anyway.
    `tsconfig.lib.json`) and the root lint refuses the page's globals, because it runs in the native
    process too; what the platform answers comes through rule 7's ports and the transport's.
 
+9. **`signing/` is a leaf.** The HMAC formula imports `crypto-js` alone — no workspace package and
+   no file from the rest of this one — and reads no global, so it can leave the package in one move.
+   `signing/purity.test.ts` holds that by reading the folder's sources. It was the separate package
+   `@chatic/auth-sign` until this package took it in; why, and the formula itself, are in
+   [signing.md § The formula](./docs/socket/signing.md#the-formula).
+
 ## Documents
 
 | Doc                                                | Covers                                                                                                                                       |
@@ -89,7 +96,7 @@ hooks that share them depend on this package anyway.
 | [docs/session/](./docs/session/README.md)          | The use cases: relay and cloud sessions, the token exchange and its cache, teardown                                                          |
 | [docs/pairing/](./docs/pairing/README.md)          | Device pairing: the request flow, paired clouds and their checks, the secondary-device rule                                                  |
 | [docs/socket/](./docs/socket/README.md)            | Staying authenticated on every socket: who owns what, the status truth table, booting, re-auth, renewal, background tokens, ending a session |
-| [docs/socket/signing.md](./docs/socket/signing.md) | The per-server `authId` / signature / writeback contract                                                                                     |
+| [docs/socket/signing.md](./docs/socket/signing.md) | The per-server `authId` / signature / writeback contract, and the HMAC formula                                                               |
 
 ## Testing
 

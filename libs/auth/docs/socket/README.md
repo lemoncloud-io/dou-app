@@ -23,13 +23,13 @@ in `socket/` because `socket → session` is an existing edge and the reverse is
 
 ## Who owns what
 
-| Concern                                                                              | Owner                                                                       |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| The current token (SSoT), refresh cadence, reconnect re-auth, backoff, serialization | **SDK `AuthController`**, one per client per slot                           |
-| Boot sequencing, subscription wiring, same-connection re-auth                        | `socket/` — plain functions, no controller class                            |
-| The login token, the `authId`, the HMAC signature, the refresh writeback             | `session/` through `SocketSessionDelegate`                                  |
-| When to renew, and what to do when renewal is impossible                             | `ICredentialRenewer` (relay, and one per cloud) + the two guards            |
-| The signature formula, and the backend refresh endpoint                              | `libs/auth-sign` and the server. The SDK forwards both without reading them |
+| Concern                                                                              | Owner                                                                     |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| The current token (SSoT), refresh cadence, reconnect re-auth, backoff, serialization | **SDK `AuthController`**, one per client per slot                         |
+| Boot sequencing, subscription wiring, same-connection re-auth                        | `socket/` — plain functions, no controller class                          |
+| The login token, the `authId`, the HMAC signature, the refresh writeback             | `session/` through `SocketSessionDelegate`                                |
+| When to renew, and what to do when renewal is impossible                             | `ICredentialRenewer` (relay, and one per cloud) + the two guards          |
+| The signature formula, and the backend refresh endpoint                              | `src/signing/` and the server. The SDK forwards both without reading them |
 
 **Nothing in this package calls a refresh endpoint and nothing builds an `auth.update` packet.**
 [`refreshAbsence.test.ts`](../../../app-runtime/src/refreshAbsence.test.ts) and
@@ -536,4 +536,4 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
 - [transport docs/socket/](../../../transport/docs/socket/README.md) — the slots these controllers sit on, and the binders that call this wiring
 - [docs/session/](../session/README.md) — where the registration material and the writeback land
 - [transport docs/http/](../../../transport/docs/http/README.md) — the staleness port that asks this layer whether a signature can be trusted
-- [`libs/auth-sign`](../../../auth-sign/README.md) — the HMAC itself
+- [signing.md § The formula](./signing.md#the-formula) — the HMAC itself

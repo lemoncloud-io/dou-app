@@ -290,13 +290,13 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 # the public surface reaching into the account surface, or into a session or data module
 # (the route table's lazy import of the barrel is the one allowed crossing; a public feature's
 # relative import of ../../subscription is the feature-to-feature command's to catch)
-git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth-sign)" \
+git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth)" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
 # the account surface reaching the network, a session or a payment SDK outside the HTTP port
 # (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
 # hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
-git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
+git grep -n -E "@chatic/(http|data|app-runtime|auth)|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
 
 # a payment provider named on screen: the copy says the billing country and the currency, never who

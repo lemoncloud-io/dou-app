@@ -5,6 +5,9 @@
 > [ADR-0298](./0298-relay-requests-are-signed-in-house-and-lemon-web-core-is-removed.md)
 > · Decision 7's note that `contextOverride` cannot change the physical partition is lifted by
 > [ADR-0112](./0112-the-cache-partition-is-the-one-an-operation-was-captured-for.md)
+> · Decision 2's separate `@chatic/auth-sign` leaf, and open question 5 on extracting it, are settled
+> by making it a folder inside `@chatic/auth` —
+> [ADR-0326](./0326-the-hmac-signer-is-a-folder-in-libs-auth-not-a-package.md)
 > Progress: **Phases 1-5 complete, plus review follow-through.** `@chatic/web-core`, `apps/admin`, and
 > the three legacy libs are deleted.
 > **Zero call sites hit the refresh endpoint directly.** Every HTTP request is a gateway action, and

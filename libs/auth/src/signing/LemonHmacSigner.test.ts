@@ -1,6 +1,6 @@
 import { LemonHmacSigner } from './LemonHmacSigner';
 
-import type { SignaturePayload } from '../contracts';
+import type { SignaturePayload } from './contracts';
 
 const signer = new LemonHmacSigner();
 
@@ -11,7 +11,7 @@ const RELAY_PAYLOAD: SignaturePayload = {
 };
 
 const CLOUD_PAYLOAD: SignaturePayload = {
-    authId: 'token-authid-cloud-1', // the key a cloud socket and an HTTP refresh sign with
+    authId: 'token-authid-cloud-1', // the key a cloud socket signs with
     accountId: 'account-cloud-1',
     identityId: 'identity-cloud-1',
 };

@@ -71,6 +71,60 @@ Relay picks its inputs with more care than cloud, because a site switch makes th
 Missing fields throw rather than sign with a blank: `Missing relay token fields for socket auth
 signature`.
 
+## The formula
+
+[`src/signing/`](../../src/signing/index.ts) holds the lemon HMAC and nothing else:
+
+```text
+data      = [current, accountId, identityId, '', userAgent].join('&')
+signature = hmac(hmac(hmac(data, authId), accountId), identityId)     // hmac = base64 HMAC-SHA256
+```
+
+It exports one contract (`IAuthSigner`), one implementation (`LemonHmacSigner`) and the three types
+they pass between them. [`calcSignature`](../../src/session/utils/calcSignature.ts) holds the one
+shared signer instance and returns the signature string alone; `sessionAuthAdapter` is its only caller.
+Everything above this section — which `authId`, where `accountId` and `identityId` come from, which
+user agent — is chosen by the caller and handed in as arguments. The folder decides none of it.
+
+Getting the formula wrong is not a degraded experience: the server recomputes the HMAC with its own
+copy of the material and rejects the socket outright. So it has one owner, and that owner is a leaf.
+
+**The folder is a leaf inside this package.** It imports `crypto-js` and nothing else — no
+`@chatic/*` or `@lemoncloud/*` package, no file from the rest of `libs/auth`, not even through a
+dynamic `import()` — and reads no global:
+`current` and `userAgent` are required arguments with no default, because a default would have to read
+`new Date()` or `navigator`, and the formula runs under React Native as well as a page. It has no
+network, no storage and no knowledge of the refresh endpoint. `purity.test.ts` holds all of that by
+reading the folder's sources (comments stripped, since the rules are described in prose beside the
+fields they protect), and it also pins the list of files it scans, so a gate that has stopped seeing
+the formula fails instead of passing on nothing.
+
+That is what lets the formula move in one step if it ever leaves the repository — into the sockets
+SDK, whose `ClientSocketAuth` is the thing that asks for a signature. It would take `crypto-js` with
+it, not a session or an HTTP stack.
+
+**Why a folder and not a package of its own.** It was `@chatic/auth-sign` until the folder took it
+in. The package existed so the formula had a home that neither the HTTP layer nor the socket
+authentication would drag the other into: it was meant to serve both, and putting it in
+`@chatic/http`, beside the SigV4 signer, would have made socket signing depend on the request stack.
+Two things made that moot. The HTTP side never used it — every credential refresh is the sockets
+SDK's, and the HTTP signing done in-house is SigV4, a different signature — so the socket path is its
+only caller; and this package, the socket path's home, already depends on `@chatic/http` for other
+reasons. One consumer and no cycle to prevent left a package that cost a project, a tsconfig
+reference and a path alias for 54 lines. The leaf rule is kept by the gate instead of by the package
+boundary, which was the part of the separation worth keeping.
+
+The formula carries an old name: it lived in web-core as `calcSignature`, next to the SigV4 signer
+it has nothing to do with. That name survives in `session/utils/calcSignature.ts` and on this page,
+so a review comment about "calcSignature" is about this formula.
+
+**Verifying the formula.** `LemonHmacSigner.test.ts` pins the exact signature string for a relay
+material set and a cloud one, as literals rather than snapshots. They were computed independently
+with Node's own `crypto`, so a change to the formula turns them red instead of quietly re-baselining.
+The test signs with an explicit user agent that differs from any global and asserts the fixed value;
+it does not assert that `navigator` is absent, because Node 21 and later ship one and that check
+tested the runtime rather than the code.
+
 ## Writeback
 
 `commitRefreshedToken(cid, view)` is the **only** path by which a refreshed token reaches the store,
@@ -163,10 +217,11 @@ recomputes the same hash.
 - A failed `auth.switch` leaves the stored token and site untouched — no writeback runs.
 
 The tests that fix these are `sessionAuthAdapter.test.ts`, `tokenMerge.test.ts`,
-`authIdRegistry.test.ts` and `cloudStore.test.ts`.
+`authIdRegistry.test.ts` and `cloudStore.test.ts`; the formula itself is `signing/LemonHmacSigner.test.ts`
+and `signing/purity.test.ts`.
 
 ## Further reading
 
 - [README.md](./README.md) — the state machine, the boot gate, and the renewers that trigger a refresh
 - [docs/session/](../session/README.md) — the stores this reads and writes
-- [`libs/auth-sign`](../../../auth-sign/README.md) — the HMAC itself
+- [The formula](#the-formula) — the HMAC itself, and why it is a leaf

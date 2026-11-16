@@ -55,9 +55,6 @@
             "path": "./apps/admin"
         },
         {
-            "path": "./libs/auth-sign"
-        },
-        {
             "path": "./libs/http"
         },
         {

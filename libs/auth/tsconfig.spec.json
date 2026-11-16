@@ -7,6 +7,10 @@
         // The `@chatic/session` barrel reaches `@chatic/shared`, whose barrel carries React
         // components, and ts-jest compiles them with this config.
         "jsx": "react-jsx",
+        // `signing/LemonHmacSigner.ts` default-imports two crypto-js submodules. ts-jest emits
+        // CommonJS, and without the interop helpers that output reaches for `.default` and the
+        // calls fail at run time. The base config does not set it, so it is set here, for the tests.
+        "esModuleInterop": true,
         "types": ["jest", "node"]
     },
     "include": ["src/**/*.ts", "src/**/*.d.ts"],
@@ -18,9 +22,6 @@
         },
         {
             "path": "../bridge-messages/tsconfig.lib.json"
-        },
-        {
-            "path": "../auth-sign/tsconfig.lib.json"
         },
         {
             "path": "../logger/tsconfig.lib.json"
