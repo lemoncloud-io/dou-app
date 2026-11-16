@@ -13,7 +13,24 @@ export const MINI_APP_LINK_LIMIT = 10;
 /** The longest a mini app's name may be, in characters: one settings row, without wrapping. */
 export const MINI_APP_LINK_NAME_MAX = 30;
 
-export type MiniAppLinkProblem = 'nameMissing' | 'nameTooLong' | 'invalidUrl' | 'hubUrl';
+export type MiniAppUrlProblem = 'invalidUrl' | 'hubUrl';
+
+export type MiniAppLinkProblem = 'nameMissing' | 'nameTooLong' | MiniAppUrlProblem;
+
+/**
+ * What is wrong with a mini app's address, or `null` when nothing is. Checked by the rule the shells
+ * open by, so a saved address is never one a shell would refuse.
+ *
+ * An address on the hub's own hosts (`firstParty`, any path) is refused: a page there would be told
+ * whether the user owns the cloud, and its close result would be read as the hub's. The hub is reached
+ * on its own, never as a mini app.
+ */
+export const checkMiniAppUrl = (url: string): MiniAppUrlProblem | null => {
+    const trust = subWebViewTrustOf(url.trim());
+    if (!trust) return 'invalidUrl';
+    if (trust === 'firstParty') return 'hubUrl';
+    return null;
+};
 
 /**
  * What is wrong with a mini app an owner is about to save, or `null` when nothing is. The name is
@@ -28,10 +45,7 @@ export const checkMiniAppLink = (name: string, url: string): MiniAppLinkProblem 
     const trimmed = name.trim();
     if (!trimmed) return 'nameMissing';
     if (Array.from(trimmed).length > MINI_APP_LINK_NAME_MAX) return 'nameTooLong';
-    const trust = subWebViewTrustOf(url.trim());
-    if (!trust) return 'invalidUrl';
-    if (trust === 'firstParty') return 'hubUrl';
-    return null;
+    return checkMiniAppUrl(url);
 };
 
 const isLinkShape = (value: unknown): value is MiniAppLink => {
