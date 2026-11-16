@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - root@0.157.1, @chatic/landing@0.18.3
+
+### Bug Fixes
+
+- (landing) list the plans in won where the build bills in won only
+
 ## [2026-11-16] - No version updates
 
 ### Features
