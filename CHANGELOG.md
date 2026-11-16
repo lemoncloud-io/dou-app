@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-11-16] - root@0.161.0, @chatic/web@0.91.0
+
+### Features
+
+- (web/subscription) trialEligible and web-subscription refusal notice
+- (web) trialEligible and web-subscription refusal notice
+
+### Bug Fixes
+
+- (web) keep restore cache refresh on web-active refusal
+
+### Other
+
+- test: (web) cover cache refresh before web-active refusal
+
 ## [2026-11-16] - root@0.160.0, @chatic/desktop-web@0.58.0
 
 ### Features
