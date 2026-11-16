@@ -42,8 +42,16 @@ export const SubscriptionPlansPage = () => {
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
 
-    const { sellablePlans, summary, currentPlan, replaceablePlan, resubscribePlan, isOnMobileApp, isIOS } =
-        usePlanCatalog();
+    const {
+        sellablePlans,
+        summary,
+        currentPlan,
+        replaceablePlan,
+        resubscribePlan,
+        isOnMobileApp,
+        isIOS,
+        trialEligible,
+    } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
@@ -57,7 +65,7 @@ export const SubscriptionPlansPage = () => {
     const isKo = i18n.language.startsWith('ko');
     const alternative = refused ? nearestSelectablePlan(options, refused.plan) : undefined;
     // The entry tier is the only one with a trial, and only for someone who never subscribed.
-    const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
+    const trialDays = summary.state === 'none' && trialEligible ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const hasCurrent = summary.state !== 'none' && !!currentPlan;
     const currentWord = productStatusWord(summary.state);
     const billingStoreKey = platformLabelKey(replaceablePlan?.platform);

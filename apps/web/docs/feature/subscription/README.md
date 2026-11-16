@@ -106,6 +106,13 @@ Entitlement and the store also come apart, which is why `SubscriptionSummary` ca
 the store charging with entitlement gone. Anything that talks to the store — replacing a plan,
 naming an `oldPlanId` — follows `hasLiveReceipt`.
 
+Whether a trial is **offered** is a separate question from how long one is: `usePlanCatalog.trialEligible`
+is the server's `trialEligible` from `memberships/mine` (what the website's own `start` judges), or
+`!trialUsed` for a server that omits it (`isTrialEligible`, the website's fallback too). The plan picker, the
+confirm screen and the cloud guide show a trial badge or CTA only when it is true — and the confirm
+screen freezes it with the rest of the purchase terms, because buying spends the trial. The backend
+package's `MembershipView` does not list the field yet, so it is read through `TrialFields`.
+
 `trialDaysLeft` is reported only when `validFrom + trialDays` measured against now lands inside
 `(0, trialDays]`. The stores disagree subtly about what the receipt's start timestamp means, and a
 wrong number here is a promise to the user.
@@ -214,6 +221,16 @@ store has taken the money — failing there would leave a paid subscription with
    social-account based. Only a definite `'absent'` blocks — `'unknown'` means the profile has not
    landed or the server never built the `link$` slot, and refusing on that would stop paying
    customers from renewing.
+
+A third refusal comes **from the server, after the store charged or on restore**: while a website
+subscription (portone/stripe) is running, the relay answers a store receipt with
+`409 CONFLICT - <provider> subscription is active`, restores and re-sent receipts included. It is not a
+payment failure, so `useSubscriptionIap.validate` turns it into `WebSubscriptionActiveError`
+(`lib/webSubscriptionActive`, matched on the 409 _and_ the message — a bare 409 is not claimed).
+`SubscriptionConfirmPage` and `useRestorePurchases` then raise the "you have a subscription paid on the
+web" dialog (`useWebSubscriptionNotice`) whose button opens the website's subscription list through the
+shell, instead of `purchaseFailed` / `restoreFailed`. A restore stops at the first such refusal — it
+covers the whole account, so skipping receipts one by one would only repeat it.
 
 ### 6. Outside the app, the website sells
 

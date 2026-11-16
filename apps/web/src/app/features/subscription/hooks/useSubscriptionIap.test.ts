@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
 
+import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { useSubscriptionIap } from './useSubscriptionIap';
 import { useLinkedAccounts } from '../../../hooks';
 import { appBridge } from '../../../bridge';
@@ -247,5 +248,30 @@ describe('useSubscriptionIap — 결제 기록', () => {
         expect(logger.error).toHaveBeenCalledWith('IAP', 'native purchase failed (code=billing-unavailable)', {
             data: { code: 'billing-unavailable' },
         });
+    });
+});
+
+describe('useSubscriptionIap — website subscription refusal', () => {
+    const refusal = new Error('409 CONFLICT - portone subscription is active - verifyMembershipPurchase(membership/MS1)');
+
+    it('restore stops with the typed error instead of skipping the receipt', async () => {
+        (appBridge.fetchCurrentPurchases as jest.Mock).mockResolvedValueOnce({
+            data: { purchases: [{ productId: 'P', purchaseToken: 'T' }] },
+        });
+        membershipMutate.mockRejectedValueOnce(refusal);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).rejects.toBeInstanceOf(WebSubscriptionActiveError);
+        expect(appBridge.finishPurchaseTransaction).not.toHaveBeenCalled();
+    });
+
+    it('other validation failures stay skippable during restore', async () => {
+        (appBridge.fetchCurrentPurchases as jest.Mock).mockResolvedValueOnce({
+            data: { purchases: [{ productId: 'P', purchaseToken: 'T' }] },
+        });
+        membershipMutate.mockRejectedValueOnce(new Error('403 INVALID PAYMENT'));
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).resolves.toBe(0);
     });
 });
