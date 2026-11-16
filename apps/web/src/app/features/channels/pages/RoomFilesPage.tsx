@@ -8,8 +8,6 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
     FileSelectionActionBar,
-    IconBack,
-    IconSearch,
     FileSelectionHeader,
     formatAudioClock,
     formatAudioSize,
@@ -21,10 +19,10 @@ import {
     IconShare,
     IconTrash,
     MediaViewer,
-    ModalTopBar,
     MonthGroupHeader,
     RoomFileMoreSheet,
     RoomFileRow,
+    RoomFilesHeader,
     RoomFilesTabs,
     RoomMediaGrid,
     SearchInput,
@@ -346,39 +344,16 @@ export const RoomFilesPage = () => {
                     toggleAllDisabled={shown.length === 0}
                 />
             ) : (
-                <ModalTopBar
+                <RoomFilesHeader
                     title={t('chat.files.title')}
-                    leftSlot={
-                        <button
-                            type="button"
-                            onClick={() => navigate(-1)}
-                            aria-label={t('chat.attach.audio.back')}
-                            className="flex size-10 items-center justify-center text-foreground"
-                        >
-                            <IconBack size={24} />
-                        </button>
-                    }
-                    rightSlot={
-                        <span className="flex items-center">
-                            <button
-                                type="button"
-                                onClick={() => setSearchOpen(open => !open)}
-                                aria-label={t('chat.files.searchLabel')}
-                                aria-pressed={searchOpen}
-                                className="flex size-10 items-center justify-center text-foreground"
-                            >
-                                <IconSearch size={22} />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelected(new Set())}
-                                disabled={shown.length === 0}
-                                className="px-2 text-[15px] font-medium text-foreground disabled:opacity-40"
-                            >
-                                {t('chat.files.select')}
-                            </button>
-                        </span>
-                    }
+                    onBack={() => navigate(-1)}
+                    backLabel={t('chat.attach.audio.back')}
+                    onSearch={() => setSearchOpen(open => !open)}
+                    searchLabel={t('chat.files.searchLabel')}
+                    searchActive={searchOpen}
+                    actionLabel={t('chat.files.select')}
+                    onAction={() => setSelected(new Set())}
+                    actionDisabled={shown.length === 0}
                 />
             )}
             <RoomFilesTabs
