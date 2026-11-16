@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - root@0.159.1, @chatic/web@0.90.2
+
+### Bug Fixes
+
+- (web) open a mini app link tapped in a chat in the sub WebView, not the OS (ADR-0329)
+
 ## [2026-11-16] - No version updates
 
 ### Features
