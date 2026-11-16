@@ -1,6 +1,6 @@
 # ADR-0246: A webhook card's title is the link to its source, moved up from the server's last line
 
-> Status: Superseded by [ADR-0319](./0319-a-webhook-cards-source-link-is-a-labelled-line-under-its-title.md) · Decided: 2026-10-27 · Implemented: `feat/block-kit-card-restyle`, `feat/desktop-webhook-card`
+> Status: Superseded by [ADR-0319](./0319-a-webhook-cards-source-link-is-a-labelled-line-at-the-foot-of-the-card.md) · Decided: 2026-10-27 · Implemented: `feat/block-kit-card-restyle`, `feat/desktop-webhook-card`
 > · Scope: `libs/block-kit/src/sourceLink.ts` · `libs/block-kit/src/BlockKitMessage.tsx` ·
 > `apps/web/src/app/features/channels/components/ChannelMessageRow.tsx` ·
 > `apps/desktop-web/src/app/features/chat/components/MessageRow.tsx` ·

@@ -50,7 +50,7 @@ interface SourceLink {
  * when both are there they agree — and if they ever did not, the field wins and
  * the line still goes.
  *
- * `BlockKitMessage` draws the link as its own labelled line under the title. When
+ * `BlockKitMessage` draws the link as its own labelled line at the foot of the card. When
  * neither gives a web address the blocks come back unchanged, so whatever the
  * server put on the last line stays where it can still be pressed — or, for a
  * `javascript:` one, stays inert text-shaped markup the renderer never links.

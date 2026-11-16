@@ -219,7 +219,7 @@ export const ChannelMessageRow = ({
     // send this is a `JSON.parse` plus the mrkdwn passes. Ordinary messages cost a `trim`
     // and a `startsWith` either way (`parseBlocks` bails on the first character).
     //
-    // `sourceUrl` is the webhook's full report, drawn as a link under the card's title.
+    // `sourceUrl` is the webhook's full report, drawn as a link on the card's last line.
     // `takeSourceLink` reads it from `source$.url`, or from the server's `원문 보기` element on the
     // card's last line for a message stored before that field, and takes that element off so the
     // link shows once.

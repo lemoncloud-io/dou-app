@@ -224,9 +224,9 @@ describe('MessageList', () => {
     });
 
     // The server writes the sender's report link as the card's last context element; the card
-    // draws it as its own "View source" line under the title instead, once — a second copy on the
-    // last line would offer the same link twice. The title itself stays plain text.
-    it("draws a webhook card's report link under its title and drops the source line", () => {
+    // draws it as its own "View source" line at the foot of the card instead, once — a second copy
+    // in the context line would offer the same link twice. The title itself stays plain text.
+    it("draws a webhook card's report link as its last line and drops the source element", () => {
         const webhook = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
@@ -239,9 +239,9 @@ describe('MessageList', () => {
 
         const link = screen.getByRole('link', { name: 'View source' });
         expect(link.getAttribute('href')).toBe(WEBHOOK_SEND_ERROR_REPORT.meta.sourceUrl);
-        const title = screen.getByRole('heading', { name: /error-report/ });
-        expect(title.closest('a')).toBeNull();
-        expect(title.nextElementSibling).toBe(link);
+        expect(screen.getByRole('heading', { name: /error-report/ }).closest('a')).toBeNull();
+        expect(link.nextElementSibling).toBeNull();
+        expect(link.previousElementSibling?.textContent).toBe('hello-alarm example-api/production#1.0.0');
         expect(screen.queryByText('원문 보기')).toBeNull();
     });
 

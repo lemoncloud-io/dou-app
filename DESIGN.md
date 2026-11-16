@@ -334,7 +334,7 @@ A webhook card adds three things from the message's `source$`, outside the block
 over the first line (a 12px bold pill in capitals — the design's ERROR red `#FF4C35` on
 `#FDECEC`, ATTENDANCE green `#43946C` on `#E4F0EA`, the shared `--warning` amber, a sender's hex,
 or `bg-well` / `text-label` grey), the accent colour every link in the card takes, and a "View
-source" link line under the title. Colours are computed in `cardAccent.ts` and reach the card as
+source" link as the card's last line. Colours are computed in `cardAccent.ts` and reach the card as
 CSS variables, never as the sender's value; they are fitted to reference grounds a step past
 every app's `--card` (light `#F7F7F7`, dark `#333333`), so a `--card` that moves past them breaks
 the 4.5:1 guarantee.

@@ -725,8 +725,9 @@ describe('ChannelMessageRow', () => {
             });
 
             // The server writes the sender's `meta.sourceUrl` as the card's last link; the card draws it
-            // as its own line under the title instead, and it leaves the app the way a body link does.
-            it("draws the server's source link under the title and opens it outside the webview", () => {
+            // as its own line at the foot of the card instead, and it leaves the app the way a body
+            // link does.
+            it("draws the server's source link as the card's last line and opens it outside the webview", () => {
                 render(
                     <ChannelMessageRow
                         {...baseProps}
@@ -744,7 +745,8 @@ describe('ChannelMessageRow', () => {
                 const title = screen.getByRole('heading', { name: '503 ECONNRESET' });
                 expect(title.closest('a')).toBeNull();
                 const link = screen.getByRole('link', { name: 'chat.room.attachment.openSource' });
-                expect(title.nextElementSibling).toBe(link);
+                expect(link.nextElementSibling).toBeNull();
+                expect(link.previousElementSibling).toBe(title);
                 const followed = fireEvent.click(link);
 
                 expect(followed).toBe(false);

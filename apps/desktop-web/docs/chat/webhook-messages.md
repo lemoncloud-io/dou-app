@@ -78,7 +78,8 @@ carries `source$: null`, which reads as none. Messages the server stored before 
     - The colours reach the links as CSS variables on the card root, one per theme, chosen by the
       `.dark` class; a colour known only at run time cannot be a Tailwind class.
 - **Source link.** When the sender gave a source, the card draws "View source" (`chat.webhook.openSource`)
-  as its own link line right under the title (last, when there is no title). The title stays plain
+  as its own link line at the foot of the card, after everything else it draws, as the design's
+  deployment card does with its run link. The title stays plain
   text. `takeSourceLink` reads the address from `source$.url` first, and for a message stored before
   that field from the server's own `<url|원문 보기>` element at the end of the card's last context line;
   either way it takes that element off the line, so the link shows once. Only an `http`/`https`

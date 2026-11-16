@@ -45,10 +45,11 @@ const Header = ({ text, level }: { text: BlockTextObject; level?: number }) => {
 };
 
 /**
- * The way to the message's full source — a webhook's report — as a labelled link of its own under
- * the title. The title stays plain text: a reader looking for "the original" finds a word that says
- * so, which a heading that is secretly a link does not offer. In the card's link colour, like every
- * other link inside it.
+ * The way to the message's full source — a webhook's report — as a labelled link on the card's last
+ * line, where the design puts it: after everything the card says, as the way to read more of it.
+ * The title stays plain text: a reader looking for "the original" finds a word that says so, which a
+ * heading that is secretly a link does not offer. In the card's link colour, like every other link
+ * inside it.
  */
 const SourceLink = ({ url }: { url: string }) => {
     const onLinkClick = useContext(BlockKitLinkContext);
@@ -236,8 +237,7 @@ interface BlockKitMessageProps {
     scale?: BlockKitScale;
     /**
      * Where the whole message can be read in full — a webhook's report, say — drawn as
-     * a labelled link (`labels.openSource`) under the first heading, or last when there
-     * is none. Not a block: Slack's `header` carries no URL, so the caller finds it
+     * a labelled link (`labels.openSource`) on the card's last line. Not a block: Slack's `header` carries no URL, so the caller finds it
      * (`takeSourceLink`). Ignored unless it is `http(s)`.
      */
     sourceUrl?: string;
@@ -281,8 +281,6 @@ export const BlockKitMessage = ({
     const classes = BLOCK_KIT_SCALE[scale];
     const badge = cardBadgeText(source?.key);
     const accent = resolveCardAccent(source?.color);
-    // Under the title, which is what the link is the full version of; with no title, last.
-    const linkAfter = link && drawable ? blocks.findIndex(block => block.type === 'header') : -1;
     return (
         <BlockKitLabelsContext.Provider value={{ ...DEFAULT_BLOCK_KIT_LABELS, ...labels }}>
             <BlockKitScaleContext.Provider value={classes}>
@@ -298,13 +296,8 @@ export const BlockKitMessage = ({
                         {/* Nothing left to draw once the server's source line moved out — the
                             caller judged the card on the blocks before `takeSourceLink` — so the
                             body is the message's own text, with the link still under it. */}
-                        {drawable
-                            ? blocks.flatMap((block, i) => {
-                                  const drawn = drawBlock(block, i, classes);
-                                  return i === linkAfter ? [drawn, link] : [drawn];
-                              })
-                            : fallback}
-                        {linkAfter < 0 && link}
+                        {drawable ? blocks.map((block, i) => drawBlock(block, i, classes)) : fallback}
+                        {link}
                     </div>
                 </BlockKitLinkContext.Provider>
             </BlockKitScaleContext.Provider>

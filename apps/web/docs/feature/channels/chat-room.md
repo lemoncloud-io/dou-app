@@ -127,8 +127,8 @@ November 2026) have neither badge nor accent.
   client's card (light `#F7F7F7`, dark `#333333`). This app's `--card` has to stay lighter than the
   first and darker than the second for that to hold on its cards; no spec here checks it. The emoji before the title stays as the
   server wrote it.
-- The **source link** is a "View source" (`chat.room.attachment.openSource`) line right under the
-  title (last when there is no title); the title stays plain text. `takeSourceLink` reads the address
+- The **source link** is a "View source" (`chat.room.attachment.openSource`) line at the foot of the
+  card, after everything else it draws; the title stays plain text. `takeSourceLink` reads the address
   from `source$.url` first, and for an older message from the server's `<url|원문 보기>` element at the
   end of the card's last line, which it takes off either way so the link shows once. Only an
   `http`/`https` address is linked. It opens through `handleUrlClick` like any other card link.
@@ -703,7 +703,7 @@ Both play the selection haptic when tapped.
   `useChatScroll`.
 - A webhook card's badge, accent colour and source link are pinned by `@chatic/block-kit`'s
   `cardAccent.spec.ts`, `sourceLink.spec.ts` and `BlockKitMessage.spec.tsx`, and in this row by
-  `ChannelMessageRow.test.tsx` (`source$` badge and accent, `source$: null`, the link under the title,
+  `ChannelMessageRow.test.tsx` (`source$` badge and accent, `source$: null`, the link as the last line,
   an `attach$`-only message read as its summary).
 - The send entrance is pinned by `useStackIn.test.ts` (the keyframes, mount-only decision, reduced
   motion, clip release) and by the stacking cases in `ChannelRoomPage.test.tsx` (only my pending row

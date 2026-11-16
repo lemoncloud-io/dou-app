@@ -343,8 +343,8 @@ export const MessageRow = memo(
                     const plain = !blocks || source === 'field' ? content : blocksToPlainText(blocks);
                     // A card only when something in it draws: a message whose every block is
                     // unknown falls back to its own text, and that text is a message, not a
-                    // card. `sourceUrl` is the webhook's full report, drawn as a link under the
-                    // card's title: `takeSourceLink` reads it from `source$.url`, or from the
+                    // card. `sourceUrl` is the webhook's full report, drawn as a link on the
+                    // card's last line: `takeSourceLink` reads it from `source$.url`, or from the
                     // server's `원문 보기` element on the last line for a message stored before
                     // that field, and takes that element off so the link shows once. Only the
                     // drawing moves: `plain` above reads the blocks as they came, so Copy and

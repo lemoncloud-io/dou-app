@@ -150,26 +150,27 @@ describe('BlockKitMessage', () => {
         ];
         const report = 'https://example.com/reports/report.json';
 
-        it('draws a labelled link right under the first heading, and leaves the heading plain text', () => {
+        // The design's place for it: after everything the card says, as its own line.
+        it("draws a labelled link as the card's last line, and leaves the heading plain text", () => {
             const { container } = render(
                 <BlockKitMessage blocks={blocks} raw="" sourceUrl={report} labels={{ openSource: '원문 보기' }} />
             );
             const link = screen.getByRole('link', { name: '원문 보기' });
             expect(link.getAttribute('href')).toBe(report);
-            const heading = screen.getByRole('heading', { name: '503 Service Unavailable' });
-            expect(heading.closest('a')).toBeNull();
-            expect(heading.nextElementSibling).toBe(link);
+            expect(screen.getByRole('heading', { name: '503 Service Unavailable' }).closest('a')).toBeNull();
+            expect(link.previousElementSibling).toBe(screen.getByRole('heading', { name: 'Second' }));
+            expect(link.nextElementSibling).toBeNull();
             expect(container.querySelectorAll('a')).toHaveLength(1);
         });
 
-        it('draws it last when there is no heading', () => {
+        it('is last with no heading too', () => {
             render(<BlockKitMessage blocks={[blocks[0]]} raw="" sourceUrl={report} />);
             const link = screen.getByRole('link', { name: 'View source' });
             expect(link.previousElementSibling?.textContent).toBe('lead');
             expect(link.nextElementSibling).toBeNull();
         });
 
-        it("sits under a mrkdwn heading too, beside that heading's own links", () => {
+        it("comes after a mrkdwn heading's own links", () => {
             const mrkdwnHeader: KnownBlock = {
                 type: 'header',
                 text: { type: 'mrkdwn', text: 'Deploy <https://x.dev|#42>' },
@@ -182,7 +183,7 @@ describe('BlockKitMessage', () => {
         });
 
         // The caller judged the card on the blocks before the server's source line moved out, so
-        // nothing drawable may be left: the body is then the message's own text, link under it.
+        // nothing drawable may be left: the body is then the message's own text, the link after it.
         it('draws the message text with the link when no block is left to draw', () => {
             const unknown: KnownBlock[] = [{ type: 'unknown', raw: '{"type":"actions"}' } as KnownBlock];
             for (const remaining of [[], unknown]) {
