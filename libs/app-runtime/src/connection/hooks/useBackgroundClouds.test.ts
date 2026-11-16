@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeRuntimeConnection } from '@chatic/runtime-core/testing/connection';
@@ -9,11 +9,18 @@ import { useBackgroundClouds } from './useBackgroundClouds';
 const setBackgroundClouds = jest.fn();
 
 beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
     initAppRuntime({ ...coreEngine, connection: fakeRuntimeConnection({}, { setBackgroundClouds }) });
 });
 
-afterEach(() => resetRuntimeEngine());
+afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    resetRuntimeEngine();
+});
+
+const endOfTask = () => act(() => jest.runOnlyPendingTimers());
 
 describe('useBackgroundClouds', () => {
     it('hands the app list to the runtime', () => {
@@ -43,12 +50,25 @@ describe('useBackgroundClouds', () => {
         expect(setBackgroundClouds).not.toHaveBeenCalled();
     });
 
-    it('withdraws the list on unmount', () => {
+    it('withdraws the list on unmount, at the end of the task', () => {
         const { unmount } = renderHook(() => useBackgroundClouds(['a']));
 
         unmount();
+        expect(setBackgroundClouds).toHaveBeenLastCalledWith(['a']);
 
+        endOfTask();
         expect(setBackgroundClouds).toHaveBeenLastCalledWith([]);
+    });
+
+    // What StrictMode does to every effect in development: a cleanup, then a mount, in the same task.
+    // (This test environment does not double-invoke effects under StrictMode, so it is spelled out.)
+    it('does not withdraw the list when the hook mounts again before the end of the task', () => {
+        const first = renderHook(() => useBackgroundClouds(['a']));
+        first.unmount();
+        renderHook(() => useBackgroundClouds(null));
+        endOfTask();
+
+        expect(setBackgroundClouds.mock.calls).toEqual([[['a']]]);
     });
 
     it('an empty list is an empty list, not one empty id', () => {
@@ -83,6 +103,7 @@ describe('useBackgroundClouds', () => {
         const { unmount } = renderHook(() => useBackgroundClouds(null));
 
         unmount();
+        endOfTask();
 
         expect(setBackgroundClouds.mock.calls).toEqual([[[]]]);
     });

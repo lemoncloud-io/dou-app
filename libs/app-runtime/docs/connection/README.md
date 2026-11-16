@@ -75,6 +75,11 @@ until both sources have answered: the cloud catalog — a failure counting only 
 verified, since a failure before that is the stale credential the catalog's re-read follows — and the
 invited-cloud cache, which counts as empty if it is still silent a few seconds after the catalog.
 
+Unmounting withdraws the list at the end of the task, not at once, and a mount before then cancels
+it. React's StrictMode runs every effect's cleanup and then the effect again on mount in development;
+an immediate withdrawal there tore the background sockets down on every page load, which also made a
+development build useless for checking that a real reload keeps them.
+
 ### Reading connection state
 
 | Hook                      | Answers                                                                     |
