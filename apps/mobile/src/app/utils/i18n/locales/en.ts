@@ -32,6 +32,20 @@ export const en = {
         loadMessage: 'Check your connection and try again.',
         retry: 'Try again',
         subClose: 'Close',
+        subRuntimeConsent: {
+            title: 'Allow access to this cloud?',
+            message: '{0} wants to read this cloud in DoU: {1}. It cannot change anything.',
+            allow: 'Allow',
+            deny: "Don't allow",
+        },
+        subRuntimePermission: {
+            session: 'who you are and where you are',
+            cloud: 'the cloud',
+            place: 'its places',
+            channel: 'its chat rooms',
+            chat: 'messages',
+            user: 'members and profiles',
+        },
     },
     notification: {
         channel: {

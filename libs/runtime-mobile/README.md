@@ -38,17 +38,18 @@ const engine = createNativeRuntime({
 });
 ```
 
-| Export                                                                    | Does                                                                                                                       |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine              |
-| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                |
-| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process               |
-| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                            |
-| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                         |
-| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                 |
-| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime              |
-| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop               |
-| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core |
+| Export                                                                    | Does                                                                                                                              |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine                     |
+| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                       |
+| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process                      |
+| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                                   |
+| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                                |
+| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                        |
+| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime                     |
+| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop                      |
+| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core        |
+| `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`, `RuntimeEngine`  | runtime-core's, handed on: the whitelist a sub WebView page's runtime requests pass, and the engine type its bridge is built over |
 
 The ports `createNativeRuntime` fills, the same in every React Native app:
 

@@ -2,7 +2,7 @@ import { ChaticAppsError } from './errors';
 import type { Transport } from './transport';
 
 /** The bridge version this library is written against, sent as each request's `version`. */
-export const SDK_BRIDGE_VERSION = '2.25.0';
+export const SDK_BRIDGE_VERSION = '2.26.0';
 
 /** How long a request waits for its reply by default, while the page is visible. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -15,7 +15,7 @@ type Incoming = {
     refId?: unknown;
     success?: unknown;
     data?: unknown;
-    error?: { code?: unknown; message?: unknown };
+    error?: { code?: unknown; message?: unknown; details?: unknown };
 };
 
 interface Pending {
@@ -100,7 +100,7 @@ export const createBridgeClient = (transport: Transport, defaultTimeoutMs = DEFA
             } else {
                 const code = typeof message.error?.code === 'string' ? message.error.code : 'INTERNAL_ERROR';
                 const text = typeof message.error?.message === 'string' ? message.error.message : code;
-                entry.reject(new ChaticAppsError(code, text));
+                entry.reject(new ChaticAppsError(code, text, message.error?.details));
             }
             return;
         }

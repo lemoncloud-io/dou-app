@@ -133,9 +133,10 @@ draws its own header. Add `"display": "standard"` to get the app's bar with the 
 close button instead.
 
 `manifestVersion` must be `1`; the app ignores a manifest it cannot read. Ask only for the permissions
-the page uses — `clipboard`, `share`, `openUrl`, `userKey` — and see the
-package `README.md` for what each one unlocks and for `display` and `orientation`. Without a manifest a
-page still runs; it gets everything but those four.
+the page uses — `clipboard`, `share`, `openUrl`, `userKey`, and for reading the app's data `session`,
+`cloud`, `place`, `channel`, `chat`, `user` — and see the package `README.md` for what each one unlocks
+and for `display` and `orientation`. Without a manifest a page still runs; it gets everything but what
+those permissions unlock.
 
 ## How the page behaves in the app
 

@@ -14,10 +14,13 @@
 // No token crosses. The snapshot leaves the tokens out, and a call answers with what the screen needs,
 // never a credential.
 //
-// Only the main web is answered — a sub WebView page or another origin gets nothing — and only by a
-// shell that offered to own the session. The offer is made before the page runs, in
-// `window.CHATIC_APP_RUNTIME`, so a page asks only a shell that can answer; the handshake below is
-// where the two settle it for this launch.
+// The main web is answered in full, and only by a shell that offered to own the session. The offer is
+// made before the page runs, in `window.CHATIC_APP_RUNTIME`, so a page asks only a shell that can
+// answer; the handshake below is where the two settle it for this launch.
+//
+// (2.26.0) A sub WebView page is answered the same four requests on its own host, through a whitelist:
+// only read methods of the current cloud's data, as its manifest opens them, and its hello settles
+// nothing (`OnSubWebViewRuntimeHelloPayload`). No other origin is answered.
 
 /** A JSON value as it crosses the bridge. */
 export type RuntimeWireValue =
