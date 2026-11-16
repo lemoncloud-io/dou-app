@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { useRestorePurchases } from './useRestorePurchases';
 
 /**
@@ -35,6 +36,11 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 jest.mock('./useSubscriptionIap', () => ({
     useSubscriptionIap: () => ({ restorePurchases: restorePurchasesMock }),
+}));
+
+const showWebActiveMock = jest.fn();
+jest.mock('./useWebSubscriptionNotice', () => ({
+    useWebSubscriptionNotice: () => ({ show: showWebActiveMock, notice: null }),
 }));
 
 const K = 'mypage.subscription';
@@ -74,6 +80,16 @@ describe('useRestorePurchases — outcome reporting', () => {
         await act(() => result.current.restore());
 
         expect(toastMock).toHaveBeenCalledWith({ title: `${K}.restoreFailed`, variant: 'destructive' });
+    });
+
+    it('explains a website subscription instead of reporting a failed restore', async () => {
+        restorePurchasesMock.mockRejectedValue(new WebSubscriptionActiveError());
+
+        const { result } = renderHook(() => useRestorePurchases());
+        await act(() => result.current.restore());
+
+        expect(showWebActiveMock).toHaveBeenCalledTimes(1);
+        expect(toastMock).not.toHaveBeenCalled();
     });
 
     it('clears the in-flight flag even when the store throws', async () => {

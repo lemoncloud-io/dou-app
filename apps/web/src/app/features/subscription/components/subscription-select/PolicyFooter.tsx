@@ -18,7 +18,7 @@ interface PolicyFooterProps {
  */
 export const PolicyFooter = ({ onOpenPolicy }: PolicyFooterProps) => {
     const { t } = useTranslation();
-    const { restore, isRestoring, canRestore } = useRestorePurchases();
+    const { restore, isRestoring, canRestore, notice } = useRestorePurchases();
 
     return (
         <div className="mt-4 w-full max-w-reading rounded-[12px] bg-muted/50 px-4 py-3">
@@ -58,6 +58,7 @@ export const PolicyFooter = ({ onOpenPolicy }: PolicyFooterProps) => {
                     </>
                 )}
             </div>
+            {notice}
         </div>
     );
 };

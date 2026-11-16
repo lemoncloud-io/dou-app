@@ -314,6 +314,11 @@
             "restoreSuccess": "{{count}} purchase(s) restored",
             "restoreEmpty": "No purchases to restore",
             "restoreFailed": "Restore failed",
+            "webActive": {
+                "title": "You have a subscription paid on the web",
+                "description": "A subscription started on the website is active, so a store purchase can't be added on top of it. Manage or change it on the web instead.",
+                "manage": "Manage on web"
+            },
             "autoRenewNotice": "This is an auto-renewable subscription. It will automatically renew at the same price at the end of each subscription period. You will be charged unless you cancel at least 24 hours before the end of the current period.",
             "termsOfService": "Terms of Service",
             "privacyPolicy": "Privacy Policy",

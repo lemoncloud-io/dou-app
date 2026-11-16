@@ -9,6 +9,7 @@ import {
     findPlanById,
     findResubscribePlan,
     isHeldByWeb,
+    isTrialEligible,
     selectSellablePlans,
     summarizeMembership,
     webPlanPlatform,
@@ -51,6 +52,11 @@ export interface PlanCatalog {
     pendingPlan: ProductView | undefined;
     /** Four-state view of the membership, entitlement included. */
     summary: SubscriptionSummary;
+    /**
+     * Whether a first subscription would start with a trial — the server's `trialEligible`, or for a
+     * server that omits it `!trialUsed` (`isTrialEligible`). Gates every trial badge and CTA.
+     */
+    trialEligible: boolean;
     isLoading: boolean;
 }
 
@@ -129,6 +135,7 @@ export const usePlanCatalog = (): PlanCatalog => {
                 isHeldByWeb(summary, membership?.platform)),
         pendingPlan,
         summary,
+        trialEligible: isTrialEligible(membership),
         isLoading: isPlansLoading || isMembershipLoading || isWebPlansLoading,
     };
 };

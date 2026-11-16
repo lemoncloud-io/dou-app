@@ -116,3 +116,15 @@ describe('usePlanCatalog — anyone else', () => {
         expect(useProductPlans).toHaveBeenCalledWith({ limit: -1, platform: undefined }, { enabled: false });
     });
 });
+
+describe('usePlanCatalog — trial eligibility', () => {
+    it("takes the server's trialEligible over trialUsed", () => {
+        expect(catalogFor({ trialEligible: false, trialUsed: false }).trialEligible).toBe(false);
+        expect(catalogFor({ trialEligible: true, trialUsed: true }).trialEligible).toBe(true);
+    });
+
+    it('falls back to trialUsed for a server that omits trialEligible', () => {
+        expect(catalogFor({ trialUsed: true }).trialEligible).toBe(false);
+        expect(catalogFor({ isValid: false }).trialEligible).toBe(true);
+    });
+});

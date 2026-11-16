@@ -29,7 +29,7 @@ jest.mock('react-i18next', () => ({
 const K = 'mypage.subscription.cloudGuide';
 
 /** `sellablePlans` is empty off-native — no store applies there. See usePlanCatalog. */
-const setProduct = (product: { trialDays?: number } | undefined) =>
+const setProduct = (product: { trialDays?: number } | undefined, trialEligible = true) =>
     (usePlanCatalog as jest.Mock).mockReturnValue({
         isOnMobileApp: !!product,
         isIOS: false,
@@ -37,6 +37,7 @@ const setProduct = (product: { trialDays?: number } | undefined) =>
         sellablePlans: product ? [product] : [],
         currentPlan: undefined,
         summary: { state: 'none', isEntitled: false },
+        trialEligible,
         isLoading: false,
     });
 
@@ -49,6 +50,14 @@ describe('CloudGuidePage — CTA label', () => {
         render(<CloudGuidePage />);
 
         expect(screen.getByText(`${K}.ctaWithTrial:7`)).toBeInTheDocument();
+    });
+
+    it('omits any trial claim when the server says the trial is spent', () => {
+        setProduct({ trialDays: 7 }, false);
+
+        render(<CloudGuidePage />);
+
+        expect(screen.getByText(`${K}.ctaPlain`)).toBeInTheDocument();
     });
 
     it('omits any trial claim when trialDays is 0', () => {

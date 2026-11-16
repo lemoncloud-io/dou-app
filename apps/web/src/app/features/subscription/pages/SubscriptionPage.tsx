@@ -35,7 +35,7 @@ export const SubscriptionPage = () => {
     const { summary, currentPlan, pendingPlan } = usePlanCatalog();
     const priceOf = usePlanPrice();
     const { isGuest } = runtime.session.useRuntimeProfile();
-    const { restore, isRestoring, canRestore } = useRestorePurchases();
+    const { restore, isRestoring, canRestore, notice: webActiveNotice } = useRestorePurchases();
     const observe = useRestoredSignal(s => s.observe);
 
     // Feeds the restored banner on the detail screen. Only settled states count — a half-loaded
@@ -166,6 +166,7 @@ export const SubscriptionPage = () => {
                     </button>
                 )}
             </div>
+            {webActiveNotice}
         </ScreenLayout>
     );
 };
