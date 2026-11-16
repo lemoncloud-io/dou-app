@@ -11,6 +11,7 @@ import {
     createProfileGateway,
     createUploadGateway,
     createUserGateway,
+    createWebhookGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 
 import {
@@ -100,6 +101,8 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
     const profileGateway = createProfileGateway(socketClient as any);
     const joinGateway = createJoinGateway(socketClient as any);
     const uploadGateway = createUploadGateway(socketClient as any);
+    // Webhooks belong to the channel's own cloud, so they follow the active slot like `channel.*`.
+    const webhookGateway = createWebhookGateway(socketClient as any);
     // Wire module stays `sockets` (action `sockets/find-connection`); the app-side domain is
     // `connection` — same split as `join`/`place`, whose bundle keys are not wire module names.
     const connectionGateway = createDomainGateway('sockets', socketClient as any);
@@ -155,6 +158,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
         },
         profile: profileGateway,
         upload: uploadGateway,
+        webhook: webhookGateway,
     };
 
     // Gateways are not handed back: every caller goes through a repository (ADR-0036), so the bundle

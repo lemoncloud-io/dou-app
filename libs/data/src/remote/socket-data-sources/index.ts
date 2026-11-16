@@ -22,6 +22,8 @@ import { CloudSocketDataSource } from './CloudSocketDataSource';
 import type { IProfileSocketDataSource } from './ProfileSocketDataSource';
 import { ProfileSocketDataSource } from './ProfileSocketDataSource';
 import type { IUploadSocketDataSource } from './UploadSocketDataSource';
+import type { IWebhookSocketDataSource } from './WebhookSocketDataSource';
+import { WebhookSocketDataSource } from './WebhookSocketDataSource';
 import { UploadSocketDataSource } from './UploadSocketDataSource';
 
 export * from './AuthSocketDataSource';
@@ -36,6 +38,7 @@ export * from './ConnectionSocketDataSource';
 export * from './CloudSocketDataSource';
 export * from './ProfileSocketDataSource';
 export * from './UploadSocketDataSource';
+export * from './WebhookSocketDataSource';
 
 export interface SocketDataSources {
     auth: IAuthSocketDataSource;
@@ -50,6 +53,7 @@ export interface SocketDataSources {
     cloud: ICloudSocketDataSource;
     profile: IProfileSocketDataSource;
     upload: IUploadSocketDataSource;
+    webhook: IWebhookSocketDataSource;
 }
 
 /**
@@ -68,4 +72,5 @@ export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayB
     cloud: new CloudSocketDataSource(gateways.cloud),
     profile: new ProfileSocketDataSource(gateways.profile),
     upload: new UploadSocketDataSource(gateways.upload),
+    webhook: new WebhookSocketDataSource(gateways.webhook),
 });
