@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-11-16] - root@0.157.2, @chatic/web@0.89.1
+
+### Features
+
+- (web,data) keep the place's rooms in the chat cache on every route, not only on home (ADR-0321)
+
+### Bug Fixes
+
+- (web) cache 30 rows on catch-up again, not the room feed's 20
+
+### Documentation
+
+- (adr) compute the mobile inbox from the chat cache, not from snapshots (ADR-0321)
+
 ## [2026-11-16] - No version updates
 
 ### Bug Fixes
