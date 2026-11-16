@@ -6,7 +6,7 @@ const mockFetchInviteInfoWithCode = jest.fn();
 const mockUseSessionAuth = jest.fn();
 const mockGetDynamicRelayBackend = jest.fn();
 
-jest.mock('@chatic/auth/session/authActions', () => ({
+jest.mock('../../authLookups', () => ({
     fetchInviteInfoWithCode: (...args: unknown[]) => mockFetchInviteInfoWithCode(...args),
 }));
 

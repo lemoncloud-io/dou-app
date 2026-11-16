@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
 import {
@@ -36,7 +36,8 @@ import {
 import { CUSTOM_UI_CHANNEL, customUiBoot, customUiRefusal, type CustomUiStatus } from './customUiContract';
 import { CUSTOM_UI_SCHEME_PRIVILEGES } from './customUiProtocol';
 import { hasEntryPoint } from './customUiState';
-import { createDownloadTargets, savesWithoutAsking } from './downloads';
+import { createDownloadLog, createDownloadTargets, savesWithoutAsking } from './downloads';
+import { DOWNLOAD_DONE_CHANNEL, DOWNLOAD_REVEAL_CHANNEL, type DownloadDone } from './downloadsContract';
 import { startFcm, type FcmConfig } from './fcm';
 import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
 import { grantsPermission } from './permissions';
@@ -383,6 +384,30 @@ const registerCustomUiIpc = (win: BrowserWindow): void => {
 };
 
 const loginItem = createLoginItem(app, process.platform);
+
+/** Finished downloads the page may ask to show; see `createDownloadLog`. */
+const downloadLog = createDownloadLog();
+
+/**
+ * "Show in Finder" for a download the page was told about. The page names it by the id the done
+ * notice carried, so it can only reveal what this shell itself saved.
+ */
+const registerDownloadIpc = (): void => {
+    ipcMain.removeHandler(DOWNLOAD_REVEAL_CHANNEL); // createWindow can re-run (macOS re-activate)
+    ipcMain.handle(
+        DOWNLOAD_REVEAL_CHANNEL,
+        fromTrustedFrame(
+            () => false,
+            (_senderUrl, id: unknown): boolean => {
+                const path = downloadLog.pathOf(id);
+                // Moved or deleted since: the file manager would open on nothing.
+                if (!path || !existsSync(path)) return false;
+                shell.showItemInFolder(path);
+                return true;
+            }
+        )
+    );
+};
 
 /**
  * Settings control for "launch at login". Same origin gate as the AppBridge and custom-UI
@@ -827,6 +852,7 @@ const createWindow = (): BrowserWindow => {
 
     registerCustomUiIpc(win);
     registerLoginItemIpc();
+    registerDownloadIpc();
 
     // Persist size/position so the next launch reopens where the user left it.
     win.on('resized', () => saveWindowBounds(win));
@@ -1094,6 +1120,19 @@ if (!singleInstanceLock) {
         const downloadTargets = createDownloadTargets(app.getPath('downloads'), existsSync);
         session.defaultSession.on('will-download', (_event, item, webContents) => {
             if (!isTrustedUrl(webContents.getURL())) return;
+            // Every download the app's page starts says how it ended, so the page can say "Saved" and
+            // offer to show it — the shell is the only side that knows where it landed, or that a save
+            // dialog was dismissed.
+            item.once('done', (_doneEvent, state) => {
+                const savePath = item.getSavePath();
+                if (state === 'cancelled' || !savePath || webContents.isDestroyed()) return;
+                const name = basename(savePath);
+                const done: DownloadDone =
+                    state === 'completed'
+                        ? { id: downloadLog.record(savePath), name, state }
+                        : { name, state: 'interrupted' };
+                webContents.send(DOWNLOAD_DONE_CHANNEL, done);
+            });
             if (!savesWithoutAsking(item.getFilename(), item.getMimeType())) return;
             const savePath = downloadTargets.reserve(item.getFilename());
             item.setSavePath(savePath);

@@ -66,6 +66,8 @@ jest.mock('@chatic/session/store/stores', () => ({
         recordCloudUse: (...args: unknown[]) => mockRecordCloudUse(...args),
         setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
         setCloudIdentity: jest.fn(),
+        // Nothing recorded: these switches are first entries as far as the identity guard is concerned.
+        getCloudIdentity: jest.fn(() => null),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         getSelectedCloudId: (...args: unknown[]) => mockGetSelectedCloudId(...args),
         saveSelectedSiteId: (...args: unknown[]) => mockSaveSelectedSiteId(...args),

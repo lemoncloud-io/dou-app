@@ -1,7 +1,7 @@
 import { useCustomMutation } from '@chatic/shared';
 import type { RegisterUserV2Body } from '@lemoncloud/chatic-backend-api';
 import type { DomainUser } from '@chatic/data';
-import { registerUserV2 } from '@chatic/auth';
+import { registerUserV2 } from '../../authLookups';
 
 /**
  * `endpoint` registers on another stage's relay. Only the admin console's user screen sets it; left

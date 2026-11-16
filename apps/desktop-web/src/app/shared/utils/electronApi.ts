@@ -52,6 +52,26 @@ export interface LaunchAtLoginApi {
     set: (enabled: boolean) => Promise<LaunchAtLoginState>;
 }
 
+/**
+ * How a download the page started ended. Mirrors `DownloadDone` in
+ * `apps/desktop/src/main/downloadsContract.ts` — same hand-sync caveat as CustomUiStatus. A cancelled
+ * save (its dialog dismissed) is not reported.
+ */
+export interface DownloadDone {
+    /** What to name it by to show it; set only when it completed. */
+    id?: string;
+    name: string;
+    state: 'completed' | 'interrupted';
+}
+
+/** Desktop-only download notices. */
+export interface DownloadsApi {
+    /** Calls `listener` whenever a download ends; returns the unsubscribe. */
+    onDone: (listener: (done: DownloadDone) => void) => () => void;
+    /** Shows a finished download in the file manager; false when the shell no longer has it. */
+    reveal: (id: string) => Promise<boolean>;
+}
+
 declare global {
     interface Window {
         electronAPI?: {
@@ -59,6 +79,7 @@ declare global {
             platform: string;
             customUi?: CustomUiApi;
             loginItem?: LaunchAtLoginApi;
+            downloads?: DownloadsApi;
         };
     }
 }
@@ -70,3 +91,7 @@ export const getCustomUiApi = (): CustomUiApi | undefined =>
 /** The launch-at-login controls, or undefined outside the desktop shell. */
 export const getLoginItemApi = (): LaunchAtLoginApi | undefined =>
     typeof window === 'undefined' ? undefined : window.electronAPI?.loginItem;
+
+/** The download notices, or undefined outside the desktop shell (or a shell older than them). */
+export const getDownloadsApi = (): DownloadsApi | undefined =>
+    typeof window === 'undefined' ? undefined : window.electronAPI?.downloads;

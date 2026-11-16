@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Bookmark, FileText, Film, Image, Paperclip, type LucideIcon } from 'lucide-react';
+import { AudioLines, Bookmark, FileText, Film, Image, Paperclip, type LucideIcon } from 'lucide-react';
 
 import type { ChatAttachmentKind, DomainChannel, DomainChat, DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -44,7 +44,7 @@ const KIND_ICON: Record<ChatAttachmentKind, LucideIcon> = {
 
 /** The file tile under a saved message: the first attachment by name, its type and size. */
 const AttachmentTile = ({ attachment }: { attachment: SavedAttachment }) => {
-    const KindIcon = KIND_ICON[attachment.kind];
+    const KindIcon = attachment.voice ? AudioLines : KIND_ICON[attachment.kind];
     const extension = attachment.name?.includes('.') ? attachment.name.split('.').pop()?.toUpperCase() : undefined;
     const meta = [
         extension,

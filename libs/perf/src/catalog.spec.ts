@@ -1,6 +1,12 @@
 import { validateTelemetryRecord } from '@chatic/logger';
 
-import { firebaseResultOf, isFirebaseTrace, PERF_TELEMETRY_CATALOG, PERF_TRACE_CATALOG } from './catalog';
+import {
+    firebaseResultOf,
+    isFirebaseTrace,
+    PERF_TELEMETRY_CATALOG,
+    PERF_TRACE_CATALOG,
+    SESSION_OWNER_ATTRIBUTE,
+} from './catalog';
 
 import type { PerfTraceName, PerfTraceResult } from './types';
 
@@ -139,6 +145,29 @@ describe('firebaseResultOf — Firebase receives exactly what it did', () => {
         expect(firebaseResultOf(vital('fcp'))).not.toBeNull();
         expect(firebaseResultOf(vital('lcp'))).not.toBeNull();
         for (const v of ['inp', 'cls', 'ttfb']) expect(firebaseResultOf(vital(v))).toBeNull();
+    });
+
+    it("keeps chat_room_sync's session_owner on the pipeline, out of Firebase", () => {
+        const result = {
+            ...resultWith('chat_room_sync', FIREBASE_TODAY.chat_room_sync.attributes, []),
+            attributes: {
+                entry: 'list',
+                start: 'web',
+                switch: 'none',
+                cache: 'hit',
+                outcome: 'synced',
+                session_owner: 'native',
+            },
+        };
+        expect(firebaseResultOf(result)?.attributes).not.toHaveProperty('session_owner');
+        expect(Object.keys(PERF_TRACE_CATALOG.chat_room_sync.attributes)).toContain('session_owner');
+    });
+
+    it('lists session_owner for the pipeline on the traces compared between the two owners, never for Firebase', () => {
+        for (const name of ['boot', 'first_screen', 'chat_room_open', 'chat_room_sync', 'bridge_request'] as const) {
+            expect(Object.keys(PERF_TRACE_CATALOG[name].attributes)).toContain(SESSION_OWNER_ATTRIBUTE);
+            expect(PERF_TRACE_CATALOG[name].firebase?.attributes).not.toContain(SESSION_OWNER_ATTRIBUTE);
+        }
     });
 
     it('does not treat an unknown name as a Firebase trace', () => {

@@ -29,6 +29,8 @@ import {
     useCustomZipHandler,
     useNativeStorageHandler,
     useSecureStorageHandler,
+    useRuntimeBridgeHandler,
+    useSessionOwnerHandler,
     usePerfHandler,
     useUnfurlHandler,
     useSubWebViewHandler,
@@ -88,6 +90,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleDeleteAllCache,
         handleClearCache,
         handleClearCacheByChannel,
+        handleFetchChatMediaCache,
+        handleCountChatMediaCache,
+        handleSaveChatMediaCache,
     } = useCrudCacheHandler();
 
     const { handleFetchPreference, handleSavePreference, handleDeletePreference } = usePreferenceCacheHandler();
@@ -171,6 +176,10 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
     const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
+    // The runtime requests, on a launch the app's runtime owns; registered on their own.
+    useRuntimeBridgeHandler(bridge);
+    // The debug overlay's session owner switch; registered only outside production builds.
+    useSessionOwnerHandler(bridge);
     const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {
@@ -207,6 +216,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSearchGlobalCache,
         handleClearCache,
         handleClearCacheByChannel,
+        handleFetchChatMediaCache,
+        handleCountChatMediaCache,
+        handleSaveChatMediaCache,
         handleFetchPreference,
         handleSavePreference,
         handleDeletePreference,
@@ -309,6 +321,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleSearchGlobalCache,
             handleClearCache,
             handleClearCacheByChannel,
+            handleFetchChatMediaCache,
+            handleCountChatMediaCache,
+            handleSaveChatMediaCache,
             handleFetchPreference,
             handleSavePreference,
             handleDeletePreference,
@@ -413,6 +428,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             SearchGlobalCacheData: message => handlersRef.current.handleSearchGlobalCache(message),
             ClearCacheData: message => handlersRef.current.handleClearCache(message),
             ClearCacheDataByChannel: message => handlersRef.current.handleClearCacheByChannel(message),
+            FetchChatMediaCacheData: message => handlersRef.current.handleFetchChatMediaCache(message),
+            CountChatMediaCacheData: message => handlersRef.current.handleCountChatMediaCache(message),
+            SaveChatMediaCacheData: message => handlersRef.current.handleSaveChatMediaCache(message),
             FetchTestRecord: message => handlersRef.current.handleFetchTestRecord(message),
             FetchAllTestRecords: message => handlersRef.current.handleFetchAllTestRecords(message),
             SaveTestRecord: message => handlersRef.current.handleSaveTestRecord(message),

@@ -39,7 +39,17 @@ import {
  */
 export const MiniAppSettingsItem = () => {
     const scope = useSubWebViewOpenScope();
-    return scope === 'anyHttps' ? <MiniAppSection /> : null;
+    return scope === 'anyHttps' && isPreProductionBuild() ? <MiniAppSection /> : null;
+};
+
+/**
+ * Mini apps are not released to production yet, so the section shows on LOCAL and DEV builds only.
+ * The raw build value is read, not the config registry: a build that lost its stage must hide the
+ * section like production does, not show it like a developer's machine.
+ */
+const isPreProductionBuild = (): boolean => {
+    const stage = String(import.meta.env.VITE_ENV ?? '').toUpperCase();
+    return stage === 'LOCAL' || stage === 'DEV';
 };
 
 const MiniAppSection = () => {

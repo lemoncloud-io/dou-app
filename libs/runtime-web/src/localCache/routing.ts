@@ -1,0 +1,60 @@
+import type { CacheType } from '@chatic/bridge-messages';
+import { isNative } from '@chatic/bridges';
+import { isNativeCacheTypeUsable } from './nativeCacheSupport';
+
+/** The page runs inside the phone app's WebView — the one shell with SQLite behind its bridge. */
+export const isInPhoneApp = (): boolean =>
+    typeof window !== 'undefined' && !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+
+/**
+ * Which physical store a cache type lands in.
+ * - `web`: the WebView/browser's own IndexedDB.
+ * - `native`: the app shell's SQLite, reached over the bridge.
+ * - `session`: the browser tab's `sessionStorage` — gone when the tab is.
+ */
+export type CacheBackend = 'web' | 'native' | 'session';
+
+// Types pinned to web storage even inside the native WebView, each listed with the reason it
+// cannot live on native storage — an entry leaves this table when its reason ships a fix.
+//
+// Empty today. `profile` sat here while the native writer stamped the scope `uid` over the profile
+// OWNER's `uid`, which collapsed every member of a place onto one `sid@myUid` key so a list read
+// returned a single profile and everyone else lost their nick/photo. `ProfileDataSource.serialize`
+// now stores the item verbatim (3682ca78) and that app release is out, so profile goes to native
+// storage with every other type — which is also the durable one, immune to WebView IndexedDB
+// eviction.
+//
+// Adding an entry here is a stopgap, not a home: it trades native durability for web storage the OS
+// can clear, so it only holds for data the server can re-derive. That rules out the local-authority
+// domains outright (nativeCacheSupport.LOCAL_AUTHORITY_CACHE_TYPES) — for those, sending rows to web
+// storage is not a downgrade but a loss, so this lever must never be pointed at them either.
+const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
+
+/**
+ * THE routing decision: answers "where is this cache type stored" in one place, so the ports'
+ * `storage()` (`index.ts`) stays a pure assembler. Checks, in order:
+ *
+ * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
+ *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
+ *    each tab starts its own, and it ends with the tab. A row kept anywhere longer-lived outlives the
+ *    only user who can enter the cloud. The test is `isNative()`, the one the app entry points use
+ *    to put the session in `sessionStorage`, so the row and the guest always share a lifetime:
+ *    inside a desktop shell both persist (the shell keeps the session in `localStorage`), and the
+ *    type falls through to the checks below.
+ * 1. No native shell (plain browser, desktop-web) → `web`; there is no other store to reach.
+ * 2. Type pinned to web (`WEB_PINNED_CACHE_TYPES`, reasons above) → `web`.
+ * 3. The installed shell cannot be trusted to store the type → `web`. The web deploys ahead of
+ *    the app, so a type newer than the installed app would otherwise be written into a native
+ *    `default:` arm that answers `null` with `success: true` — a permanently empty cache that
+ *    looks like a cold miss forever. How the shell reports what it implements, and why one domain
+ *    is exempt from this check entirely, is owned by `nativeCacheSupport` (see
+ *    docs/cache/README.md).
+ * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
+ */
+export const resolveCacheBackend = (type: CacheType): CacheBackend => {
+    if (type === 'invitecloud' && !isNative()) return 'session';
+    if (!isInPhoneApp()) return 'web';
+    if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web';
+    if (!isNativeCacheTypeUsable(type)) return 'web';
+    return 'native';
+};

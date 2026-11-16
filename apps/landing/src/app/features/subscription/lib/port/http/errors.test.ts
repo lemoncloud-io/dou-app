@@ -16,6 +16,13 @@ describe('portErrorOf', () => {
         expect(portErrorOf(httpError(status)).code).toBe(code);
     });
 
+    it('reads a refusal of the account as not allowed, and any other 403 as the credentials refused', () => {
+        expect(portErrorOf(httpError(403, '403 NOT ALLOWED - main user only @doPostIssue(subscriptions/0)')).code).toBe(
+            'notAllowed'
+        );
+        expect(portErrorOf(httpError(403, { message: 'Missing Authentication Token' })).code).toBe('unauthenticated');
+    });
+
     it('reads a request that never got an answer as the network, and keeps the server message', () => {
         expect(portErrorOf(new Error('Network Error')).code).toBe('network');
         expect(portErrorOf(httpError(409, '409 CONFLICT - in use')).message).toBe('409 CONFLICT - in use');

@@ -1,5 +1,6 @@
 import {
     ArrowUp,
+    AtSign,
     Bell,
     BellOff,
     Check,
@@ -14,6 +15,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Image as ImageGlyph,
+    LayoutGrid,
     Link2,
     Loader2,
     Lock,
@@ -25,8 +27,10 @@ import {
     Pencil,
     Plus,
     RotateCcw,
+    RotateCw,
     Search,
     Settings,
+    Share,
     Sparkles,
     Trash2,
     User,
@@ -72,6 +76,8 @@ export const IconClock: LucideIcon = Clock;
 export const IconCopy: LucideIcon = Copy;
 /** Room notifications on / off — the home row's mute swipe action and its muted-state glyph. */
 export const IconBell: LucideIcon = Bell;
+/** The mention mark — the notification row's mention chip and the room's mention jump pill. */
+export const IconAtSign: LucideIcon = AtSign;
 export const IconBellOff: LucideIcon = BellOff;
 /** Leave a room — the member's destructive swipe action. */
 export const IconLeave: LucideIcon = LogOut;
@@ -89,6 +95,13 @@ export const IconFlipHorizontal: LucideIcon = FlipHorizontal2;
 export const IconEdit: LucideIcon = Pencil;
 /** A locked composer — the chat input lock's button in the composer's leading slot. */
 export const IconLock: LucideIcon = Lock;
+
+/** Share a file out of the app — the audio detail's and a file list's share action. */
+export const IconShare: LucideIcon = Share;
+/** Send again — a failed upload's retry chip. */
+export const IconRetry: LucideIcon = RotateCw;
+/** Collect view — the audio detail header's way into the room's file list. */
+export const IconCollection: LucideIcon = LayoutGrid;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
@@ -126,6 +139,11 @@ export { IconGalleryWide, type IconGalleryWideProps } from './IconGalleryWide';
 // Chat attachment glyphs drawn for the message feed: the play mark a video tile carries, and the
 // file-kind sheets a document card leads with. Both fill `currentColor`; the tile or card colours them.
 export { IconPlaySolid, type IconPlaySolidProps } from './IconPlaySolid';
+// Audio player glyphs (Figma 6040:20822 · 6072:22653): pause beside play, the waveform mark an
+// unplayable file or a list row carries, and the detail's 15-second skips.
+export { IconPauseSolid, type IconPauseSolidProps } from './IconPauseSolid';
+export { IconAudioWave, type IconAudioWaveProps } from './IconAudioWave';
+export { IconSkip15, type IconSkip15Props } from './IconSkip15';
 export {
     IconFileDoc,
     IconFileGeneric,
@@ -138,4 +156,15 @@ export {
 } from './FileKindIcons';
 // Bottom nav glyphs (Figma 5780:17209): each tab has a line icon and a filled one for its selected
 // state. They fill or stroke `currentColor`; the tab bar colours them with `text-nav-ink`.
-export { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid, type NavIconProps } from './NavIcons';
+export {
+    IconNavBell,
+    IconNavBellSolid,
+    IconNavChat,
+    IconNavChatSolid,
+    IconNavMy,
+    IconNavMySolid,
+    type NavIconProps,
+} from './NavIcons';
+// Notification glyphs (Figma 5774:29146): the thread type chip's bubble, the filter chip's check and
+// the jump pill's arrow. They stroke `currentColor`; the chip, filter or pill colours them.
+export { IconCheckSmall, IconJumpArrow, IconThreadChip, type NotifyGlyphProps } from './NotifyGlyphs';

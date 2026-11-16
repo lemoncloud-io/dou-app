@@ -1,7 +1,8 @@
-import { transportPlatform } from '@chatic/transport/platform';
-import { fakeTransportPorts } from '@chatic/transport/testing/platform';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeRuntimeConnection } from '@chatic/runtime-core/testing/connection';
 import { act, renderHook } from '@testing-library/react';
 
+import { initAppRuntime, resetRuntimeEngine } from '../../init';
 import { deriveConnectivity, useConnectivity } from './useConnectivity';
 import type { ConnectivitySignals } from './useConnectivity';
 import { useRuntimeSocketState } from './useRuntimeSocketState';
@@ -33,13 +34,7 @@ const signals = (
     ...over,
 });
 
-const setBrowserOnline = (value: boolean) => {
-    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value });
-    window.dispatchEvent(new Event(value ? 'online' : 'offline'));
-};
-
 // The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
-beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('deriveConnectivity', () => {
     // navigator.onLine is a STRONG NEGATIVE: with no verified socket anywhere, false wins over the
@@ -126,46 +121,41 @@ describe('deriveConnectivity', () => {
 });
 
 describe('useConnectivity', () => {
+    // The online signal is the engine's — the platform's where the sockets run — read off its snapshot.
+    const connection = fakeRuntimeConnection();
+
     beforeEach(() => {
         mockedSocketState.mockReturnValue(socket());
         mockedVerifiedClouds.mockReturnValue([]);
-        Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+        connection.set({ online: true });
+        initAppRuntime({ ...coreEngine, connection });
     });
+    afterEach(() => resetRuntimeEngine());
 
-    it('flips to offline when the browser fires the offline event and no slot is verified', () => {
+    it('flips to offline when the engine reports no network and no slot is verified', () => {
         const { result } = renderHook(() => useConnectivity());
         expect(result.current).toBe('online');
 
-        act(() => setBrowserOnline(false));
+        act(() => connection.set({ online: false }));
         expect(result.current).toBe('offline');
     });
 
-    it('stays online while the browser reports offline but a slot is verified', () => {
+    it('stays online while there is no network but a slot is verified', () => {
         mockedVerifiedClouds.mockReturnValue(['relay']);
         const { result } = renderHook(() => useConnectivity());
 
-        act(() => setBrowserOnline(false));
+        act(() => connection.set({ online: false }));
         expect(result.current).toBe('online');
     });
 
-    it('leaves offline when the browser comes back, deferring to the socket state', () => {
+    it('leaves offline when the network comes back, deferring to the socket state', () => {
         mockedSocketState.mockReturnValue(socket({ state: 'connecting', isConnected: false, isVerified: false }));
         const { result } = renderHook(() => useConnectivity());
 
-        act(() => setBrowserOnline(false));
+        act(() => connection.set({ online: false }));
         expect(result.current).toBe('offline');
 
-        act(() => setBrowserOnline(true));
+        act(() => connection.set({ online: true }));
         expect(result.current).toBe('reconnecting');
-    });
-
-    it('unsubscribes from the window events on unmount', () => {
-        const removeSpy = jest.spyOn(window, 'removeEventListener');
-        const { unmount } = renderHook(() => useConnectivity());
-        unmount();
-
-        expect(removeSpy).toHaveBeenCalledWith('online', expect.any(Function));
-        expect(removeSpy).toHaveBeenCalledWith('offline', expect.any(Function));
-        removeSpy.mockRestore();
     });
 });

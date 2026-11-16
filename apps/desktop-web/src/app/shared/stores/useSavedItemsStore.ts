@@ -11,6 +11,8 @@ export interface SavedAttachment {
     /** The first file's name and size, where the message had a named one. */
     name?: string;
     size?: number;
+    /** Every file is a voice file: the card names them so, as the sidebar does. */
+    voice?: true;
 }
 
 /**

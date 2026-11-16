@@ -88,31 +88,23 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     }, [isVerified, cloudId, fetchCounts]);
 
     // Refetch on inbound activity — an FCM push or a raw socket chat frame both mean a channel's
-    // unread may have changed. onMessage needs a live client, so bind through subscribeClient.
+    // unread may have changed. The frame listener stays attached across reconnects and slot changes.
     useEffect(() => {
         const offPush = webClient.onEvent('OnReceiveNotification', schedule);
-        const manager = runtime.connection.getSocketManager();
-        let offMessage: (() => void) | undefined;
-        const offClient = manager.subscribeClient(client => {
-            offMessage?.();
-            offMessage = undefined;
-            if (!client) return;
-            offMessage = manager.onMessage(({ message }) => {
-                const type = (message as { type?: string })?.type ?? '';
-                if (!type.startsWith('chat')) return;
-                // The channel on screen reads live while the window is focused: its cursor
-                // advances on arrival (useReadReceipts), so its badge contribution stays 0
-                // without re-pulling the whole cloud directory. Everything else still
-                // refetches — background channels, a blurred window, an unnamed frame.
-                const channelId = chatFrameChannelIdOf(message);
-                if (channelId && isWindowActive() && isChannelReadLive(channelId)) return;
-                schedule();
-            });
+        const offMessage = runtime.connection.onServerMessage(message => {
+            const type = (message as { type?: string })?.type ?? '';
+            if (!type.startsWith('chat')) return;
+            // The channel on screen reads live while the window is focused: its cursor
+            // advances on arrival (useReadReceipts), so its badge contribution stays 0
+            // without re-pulling the whole cloud directory. Everything else still
+            // refetches — background channels, a blurred window, an unnamed frame.
+            const channelId = chatFrameChannelIdOf(message);
+            if (channelId && isWindowActive() && isChannelReadLive(channelId)) return;
+            schedule();
         });
         return () => {
             offPush();
-            offMessage?.();
-            offClient();
+            offMessage();
             if (timerRef.current) clearTimeout(timerRef.current);
         };
     }, [schedule]);

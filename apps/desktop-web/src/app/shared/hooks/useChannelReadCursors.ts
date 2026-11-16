@@ -12,12 +12,12 @@ import type { ReadCursor } from '../utils';
  *
  * v2 does not keep a usable per-user `$join` on the channel record, so the unread badge needs the
  * read cursor from the join cache directly (mirrors apps/web `useChannelUnreads` + `useMyJoinsSync`):
- * register a join sync target per channel (`registerJoin` — streams the server read cursor in) and
+ * register a join sync target per channel (`registerSyncTarget` with a `join` target — streams the server read cursor in) and
  * observe the join cache for my row's `chatNo`. Without this the cursor never advances, so badges
  * stay frozen at whatever the eventually-consistent server `unreadCount` last said.
  *
  * Returns the cursor keyed by channelId; a channel with no join row yet is absent (→ no badge).
- * `registerJoin` refcounts by key, so the same channel observed by both the sidebar and the place
+ * A sync target is refcounted by key, so the same channel observed by both the sidebar and the place
  * aggregate dedups to one sync target.
  *
  * The join ids are `<channel>@<uid>`, and the uid is the one this account has in the channels'
@@ -41,12 +41,11 @@ export const useChannelReadCursors = (channels: DomainChannel[]): Record<string,
 
     useEffect(() => {
         if (!userId || !isVerified || channels.length === 0) return;
-        const sync = runtime.sync.getSyncManager();
 
         const disposers = channels.flatMap(channel => {
             const channelId = channel.id;
             if (!channelId) return [];
-            const unregJoin = sync.registerJoin(`${channelId}@${userId}`, undefined, { cid });
+            const unregJoin = runtime.sync.registerSyncTarget({ type: 'join', id: `${channelId}@${userId}` }, { cid });
             const unsubObserve = joinRepository.observeList({ channelId }, result => {
                 const mine = (result?.list ?? []).find(j => j.userId === userId && j.channelId === channelId);
                 if (!mine) return;

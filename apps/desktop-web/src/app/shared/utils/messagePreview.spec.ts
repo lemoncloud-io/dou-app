@@ -43,9 +43,33 @@ describe('messagePreview', () => {
         expect(messagePreview({ content: '', upload$$ })).toBe('2 attachments');
     });
 
-    // `audio` has no noun of its own, so a single one is an attachment, not "1 attachments".
-    it('names a single attachment of no named kind', () => {
+    it('names voice files, sent or on their way', () => {
+        const memo = { id: 'a', stereo: 'audio', name: 'memo.m4a', contentType: 'audio/mp4' };
+        expect(messagePreview({ content: '', upload$$: [memo] as never })).toBe('Voice file');
+        const pending = [
+            { localStatus: 'sending', localName: 'a.m4a', localContentType: 'audio/mp4' },
+            { localStatus: 'sending', localName: 'b.mp3', localContentType: 'audio/mpeg' },
+        ] as never;
+        expect(messagePreview({ content: '', upload$$: pending })).toBe('2 voice files');
+    });
+
+    // A server that stores audio under `file` still says what the file is in its type and name.
+    it('names a voice file stored as a document', () => {
+        const upload$$ = [{ id: 'a', stereo: 'file', name: 'memo.m4a', contentType: 'audio/mp4' }] as never;
+        expect(messagePreview({ content: '', upload$$ })).toBe('Voice file');
+    });
+
+    // The feed draws an upload it cannot tell is audio as a plain file card, so the line does not say voice.
+    it('does not call an upload voice from its stored kind alone', () => {
         expect(messagePreview({ content: '', upload$$: [{ id: 'a', stereo: 'audio' }] as never })).toBe('Attachment');
+    });
+
+    it('counts voice beside other kinds as attachments', () => {
+        const upload$$ = [
+            { id: 'a', stereo: 'audio' },
+            { id: 'b', stereo: 'file', name: 'plan.pdf', contentType: 'application/pdf' },
+        ] as never;
+        expect(messagePreview({ content: '', upload$$ })).toBe('2 attachments');
     });
 
     it('is empty when there is neither', () => {
@@ -57,9 +81,12 @@ describe('outgoingMessagePreview', () => {
     const file = (type: string) => new File(['x'], 'f', { type });
 
     it('names a voice file the way the sent message will', () => {
+        expect(outgoingMessagePreview('', [file('audio/mpeg')])).toBe('Voice file');
         expect(outgoingMessagePreview('', [file('audio/mpeg')])).toBe(
-            messagePreview({ content: '', upload$$: [{ stereo: 'audio' }] as never })
+            messagePreview({ content: '', upload$$: [{ stereo: 'audio', contentType: 'audio/mpeg' }] as never })
         );
+        expect(outgoingMessagePreview('', [file('audio/mpeg'), file('audio/wav')])).toBe('2 voice files');
+        expect(outgoingMessagePreview('', [file('audio/mpeg'), file('image/png')])).toBe('2 attachments');
     });
 
     it('is the text when the reply has any', () => {

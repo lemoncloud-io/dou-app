@@ -201,7 +201,7 @@ holds a partition for. Invited clouds and invite dismissals survive — the cach
 both — and so do the session and tokens. Unsent messages do not, and nothing on screen warns about
 that any more; the row is a plain "clear cache" by product choice. What is swept, and why the sync
 cursors go last, is in
-[`libs/app-runtime`'s data doc](../../../../../libs/app-runtime/docs/data/README.md#clearing-the-cache).
+[`libs/app-runtime`'s data doc](../../../../../libs/runtime-core/docs/data/README.md#clearing-the-cache).
 
 A clean sweep **reloads the page**. Screens and react-query still hold what they already read, so
 without the reload the old data would stay on screen until each one happened to refetch. A partial

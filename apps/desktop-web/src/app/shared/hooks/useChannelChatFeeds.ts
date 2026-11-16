@@ -49,7 +49,6 @@ export const useChannelChatFeeds = (onChat: (feed: ChannelChatFeed) => void): vo
     useEffect(() => {
         if (!isVerified || places.length === 0) return;
         let active = true;
-        const sync = runtime.sync.getSyncManager();
 
         // channelId → unregister its channel sync target.
         const subs = new Map<string, () => void>();
@@ -91,7 +90,9 @@ export const useChannelChatFeeds = (onChat: (feed: ChannelChatFeed) => void): vo
                     }
                 }
                 list.forEach(channel => {
-                    if (channel.id && !subs.has(channel.id)) subs.set(channel.id, sync.registerChannel(channel.id));
+                    if (channel.id && !subs.has(channel.id)) {
+                        subs.set(channel.id, runtime.sync.registerSyncTarget({ type: 'channel', id: channel.id }));
+                    }
                     emitChannel(place.id, channel);
                 });
                 byPlace.set(place.id, nextIds);

@@ -18,3 +18,4 @@ export * from './SettingsRow';
 export * from './paneHeader';
 export * from './ScrollHint';
 export * from './MobileAppPointer';
+export * from './NotifyLevelSection';

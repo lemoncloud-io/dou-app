@@ -15,3 +15,8 @@ export * from './MessageMediaTiles';
 export * from './MessageFileCard';
 export * from './messageFile';
 export * from './PickedFileStrip';
+export * from './JumpPill';
+export * from './AudioMessageBubble';
+export * from './FailedSendActions';
+export * from './MiniAudioPlayer';
+export * from './AudioSendSheet';

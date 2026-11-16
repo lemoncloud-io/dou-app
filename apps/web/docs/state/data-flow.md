@@ -8,8 +8,9 @@ own: how the runtime boots, and the triggers that decide _when_ a screen's data 
 ## 1. Bootstrap — `RuntimeConnectionHost`
 
 `app/runtime/AppRuntime.tsx` wraps the whole app in `runtime.connection.RuntimeConnectionHost`. The
-host owns session-init gating, relay keep-alive, and mounting `SocketBinder` /
-`SocketReauthBinder` — the app never mounts init, keep-alive or token-refresh by hand.
+host owns session-init gating and relay keep-alive, and starts runtime-core's connection controller,
+which drives `SocketBinder` / `SocketReauthBinder` — the app never mounts init, keep-alive or
+token-refresh by hand.
 
 ```tsx
 export const AppRuntime = () => (
@@ -27,7 +28,8 @@ refresh and reconnect re-auth are the SDK's `ClientSocketAuth`, and an identity 
 socket (guest → social promotion) is `SocketReauthBinder`.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md),
-[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md).
+[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md),
+[libs/runtime-core/docs/connection/](../../../../libs/runtime-core/docs/connection/README.md).
 
 ## 2. Reading connection and session state
 
@@ -98,11 +100,13 @@ reconnect catch-up run for as long as it is on screen:
 
 - Fixed single id: `runtime.sync.useChatSync(channelId)`, `useChannelSync(channelId)`,
   `usePlaceSync(placeId)`.
-- Dynamic list: `runtime.sync.getSyncManager().registerChannel(id)` / `registerPlace(id)` /
-  `registerProfile(id)` / `registerJoin(id)`, called per id and disposed on cleanup —
-  `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts` is the
-  deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
-  Pass the cloud as the third argument (`registerJoin(id, undefined, { cid })`) whenever the caller
+- Dynamic list: `runtime.sync.registerSyncTarget({ type, id })` with `type` one of `channel`,
+  `place`, `profile`, `join` or `chat` (and an optional `intervalMs`), called per id and disposed on
+  cleanup — `useMyJoins.ts` (`useJoinSyncRegistration`) is the app's example. `useChannelProfiles.ts`
+  is the deferred variant, which registers only after a read — see [data-layer.md](../feature/channels/data-layer.md).
+  It goes through the runtime engine, never a sync manager the app holds: on the phone the sync
+  engine may live in another process. Pass the cloud as the second argument
+  (`registerSyncTarget({ type: 'join', id }, { cid })`) whenever the caller
   knows it, and build any `<id>@<uid>` from `runtime.session.useUidInCloud(cid)`: without a cloud
   the target lands on whichever cloud is selected when the effect runs, and the session uid is only
   the committed cloud's. Gate the effect on that cloud's own slot,
@@ -112,8 +116,7 @@ reconnect catch-up run for as long as it is on screen:
 ```tsx
 useEffect(() => {
     if (siteIds.length === 0) return;
-    const sync = runtime.sync.getSyncManager();
-    const disposers = siteIds.map(id => sync.registerPlace(id, undefined, { cid }));
+    const disposers = siteIds.map(id => runtime.sync.registerSyncTarget({ type: 'place', id }, { cid }));
     return () => disposers.forEach(d => d());
 }, [siteIdsKey, cid]);
 ```
@@ -200,7 +203,10 @@ fired and forgotten: the automatic triggers ignore the returned promise either w
 to keep its indicator up until the place rail has been re-asked too.
 
 **Chat feed.** The chat plan has no poll — only live push and reconnect catch-up — so a missed push
-does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` complements
+does not heal on its own while the chat plan is all a room has. Two hooks close that. While a room is
+open, `app/features/channels/hooks/useChannelHeadRefresh.ts` fetches the newest page when the channel
+record's `chatNo` runs ahead of the room's cache ([data-layer.md](../feature/channels/data-layer.md#an-open-room-follows-the-channel-record-not-only-its-push)).
+On entry and foreground return, `app/features/channels/hooks/useForegroundChatRefresh.ts` complements
 `usePrimeChat` (which fetches only a _cold_ room): it re-aligns the plan baseline and refetches the
 latest page, but only for a _warm_ room, on entry (gated on `isVerified`, to protect a cold start)
 and again on every foreground return (not gated — a socket that resumed in a stuck "verified but
@@ -222,7 +228,7 @@ there rather than hand that cache's baseline to another cloud.
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
 Before it leaves, it also clears the web log pipeline and telemetry policy keys, and — inside a shell that keeps a device vault — empties the vault and waits for
 the shell to confirm it. On the next boot the vault is emptied once more before it is read, and
-`initAppRuntime` reads the `logout=1` flag and sweeps the log keys again
+`createRuntime` reads the `logout=1` flag and sweeps the log keys again
 (`libs/auth/src/session/storage/logoutStorageSweep.ts`) — because the actor that decides to log out and the
 code that can safely clear storage run in two different page lifetimes. The order and the reasons are
 in [libs/auth docs/session](../../../../libs/auth/docs/session/README.md).

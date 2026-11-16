@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Copy, Download, MoreVertical, Trash2 } from 'lucide-react';
+import { Copy, Download, Forward, Link2, MessageSquareReply, MoreVertical, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import {
@@ -18,6 +18,10 @@ interface ImageActionsProps {
     onCopy: () => void;
     /** Absent when the viewer cannot delete this file. */
     onDelete?: () => void;
+    /** The tile's More menu offers what every file's does; each is absent where it does not apply. */
+    onReply?: () => void;
+    onCopyLink?: () => void;
+    onForward?: () => void;
     /** `overlay` sits on top of the picture and needs its own surface; `plain` sits on the page. */
     variant?: 'overlay' | 'plain';
     className?: string;
@@ -25,17 +29,28 @@ interface ImageActionsProps {
 
 const BUTTON = 'focus-ring flex h-9 w-9 items-center justify-center rounded-md transition-colors ease-tactile';
 
-const OVERLAY_BUTTON = 'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
+const OVERLAY_BUTTON =
+    'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
 
 /**
- * Save, copy and delete for one image.
+ * Save, copy, delete and — on the tile — reply, copy link and forward for one image.
  *
  * `plain` (the viewer) shows three icon buttons. `overlay` (the tile in the feed)
- * follows the design: Download, then a "More" menu holding Copy and Delete. The menu
+ * follows the design: Download, then a "More" menu holding Copy, then Reply in thread, Copy link and
+ * Forward as every file's menu has them, and Delete. The menu
  * renders in a portal, so the pointer leaves the tile while it is open; the bar is
  * pinned visible for as long as the menu is open so it does not vanish under it.
  */
-export const ImageActions = ({ onDownload, onCopy, onDelete, variant = 'plain', className }: ImageActionsProps) => {
+export const ImageActions = ({
+    onDownload,
+    onCopy,
+    onDelete,
+    onReply,
+    onCopyLink,
+    onForward,
+    variant = 'plain',
+    className,
+}: ImageActionsProps) => {
     const { t } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     if (variant === 'overlay') {
@@ -62,16 +77,37 @@ export const ImageActions = ({ onDownload, onCopy, onDelete, variant = 'plain', 
                         <button
                             type="button"
                             aria-label={t('chat.more')}
-                            className={cn(OVERLAY_BUTTON, 'hover:bg-foreground/[0.08] data-[state=open]:bg-foreground/[0.08]')}
+                            className={cn(
+                                OVERLAY_BUTTON,
+                                'hover:bg-foreground/[0.08] data-[state=open]:bg-foreground/[0.08]'
+                            )}
                         >
                             <MoreVertical size={16} aria-hidden />
                         </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-40 shadow-overlay">
+                    <DropdownMenuContent align="start" className="w-44 shadow-overlay">
                         <DropdownMenuItem onClick={onCopy} className="cursor-pointer py-2">
                             <Copy size={16} aria-hidden />
                             {t('chat.image.copy')}
                         </DropdownMenuItem>
+                        {onReply && (
+                            <DropdownMenuItem onClick={onReply} className="cursor-pointer py-2">
+                                <MessageSquareReply size={16} aria-hidden />
+                                {t('chat.file.replyInThread')}
+                            </DropdownMenuItem>
+                        )}
+                        {onCopyLink && (
+                            <DropdownMenuItem onClick={onCopyLink} className="cursor-pointer py-2">
+                                <Link2 size={16} aria-hidden />
+                                {t('chat.file.copyLink')}
+                            </DropdownMenuItem>
+                        )}
+                        {onForward && (
+                            <DropdownMenuItem onClick={onForward} className="cursor-pointer py-2">
+                                <Forward size={16} aria-hidden />
+                                {t('chat.file.forward')}
+                            </DropdownMenuItem>
+                        )}
                         {onDelete && (
                             <DropdownMenuItem
                                 onClick={onDelete}

@@ -6,7 +6,7 @@ import '../../../../i18n';
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-import { useImageAttachments } from './useImageAttachments';
+import { useImageAttachments, useUnsendableFilesStore } from './useImageAttachments';
 
 const file = (name: string, type = 'image/png') => new File(['x'], name, { type, lastModified: 1 });
 
@@ -16,17 +16,20 @@ describe('useImageAttachments', () => {
         URL.revokeObjectURL = vi.fn();
     });
 
-    // A blocking dialog named only the first reason and nothing about how many were left out.
-    it('adds what fits and reports every refusal in one toast', () => {
+    // A toast said how many were refused but not which, and added the rest unasked.
+    it('holds a batch with a refusal for the unsendable-files dialog, and adds the rest only from it', () => {
         const { result } = renderHook(() => useImageAttachments('C1'));
         act(() => result.current.addFiles([file('a.png'), file('a.png'), file('a.7z', 'application/x-7z-compressed')]));
+        expect(result.current.attachments).toEqual([]);
+        const request = useUnsendableFilesStore.getState().request;
+        expect(request?.refused).toEqual([
+            { name: 'a.png', reason: 'duplicate', max: undefined },
+            { name: 'a.7z', reason: 'unsupported', max: undefined },
+        ]);
+        expect(request?.restCount).toBe(1);
+        act(() => request?.onUploadRest?.());
         expect(result.current.attachments.map(item => item.name)).toEqual(['a.png']);
-        expect(toast).toHaveBeenCalledTimes(1);
-        expect(toast.mock.calls[0][0]).toMatchObject({
-            variant: 'destructive',
-            description:
-                "1 file was already attached. 1 file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, ZIP archives and audio files (M4A, MP3, WAV, OGG) can be attached.",
-        });
+        expect(toast).not.toHaveBeenCalled();
     });
 
     // The tray's preview opens a document from its object URL, so it gets one too, and gives it back on remove.

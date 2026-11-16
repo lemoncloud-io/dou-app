@@ -1,6 +1,7 @@
 # ADR-0135: desktop sends images through the runtime's image send, the text first
 
-> Status: Accepted · Decided: 2026-09-29
+> Status: Accepted · Decided: 2026-09-29 · superseded in part by
+> [ADR-0304](./0304-the-core-packages-read-no-page.md): `xhrPut` lives in `@chatic/runtime-web`, not `@chatic/data`
 > Scope: `libs/app-runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
 > `apps/web/src/app/features/channels/hooks/useSendImages.ts` ·
 > `apps/desktop-web/src/app/features/chat/**` (`useComposerSend` · `useChatImages` · `chatImages` ·

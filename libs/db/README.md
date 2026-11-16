@@ -15,19 +15,23 @@ how bytes actually land.
 `libs/data/src/local/ports/` owns — `CacheStorage<TType>`, `IIndexedDB`, `IndexedDbQueryExecutor`,
 `IGlobalCacheSearchSource` and `ICacheMetricsSource` — and exports nothing else of consequence.
 
-The reach is one file. Exactly one place outside this lib imports `@chatic/db` at all, and nothing
-imports past the barrel:
+The reach is three files. Three places outside this lib import `@chatic/db` at all — two of them
+build engines — and nothing imports past the barrel:
 
 ```bash
 grep -rn "@chatic/db" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-That single importer is `localFactory` in `libs/app-runtime`. Screens, repositories and data sources
-see a `CacheStorage` and never learn which engine answered.
+Outside tests, they are the web cache ports in `libs/runtime-web` (`src/localCache/`) — the page's
+answer to `@chatic/data`'s `LocalCachePorts` — and the native ones in `libs/runtime-mobile`
+(`src/localCache.ts`), the answer of a runtime inside the phone app. (`apps/mobile` imports one type,
+`CacheBridgeClient`, to build the client the native ones are given.) Screens, repositories and data
+sources see a `CacheStorage` and never learn which engine answered.
 
-This lib **does not decide which engine a domain gets.** That is `resolveCacheBackend` in
-`libs/app-runtime/src/data/cacheStorageRouting.ts` — an app policy about the installed shell, not a
-storage concern. An engine that knew the conditions of its own selection would be the wrong shape.
+This lib **does not decide which engine a domain gets.** In a page that is `resolveCacheBackend` in
+`libs/runtime-web/src/localCache/routing.ts` — a page's policy about the installed shell, not a
+storage concern; inside the phone app it is `nativeLocalCachePorts` in `libs/runtime-mobile`, which
+routes every domain to the app's database (`NATIVE_CACHE_ROUTE`). An engine that knew the conditions of its own selection would be the wrong shape.
 
 It also does not own the TTL and scope policy it calls. `resolveScopedContext`, `createTtlMeta`,
 `withCacheMeta` and `stableHash` stay in `@chatic/data` because they are domain rules, and the engine
@@ -38,9 +42,9 @@ imports them as runtime functions.
 1. **The port belongs to the consumer; the implementation belongs here.** All five interfaces live in
    `@chatic/data`. Plugging a different engine in — React Native, a memory store for a test — is an
    `@chatic/db` change and nothing else.
-2. **An engine class is constructed in one place.** `localFactory` calls `new` on everything here;
-   every other consumer holds an interface. A screen or a repository that imports a class from this
-   barrel has broken the rule, and the grep above is how you see it.
+2. **An engine class is constructed in the cache ports.** The web and native cache ports call `new`
+   on everything here; every other consumer holds an interface. A screen or a repository that imports
+   a class from this barrel has broken the rule, and the grep above is how you see it.
 3. **The dependency runs one way.** `db → data` and `db → bridges`. `@chatic/data` does not know this
    package exists, so there is no cycle. The arrow into `data` is types **plus pure policy
    functions**, not type-only — the engine calls domain policy rather than reimplementing it.
@@ -56,10 +60,13 @@ imports them as runtime functions.
    are equally hard to debug.
 6. **On native, one call is one bridge round trip.** Which method a caller picks _is_ the
    performance. `loadMany` exists for exactly this reason.
-7. **Every cache message is assumed answered.** The web refuses to run in a phone shell older than
+7. **Every cache message but the room media index ones is assumed answered.** The web refuses to run in a phone shell older than
    app 0.30.0, and every shell from that one on handles `FetchManyCacheData`, `FetchLastChatsData`
    and `ClearCacheDataByChannel`. So the adapter keeps no "this shell is too old" fallback: a bridge
    failure is a failure, rethrown (or, for the last-chats read, answered `null` for that one read).
+   The room media index messages are the exception, and the only one: they are newer than shells
+   still in use, so they are sent only to a shell that lists all three handlers (see the native store
+   below).
 
 ## Scope
 
@@ -73,7 +80,8 @@ instrumentation (`nativeCacheMetrics`); two `IGlobalCacheSearchSource` implement
 
 **Out** — the port interfaces and the TTL/scope policy (`@chatic/data`, `local/ports/`); stream
 emission, observer keys and merge semantics on top of a storage (`@chatic/data`, `local/data-sources/`);
-which backend a type is routed to (`@chatic/app-runtime`, `resolveCacheBackend`); the SQLite
+which backend a type is routed to (`@chatic/runtime-web`'s `resolveCacheBackend` in a page,
+`@chatic/runtime-mobile`'s `nativeLocalCachePorts` in the phone app); the SQLite
 implementation on the far side of the bridge (`apps/mobile`); the bridge transport itself
 (`@chatic/bridges`).
 
@@ -87,14 +95,15 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["LocalDataSource × 9<br/>@chatic/data"]:::ext
-    LF["localFactory<br/>@chatic/app-runtime"]:::ext
+    LF["webLocalCachePorts (via createWebRuntime)<br/>@chatic/runtime-web"]:::ext
+    LN["nativeLocalCachePorts<br/>@chatic/runtime-mobile"]:::ext
     Ports["ports/<br/><i>CacheStorage · IIndexedDB · search · metrics · policy</i><br/>@chatic/data"]:::ext
 
     Base["BaseDbAdapter<br/><i>scope · loadMany · clearByChannelId defaults</i>"]:::eng
     IDB["IndexedDBAdapter<br/>+ ChatQueryExecutor"]:::web
     NDB["NativeDBAdapter<br/>+ nativeCacheMetrics"]:::nat
     WSA["WebStorageAdapter<br/><i>one JSON value per partition</i>"]:::web
-    Conn["IndexedDBDatabase<br/><i>one connection · ChaticWebCacheDB v3</i>"]:::web
+    Conn["IndexedDBDatabase<br/><i>one connection · ChaticWebCacheDB v4</i>"]:::web
     Search["IndexedDbGlobalSearchSource<br/>NativeGlobalSearchSource"]:::eng
 
     Browser["browser IndexedDB"]:::ext
@@ -105,9 +114,11 @@ flowchart TD
     DS -->|"CacheStorage only"| NDB
     DS -->|"CacheStorage only"| WSA
     LF -.->|"new — the only caller"| IDB
-    LF -.->|"new — the only caller"| NDB
+    LF -.->|"new"| NDB
     LF -.->|"new — the only caller"| WSA
     LF -.->|"new"| Search
+    LN -.->|"new"| NDB
+    LN -.->|"new"| Search
     Base --- IDB
     Base --- NDB
     Base --- WSA
@@ -157,15 +168,15 @@ sequenceDiagram
 
 ```text
 libs/db/src/
-├── index.ts          public barrel — 16 values, 3 types
+├── index.ts          public barrel — 16 values, 4 types
 ├── base/             BaseDbAdapter: scope resolution + the defaults every adapter inherits
 ├── indexeddb/        the web store — IndexedDBDatabase, IndexedDBAdapter, ChatQueryExecutor
-├── native/           the bridge store — NativeDBAdapter, nativeCacheMetrics
+├── native/           the bridge store — NativeDBAdapter, CacheBridgeClient, nativeCacheMetrics
 ├── webstorage/       the tab store — WebStorageAdapter, one JSON value per partition
 └── search/           IGlobalCacheSearchSource × 2, plus the contract test that pins them together
 ```
 
-Ten production files, nine spec files. Several names are not where the filename suggests:
+Eleven production files, nine spec files. Several names are not where the filename suggests:
 
 - `isQuotaExceededError` sits in `IndexedDBAdapter.ts`, its only consumer — a `DOMException` predicate
   kept out of `@chatic/data` so that lib does not take a DOM dependency.
@@ -173,10 +184,10 @@ Ten production files, nine spec files. Several names are not where the filename 
 - `NativeCacheMetricsSource`, the `ICacheMetricsSource` implementation, is in `nativeCacheMetrics.ts`.
 - **There is no `types.ts`.** Every type this lib implements against comes from `@chatic/data`.
 
-The barrel is wider than its use: of its 19 exports, `localFactory` imports 8 — `ChatQueryExecutor`,
+The barrel is wider than its use: of its 20 exports, the web cache ports import 8 — `ChatQueryExecutor`,
 `IndexedDBAdapter`, `IndexedDBDatabase`, `IndexedDbGlobalSearchSource`, `NativeCacheMetricsSource`,
-`NativeDBAdapter`, `NativeGlobalSearchSource`, `WebStorageAdapter`. The other 11 have no consumer
-outside this lib.
+`NativeDBAdapter`, `NativeGlobalSearchSource`, `WebStorageAdapter`; the native ones import three of
+those and the `CacheBridgeClient` type. The other 11 have no consumer outside this lib.
 
 ## The web store
 
@@ -184,15 +195,39 @@ One database, one object store, one connection for the whole app.
 
 | Thing                         | Value                                                                               |
 | ----------------------------- | ----------------------------------------------------------------------------------- |
-| Database                      | `ChaticWebCacheDB`, version 3                                                       |
+| Database                      | `ChaticWebCacheDB`, version 4                                                       |
 | Object store                  | `cache_store`, `keyPath: 'key'`                                                     |
 | Primary key                   | `` `${type}:${cid}:${uid}:${id}` ``                                                 |
 | Index `type_cid_uid`          | `['type', 'cid', 'uid']` — every ordinary read and `clearAll`                       |
 | Index `chat_pagination_index` | `['type', 'cid', 'uid', 'channel_id', 'chat_no']` — paging, eviction, channel clear |
+| Index `chat_media_index`      | `['type', 'cid', 'uid', 'channel_id', 'kind', 'chat_no']` — the room media index    |
 
-`channel_id` and `chat_no` are written on chat rows only, so the pagination index holds chat and
-nothing else. That is why `IndexedDBAdapter.clearByChannelId` — which deletes by a range on that
-index — is effectively chat-only. Chat is also the only domain that calls it.
+`channel_id` and `chat_no` are written on chat rows and their media entries only, and every range on
+the pagination index starts with `type`, so a chat read sees chat rows and nothing else. That is why
+`IndexedDBAdapter.clearByChannelId` — which deletes by a range on that index — is effectively
+chat-only. Chat is also the only domain that calls it.
+
+**The room media index** lives in the same store, as records of their own: `{ key, type: 'chatmedia',
+cid, uid, channel_id, chat_no, kind, chat_id, idx, ref }`, one per entry a chat row carries in
+`mediaEntries` (decided by `@chatic/data`'s `chatMediaEntries`; this lib decides nothing). Version 4
+only adds `chat_media_index` — no data moves, and a room's existing messages are indexed the first time
+its media is read. The chat adapter writes a row and its entries in one `readwrite` transaction
+(`writeBatch`, which aborts on a failed request so nothing half-lands): a list replaces the message's
+entries, an empty list removes them, and a row without the field leaves them alone (an older web
+bundle wrote it). Deleting rows, clearing a room or scope, and cap eviction remove the entries with the
+messages. A room fill (`saveChatMediaEntries`) writes entries and never a row: `applyChatMediaFill`
+reads each message's row in one `readwrite` transaction and replaces its entries only while the row
+exists and its `data.mediaEntriesVersion` (absent = 0) is below the fill's version — a row written,
+marked deleted or removed since the fill read it is skipped. The entries take the row's own
+`channel_id` and `chat_no`.
+
+An entry's key is `chatmedia:<cid>:<uid>:<chatId>` + NUL + `idx` in four digits, and one message's
+entries are the range `[prefix + NUL, prefix + U+0001)`. The separator is NUL, not `:`: a chat id is
+`<channelId>:<chatNo>` and nothing keeps `:` out of a channel id, so with `:` the range for message
+`x:12` would also hold `x:12:7`'s entries. `loadChatMedia` walks `chat_media_index` backwards below
+`cursorNo`, keeps the whole message the `limit` lands in, looks one entry further to learn whether a
+next page exists, and re-sorts each message by `idx` (the reverse walk hands them the other way).
+`countChatMedia` is one key-only `count` per kind.
 
 `IndexedDBDatabase` reopens itself on `close` (the browser forced it shut) and on `versionchange`
 (another tab is upgrading). Both log, because silently they looked like an unrelated burst of cache
@@ -222,9 +257,17 @@ means the plain-browser and native-WebView paths have no safety net here.
 
 ## The native store
 
-`NativeDBAdapter` sends ten message types, listed in `OPERATION_BY_MESSAGE`: `SaveCacheData`,
+`NativeDBAdapter` sends thirteen message types, listed in `OPERATION_BY_MESSAGE`: `SaveCacheData`,
 `SaveAllCacheData`, `FetchCacheData`, `FetchManyCacheData`, `FetchAllCacheData`, `FetchLastChatsData`,
-`DeleteCacheData`, `DeleteAllCacheData`, `ClearCacheData`, `ClearCacheDataByChannel`.
+`DeleteCacheData`, `DeleteAllCacheData`, `ClearCacheData`, `ClearCacheDataByChannel`, and the three room
+media index messages: the reads `FetchChatMediaCacheData` and `CountChatMediaCacheData`, and the fill
+`SaveChatMediaCacheData`.
+
+**The bridge is whatever answers a request.** The adapter and `NativeGlobalSearchSource` take a
+`CacheBridgeClient` — the `request` method of `@chatic/bridges`' client and nothing else, rejecting
+when the answer is `success: false`. A page passes its WebView client. A runtime inside the phone app
+passes one that answers the same messages in its own process, through the handlers the WebView's are
+built from, so the same adapter reaches the same SQLite from either side of the bridge.
 
 Every one of them goes through a single `send()`, which is where the elapsed time is recorded — add a
 new operation and the instrumentation follows for free, call `bridge.request` directly and it does
@@ -253,6 +296,17 @@ and bury the cause. The one exception is `loadLastPerChannel`: whenever it fails
 the caller's per-channel windowed read, so it answers `null` for that read and tries again next time.
 A delete is never answered that way; `clearByChannelId` rethrows, because a delete that did not happen
 must not look as if it did.
+
+**The room media index messages are the one version check.** A shell built before the index has no
+handlers for them, and the web ships ahead of the app. So the adapter takes a `handlesMessage` check
+(`NativeDBAdapterOptions`) — the shell must handle all three — and asks it on every
+`canQueryChatMedia`, `loadChatMedia`, `countChatMedia` and `saveChatMediaEntries` — never once at construction, because a page's check answers from the handshake
+reply, which can land after the adapter exists. A page passes runtime-web's
+`isNativeCacheMessageHandled` (the shell's `supportedWebMessages`); a runtime inside the phone app
+passes `() => true`, being the shell that answers. Without the check, or while it says no, nothing is
+sent and the reads answer `null`; so does an `items: null` / `counts: null` reply or a bridge failure.
+`@chatic/data` answers `null` from plain rows. A fill that was not written throws instead (never sent,
+`success: false`, a bridge failure), so the room is not marked filled.
 
 **Instrumentation.** `nativeCacheMetrics` keeps per-`(operation, type)` count, total and max, plus a
 running op count. A single call over 50ms logs a warning, throttled to one line per key per 3s — the
@@ -289,27 +343,27 @@ implementations. A semantic change made to one and not the other fails there.
 ## Usage
 
 **Do not import this lib.** The entry point is a `CacheStorage` handed to you by `@chatic/app-runtime`;
-the classes here are constructor arguments for one factory, not an API.
+the classes here are constructor arguments for one set of ports, not an API.
 
 ```ts
-// libs/app-runtime/src/data/factories/localFactory.ts — the only importer in the repo
+// libs/runtime-web/src/localCache/index.ts — the only importer in the repo, outside tests
 import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter, WebStorageAdapter } from '@chatic/db';
 
-export const getCacheStorage = <TType extends CacheType>(
-    type: TType,
-    contextProvider: DataContextProvider,
-    cache?: CacheAssemblyOptions,
-    backend: CacheBackend = resolveCacheBackend(type)
-): CacheStorage<TType> => {
-    switch (backend) {
-        case 'web':
-            return createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel);
-        case 'session': // invited clouds in a plain browser tab
-            return createSessionStorageAdapter(type, contextProvider);
-        case 'native':
-            return new NativeDBAdapter(webClient, type, contextProvider);
-    }
-};
+export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => ({
+    route: type => resolveCacheBackend(type),
+    storage: (type, route, contextProvider, options) => {
+        switch (route) {
+            case 'native':
+                return new NativeDBAdapter(webClient, type, contextProvider);
+            case 'session': // invited clouds in a plain browser tab
+                return createTabStorageAdapter(type, contextProvider, tab);
+            case 'web':
+            default:
+                return createIndexedDBAdapter(type, contextProvider, options?.maxChatsPerChannel);
+        }
+    },
+    // …routed, globalSearch, metrics
+});
 ```
 
 The `contextProvider` is required, not optional: it is what makes principle 4 work. In production the
@@ -321,16 +375,22 @@ the partition an operation touches is the one it was captured for, not whichever
 
 ```text
 DataManager                                  @chatic/app-runtime
-  └─ createLocalDataSources()                data/factories/localFactory.ts
-       ├─ resolveCacheBackend(type)          'web' | 'native' | 'session' — the routing decision, made elsewhere
-       ├─ getCacheStorage(type, provider)    new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
-       │                                     | new WebStorageAdapter(sessionStorage, …) (invited clouds in a plain tab)
+  └─ createLocalDataSources()                data/factories/localFactory.ts — over localCachePlatform.ports()
+       ├─ route(type)                        once per domain per session — the routing decision, made by the platform
+       ├─ storage(type, route, provider)     webLocalCachePorts (filled by createWebRuntime), @chatic/runtime-web:
+       │                                     new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
+       │                                     | new WebStorageAdapter(tab, …) (invited clouds in a plain tab)
        │    └─ getSharedDatabase()           one IndexedDBDatabase, shared by every web-backed adapter
-       ├─ getGlobalCacheSearchSource()       IndexedDbGlobalSearchSource | NativeGlobalSearchSource
-       └─ getCacheMetricsSource()            NativeCacheMetricsSource
+       ├─ globalSearch()                     IndexedDbGlobalSearchSource | NativeGlobalSearchSource
+       └─ metrics()                          NativeCacheMetricsSource
 ```
 
-The shared `IndexedDBDatabase` is module state in the **factory**, not in this lib. Moving it here
+Inside the phone app, the runtime's own ports are `nativeLocalCachePorts(client)` from
+`@chatic/runtime-mobile` instead: every `storage()` is `new NativeDBAdapter(client, …)`, search is
+`NativeGlobalSearchSource(client)`, and `client` answers the messages in the app's process
+(`apps/mobile`'s `createInProcessCacheClient`).
+
+The shared `IndexedDBDatabase` is module state in the **web cache ports**, not in this lib. Moving it here
 would break the rule that instance binding happens in one place, and two connections to the same
 database is a real failure, not a style question.
 

@@ -1,25 +1,23 @@
 import { act, render, renderHook } from '@testing-library/react';
 import { StrictMode, type ReactNode } from 'react';
 
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
+
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 import { usePairingRequest } from './usePairingRequest';
 
 const requestPairing = jest.fn();
 const claimPairing = jest.fn();
+const applyPairingSession = jest.fn();
+const preparePairedCloudEntry = jest.fn();
 const switchCloud = jest.fn();
-const applySessionToken = jest.fn();
 
 jest.mock('../../../data/hooks/useRuntimeRepositories', () => ({
-    useRuntimeRepositories: () => ({ pairing: { requestPairing, claimPairing } }),
+    useRuntimeRepositories: () => ({ pairing: { requestPairing } }),
 }));
 jest.mock('../app/useDynamicDeviceId', () => ({ useDynamicDeviceId: () => ({ deviceId: 'dev-1' }) }));
 jest.mock('../session/actions/useSwitchCloudSession', () => ({ useSwitchCloudSession: () => ({ switchCloud }) }));
-jest.mock('@chatic/auth/socket/applySessionToken', () => ({
-    applySessionToken: (...args: unknown[]) => applySessionToken(...args),
-}));
-const enterPaired = jest.fn();
-jest.mock('@chatic/auth/pairing/pairedCloudSessions', () => ({
-    pairedCloudSessions: { enter: (...args: unknown[]) => enterPaired(...args) },
-}));
 jest.mock('@chatic/auth/pairing/pairingClient', () => ({
     pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
 }));
@@ -31,8 +29,15 @@ beforeEach(() => {
     jest.clearAllMocks();
     requestPairing.mockResolvedValue(CODE);
     claimPairing.mockResolvedValue({ status: 'pending' });
+    initAppRuntime({
+        ...coreEngine,
+        commands: fakeSessionCommands({ claimPairing, applyPairingSession, preparePairedCloudEntry }),
+    });
 });
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+    jest.useRealTimers();
+    resetRuntimeEngine();
+});
 
 const flush = async () => {
     await act(async () => {
@@ -80,9 +85,13 @@ describe('usePairingRequest', () => {
         expect(claimPairing).not.toHaveBeenCalled();
     });
 
-    it('applies a relay approval through applySessionToken', async () => {
-        const session = { $auth: { id: 'a-1' } };
-        claimPairing.mockResolvedValueOnce({ status: 'approved', target: { type: 'relay' }, approver: {}, session });
+    it("claims through the engine and signs in with the relay approval's held session", async () => {
+        claimPairing.mockResolvedValueOnce({
+            status: 'approved',
+            target: { type: 'relay' },
+            approver: {},
+            sessionHandle: 'pairing-session-1',
+        });
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
@@ -90,17 +99,17 @@ describe('usePairingRequest', () => {
         });
         await flush();
 
-        expect(applySessionToken).toHaveBeenCalledWith(session);
+        expect(claimPairing).toHaveBeenCalledWith('p-1');
+        expect(applyPairingSession).toHaveBeenCalledWith('pairing-session-1');
         expect(result.current.state.phase).toBe('done');
     });
 
-    it("enters a cloud approval through the paired-cloud lifecycle with the screen's switch", async () => {
+    it("enters a cloud approval prepared by the runtime, then with the screen's own switch", async () => {
         claimPairing.mockResolvedValueOnce({
             status: 'approved',
             target: { type: 'cloud', cloudId: '1000002' },
             approver: {},
         });
-        enterPaired.mockResolvedValueOnce(undefined);
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
@@ -108,7 +117,11 @@ describe('usePairingRequest', () => {
         });
         await flush();
 
-        expect(enterPaired).toHaveBeenCalledWith('1000002', switchCloud);
+        expect(preparePairedCloudEntry).toHaveBeenCalledWith('1000002');
+        expect(switchCloud).toHaveBeenCalledWith('1000002');
+        expect(preparePairedCloudEntry.mock.invocationCallOrder[0]).toBeLessThan(
+            switchCloud.mock.invocationCallOrder[0]
+        );
         expect(result.current.state.phase).toBe('done');
     });
 
@@ -118,7 +131,7 @@ describe('usePairingRequest', () => {
             target: { type: 'cloud', cloudId: '1000002' },
             approver: {},
         });
-        enterPaired.mockRejectedValueOnce(new Error('delegate 403'));
+        preparePairedCloudEntry.mockRejectedValueOnce(new Error('delegate 403'));
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
@@ -126,6 +139,7 @@ describe('usePairingRequest', () => {
         });
         await flush();
 
+        expect(switchCloud).not.toHaveBeenCalled();
         expect(result.current.state.phase).toBe('lost');
     });
 

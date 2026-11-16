@@ -54,8 +54,8 @@ describe('useInvitedCloudRecovery', () => {
         renderHook(() => useInvitedCloudRecovery());
         await Promise.resolve();
 
-        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith(cloudRepository, '1000001');
-        expect(syncInvitedCloudName).toHaveBeenCalledWith(cloudRepository, '1000001');
+        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith('1000001');
+        expect(syncInvitedCloudName).toHaveBeenCalledWith('1000001');
     });
 
     it('leaves an owned cloud alone — the relay catalog is its record', () => {

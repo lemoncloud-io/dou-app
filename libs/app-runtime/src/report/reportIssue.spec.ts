@@ -3,22 +3,25 @@
  * through the `report` repository and builds no request of its own. The body it hands
  * over is asserted alongside, since the session facts inside it are this file's job.
  */
-import { getRepositories } from '../data/runtime';
 import { reportIssue } from './reportIssue';
 
-jest.mock('../data/runtime', () => ({ getRepositories: jest.fn() }));
+// The page's graph, as the engine hands it over.
+const getRepositories = jest.fn();
+jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
 jest.mock('@chatic/config', () => ({
     config: { get: jest.fn((key: string) => ({ 'env.stage': 'test', 'env.project': 'chatic_web' })[key]) },
 }));
 jest.mock('@chatic/bridges', () => ({
     isNative: () => false,
+}));
+jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn() },
 }));
 jest.mock('../session', () => ({
     getActiveSessionUser: () => ({ name: 'nick', userRole: 'user' }),
     getGlobalSessionContext: () => ({
         identity: { userId: 'u1', isAuthenticated: true },
-        cloud: { cloudToken: { name: 'cloud-1' }, backend: 'https://relay.test', cloudId: 'c1', siteId: 's1' },
+        cloud: { isActive: true, backend: 'https://relay.test', cloudId: 'c1', siteId: 's1' },
     }),
 }));
 
@@ -27,7 +30,7 @@ const submitIssue = jest.fn();
 beforeEach(() => {
     jest.clearAllMocks();
     submitIssue.mockResolvedValue({ id: 'r1' });
-    (getRepositories as jest.Mock).mockReturnValue({ report: { submitIssue } });
+    getRepositories.mockReturnValue({ report: { submitIssue } });
     window.history.replaceState({}, '', '/settings/feedback');
 });
 
@@ -65,7 +68,7 @@ describe('reportIssue', () => {
 
         const payload = JSON.parse(submitIssue.mock.calls[0][0].message);
         expect(payload.user).toMatchObject({ uid: 'u1', name: 'nick', role: 'user', isAuthenticated: true });
-        expect(payload.cloud).toMatchObject({ connected: true, cloudId: 'c1', placeId: 's1' });
+        expect(payload.cloud).toMatchObject({ connected: true, cloudId: 'c1', name: 'nick', placeId: 's1' });
         expect(payload.url).toContain('/settings/feedback');
     });
 

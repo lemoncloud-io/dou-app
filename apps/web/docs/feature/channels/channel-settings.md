@@ -23,11 +23,16 @@ creating a place profile is not a channel concern and this screen only opens it.
 | Section         | Group                                               | 1:1                                       | Self chat                 |
 | --------------- | --------------------------------------------------- | ----------------------------------------- | ------------------------- |
 | Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)                   | `JoinNickDialog` (`self`) |
+| Room files      | four kinds, this device's counts                    | same                                      | same                      |
 | Chat settings   | notification level: all · mention · off; input lock | notification level: all · off; input lock | —                         |
 | Room members    | add-friend row (owner) + member list                | member list, departed peer kept           | member list (me alone)    |
 | Destructive row | owner: delete · member: leave                       | leave, for both sides                     | —                         |
 
-Five rules behind that table:
+Six rules behind that table:
+
+- **Room files sits under the name, in every kind of room** (`RoomFilesEntry`): photos·videos, files,
+  audio and links with how many this device has found, each opening [the file list](./room-files.md) on
+  its tab. It is not drawn at all where the installed app cannot count yet.
 
 - **A DM has no delete and no add-friend.** Re-inviting needs the room to still exist, so letting
   the inviter erase it would take away the only way back; and a 1:1 is a fixed pairing, so there is

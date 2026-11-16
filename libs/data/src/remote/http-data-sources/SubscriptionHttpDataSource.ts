@@ -17,7 +17,6 @@ import type {
     SubscriptionSandboxParams,
     SubscriptionStartBody,
     SubscriptionStartParams,
-    WebSubscriptionMineView,
     WebSubscriptionView,
 } from '@chatic/http';
 import type { SubscriptionHttpDomainGateway } from '../gateways';
@@ -36,7 +35,6 @@ export type {
     SubscriptionSandboxParams,
     SubscriptionStartBody,
     SubscriptionStartParams,
-    WebSubscriptionMineView,
     WebSubscriptionStatus,
     WebSubscriptionView,
 } from '@chatic/http';
@@ -64,7 +62,6 @@ export interface ISubscriptionHttpDataSource {
     ): Promise<ListResult<CloudView, AggrResult>>;
 
     // The web subscription — one per account, billed through the payment provider.
-    fetchMySubscription(): Promise<WebSubscriptionMineView>;
     fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
     issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
     startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
@@ -157,10 +154,6 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>> {
         return this.gateway.adminClouds(ownerId, params, opts);
-    }
-
-    fetchMySubscription(): Promise<WebSubscriptionMineView> {
-        return this.gateway.mySubscription();
     }
 
     fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]> {

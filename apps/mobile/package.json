@@ -28,6 +28,7 @@
         "react-native": "*",
         "react-native-config": "*",
         "react-native-device-info": "*",
+        "react-native-get-random-values": "*",
         "react-native-iap": "*",
         "react-native-localize": "*",
         "react-native-nitro-modules": "*",
@@ -79,6 +80,7 @@
         "@react-native-firebase/perf": "*",
         "@testing-library/react": "*",
         "@notifee/react-native": "*",
+        "@react-native-community/netinfo": "*",
         "@react-native-community/push-notification-ios": "*",
         "ts-jest": "*",
         "promise": "*"

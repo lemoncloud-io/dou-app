@@ -24,8 +24,8 @@ import {
 } from '@chatic/data';
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
-import { getCloudRepositories, runInCloud } from '../cloudChat';
-import { beginMediaSendTiming, type MediaSendTiming } from '../mediaSendTrace';
+import { getCloudRepositories, holdCloud } from '../dataCommands';
+import { beginMediaSendTiming, type MediaSendTiming } from '@chatic/runtime-core';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
 
@@ -55,6 +55,8 @@ interface PendingImages {
      * one-each pick has none until its turn comes (see `sendImages`).
      */
     timing?: MediaSendTiming;
+    /** Cancels the send from when the row goes in flight: its PUTs stop, and no message goes out. */
+    abort?: AbortController;
 }
 
 /**
@@ -284,19 +286,28 @@ const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
  * shell sender to take it fails its slot rather than reaching a page PUT that cannot read it.
  */
 const putFor =
-    (put: PutPort, putShellFile: ShellFilePutPort | undefined) =>
+    (put: PutPort, putShellFile: ShellFilePutPort | undefined, signal: AbortSignal) =>
     async (
         target: UploadPutTarget,
         file: ChatAttachmentSource,
         label: string,
         onProgress?: PutProgress
     ): Promise<PutResult> => {
-        if (!isShellFileRef(file)) return put(target, file, label, onProgress);
+        // A shell's transfer module has no cancel; its file finishes, and the send is stopped after it.
+        if (!isShellFileRef(file)) return put(target, file, label, onProgress, signal);
         if (!putShellFile) return { kind: 'no-response', reason: 'system' };
         const result = await putShellFile(target, file, label, onProgress);
         if (result.kind === 'no-response' && result.reason === 'source') goneShellFiles.add(file.uri);
         return result;
     };
+
+/**
+ * How many screens are attached to each room — a room and its thread are two (see `roomKey`). A sender
+ * that does not attach (`attach: false`) reads it when it writes a row: the files are kept for Retry
+ * only while a screen of that room is there to offer it.
+ */
+const attachedScreens = new Map<string, number>();
+const roomKey = (cid: string, channelId: string, parentId?: string) => `${cid}|${channelId}|${parentId ?? ''}`;
 
 /**
  * Bumped on every change a screen renders from (an entry added, dropped, claimed or settled), so
@@ -367,6 +378,22 @@ const keepUnsent = async (sent: PendingImages, files: ChatAttachmentSource[], re
 const chatOf = (cid: string) => getCloudRepositories(cid).chat;
 
 /**
+ * Runs `work` against the room's cloud while holding that cloud's socket, from the first upload request
+ * to the send, released when `work` settles. The hold and every request go through the engine, while the
+ * uploads `work` makes between them are the page's own: on the phone the session can run in the app's
+ * own process, where a hold is something the page asks for and ends, and the bytes never leave the page.
+ * Async throughout, so a cloud whose graph cannot be read rejects inside the hold, which is released.
+ */
+const inCloudHold = async <T>(cid: string, work: (chat: ReturnType<typeof chatOf>) => Promise<T>): Promise<T> => {
+    const release = holdCloud(cid);
+    try {
+        return await work(chatOf(cid));
+    } finally {
+        release();
+    }
+};
+
+/**
  * Points a pending row's previews at the thumbnails the preparation just made.
  *
  * The row is written before anything is prepared, so it can only start from the picked originals —
@@ -427,6 +454,13 @@ export interface UseSendImagesInput {
      * the socket is still reconnecting. Without one the sequence starts at once, as before.
      */
     waitForConnection?: (cid: string) => Promise<boolean>;
+    /**
+     * `false` for a sender that is not the room's screen — a forward picked from another channel. It
+     * neither sweeps the room nor drops anything when it unmounts: the room's own screen, which may be
+     * open at the same time, owns those rows. A row it writes keeps its files for Retry only while a
+     * screen of that room is attached. Defaults to `true`.
+     */
+    attach?: boolean;
 }
 
 /** How `sendImages` packs what was picked. */
@@ -468,6 +502,7 @@ export const useSendImages = ({
     onVideoRefused,
     beforeSweep,
     waitForConnection,
+    attach = true,
 }: UseSendImagesInput) => {
     // Whether this screen is still attached. A send that finishes creating its row after the screen
     // left must not park its files in the page map, where no cleanup would ever reach them.
@@ -557,6 +592,25 @@ export const useSendImages = ({
             const entry = pendingImages.get(pendingId);
             if (!entry) return;
             const timing = entry.timing;
+            // Made where the row went in flight, so a cancel while it waited its turn is already in it.
+            const abort = entry.abort ?? new AbortController();
+            entry.abort = abort;
+            // Cancelled: the reader said "don't send this", so the row goes rather than turning Failed. What
+            // it had declared stays on the server, which has no delete for a single upload. Not timed: a
+            // cancel is neither a send nor a failure.
+            const settleCancelled = async () => {
+                release(pendingId);
+                await chatOf(entry.cid)
+                    .cacheDelete(pendingId)
+                    .catch(error => {
+                        log('image message: could not remove the cancelled row', { error: (error as Error)?.name });
+                    });
+            };
+            if (abort.signal.aborted) return settleCancelled();
+            // Thrown by the ports a cancelled run would still reach, which the sequence reads as a failure.
+            const stopIfCancelled = () => {
+                if (abort.signal.aborted) throw new Error('image message: cancelled');
+            };
             // A retry counts from nothing again: its PUTs start from the first byte.
             clearImageSendProgress(pendingId);
             const { converted, refused } = await convertVideos(entry);
@@ -565,7 +619,7 @@ export const useSendImages = ({
             const sending = entry.files.map((_, index) => index).filter(index => !refused.includes(index));
             let result: SendImageResult = { status: 'failed', reason: 'no-stored-upload', failedSlots: refused.length };
             if (sending.length > 0) {
-                result = await runInCloud(entry.cid, async ({ chat: repository }) => {
+                result = await inCloudHold(entry.cid, async repository => {
                     // Inside the hold, so the slot it waits on is kept: a pick answered as the app comes back to
                     // the front starts the send while the socket is still reconnecting.
                     const wait = waitForConnectionRef.current;
@@ -606,18 +660,21 @@ export const useSendImages = ({
                         // Each port marks its phase of `chat_send_media` as it settles. The sequence calls
                         // `complete` once every put has settled, so its call is the end of the byte transfer.
                         start: async payload => {
+                            stopIfCancelled();
                             const tickets = await repository.startUploads(payload);
                             timing?.mark('upload_started');
                             return tickets;
                         },
                         complete: async payload => {
+                            stopIfCancelled();
                             timing?.mark('bytes_sent');
                             const completed = await repository.completeUploads(payload);
                             timing?.mark('upload_completed');
                             return completed;
                         },
-                        put: putFor(putRef.current, putShellFileRef.current),
+                        put: putFor(putRef.current, putShellFileRef.current, abort.signal),
                         send: async ({ uploadIds }) => {
+                            stopIfCancelled();
                             const sent = await repository.sendPendingImageChat(pendingId, { uploadIds });
                             timing?.mark('sent');
                             return sent;
@@ -639,7 +696,8 @@ export const useSendImages = ({
                         }
                     );
                 }).catch(error => {
-                    // A send that could not even hold its cloud (no slot bound) still ends its sample.
+                    // A send that threw rather than settling — its cloud's graph could not be read — still
+                    // ends its sample.
                     timing?.end('error');
                     throw error;
                 });
@@ -656,6 +714,7 @@ export const useSendImages = ({
                 if (lost.length > 0) await keepUnsent(entry, lost, false);
                 return;
             }
+            if (abort.signal.aborted) return settleCancelled();
             timing?.end('error');
             await chatOf(entry.cid)
                 .failPendingImageChat(pendingId)
@@ -717,14 +776,15 @@ export const useSendImages = ({
                 urls,
                 thumbnailed: false,
                 inFlight: true,
-                detached: !attachedRef.current,
+                abort: new AbortController(),
+                detached: attach ? !attachedRef.current : !attachedScreens.get(roomKey(cid, channelId, parentId)),
                 inTurn,
                 timing,
             });
             changed();
             return pendingId;
         },
-        [cid, channelId, parentId]
+        [cid, channelId, parentId, attach]
     );
 
     const sendImages = useCallback(
@@ -801,8 +861,10 @@ export const useSendImages = ({
         async (pendingId: string): Promise<boolean> => {
             const entry = pendingImages.get(pendingId);
             if (!entry || entry.inFlight) return false;
-            // Claimed before the first await, so a second tap in the same moment finds it taken.
+            // Claimed before the first await, so a second tap in the same moment finds it taken; the last
+            // run's controller is spent, and a cancel from now on is this run's.
             entry.inFlight = true;
+            entry.abort = new AbortController();
             changed();
             const timing = beginMediaSendTiming({ files: entry.files, reply: !!entry.parentId, retry: true });
             try {
@@ -838,9 +900,25 @@ export const useSendImages = ({
     /** Forgets a pending row's files. The row itself is removed by the existing failed-message delete. */
     const discard = useCallback((pendingId: string) => release(pendingId), []);
 
+    /**
+     * Stops a send in progress ("cancel upload"): its PUTs are aborted, no message is sent, and the row
+     * is removed once the send settles. False when it is not sending (settled, failed, or unknown). A
+     * cancel that lands after the message went out does nothing; the message stays sent.
+     */
+    const cancel = useCallback((pendingId: string): boolean => {
+        const entry = pendingImages.get(pendingId);
+        if (!entry?.inFlight || !entry.abort) return false;
+        entry.abort.abort();
+        return true;
+    }, []);
+
     useEffect(() => {
+        // A sender that is not the room's screen leaves the room's rows to that screen.
+        if (!attach) return;
         let active = true;
         attachedRef.current = true;
+        const key = roomKey(cid, channelId, parentId);
+        attachedScreens.set(key, (attachedScreens.get(key) ?? 0) + 1);
         // Back on a screen whose send is still running: its files are wanted again.
         for (const entry of pendingImages.values()) {
             if (entry.cid === cid && entry.channelId === channelId && entry.parentId === parentId) {
@@ -877,6 +955,9 @@ export const useSendImages = ({
         return () => {
             active = false;
             attachedRef.current = false;
+            const left = (attachedScreens.get(key) ?? 1) - 1;
+            if (left > 0) attachedScreens.set(key, left);
+            else attachedScreens.delete(key);
             // Leaving the channel drops its files (they cannot follow the user anywhere else). A send
             // still running keeps its files until it settles, so it can still finish.
             for (const [pendingId, entry] of pendingImages) {
@@ -886,7 +967,7 @@ export const useSendImages = ({
                 else release(pendingId);
             }
         };
-    }, [cid, channelId, parentId]);
+    }, [cid, channelId, parentId, attach]);
 
-    return { sendImages, retry, canRetry, discard };
+    return { sendImages, retry, canRetry, discard, cancel };
 };

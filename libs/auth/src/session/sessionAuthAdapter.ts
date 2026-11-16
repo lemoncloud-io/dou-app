@@ -4,9 +4,28 @@ import { logger } from '@chatic/logger';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { cloudStore, relayStore, rebuildSessionIdentity } from '@chatic/session';
+import { transportPlatform } from '@chatic/transport';
 import { recordCloudIdentity } from './cloudIdentity';
 import { calcSignature } from './utils/calcSignature';
 import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/tokenMerge';
+
+/**
+ * The user agent the signature is computed over. The server checks it against the one the socket's
+ * handshake sent, so it is read from the same place the platform's socket takes it: the transport's
+ * `device()` port (`navigator.userAgent` in a page, which the browser also sends on the handshake).
+ *
+ * A platform that reports none signs over `''`, which the server will refuse unless the handshake sent
+ * none either. That is said once in the log, because the refusal itself names no cause.
+ */
+let warnedNoUserAgent = false;
+const signingUserAgent = (): string => {
+    const userAgent = transportPlatform.ports().device().userAgent;
+    if (userAgent === undefined && !warnedNoUserAgent) {
+        warnedNoUserAgent = true;
+        logger.warn('AUTH', "[signAuth] the platform's device port reports no user agent — signing over ''");
+    }
+    return userAgent ?? '';
+};
 
 /**
  * The session half of the Auth SDK bridge (ADR-0076 Decision 5).
@@ -106,7 +125,7 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
                 throw new Error('Missing cloud token fields for socket auth signature');
             }
             const current = new Date().toISOString();
-            const signature = calcSignature({ authId, accountId, identityId }, current, navigator.userAgent);
+            const signature = calcSignature({ authId, accountId, identityId }, current, signingUserAgent());
             return { signature, current };
         }
 
@@ -153,7 +172,7 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
             throw new Error('Missing relay token fields for socket auth signature');
         }
         const current = new Date().toISOString();
-        const signature = calcSignature({ authId, accountId, identityId }, current, navigator.userAgent);
+        const signature = calcSignature({ authId, accountId, identityId }, current, signingUserAgent());
         return { signature, current };
     }
 

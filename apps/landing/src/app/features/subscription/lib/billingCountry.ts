@@ -10,7 +10,13 @@ import type { Currency, PaymentProvider } from '../types';
 /** The billing country that is billed in won. */
 export const KOREA = 'KR';
 
-/** What the country picker offers, Korea first. `OTHER` stands for every country not listed. */
+/**
+ * What the country picker offers, Korea first, the same on every stage. `OTHER` stands for every country
+ * not listed. India is deliberately not listed: its cards register, but its rules require a mandate for
+ * charges made without the customer present, which this design cannot create, so the end of a trial and
+ * every monthly charge would be refused. Leaving it out of the list does not stop a reader there picking
+ * `OTHER`; only a production build, which bills nothing outside Korea yet (`billableIn`), shuts that.
+ */
 export const BILLING_COUNTRY_OPTIONS = ['KR', 'US', 'JP', 'OTHER'] as const;
 
 export type BillingCountryOption = (typeof BILLING_COUNTRY_OPTIONS)[number];
@@ -19,6 +25,13 @@ export const isBillingCountry = (value: string): value is BillingCountryOption =
     (BILLING_COUNTRY_OPTIONS as readonly string[]).includes(value);
 
 export const currencyOfCountry = (country: string): Currency => (country === KOREA ? 'KRW' : 'USD');
+
+/**
+ * Whether a checkout can go on with this billing country. Korea always can; any other country only where
+ * the build may bill outside Korea (`foreignBilling`) — not in a production build, where the server has
+ * no dollar products yet and W-08 stops at a notice instead.
+ */
+export const billableIn = (country: string, foreignBilling: boolean): boolean => country === KOREA || foreignBilling;
 
 /**
  * Whether a card billed in this country is registered with the payer's name and mobile number. The won

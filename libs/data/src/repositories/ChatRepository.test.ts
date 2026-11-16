@@ -2,7 +2,8 @@ import { ChatLocalDataSource } from '../local/data-sources/ChatLocalDataSource';
 import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import type { DomainChat } from '../domain';
 import { ChatRepository } from './ChatRepository';
-import { feedCoverage } from './feedCoverage';
+import { feedCoverage, uncoveredIn } from './feedCoverage';
+import type { FeedRange } from './feedCoverage';
 
 describe('ChatRepository', () => {
     const createRepository = () => {
@@ -25,6 +26,8 @@ describe('ChatRepository', () => {
             cacheDelete: jest.fn(),
             cacheClear: jest.fn(),
             cacheClearByChannelId: jest.fn(),
+            listRoomMedia: jest.fn(),
+            countRoomMedia: jest.fn(),
         };
         const contextProvider = {
             getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me' }),
@@ -47,6 +50,40 @@ describe('ChatRepository', () => {
             uploadSocketDataSource,
         };
     };
+
+    describe('room media', () => {
+        it("hands a page query to the local data source unchanged, in this graph's scope", async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            const page = { items: [], nextCursorNo: null };
+            chatLocalDataSource.listRoomMedia.mockResolvedValue(page);
+
+            const input = { channelId: 'ch-1', kind: 'audio' as const, cursorNo: 40, limit: 30 };
+            await expect(repository.listRoomMedia(input)).resolves.toBe(page);
+
+            expect(chatLocalDataSource.listRoomMedia).toHaveBeenCalledWith(
+                input,
+                expect.objectContaining({ cid: 'cloud-a', uid: 'me' })
+            );
+        });
+
+        it('hands a count query through likewise', async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            const counts = { image: 1, video: 0, file: 2, audio: 3, link: 4 };
+            chatLocalDataSource.countRoomMedia.mockResolvedValue(counts);
+
+            await expect(repository.countRoomMedia({ channelId: 'ch-1' })).resolves.toBe(counts);
+            expect(chatLocalDataSource.countRoomMedia).toHaveBeenCalledWith(
+                { channelId: 'ch-1' },
+                expect.objectContaining({ cid: 'cloud-a', uid: 'me' })
+            );
+        });
+
+        it('lets a failure of the local read reach the caller', async () => {
+            const { repository, chatLocalDataSource } = createRepository();
+            chatLocalDataSource.countRoomMedia.mockRejectedValue(new Error('bridge down'));
+            await expect(repository.countRoomMedia({ channelId: 'ch-1' })).rejects.toThrow('bridge down');
+        });
+    });
 
     // Reactions are event-sourced: the server stores no state, so the optimistic write is
     // an event of our own rather than an edit to the target message.
@@ -345,6 +382,35 @@ describe('ChatRepository', () => {
     describe('what a page answers for', () => {
         beforeEach(() => feedCoverage.clear());
 
+        /** What a reader of the coverage stream works out for `[low, high]`, read once now. */
+        const uncoveredOf = (
+            repository: {
+                observeFeedCoverage: (id: string, cb: (covered: readonly FeedRange[]) => void) => () => void;
+            },
+            channelId: string,
+            low: number,
+            high: number
+        ): FeedRange[] => {
+            let covered: readonly FeedRange[] = [];
+            repository.observeFeedCoverage(channelId, ranges => (covered = ranges))();
+            return uncoveredIn(covered, low, high);
+        };
+
+        it('streams the ranges now and after each page, and stops when unsubscribed', async () => {
+            const { repository, chatSocketDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [row(99), row(51)], cursorNo: 50, total: 200 });
+            const heard: (readonly FeedRange[])[] = [];
+            const stop = repository.observeFeedCoverage('ch-1', covered => heard.push(covered));
+
+            await repository.refreshList({ channelId: 'ch-1', cursorNo: 100, limit: 50 } as any);
+            await repository.refreshList({ channelId: 'ch-1', cursorNo: 100, limit: 50 } as any);
+            stop();
+            await repository.cacheClearByChannelId('ch-1');
+
+            // Now (nothing), then the page; the same page again changes nothing; the clear came after stop.
+            expect(heard).toEqual([[], [[50, 99]]]);
+        });
+
         const row = (chatNo: number, over: Partial<DomainChat> = {}) =>
             ({ id: `ch-1:${chatNo}`, channelId: 'ch-1', chatNo, ...over }) as DomainChat;
 
@@ -355,7 +421,7 @@ describe('ChatRepository', () => {
             await repository.refreshList({ channelId: 'ch-1', cursorNo: 100, limit: 50 } as any);
 
             // 52–98 came back empty-handed: deleted, not unfetched.
-            expect(repository.uncoveredFeed('ch-1', 40, 120)).toEqual([
+            expect(uncoveredOf(repository, 'ch-1', 40, 120)).toEqual([
                 [40, 49],
                 [100, 120],
             ]);
@@ -367,7 +433,7 @@ describe('ChatRepository', () => {
 
             await repository.refreshList({ channelId: 'ch-1' } as any);
 
-            expect(repository.uncoveredFeed('ch-1', 1, 15)).toEqual([[13, 15]]);
+            expect(uncoveredOf(repository, 'ch-1', 1, 15)).toEqual([[13, 15]]);
         });
 
         it('marks a cached row the page left out as deleted, when asked', async () => {
@@ -430,7 +496,7 @@ describe('ChatRepository', () => {
                 markMissingHidden: true,
             });
 
-            expect(repository.uncoveredFeed('ch-1', 960, 1060)).toEqual([
+            expect(uncoveredOf(repository, 'ch-1', 960, 1060)).toEqual([
                 [960, 970],
                 [1021, 1060],
             ]);
@@ -442,10 +508,10 @@ describe('ChatRepository', () => {
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: [], cursorNo: 0 });
 
             await repository.refreshList({ channelId: 'ch-1', cursorNo: 30, limit: 50 } as any);
-            expect(repository.uncoveredFeed('ch-1', 1, 29)).toEqual([[1, 29]]);
+            expect(uncoveredOf(repository, 'ch-1', 1, 29)).toEqual([[1, 29]]);
 
             await repository.refreshList({ channelId: 'ch-1', cursorNo: 30, limit: 50 } as any, { cursorIsRow: true });
-            expect(repository.uncoveredFeed('ch-1', 1, 29)).toEqual([]);
+            expect(uncoveredOf(repository, 'ch-1', 1, 29)).toEqual([]);
         });
 
         it('forgets what pages answered for when the cache is cleared', async () => {
@@ -455,11 +521,11 @@ describe('ChatRepository', () => {
             await repository.refreshList({ channelId: 'ch-2', cursorNo: 100, limit: 50 } as any);
 
             await repository.cacheClearByChannelId('ch-1');
-            expect(repository.uncoveredFeed('ch-1', 50, 99)).toEqual([[50, 99]]);
-            expect(repository.uncoveredFeed('ch-2', 50, 99)).toEqual([]);
+            expect(uncoveredOf(repository, 'ch-1', 50, 99)).toEqual([[50, 99]]);
+            expect(uncoveredOf(repository, 'ch-2', 50, 99)).toEqual([]);
 
             await repository.cacheClear();
-            expect(repository.uncoveredFeed('ch-2', 50, 99)).toEqual([[50, 99]]);
+            expect(uncoveredOf(repository, 'ch-2', 50, 99)).toEqual([[50, 99]]);
         });
     });
 

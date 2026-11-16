@@ -1,6 +1,7 @@
 export const TABLES = {
     CHANNELS: 'channels',
     CHATS: 'chats',
+    CHAT_MEDIA: 'chat_media',
     INVITE_CLOUDS: 'invite_clouds',
     INVITES: 'invites',
     JOINS: 'joins',

@@ -38,8 +38,7 @@ export const useRelaySessionGuard = (enabled: boolean): void => {
         // (`requestRelaySessionRefresh` only reaches the owner through a live authenticated socket),
         // so a console whose socket just healed re-mints now instead of up to 30s from now.
         checkOnRelayVerified: true,
-        // Nothing below this line: no `onTeardown`, and therefore no `consecutiveFailureLimit` and
-        // no `missingSessionCountsAsFailure` — the three options only ever fed the teardown. Ending
-        // the session belongs to the server's verdict, not to this probe's failures.
+        // No teardown: the guard has none. Ending the session belongs to the server's verdict, not to
+        // this probe's failures.
     });
 };

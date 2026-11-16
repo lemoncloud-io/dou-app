@@ -76,8 +76,10 @@ everything below the repository call (`@chatic/data`, `@chatic/app-runtime`).
 **A component never calls a repository.** Data enters through `hooks/`, and a component receives it
 as props — which is why the pure modules in `utils/` can be tested without React or a runtime.
 
-Five screens sit behind `ChannelRoutes`: the room, the full-screen thread, settings, and the two
-invite screens (adding people, and the issued link). There is no create-channel screen here — a room
+Seven screens sit behind `ChannelRoutes`: the room, the full-screen thread, settings, the two invite
+screens (adding people, and the issued link), an audio file's detail and the room's file list
+([audio-files.md](./audio-files.md), [room-files.md](./room-files.md)). Above them `ChannelRoutes` mounts
+`RoomAudioHost`, the one audio player those screens share. There is no create-channel screen here — a room
 is created from `home`, and a self chat is created by the server.
 
 Files whose contents the name does not give away:
@@ -90,7 +92,10 @@ Files whose contents the name does not give away:
   cache (`imageCache.ts`) and its IndexedDB store (`imageCacheStore.ts`) — stateful, and reached only
   through `hooks/useCachedImages` — the frame maker for videos sent without a poster (`videoFrames.ts`),
   reached only through `hooks/useVideoFrames`, and the browser's document download (`fileDownload.ts`), reached
-  only through `hooks/useFileDownloads` ([image-send.md](./image-send.md)). Everything else that is
+  only through `hooks/useFileDownloads` ([image-send.md](./image-send.md)). Two more for audio: the
+  waveform computation (`audioWaveform.ts`, reached through `hooks/useAudioWaveform`) and what this device
+  remembers about a room's files — hidden items and computed waveforms (`localMediaPrefs.ts`, stateful: it
+  reads and writes the page's device store) ([audio-files.md](./audio-files.md), [room-files.md](./room-files.md)). Everything else that is
   pure lives in `utils/`.
 - `utils/membership.ts` — `hasLeftChannel`, `isChannelMember`, `isSomeoneElsesSelfChat`, three
   questions about a join row that nothing else can answer.
@@ -112,17 +117,19 @@ handshake lists both messages ([image-export.md](./image-export.md)).
 
 ## Documents
 
-| File                                                   | What it covers                                                                                                                                                              |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 40 hooks: observing, sync registration, paging, read cursors, the writes                                                                                                |
-| [image-send.md](./image-send.md)                       | Photos, videos, documents and audio: the attach panel and pickers, voice messages, the send, the tiles, cards, audio cards and viewer, the image cache, retry and leftovers |
-| [photo-edit.md](./photo-edit.md)                       | Editing picked photos before the send, from the grid or above the composer: the editor, its edit, reading, drawing at the send, limits                                      |
-| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                                                                    |
-| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                                                                 |
-| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                                                        |
-| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list, the notification level sheet and the four dialogs                                                                                     |
-| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite; listing and starting a cloud 1:1 (picker, profile row, `useStartDm`)                |
-| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                                                                  |
+| File                                                   | What it covers                                                                                                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [data-layer.md](./data-layer.md)                       | the 40 hooks: observing, sync registration, paging, read cursors, the writes                                                                                   |
+| [image-send.md](./image-send.md)                       | Photos, videos, documents and audio: the attach panel and pickers, voice messages, the send, the tiles, cards and viewer, the image cache, retry and leftovers |
+| [audio-files.md](./audio-files.md)                     | Audio: the bubble, the room's one player, the mini player, the detail screen and its waveform, the audio send sheet                                            |
+| [room-files.md](./room-files.md)                       | The room's files and links from this device's cache: tabs, finding older files, selecting, hiding on this device                                               |
+| [photo-edit.md](./photo-edit.md)                       | Editing picked photos before the send, from the grid or above the composer: the editor, its edit, reading, drawing at the send, limits                         |
+| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                                                       |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                                                    |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                                           |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list, the notification level sheet and the four dialogs                                                                        |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite; listing and starting a cloud 1:1 (picker, profile row, `useStartDm`)   |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                                                     |
 
 ## How to verify
 

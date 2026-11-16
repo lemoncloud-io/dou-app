@@ -15,10 +15,10 @@ talking to every shell still in use.
 
 ## Who imports it
 
-- **`@chatic/app-runtime`'s `resolveStorageStores`** is where an app's stores are chosen and built —
+- **`@chatic/runtime-web`'s `resolveStorageStores`** is where an app's stores are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` stores for everything else.
   `apps/web` and `apps/desktop-web` call it once in their entry points and hand the result out
-  (`initAppRuntime({ storage })`, their config ports, their own `app/storage/`).
+  (`createWebRuntime({ storage })`, their config ports, their own `app/storage/`).
 - **The browser-only apps** — admin, landing, block-kit-builder — have no environment to choose
   between, so each builds its stores once in its own `src/app/storage/` and hands them out from there.
 - **Everything else in the apps and the libs** reaches web storage only through a store — the root
@@ -99,6 +99,10 @@ The vault is behind the bridge, which is asynchronous, so the store keeps its va
 Writes go to memory at once; the writes of one turn of the event loop travel to the shell as one
 `StorageSave` carrying each key's last value, in order, one request at a time. `flush()` sends what is
 waiting and resolves only once the shell confirmed it — a logout waits on it before leaving the page.
+`offer(key, value)` is the write for a value that is only a copy of one kept elsewhere: it writes only a
+key the store does not hold, in a send of its own queued in order with the others, and a refusal leaves
+the store as it was rather than switching it to its fallback. It answers whether the shell confirmed it
+and never rejects. The secret storage boot copies the device guest's id this way.
 
 **Unavailable is not empty.** When the vault cannot be read this run, a write is refused, or the shell
 does not answer — five seconds for the read, the bridge's own limit for a write, both counted only while the page is visible — the store switches to its fallback — the tab's `sessionStorage` —
@@ -122,12 +126,15 @@ for what travels with a sign-in — and a lib reads the session's plain store th
 ## Usage
 
 ```ts
-const stores = runtime.boot.resolveStorageStores();
+// both from @chatic/runtime-web
+const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
-runtime.boot.initAppRuntime({
-    storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.tab },
-    transport: webTransportPorts(), // from @chatic/runtime-web
-});
+runtime.boot.initAppRuntime(
+    createWebRuntime({
+        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
+        cacheTab: stores.webSession, // a tab's invited clouds
+    })
+);
 ```
 
 ### What not to do

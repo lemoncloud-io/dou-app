@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { createDownloadTargets, savesWithoutAsking } from './downloads';
+import { createDownloadLog, createDownloadTargets, savesWithoutAsking } from './downloads';
 
 const DIR = '/Users/ada/Downloads';
 
@@ -78,5 +78,25 @@ describe('savesWithoutAsking', () => {
     it('asks, without throwing, for a type that names an object member', () => {
         expect(savesWithoutAsking('image-1.png', 'constructor')).toBe(false);
         expect(savesWithoutAsking('image-1.png', '__proto__')).toBe(false);
+    });
+});
+
+describe('createDownloadLog', () => {
+    it('answers a finished download by the id it handed out, and nothing else', () => {
+        const log = createDownloadLog();
+        const id = log.record(join(DIR, 'song.mp3'));
+        expect(log.pathOf(id)).toBe(join(DIR, 'song.mp3'));
+        expect(log.pathOf('not-an-id')).toBeUndefined();
+        expect(log.pathOf(42)).toBeUndefined();
+    });
+
+    it('forgets the oldest once it holds its limit', () => {
+        const log = createDownloadLog(2);
+        const first = log.record(join(DIR, 'a.mp3'));
+        const second = log.record(join(DIR, 'b.mp3'));
+        const third = log.record(join(DIR, 'c.mp3'));
+        expect(log.pathOf(first)).toBeUndefined();
+        expect(log.pathOf(second)).toBe(join(DIR, 'b.mp3'));
+        expect(log.pathOf(third)).toBe(join(DIR, 'c.mp3'));
     });
 });

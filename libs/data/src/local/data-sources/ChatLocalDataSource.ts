@@ -1,15 +1,27 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/bridge-messages';
+import type {
+    CacheChatView,
+    ChatMediaCacheItem,
+    ChatMediaFillItem,
+    ChatMediaKind,
+    ChatQueryOptions,
+    LastChatItem,
+} from '@chatic/bridge-messages';
+import { CHAT_MEDIA_KINDS } from '@chatic/bridge-messages';
+import { logger } from '@chatic/logger';
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
 import {
+    CHAT_MEDIA_ENTRIES_VERSION,
+    chatMediaEntries,
     createDomainListResult,
     isActivityChat,
     isPreviewableChat,
     pickActivityChat,
     pickPreviewChat,
 } from '../../domain';
-import type { DataContextProvider } from '../../repositories/types';
-import type { ScopedCacheStorage } from '../ports';
+import type { DataContext, DataContextProvider } from '../../repositories/types';
+import type { CacheStorage, ScopedCacheStorage } from '../ports';
+import { type ChatMediaIndexMarks, createMemoryChatMediaIndexMarks } from './chatMediaIndexMarks';
 import {
     BaseLocalDataSource,
     type ILocalDataSource,
@@ -35,7 +47,61 @@ export interface IChatLocalDataSource
         callback: LocalDataSourceCallback<DomainLastChat[]>,
         contextOverride?: LocalDataSourceContextOverride
     ): LocalDataSourceUnsubscribe;
+    /**
+     * One page of a room's attachments or links of one kind, from this device's cache, newest first.
+     *
+     * The first call for a room may be slow: it indexes the messages the room already had cached
+     * (once per room, see `ChatMediaIndexMarks`). The answer is the same in a browser, in a phone shell
+     * with the index and in one without it — only how fast differs.
+     */
+    listRoomMedia(input: ListRoomMediaInput, contextOverride?: LocalDataSourceContextOverride): Promise<RoomMediaPage>;
+    /** How many attachments and links of each kind a room has in this device's cache. */
+    countRoomMedia(
+        input: { channelId: string },
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<RoomMediaCounts>;
 }
+
+export interface ListRoomMediaInput {
+    channelId: string;
+    kind: ChatMediaKind;
+    /** Read below this message number. Absent, from the newest. */
+    cursorNo?: number;
+    /** How many entries. A page never splits a message, so it can run past this by the rest of its last message. */
+    limit: number;
+}
+
+export interface RoomMediaItem {
+    kind: ChatMediaKind;
+    idx: number;
+    /** An attachment's server upload id, or a link's URL. */
+    ref: string;
+    chatId: string;
+    chatNo: number;
+    /** The message's cached row — its sender, time, `upload$$` and text. */
+    chat: DomainChat;
+}
+
+export interface RoomMediaPage {
+    items: RoomMediaItem[];
+    /**
+     * The `cursorNo` of the next page. `null` when this device's cache holds nothing further down —
+     * which says nothing about what the server still has.
+     */
+    nextCursorNo: number | null;
+}
+
+export type RoomMediaCounts = Record<ChatMediaKind, number>;
+
+/**
+ * Rows read per step when a room is indexed, or when its media is read from plain rows. 200 rows is
+ * one cheap page in SQLite with the room's newest-first index, and few enough to cross the bridge in
+ * one message.
+ */
+const MEDIA_SCAN_PAGE = 200;
+
+const emptyCounts = (): RoomMediaCounts =>
+    Object.fromEntries(CHAT_MEDIA_KINDS.map(kind => [kind, 0])) as RoomMediaCounts;
 
 /**
  * Fallback window depth. Deep enough to find the real message underneath when the newest rows are
@@ -88,9 +154,33 @@ const isOlderThanCached = (existing: DomainChat | null | undefined, item: Partia
 const serverTimeAfter = (existing: DomainChat | null | undefined, item: Partial<DomainChat>): number =>
     item.updatedAtMs || existing?.updatedAtMs || 0;
 
+/**
+ * The row with its media index entries and the rules version they were decided under, as every chat
+ * write hands it to storage. The version is what a room fill checks before it writes entries of its own.
+ */
+const withMediaEntries = (chat: DomainChat): DomainChat => ({
+    ...chat,
+    mediaEntries: chatMediaEntries(chat),
+    mediaEntriesVersion: CHAT_MEDIA_ENTRIES_VERSION,
+});
+
+/** A message's entries of one kind, each with the row — what a page lists. */
+const mediaItemsOf = (chat: DomainChat, kind: ChatMediaKind): ChatMediaCacheItem[] =>
+    chatMediaEntries(chat)
+        .filter(entry => entry.kind === kind)
+        .sort((a, b) => a.idx - b.idx)
+        .map(entry => ({ ...entry, chatId: chat.id, chatNo: chat.chatNo, chat }));
+
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
 export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements IChatLocalDataSource {
-    constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'chat'>) {
+    /** Room indexing in flight, by partition and room, so concurrent first reads wait for one run. */
+    private readonly mediaIndexing = new Map<string, Promise<void>>();
+
+    constructor(
+        contextProvider: DataContextProvider,
+        storages: ScopedCacheStorage<'chat'>,
+        private readonly mediaIndexMarks: ChatMediaIndexMarks = createMemoryChatMediaIndexMarks()
+    ) {
         super(contextProvider, storages);
     }
 
@@ -269,8 +359,11 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
             createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
             updatedAtMs: serverTimeAfter(existing, item),
         };
+        // Decided here, on the merged row, so an edit, a delete mark or a re-sent copy all rewrite the
+        // message's entries from what the row now says. The store only stores them.
+        const written = withMediaEntries(merged);
 
-        await storage.save(id, merged);
+        await storage.save(id, written);
         this.scheduleItemReemit([id], scope);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.channelId, merged.channelId], scope));
     }
@@ -291,7 +384,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
 
         const mergedList = freshItems.map(item => {
             const existing = existingById.get(item.id!);
-            return {
+            return withMediaEntries({
                 ...(existing ?? ({} as DomainChat)),
                 ...item,
                 ...inferredHiddenAfter(existing, item),
@@ -303,7 +396,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 isFailed: item.isFailed ?? existing?.isFailed ?? false,
                 createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
                 updatedAtMs: serverTimeAfter(existing, item),
-            } as DomainChat;
+            } as DomainChat);
         });
 
         await storage.saveAll(mergedList);
@@ -357,6 +450,158 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
         const requiredChannelId = this.assertRequiredString(channelId, 'channelId');
         await this.storage(scope).clearByChannelId(requiredChannelId);
         this.scheduleListReemit(this.getAffectedListPrefixes([requiredChannelId], scope));
+    }
+
+    public async listRoomMedia(
+        input: ListRoomMediaInput,
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<RoomMediaPage> {
+        const scope = this.resolveContext(contextOverride);
+        const channelId = this.assertRequiredString(input?.channelId, 'channelId');
+        const limit = Math.max(1, Math.floor(input.limit) || 1);
+        // `null` or `NaN` would be an invalid key bound in IndexedDB; both mean "from the newest".
+        const cursorNo = Number.isFinite(input.cursorNo) ? input.cursorNo : undefined;
+        const query = { channelId, kind: input.kind, cursorNo, limit };
+        const storage = this.storage(scope);
+
+        if (storage.canQueryChatMedia?.() && storage.loadChatMedia && storage.saveChatMediaEntries) {
+            try {
+                await this.ensureMediaIndexed(storage, channelId, scope);
+                const page = await storage.loadChatMedia(query);
+                if (page) return page;
+            } catch (error) {
+                logger.warn('CACHE', 'room media index read failed — reading plain rows instead', {
+                    error,
+                    data: { kind: input.kind },
+                });
+            }
+        }
+        return this.listRoomMediaFromRows(storage, query);
+    }
+
+    public async countRoomMedia(
+        input: { channelId: string },
+        contextOverride?: LocalDataSourceContextOverride
+    ): Promise<RoomMediaCounts> {
+        const scope = this.resolveContext(contextOverride);
+        const channelId = this.assertRequiredString(input?.channelId, 'channelId');
+        const storage = this.storage(scope);
+
+        if (storage.canQueryChatMedia?.() && storage.countChatMedia && storage.saveChatMediaEntries) {
+            try {
+                await this.ensureMediaIndexed(storage, channelId, scope);
+                const counts = await storage.countChatMedia(channelId);
+                if (counts) return { ...emptyCounts(), ...counts };
+            } catch (error) {
+                logger.warn('CACHE', 'room media index count failed — counting plain rows instead', { error });
+            }
+        }
+
+        const counts = emptyCounts();
+        for await (const rows of this.scanRoomRows(storage, channelId)) {
+            for (const row of rows) for (const entry of chatMediaEntries(row)) counts[entry.kind] += 1;
+        }
+        return counts;
+    }
+
+    /**
+     * Indexes the messages a room already had cached, once. Their rows are only read: each page's
+     * entries are computed here and handed to `saveChatMediaEntries`, which writes entries and never a
+     * row.
+     *
+     * Rewriting the rows instead would do two kinds of harm. Every store stamps a row's cache time on
+     * save, and the room's page reads that stamp as "the server sent this during this run", so the
+     * room's older blocks would no longer be re-checked. And the copy written back is the one read
+     * here: a delete mark, a delete or a clear that lands in between would be undone. The store's
+     * version check skips every message written since the read — such a write already put the right
+     * entries, an empty list for a deleted message — and every message no longer there.
+     *
+     * A row already at the current version is not sent: its entries came with its write. A row with no
+     * version and no entries is not sent either, since nothing was ever indexed for it to clear.
+     *
+     * The mark is written only after the last page, so a run cut short starts over next time, which
+     * lands on the same result. Concurrent first reads of a room share one run.
+     */
+    private ensureMediaIndexed(storage: CacheStorage<'chat'>, channelId: string, scope: DataContext): Promise<void> {
+        const key = `${this.getScopeKey(scope)}|${channelId}`;
+        const running = this.mediaIndexing.get(key);
+        if (running) return running;
+
+        const run = (async () => {
+            if (await this.mediaIndexMarks.isIndexed(channelId, scope)) return;
+            const startedAt = Date.now();
+            let rowCount = 0;
+            for await (const rows of this.scanRoomRows(storage, channelId)) {
+                rowCount += rows.length;
+                const items: ChatMediaFillItem[] = [];
+                for (const row of rows) {
+                    const version = row.mediaEntriesVersion ?? 0;
+                    if (!row.id || version >= CHAT_MEDIA_ENTRIES_VERSION) continue;
+                    const entries = chatMediaEntries(row);
+                    if (entries.length === 0 && row.mediaEntriesVersion === undefined) continue;
+                    items.push({ chatId: row.id, channelId: row.channelId, chatNo: row.chatNo, entries });
+                }
+                if (items.length > 0) await storage.saveChatMediaEntries?.(items, CHAT_MEDIA_ENTRIES_VERSION);
+            }
+            await this.mediaIndexMarks.markIndexed(channelId, scope);
+            // The cost of a first read lands here once per room, and is what a slow "loading" on the
+            // room's files screen would be explained by.
+            logger.info('CACHE', `indexed room media for ${rowCount} cached row(s)`, {
+                data: { rows: rowCount, ms: Date.now() - startedAt },
+            });
+        })().finally(() => this.mediaIndexing.delete(key));
+        this.mediaIndexing.set(key, run);
+        return run;
+    }
+
+    /**
+     * A room's cached rows, newest page first. Pages by the lowest message number seen, so it walks
+     * the room once whatever order a store returns a page in; unsent rows (number 0) come last and
+     * end the walk.
+     */
+    private async *scanRoomRows(storage: CacheStorage<'chat'>, channelId: string): AsyncGenerator<DomainChat[]> {
+        let cursorNo: number | undefined;
+        for (;;) {
+            const rows = await storage.loadAll({ channelId, cursorNo, limit: MEDIA_SCAN_PAGE } as ChatQueryOptions);
+            if (rows.length === 0) return;
+            yield rows;
+            const lowest = rows.reduce((min, row) => Math.min(min, row.chatNo ?? 0), Number.POSITIVE_INFINITY);
+            if (rows.length < MEDIA_SCAN_PAGE || lowest <= 0) return;
+            cursorNo = lowest;
+        }
+    }
+
+    /**
+     * The media page built from plain rows — for a store with no index (a phone shell built before
+     * it), or a read the index could not answer. The same rules as the index's page: entries of the
+     * kind newest message first, a message never split, and `nextCursorNo` only when another message
+     * with an entry of the kind is cached below.
+     */
+    private async listRoomMediaFromRows(
+        storage: CacheStorage<'chat'>,
+        query: { channelId: string; kind: ChatMediaKind; cursorNo?: number; limit: number }
+    ): Promise<RoomMediaPage> {
+        const items: ChatMediaCacheItem[] = [];
+        let lastNo: number | null = null;
+        let cursorNo = query.cursorNo;
+        for (;;) {
+            const rows = await storage.loadAll({
+                channelId: query.channelId,
+                cursorNo,
+                limit: MEDIA_SCAN_PAGE,
+            } as ChatQueryOptions);
+            const newestFirst = [...rows].sort((a, b) => (b.chatNo ?? 0) - (a.chatNo ?? 0));
+            for (const row of newestFirst) {
+                const entries = mediaItemsOf(row, query.kind);
+                if (entries.length === 0) continue;
+                if (items.length >= query.limit) return { items, nextCursorNo: lastNo };
+                items.push(...entries);
+                lastNo = row.chatNo;
+            }
+            const lowest = rows.reduce((min, row) => Math.min(min, row.chatNo ?? 0), Number.POSITIVE_INFINITY);
+            if (rows.length < MEDIA_SCAN_PAGE || lowest <= 0) return { items, nextCursorNo: null };
+            cursorNo = lowest;
+        }
     }
 
     /** Indexes the fast-path response by channelId — the response guarantees neither requested order nor length. */

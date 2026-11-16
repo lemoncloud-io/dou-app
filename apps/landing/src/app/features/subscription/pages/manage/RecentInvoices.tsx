@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Badge, type BadgeTone } from '../../components/ui';
 import { useInvoices, useSubscriptions } from '../../hooks';
-import { isPortError, useSupports } from '../../lib/port';
+import { useSupports } from '../../lib/port';
 import { splitSubscriptions } from './manageModel';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { ManageFormat } from './useManageFormat';
 import type { Invoice, Subscription } from '../../types';
@@ -35,7 +36,7 @@ export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFor
     if (!supported || (live && live.id !== sub.id)) return null;
 
     const notice = invoices.isError
-        ? t(`subscription.common.error.${isPortError(invoices.error, 'network') ? 'network' : 'unknown'}`)
+        ? t(commonErrorKey(invoices.error))
         : invoices.isLoading
           ? t('subscription.common.loading')
           : recent.length === 0

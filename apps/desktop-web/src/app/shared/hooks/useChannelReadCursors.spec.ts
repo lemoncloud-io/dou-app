@@ -5,7 +5,7 @@ import { renderHook } from '@testing-library/react';
 import type { DomainChannel } from '@chatic/data';
 
 const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, verifiedSlots: new Set<string>() }));
-const registerJoin = vi.fn();
+const registerSyncTarget = vi.fn();
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -17,7 +17,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedSiteId: 'S1' }),
             useUidInCloud: (cid: string) => session.uids[cid] ?? null,
         },
-        sync: { getSyncManager: () => ({ registerJoin }) },
+        sync: { registerSyncTarget: (...args: unknown[]) => registerSyncTarget(...args) },
     },
 }));
 
@@ -29,21 +29,24 @@ const CHANNELS = [
 ] as DomainChannel[];
 
 // Every registration made, and whether it has been disposed since.
-let registrations: { id: string; cid?: string; disposed: boolean }[] = [];
-const liveJoins = () => registrations.filter(entry => !entry.disposed).map(entry => [entry.id, entry.cid]);
+let registrations: { type: string; id: string; cid?: string; disposed: boolean }[] = [];
+const liveJoins = () =>
+    registrations.filter(entry => entry.type === 'join' && !entry.disposed).map(entry => [entry.id, entry.cid]);
 
 describe('useChannelReadCursors', () => {
     beforeEach(() => {
         session.uids = { 'cloud-a': 'uid-a', default: 'relay-uid' };
         session.verifiedSlots = new Set(['cloud-a']);
         registrations = [];
-        registerJoin.mockReset().mockImplementation((id: string, _intervalMs?: number, options?: { cid?: string }) => {
-            const entry = { id, cid: options?.cid, disposed: false };
-            registrations.push(entry);
-            return () => {
-                entry.disposed = true;
-            };
-        });
+        registerSyncTarget
+            .mockReset()
+            .mockImplementation((target: { type: string; id: string }, options?: { cid?: string }) => {
+                const entry = { type: target.type, id: target.id, cid: options?.cid, disposed: false };
+                registrations.push(entry);
+                return () => {
+                    entry.disposed = true;
+                };
+            });
     });
 
     it('registers my join per channel in the channels cloud, with my uid in that cloud', () => {
@@ -71,7 +74,7 @@ describe('useChannelReadCursors', () => {
         session.verifiedSlots = new Set(['default']);
         renderHook(() => useChannelReadCursors(CHANNELS));
 
-        expect(registerJoin).not.toHaveBeenCalled();
+        expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
     it('addresses relay channels (no cloud id) to the relay with the relay uid', () => {

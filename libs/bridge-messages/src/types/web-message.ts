@@ -46,6 +46,9 @@ import type {
     SavePreferencePayload,
     SaveTestRecordPayload,
     SearchGlobalCacheDataPayload,
+    FetchChatMediaCacheDataPayload,
+    CountChatMediaCacheDataPayload,
+    SaveChatMediaCacheDataPayload,
     SendLogPayload,
     SendSmsPayload,
     SetBadgeCountPayload,
@@ -115,6 +118,12 @@ import type {
     SetDebugModePayload,
     StartPerfTracePayload,
     StopPerfTracePayload,
+    RuntimeCallPayload,
+    RuntimeHelloPayload,
+    RuntimeSubscribePayload,
+    RuntimeUnsubscribePayload,
+    FetchSessionOwnerPayload,
+    SetSessionOwnerPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -206,6 +215,9 @@ export type WebMessagePayloadMap = {
     ClearCacheData: ClearCacheDataPayload;
     ClearCacheDataByChannel: ClearCacheDataByChannelPayload;
     SearchGlobalCacheData: SearchGlobalCacheDataPayload;
+    FetchChatMediaCacheData: FetchChatMediaCacheDataPayload;
+    CountChatMediaCacheData: CountChatMediaCacheDataPayload;
+    SaveChatMediaCacheData: SaveChatMediaCacheDataPayload;
 
     // 5. Preference
     FetchPreference: FetchPreferencePayload;
@@ -279,6 +291,15 @@ export type WebMessagePayloadMap = {
     GetSubWebViewStorageInfo: GetSubWebViewStorageInfoPayload;
     GetSubWebViewPermission: GetSubWebViewPermissionPayload;
     RequestSubWebViewPermission: RequestSubWebViewPermissionPayload;
+    // 12. Runtime. The main web's conversation with a shell that owns the session; asked only of a
+    // shell that offered it in `window.CHATIC_APP_RUNTIME`.
+    RuntimeHello: RuntimeHelloPayload;
+    RuntimeCall: RuntimeCallPayload;
+    RuntimeSubscribe: RuntimeSubscribePayload;
+    RuntimeUnsubscribe: RuntimeUnsubscribePayload;
+    // 13. Session owner. A development switch, answered only by a non-production shell.
+    FetchSessionOwner: FetchSessionOwnerPayload;
+    SetSessionOwner: SetSessionOwnerPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */

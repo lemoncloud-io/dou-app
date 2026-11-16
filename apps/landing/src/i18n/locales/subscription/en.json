@@ -45,6 +45,7 @@
             "loading": "Loading…",
             "error": {
                 "network": "The connection is unstable. Please try again shortly.",
+                "notAllowed": "This account can't subscribe. Please contact us.",
                 "unknown": "Something went wrong. Please try again."
             },
             "paymentWindow": {
@@ -326,6 +327,10 @@
                 "currency": {
                     "KRW": "You pay in Korean won (₩).",
                     "USD": "You pay in US dollars ($)."
+                },
+                "outsideKorea": {
+                    "title": "Paying from outside Korea is not available yet",
+                    "body": "For now you can subscribe only with South Korea as the billing country."
                 },
                 "payerTitle": "② Payer"
             },

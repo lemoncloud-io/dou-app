@@ -108,7 +108,7 @@ export interface PhoneVerifyFieldsState {
 
 /** The submit CTA. Shells place it differently (pinned vs sheet footer) but wire it identically. */
 export interface PhoneVerifySubmitState {
-    /** A committed `$token` is waiting — the button retries the SWITCH, never the consumed check. */
+    /** A confirmed login is waiting in the runtime — the button retries the SWITCH, never the consumed check. */
     isRetry: boolean;
     disabled: boolean;
     loading: boolean;
@@ -126,9 +126,9 @@ export interface PhoneVerifyController {
  * section all drive it.
  *
  * **The two modes end differently, so they take different routes through the packet's steps.**
- * - `login` — confirming IS a login. The response carries `$token`, and `runtime.session.applySessionToken` pushes
- *   that identity into web-core and the live relay socket BEFORE `onVerified` fires, so the caller can
- *   immediately `invite.create`/`invite.accept` without a 403. `verify` is skipped: it would only
+ * - `login` — confirming IS a login. `runtime.session.confirmPhoneLogin` proves the code and switches the
+ *   session and the live relay socket to the account BEFORE `onVerified` fires, so the caller can
+ *   immediately `invite.create`/`invite.accept` without a 403. The session token stays in the runtime. `verify` is skipped: it would only
  *   report that the code is valid, which `confirm` already proves (ADR-0042 §4).
  * - `link` — confirming hangs the number on the session that is already a main user. No token comes
  *   back. Here `verify` runs FIRST, because it is the only step that will say confirming is blocked
@@ -168,9 +168,9 @@ export const usePhoneVerify = ({
     const [resendCount, setResendCount] = useState(0);
     const [limit, setLimit] = useState<PhoneVerifyLimit | null>(null);
     const [loadingState, setLoadingState] = useState<LoadingState>('idle');
-    // The $token of a successful check, kept until runtime.session.applySessionToken succeeds: the OTP is consumed
-    // by then, so a failed session switch retries the SWITCH, never the check.
-    const [pendingToken, setPendingToken] = useState<unknown>(null);
+    // A login confirm went through but the session did not switch. The runtime keeps the token; the OTP
+    // is spent by then, so the CTA retries the SWITCH (`retryPhoneLogin`), never the check.
+    const [awaitingSwitch, setAwaitingSwitch] = useState(false);
     // `link` mode only: the verify step came back linkable, so the CTA may commit. Login mode never
     // sets this — it confirms straight from the code field.
     const [linkVerified, setLinkVerified] = useState(false);
@@ -338,21 +338,18 @@ export const usePhoneVerify = ({
         }
     };
 
-    /** Applies a check-issued `$token`; kept separate so a failed switch is retryable on its own. */
-    const applyToken = async (token: unknown) => {
-        try {
-            await runtime.session.applySessionToken(token);
-            setPendingToken(null);
-            toast({ title: t('phoneVerify.verified') });
-            onVerified();
-        } catch (error) {
-            // Verified but the session did not switch — the one failure in this file that used to
-            // leave no trace, and the exact shape of "authenticated yet not signed in".
-            logger.error('AUTH', '[usePhoneVerify] session switch failed after verification', { error });
-            setPendingToken(token);
-            setOtpError(t('phoneVerify.sessionSwitchFailed'));
-            setLoadingState('idle');
-        }
+    /** The account is signed in on this device: say so and hand over. */
+    const signedIn = () => {
+        setAwaitingSwitch(false);
+        toast({ title: t('phoneVerify.verified') });
+        onVerified();
+    };
+
+    /** The code was spent and the account signed in on the server, but this device did not switch. */
+    const switchFailed = () => {
+        setAwaitingSwitch(true);
+        setOtpError(t('phoneVerify.sessionSwitchFailed'));
+        setLoadingState('idle');
     };
 
     /**
@@ -420,16 +417,28 @@ export const usePhoneVerify = ({
         setLoadingState('verifying');
         setOtpError('');
         try {
-            const result = await confirm(sentWith.phone, code, { mode, countryCode: sentWith.country });
+            if (mode === 'login') {
+                // The check and the session switch as one step; the token never comes back here.
+                await runtime.session.confirmPhoneLogin(sentWith.phone, code, { countryCode: sentWith.country });
+            } else {
+                // `link` hangs the number on the session that is already a main user; nothing to switch.
+                await confirm(sentWith.phone, code, { mode, countryCode: sentWith.country });
+            }
             logger.info('AUTH', '[usePhoneVerify] phone verification confirmed', { mode });
-            // A token only ever rides on the login-mode confirm; `link` leaves the session alone.
-            if ('$token' in result && result.$token) {
-                await applyToken(result.$token);
+            signedIn();
+        } catch (error) {
+            const failure = (error as { code?: unknown } | null)?.code;
+            if (failure === runtime.session.PHONE_LOGIN_SWITCH_FAILED) {
+                // Verified but the session did not switch — logged where the switch failed.
+                switchFailed();
                 return;
             }
-            toast({ title: t('phoneVerify.verified') });
-            onVerified();
-        } catch (error) {
+            if (failure === runtime.session.PHONE_LOGIN_NO_TOKEN) {
+                logger.error('AUTH', '[usePhoneVerify] login confirm came back without a session token', { error });
+                toast({ title: t('phoneVerify.verifyFailed'), variant: 'destructive' });
+                setLoadingState('idle');
+                return;
+            }
             // In `link` mode we only get here after a verify vouched for this code, so read a 403 as
             // `type-linked` rather than a wrong OTP.
             reportProveError(error, { vouched: mode === 'link' && linkVerified });
@@ -437,11 +446,26 @@ export const usePhoneVerify = ({
     };
 
     const handleRetrySessionSwitch = async () => {
-        if (!pendingToken) return;
+        if (!awaitingSwitch) return;
         setLoadingState('verifying');
         setOtpError('');
-        await applyToken(pendingToken);
+        try {
+            await runtime.session.retryPhoneLogin();
+            signedIn();
+        } catch (error) {
+            if ((error as { code?: unknown } | null)?.code === runtime.session.PHONE_LOGIN_NOTHING_PENDING) {
+                // Nothing left to finish (a newer confirm replaced it): back to the code, which a resend renews.
+                setAwaitingSwitch(false);
+                setOtpError(t('phoneVerify.verifyFailed'));
+                setLoadingState('idle');
+                return;
+            }
+            switchFailed();
+        }
     };
+
+    // A token the runtime keeps for a retry is not left behind when the screen closes.
+    useEffect(() => () => runtime.session.cancelPhoneLogin(), []);
 
     const handleOtpChange = (value: string) => {
         setOtp(value.replace(/\D/g, '').slice(0, VERIFICATION_CODE_LENGTH));
@@ -462,7 +486,7 @@ export const usePhoneVerify = ({
     const submittedOtpRef = useRef<string | null>(null);
     useEffect(() => {
         if (otp.length !== VERIFICATION_CODE_LENGTH) return;
-        if (isExpired || pendingToken || submittedOtpRef.current === otp) return;
+        if (isExpired || awaitingSwitch || submittedOtpRef.current === otp) return;
         submittedOtpRef.current = otp;
         void (mode === 'link' ? handleVerifyStep() : handleConfirm());
     }, [otp]);
@@ -492,7 +516,7 @@ export const usePhoneVerify = ({
     };
 
     const handleSubmit = () => {
-        if (pendingToken) return void handleRetrySessionSwitch();
+        if (awaitingSwitch) return void handleRetrySessionSwitch();
         if (mode === 'link' && !linkVerified) return void handleVerifyStep();
         void handleConfirm();
     };
@@ -526,12 +550,12 @@ export const usePhoneVerify = ({
             devSlack,
             onDevSlackChange: setDevSlack,
             // Enabled only once a code is outstanding — see handleDevBypass.
-            canDevBypass: codeSent && !isBusy && !pendingToken,
+            canDevBypass: codeSent && !isBusy && !awaitingSwitch,
             onDevBypass: () => void handleDevBypass(),
         },
         submit: {
-            isRetry: !!pendingToken,
-            disabled: pendingToken ? isBusy : !isCodeComplete || isBusy || isExpired,
+            isRetry: awaitingSwitch,
+            disabled: awaitingSwitch ? isBusy : !isCodeComplete || isBusy || isExpired,
             loading: loadingState === 'verifying',
             onSubmit: handleSubmit,
         },

@@ -18,17 +18,13 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'default',
-            getSocketManager: () => ({
-                getScopedClient: () => ({
-                    onType: (_type: string, listener: (message: { data: unknown }) => void) => {
-                        joinListeners.add(listener);
-                        return () => {
-                            unsubscribeJoin();
-                            joinListeners.delete(listener);
-                        };
-                    },
-                }),
-            }),
+            onServerEvent: (_type: string, listener: (message: { data: unknown }) => void) => {
+                joinListeners.add(listener);
+                return () => {
+                    unsubscribeJoin();
+                    joinListeners.delete(listener);
+                };
+            },
         },
     },
 }));

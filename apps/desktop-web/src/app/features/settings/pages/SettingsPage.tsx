@@ -177,8 +177,11 @@ export const SettingsPage = () => {
                                       })}
                             </p>
                         )}
-                        <QuietHoursMentionSection />
                     </SettingsSwitchRow>
+
+                    {/* Its own row, not a child of the quiet-hours row: nested there its switch
+                        stopped short of the column the other switches share. */}
+                    <QuietHoursMentionSection />
                 </SettingsRowGroup>
 
                 {/* The sidebar owned the only snooze control; the section that owns

@@ -1,6 +1,29 @@
 /** An inclusive run of chat numbers, `[low, high]`. */
 export type FeedRange = readonly [low: number, high: number];
 
+/** No range answered for. One array, so a channel with nothing covered reads the same value each time. */
+const NOTHING_COVERED: readonly FeedRange[] = Object.freeze([]);
+
+/**
+ * The parts of `[low, high]` that `covered` — answered-for ranges, oldest first, merged — leaves out,
+ * oldest first. Pure, so a reader holding a channel's ranges (`observeFeedCoverage`) asks it without
+ * reaching the record.
+ */
+export const uncoveredIn = (covered: readonly FeedRange[], low: number, high: number): FeedRange[] => {
+    if (high < low) return [];
+    const gaps: FeedRange[] = [];
+    let cursor = low;
+    for (const [rangeLow, rangeHigh] of covered) {
+        if (rangeHigh < cursor) continue;
+        if (rangeLow > high) break;
+        if (rangeLow > cursor) gaps.push([cursor, rangeLow - 1]);
+        cursor = Math.max(cursor, rangeHigh + 1);
+        if (cursor > high) break;
+    }
+    if (cursor <= high) gaps.push([cursor, high]);
+    return gaps;
+};
+
 /**
  * The chat-number ranges of each channel the server has answered for in full, kept for the life of
  * the page (the app run).
@@ -17,7 +40,33 @@ export type FeedRange = readonly [low: number, high: number];
  * the device was away.
  */
 export class FeedCoverage {
-    private readonly ranges = new Map<string, FeedRange[]>();
+    private readonly ranges = new Map<string, readonly FeedRange[]>();
+    private readonly listeners = new Map<string, Set<(covered: readonly FeedRange[]) => void>>();
+
+    /**
+     * The ranges recorded under `key`, oldest first and merged. The same array until they change, so a
+     * reader can compare it by identity.
+     */
+    covered(key: string): readonly FeedRange[] {
+        return this.ranges.get(key) ?? NOTHING_COVERED;
+    }
+
+    /** Hears each change of `key`'s ranges, with the ranges after it. Returns the unsubscribe. */
+    subscribe(key: string, listener: (covered: readonly FeedRange[]) => void): () => void {
+        const listeners = this.listeners.get(key) ?? new Set();
+        this.listeners.set(key, listeners);
+        listeners.add(listener);
+        return () => {
+            listeners.delete(listener);
+            // A second call after the set emptied must not drop a later subscriber's set for the key.
+            if (listeners.size === 0 && this.listeners.get(key) === listeners) this.listeners.delete(key);
+        };
+    }
+
+    private notify(key: string): void {
+        const covered = this.covered(key);
+        this.listeners.get(key)?.forEach(listener => listener(covered));
+    }
 
     /** Records `[low, high]` as answered for. Overlapping and touching ranges merge. */
     add(key: string, low: number, high: number): void {
@@ -30,23 +79,18 @@ export class FeedCoverage {
         }
         merged.push(next);
         merged.sort((a, b) => a[0] - b[0]);
+        const previous = this.covered(key);
+        // A range already inside what was recorded changes nothing, and tells no one.
+        if (merged.length === previous.length && merged.every((range, index) => sameRange(range, previous[index]))) {
+            return;
+        }
         this.ranges.set(key, merged);
+        this.notify(key);
     }
 
     /** The parts of `[low, high]` not yet answered for, oldest first. */
     uncovered(key: string, low: number, high: number): FeedRange[] {
-        if (high < low) return [];
-        const gaps: FeedRange[] = [];
-        let cursor = low;
-        for (const [rangeLow, rangeHigh] of this.ranges.get(key) ?? []) {
-            if (rangeHigh < cursor) continue;
-            if (rangeLow > high) break;
-            if (rangeLow > cursor) gaps.push([cursor, rangeLow - 1]);
-            cursor = Math.max(cursor, rangeHigh + 1);
-            if (cursor > high) break;
-        }
-        if (cursor <= high) gaps.push([cursor, high]);
-        return gaps;
+        return uncoveredIn(this.covered(key), low, high);
     }
 
     /**
@@ -55,13 +99,21 @@ export class FeedCoverage {
      * no re-check — for the rest of the run.
      */
     forget(matches: (key: string) => boolean): void {
-        for (const key of [...this.ranges.keys()]) if (matches(key)) this.ranges.delete(key);
+        for (const key of [...this.ranges.keys()]) {
+            if (!matches(key)) continue;
+            this.ranges.delete(key);
+            this.notify(key);
+        }
     }
 
     clear(): void {
+        const keys = [...this.ranges.keys()];
         this.ranges.clear();
+        keys.forEach(key => this.notify(key));
     }
 }
+
+const sameRange = (a: FeedRange, b: FeedRange | undefined): boolean => !!b && a[0] === b[0] && a[1] === b[1];
 
 /**
  * The one record for the page. Repositories are built per scope and may be rebuilt on a cloud switch;

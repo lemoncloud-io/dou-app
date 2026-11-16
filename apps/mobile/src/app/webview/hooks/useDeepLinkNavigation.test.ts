@@ -349,6 +349,41 @@ describe('useDeepLinkNavigation', () => {
             expect(bridge.pushEvent).toHaveBeenCalledTimes(1);
         });
 
+        // The app restarted its own JS context: the OS still reports the link and tap that launched
+        // the process, and the previous context already took them.
+        it('skips both cold-start lookups when the app restarted itself', async () => {
+            mockGetInitialUrl = 'chatic://channels/1/room';
+            mockGetInitialResult = { data: { link: '/channels/1/room' } };
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room' });
+            (deeplinkService.resolvePushTap as jest.Mock).mockReturnValue('/channels/1/room?cid=cloud_1');
+
+            renderHook(() => useDeepLinkNavigation(bridge as any, { skipColdStart: true }));
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(deeplinkService.getInitialUrl).not.toHaveBeenCalled();
+            expect(notificationService.getInitialNotification).not.toHaveBeenCalled();
+            expect(bridge.pushEvent).not.toHaveBeenCalled();
+        });
+
+        it('still follows a warm link after a restart that skipped the cold start', () => {
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/2/room' });
+            renderHook(() => useDeepLinkNavigation(bridge as any, { skipColdStart: true }));
+
+            act(() => {
+                mockCapturedSubscribe?.('chatic://channels/2/room');
+            });
+
+            expect(bridge.pushEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'OnNavigate',
+                    data: expect.objectContaining({ path: '/channels/2/room' }),
+                })
+            );
+        });
+
         it('retries a cold-start native route until the navigator is ready', async () => {
             jest.useFakeTimers();
             try {

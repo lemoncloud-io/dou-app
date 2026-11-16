@@ -170,7 +170,7 @@ sequenceDiagram
         W->>W: flushBuffer() → dispatchRequest() → timeoutMs starts HERE (held while the page is hidden)
         W->>A: postMessage(JSON)
         A->>H: handleMessage(string)
-        Note over H: first non-SendLog message marks the web ready<br/>and flushes the host's own event buffer
+        Note over H: first message that is not a boot-time one (SendLog, storage, the runtime requests)<br/>marks the web ready and flushes the host's own event buffer
         H->>N: handler(message)
         N-->>H: { type: 'OnFetchBadgeCount', success: true, data }
         H->>A: re-attach the request's refId and version, encode, sendToWeb
@@ -199,10 +199,14 @@ batch in a plain browser.
 | Teardown       | `destroy()` clears timers, unsubscribes, rejects pending with `DESTROYED` | none; the shell drops the instance                         |
 
 The asymmetry in the "buffers until" row is the subtle one. The host has no readiness signal to wait
-for, so it treats **any** inbound message as proof the web is listening — except `SendLog`, because
-the web logger relays from the earliest module-evaluation phase, long before the page can receive
-events. Counting a log relay as readiness would flush buffered events (a cold-start `OnNavigate`, for
-instance) into a page with no listeners, where they vanish.
+for, so it treats **any** inbound message as proof the web is listening — except the ones a page
+sends before it can listen: `SendLog`, because the web logger relays from the earliest
+module-evaluation phase; the storage requests (`StorageGet`, `StorageSave`, `StorageClear`), because
+the web loads the device vault before its runtime boots; and the runtime requests (`RuntimeHello`,
+`RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`), because a page asks a shell that owns the
+session for the handshake at the same point and its runtime calls and subscribes while it boots. Counting any of them as readiness would flush
+buffered events (a cold-start `OnNavigate`, for instance) into a page with no listeners, where they
+vanish.
 
 ### The channel
 
@@ -371,7 +375,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.22.0')
+       ├─ version  BRIDGE_VERSION ('2.25.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -400,7 +404,7 @@ the web as legacy. The sub WebView's host passes the other two options: `subWebV
 the handshake reports as `subWebView`, read when the reply is built, and `maxMessageLength`, past
 which a message is answered `TOO_LARGE` (as an `ERROR`, with its `refId`) without reaching a handler.
 It still counts as the page's first message and releases held pushes. The main hosts set no limit. The negotiation those fields feed is
-[`app-runtime`'s](../app-runtime/docs/data/README.md).
+[`runtime-web`'s](../runtime-web/docs/cache/README.md).
 
 ## Scenarios
 
@@ -567,7 +571,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.22.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.25.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

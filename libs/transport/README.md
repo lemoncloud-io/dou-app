@@ -7,14 +7,15 @@ and knows when the signing credential has lapsed. It was cut out of `@chatic/app
 above `@chatic/session` (ADR-0253): it reads the session, and nothing in app-runtime.
 
 Which slots should exist, who logs a slot in, and what a cloud switch does are not here. Those are
-app-runtime's — the React host and the binders in its `connection/` — and the authentication wiring
+runtime-core's — the connection controller, which app-runtime's host starts — and the authentication wiring
 and the sync runtimes are [`@chatic/auth`](../auth/README.md)'s and [`@chatic/sync`](../sync/README.md)'s.
 
 ## Who imports it
 
 `@chatic/app-runtime` and the modules cut from it that sit above this one. **Apps do not**: they reach sockets and HTTP
-through `runtime` — `runtime.connection.getSocketManager()`, `runtime.boot.webTransport`,
-`runtime.session.authFailureReaction` — which publishes the parts an app is meant to hold.
+through `runtime` — the sockets as `runtime.connection` reads and drives them through the engine,
+`runtime.boot.webTransport`, `runtime.session.authFailureReaction` — which publishes the parts an app is
+meant to hold. The socket manager itself is not among them.
 
 Production code imports the barrel only. A test in app-runtime may name a file —
 `jest.mock('@chatic/transport/socket/runtime', …)` — because a mock has to replace the module every
@@ -61,15 +62,15 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    them (`TransportPlatformPorts`, in [`platform.ts`](./src/platform.ts)) and the runtime's assembly
    hands them over before the first socket:
 
-    | Port           | Read by                                                                     | In a web page (`@chatic/runtime-web`)                     |
-    | -------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
-    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips | `navigator.onLine` and the window's online/offline events |
-    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`  | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
-    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                | `new WebSocket(url, protocols)`                           |
+    | Port           | Read by                                                                                                                    | In a web page (`@chatic/runtime-web`)                     | In React Native (`@chatic/runtime-mobile`)                                             |
+    | -------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict, the offline skips and runtime-core's connection snapshot (`online`) | `navigator.onLine` and the window's online/offline events | NetInfo's `isConnected`, online until it reports and when it cannot tell               |
+    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`; auth's socket signature, for its user agent    | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    | `Platform.OS` and the user agent the app passes in                                     |
+    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                                                               | `new WebSocket(url, protocols)`                           | `new WebSocket(url, protocols, { headers: { 'User-Agent': … } })` with that user agent |
 
-    Used before it is configured, `transportPlatform.ports()` throws and names `initAppRuntime`. A
+    Used before it is configured, `transportPlatform.ports()` throws and names `createRuntime`. A
     page's `WebSocket` and `navigator` do not exist in a native process, or answer wrongly there —
-    React Native's `WebSocket` sends no User-Agent, and the server checks a refreshed token against the
+    React Native's `WebSocket` does not send the app's User-Agent, and the server checks a refreshed token against the
     handshake's — so a fallback would hide the missing wiring until a device. What a port answers is
     data; what it means stays here (the platform and label in `devicePlatform.ts`, the link rule in
     `linkState.ts`).
@@ -81,6 +82,10 @@ failure reporter, the error-code ledger and `annotateSocketError`.
     failure to the server while the device is offline. It sits under transport, so it cannot read this
     port; outside a page it answers "not offline" and only loses that attribution. Tests configure
     `fakeTransportPorts()` from `testing/platform.ts` (a test may name that file by path).
+
+7. **Nothing here reads a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in
+   `tsconfig.lib.json`) and the root lint refuses the page's globals, because it runs in the native
+   process too; what the platform answers comes through rule 6's ports.
 
 ## Documents
 

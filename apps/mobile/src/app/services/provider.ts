@@ -1,11 +1,17 @@
 import type { ILogService } from './log';
 import { LogService, LogUploadQueueService } from './log';
 import { createConsoleListener, logHub } from '@chatic/logger';
-import { FanOutPerfTraceBackend, PipelinePerfTraceBackend, configurePerfTraces } from '@chatic/perf';
+import {
+    FanOutPerfTraceBackend,
+    PipelinePerfTraceBackend,
+    SESSION_OWNER_ATTRIBUTE,
+    configurePerfTraces,
+} from '@chatic/perf';
 // Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
-import { attachNativeLogContext, readNativeLogContext } from './log/native/nativeLogContext';
+import { attachNativeLogContext, readNativeLogContext, setLogSessionOwnerSource } from './log/native/nativeLogContext';
+import { launchSessionOwner, settledSessionOwner } from './runtime/launchSessionOwner';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -139,11 +145,18 @@ class DependencyProvider {
         this.perfTraceBackend = new FirebasePerfTraceBackend();
         // Native traces also go to the log pipeline, into this app's own upload queue, unjudged — the
         // web uploader decides on sampling when it draws them. Firebase receives what it always has.
+        // The pipeline's copy says which side holds the session this launch, on the traces the
+        // catalog compares between the two (the boot among them), read when each one ends: the owner
+        // the page actually runs on, so a launch set to the app's runtime that failed to start it is
+        // counted with the page's. The boot ends at WebAppReady, which the page sends once settled.
         const nativeTelemetryRecorder = createNativeTelemetryRecorder({ context: readNativeLogContext });
         configurePerfTraces(
             new FanOutPerfTraceBackend([
                 this.perfTraceBackend,
-                new PipelinePerfTraceBackend(() => nativeTelemetryRecorder),
+                new PipelinePerfTraceBackend(
+                    () => nativeTelemetryRecorder,
+                    () => ({ [SESSION_OWNER_ATTRIBUTE]: settledSessionOwner() })
+                ),
             ])
         );
         // Constructed first after that, so its baseline sits as close to JS entry as possible.
@@ -188,6 +201,8 @@ class DependencyProvider {
         // Context first: it is stamped at dispatch, so anything logged before
         // this would carry no runId and be unattributable to this app run.
         attachNativeLogContext();
+        // Which side holds the session this launch, on every entry from here on.
+        setLogSessionOwnerSource(launchSessionOwner);
         // The hub's listeners, wired before anything logs (principle 15). The app
         // keeps three: the console, the store, and Crashlytics (below).
         //

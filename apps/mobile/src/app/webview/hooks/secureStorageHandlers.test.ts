@@ -99,4 +99,63 @@ describe('createSecureStorageHandlers', () => {
         expect(reply).toEqual(expect.objectContaining({ type: 'OnStorageSave', success: false }));
         expect(vault.save).not.toHaveBeenCalled();
     });
+
+    describe("once the app's runtime holds the session", () => {
+        it('answers StorageGet as an unavailable vault, without reading it', async () => {
+            const vault = createVault();
+            const { handleStorageGet } = createSecureStorageHandlers(vault, logger, { ownsSession: () => true });
+
+            await expect(handleStorageGet(request('StorageGet', { medium: 'nativeSecure' }))).resolves.toEqual({
+                type: 'OnStorageGet',
+                success: true,
+                data: { status: 'unavailable', reason: 'error', values: {} },
+            });
+            expect(vault.get).not.toHaveBeenCalled();
+        });
+
+        it('answers StorageSave and StorageClear with ok: false, leaving the session as it is', async () => {
+            const vault = createVault();
+            const { handleStorageSave, handleStorageClear } = createSecureStorageHandlers(vault, logger, {
+                ownsSession: () => true,
+            });
+
+            await expect(
+                handleStorageSave(
+                    request('StorageSave', { medium: 'nativeSecure', set: { 'chatic-relay-token': 'x' }, remove: [] })
+                )
+            ).resolves.toEqual({ type: 'OnStorageSave', success: true, data: { ok: false } });
+            await expect(handleStorageClear(request('StorageClear', { medium: 'nativeSecure' }))).resolves.toEqual({
+                type: 'OnStorageClear',
+                success: true,
+                data: { ok: false },
+            });
+            expect(vault.save).not.toHaveBeenCalled();
+            expect(vault.clear).not.toHaveBeenCalled();
+        });
+
+        it('logs a refusal once per kind of message, however often the page asks', async () => {
+            const vault = createVault();
+            const warn = jest.fn();
+            const { handleStorageGet } = createSecureStorageHandlers(vault, { ...logger, warn } as ILogService, {
+                ownsSession: () => true,
+            });
+
+            await handleStorageGet(request('StorageGet', { medium: 'nativeSecure' }));
+            await handleStorageGet(request('StorageGet', { medium: 'nativeSecure' }));
+
+            expect(warn).toHaveBeenCalledTimes(1);
+        });
+
+        it('reads the flag on each message, so the switch applies without new handlers', async () => {
+            const vault = createVault();
+            let owns = false;
+            const { handleStorageGet } = createSecureStorageHandlers(vault, logger, { ownsSession: () => owns });
+
+            await handleStorageGet(request('StorageGet', { medium: 'nativeSecure' }));
+            owns = true;
+            await handleStorageGet(request('StorageGet', { medium: 'nativeSecure' }));
+
+            expect(vault.get).toHaveBeenCalledTimes(1);
+        });
+    });
 });

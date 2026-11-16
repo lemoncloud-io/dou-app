@@ -95,6 +95,8 @@ interface MessageRowProps {
     canRetry?: (message: DomainChat) => boolean;
     /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
+    /** Stops an attachment message's send while it uploads ("cancel upload"). */
+    onCancelUpload?: (message: DomainChat) => void;
     /** Folded reactions for the whole feed, keyed by message id. */
     reactions?: ReadonlyMap<string, ReactionTally[]>;
     /** Resolves a reactor's display name for the chip's label. */
@@ -103,6 +105,8 @@ interface MessageRowProps {
     threadMeta?: ReadonlyMap<string, ThreadMetaView>;
     /** Open the thread for a root id. Absent inside the thread panel (no nested replies). */
     onOpenThread?: (rootId: string) => void;
+    /** Takes the channel's feed to a message ("Show in chat"). Only the channel's own feed passes it. */
+    onShowMessage?: (message: DomainChat) => void;
     /** Lowercased names that count as "me" in a message — my mentions render highlighted. */
     selfNamesOf?: (message: DomainChat) => string[];
     /** Resolves an @mention to a member, so the mention opens their profile. */
@@ -221,10 +225,12 @@ export const MessageRow = memo(
         onRetry,
         canRetry,
         onDiscard,
+        onCancelUpload,
         reactions,
         reactorName,
         threadMeta,
         onOpenThread,
+        onShowMessage,
         selfNamesOf,
         resolveMention,
         mentionables,
@@ -644,7 +650,15 @@ export const MessageRow = memo(
                                     )}
                                     {/* Videos and documents under the images; the grid and viewer take images only. */}
                                     {message.id && !message.hidden && !isEditing && (
-                                        <MessageFiles message={message} author={author} />
+                                        <MessageFiles
+                                            message={message}
+                                            author={author}
+                                            canDelete={group.isMine}
+                                            onDeleteMessage={() => message.id && deleteMessage(message.id)}
+                                            onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
+                                            onShowInChat={onShowMessage && (() => onShowMessage(message))}
+                                            onCancelUpload={onCancelUpload && (() => onCancelUpload(message))}
+                                        />
                                     )}
                                     {/* `failure &&` first: an unsent message has no id, and
                                         `undefined === undefined` drew this line with no failure. */}

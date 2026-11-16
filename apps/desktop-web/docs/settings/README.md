@@ -1,7 +1,8 @@
 # settings
 
 The Settings page (`src/app/features/settings/`): notifications, the mini apps and the About section,
-with the Account entries on top. Appearance and language are not on the page; they live in the popup below.
+with the Account entries on top. Its notification controls are this device's own; one level for a whole place or cloud
+is set from that place's or cloud's settings ([notifications](../chat/notifications.md#place-and-cloud-levels)). Appearance and language are not on the page; they live in the popup below.
 
 In the desktop app, where device pairing is on and the session did not itself come from a pairing,
 the Account entry is followed by **Approve web sign-in**, which opens the approval screen
@@ -92,7 +93,9 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
   desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
   shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
-  has no owner and no mini apps.
+  has no owner and no mini apps. It is also hidden on production: mini apps are not released there
+  yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV` (a build with no stage hides it
+  too).
 - **Open mini apps.** Everyone in the cloud gets this one row, and it always opens DoU's hub
   (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise). The hub is the
   way in: it lists the cloud's mini apps and, when one is chosen, closes with

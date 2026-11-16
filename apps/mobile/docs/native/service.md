@@ -7,7 +7,7 @@ they look only downward" — `services/` imports nothing from `webview/` or `fea
 
 ## Layout
 
-21 domains, each shaped the same way:
+23 domains, each shaped the same way:
 
 ```text
 services/<domain>/

@@ -1,0 +1,32 @@
+// connection/types.ts — the socket slots the controller derives and the binders consume.
+
+import type { SocketBindingConfig } from '@chatic/transport';
+
+/** One socket slot's binding config (undefined when that slot is gated off). */
+export interface RuntimeSocketSlot {
+    config: SocketBindingConfig;
+    /**
+     * This slot's server identity token. Deliberately OUTSIDE `config` (which drives SocketBinder's
+     * reboot key) so a token swap does not reboot the socket — SocketReauthBinder watches this
+     * per-slot to re-authenticate the RIGHT socket even when it is not the active one (§6-3, §6-7).
+     */
+    identityToken?: string;
+}
+
+/**
+ * Relay is always-on (once a relay token exists), cloud is present only while a cloud session is
+ * committed, and `background` holds one slot for each other cloud the account belongs to, up to the
+ * cap (the transport's `socket/backgroundClouds`). SocketBinder reconciles every slot and the active pointer in one
+ * pass; only `cloud` is ever made active.
+ *
+ * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache
+ * scope. No production code read it: `deriveSelectedContext` derives that formula and consumers read
+ * it from the store, so the field was a duplicate that could only agree or silently
+ * disagree. What is left is exactly the socket slots, which is what the name now says.
+ */
+export interface RuntimeSocketSlots {
+    relay?: RuntimeSocketSlot;
+    cloud?: RuntimeSocketSlot;
+    /** Optional so a test handing the binder its slots can leave it out. */
+    background?: RuntimeSocketSlot[];
+}

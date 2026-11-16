@@ -11,8 +11,13 @@
 > · Amends: [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) decision 1 — a cloud a
 > write is in flight to keeps its slot outside the cap · decision 5 — going home does not sign off a
 > cloud a write is in flight to
-> · The module docs are [libs/app-runtime/docs/data](../../libs/app-runtime/docs/data/README.md#writes-addressed-to-a-cloud)
-> and [docs/socket](../../libs/app-runtime/docs/connection/README.md#holding-a-slot-for-a-write)
+> · The module docs are [libs/runtime-core/docs/data](../../libs/runtime-core/docs/data/README.md#writes-addressed-to-a-cloud)
+> and [docs/socket](../../libs/runtime-core/docs/connection/README.md#holding-a-slot-for-a-write)
+>
+> **Amended by [ADR-0313](./0313-a-media-send-holds-its-cloud-through-the-engine-and-uploads-from-the-page.md)
+> (2026-11-15):** the image send no longer runs inside `runInCloud`. It holds its cloud through the
+> engine's `data.holdCloud` and makes each request on the cloud's graph, so it can run in a page that
+> mirrors a runtime in another process; the hold itself is unchanged.
 
 ## Context
 

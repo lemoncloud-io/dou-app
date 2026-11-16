@@ -10,9 +10,9 @@ const RECOVER_THROTTLE_MS = 5_000;
 /**
  * Kick socket recovery the instant the app returns to the foreground or the network
  * comes back. After a short sleep the live WS silently dies, so we force-close it on wake:
- * disconnect() bypasses the SDK reconnect controller's manualStop flag, so the resulting
- * `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK now
- * owns reconnect — SocketManager no longer exposes a manual recover()). Only fires while the
+ * reconnectSocket() closes it without the SDK reconnect controller's manualStop flag, so the
+ * resulting `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK
+ * owns reconnect — there is no manual recover() to call). Only fires while the
  * socket is actually unverified; a genuinely expired token still fails re-auth and falls
  * through to useSocketWedgeReload's reload. Electron only (a plain browser tab manages its
  * own lifecycle and must never be poked like this).
@@ -26,14 +26,13 @@ export const useSocketWakeRecovery = (): void => {
         const kick = () => {
             // Ignore blur/hide edges — only recover when the app is actually in front.
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-            const manager = runtime.connection.getSocketManager();
-            if (manager.getSnapshot().isVerified) return; // already healthy — nothing to do
+            if (runtime.connection.getRuntimeSocketState().isVerified) return; // already healthy — nothing to do
 
             const now = Date.now();
             if (now - lastKickRef.current < RECOVER_THROTTLE_MS) return;
             lastKickRef.current = now;
             // Force-close the zombie socket; the SDK reconnect controller then re-establishes + re-auths.
-            void manager.disconnect().catch(() => undefined);
+            void runtime.connection.reconnectSocket().catch(() => undefined);
         };
 
         window.addEventListener('focus', kick);

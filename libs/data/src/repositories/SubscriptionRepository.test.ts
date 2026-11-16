@@ -11,7 +11,6 @@ describe('SubscriptionRepository', () => {
         updateMembershipByAdmin: jest.fn(),
         refundSubscriptionByAdmin: jest.fn(),
         fetchAdminClouds: jest.fn(),
-        fetchMySubscription: jest.fn(),
         fetchSubscriptionCards: jest.fn(),
         issueBillingKey: jest.fn(),
         startSubscription: jest.fn(),
@@ -64,13 +63,9 @@ describe('SubscriptionRepository', () => {
     it('delegates the web subscription calls to the http data source unchanged', async () => {
         const http = createHttpDataSource();
         const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
-        http.fetchMySubscription.mockResolvedValue({ subscription: { id: 'U1:portone', status: 'trial' } });
         http.cancelSubscription.mockResolvedValue({ id: 'U1:portone', status: 'canceling' });
         const repository = new SubscriptionRepository(contextProvider as any, http as any);
 
-        await expect(repository.fetchMySubscription()).resolves.toEqual({
-            subscription: { id: 'U1:portone', status: 'trial' },
-        });
         await expect(repository.cancelSubscription()).resolves.toEqual({ id: 'U1:portone', status: 'canceling' });
 
         await repository.issueBillingKey('p1');

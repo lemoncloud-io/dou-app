@@ -141,3 +141,46 @@ describe('createPortSetup — sandbox payments', () => {
         expect(createHttp.mock.calls[0][1]).toEqual({});
     });
 });
+
+describe('createPortSetup — the production host and a production build', () => {
+    const httpSpy = () => vi.fn((_server: SubscriptionServer, _options: { sandbox?: HttpSandbox }) => fakeHttp());
+    const prodBuild = { ...SERVER, env: (name: string) => (name === 'VITE_ENV' ? 'PROD' : undefined) };
+
+    it('has no sandbox on the production host, even for a build that is not production', () => {
+        const createHttp = httpSpy();
+        window.sessionStorage.setItem('subscription.sandbox', '1');
+        const setup = createPortSetup({
+            account: true,
+            server: SERVER,
+            search: '?sandbox=1',
+            productionHost: true,
+            createHttp,
+        });
+        expect(setup.sandbox).toBeUndefined();
+        expect(createHttp.mock.calls[0][1]).toEqual({});
+    });
+
+    it('has no sandbox for a production build on the production host, whatever the tab asked for', () => {
+        const createHttp = httpSpy();
+        window.sessionStorage.setItem('subscription.sandbox', '1');
+        const setup = createPortSetup({
+            account: true,
+            server: prodBuild,
+            search: '?sandbox=1',
+            productionHost: true,
+            createHttp,
+        });
+        expect(setup.sandbox).toBeUndefined();
+        expect(setup.standInWindow).toBeUndefined();
+        expect(createHttp.mock.calls[0][1]).toEqual({});
+    });
+
+    it('bills in Korea only in a production build, and outside Korea too in any other', () => {
+        expect(createPortSetup({ account: true, server: prodBuild, createHttp: httpSpy() }).foreignBilling).toBe(false);
+        expect(
+            createPortSetup({ account: true, server: prodBuild, productionHost: true, createHttp: httpSpy() })
+                .foreignBilling
+        ).toBe(false);
+        expect(createPortSetup({ account: true, server: SERVER, createHttp: httpSpy() }).foreignBilling).toBe(true);
+    });
+});

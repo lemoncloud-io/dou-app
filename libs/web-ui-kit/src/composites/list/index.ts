@@ -4,3 +4,6 @@ export * from './SelectedAvatarRow';
 export * from './InviteLinkCard';
 export * from './ManageChannelItem';
 export * from './SwipeActionRow';
+export * from './NotificationRow';
+export * from './RoomFileRow';
+export * from './MonthGroupHeader';

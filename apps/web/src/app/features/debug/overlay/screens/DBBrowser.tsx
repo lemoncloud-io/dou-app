@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { runtime } from '@chatic/app-runtime';
-import type { DataRepositories } from '@chatic/data';
 
 import { CopyButton } from '../../components/CopyButton';
 import { useDBBrowserStrings } from '../../i18n/screens/DBBrowser';
+
+type PageRepositories = runtime.data.PageRepositories;
 
 type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'invite';
 
 type DomainRow = { id: string; [key: string]: unknown };
 
-const REPO_KEY: Record<CacheType, keyof DataRepositories> = {
+const REPO_KEY: Record<CacheType, keyof PageRepositories> = {
     channel: 'channel',
     chat: 'chat',
     user: 'user',
@@ -56,7 +57,7 @@ export const TEMPLATES: Record<CacheType, () => Record<string, unknown>> = {
     invite: () => ({ id: makeId('invite'), name: 'Debug Invite', state: 'pending' }),
 };
 
-function TypeCard({ type, repos, onClick }: { type: CacheType; repos: DataRepositories; onClick: () => void }) {
+function TypeCard({ type, repos, onClick }: { type: CacheType; repos: PageRepositories; onClick: () => void }) {
     const [count, setCount] = useState<number | null>(null);
     const strings = useDBBrowserStrings();
 
@@ -131,7 +132,7 @@ function RowItem({ row, onDelete, onEdit }: { row: DomainRow; onDelete: () => vo
     );
 }
 
-function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepositories; onBack: () => void }) {
+function DetailView({ type, repos, onBack }: { type: CacheType; repos: PageRepositories; onBack: () => void }) {
     const strings = useDBBrowserStrings();
     const fields = FILTER_FIELDS[type];
     const [filters, setFilters] = useState<Record<string, string>>({});
@@ -337,7 +338,7 @@ function DetailView({ type, repos, onBack }: { type: CacheType; repos: DataRepos
 }
 
 export const DBBrowser = () => {
-    const repos = runtime.data.useRuntimeRepositories() as unknown as DataRepositories;
+    const repos = runtime.data.useRuntimeRepositories();
     const [selected, setSelected] = useState<CacheType | null>(null);
     const strings = useDBBrowserStrings();
 

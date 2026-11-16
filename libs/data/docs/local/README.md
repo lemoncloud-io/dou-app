@@ -1,6 +1,6 @@
 # local — storing, reading, emitting streams
 
-> Status: Live · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
+> Status: Live · Last updated: 2026-11-15 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
 
 The local layer handles **storing, reading and emitting streams** for the local data an app reads.
 
@@ -36,11 +36,11 @@ apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
 ```
 
 Which of them a domain gets is decided by none of them — `resolveCacheBackend` in
-`@chatic/app-runtime` owns that.
+`@chatic/runtime-web` owns that, as the page's answer to `LocalCachePorts.route()`.
 
 **Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in
-`@chatic/app-runtime` decides environment, type pins and native capability in one place — see
-[cache-storage-routing.md](../../../app-runtime/docs/data/cache-storage-routing.md).
+`@chatic/runtime-web` decides environment, type pins and native capability in one place — see
+[runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
 
 ## Responsibilities
 
@@ -173,6 +173,75 @@ Watch for:
 - The merge policy for a `chat.feed` response is the repository's responsibility (local stores and re-emits).
 - `cursorNo` is a discriminator for fetching an earlier page, not a baseline for the latest sync.
 
+## Room media index
+
+A room's attachments and links, read from this device's cache without scanning every cached message:
+`listRoomMedia` (one kind, newest first) and `countRoomMedia` (per kind) on `IChatLocalDataSource`.
+A screen reaches them through `IChatRepository`, whose `listRoomMedia` and `countRoomMedia` hand the
+call to the data source unchanged in the graph's scope — the repository is all a page can reach, and in a
+shell that owns the session the call crosses the bridge as any repository call does. The answer is the
+same in a browser, in a phone shell with the index and in one without it.
+
+**One judge, two stores.** `chatMediaEntries` ([domain/chatMediaEntries.ts](../../src/domain/chatMediaEntries.ts))
+turns a message into its entries — `image`, `video`, `file`, `audio` (the attachment's `uploadSlotKind`)
+and `link` (the `url` runs of the bubble's own tokenizer, so an address inside code is not a link,
+and one URL counts once per message). An unsent, failed, deleted, system or event row has none; a
+thread reply counts like any message of its room. `idx` is the attachment's `upload$$` position, and
+for a link the slot count plus its order. The kind is decided here and nowhere else: the shell's
+SQLite and IndexedDB only store and index what they are handed.
+
+**The write path carries it.** `cacheWrite` and `cacheWriteMany` attach `mediaEntries` — and
+`mediaEntriesVersion`, the rules version they were decided under — to the merged row they hand storage, so an edit, a delete mark (`hidden`) and a re-sent copy all rewrite the
+message's entries in the same transaction as the row. A store reads the field three ways:
+
+| `mediaEntries` on the row | What the store does                                       |
+| ------------------------- | --------------------------------------------------------- |
+| a list                    | replaces the message's entries with it                    |
+| an empty list             | removes the message's entries                             |
+| absent                    | leaves them alone — the row came from an older web bundle |
+
+Absent and empty are kept apart on purpose: treating them alike would erase the index on every write
+an older bundle makes. Deleting rows, clearing a room and clearing a scope take the entries with them.
+
+**The page never splits a message.** Entries come newest message first and by `idx` within a message;
+the page runs past `limit` by the rest of the message the limit landed in, because the cursor is one
+message number (`cursorNo`) and a message cut in half would lose its tail to the next page.
+`nextCursorNo` is the page's last message number, or `null` when nothing of that kind is cached below
+— which says nothing about the server. A consumer that reaches `null` widens the cache with the room's
+ordinary older-page load and asks again with the same cursor; those rows are indexed by their write.
+
+**A room is filled once, with entries only.** Messages cached before the index existed have no
+entries. The first read of a room only reads its cached rows, computes their entries with
+`chatMediaEntries` and hands them to `saveChatMediaEntries(items, CHAT_MEDIA_ENTRIES_VERSION)` — it
+never writes a row. Then it writes a mark: a `meta` row with id
+`chatmedia-indexed:v<CHAT_MEDIA_ENTRIES_VERSION>:<channelId>`. Concurrent first reads share one run; a
+run cut short starts over next time.
+
+The rows are left alone on purpose. Every store stamps a row's cache time (`__cacheMeta.lastSyncedAt`)
+on save, and the room's page reads that stamp as "the server sent this during this run" and skips
+re-checking its block — so rewriting would switch off the re-check of the room's older messages. And
+the copy written back would be the one read: a delete mark (`markMissingHidden`, which keeps the row's
+`updatedAtMs`), a delete or a clear landing in between would be undone. Instead the store applies a
+fill item only while the message's row still exists and its `mediaEntriesVersion` (absent = 0) is
+below the fill's version, checked in the same transaction as the write. A write since the read stamped
+the current version and already put the right entries; a deleted or cleared row is gone; either way
+the item is skipped. A row already at the current version is not sent at all, and neither is a row
+with no version and no entries, since nothing was ever indexed for it. The mark is read by its own rule
+([data-sources/chatMediaIndexMarks.ts](../../src/local/data-sources/chatMediaIndexMarks.ts)), not by
+`getSyncedAt`: a sync cursor retires after the `meta` TTL (30 minutes), which would refill every room
+every half hour. A mark has no age. It holds while it was written under the current routing
+fingerprint and after the last cache clear (`cursorsValidAfter`), and raising
+`CHAT_MEDIA_ENTRIES_VERSION` — required whenever `chatMediaEntries` would answer differently for a row
+it has answered before — retires every mark, so each room is filled again under the new rules. Nothing
+fills a room at boot, login or sync.
+
+**A store without the index is read from plain rows.** `CacheStorage` declares four optional members
+for this — `canQueryChatMedia`, `loadChatMedia`, `countChatMedia` and `saveChatMediaEntries`. When the storage cannot query
+(a phone shell built before the index, or the handshake reply not in yet), the data source pages the
+room's plain rows and runs the same `chatMediaEntries` over them: the same page and counts, slower,
+and nothing filled or marked. A read the index fails on (`null`, a bridge error) is answered the same
+way, for that read only.
+
 ## Cache clear
 
 What gets deleted and when — the scope semantics, the irreversibility of deleting chat, the purge
@@ -206,14 +275,14 @@ join). So emptying one room does not send an entire table across the bridge.
 that also needs a **subscribable local cache** reaches across three libs and the native shell, and
 only the middle of it is type-checked. Work top to bottom.
 
-| #   | Where                                                                                                                                                                                                                                                           | Caught by                                                                                             |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | `CacheType` in [`libs/bridge-messages`](../../../bridge-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                            | the compiler, everywhere the union is switched on                                                     |
-| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
-| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                         | the compiler                                                                                          |
-| 4   | `REQUIRED_DOMAIN_VERSION` in app-runtime [`nativeCacheSupport.ts`](../../../app-runtime/src/data/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
-| 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                             | **nothing**                                                                                           |
-| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                     | that test                                                                                             |
+| #   | Where                                                                                                                                                                                                                                                                 | Caught by                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | `CacheType` in [`libs/bridge-messages`](../../../bridge-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                                  | the compiler, everywhere the union is switched on                                                     |
+| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                      | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
+| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                               | the compiler                                                                                          |
+| 4   | `REQUIRED_DOMAIN_VERSION` in runtime-web [`nativeCacheSupport.ts`](../../../runtime-web/src/localCache/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
+| 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                                   | **nothing**                                                                                           |
+| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                           | that test                                                                                             |
 
 **Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackend` sends a type
 the installed shell cannot hold to web storage instead (ADR-0053) — that is the deliberate fallback

@@ -3,3 +3,4 @@ export * from './indexeddb';
 export * from './search';
 export * from './metrics';
 export * from './policy';
+export * from './platform';

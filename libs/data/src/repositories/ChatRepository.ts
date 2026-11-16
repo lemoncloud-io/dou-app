@@ -3,7 +3,7 @@ import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { logger } from '@chatic/logger';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
 import { channelIdOfChatId, toMentionBody, toMentionRecord } from '../domain';
-import type { IChatLocalDataSource } from '../local/data-sources';
+import type { IChatLocalDataSource, ListRoomMediaInput, RoomMediaCounts, RoomMediaPage } from '../local/data-sources';
 import type {
     ChatDeleteInput,
     ChatGetInput,
@@ -79,10 +79,13 @@ export interface IChatRepository extends DisposableRepository {
 
     refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
     /**
-     * The parts of `[low, high]` no feed page has answered for in this run (see `FeedCoverage`). A
-     * missing chat number outside them is a deleted message; inside them, history not fetched yet.
+     * The chat-number ranges of `channelId` a feed page has answered for in this run (see
+     * `FeedCoverage`): now, then after each change, until the returned function is called. A missing
+     * chat number inside them is a deleted message; outside them, history not fetched yet —
+     * `uncoveredIn(covered, low, high)` reads which. A stream rather than a question asked in the same
+     * turn, so the record can sit in another process than the screen that reads it.
      */
-    uncoveredFeed(channelId: string, low: number, high: number): FeedRange[];
+    observeFeedCoverage(channelId: string, callback: (covered: readonly FeedRange[]) => void): () => void;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendPayload): Promise<DomainChat>;
     updateChat(payload: ChatUpdateInput): Promise<DomainChat>;
@@ -113,6 +116,14 @@ export interface IChatRepository extends DisposableRepository {
     cacheDelete(id: string): Promise<void>;
     cacheClear(): Promise<void>;
     cacheClearByChannelId(channelId: string): Promise<void>;
+
+    /**
+     * One page of a room's attachments or links of one kind from this device's cache, newest first —
+     * the local data source's `listRoomMedia`, handed through unchanged so a screen can reach it.
+     */
+    listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage>;
+    /** How many attachments and links of each kind a room has in this device's cache — handed through likewise. */
+    countRoomMedia(input: { channelId: string }): Promise<RoomMediaCounts>;
 }
 
 export interface PendingFileDetails {
@@ -273,6 +284,16 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext());
     }
 
+    // Pass-throughs: the index and its fallbacks live in the local data source. The repository only
+    // gives it the scope this graph reads in, as every other cache read here does.
+    public listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage> {
+        return this.chatLocalDataSource.listRoomMedia(input, this.getRepositoryContext());
+    }
+
+    public countRoomMedia(input: { channelId: string }): Promise<RoomMediaCounts> {
+        return this.chatLocalDataSource.countRoomMedia(input, this.getRepositoryContext());
+    }
+
     public async refreshList(query: ChatFeedInput, options: ChatRefreshOptions = {}): Promise<ChatRefreshResult> {
         this.assertRequiredString(query.channelId, 'channelId');
         const requestContext = this.getRequestContext();
@@ -377,9 +398,12 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    public uncoveredFeed(channelId: string, low: number, high: number): FeedRange[] {
+    public observeFeedCoverage(channelId: string, callback: (covered: readonly FeedRange[]) => void): () => void {
         const { cid, uid } = this.getNormalizedContext();
-        return feedCoverage.uncovered(feedCoverageKey(cid, uid, channelId), low, high);
+        const key = feedCoverageKey(cid, uid, channelId);
+        const unsubscribe = feedCoverage.subscribe(key, callback);
+        callback(feedCoverage.covered(key));
+        return unsubscribe;
     }
 
     /**

@@ -27,7 +27,10 @@ export type SecretStorageOutcome =
     | 'empty';
 
 export interface ILogoutStorageSweeper {
-    /** No-op unless the current URL carries `?logout=1`. Safe to call on every boot. */
+    /**
+     * No-op unless the platform's address (`authPlatform.ports().currentSearch()`) carries `?logout=1`.
+     * Safe to call on every boot; throws if the auth platform was never configured.
+     */
     sweep(): void;
 }
 

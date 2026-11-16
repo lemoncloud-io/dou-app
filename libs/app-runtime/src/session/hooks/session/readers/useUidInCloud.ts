@@ -1,22 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { backgroundClouds } from '@chatic/transport';
-import { getUidInCloud, subscribeSessionSignal } from '@chatic/session';
-
-/**
- * Both moments the answer can move: a session change, and a cloud's tokens being issued or dropped —
- * which the per-cloud token cache announces only through the background store, not as a session
- * signal. Without the second, a screen rendered for a cloud before its tokens were issued keeps
- * `null` until some unrelated session change.
- */
-const subscribe = (listener: () => void): (() => void) => {
-    const offSession = subscribeSessionSignal(listener);
-    const offBackground = backgroundClouds.subscribe(listener);
-    return () => {
-        offSession();
-        offBackground();
-    };
-};
+import { getUidInCloud, subscribeSession } from '../../../sessionReads';
 
 /**
  * The uid this account has in `cid`, re-read whenever it can have changed.
@@ -25,5 +9,10 @@ const subscribe = (listener: () => void): (() => void) => {
  * for the cloud the session has committed to. Anything that builds an id or reads a partition for a
  * named cloud — a join id `<channel>@<uid>`, "is this my message" — needs that cloud's uid instead,
  * and during a switch the two disagree: the selection has moved and the committed session has not.
+ *
+ * The session's subscription covers both moments the answer can move: a session change, and a
+ * cloud's tokens being issued or dropped — which the per-cloud token cache announces only through the
+ * background store, not as a session signal.
  */
-export const useUidInCloud = (cid: string): string | null => useSyncExternalStore(subscribe, () => getUidInCloud(cid));
+export const useUidInCloud = (cid: string): string | null =>
+    useSyncExternalStore(subscribeSession, () => getUidInCloud(cid));

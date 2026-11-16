@@ -5,9 +5,10 @@ import { storeUrls } from '../../../../config/links';
 import { useDeviceDetect } from '../../../../hooks';
 import { Banner, Button } from '../../components/ui';
 import { toIsoDate } from '../../lib/calendar';
-import { isPortError, useToday } from '../../lib/port';
+import { useToday } from '../../lib/port';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { dayBefore, formatShortDate } from './flow';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { CheckoutPreview } from '../../types';
 
@@ -152,9 +153,12 @@ export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element
 export const CheckoutSummary = ({
     preview,
     priced = true,
+    unpricedHint = true,
 }: {
     preview: CheckoutPreview;
     priced?: boolean;
+    /** Whether an unpriced summary says a country brings the amounts — not when the country chosen cannot. */
+    unpricedHint?: boolean;
 }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const today = toIsoDate(useToday());
@@ -213,7 +217,7 @@ export const CheckoutSummary = ({
                     },
                 ]}
             />
-            {!priced && (
+            {!priced && unpricedHint && (
                 <p className="text-xs font-medium leading-normal text-mute">
                     {t('subscription.checkout.summary.unpriced')}
                 </p>
@@ -349,11 +353,7 @@ export const LoadError = ({ error, onRetry }: { error: unknown; onRetry?: () => 
     return (
         <Banner
             tone="danger"
-            title={t(
-                isPortError(error, 'network')
-                    ? 'subscription.common.error.network'
-                    : 'subscription.common.error.unknown'
-            )}
+            title={t(commonErrorKey(error))}
             action={
                 onRetry && (
                     <Button size="sm" variant="secondary" onClick={() => onRetry()}>

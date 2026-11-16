@@ -13,6 +13,7 @@ import {
     relayStore,
     clearRelaySession,
     SECRET_LOGOUT_PENDING_KEY,
+    DELEGATOR_ID_KEY,
     SESSION_KEYS,
     sessionStores,
     sessionSignal,
@@ -22,7 +23,10 @@ import {
 import { pairedClouds } from '../pairing/pairedClouds';
 import { relayCredentialProbe } from './relayCredentialProbe';
 import { dropSignedOutAppKeys } from './storage/signedOutAppKeys.util';
+import { authPlatform } from '../platform';
 import { isNativeStore, WebStore } from '@chatic/storage';
+import { withoutToken } from './accountView';
+import type { SessionAccountView } from './accountView';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
@@ -260,7 +264,8 @@ class RelaySession implements IRelaySession {
      * here — the weak halves lose their global names so the collision cannot be re-created.
      */
     async clearAndRedirect(options?: LogoutOptions): Promise<void> {
-        const searchBeforeCleanup = window.location.search;
+        const platform = authPlatform.ports();
+        const searchBeforeCleanup = platform.currentSearch();
 
         // No server-side logout: there is no backend session-revoke endpoint (the old POST
         // /users/logout always 403'd because it was unsigned, and it was never authoritative). Logout
@@ -321,9 +326,10 @@ class RelaySession implements IRelaySession {
         // the next boot empty it before reading it.
         const secret = sessionStores.of('secret');
         if (isNativeStore(secret)) {
-            // Tokens a run whose vault was unavailable left in the tab go too; the store only knows the
-            // ones this page wrote.
-            SESSION_KEYS.secret.forEach(key => WebStore.session().remove(key));
+            // Tokens a run whose vault was unavailable left in the tab go too, and so does the guest
+            // id such a run wrote there; the store only knows the ones this page wrote. In a shell
+            // with a vault the plain store is `localStorage`, so this never reaches the plain copy.
+            [...SESSION_KEYS.secret, DELEGATOR_ID_KEY].forEach(key => WebStore.session().remove(key));
             secret.clear();
             try {
                 await secret.flush();
@@ -341,17 +347,17 @@ class RelaySession implements IRelaySession {
         // `logout=1` must survive onto the target: the next document's boot reads it, empties the vault
         // once more before reading it, and sweeps the app keys again (`logoutStorageSweep.ts`).
         // Sign-out and cleanup are two page lifetimes, and this flag is what crosses between.
-        const targetUrl = new URL('/', window.location.origin);
+        const target = new URLSearchParams();
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);
             for (const key of ['code', 'provider', '_backend', '_wss']) {
                 const value = params.get(key);
-                if (value) targetUrl.searchParams.set(key, value);
+                if (value) target.set(key, value);
             }
         }
-        targetUrl.searchParams.set('logout', '1');
+        target.set('logout', '1');
 
-        window.location.replace(targetUrl.toString());
+        platform.leaveToHome(target);
     }
 
     registerLogoutCallback(callback: () => void): () => void {
@@ -378,11 +384,14 @@ export const relaySession: IRelaySession = new RelaySession();
  * These two stay because their callers are apps, and an app should not hold a singleton: the OAuth
  * exchange runs in a redirect page's effect and the logout-callback registry is wired at a log
  * uploader's module init — neither is React, so neither can go through a hook (decision 6).
+ *
+ * `createCredentialsByProvider` signs in with a provider's OAuth code and answers with the account's
+ * fields: the token stays with the session.
  */
-export const createCredentialsByProvider = (
+export const createCredentialsByProvider = async (
     provider = 'google',
     code: string,
     options?: OAuthCodeLoginOptions
-): Promise<UserTokenView> => relaySession.loginByOAuthCode(provider, code, options);
+): Promise<SessionAccountView> => withoutToken(await relaySession.loginByOAuthCode(provider, code, options));
 export const registerSessionLogoutCallback = (callback: () => void): (() => void) =>
     relaySession.registerLogoutCallback(callback);

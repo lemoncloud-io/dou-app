@@ -9,7 +9,7 @@ const tokenUser = vi.hoisted(() => ({
     value: null as { name?: string; photo?: string; userRole?: string } | null,
 }));
 const patchRelaySessionUser = vi.hoisted(() => vi.fn());
-const gatewayUpdate = vi.fn(async (data: unknown) => data);
+const gatewayUpdate = vi.hoisted(() => vi.fn(async (data: unknown) => data));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -21,16 +21,10 @@ vi.mock('@chatic/app-runtime', () => ({
             useGlobalSession: () => 0,
             getRelaySessionUser: () => tokenUser.value,
             patchRelaySessionUser: (...args: unknown[]) => patchRelaySessionUser(...args),
+            fetchAccountProfile: async () => ({}),
+            updateAccountProfile: (...args: unknown[]) => gatewayUpdate(...args),
         },
     },
-}));
-
-vi.mock('../../../shared/runtime/relayAccountGateway', () => ({
-    getRelayAccountGateway: () => ({
-        profile: vi.fn(async () => ({})),
-        update: (...args: unknown[]) => gatewayUpdate(...args),
-    }),
-    resetRelayAccountGateway: vi.fn(),
 }));
 
 const prepareImage = vi.hoisted(() => vi.fn());

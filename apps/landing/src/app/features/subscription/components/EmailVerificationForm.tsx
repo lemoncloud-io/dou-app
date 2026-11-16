@@ -5,6 +5,7 @@ import { useBillingInfo, useNow, useRequestEmailCode, useResendEmailCode, useVer
 import { isPortError } from '../lib/port';
 import { cn, formatMinutesSeconds, formatTimeOfDay, isEmailAddress, secondsUntil } from '../utils';
 import { Badge, Button } from './ui';
+import { commonErrorKey } from '../lib/errorKey';
 
 import type { BillingEmail, EmailCodeTicket } from '../types';
 
@@ -99,8 +100,7 @@ export const EmailVerificationForm = ({
             });
         }
         if (isPortError(err, 'conflict') && err.detail?.retryAt) return t(k('error.tooSoon'));
-        if (isPortError(err, 'network')) return t('subscription.common.error.network');
-        return t('subscription.common.error.unknown');
+        return t(commonErrorKey(err));
     };
 
     const accept = (next: EmailCodeTicket) => {

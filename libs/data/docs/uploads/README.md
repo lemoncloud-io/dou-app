@@ -107,8 +107,9 @@ shell file by its address), and the per-message limit, in that order. A `too-lar
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
 size-checked by its source: the shell's estimate and the check of its result decide that.
 
-The page's own sender lives here too: `xhrPut` (`uploads/xhrPut.ts`) PUTs from the page with
-`XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It listens on
+The page's own sender is `xhrPut`, which lives in `@chatic/runtime-web` (`src/xhrPut.ts`) — it is a
+page's implementation of this package's `PutPort`, and the core packages read no page. It PUTs from
+the page with `XMLHttpRequest`, for the browser, the desktop app and the old-app fallback. It listens on
 `xhr.upload` only when the caller asks for progress. That listener is free here: a listener on
 `upload` makes a cross-origin request preflighted, but a PUT is preflighted anyway — the method is
 not one a browser sends unasked — and a signed URL is unique, so no PUT ever reuses a cached

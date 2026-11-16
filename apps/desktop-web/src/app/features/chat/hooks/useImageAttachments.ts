@@ -1,20 +1,9 @@
 import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { create } from 'zustand';
 
-import type { TFunction } from 'i18next';
+import { chatAttachmentFormat, type ChatUploadKind } from '@chatic/data';
 
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { CHAT_ATTACHMENT_MAX_BYTES, chatAttachmentFormat, type ChatUploadKind } from '@chatic/data';
-
-import {
-    MAX_ATTACHMENTS,
-    attachmentKey,
-    formatFileSize,
-    validateAttachments,
-    type AttachmentRejections,
-    type ChatImage,
-} from '../utils';
+import { attachmentKey, validateAttachments, type AttachmentRejection, type ChatImage } from '../utils';
 
 /** A picked file waiting in the composer tray. */
 export interface ComposerAttachment extends ChatImage {
@@ -28,9 +17,24 @@ export interface ComposerAttachment extends ChatImage {
 
 let nextId = 0;
 
-const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large', 'name-too-long'] as const;
-
 const NO_ATTACHMENTS: ComposerAttachment[] = [];
+
+/** A file a batch could not take, as the unsendable-files dialog names it. */
+export interface RefusedFile {
+    name: string;
+    reason: AttachmentRejection;
+    /** The ceiling it went over: bytes for `too-large`, files for `limit`. */
+    max?: number;
+}
+
+/**
+ * The batch waiting on the unsendable-files dialog: what was refused, and — when anything fits — the
+ * way to add the rest. One at a time: the dialog is modal, so no second batch arrives while it is open.
+ */
+export const useUnsendableFilesStore = create<{
+    request: { refused: RefusedFile[]; restCount: number; onUploadRest?: () => void } | null;
+    close: () => void;
+}>(set => ({ request: null, close: () => set({ request: null }) }));
 
 /**
  * Every conversation's tray, outside the pane that shows it, so leaving the channel or the page and
@@ -59,12 +63,12 @@ const setTray = (scopeKey: string, next: ComposerAttachment[]) =>
  * sent row keeps its own previews) — not when the composer moves to another conversation or
  * unmounts, since the tray waits there for the way back.
  *
- * Files a batch could not take are reported in a toast that counts them by reason.
- * It was a blocking dialog, one reason per drop: the rest of what was left out went
- * unsaid, and a duplicate stopped everything until it was dismissed.
+ * When a batch holds files that cannot be sent, nothing is added yet: the unsendable-files dialog
+ * names each one with its reason, and adds the rest only on "Upload the other n"
+ * (Figma "보낼 수 없는 파일"). A toast that counted refusals by reason said how many but not which,
+ * and added the rest unasked.
  */
 export const useImageAttachments = (scopeKey: string) => {
-    const { t } = useTranslation();
     const attachments = useTrayStore(state => state.trays[scopeKey] ?? NO_ATTACHMENTS);
 
     const clear = useCallback(() => {
@@ -73,32 +77,45 @@ export const useImageAttachments = (scopeKey: string) => {
     }, [scopeKey]);
 
     const addFiles = useCallback(
-        (files: readonly File[]) => {
+        (files: readonly File[], folders?: ReadonlySet<File>) => {
             // Read from the store, not the render, so two drops landing before a render are both
             // checked against the tray as it is right now.
             const tray = trayOf(scopeKey);
-            const { accepted, rejected } = validateAttachments(
+            const { accepted, refused } = validateAttachments(
                 tray.map(attachment => attachment.key),
-                files
+                files,
+                file => !!folders?.has(file)
             );
-            reportRejections(rejected, t);
-            if (accepted.length === 0) return;
-            const added = accepted.map((file): ComposerAttachment => {
-                // Validation accepted it, so a format is known.
-                const kind = chatAttachmentFormat(file)?.kind ?? 'file';
-                return {
-                    id: `attachment-${++nextId}`,
-                    key: attachmentKey(file),
-                    name: file.name,
-                    url: URL.createObjectURL(file),
-                    file,
-                    kind,
-                    size: file.size,
-                };
+            const add = () => {
+                if (accepted.length === 0) return;
+                const added = accepted.map((file): ComposerAttachment => {
+                    // Validation accepted it, so a format is known.
+                    const kind = chatAttachmentFormat(file)?.kind ?? 'file';
+                    return {
+                        id: `attachment-${++nextId}`,
+                        key: attachmentKey(file),
+                        name: file.name,
+                        url: URL.createObjectURL(file),
+                        file,
+                        kind,
+                        size: file.size,
+                    };
+                });
+                setTray(scopeKey, [...trayOf(scopeKey), ...added]);
+            };
+            if (refused.length === 0) {
+                add();
+                return;
+            }
+            useUnsendableFilesStore.setState({
+                request: {
+                    refused: refused.map(({ file, reason, max }) => ({ name: file.name, reason, max })),
+                    restCount: accepted.length,
+                    onUploadRest: accepted.length > 0 ? add : undefined,
+                },
             });
-            setTray(scopeKey, [...tray, ...added]);
         },
-        [scopeKey, t]
+        [scopeKey]
     );
 
     const remove = useCallback(
@@ -115,19 +132,4 @@ export const useImageAttachments = (scopeKey: string) => {
     );
 
     return { attachments, addFiles, remove, clear };
-};
-
-const reportRejections = (rejected: AttachmentRejections, t: TFunction) => {
-    const lines = REASONS.filter(reason => rejected[reason]).map(reason =>
-        t(`chat.attach.rejected.${reason}`, {
-            count: rejected[reason],
-            max: MAX_ATTACHMENTS,
-            image: formatFileSize(CHAT_ATTACHMENT_MAX_BYTES.image),
-            video: formatFileSize(CHAT_ATTACHMENT_MAX_BYTES.video),
-            file: formatFileSize(CHAT_ATTACHMENT_MAX_BYTES.file),
-        })
-    );
-    if (lines.length === 0) return;
-    // An unsupported file is the one refusal that is a mistake; the others are limits.
-    toast({ variant: rejected.unsupported ? 'destructive' : 'info', description: lines.join(' ') });
 };

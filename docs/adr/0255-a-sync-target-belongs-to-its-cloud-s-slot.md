@@ -9,7 +9,7 @@
 > · Amends: [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) decision 1 — grace entries are
 > purged when their own cloud's slot rebinds, not on an active client swap
 > · The module docs are [libs/sync](../../libs/sync/README.md) and
-> [docs/data](../../libs/app-runtime/docs/data/README.md#scoped-repository-graphs)
+> [docs/data](../../libs/runtime-core/docs/data/README.md#scoped-repository-graphs)
 
 ## Context
 

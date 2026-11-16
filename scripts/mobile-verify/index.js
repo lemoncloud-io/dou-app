@@ -21,7 +21,7 @@ const { ROOT, findMainCheckout, missingLocalFiles, stateDirFor } = require('./ch
 const { buildChildEnv, checkIosToolchain, checkAndroidToolchain } = require('./toolchain');
 const { tryAcquireLock, releaseLock, scanHeavyWork, busyFixes } = require('./machine');
 const { RANGES, pickPort, seedFrom } = require('./ports');
-const { deriveEnv, writeEnvFile } = require('./envfile');
+const { deriveEnv, withNativeRuntimeEnv, writeEnvFile } = require('./envfile');
 const { nativeSourceState, buildFingerprint } = require('./fingerprint');
 const { startBackground, stopLiveChildren, httpGet, waitFor, sleep } = require('./proc');
 const treeGuard = require('./treeGuard');
@@ -382,15 +382,36 @@ async function main(argv) {
         state.ports = ports;
 
         const envFile = path.join(stateDir, 'build.env');
-        writeEnvFile(
-            envFile,
-            deriveEnv({
-                localText: fs.readFileSync(path.join(ROOT, 'apps/mobile/.env'), 'utf8'),
-                devText: fs.readFileSync(path.join(ROOT, 'apps/mobile/.env.dev'), 'utf8'),
-                web: options.web,
-                webUrl: `http://localhost:${ports.web}`,
-            })
-        );
+        let buildEnv = deriveEnv({
+            localText: fs.readFileSync(path.join(ROOT, 'apps/mobile/.env'), 'utf8'),
+            devText: fs.readFileSync(path.join(ROOT, 'apps/mobile/.env.dev'), 'utf8'),
+            web: options.web,
+            webUrl: `http://localhost:${ports.web}`,
+        });
+        if (options.web === 'local') {
+            // The app's runtime services ride in every local build, so switching the owner needs no rebuild.
+            const runtimeEnv = withNativeRuntimeEnv(
+                buildEnv,
+                fs.readFileSync(path.join(ROOT, 'apps/web/.env'), 'utf8')
+            );
+            if (options.sessionOwner === 'native' && runtimeEnv.stageMismatch) {
+                throw new EnvironmentError(
+                    "apps/mobile/.env and apps/web/.env name different stages (VITE_ENV), so the app's runtime would sign in against other services than the page loads.",
+                    ['Make the two VITE_ENV values the same stage, or run with --session-owner web.']
+                );
+            }
+            if (options.sessionOwner === 'native' && runtimeEnv.missing.length) {
+                throw new EnvironmentError(
+                    `The app's runtime needs ${runtimeEnv.missing.join(', ')}, and the build has no value for it.`,
+                    [
+                        'VITE_ENV comes from the mobile env (apps/mobile/.env or .env.dev); the services are taken from apps/web/.env of the same stage.',
+                        "Copy the missing lines from the main checkout's env files.",
+                    ]
+                );
+            }
+            buildEnv = runtimeEnv.values;
+        }
+        writeEnvFile(envFile, buildEnv);
 
         const servers = await startServers({ options, env, ports, outDir });
         cleanups.push(() => servers.forEach(server => server.stop()));
@@ -441,6 +462,11 @@ async function main(argv) {
             log(`The app is up on ${options.platform} device ${device.id} — this checkout's build, launched once.`);
             if (options.web === 'local') log(`Web: http://localhost:${ports.web}   Metro: ${ports.metro}`);
             log(`Screenshot after launch: ${path.join(outDir, 'launch.png')}`);
+            if (options.sessionOwner === 'native') {
+                log(
+                    "The build carries the runtime's services; switch it on in the app: debug → Session owner (app) → App (native)."
+                );
+            }
             log(`Holding the device, web and Metro up for hand checks. Stop with Ctrl-C, or: kill ${process.pid}`);
             // A signal ends the hold (onSignal); the timer only keeps the process alive until then.
             await new Promise(() => setInterval(() => undefined, 60_000));
@@ -460,6 +486,8 @@ async function main(argv) {
             APP_ID: options.platform === 'ios' ? ios.BUNDLE_ID : android.APP_ID,
             APP_SCHEME: options.platform === 'ios' ? ios.APP_SCHEME : android.APP_SCHEME,
             PLATFORM: options.platform,
+            // `_shared/fresh-guest.yaml` switches the app's runtime on after the fresh install for `native`.
+            SESSION_OWNER: options.sessionOwner,
             DOU_TEST_PHONE: process.env.DOU_VERIFY_PHONE || fixture.phone,
         };
 

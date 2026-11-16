@@ -13,7 +13,7 @@ numeric `z-*`. ui-kit's dialogs and menus sit at 50, so everything here stays at
 | `z-drawer`  | 30    | a panel or the sidebar drawer laid over its neighbour                                                                    |
 | `z-toast`   | 40    | the toast viewport: over every pane, under an open dialog (see below)                                                    |
 | `z-popover` | 50    | fixed to the viewport, level with ui-kit's popovers                                                                      |
-| `z-alert`   | 60    | the toast viewport while an error toast shows: over an open dialog (see below)                                           |
+| `z-alert`   | 60    | the toast viewport while an error or action toast shows: over an open dialog (see below)                                 |
 
 The literals used to be 1, 10, 20, 30 and 50 with no names, and the drop zone tied the thread panel
 at 30.
@@ -30,11 +30,14 @@ person. While an error toast raised during the dialog shows, `AppToaster` raises
 `z-alert`. Radix's toast viewport is a dismissable-layer branch, so clicking the toast's close button
 does not count as a click outside the dialog.
 
-Only an error raised while the modal is open lifts (Radix disables pointer events on the body then,
-which `AppToaster` reads when the toast first appears). An error toast from before the dialog stays
+A toast with an action lifts the same way. The image viewer's save raises "Saved · Show in Finder"
+while the viewer is still open, and under the scrim its button could not be pressed.
+
+Only a toast raised while the modal is open lifts (Radix disables pointer events on the body then,
+which `AppToaster` reads when the toast first appears). One from before the dialog stays
 under the dim: Radix gives a layer older than the modal no pointer events, so lifted it would cover
 the dialog's title with a close button that cannot be pressed. While the viewport is lifted, any
-other toast in it rises too; that is accepted, since it lasts only as long as the error.
+other toast in it rises too; that is accepted, since it lasts only as long as the toast that lifted it.
 
 The design side of layering (surfaces, shadows, scrims) is in the root `DESIGN.md`, under "Spacing,
 radius, elevation".

@@ -2,6 +2,7 @@ import { createLogId, isNative, logger, setLogContextProvider } from '@chatic/br
 import { runtime } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
+import { readLaunchSessionOwner } from '../launchSessionOwner';
 import { currentTelemetrySessionId } from '../telemetry/telemetryRuntime';
 import { routeTemplateOf } from '../telemetry/routeTemplate';
 
@@ -109,6 +110,7 @@ export const readLogContext = (): LogContext => {
         osVersion: globals.CHATIC_APP_OS_VERSION,
         model: globals.CHATIC_APP_DEVICE_MODEL,
         sessionId: currentTelemetrySessionId(),
+        sessionOwner: readLaunchSessionOwner(),
         ...deviceContext(globals),
     };
 };

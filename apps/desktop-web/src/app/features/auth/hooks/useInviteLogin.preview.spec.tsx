@@ -25,6 +25,7 @@ vi.mock('@chatic/app-runtime', () => ({
             getIdentityContext,
             getActiveSessionUser,
             registerUserWithInviteCode,
+            forgetInviteLogin: vi.fn(),
         },
         data: {
             useRuntimeRepositories: () => ({ cloud: { cacheWrite: vi.fn(), cacheRead: vi.fn() } }),
@@ -231,7 +232,7 @@ describe('useInviteLogin.enter', () => {
     afterEach(() => vi.clearAllMocks());
 
     it('exchanges the previewed code against the previewed backend', async () => {
-        registerUserWithInviteCode.mockResolvedValue({});
+        registerUserWithInviteCode.mockResolvedValue({ handle: 'invite-login-1', cloudId: null });
         const { result } = renderHook(() => useInviteLogin(), { wrapper });
 
         let failure: unknown;

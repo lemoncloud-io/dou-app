@@ -50,9 +50,7 @@ export const useSearchNavigate = () => {
             const needsSiteSwitch = !!sid && (needsCloudSwitch || sid !== selectedSiteId);
 
             const awaitVerified = async () => {
-                const verified = await runtime.connection
-                    .getSocketManager()
-                    .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                const verified = await runtime.connection.waitUntilVerified(null, HANDSHAKE_WAIT_TIMEOUT_MS);
                 if (!verified) {
                     logger.warn('SEARCH', 'socket handshake not verified before search navigation', {
                         cid,

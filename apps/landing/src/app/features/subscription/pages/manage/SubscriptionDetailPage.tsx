@@ -22,6 +22,7 @@ import { RecentInvoices } from './RecentInvoices';
 import { SceneBannerView } from './SceneBannerView';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
 import { useResumeFlow } from './useResumeFlow';
+import { commonErrorKey } from '../../lib/errorKey';
 
 import type { SubscriptionPort } from '../../lib/port';
 import type { PaymentMethod, Subscription } from '../../types';
@@ -107,7 +108,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                 // A conflict here means the change is no longer there to cancel (another tab, or it
                 // applied); the refetched state shows which. Same-day is caught before the dialog opens.
                 if (isPortError(error, 'unauthenticated')) return;
-                toast(t(`subscription.common.error.${isPortError(error, 'network') ? 'network' : 'unknown'}`));
+                toast(t(commonErrorKey(error)));
             },
         });
 

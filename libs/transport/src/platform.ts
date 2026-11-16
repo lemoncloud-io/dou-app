@@ -12,7 +12,11 @@ export interface OnlineSignal {
 export interface DeviceEnvironment {
     /** `ios` · `android` from the mobile shell, `desktop` from Electron, absent in a browser. */
     appPlatform?: string;
-    /** The user agent the platform reports, the input for the device's platform and label. */
+    /**
+     * The user agent the platform reports: the input for the device's platform and label, and also the
+     * user agent auth's socket signature is computed over. The server checks that signature against the
+     * handshake's `User-Agent`, so `createSocket` has to send exactly this string.
+     */
     userAgent?: string;
 }
 
@@ -27,6 +31,8 @@ export interface DeviceEnvironment {
  * - `online` — the network signal the link verdict and the offline skips read.
  * - `device` — what the device says about itself; how that becomes a platform and a label stays here.
  * - `createSocket` — opens one WebSocket for a slot, handed to the sockets SDK as its `socketFactory`.
+ *   Its handshake has to send `device().userAgent` as the `User-Agent`, unchanged: the socket
+ *   signature is computed over that string.
  */
 export interface TransportPlatformPorts {
     online: OnlineSignal;
@@ -55,7 +61,7 @@ class TransportPlatform implements ITransportPlatform {
         if (!this.configured) {
             throw new Error(
                 '[transport] the platform ports were used before any were configured — the entry point has to ' +
-                    'pass `transport` to initAppRuntime() before a socket is opened or the link is read.'
+                    'pass `transport` to createRuntime() before a socket is opened or the link is read.'
             );
         }
         return this.configured;
@@ -65,7 +71,7 @@ class TransportPlatform implements ITransportPlatform {
 /**
  * The process-wide platform. A default would have to be one platform's — a page's `navigator` and
  * `WebSocket` — and in a native process those either do not exist or answer wrongly (React Native's
- * `WebSocket` sends no User-Agent, which the server checks a refreshed token against), so an unwired
- * runtime fails at the first use instead.
+ * `WebSocket` does not send the app's User-Agent, which the server checks a refreshed token against),
+ * so an unwired runtime fails at the first use instead.
  */
 export const transportPlatform: ITransportPlatform = new TransportPlatform();

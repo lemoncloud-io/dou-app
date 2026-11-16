@@ -8,7 +8,7 @@
 > before adding another trace" consequence
 > · The module docs are [apps/web observability/performance.md](../../apps/web/docs/observability/performance.md),
 > [libs/data outbox](../../libs/data/docs/outbox/README.md) and
-> [libs/app-runtime data](../../libs/app-runtime/docs/data/README.md#the-state-outbox-transport)
+> [libs/runtime-core data](../../libs/runtime-core/docs/data/README.md#the-state-outbox-transport)
 
 ## Context
 

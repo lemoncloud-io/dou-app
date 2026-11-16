@@ -4,6 +4,8 @@
  *
  * - `unauthenticated` — the session is gone. No screen handles this: the route root sends the visitor
  *   to sign in again and back to where they were.
+ * - `notAllowed` — the session is fine, but the server will not sell to this account (it is a guest).
+ *   Shown where it happened; the reader stays signed in.
  * - `notFound` — the id names nothing this account owns.
  * - `conflict` — the subscription's state does not allow the action (cancelling twice, deleting the
  *   default card, …).
@@ -22,6 +24,7 @@
  */
 export type SubscriptionPortErrorCode =
     | 'unauthenticated'
+    | 'notAllowed'
     | 'notFound'
     | 'conflict'
     | 'limit'

@@ -1,16 +1,20 @@
-# session — the React surface over `@chatic/session` and `@chatic/auth`
+# session — the React surface over the session
 
 The session's state lives in [`@chatic/session`](../../../session/README.md), and the use cases that
 write it, device pairing and the socket authentication live in [`@chatic/auth`](../../../auth/README.md).
-This folder holds what React reads them through: the hooks under `session/hooks/`, and the `session`
-facade group in `session/index.ts`. Every edge runs one way — `hooks → @chatic/auth → @chatic/session`
-— never back.
+This folder holds what React reads and drives them through: the hooks under `session/hooks/`, the
+readers in `session/sessionReads.ts`, the commands in `session/sessionCommands.ts`, and the `session`
+facade group in `session/index.ts`. Both go through the engine — the readers through
+`runtimeEngine().session`, the commands through `runtimeEngine().commands` (runtime-core) — and neither
+touches the stores or the use cases. Every edge runs one way, never back.
 
 ## Layout
 
 ```text
-session/                              35 source files, 15 tests
-├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 6 pairing
+session/                              35 source files, 18 tests
+├── hooks/    32 files · 16 tests  the React surface: app · auth · actions · readers · pairing
+├── sessionReads.ts                the readers and the getters, through `runtimeEngine().session`
+├── sessionCommands.ts             the commands the app calls, through `runtimeEngine().commands`
 └── index.ts                       the `session` facade group
 ```
 
@@ -27,13 +31,64 @@ in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 | `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                                               |
 | `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                                               |
 | `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo`                        |
-| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                       |
+| `hooks/app/`             | 3     | `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                                                                            |
 | `hooks/pairing/`         | 6     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairedCloudNames` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks) |
 
-The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
-derives from `useGlobalSession`. Twenty-one of these 24 are on the package barrel; the three that are not
-are `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package) and
-`useRelaySessionInit` / `useRelaySessionKeepAlive`, which belong to the host rather than to an app.
+The readers — these hooks, `useUidInCloud`, the three pairing readers, and the synchronous getters
+(`getGlobalSessionContext`, `getIdentityContext`, `getUidInCloud`, `isPairedSession` and the rest) —
+read the session through the engine the entry point handed over (`runtimeEngine().session`, in
+[`sessionReads.ts`](../../src/session/sessionReads.ts)), never the stores. The engine's session is a
+snapshot without a token — on the phone the session may live in another process, and the page then
+has none — so `getGlobalSessionContext()` has no `identityToken`, `delegationToken` or `cloudToken`,
+and an error is its message. The core engine reads this process's stores; what it holds and how it
+keeps each part the same object is [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-session-view).
+`useSessionSelection` derives from `useGlobalSession`.
+
+The commands go through the engine as well: the action, login and pairing hooks and the non-React
+commands (`logoutSession`, `clearSiteSelection`, `patchRelaySessionUser`, the phone and invite logins,
+`createCredentialsByProvider`, `forgetRefusedPairedCloud`, and the relay account's profile —
+`fetchAccountProfile`, `updateAccountProfile`, read and written on the relay slot whichever cloud is
+active) call `runtimeEngine().commands`, in
+[`sessionCommands.ts`](../../src/session/sessionCommands.ts). A command resolves once the session view
+shows its change, so a screen that awaits one and then reads the session reads the new one. Those whose
+caller does not wait — `clearSiteSelection`, `patchRelaySessionUser`, `cancelPhoneLogin`,
+`forgetInviteLogin` — stay synchronous to the screen and log a failure instead of throwing it.
+`forgetRefusedPairedCloud` still answers at once whether it ended the cloud: it reads the refusal
+itself and whether the cloud is a paired one from the session view, and leaves the ending to the
+engine's `endPairedCloud`. What stays in the page: the mutation keys (`SWITCH_*`), so `useIsMutating`
+still sees a switch, and the `cloud_switch` trace, taken around the command by `useSwitchCloudSession`.
+The calls that change no session — `useFindAlias`, `useVerifyAlias`, `useInviteInfo`, the two
+`useRegisterUser*`, and `fetchInviteInfoWithCode` — go through the engine's auth repository
+(`authLookups.ts`), so they run wherever the session runs.
+
+What the page keeps for the signed-in person and drops at a sign-out (composer drafts, input locks, the
+notification inbox, the log queue) is registered with `registerSessionLogoutCallback`. The registry is
+app-runtime's own and listens to the engine's `session.onLogout`, so the callbacks fire whichever process
+ran the sign-out; one registered before the engine is handed over — the log uploader starts first — is
+attached when it is.
+
+`useDynamicDeviceId` and the host's controllers read the page's own device id from the session's store
+only when the shell injected none (`lazySessionDeviceId`). Inside the phone app there always is one, and
+a page whose session runs in the app's process has no session store of its own. `pairingClientOf` reads
+this page's platform and user agent from the page itself, not from the runtime's transport.
+`authFailureReaction` stays a re-export of the transport's registry: only admin and landing register
+on it, and neither runs inside the phone app, where the HTTP layer would be in another process.
+
+The commands keep tokens out of the screen the same way. A login answers with the account's fields,
+not its token: `useLogin`, `useLoginRelaySocial` and `useLoginRelayGuestByDevice` resolve with a
+`SessionAccountView`, and so does `createCredentialsByProvider`. A phone login is one step,
+`confirmPhoneLogin(phone, code, { countryCode })` — the code proved and the session switched, answering
+`{ isNew }` — with `retryPhoneLogin()` for a switch that failed after the code was spent and
+`cancelPhoneLogin()` when the screen closes; they throw `PHONE_LOGIN_NO_TOKEN`,
+`PHONE_LOGIN_SWITCH_FAILED` and `PHONE_LOGIN_NOTHING_PENDING`. An invite login (`useInviteFlow`,
+`registerUserWithInviteCode`) answers with an `InviteLogin` handle; `useSwitchCloudSession().switchCloud`
+takes it as `{ inviteLogin }` (with the invite's `backend`/`wss` added), resolves with nothing, and
+refuses a handle the runtime does not hold with `INVITE_LOGIN_UNKNOWN`; a screen that will not enter
+with one calls `forgetInviteLogin`. How long an answer is kept is
+[`@chatic/auth`'s session doc](../../../auth/docs/session/README.md). Twenty-one of these 22 are on the package barrel; the one that is not
+is `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package). The session's
+init and guest keep-alive are no longer hooks: they are runtime-core's session controller, which the
+connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
 `useRuntimeProfile` is on the barrel but reached by concrete path, because
 `hooks/session/index.ts` publishes only the other four readers.
 
@@ -45,53 +100,27 @@ and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch 
 
 ### The two guards
 
-An app mounts these; they are not automatic.
+An app mounts these; they are not automatic. Each is a thin hook over a guard class in runtime-core —
+it starts the guard on mount, re-arms its triggers when the policy's triggers change, stops it on
+unmount, and hands back a stable `check` for a trigger only the app knows (apps/web's WebView
+foreground). What the guards do, and why, is
+[runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-credential-guards).
 
-**[`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) is
-relay-only, and adding a `kind` option to it would be wrong** — relay and cloud recover by different
-means, and the cloud counterpart exists. Two properties are not configurable because they are the
-reason the hook exists: the probe never refreshes (it reads the session's relay token and nothing else; there is no HTTP
-refresh to fire, and a second refresh engine would leave the socket's signing material stale), and
-renewal always goes through `requestRelaySessionRefresh`.
+| Hook                                                                                          | Guard                  | Policy                                                                                                             |
+| --------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) | `RelayCredentialGuard` | `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`, `checkOnRelayVerified`, `forceRefresh` |
+| [`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts)   | `CloudCredentialGuard` | `enabled`, `marginMs`, `checkOnVisible`                                                                            |
 
-The policy covers `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`,
-`checkOnRelayVerified`, `missingSessionCountsAsFailure`, `consecutiveFailureLimit`, `onTeardown` and
-`forceRefresh`. Only **definitive** failures count toward the teardown streak: a refresh that could
-not even reach the socket is not one.
-
-`forceRefresh` closes a specific hole. The boot handshake's `auth.update` emits no token — the SDK
-emits one only from `refresh` and `switch` — so the first writeback is a whole refresh cycle away,
-and until it lands, relay-signed HTTP is signed with the credential from before the device went to
-sleep. The expiry probe (`relayCredentialProbe`) answers only "past expiry", not "about to expire",
-so the guard also measures how much is left: it fires only when
-`credentialFreshness.timeToExpiry('relay')` is under one refresh cycle. Firing on every edge
-unconditionally was the earlier behaviour and it refreshed credentials minted seconds earlier,
-colliding with the re-authentication at login. A 60-second cooldown throttles it, and a preemptive
-failure never counts toward teardown — a credential that is still valid is not evidence the session
-died.
-
-**[`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts) does not
-poll.** It derives a deadline from each credential's own `Expiration` minus a margin and sleeps until
-the earliest of them, waking at most every 5 minutes because a suspended tab serves long timers late.
-The margin is `SDK_REFRESH_CYCLE_MS`, and that is diagnosis rather than tuning: a healthy cloud
-socket re-mints every cycle, so being under the margin at all _is_ the evidence the socket is not
-keeping up.
-
-It guards **every cloud slot**: the committed cloud (whose slot may not be bound yet — the device id
-can arrive after the tokens) and every cloud the manager has a slot for — every background cloud
-included — each through its own renewer, so one cloud's failed exchange never delays another's. A
-background slot lives through many refresh cycles, and while its socket is down nothing else
-re-mints its credential, so for those clouds this guard is what catches a lapse.
-
-The gap it closes was real. A cloud credential lives about an hour, and the only thing that re-minted
-it mid-session was the cloud socket's refresh writeback. While that socket was down — sleep, a
-dropped link, a long stay in one place — nobody even _measured_ the credential, and once it lapsed
-every cloud-signed request 403'd. Re-entering a cloud hid it, because a switch re-issues, so it only
-showed up in sessions that sat still.
+Neither ends a session. The relay guard used to take a teardown policy (`onTeardown`,
+`consecutiveFailureLimit`, `missingSessionCountsAsFailure`); no app used it, and it is gone.
 
 ### The pairing hooks
 
-`usePairingRequest` drives the code screen's request-and-poll loop, and `useIsPairedSession` /
+`usePairingRequest` drives the code screen's request-and-poll loop. Its claim is the engine's
+`claimPairing`, which keeps a relay approval's session token and answers with a handle that
+`applyPairingSession` signs in with; a cloud approval is prepared by `preparePairedCloudEntry` and then
+entered with the screen's own `switchCloud`, so the switch keeps its trace and its in-flight key.
+`useIsPairedSession` /
 `usePairedCloudIds` / `usePairedCloudNames` read the pairing checks and the paired clouds' names; what they read is
 [`@chatic/auth`'s pairing doc](../../../auth/docs/pairing/README.md). Two hooks carry policy of their own:
 
@@ -102,7 +131,8 @@ showed up in sessions that sat still.
   next renewal anyway, so nothing may hold a logout hostage.
 - **`usePairedCloudCheck(onEnded)`** re-checks each paired cloud at mount, every ten minutes and when the
   app calls `check` (apps/web does on foreground return) by re-issuing its tokens through the relay's
-  delegation (`pairedCloudSessions.checkAll`). A cloud server knows nothing of the relay's pairings, so
+  delegation (the engine's `checkPairedClouds`, which also drops a guest-era list once the device has
+  signed in to an account of its own). A cloud server knows nothing of the relay's pairings, so
   a cloud session can outlive a revoked approval while it renews itself; the delegation does know, and
   refuses. A cloud that ended is already torn down and off the list when `onEnded` hears it, and the app
   says so and signs the device out — the approval was its sign-in. Nothing runs before the session has
@@ -115,12 +145,12 @@ showed up in sessions that sat still.
 ### Reading the session
 
 ```ts
-// In React — subscribes to the signal, re-renders only on the kinds it needs.
+// In React — re-renders when the part it reads changes.
 const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
 const { userId, isAuthenticated } = runtime.session.useSessionIdentity();
 
-// Outside React — the same derived contexts, read synchronously.
-const { cloud, identity } = getGlobalSessionContext();
+// Outside React — the same snapshot, read synchronously. No token in it.
+const { cloud, identity } = runtime.session.getGlobalSessionContext();
 ```
 
 ### What not to do
@@ -137,7 +167,7 @@ Old names still appear in source comments and in sibling modules' docs.
 | `RelayCore` · `CloudCore` · `IdentityCore` | `IRelayStore` · `ICloudStore` · `IIdentityStore` |
 | `logoutRelaySession()`                     | `relaySession.clearAndRedirect()`                |
 | `logoutCloudSession()` (the store half)    | `cloudSession.clearStores()`                     |
-| `RuntimeBinding` / `useRuntimeBinding`     | `RuntimeSocketSlots` / `useRuntimeSocketSlots`   |
+| `RuntimeBinding` / `useRuntimeBinding`     | `RuntimeSocketSlots` / `deriveSocketSlots`       |
 
 The last two rows are the same change: the global names `logoutSession` and `logoutCloudSession` now
 belong exclusively to the [socket-notifying versions](../../../auth/docs/socket/README.md#ending-a-session), because
@@ -146,6 +176,6 @@ those are the ones an app should reach for.
 ## Further reading
 
 - [`@chatic/auth`](../../../auth/README.md) — the use cases, pairing, and staying authenticated on every socket
-- [docs/connection/](../connection/README.md#how-a-slot-is-derived) — how `useRuntimeSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
-- [docs/data/](../data/README.md) — what `ActiveScope` is injected into
+- [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#how-a-slot-is-derived) — how `deriveSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
+- [runtime-core docs/data/](../../../runtime-core/docs/data/README.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

@@ -49,7 +49,10 @@ is watched on.
 - **It carries each reached milestone as a metric** (`provider_ready`, `app_mount`, and so on, since
   Firebase metric names allow no dashes). It also carries `boot_type` = `cold` / `reload`. The target
   is the cold number. A reload re-baselines on a content-process crash, and it happens most on
-  memory-pressured devices, so the two must be told apart before the tail is read.
+  memory-pressured devices, so the two must be told apart before the tail is read. Its log-pipeline
+  copy (not Firebase's) also carries `session_owner` — `web` or `native`, the owner the page actually
+  runs on this launch (`settledSessionOwner`): a launch set to the app's runtime that could not start
+  it counts as `web`.
 - **A session that never reaches `web-app-ready` leaves its trace unstopped.** Firebase does not
   record it. It is still persisted in the ring buffer above, because an aborted boot is worth keeping
   on the device, but it is not a sample of how long boot takes.
@@ -73,7 +76,8 @@ reached it, so the stretch between the two — the web rendering its first route
 
 - **A sample, not a later stop of `boot`.** The 1.5s target is defined on `boot`'s stop at
   WebAppReady. Moving that stop would change what an existing alert measures.
-- **Attributes:** `boot_type` (`cold` / `reload`, as on `boot`) and `reveal`, the signal that lifted
+- **Attributes:** `boot_type` (`cold` / `reload`, as on `boot`), `session_owner` on the log
+  pipeline only (as on `boot`) and `reveal`, the signal that lifted
   the splash: `first-screen` (the web's `FirstScreenReady`), `handshake` (a web build that holds
   nothing, revealed on WebAppReady) or `load-error`. Read the launch on `first-screen`; the other two
   are fallbacks.

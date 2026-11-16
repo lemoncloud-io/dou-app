@@ -11,3 +11,6 @@ export * from './GridScrubber';
 export * from './PreviewImage';
 export * from './EditedPhotoImage';
 export * from './PhotoEditor';
+export * from './Waveform';
+export * from './AudioDetailLayout';
+export * from './RoomMediaGrid';

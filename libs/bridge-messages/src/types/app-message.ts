@@ -84,6 +84,9 @@ import type {
     OnSavePreferencePayload,
     OnSaveTestRecordPayload,
     OnSearchGlobalCacheDataPayload,
+    OnFetchChatMediaCacheDataPayload,
+    OnCountChatMediaCacheDataPayload,
+    OnSaveChatMediaCacheDataPayload,
     OnSendLogPayload,
     OnSendSmsPayload,
     OnSetBadgeCountPayload,
@@ -127,6 +130,14 @@ import type {
     OnSetDebugModePayload,
     OnStartPerfTracePayload,
     OnStopPerfTracePayload,
+    OnRuntimeCallPayload,
+    OnRuntimeEventPayload,
+    OnRuntimeHelloPayload,
+    OnRuntimeSessionChangedPayload,
+    OnRuntimeSubscribePayload,
+    OnRuntimeUnsubscribePayload,
+    OnFetchSessionOwnerPayload,
+    OnSetSessionOwnerPayload,
 } from './model';
 import type { BaseMessage } from './types';
 
@@ -217,6 +228,9 @@ export type AppMessageDataMap = {
     OnClearCacheData: OnClearCacheDataPayload;
     OnClearCacheDataByChannel: OnClearCacheDataByChannelPayload;
     OnSearchGlobalCacheData: OnSearchGlobalCacheDataPayload;
+    OnFetchChatMediaCacheData: OnFetchChatMediaCacheDataPayload;
+    OnCountChatMediaCacheData: OnCountChatMediaCacheDataPayload;
+    OnSaveChatMediaCacheData: OnSaveChatMediaCacheDataPayload;
 
     // 5. Preference
     OnFetchPreference: OnFetchPreferencePayload;
@@ -291,6 +305,17 @@ export type AppMessageDataMap = {
     // Pushed to a sub WebView page only, by its own host.
     OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
     OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;
+    // 12. Runtime — replies to the main web's runtime requests, and the two pushes of a shell that owns
+    // the session.
+    OnRuntimeHello: OnRuntimeHelloPayload;
+    OnRuntimeCall: OnRuntimeCallPayload;
+    OnRuntimeSubscribe: OnRuntimeSubscribePayload;
+    OnRuntimeUnsubscribe: OnRuntimeUnsubscribePayload;
+    OnRuntimeEvent: OnRuntimeEventPayload;
+    OnRuntimeSessionChanged: OnRuntimeSessionChangedPayload;
+    // 13. Session owner — replies to the development switch.
+    OnFetchSessionOwner: OnFetchSessionOwnerPayload;
+    OnSetSessionOwner: OnSetSessionOwnerPayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

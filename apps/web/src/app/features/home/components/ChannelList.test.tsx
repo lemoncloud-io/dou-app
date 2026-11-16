@@ -4,6 +4,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 
 import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 import { ChannelList } from './ChannelList';
+import { useNotificationStore } from '../../../stores/useNotificationStore';
+import type { NotificationItem } from '../../../utils/notifications';
 import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
@@ -101,6 +103,8 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
+    ActivityCountBadge: ({ variant, count }: any) =>
+        count > 0 ? <span data-testid={`activity-${variant}`}>{count}</span> : null,
     Badge: ({ children }: any) => <span>{children}</span>,
     CollapsibleSection: ({ actions, children, count, open, onOpenChange }: any) => (
         // `count` is surfaced as an attribute, not text: the rows under test already render bare
@@ -1451,5 +1455,47 @@ describe('ChannelList — sender and thread marks', () => {
         );
 
         expect(screen.getByText('chat.preview.thread')).toBeInTheDocument();
+    });
+});
+
+describe('ChannelList — bare list and inbox activity', () => {
+    afterEach(() => useNotificationStore.setState({ items: {} }));
+
+    it('draws rows without a section heading when bare', () => {
+        const { container } = render(
+            <ChannelList channels={[makeChannel({ id: 'c1', name: 'Trip' })]} isLoading={false} bare />
+        );
+
+        expect(container.querySelector('section')).toBeNull();
+        expect(screen.getByText('Trip')).toBeInTheDocument();
+    });
+
+    it("counts a row's unread mentions and thread replies from this cloud's inbox only", () => {
+        const item = (over: Partial<NotificationItem>): NotificationItem => ({
+            id: over.id ?? 'x',
+            cloudId: 'cloud-a',
+            channelId: 'c1',
+            kind: 'mention',
+            ownerName: 'Sis',
+            content: 'hi',
+            createdAt: 1,
+            read: false,
+            ...over,
+        });
+        useNotificationStore.setState({
+            items: {
+                a: item({ id: 'a', kind: 'mention' }),
+                b: item({ id: 'b', kind: 'threadMention' }),
+                c: item({ id: 'c', kind: 'replyToMine' }),
+                d: item({ id: 'd', kind: 'mention', read: true }),
+                // The same channel id in another cloud is another room.
+                e: item({ id: 'e', kind: 'mention', cloudId: 'cloud-b' }),
+            },
+        });
+
+        render(<ChannelList channels={[makeChannel({ id: 'c1', name: 'Trip' })]} isLoading={false} bare />);
+
+        expect(screen.getByTestId('activity-mention')).toHaveTextContent('2');
+        expect(screen.getByTestId('activity-thread')).toHaveTextContent('1');
     });
 });

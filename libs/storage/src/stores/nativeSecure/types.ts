@@ -33,6 +33,14 @@ export interface NativeStore extends KeyValueStore {
     hydrate(): Promise<NativeReadResult>;
     /** Sends what is waiting now and resolves once the shell confirmed it; rejects when it did not. */
     flush(): Promise<void>;
+    /**
+     * Writes `value` under `key` only while the store holds nothing there, in a send of its own whose
+     * failure leaves the store as it was — it does not switch to the fallback, as a refused `set` does.
+     * For a value that is only a copy of one kept elsewhere: losing the write costs a retry, so it must
+     * not cost the run its vault. Resolves `true` once the shell confirmed it, `false` for anything
+     * else (unavailable, already held, refused, unanswered). Never rejects.
+     */
+    offer(key: string, value: string): Promise<boolean>;
 }
 
 export interface NativeSecureStoreOptions {

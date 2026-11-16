@@ -56,7 +56,17 @@
 //         opens (`anyHttps` on the desktop, which opens any plain https site in the `external` tier);
 //         a sub WebView page's context may say `platform: 'desktop'`; `MiniAppLaunchParams` names the
 //         `params` DoU's own web opens a mini app with.
-export const BRIDGE_VERSION = '2.22.0' as const;
+// 2.23.0: added RuntimeHello, RuntimeCall, RuntimeSubscribe and RuntimeUnsubscribe (web -> app), and
+//         the OnRuntimeEvent and OnRuntimeSessionChanged pushes — the main web's conversation with a
+//         shell that owns the session, which offers it in `window.CHATIC_APP_RUNTIME`. Declared only:
+//         no shell answers them yet, and a sub WebView page is never answered.
+// 2.24.0: added FetchSessionOwner and SetSessionOwner (web -> app) — the debug overlay's development
+//         switch for which side holds the session on the phone; a production shell leaves both
+//         unanswered.
+// 2.25.0: added FetchChatMediaCacheData, CountChatMediaCacheData and SaveChatMediaCacheData (web -> app)
+//         — a room's media index in the shell's `chat_media` table, read and filled; a shell without
+//         all three is read through plain chat rows.
+export const BRIDGE_VERSION = '2.25.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

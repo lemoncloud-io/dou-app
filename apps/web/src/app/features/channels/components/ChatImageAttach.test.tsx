@@ -1394,6 +1394,20 @@ describe('useChatImageAttach — the recent row while the app is asked for its l
         fireEvent.click(openButton());
 
         expect(row()).not.toBeInTheDocument();
+        // No row to sit under: the panel's entries sit in the middle instead of over an empty band.
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
+    });
+
+    it('centres the entries once the app turns out to have no library, while the row folds away', async () => {
+        const { picker, answer } = unasked();
+        const { rerender } = render(<Harness sendImages={jest.fn()} picker={picker} />);
+        fireEvent.click(openButton());
+        // Asking: skeleton tiles hold the row's place, and the entries sit under it.
+        expect(screen.getByTestId('attach-entries')).toHaveClass('pt-6');
+
+        rerender(<Harness sendImages={jest.fn()} picker={{ ...picker, supported: false }} />);
+        await answer();
+        expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
     });
 });
 
@@ -2225,5 +2239,145 @@ describe('useChatImageAttach — the camera inside the app', () => {
 
         expect(access.request).not.toHaveBeenCalled();
         expect(click).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('useChatImageAttach — audio picked from the files input', () => {
+    const shellPicker = (): AttachmentPicker => ({
+        pick: jest.fn(),
+        readPhotos: jest.fn(async items => ({ items, refused: [] })),
+        prepareVideo: jest.fn(),
+        isUnsupported: () => false,
+    });
+    const audio = (name: string, lastModified = 1) => photo(name, 'audio/mp4', lastModified);
+    const empty = (name: string, type = 'audio/mp4') => new File([], name, { type, lastModified: 1 });
+    const sheetTitle = (count: number) => `chat.attach.audioSend.title:${JSON.stringify({ count })}`;
+    const sheet = (count: number) => screen.queryByRole('dialog', { name: sheetTitle(count) });
+    const strip = () => screen.queryByRole('group', { name: 'chat.attach.pickedFiles' });
+    const removeButton = (name: string) =>
+        screen.getByRole('button', { name: `chat.attach.removeFile:${JSON.stringify({ name })}` });
+    const flush = () => act(async () => undefined);
+
+    it('asks to confirm a pick of audio alone in the send sheet, rather than keeping it above the field', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} shellPicker={shellPicker()} />);
+
+        pick('chat-attach-files', [audio('a.m4a', 1), audio('b.m4a', 2)]);
+
+        expect(sheet(2)).toBeInTheDocument();
+        expect(within(sheet(2) as HTMLElement).getByText('a.m4a')).toBeInTheDocument();
+        expect(within(sheet(2) as HTMLElement).getByText('b.m4a')).toBeInTheDocument();
+        expect(strip()).not.toBeInTheDocument();
+        expect(sendImages).not.toHaveBeenCalled();
+    });
+
+    it('keeps the sheet open as rows are removed, and closes it with the last one', async () => {
+        render(<Harness sendImages={jest.fn()} shellPicker={shellPicker()} />);
+        pick('chat-attach-files', [audio('a.m4a', 1), audio('b.m4a', 2)]);
+
+        fireEvent.click(removeButton('a.m4a'));
+        expect(sheet(1)).toBeInTheDocument();
+        expect(screen.queryByText('a.m4a')).not.toBeInTheDocument();
+
+        fireEvent.click(removeButton('b.m4a'));
+        await flush();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('sends what the sheet holds as one message through the shell read', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        const shell = shellPicker();
+        render(<Harness sendImages={sendImages} shellPicker={shell} />);
+        const a = audio('a.m4a', 1);
+        const b = audio('b.m4a', 2);
+        pick('chat-attach-files', [a, b]);
+
+        fireEvent.click(
+            within(sheet(2) as HTMLElement).getByRole('button', {
+                name: `chat.attach.audioSend.send:${JSON.stringify({ count: 2 })}`,
+            })
+        );
+        await flush();
+
+        expect(shell.readPhotos).toHaveBeenCalledWith([a, b]);
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages.mock.calls[0][0]).toEqual([a, b]);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('keeps audio picked with a document above the field, as any file', () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} shellPicker={shellPicker()} />);
+
+        pick('chat-attach-files', [audio('a.m4a', 1), photo('b.pdf', 'application/pdf', 2)]);
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(within(strip() as HTMLElement).getAllByRole('listitem')).toHaveLength(2);
+        expect(sendImages).not.toHaveBeenCalled();
+    });
+
+    it('lists each refused file with its reason, and goes on with the rest when asked', async () => {
+        render(<Harness sendImages={jest.fn()} shellPicker={shellPicker()} />);
+
+        pick('chat-attach-files', [audio('a.m4a', 1), empty('blank.m4a'), photo('clip.aac', 'audio/aac', 3)]);
+
+        const dialog = screen.getByRole('alertdialog');
+        expect(within(dialog).getByText('chat.attach.unsendable.title')).toBeInTheDocument();
+        expect(within(dialog).getByText('blank.m4a')).toBeInTheDocument();
+        expect(within(dialog).getByText('chat.attach.rejected.empty')).toBeInTheDocument();
+        expect(within(dialog).getByText('clip.aac')).toBeInTheDocument();
+        expect(within(dialog).getByText(/^chat\.attach\.rejected\.unsupported/)).toBeInTheDocument();
+        expect(within(dialog).queryByText('a.m4a')).not.toBeInTheDocument();
+        // Nothing is decided yet: the passing file waits neither in the sheet nor above the field.
+        expect(sheet(1)).not.toBeInTheDocument();
+        expect(strip()).not.toBeInTheDocument();
+
+        fireEvent.click(
+            within(dialog).getByRole('button', {
+                name: `chat.attach.unsendable.sendRest:${JSON.stringify({ count: 1 })}`,
+            })
+        );
+        await flush();
+
+        // What is left is audio alone, so it goes on to the send sheet.
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(sheet(1)).toBeInTheDocument();
+        expect(within(sheet(1) as HTMLElement).getByText('a.m4a')).toBeInTheDocument();
+    });
+
+    it('keeps the rest above the field when it is more than audio', async () => {
+        render(<Harness sendImages={jest.fn()} shellPicker={shellPicker()} />);
+
+        pick('chat-attach-files', [audio('a.m4a', 1), photo('b.pdf', 'application/pdf', 2), empty('blank.m4a')]);
+        fireEvent.click(
+            within(screen.getByRole('alertdialog')).getByRole('button', {
+                name: `chat.attach.unsendable.sendRest:${JSON.stringify({ count: 2 })}`,
+            })
+        );
+        await flush();
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(within(strip() as HTMLElement).getAllByRole('listitem')).toHaveLength(2);
+    });
+
+    it('offers only OK when nothing in the pick can be sent', async () => {
+        const sendImages = jest.fn();
+        render(<Harness sendImages={sendImages} shellPicker={shellPicker()} />);
+
+        pick('chat-attach-files', [empty('blank.m4a'), photo('clip.aac', 'audio/aac', 2)]);
+
+        const dialog = screen.getByRole('alertdialog');
+        expect(
+            within(dialog)
+                .getAllByRole('button')
+                .map(button => button.textContent)
+        ).toEqual(['chat.attach.unsendable.ok']);
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'chat.attach.unsendable.ok' }));
+        await flush();
+
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(strip()).not.toBeInTheDocument();
+        expect(sendImages).not.toHaveBeenCalled();
     });
 });

@@ -15,6 +15,8 @@ const KICK_THROTTLE_MS = 5_000;
  * this force-recycles any bound-but-unverified slot immediately (and re-seeds a terminally-expired
  * controller), and pings every slot that still reads verified, recycling the ones that stay silent
  * for three seconds — a zombie keeps the flags of the handshake it completed before the suspension.
+ * A slot's first connection is left to finish while it is young: the shell's first foreground report
+ * lands while the boot is still connecting, and that is not a socket a suspension stranded.
  *
  * The helper no-ops per slot that is not yet booted, so mounting this before login / before
  * RuntimeConnectionHost finishes booting is inert. The same signal asks every background cloud for

@@ -12,7 +12,7 @@ import { relaySession } from '../session/relaySession';
  *
  * Without this verdict the runtime treats a revoked session as an authenticated one, because
  * `isAuthenticated` is a session-EXISTENCE probe (`relayCredentialProbe.hasSession`): the dead token is still
- * in the store, so `useRelaySessionKeepAlive` never re-logs in and every screen shows its own
+ * in the store, so the guest keep-alive never re-logs in and every screen shows its own
  * generic failure ("Couldn't switch cloud. Try again.") while nothing recovers. The session ends
  * some 30s later anyway, through `RelayCredentialRenewer.onTerminalExpiry`, but with no attribution
  * — the user sees their session vanish after a string of unrelated errors.
@@ -67,10 +67,10 @@ export const resetRevokedSessionHandling = (): void => {
  *
  * `clearAndRedirect` and NOT `logoutSession`: the socket `auth.logout` that `logoutSession` fires
  * first would only 403 (the same guard rejects it), and there is nothing left to revoke. What is
- * needed is the LOCAL teardown — drop the dead token, land on `/` — after which
- * `useRelaySessionKeepAlive` sees an absent session and runs its guest login. A user who was signed
- * in beyond guest has to sign in again; that is what a revoked session means, and it is the same
- * end state `onTerminalExpiry` reaches, minus the silent 30s of 403s.
+ * needed is the LOCAL teardown — drop the dead token, land on `/` — after which the guest keep-alive
+ * (runtime-core's session controller) sees an absent session and runs its guest login. A user who
+ * was signed in beyond guest has to sign in again; that is what a revoked session means, and it is
+ * the same end state `onTerminalExpiry` reaches, minus the silent 30s of 403s.
  *
  * The persisted token bundle is NOT removed here — `clearAndRedirect` lands on `/?logout=1` and the
  * next document's `logoutStorageSweeper` wipes it. That split is load-bearing: while the sweep was

@@ -1,5 +1,6 @@
 import {
     BILLING_COUNTRY_OPTIONS,
+    billableIn,
     currencyOfCountry,
     currencyOfLanguage,
     currencyOfProvider,
@@ -99,6 +100,19 @@ describe('billing country', () => {
         expect(isBillingCountry('US')).toBe(true);
         expect(isBillingCountry('')).toBe(false);
         expect(isBillingCountry('IN')).toBe(false);
+    });
+
+    it('never offers India, on any stage: its cards would be refused at every monthly charge', () => {
+        expect(BILLING_COUNTRY_OPTIONS).not.toContain('IN');
+    });
+
+    it('bills Korea everywhere, and any other country only where the build may bill outside Korea', () => {
+        expect(billableIn('KR', true)).toBe(true);
+        expect(billableIn('KR', false)).toBe(true);
+        for (const country of ['US', 'JP', 'OTHER']) {
+            expect(billableIn(country, true)).toBe(true);
+            expect(billableIn(country, false)).toBe(false);
+        }
     });
 });
 

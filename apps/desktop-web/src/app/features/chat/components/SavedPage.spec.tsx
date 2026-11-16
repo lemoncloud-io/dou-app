@@ -125,6 +125,21 @@ describe('SavedPage', () => {
         expect(cards()[0].textContent).toContain('Ada');
     });
 
+    // Saved with the sidebar's line for a voice memo; the tile names the file, so the line is not drawn twice.
+    it('names a voice-only message once, by its file', () => {
+        seed(
+            item('voice', {
+                content: '2 voice files',
+                attachment: { kind: 'mixed', count: 2, name: 'memo.m4a', size: 2048, voice: true },
+            })
+        );
+        renderPage();
+        const [card] = cards();
+        expect(card.textContent).toContain('memo.m4a');
+        expect(card.textContent).toContain('2 voice files');
+        expect(card.textContent?.match(/voice files/g)).toHaveLength(1);
+    });
+
     it('files a message with an attachment under Files, and one without under Messages', () => {
         seed(
             item('text'),

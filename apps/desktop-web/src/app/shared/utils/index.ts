@@ -42,3 +42,4 @@ export * from './phoneNumber';
 export * from './inviteCode';
 export * from './myThreads';
 export * from './cachedThreads';
+export * from './placeNotify';

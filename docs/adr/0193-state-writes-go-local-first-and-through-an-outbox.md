@@ -5,7 +5,7 @@
 > · `libs/app-runtime/src/data/factories/outboxFactory.ts` · `libs/app-runtime/src/data/DataManager.ts`
 > · `apps/web/src/app/features/channels/hooks/useReadMarker.ts` · `apps/desktop-web/src/app/shared/hooks/useReadReceipts.ts`
 > · The module docs are [libs/data outbox](../../libs/data/docs/outbox/README.md),
-> [libs/app-runtime data](../../libs/app-runtime/docs/data/README.md#the-state-outbox-transport) and
+> [libs/runtime-core data](../../libs/runtime-core/docs/data/README.md#the-state-outbox-transport) and
 > [apps/web channels/data-layer.md](../../apps/web/docs/feature/channels/data-layer.md)
 
 ## Context

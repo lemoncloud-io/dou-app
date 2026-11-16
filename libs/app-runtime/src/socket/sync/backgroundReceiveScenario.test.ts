@@ -17,7 +17,11 @@ import { waitFor } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
-import { DataManager } from '../../data/DataManager';
+import { DataManager } from '@chatic/runtime-core/data/DataManager';
+import { localCachePlatform } from '@chatic/runtime-core/data/localCachePlatform';
+import { runtimeStores } from '@chatic/runtime-core/storage/runtimeStores';
+import { IndexedDBAdapter, IndexedDBDatabase } from '@chatic/db';
+import { MemoryStore } from '@chatic/storage';
 import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
 import { SocketManager } from '@chatic/transport/socket/SocketManager';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
@@ -44,7 +48,9 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('@chatic/sync/dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
-jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
+jest.mock('@chatic/runtime-core/data/factories/httpFactory', () => ({
+    createHttpDataSources: () => ({ httpDataSources: {} }),
+}));
 jest.mock('@chatic/session/store', () => ({
     ...jest.requireActual('@chatic/session/store'),
     getGlobalSessionContext: jest.fn(),
@@ -115,8 +121,21 @@ const flush = async () => {
     for (let i = 0; i < 5; i += 1) await new Promise(resolve => setTimeout(resolve, 0));
 };
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
-beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own. The
+// cache is the page's IndexedDB (fake-indexeddb), every domain on it; the runtime's device store is
+// memory.
+beforeEach(() => {
+    transportPlatform.configure(fakeTransportPorts());
+    runtimeStores.configure({ device: new MemoryStore() });
+    const database = new IndexedDBDatabase();
+    localCachePlatform.configure({
+        route: () => 'web',
+        storage: (type, _route, provider) => new IndexedDBAdapter(database, type, provider) as never,
+        routed: () => undefined,
+        globalSearch: () => ({}) as never,
+        metrics: () => ({}) as never,
+    });
+});
 
 describe('background receive — a cloud off screen keeps its own partition current', () => {
     let manager: SocketManager;

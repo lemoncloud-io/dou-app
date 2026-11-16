@@ -7,6 +7,7 @@ import type { StorageLike } from '../jsonSlot';
 import type { IRawSlot, ISessionStores } from './types';
 
 export {
+    DELEGATOR_ID_KEY,
     isSessionKey,
     PAIRED_CLOUD_NAMES_KEY,
     PAIRED_CLOUDS_KEY,

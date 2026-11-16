@@ -17,14 +17,14 @@
 // as locals (`data` in 23 files, `session` in 17, `sync` in 9), and a shadowed group does not
 // compile. `facade.ts` explains that trade.
 //
-// **Groups are not folders.** They cut across the module tree on purpose: `session.applySessionToken`
+// **Groups are not folders.** They cut across the module tree on purpose: `session.confirmPhoneLogin`
 // lives in `@chatic/auth`, `session.useRuntimeProfile` reads through `data/`, and
 // `push.useRegisterDeviceTokenMutation` lives in `data/hooks/`. The barrel each group is built from
 // names every symbol it sells, so the group barrel is the catalog — that is why this file has no
 // per-symbol list of its own and no bare `export *`.
 //
 // **What "internal" means.** NOT in a group barrel. Runtime code reaches those symbols by concrete
-// module path (`./connection/hooks/useRuntimeSocketSlots`) or through a package below,
+// module path (`./connection/hooks/useHostControllers`) or through a package below,
 // which is both the pre-existing convention and what keeps the group barrels cycle-free: a barrel
 // publishes outward, and nothing inside the package imports one.
 //

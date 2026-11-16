@@ -1,4 +1,4 @@
-import { chatAttachmentFormat } from '@chatic/data';
+import { chatAttachmentExtension, chatAttachmentFormat } from '@chatic/data';
 
 import type { ChatFile } from './chatImages';
 
@@ -9,11 +9,18 @@ const PREVIEWS: Readonly<Record<string, FilePreview>> = {
     'application/pdf': 'pdf',
     'text/plain': 'text',
     'text/html': 'html',
-    'audio/mpeg': 'audio',
+    // In the order the drop zone names them: m4a, the phone recorder's, first.
     'audio/mp4': 'audio',
+    'audio/mpeg': 'audio',
     'audio/wav': 'audio',
     'audio/ogg': 'audio',
 };
+
+/** The extensions of the voice files the feed plays — "m4a, mp3, wav, ogg" in the drop zone. */
+export const VOICE_EXTENSIONS: readonly string[] = Object.keys(PREVIEWS)
+    .filter(type => PREVIEWS[type] === 'audio')
+    .map(type => chatAttachmentExtension(type))
+    .filter((extension): extension is string => !!extension);
 
 /**
  * Whether a sent file opens in the viewer, and as what. A PDF, a text file or an HTML page is drawn, a
@@ -23,8 +30,26 @@ const PREVIEWS: Readonly<Record<string, FilePreview>> = {
  */
 export const canPreview = (file: ChatFile): FilePreview | null => {
     if (file.kind !== 'file' || !file.url || file.isUploading || file.isFailed) return null;
+    return previewOf(file);
+};
+
+const previewOf = (file: ChatFile): FilePreview | null => {
     const format = chatAttachmentFormat({ name: file.name ?? '', type: file.contentType ?? '' });
     return (format && PREVIEWS[format.type]) ?? null;
+};
+
+/** A voice file — sent, on its way, or failed — which the feed draws as a voice card in every state. */
+export const isVoiceFile = (file: ChatFile): boolean => file.kind === 'file' && previewOf(file) === 'audio';
+
+/**
+ * A file name split before its extension, so a name cut short to fit still shows what kind of file it
+ * is: the stem gives way, the extension stays. A name with no extension, or only one (".env"), is all stem.
+ */
+export const splitFileName = (name: string): { stem: string; extension: string } => {
+    const dot = name.lastIndexOf('.');
+    return dot > 0 && dot < name.length - 1
+        ? { stem: name.slice(0, dot), extension: name.slice(dot) }
+        : { stem: name, extension: '' };
 };
 
 /**

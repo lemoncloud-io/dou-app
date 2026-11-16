@@ -40,7 +40,7 @@ own options.
 
 | `mode`    | Steps taken                         | Ends with                                  |
 | --------- | ----------------------------------- | ------------------------------------------ |
-| `'login'` | send → **confirm** (verify skipped) | `$token` installed, then `onVerified`      |
+| `'login'` | send → **confirm** (verify skipped) | session switched, then `onVerified`        |
 | `'link'`  | send → **verify** → confirm         | the credential attached, session untouched |
 
 On `login`, `verify` would only report that the code is valid, which `confirm` proves anyway — so
@@ -115,14 +115,16 @@ the code field goes to an error state and submission is disabled; only a resend 
 
 ### The session switch, and why it is guarded twice
 
-`mode: 'login'`'s confirm returns a `$token`, and `runtime.session.applySessionToken` installs it
-**before** `onVerified` fires, so the caller's next `invite.create` or `invite.accept` runs on a
-connection that is already the main user. It commits the token to the session store, re-registers the
-relay socket in place (`logout()` then `register()`, no reconnect), and waits for `ready()` against a
-10-second deadline — with a check on each side of the commit.
+`mode: 'login'` confirms through `runtime.session.confirmPhoneLogin(phone, code, { countryCode })`, which
+proves the code and switches the session in one step, **before** `onVerified` fires — so the caller's
+next `invite.create` or `invite.accept` runs on a connection that is already the main user. The
+confirm's `$token` never reaches the screen: the runtime commits it to the session store, re-registers
+the relay socket in place (`logout()` then `register()`, no reconnect), and waits for `ready()` against
+a 10-second deadline — with a check on each side of the commit. The screen gets `{ isNew }`.
 
-- **An empty `$token` is a no-op.** That is what a `link` confirm returns, so the path is simply not
-  taken there.
+- **A login confirm without a session token is a failure**, not a quiet success: it throws
+  `PHONE_LOGIN_NO_TOKEN`, and the screen says the check failed. (A `link` confirm carries none, and
+  `link` mode does not go through this command.)
 - **The pre-condition runs before the commit.** Without `$auth.id` the relay socket cannot
   re-register, and committing anyway would leave HTTP signing on the new identity and the socket on
   the old one.
@@ -141,8 +143,9 @@ relay socket in place (`logout()` then `register()`, no reconnect), and waits fo
 The identity swap has to be `logout() → register()`. The SDK's `refresh` and `switch` re-sign the
 **same** identity, so neither can carry another user's token.
 
-If the switch fails, the OTP is already spent. The machine keeps the token, shows a switch-failed
-error and flips the CTA to a retry that re-runs the **switch**, never the consumed check.
+If the switch fails, the OTP is already spent. The runtime keeps the token (`confirmPhoneLogin` throws
+`PHONE_LOGIN_SWITCH_FAILED`); the machine shows a switch-failed error and flips the CTA to a retry,
+`runtime.session.retryPhoneLogin()`, that re-runs the **switch**, never the consumed check.
 
 ## Usage
 
@@ -198,24 +201,26 @@ the user presses the CTA again. Nothing is auto-resubmitted, which would run on 
   the answer is still `'unknown'` it leaves the refusal to the server's validation.
 - **There is a dev bypass code.** It is not a client-side skip: it goes through the same calls and
   the server decides, so a release backend rejects it as a wrong code. Nothing can be forged, because
-  the `$token` comes from the server.
+  the session token comes from the server.
 - **Dev delivery switches omit rather than negate.** Receiving over Slack means `{ slack: true, sms:
 false }`; an unset switch is left out so the server default survives.
-- **Logging out returns the same device user.** `applySessionToken` never touches `delegatorId` or
-  the device storage, so the relay keep-alive re-registers the same guest.
+- **Logging out returns the same device user.** The switch never touches `delegatorId` or the device
+  storage, so the relay keep-alive re-registers the same guest.
 - **`link` mode never switches the session**, so nothing needs installing and `onVerified` fires on
   the confirm alone.
 
 ## How to verify
 
 ```bash
-npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "applySessionToken"
+npx jest --config libs/auth/jest.config.js --runInBand --watchman=false --testPathPatterns "applySessionToken|phoneLogin"
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "features/auth"
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "features/invite"
 npx tsc -b apps/web/tsconfig.app.json
 ```
 
-The `applySessionToken` suite pins the 403 contract end to end: a real `SocketManager` against a fake
+The `phoneLogin` suite pins the one-step command — the token never in its answer, a switch that failed
+kept for `retryPhoneLogin` without proving the spent code again. The `applySessionToken` suite pins the
+403 contract end to end: a real `SocketManager` against a fake
 relay server refuses `invite.create` while the identity is a guest, and the same
 `getScopedClient('relay')` call succeeds afterwards. The `features/auth` suites cover the timer, the
 error-code branches, the resend cap, the banner and the dev switches; the `features/invite` suites
@@ -236,4 +241,4 @@ the jsdom test setup. Keep it that way when adding an import to either file.
 - [README.md](./README.md) — the auth feature overview, and where login returns to.
 - [invite](../invite/README.md) — the issue and accept flows that open these shells.
 - [`libs/auth`](../../../../../libs/auth/docs/socket/README.md) — the controller that
-  owns the socket handshake `applySessionToken` drives.
+  owns the socket handshake the phone login's switch (`applySessionToken`) drives.

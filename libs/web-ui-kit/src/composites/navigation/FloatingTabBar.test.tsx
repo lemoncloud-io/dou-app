@@ -143,4 +143,33 @@ describe('FloatingTabBar', () => {
         // Still on its own tab, which is what the button's accessible name speaks for.
         expect(screen.getByRole('button', { name: '채팅, 3' })).toContainElement(badge);
     });
+
+    it('draws a dot on the icon and folds dotLabel into the name when the tab has no count', () => {
+        render(
+            <FloatingTabBar
+                items={[{ key: 'alerts', label: '알림', icon: <span>b</span>, dot: true, dotLabel: 'new' }]}
+                onSelect={jest.fn()}
+            />
+        );
+
+        const tab = screen.getByRole('button', { name: '알림, new' });
+        expect(tab.querySelector('[data-dot]')).not.toBeNull();
+    });
+
+    it('prefers the count over the dot, and draws neither when both are off', () => {
+        const { container, rerender } = render(
+            <FloatingTabBar
+                items={[{ key: 'alerts', label: '알림', icon: <span>b</span>, dot: true, badge: 2 }]}
+                onSelect={jest.fn()}
+            />
+        );
+        expect(screen.getByText('2')).toBeInTheDocument();
+        expect(container.querySelector('[data-dot]')).toBeNull();
+
+        rerender(
+            <FloatingTabBar items={[{ key: 'alerts', label: '알림', icon: <span>b</span> }]} onSelect={jest.fn()} />
+        );
+        expect(container.querySelector('[data-dot]')).toBeNull();
+        expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
+    });
 });

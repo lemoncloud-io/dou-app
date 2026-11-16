@@ -6,23 +6,4 @@ import { runtime } from '@chatic/app-runtime';
  * the new cloud/place auth handshake completes.
  */
 export const waitForVerified = (timeoutMs = 5000): Promise<boolean> =>
-    new Promise(resolve => {
-        const manager = runtime.connection.getSocketManager();
-        if (manager.getSnapshot().isVerified) {
-            resolve(true);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            unsub();
-            resolve(false);
-        }, timeoutMs);
-
-        const unsub = manager.subscribe(state => {
-            if (state.isVerified) {
-                clearTimeout(timer);
-                unsub();
-                resolve(true);
-            }
-        });
-    });
+    runtime.connection.waitUntilVerified(null, timeoutMs);

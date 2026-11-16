@@ -20,6 +20,8 @@ const shell = (
         vault?: Record<string, string>;
         saveOk?: boolean;
         clearOk?: boolean;
+        /** A shell that never answers a write. */
+        saveHangs?: boolean;
     } = {}
 ) => {
     const vault: Record<string, string> = { ...(opts.vault ?? {}) };
@@ -35,6 +37,7 @@ const shell = (
             },
             save: async (set, remove) => {
                 calls.push('save');
+                if (opts.saveHangs) return new Promise<boolean>(() => undefined);
                 if (opts.saveOk === false) return false;
                 Object.assign(vault, set);
                 remove.forEach(key => delete vault[key]);
@@ -224,6 +227,130 @@ describe('secretStorageMigration and a tab copy an unavailable run left', () => 
 
         expect(tab.get(RELAY)).toBeNull();
         expect(store.get(RELAY)).toBeNull();
+    });
+});
+
+describe('secretStorageMigration and the device guest id', () => {
+    const GUEST = 'chatic-delegator-id';
+    const boot = (store: NativeSecureStore, web: MemoryStore, afterLogout = false, tab = new MemoryStore()) =>
+        secretStorageMigration.prepare({ vault: store, plain: web, web, tab, afterLogout });
+    /** The copy is not awaited by the boot; this waits for the store's queue, which it joined. */
+    const settled = (store: NativeSecureStore) => store.flush().catch(() => undefined);
+
+    it('copies it into a vault that holds the session but not the id, and keeps the plain copy', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'r' } });
+        const web = webWith({ [GUEST]: 'guest-1' });
+
+        expect(await boot(store, web)).toBe('vault');
+        await settled(store);
+
+        expect(vault).toEqual({ [RELAY]: 'r', [GUEST]: 'guest-1' });
+        expect(store.get(GUEST)).toBe('guest-1');
+        expect(web.get(GUEST)).toBe('guest-1');
+    });
+
+    it('copies it after moving the tokens, and does not delete it with their web copy', async () => {
+        const { store, vault } = shell();
+        const web = webWith({ [RELAY]: 'r', [GUEST]: 'guest-1' });
+
+        expect(await boot(store, web)).toBe('migrated');
+        await settled(store);
+
+        expect(vault).toEqual({ [RELAY]: 'r', [GUEST]: 'guest-1' });
+        expect(web.keys()).toEqual([GUEST]);
+    });
+
+    it('copies it into an empty vault too', async () => {
+        const { store, vault } = shell();
+        const web = webWith({ [GUEST]: 'guest-1' });
+
+        expect(await boot(store, web)).toBe('empty');
+        await settled(store);
+
+        expect(vault).toEqual({ [GUEST]: 'guest-1' });
+    });
+
+    it('does not take a vault holding only the id for a signed-in one, so a web copy of the tokens is moved, not deleted', async () => {
+        const { store, vault } = shell({ vault: { [GUEST]: 'guest-1' } });
+        const web = webWith({ [RELAY]: 'r', [GUEST]: 'guest-1' });
+
+        expect(await boot(store, web)).toBe('migrated');
+
+        expect(vault).toEqual({ [RELAY]: 'r', [GUEST]: 'guest-1' });
+        expect(store.get(RELAY)).toBe('r');
+    });
+
+    it('never overwrites an id the vault already holds, and leaves the plain one as it is', async () => {
+        const { store, vault, calls } = shell({ vault: { [RELAY]: 'r', [GUEST]: 'in-vault' } });
+        const web = webWith({ [GUEST]: 'in-plain' });
+
+        await boot(store, web);
+        await settled(store);
+
+        expect(vault[GUEST]).toBe('in-vault');
+        expect(web.get(GUEST)).toBe('in-plain');
+        expect(calls).not.toContain('save');
+    });
+
+    it('writes nothing when the plain store has no id', async () => {
+        const { store, calls } = shell({ vault: { [RELAY]: 'r' } });
+
+        await boot(store, new MemoryStore());
+        await settled(store);
+
+        expect(calls).not.toContain('save');
+    });
+
+    it('keeps the run on the vault, with its tokens, when the shell refuses the copy', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'r' }, saveOk: false });
+        const web = webWith({ [GUEST]: 'guest-1' });
+
+        await expect(boot(store, web)).resolves.toBe('vault');
+        await settled(store);
+
+        expect(store.status).toBe('available');
+        expect(store.get(RELAY)).toBe('r');
+        expect(vault[GUEST]).toBeUndefined();
+        expect(web.get(GUEST)).toBe('guest-1');
+    });
+
+    it('does not hold the boot for a shell that never answers the copy', async () => {
+        const { store } = shell({ vault: { [RELAY]: 'r' }, saveHangs: true });
+        const web = webWith({ [GUEST]: 'guest-1' });
+
+        await expect(boot(store, web)).resolves.toBe('vault');
+        expect(store.status).toBe('available');
+    });
+
+    it('does not copy it while the vault is unavailable, and keeps the plain copy', async () => {
+        const { store, vault } = shell({ read: 'unavailable' });
+        const web = webWith({ [GUEST]: 'guest-1' });
+
+        await boot(store, web);
+
+        expect(vault).toEqual({});
+        expect(web.get(GUEST)).toBe('guest-1');
+    });
+
+    it('does not copy it into a vault a logout is emptying', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'r' } });
+        const web = webWith({ [GUEST]: 'left-behind' });
+
+        expect(await boot(store, web, true)).toBe('logout-finished');
+        await settled(store);
+
+        expect(vault).toEqual({});
+    });
+
+    it('drops a copy an unavailable run left in the tab once the vault answers again, and keeps the plain one', async () => {
+        const { store } = shell({ vault: { [RELAY]: 'r' } });
+        const web = webWith({ [GUEST]: 'guest-1' });
+        const tab = webWith({ [GUEST]: 'left-by-an-unavailable-run', other: 'x' });
+
+        await boot(store, web, false, tab);
+
+        expect(tab.keys()).toEqual(['other']);
+        expect(web.get(GUEST)).toBe('guest-1');
     });
 });
 

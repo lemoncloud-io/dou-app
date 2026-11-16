@@ -48,3 +48,4 @@ export * from './useCreatePlace';
 export * from './useUpdateCloudProfile';
 export * from './usePickImage';
 export * from './queryKeys';
+export * from './useScopedNotifications';

@@ -26,7 +26,7 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             RELAY_SLOT: 'default',
             useSlotVerified: jest.fn(),
-            getSocketManager: jest.fn(),
+            waitUntilVerified: jest.fn(),
         },
     },
 }));
@@ -40,8 +40,8 @@ const reject = jest.fn();
 // Cache observer: never emits by default (empty local cache) — a test that wants a cache-first
 // render sets a different mock implementation for the individual case.
 const observeList = jest.fn(() => () => undefined);
-// The one-shot relay gate a caller-driven refetch waits on (SocketManager.waitUntilSlotVerified).
-const waitUntilSlotVerified = jest.fn(async () => false);
+// The one-shot relay gate a caller-driven refetch waits on (`waitUntilVerified(RELAY_SLOT)`).
+const mockWaitUntilVerified = jest.fn(async (..._args: unknown[]) => false);
 
 /** Mirrors the app's QueryClient defaults (app.tsx) — `staleTime: Infinity` is load-bearing below. */
 const createAppQueryClient = () =>
@@ -74,8 +74,10 @@ beforeEach(() => {
         invite: { list, create, get, accept, cancel, reject, observeList },
     });
     (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(true); // relay verified by default in these tests
-    waitUntilSlotVerified.mockResolvedValue(false);
-    (runtime.connection.getSocketManager as jest.Mock).mockReturnValue({ waitUntilSlotVerified });
+    mockWaitUntilVerified.mockResolvedValue(false);
+    (runtime.connection.waitUntilVerified as jest.Mock).mockImplementation((...args: unknown[]) =>
+        mockWaitUntilVerified(...args)
+    );
     queryClient = createAppQueryClient();
     focusManager.setFocused(undefined);
 });
@@ -491,13 +493,13 @@ describe('useRelayInviteMutations', () => {
 describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다', () => {
     it('미인증이면 슬롯을 기다리고, 끝내 안 되면 소켓을 건드리지 않는다', async () => {
         (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
-        waitUntilSlotVerified.mockResolvedValue(false);
+        mockWaitUntilVerified.mockResolvedValue(false);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
 
         const answer = await act(async () => result.current.refetch());
 
-        expect(waitUntilSlotVerified).toHaveBeenCalledWith('default', 3_000);
+        expect(mockWaitUntilVerified).toHaveBeenCalledWith('default', 3_000);
         expect(list).not.toHaveBeenCalled();
         // Answer with what's on hand — resolveInviteCode only reads the single `data` field.
         expect(answer).toEqual({ data: undefined });
@@ -505,7 +507,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
 
     it('기다리는 동안 relay가 인증되면 그때 조회한다', async () => {
         (runtime.connection.useSlotVerified as jest.Mock).mockReturnValue(false);
-        waitUntilSlotVerified.mockResolvedValue(true);
+        mockWaitUntilVerified.mockResolvedValue(true);
         list.mockResolvedValue([{ id: 'invite-1', code: 'c0de' }]);
 
         const { result } = renderHook(() => useRelayInvites(), { wrapper });
@@ -528,7 +530,7 @@ describe('useRelayInvites — 호출자 refetch도 relay 게이트를 지킨다'
 
         await act(async () => result.current.refetch());
 
-        expect(waitUntilSlotVerified).not.toHaveBeenCalled();
+        expect(mockWaitUntilVerified).not.toHaveBeenCalled();
         expect(list).toHaveBeenCalledTimes(1);
     });
 });

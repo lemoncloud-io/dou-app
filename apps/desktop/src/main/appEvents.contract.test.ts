@@ -43,6 +43,10 @@ const DESKTOP_APP_EVENTS = {
     OnSubWebViewCloseRequested: {
         notEmitted: 'The desktop page host has no close guard; SetSubWebViewCloseGuard answers NOT_FOUND there',
     },
+    OnRuntimeEvent: { notEmitted: 'The desktop shell never owns the session, so it has no runtime to push from' },
+    OnRuntimeSessionChanged: {
+        notEmitted: 'The desktop shell never owns the session, so it has no runtime to push from',
+    },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '..');

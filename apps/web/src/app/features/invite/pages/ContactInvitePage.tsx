@@ -349,7 +349,8 @@ export const ContactInvitePage = () => {
     // ONE return with the sheet in a fixed child slot. Two returns would put it at a different index
     // per branch, and React reconciles by position — so the promotion (which flips `isGuest` as soon
     // as the token is committed, BEFORE the socket switch settles) would unmount the live sheet
-    // mid-switch and throw away its `pendingToken` retry.
+    // mid-switch and throw away its switch-retry state — and a closing sheet cancels the login the
+    // runtime keeps waiting for that retry.
     return (
         <KeyboardAwareLayout
             // PageHeader frosts its own notch strip, so the scaffold must not pad above it —

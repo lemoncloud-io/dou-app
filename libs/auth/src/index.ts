@@ -9,6 +9,8 @@
 
 // session — the relay and cloud sessions, and the use cases over them.
 export * from './session/authActions';
+export * from './session/accountView';
+export * from './session/inviteLogins';
 export * from './session/authRepository';
 export * from './session/clearSiteSelection';
 export * from './session/cloudSession';
@@ -22,6 +24,7 @@ export * from './session/relaySession';
 export * from './pairing/pairedCloudSessions';
 export * from './pairing/pairedClouds';
 export * from './pairing/pairedSession';
+export * from './pairing/pairingClaims';
 export * from './pairing/pairingClient';
 export * from './pairing/pairingErrors';
 export * from './pairing/pairingRequestFlow';
@@ -29,6 +32,7 @@ export * from './pairing/pairingRequestFlow';
 // socket — authentication on the socket slots. `types.ts` holds no values.
 export * from './socket/types';
 export * from './socket/applySessionToken';
+export * from './socket/phoneLogin';
 export * from './socket/authStatus';
 export * from './socket/backgroundCloudTokens';
 export * from './socket/bootstrapSocketConnection';
@@ -41,7 +45,11 @@ export * from './socket/recoverUnverifiedSockets';
 export * from './socket/renewers';
 export * from './socket/requestRelaySessionRefresh';
 export * from './socket/sessionDelegate';
+export * from './socket/switchCloudSession';
 export * from './socket/switchSite';
+
+// platform — the address the session ends to and the boot reads, filled by each platform's adapter
+export * from './platform';
 
 // utils — the concurrency guards the renewals use, which the app-layer hooks share.
 export * from './utils/coalescer';

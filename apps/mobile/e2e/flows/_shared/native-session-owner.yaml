@@ -1,0 +1,48 @@
+# Switches the session to the app's own runtime, from the development switch in the debug overlay, and
+# checks that the restarted launch runs on it. `fresh-guest.yaml` runs this when the run was started
+# with `--session-owner native`; the clean install it follows has always put the session back on the page.
+#
+# The screen is picked from the overlay's menu, below its Tools heading: the tab strip at the top carries
+# the same name as an accessibility label, and is scrolled out of view.
+appId: ${APP_ID}
+---
+- tapOn: 'debug'
+- scrollUntilVisible:
+      element:
+          text: 'Session owner \(app\)'
+          below: '(?i)tools'
+      direction: DOWN
+      timeout: 15000
+- tapOn:
+      text: 'Session owner \(app\)'
+      below: '(?i)tools'
+- tapOn: 'App \(native\)'
+# The switch restarts the app's JS context, which reloads the page. The overlay floats over home, so home
+# is "visible" before the restart too: wait for the overlay to go — it is not kept across a reload — and
+# only then for home.
+- extendedWaitUntil:
+      notVisible: 'From the next start'
+      timeout: 90000
+- extendedWaitUntil:
+      visible: 'Chats.*'
+      timeout: 90000
+# "This page" is what the page settled at boot. "This run" reads App (native) even when the app's
+# runtime failed to start — a build missing the runtime's services — and the page then holds its own
+# session; only this row tells the two apart.
+- tapOn: 'debug'
+- scrollUntilVisible:
+      element:
+          text: 'Session owner \(app\)'
+          below: '(?i)tools'
+      direction: DOWN
+      timeout: 15000
+- tapOn:
+      text: 'Session owner \(app\)'
+      below: '(?i)tools'
+- extendedWaitUntil:
+      visible: 'Mirrors the app.s runtime'
+      timeout: 15000
+- tapOn: 'close'
+- extendedWaitUntil:
+      notVisible: 'From the next start'
+      timeout: 15000

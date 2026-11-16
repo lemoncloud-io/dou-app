@@ -1,4 +1,4 @@
-import type { ICloudRepository } from '@chatic/data';
+import type { runtime } from '@chatic/app-runtime';
 
 import { deviceStore } from '../../storage';
 import { useJoinedCloudsStore } from '../stores/useJoinedCloudsStore';
@@ -29,7 +29,10 @@ const replaceOwner = (acceptedBy: readonly string[] | undefined, from: string, t
  *   uid move to the new one. A guest that signs in to an existing account comes out with that account's
  *   uid, not its own, and the invited clouds it joined would otherwise be lost to it.
  */
-export const reconcileCloudRecordOwners = async (cloud: ICloudRepository, accountId: string): Promise<void> => {
+export const reconcileCloudRecordOwners = async (
+    cloud: runtime.data.PageRepositories['cloud'],
+    accountId: string
+): Promise<void> => {
     const previous = deviceStore.get(CLOUD_RECORD_OWNER_KEY);
     const moveFrom = previous && previous !== accountId ? previous : null;
 

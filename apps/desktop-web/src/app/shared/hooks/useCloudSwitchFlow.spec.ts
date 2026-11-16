@@ -70,7 +70,7 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
     it('recovers a missing invited cloud before switching to it', async () => {
         await switchTo('B');
 
-        expect(data.recover).toHaveBeenCalledWith(data.cloudRepository, 'B');
+        expect(data.recover).toHaveBeenCalledWith('B');
         expect(session.switchCloud).toHaveBeenCalledWith('B');
         expect(data.recover.mock.invocationCallOrder[0]).toBeLessThan(session.switchCloud.mock.invocationCallOrder[0]);
     });

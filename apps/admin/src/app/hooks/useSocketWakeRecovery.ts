@@ -6,9 +6,9 @@
  * admin was the one surface with no wake path at all, and it is also the one that logs you out
  * on its own. Those two facts met: after a laptop sleep or a dropped link the socket is a half-open
  * zombie, and nothing notices until the SDK keep-alive misses two pongs (~40-80s). Until then no
- * `auth.refresh` can be carried, and both of the console's auto-logout paths are counting —
- * `useRelaySessionGuard`'s streak and `RelayCredentialRenewer`'s 30s expiry-confirmation window,
- * which is explicitly waiting for a reconnect that this hook is what triggers.
+ * `auth.refresh` can be carried, and the console's one auto-logout path is counting —
+ * `RelayCredentialRenewer`'s 30s expiry-confirmation window, which is explicitly waiting for a
+ * reconnect that this hook is what triggers.
  *
  * `recoverUnverifiedSockets` no-ops per slot when the socket is verified or not yet booted, so
  * mounting it before login is inert. Throttled because `visibilitychange` and `online` can land

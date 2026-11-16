@@ -18,7 +18,7 @@ interface UseMyJoinsOptions {
 
 /**
  * Registers a join (read-state) sync for MY cursor on every channel in `channels`, for as long as
- * the calling surface is mounted. `registerJoin` refcounts by `${channelId}@${uid}`, so overlapping
+ * the calling surface is mounted. A join registration refcounts by `${channelId}@${uid}`, so overlapping
  * registrations (the room registering every member, home registering me) dedup into one poll.
  *
  * The targets are the selected cloud's, named explicitly, and `uid` is the one this account has in
@@ -48,8 +48,9 @@ export const useJoinSyncRegistration = (
 
     useEffect(() => {
         if (!enabled || !uid || !verified) return;
-        const sync = runtime.sync.getSyncManager();
-        const disposers = channelIds.map(id => sync.registerJoin(`${id}@${uid}`, undefined, { cid }));
+        const disposers = channelIds.map(id =>
+            runtime.sync.registerSyncTarget({ type: 'join', id: `${id}@${uid}` }, { cid })
+        );
         return () => disposers.forEach(dispose => dispose());
         // channelKey captures the set; channelIds is read once per key.
     }, [channelKey, cid, uid, verified, enabled]);
@@ -65,7 +66,7 @@ export const useJoinSyncRegistration = (
  * reads that shared map instead of opening its own observers (see {@link ActiveCloudData}). Screens
  * that additionally want MY cursor kept live call {@link useJoinSyncRegistration} for their own
  * channel set. The chat room separately registers every member's join while open (useJoinPositions)
- * for read receipts; registerJoin refcounts by key, so any overlapping registration dedups.
+ * for read receipts; a join registration refcounts by key, so any overlapping registration dedups.
  *
  * Returns a channelId → my {@link DomainJoin} map; channels with no synced join row are simply
  * absent (the consumer treats them as "no read boundary yet").

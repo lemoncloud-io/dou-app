@@ -71,7 +71,7 @@ describe('usePushInvitedCloudRecovery', () => {
         emitPushData({ cid: 'cloud-9', channelId: 'ch-1' });
         await flush();
 
-        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith(cloudRepository, 'cloud-9');
+        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith('cloud-9');
     });
 
     it('recovers on silent pushes too — there is no banner path to piggyback on', async () => {
@@ -79,7 +79,7 @@ describe('usePushInvitedCloudRecovery', () => {
         emitSilentPushData({ cid: 'cloud-9' });
         await flush();
 
-        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith(cloudRepository, 'cloud-9');
+        expect(recoverInvitedCloudIfMissing).toHaveBeenCalledWith('cloud-9');
     });
 
     it('ignores relay-origin and empty cids', async () => {

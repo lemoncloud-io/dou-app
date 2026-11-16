@@ -4,6 +4,8 @@
 > · Scope: `libs/data/src/repositories/{ChatRepository.ts,feedCoverage.ts,ChannelRepository.ts}`
 > · `libs/data/src/local/data-sources/ChatLocalDataSource.ts`
 > · `apps/web/src/app/features/channels/{hooks/useChats.ts,hooks/useChatScroll.ts,hooks/useMessageJump.ts,components/GapDivider.tsx,pages/ChannelRoomPage.tsx,pages/ThreadPage.tsx}`
+> · The record is now read as a stream, `ChatRepository.observeFeedCoverage` with `uncoveredIn`,
+> where it was `uncoveredFeed`; the decision is unchanged
 > · The module docs are [libs/data repositories](../../libs/data/docs/repositories/README.md#what-a-feed-page-proves)
 > and [channels data layer](../../apps/web/docs/feature/channels/data-layer.md#gaps-cache-first-the-server-only-for-what-is-missing)
 

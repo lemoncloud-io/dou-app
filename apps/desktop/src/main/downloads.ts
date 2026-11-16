@@ -59,3 +59,30 @@ export const createDownloadTargets = (dir: string, exists: (path: string) => boo
 
     return { reserve, release };
 };
+
+export interface DownloadLog {
+    /** Remembers a finished download's path and returns the id the page may name it by. */
+    record: (path: string) => string;
+    /** The path recorded under `id`, or undefined for an id this log never handed out (or has forgotten). */
+    pathOf: (id: unknown) => string | undefined;
+}
+
+/**
+ * Finished downloads the page may ask to show in the file manager. The page names one by the id it
+ * was told, never by a path: a path from web content could point the file manager anywhere. Only
+ * the latest `limit` are kept — a page only offers "show" on the notice it just raised.
+ */
+export const createDownloadLog = (limit = 50): DownloadLog => {
+    // A Map keeps insertion order, so the first key is the oldest.
+    const paths = new Map<string, string>();
+    let seq = 0;
+    return {
+        record: path => {
+            const id = `download-${++seq}`;
+            paths.set(id, path);
+            if (paths.size > limit) paths.delete(paths.keys().next().value as string);
+            return id;
+        },
+        pathOf: id => (typeof id === 'string' ? paths.get(id) : undefined),
+    };
+};

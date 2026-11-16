@@ -9,6 +9,7 @@ import '../../../../../i18n';
 
 import type { ComposerAttachment } from '../../hooks';
 import { ComposerAttachments } from './ComposerAttachments';
+import { voiceElementFor } from './voicePlayback';
 
 const attachment = (name: string) => ({ id: name, name, url: `blob:${name}` }) as ComposerAttachment;
 const picked = (file: File, kind: ComposerAttachment['kind']): ComposerAttachment => ({
@@ -61,8 +62,8 @@ describe('ComposerAttachments', () => {
         const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
-        const { container } = render(<Tray initial={[song]} />, { wrapper });
-        const audio = container.querySelector('audio') as HTMLAudioElement;
+        render(<Tray initial={[song]} />, { wrapper });
+        const audio = voiceElementFor('blob:song.mp3') as HTMLAudioElement;
         expect(audio.getAttribute('src')).toBe('blob:song.mp3');
 
         fireEvent.click(screen.getByRole('button', { name: 'Play song.mp3' }));
@@ -79,8 +80,8 @@ describe('ComposerAttachments', () => {
     it('turns a voice file it cannot play into a plain tile that says so', () => {
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
-        const { container } = render(<Tray initial={[song]} />, { wrapper });
-        fireEvent.error(container.querySelector('audio') as HTMLAudioElement);
+        render(<Tray initial={[song]} />, { wrapper });
+        fireEvent.error(voiceElementFor('blob:song.mp3') as HTMLAudioElement);
         expect(screen.queryByRole('button', { name: 'Play song.mp3' })).toBeNull();
         expect(screen.getByText("Couldn't play this file")).toBeTruthy();
         cleanup();

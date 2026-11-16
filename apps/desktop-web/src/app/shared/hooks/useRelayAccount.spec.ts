@@ -19,13 +19,10 @@ vi.mock('@chatic/app-runtime', () => ({
             useGlobalSession: () => sessionSignal.n,
             getRelaySessionUser: () => tokenUser.value,
             patchRelaySessionUser: (...args: unknown[]) => patchRelaySessionUser(...args),
+            fetchAccountProfile: () => gatewayProfile(),
+            updateAccountProfile: (data: unknown) => gatewayUpdate(data),
         },
     },
-}));
-
-vi.mock('../runtime/relayAccountGateway', () => ({
-    getRelayAccountGateway: () => ({ profile: gatewayProfile, update: gatewayUpdate }),
-    resetRelayAccountGateway: vi.fn(),
 }));
 
 import { useRelayAccount } from './useRelayAccount';

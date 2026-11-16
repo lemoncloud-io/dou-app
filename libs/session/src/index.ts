@@ -13,6 +13,7 @@ export { cloudStore, identityStore, relayStore } from './store/stores';
 export type { CachedCloudTokens } from './store/cloudStore';
 export { configureSessionStore } from './store/configure';
 export {
+    DELEGATOR_ID_KEY,
     isSessionKey,
     pairedCloudNamesSlot,
     pairedCloudsSlot,
