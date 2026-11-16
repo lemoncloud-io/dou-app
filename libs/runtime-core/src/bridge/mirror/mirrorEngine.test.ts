@@ -7,6 +7,7 @@ import { coreEngine } from '../../engine';
 import type { RuntimeEngine } from '../../engine';
 import { createLoopback } from '../../testing/mirrorLoopback';
 import { RUNTIME_NOT_AVAILABLE_CODE } from '../errors';
+import { createMirrorConversation } from './conversation';
 import { createMirrorEngine } from './mirrorEngine';
 import type { RuntimeMirrorPort } from './port';
 
@@ -29,6 +30,15 @@ const fakeRuntime = () => {
     let refused: string[] = ['ch-gone'];
     const listeners = new Map<string, (...args: unknown[]) => void>();
     const stopped: string[] = [];
+    // Each write receipt's delivery, in the order the writes were made: the test settles it as the
+    // server would. Handled at once, as the outbox's own promise is, so a refusal no one waits for is
+    // not an unhandled rejection.
+    const deliveries: { resolve: () => void; reject: (error: unknown) => void }[] = [];
+    const writeReceipt = async () => {
+        const delivered = new Promise<void>((resolve, reject) => deliveries.push({ resolve, reject }));
+        delivered.catch(() => undefined);
+        return { delivered };
+    };
 
     const changeSession = (next: Partial<typeof session>) => {
         session = { ...session, ...next };
@@ -50,6 +60,10 @@ const fakeRuntime = () => {
             }),
         },
         device: { syncDevice: jest.fn(() => undefined) },
+        join: {
+            updateJoin: jest.fn(async (_payload: unknown) => writeReceipt()),
+            readChat: jest.fn(async (_payload: unknown) => writeReceipt()),
+        },
     };
 
     const engine = {
@@ -105,6 +119,7 @@ const fakeRuntime = () => {
             repositories: () => repositories,
             cloudRepositories: jest.fn((cid: string) => ({
                 chat: { refreshList: jest.fn(async (query: { channelId: string }) => ({ cid, query })) },
+                join: { readChat: jest.fn(async (_payload: unknown) => writeReceipt()) },
             })),
             clearLocalCaches: jest.fn(async () => ({ cleared: 2 })),
             holdCloud: jest.fn((cid: string) => () => stopped.push(`hold:${cid}`)),
@@ -116,6 +131,7 @@ const fakeRuntime = () => {
         raw: engine,
         listeners,
         stopped,
+        deliveries,
         changeSession,
         changeConnection: (next: Partial<typeof connectionSnapshot>) => {
             connectionSnapshot = { ...connectionSnapshot, ...next };
@@ -378,6 +394,115 @@ describe('createMirrorEngine — calls and streams', () => {
         mirror.dispose();
         await loopback.settle();
         expect(fake.stopped).toContain('server:chat.sync');
+    });
+});
+
+describe('createMirrorEngine — write receipts', () => {
+    /** Whether `promise` has settled yet, without waiting for it. */
+    const settledYet = (promise: Promise<unknown>) => {
+        let settled = false;
+        promise.then(
+            () => (settled = true),
+            () => (settled = true)
+        );
+        return () => settled;
+    };
+
+    it('answers once the write is made locally, with a delivered that settles when the server has it', async () => {
+        const { fake, loopback, mirror } = await setup();
+        const receipt = await mirror.data.repositories().join.updateJoin({ channelId: 'ch1', notify: 'none' } as never);
+        expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', notify: 'none' });
+
+        // A promise, as in-process: a screen chains `.catch` on it.
+        expect(typeof receipt.delivered.catch).toBe('function');
+        const delivered = settledYet(receipt.delivered);
+        await loopback.settle();
+        expect(delivered()).toBe(false);
+
+        fake.deliveries[0].resolve();
+        await loopback.settle();
+        await expect(receipt.delivered).resolves.toBeUndefined();
+    });
+
+    it('rejects delivered with the refusal, carrying the fields a screen reads, and logs nothing itself', async () => {
+        const { fake, loopback, mirror } = await setup();
+        const warn = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        const receipt = await mirror.data.repositories().join.readChat({ channelId: 'ch1', chatNo: 7 } as never);
+
+        fake.deliveries[0].reject(Object.assign(new Error('403 FORBIDDEN - not a member'), { errorCode: 403 }));
+        await loopback.settle();
+
+        await expect(receipt.delivered).rejects.toMatchObject({
+            message: '403 FORBIDDEN - not a member',
+            errorCode: 403,
+        });
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('rejects the call itself when the write could not be made', async () => {
+        const { fake, mirror } = await setup();
+        fake.raw.data.repositories().join.updateJoin.mockRejectedValueOnce(new Error('no join row for ch9'));
+        await expect(
+            mirror.data.repositories().join.updateJoin({ channelId: 'ch9', nick: 'a' } as never)
+        ).rejects.toMatchObject({ message: 'no join row for ch9' });
+    });
+
+    it("makes the write in the cloud's graph the page named", async () => {
+        const { fake, loopback, mirror } = await setup();
+        const receipt = await mirror.data
+            .cloudRepositories('c9')
+            .join.readChat({ channelId: 'ch2', chatNo: 3 } as never);
+        expect(fake.raw.data.cloudRepositories).toHaveBeenCalledWith('c9');
+        fake.deliveries[0].resolve();
+        await loopback.settle();
+        await expect(receipt.delivered).resolves.toBeUndefined();
+    });
+
+    it('calls the method as before on an app that does not stream receipts, and resolves delivered at once', async () => {
+        const { fake, loopback, mirror } = await setup();
+        mirror.dispose();
+        // An app from before: it has the method as a call only, and refuses the stream.
+        const refusedStreams: string[] = [];
+        const port: RuntimeMirrorPort = {
+            ...loopback.port,
+            subscribe: payload => {
+                if (!payload.topic.startsWith('join.')) return loopback.port.subscribe(payload);
+                refusedStreams.push(payload.topic);
+                return Promise.reject({ code: RUNTIME_NOT_AVAILABLE_CODE, message: 'not in this app' });
+            },
+        };
+        const older = createMirrorEngine({ port, hello: await loopback.hello() });
+        const info = jest.spyOn(logger, 'info').mockImplementation(() => undefined);
+
+        const receipt = await older.data.repositories().join.updateJoin({ channelId: 'ch1', nick: 'b' } as never);
+        expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledTimes(1);
+        await expect(receipt.delivered).resolves.toBeUndefined();
+
+        // The refusal is remembered: each later write is one call, and the missing delivery is logged once.
+        const next = await older.data.repositories().join.updateJoin({ channelId: 'ch1', nick: 'c' } as never);
+        await older.data.repositories().join.updateJoin({ channelId: 'ch2', nick: 'd' } as never);
+        expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledTimes(3);
+        await expect(next.delivered).resolves.toBeUndefined();
+        expect(refusedStreams).toEqual(['join.updateJoin']);
+        expect(info).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a write the shell never reports made with the 408 a timed-out call reads as', async () => {
+        const { fake, loopback } = await setup();
+        fake.raw.data.repositories().join.updateJoin.mockImplementationOnce(() => new Promise(() => undefined));
+        const talk = createMirrorConversation(loopback.port, { receiptWrittenTimeoutMs: 20 });
+
+        await expect(talk.receipt('data', 'join.updateJoin', [{ channelId: 'ch1' }])).rejects.toMatchObject({
+            code: 'TIMEOUT',
+            message: expect.stringMatching(/^408 REQUEST TIMEOUT - data\.join\.updateJoin was not written/),
+        });
+        talk.dispose();
+    });
+
+    it('carries JSON, as the bridge does: a promise in a result arrives empty, a date as its string', async () => {
+        const { fake, mirror } = await setup();
+        fake.raw.data.clearLocalCaches.mockResolvedValueOnce({ at: new Date(0), later: Promise.resolve() } as never);
+        await expect(mirror.data.clearLocalCaches()).resolves.toEqual({ at: '1970-01-01T00:00:00.000Z', later: {} });
     });
 });
 

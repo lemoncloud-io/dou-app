@@ -54,6 +54,7 @@ export {
     DATA_TARGET,
     REPOSITORY_CALL_METHODS,
     REPOSITORY_METHODS,
+    REPOSITORY_RECEIPTS,
     REPOSITORY_STREAMS,
 } from './bridge/repositories';
 

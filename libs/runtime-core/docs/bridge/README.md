@@ -104,13 +104,15 @@ The data is a fourth target, `data` (`DATA_TARGET`). A repository method is name
 is `data@cloud` (`DATA_CLOUD_TARGET`), with the same names and the cloud id first among the arguments.
 `REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of each page
 repository so a new one cannot be left out, and each crossing is read off the method's signature, so an
-entry that disagrees with its method does not compile: a method that returns a promise is a `call`; an
-`observe*` method, which returns its unsubscribe, a `stream` whose events are its callback's arguments; a
-method that returns nothing a `send` — a call its caller does not wait for (`device.syncDevice`,
+entry that disagrees with its method does not compile: a method that returns a promise is a `call`; one
+whose promise resolves with a write receipt a `receipt` ([below](#write-receipts)); an `observe*` method,
+which returns its unsubscribe, a `stream` whose events are its callback's arguments; a method that
+returns nothing a `send` — a call its caller does not wait for (`device.syncDevice`,
 `device.syncStatus`); and a method that answers synchronously with a value is `local`, since the page has
 no answer to give in the same turn (none does today: the chat's answered ranges, which a room once read
-that way, are the stream `chat.observeFeedCoverage`) (`REPOSITORY_CALL_METHODS` holds the calls and sends,
-`REPOSITORY_STREAMS` the streams). The
+that way, are the stream `chat.observeFeedCoverage`) (`REPOSITORY_CALL_METHODS` holds the calls, the sends
+and — for a page from before they streamed — the receipts; `REPOSITORY_STREAMS` the streams;
+`REPOSITORY_RECEIPTS` the receipts). The
 token issuers are not on the page's graph, so they are not in the contract either (`confirmPhoneCode`
 stays, for `link` mode only). The rest of `RuntimeData` is listed the same way (`DATA_CALL_METHODS`,
 `DATA_STREAMS`) ([docs/data](../data/README.md#the-pages-graph)). `primeChatRoom` is a sync call; its
@@ -136,10 +138,75 @@ the page's `holdCloud` returning its release at once while the subscription cros
 The session commands gained the relay account's profile (`fetchAccountProfile`,
 `updateAccountProfile`) — what pages used to send on the relay slot themselves.
 
+### What a result may hold
+
+A result crosses as JSON, so a part of it that JSON cannot carry does not arrive as itself: a function
+is dropped, and a promise, a `Map` or a `Set` arrives as `{}`. The page then holds an object its type
+says is something else, and the screen that reads it breaks only on a launch whose shell owns the
+session — the in-process engine hands over the real thing. So every result the contract lets cross is
+checked by the compiler: `NotOnTheWire` (`src/bridge/wire.ts`) names each part of a type JSON cannot
+carry, and `CheckedCrossing` takes `call` away from a member whose result has one. A table entry that
+lists such a member as a call — a session command, a connection or sync call, a data call, a repository
+method — does not compile, and the message names the part (`result does not cross the bridge —
+delivered: a promise`). A `Date` is not flagged: it arrives as its ISO string, which is what the
+contract promises a page. The arguments are not checked this way: the two that take a function
+(`primeChatRoom`'s `cancelled`, `chat.refreshList`'s `onFetched`) are asked only where the runtime
+runs, and the page does not pass the second.
+
+The test loopback (`src/testing/mirrorLoopback.ts`) carries every request, answer and push through
+JSON for the same reason: before it did, a test handed the page the shell's own objects, and a result
+holding a promise passed every test while the screen built on it failed.
+
+### Write receipts
+
+`join.readChat` and `join.updateJoin` are local-first writes ([`@chatic/data`'s
+outbox](../../../data/docs/outbox/README.md)): each resolves once the write is made locally, with a
+receipt whose `delivered` promise settles when the server has it — or rejects with the refusal. Screens
+read both halves: a nick or a notification change closes its dialog on the first and shows the second's
+refusal; a read cursor waits for the server's half. The second is a promise inside a result, which a
+call cannot carry, so such a method crosses as a stream instead (`receipt`):
+
+| Event                 | Means                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `{ written }`         | the method resolved: the write is made, `written` is the receipt without `delivered` |
+| `{ delivered: true }` | the server has the write                                                             |
+| `{ $ended: failure }` | the method threw (before `written`) or the server refused the write (after it)       |
+
+- **The page subscribes under the method's own name** — `join.updateJoin` on `data` or `data@cloud` —
+  with the method's arguments and no listener marker. The shell calls the method as the subscribe
+  arrives, not on a later turn, so a call the page sends next finds the write started, as in-process.
+- **The mirror answers the receipt's shape.** It resolves on `written` with `{ ...written, delivered }`,
+  settles `delivered` on the next event, and unsubscribes then; the failures reject the call or
+  `delivered` with the fields a screen reads, as a call's would. A refusal is not logged by the mirror —
+  the screen hears it, as it does in-process — and `delivered` is handled at once, as the outbox's own
+  is, so a refusal no one waits for is not an unhandled rejection.
+- **The local half is bounded, the server's is not.** A `written` that has not arrived after
+  `RECEIPT_WRITTEN_TIMEOUT_MS` (60 s — the bridge's timeout for a runtime call, which bounded these
+  writes when they crossed as calls) rejects the call with the `408 REQUEST TIMEOUT - …` a timed-out
+  call reads as. `delivered` waits as long as the outbox does: it stays pending while the cloud's socket
+  is down.
+- **Unsubscribing stops the events, not the write.** The write is the outbox's and goes out whether or
+  not a page is still listening. A mirror disposed while a receipt waits leaves it unsettled; only a
+  test disposes a mirror its page still uses.
+- **An app from before receipts streamed** answers the subscribe `RUNTIME_NOT_AVAILABLE`. The mirror
+  then calls the method as before and resolves `delivered` at once, without the server having it: the
+  write is made and goes out as always, but a refusal of it is not heard on the page, and what waits on
+  `delivered` — a read cursor, the bulk "mark read" — no longer waits for the server. The mirror
+  remembers the refusal per method and calls it plainly from then on, logging it once. The shell still
+  answers the method as a call too, for a page from before: the write is made, and that page gets the
+  receipt JSON emptied, as it always did.
+- **A lost subscribe answer** is the one case that misreads. Should the bridge time out the subscribe
+  after `written` arrived, `delivered` rejects with that 408 though the write may still be delivered. The
+  subscribe is answered at once, so this needs the answer itself to go missing.
+
+Adding the stream raised no version: an older shell refuses it with `RUNTIME_NOT_AVAILABLE`, which the
+mirror falls back on, and an older page never asks for it.
+
 Version 1 includes how a call and a subscription are spelled across the bridge, not only what they
-name: the `data@cloud` target, the listener marker (`{ $listener: true }`) and the last event of an
-ended stream (`{ $ended: failure }`). Once a build that answers them ships, changing any of them is a
-change the other side cannot read, and raises the version.
+name: the `data@cloud` target, the listener marker (`{ $listener: true }`), the last event of an
+ended stream (`{ $ended: failure }`), and a write receipt's stream — subscribed under the method's own
+name with no marker, its events `{ written }` and `{ delivered: true }`. Once a build that answers them
+ships, changing any of them is a change the other side cannot read, and raises the version.
 
 ## The messages
 
@@ -227,7 +294,9 @@ which answers `{ value }` or `{ failure }` rather than throwing.
   document has subscribed. A shell that buffered events per document would break that, and would have
   to number across documents again. A listener stream takes exactly one marker, and `registerTarget` and `data.holdCloud`, which take none,
   stand while subscribed; a stream with the wrong count, or one that answers no way to stop it, is
-  refused. A new subscription under a known id replaces the old one.
+  refused. A write receipt's stream takes no marker from the page either: the host puts its own
+  listener in ([Write receipts](#write-receipts)). A new subscription under a known id replaces the old
+  one.
 - **The session.** Each change of the session view, coalesced to one per JS turn, is pushed as
   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at, so
   the page drops any push older than what it holds. Its `signals` say what happened since the last one:
@@ -255,7 +324,8 @@ which answers `{ value }` or `{ failure }` rather than throwing.
 runtime running elsewhere. It has every member the in-process engine has — a test holds the two side by
 side — so the React surface cannot tell which it was given. The port (`RuntimeMirrorPort`) is the three
 requests and the two pushes; `@chatic/runtime-web`'s `createBridgedRuntime` is it over the page's
-bridge, and a test joins it to a host in the same process (`src/testing/mirrorLoopback.ts`). The
+bridge, and a test joins it to a host in the same process, through JSON as the bridge does
+(`src/testing/mirrorLoopback.ts`). The
 port must deliver in order: the mirror relies on a session push sent before an answer arriving before
 it.
 
@@ -283,9 +353,10 @@ it.
   or a refused subscribe ends the stream and is logged — the screen that opened it has no other way to
   hear it. Stopping is synchronous; the unsubscribe goes out once the subscribe was answered, so the
   shell never receives them in the wrong order.
-- **Repositories** are plain objects built from `REPOSITORY_METHODS`: a call per method, and an
-  `observe*` method as a stream whose listener is its function argument. `cloudRepositories(cid)` is
-  the same against `data@cloud`, one graph per cloud id.
+- **Repositories** are plain objects built from `REPOSITORY_METHODS`: a call per method, an `observe*`
+  method as a stream whose listener is its function argument, and a write receipt's method as its
+  receipt stream ([Write receipts](#write-receipts)). `cloudRepositories(cid)` is the same against
+  `data@cloud`, one graph per cloud id.
 - **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods) throw
   `RUNTIME_NOT_AVAILABLE`.
 - **Lifecycle members do nothing.** The session and connection controllers, the two credential guards
@@ -304,7 +375,8 @@ it.
   a fetch the prime itself starts. Each trace it touches carries `session_owner: native`, an attribute
   the log pipeline records and Firebase does not, so the two ways of running are compared apart.
 
-What crosses is JSON: a result that held a `Date` arrives as its ISO string.
+What crosses is JSON: a result that held a `Date` arrives as its ISO string, and a result that would
+hold anything JSON cannot carry does not compile ([What a result may hold](#what-a-result-may-hold)).
 
 ## A sub WebView page: a whitelist of reads
 
@@ -358,7 +430,8 @@ budget are the shell's to check around it (`apps/mobile` docs, the sub WebView).
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/bridge/contract.ts`            | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
 | `src/bridge/errors.ts`              | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
-| `src/bridge/host.ts`                | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, the defaults                                                                                                                                                          |
-| `src/bridge/mirror/`                | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls and streams (`conversation.ts`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                                                                            |
-| `src/bridge/repositories.ts`        | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                       |
+| `src/bridge/host.ts`                | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, `RuntimeReceiptEvent`, the defaults                                                                                                                                   |
+| `src/bridge/mirror/`                | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls, streams and write receipts (`conversation.ts`, `RECEIPT_WRITTEN_TIMEOUT_MS`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                              |
+| `src/bridge/repositories.ts`        | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `REPOSITORY_RECEIPTS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                |
 | `src/bridge/subWebViewWhitelist.ts` | `SUB_WEB_VIEW_REPOSITORY_WHITELIST`, `SUB_WEB_VIEW_DATA_MEMBER_WHITELIST`, `SUB_WEB_VIEW_TARGETS`, `SUB_WEB_VIEW_ALLOWED`, `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`                                                                                                                                                                   |
+| `src/bridge/wire.ts`                | `NotOnTheWire`, `PromiseCrossing`, `CheckedCrossing` — what the compiler checks every crossing result against                                                                                                                                                                                                                                        |
