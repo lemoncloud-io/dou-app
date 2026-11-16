@@ -16,6 +16,10 @@ holds the session only once `start()` has answered an engine and never tells a l
 page boots its own runtime only on a `web` answer. A page that cannot settle the owner in 30 s of being
 shown boots neither and shows an error with a reload.
 
+The same runtime also answers a mini app in the sub WebView on such a launch — reads only, of the
+current cloud, through a whitelist and a runtime bridge host of each page load's own (see
+[the sub WebView](../webview/sub-webview.md)). On a launch the page owns, a mini app reads nothing.
+
 | File (`src/app/services/runtime/`)           | Role                                                                                     |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `sessionOwner.ts` · `launchSessionOwner.ts`  | Who owns the session this launch, read once from its own MMKV file                       |

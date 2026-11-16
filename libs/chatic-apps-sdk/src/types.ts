@@ -62,7 +62,11 @@ export type AppErrorCode =
     | 'SHARE_ERROR'
     | 'UNAVAILABLE'
     | 'QUOTA_EXCEEDED'
-    | 'SETTINGS_ERROR';
+    | 'SETTINGS_ERROR'
+    | 'RUNTIME_NOT_ALLOWED'
+    | 'CLOUD_CHANGED'
+    | 'CONSENT_REFUSED'
+    | 'RATE_LIMITED';
 
 /** A device a page captures from with `getUserMedia`. */
 export type DeviceKind = 'camera' | 'microphone';

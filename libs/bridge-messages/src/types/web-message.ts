@@ -316,6 +316,7 @@ type RequestsIn<T extends WebMessageType> = T;
  * the app's own storage, purchases or files: the storage requests reach only the page's own store,
  * and the one identifier, `GetSubWebViewUserKey`, is a one-way key per origin, never the device id.
  * `OpenSettings` opens DoU's own page in the OS settings, for a device permission the OS has blocked.
+ * The runtime requests read the app's data, and only through the read methods a page's manifest opens.
  */
 export type SubWebViewRequestType = RequestsIn<
     | 'WebAppReady'
@@ -338,6 +339,16 @@ export type SubWebViewRequestType = RequestsIn<
     | 'GetSubWebViewPermission'
     | 'RequestSubWebViewPermission'
     | 'OpenSettings'
+    | SubWebViewRuntimeRequestType
+>;
+
+/**
+ * (2.26.0) The runtime requests a sub WebView page may send — the main web's own four, answered on the
+ * page's host by handlers written for it, which pass only the read methods the page's manifest opens
+ * (`SubWebViewRuntimePermission`). Registered only where the app's runtime holds the session.
+ */
+export type SubWebViewRuntimeRequestType = RequestsIn<
+    'RuntimeHello' | 'RuntimeCall' | 'RuntimeSubscribe' | 'RuntimeUnsubscribe'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

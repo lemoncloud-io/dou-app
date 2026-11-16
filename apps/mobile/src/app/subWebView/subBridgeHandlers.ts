@@ -3,6 +3,7 @@ import type {
     SubWebViewDeviceKind,
     SubWebViewPermission,
     SubWebViewRequestType,
+    SubWebViewRuntimeRequestType,
     WebMessageData,
     WebMessageHandlerResponse,
 } from '@chatic/bridge-messages';
@@ -22,8 +23,14 @@ import { originOf } from '../utils/url';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
-/** The requests this table answers: the subset minus the two the host answers itself. */
-export type SubBridgeRequestType = Exclude<SubWebViewRequestType, 'WebAppReady' | 'Ping'>;
+/**
+ * The requests this table answers: the subset minus the two the host answers itself and the runtime
+ * requests, which `subWebViewRuntimeBridge` answers where the app's runtime runs.
+ */
+export type SubBridgeRequestType = Exclude<
+    SubWebViewRequestType,
+    'WebAppReady' | 'Ping' | SubWebViewRuntimeRequestType
+>;
 
 /**
  * One handler per request a sub WebView page may send. Typed by the subset, so a request outside it

@@ -1,4 +1,9 @@
-import type { SubWebViewDisplay, SubWebViewOrientation, SubWebViewPermission } from '@chatic/bridge-messages';
+import type {
+    SubWebViewDisplay,
+    SubWebViewOrientation,
+    SubWebViewPermission,
+    SubWebViewRuntimePermission,
+} from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
 import { originOf } from '../../utils/url';
@@ -16,6 +21,12 @@ export const SUB_WEBVIEW_MANIFEST_LIMIT = 16 * 1024;
 export interface ResolvedSubWebViewManifest {
     name?: string;
     permissions: ReadonlySet<SubWebViewPermission>;
+    /**
+     * What the page may read of the app's runtime. Kept apart from `permissions`: each of those unlocks
+     * one request, while these open methods behind the same four runtime requests, and only where the
+     * app's runtime holds the session.
+     */
+    runtimePermissions: ReadonlySet<SubWebViewRuntimePermission>;
     display: SubWebViewDisplay;
     orientation: SubWebViewOrientation;
 }
@@ -23,11 +34,20 @@ export interface ResolvedSubWebViewManifest {
 /** What a page gets with no manifest, or one the shell cannot read: the base set, no bar, any way up. */
 export const DEFAULT_SUB_WEBVIEW_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
     permissions: new Set<SubWebViewPermission>(),
+    runtimePermissions: new Set<SubWebViewRuntimePermission>(),
     display: 'fullscreen',
     orientation: 'any',
 });
 
 const PERMISSIONS: readonly SubWebViewPermission[] = ['clipboard', 'share', 'openUrl', 'userKey'];
+const RUNTIME_PERMISSIONS: readonly SubWebViewRuntimePermission[] = [
+    'session',
+    'cloud',
+    'place',
+    'channel',
+    'chat',
+    'user',
+];
 const DISPLAYS: readonly SubWebViewDisplay[] = ['standard', 'fullscreen'];
 const ORIENTATIONS: readonly SubWebViewOrientation[] = ['any', 'portrait', 'landscape'];
 const NAME_LIMIT = 100;
@@ -52,12 +72,15 @@ export const parseSubWebViewManifest = (text: string): ResolvedSubWebViewManifes
     if (manifest.manifestVersion !== 1) return null;
 
     const name = typeof manifest.name === 'string' ? manifest.name.trim() : '';
-    const permissions = Array.isArray(manifest.permissions)
-        ? manifest.permissions.filter((p): p is SubWebViewPermission => PERMISSIONS.includes(p))
-        : [];
+    const declared: unknown[] = Array.isArray(manifest.permissions) ? manifest.permissions : [];
+    const permissions = declared.filter((p): p is SubWebViewPermission => PERMISSIONS.includes(p as never));
+    const runtimePermissions = declared.filter((p): p is SubWebViewRuntimePermission =>
+        RUNTIME_PERMISSIONS.includes(p as never)
+    );
     return {
         ...(name && name.length <= NAME_LIMIT ? { name } : {}),
         permissions: new Set(permissions),
+        runtimePermissions: new Set(runtimePermissions),
         display: oneOf(DISPLAYS, manifest.display, 'fullscreen'),
         orientation: oneOf(ORIENTATIONS, manifest.orientation, 'any'),
     };

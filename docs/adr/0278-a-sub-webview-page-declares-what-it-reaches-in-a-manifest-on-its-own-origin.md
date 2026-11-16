@@ -50,6 +50,12 @@ it before loading the page, and without it the page gets the base set only.**
 - **`TriggerHaptic` takes `success`, `warning` and `error`**, for both WebViews, played by the native
   modules as the system's outcome feedback.
 
+> **Addendum (2026-11-16) — six more permissions** (`BRIDGE_VERSION` 2.26.0). A manifest may also
+> declare `session`, `cloud`, `place`, `channel`, `chat` and `user`. Each opens a set of the app
+> runtime's read methods rather than one request, and only where the app's runtime holds the session;
+> they are read into a set of their own, apart from the four above. The reasoning is
+> [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md).
+
 ## Alternatives
 
 - **Keep one subset for every page.** Rejected: review would have to establish from the code what a

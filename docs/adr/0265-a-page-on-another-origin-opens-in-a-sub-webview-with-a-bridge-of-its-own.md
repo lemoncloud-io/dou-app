@@ -93,6 +93,14 @@ screen.** The web asks with `OpenSubWebView { url, title?, params? }` and hears 
 > (`subWebViewOpenScope`). DoU's web now passes the user's id in the cloud and display names in
 > `params`; the shell's own context still identifies no one. The reasoning is
 > [ADR-0297](./0297-sub-webview-opens-any-https-with-three-trust-tiers.md).
+>
+> **Addendum (2026-11-16) — runtime reads** (`BRIDGE_VERSION` 2.26.0). "Nothing that identifies the
+> user" gives way for a page the user allowed: a reviewed page whose manifest declares a runtime
+> permission may read the current cloud through the app's runtime, on a launch whose session the app
+> holds — the same four runtime requests the main web speaks, through a whitelist of methods that only
+> read, answered as they are. Tokens, the device id and the guest id still never reach a page. The
+> reasoning is
+> [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md).
 
 ## Alternatives
 

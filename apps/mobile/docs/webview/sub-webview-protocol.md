@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.25.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)** or **(2.22.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.26.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)** or **(2.26.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
@@ -250,13 +250,13 @@ it gets the base set, the bar, and its host as the bar's title whatever it sets 
 }
 ```
 
-| Field             | Values                                                             | Without it                 |
-| ----------------- | ------------------------------------------------------------------ | -------------------------- |
-| `manifestVersion` | `1`                                                                | No manifest at all         |
-| `name`            | 1–100 characters; the bar's title when nothing else names the page | No title from the manifest |
-| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`                  | The base set only          |
-| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))       | `fullscreen` (no bar)      |
-| `orientation`     | `any`, `portrait`, `landscape`                                     | `any`                      |
+| Field             | Values                                                                                                                                                        | Without it                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `manifestVersion` | `1`                                                                                                                                                           | No manifest at all         |
+| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                            | No title from the manifest |
+| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; **(2.26.0)** `session`, `cloud`, `place`, `channel`, `chat`, `user` ([Runtime reads](#runtime-reads-2260)) | The base set only          |
+| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))                                                                                                  | `fullscreen` (no bar)      |
+| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
 `TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, **(2.18.0)**
@@ -355,6 +355,8 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | Share sheet title / message / link           | 100 / 4,000 / 2,048 characters      | `INVALID`               |
 | **(2.18.0)** A storage key                   | 1–200 characters                    | `INVALID`               |
 | **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
+| **(2.26.0)** Runtime streams per page load   | 16                                  | `INVALID`               |
+| **(2.26.0)** Server reads per view           | One per 250 ms, 60 a minute         | `RATE_LIMITED`          |
 
 Lengths are string lengths (UTF-16 code units), not bytes.
 
@@ -377,6 +379,10 @@ A page MUST treat a code it does not know as a failure of that request and nothi
 | `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)**, the device requests **(2.20.0)** | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware) |
 | `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                                                      | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written                                                 |
 | `SETTINGS_ERROR`        | `OpenSettings`                                                                              | **(2.20.0)** The OS would not open the settings                                                                                            |
+| `RUNTIME_NOT_ALLOWED`   | the runtime requests                                                                        | **(2.26.0)** Not a method this page may use, or a cloud id that is not the current cloud's; `details` says why                             |
+| `CLOUD_CHANGED`         | the runtime requests                                                                        | **(2.26.0)** The session's cloud is no longer the one the view opened on; final for the view                                               |
+| `CONSENT_REFUSED`       | the runtime requests                                                                        | **(2.26.0)** The user did not allow this page to read this cloud                                                                           |
+| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                                           | **(2.26.0)** Over the view's budget of server reads; `details.retryAfterMs`                                                                |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
@@ -568,11 +574,86 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
   its author answers for it.
 - A page MAY skip these and call `getUserMedia` directly; it then meets the OS prompt mid-capture.
 
+### Runtime reads (2.26.0)
+
+A page may read the app's own data — the current cloud's places, rooms, messages and members — through
+the app's runtime, exactly as DoU's own screens read it. It speaks the main web's four runtime
+requests to its own host, which passes only a whitelist of the runtime's **read** methods, by the
+runtime permissions its manifest declares. What an allowed method answers crosses unchanged: a page
+granted `channel` gets the whole channel row.
+
+| Permission | Opens                                                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session`  | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                                            |
+| `cloud`    | `cloud.observeItem`, `cloud.cacheRead` — the current cloud's id only                                                                                    |
+| `place`    | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                                                   |
+| `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`                               |
+| `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                                     |
+| `user`     | `user.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList` |
+
+The table is the runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`, which says
+why each other method is closed). Nothing else is open: no method that writes on the server or in the
+device cache — a refresh that writes what it fetched included, since the page's arguments would decide
+where the rows land — none that moves a sync or read cursor, none that reaches another cloud, and no
+target but `data`: the cloud and place switches are session commands, and `session` is closed. So a
+page reads what the app has cached, the server's room list (`channel.fetchList`) and the member list,
+and fetches nothing into the cache on its own.
+
+**When the host answers them.** The four requests are registered only when all of these hold, and
+otherwise answer `NOT_FOUND` as in an app that predates them:
+
+- the phone shell — the desktop shell answers the base set only;
+- the launch's session is held by the app's runtime, not by the main web;
+- the page is `reviewed` — an `external` site has no manifest, and the hub needs none of this;
+- a cloud other than Home was selected when the view opened;
+- the manifest declares at least one runtime permission.
+
+| Request              | Data                                              | Reply                                                         | Errors (besides the runtime's own)                                                   |
+| -------------------- | ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `RuntimeHello`       | `{ contracts: number[] }`                         | `{ sessionOwner: 'native', contract, seq, session, allowed }` | `CLOUD_CHANGED`, `CONSENT_REFUSED`                                                   |
+| `RuntimeCall`        | `{ target: 'data', method, args }`                | `{ value }` — what the method resolved with                   | `RUNTIME_NOT_ALLOWED`, `CLOUD_CHANGED`, `CONSENT_REFUSED`, `RATE_LIMITED`, `INVALID` |
+| `RuntimeSubscribe`   | `{ subscriptionId, target: 'data', topic, args }` | `{}`; then `OnRuntimeEvent`                                   | the same as `RuntimeCall`; `INVALID` past 16 streams                                 |
+| `RuntimeUnsubscribe` | `{ subscriptionId }`                              | `{}`                                                          | `INVALID`                                                                            |
+
+- **The hello settles nothing.** The main web settled who holds the session; the page's hello is
+  answered `native` with the contract both speak; `session` with the `session` permission and `null`
+  without; and `allowed`, the `<repository>.<method>` names this page may call and subscribe to. A page
+  MUST decide from `allowed`. `session` is the current cloud's part of the snapshot, under its own
+  paths — `context.cloud` (`cloudId`, `siteId`, `isActive`), `context.identity` (`userId`,
+  `isAuthenticated`) and `committedSiteId` — never the account's other clouds, the relay, a token or a
+  guest id.
+- **Arguments are the runtime contract's**, as the main web sends them. A stream's listener is marked
+  `{ $listener: true }` where the method takes its callback; each `OnRuntimeEvent` carries the
+  callback's arguments as an array, and a stream the app ends carries `{ $ended: { code, message } }`
+  as its last event.
+- **Checks, in order**: the request's shape, and for a subscribe room for one more stream (`INVALID`);
+  the view's cloud is still the session's (`CLOUD_CHANGED`); the target, the method, the way it is
+  asked, the permission, and the entry's argument guards (`RUNTIME_NOT_ALLOWED`,
+  `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read that asks
+  the server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
+  `details: { retryAfterMs }`). The reason is the whitelist's for a closed method, `notGranted`,
+  `guard`, or `unknown` for a name it does not have or a method asked the wrong way.
+- **Argument guards.** `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
+  id. `user.listPlaceMembers` answers only with `placeId` and `sessionPlaceId` both the place the
+  session is on, and no `pageSize`.
+- **Consent.** Before the first answer, the app asks the user whether this page may read this cloud,
+  naming what it reads. A yes is kept per user, page and cloud, with the permissions it covered; a page
+  that later asks for more is asked again. A no is kept for the view only, so the next open asks again.
+- **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
+  open stream ends with `CLOUD_CHANGED` and every later request fails with it, even if the cloud comes
+  back. The place is not bound: a page reads any place of the cloud, and only the user moves between
+  them.
+- **Streams belong to the page load.** At most 16 are open at once, counting subscribes still being
+  admitted; a new page load, a hello and the view's close end them all, and nothing of one load is
+  pushed to the next.
+
 ## Pushes
 
 | Push                                      | Data                               | When                                                                              |
 | ----------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
 | `OnSubWebViewContextChanged`              | `{ theme, locale }`                | The app's theme or language changed while the view showed                         |
+| `OnRuntimeEvent` **(2.26.0)**             | `{ subscriptionId, seq, event }`   | An open runtime stream's event; its last is `{ $ended }`                          |
+| `OnRuntimeSessionChanged` **(2.26.0)**    | `{ seq, signals, session }`        | The session changed, with the `session` permission                                |
 | `OnBackPressed` **(2.15.0)**              | `{}`                               | Android back, while the page's `SetCanGoBack` claim is `true`                     |
 | `OnSubWebViewCloseRequested` **(2.15.0)** | `{ trigger: 'control' \| 'back' }` | The user asked to close while the guard is on: the close control, or Android back |
 
@@ -667,12 +748,16 @@ view closes.
 ## Security invariants
 
 These hold in every version; a change that breaks one is not a protocol change but a different
-feature, and needs its own decision.
+feature, and needs its own decision — as the runtime reads did, which changed the one about the user
+(2.26.0).
 
 - **The host answers only the opened origin.** A message from another origin, a frame on one, or a
   page the view navigated to gets no reply.
-- **Nothing the page receives identifies the device, the install or the DoU user**: not the device id,
-  not a value that maps to it one to one (a plain hash of it included), not the account. The device
+- **Nothing the page receives identifies the device or the install**: not the device id, not a value
+  that maps to it one to one (a plain hash of it included). **Nor the DoU user, unless the user allowed
+  it (2.26.0):** a page with a runtime permission, once the user said yes, gets the cloud's data as the
+  app holds it — ids in that cloud, names, profiles, messages, members, whatever fields their rows
+  carry — and never a token or the account. The device
   id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one
   identifier a page gets, the user key, is an HMAC over the page's origin keyed by the device id:
   one-way, different on every origin, and only for a page whose manifest declares `userKey`.
@@ -732,6 +817,9 @@ tests, but have not been watched on a device:
   second prompt after the OS's (`grantIfSameHostElseDeny`), and that `RequestSubWebViewPermission`
   answers `granted`, `prompt` and `blocked` as described on both platforms, after a refusal and after
   "don't ask again";
+- **(2.26.0)** that a reviewed page reads the runtime on a launch the app's runtime holds, on both
+  platforms: the consent alert, a call, a stream's events, and a stream ended by a cloud change under
+  the view (a deep link);
 - **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
   react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
   feel distinct on a device.
