@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (app-runtime) withdraw the background clouds at the end of the task, not at once on unmount
+
+## [2026-11-16] - No version updates
+
+### Bug Fixes
+
 - (web,web-e2e) stop asking google fonts for pretendard, a request that failed on every boot
 
 ## [2026-11-16] - No version updates
