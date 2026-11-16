@@ -99,7 +99,7 @@ grep -rln "@chatic/lib/utils" libs/web-ui-kit/src | wc -l
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
-6. **Every component has a test and a story.** 135 spec files and 108 story files against 116 exported
+6. **Every component has a test and a story.** 136 spec files and 109 story files against 117 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
 ## Scope
@@ -123,7 +123,7 @@ flowchart TD
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
-    C["composites × 80<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
+    C["composites × 81<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 44<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 75 icons · 7 assets</i>"]:::res
 
@@ -173,8 +173,8 @@ libs/web-ui-kit/src/
 ├── foundations/   13 groups, 44 components
 │   avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) · audio(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 80 components
-    chat(22) · list(9) · media(12) · overlay(9) · section(5) · header(4) ·
+└── composites/    10 groups, 81 components
+    chat(22) · list(9) · media(12) · overlay(9) · section(5) · header(5) ·
     layout(4) · subscription(7) · feedback(3) · navigation(5)
 ```
 
@@ -250,7 +250,8 @@ state down.
 `Waveform` draws bars the host computed, or, without them, a decorative shape seeded by a string
 (`decorativeWaveform`) so the same file always draws the same shape. The room-file screens add
 `RoomFilesSummary`, `RoomFilesTabs`, `RoomFileRow`, `RoomMediaGrid`, `MonthGroupHeader`,
-`FileSelectionHeader`, `FileSelectionActionBar` (icon actions with an optional notice — not the
+`RoomFilesHeader` (the screen's own header: its right side holds a search icon and a text action, which
+`ModalTopBar`'s 44px slots cannot), `FileSelectionHeader`, `FileSelectionActionBar` (icon actions with an optional notice — not the
 notifications' two-button `SelectionActionBar`) and `RoomFileMoreSheet`; the detail adds
 `AudioDetailMoreSheet`, a failed send `FailedSendActions`, and sending audio `AudioSendSheet` and
 `UnsendableFilesDialog`.
@@ -406,7 +407,7 @@ accessible names; leave pixel values to the story.
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 135 spec files and the stories
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 136 spec files and the stories
 npx jest --config libs/web-ui-kit/jest.config.js
 ```
 
