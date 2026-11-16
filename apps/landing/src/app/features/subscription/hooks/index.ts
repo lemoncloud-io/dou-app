@@ -35,5 +35,6 @@ export {
     useRemoveEmail,
 } from './billing';
 export { useCurrentSubscription } from './useCurrentSubscription';
+export { useForeignBilling } from './foreignBilling';
 export { useNow } from './useNow';
 export { useGoBack } from './useGoBack';

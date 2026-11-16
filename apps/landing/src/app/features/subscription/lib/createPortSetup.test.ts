@@ -174,13 +174,4 @@ describe('createPortSetup — the production host and a production build', () =>
         expect(setup.standInWindow).toBeUndefined();
         expect(createHttp.mock.calls[0][1]).toEqual({});
     });
-
-    it('bills in Korea only in a production build, and outside Korea too in any other', () => {
-        expect(createPortSetup({ account: true, server: prodBuild, createHttp: httpSpy() }).foreignBilling).toBe(false);
-        expect(
-            createPortSetup({ account: true, server: prodBuild, productionHost: true, createHttp: httpSpy() })
-                .foreignBilling
-        ).toBe(false);
-        expect(createPortSetup({ account: true, server: SERVER, createHttp: httpSpy() }).foreignBilling).toBe(true);
-    });
 });

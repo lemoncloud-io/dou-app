@@ -2,6 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-30
 > · The "test mode only" consequence amended by [ADR-0311](./0311-landing-opens-the-account-surface-on-the-production-host-in-won-only.md) (production opens in won only; dollars stay shut there)
+> · and again by [ADR-0327](./0327-landing-opens-dollar-billing-wherever-the-server-lists-dollar-products.md) (dollars open on any stage once the server lists dollar products, production included)
 > Scope: `apps/landing` (`README.md` § The server, `src/app/features/subscription/lib/billingCountry.ts`,
 > `lib/paymentMethods.ts`, `lib/port/cardEntry.ts`, `lib/port/http/`, `components/CardEntryWindow.tsx`,
 > `pages/checkout/CheckoutPage.tsx`, `pages/billing/PaymentMethodsPage.tsx`); the root `package.json`
@@ -95,5 +96,9 @@ card is always typed into the provider's own window.
   Korea is not settled, so the dollar price stands alone until it is.
 - **Test mode only.** The dollar products exist on the dev stage alone, and the account surface's
   production gate is unchanged.
+
+    _Amended 2026-11-16 (ADR-0327)._ No longer test mode only: the checkout opens dollars on any stage
+    whose server lists dollar products, and the server has added its production ones.
+
 - **The mock keeps one stand-in window for both providers.** Against the mock, a non-Korean checkout runs
   through the same stand-in dialog; the Stripe field itself is exercised only against the dev server.

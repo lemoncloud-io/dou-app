@@ -2,6 +2,8 @@
 
 > Status: Accepted · Decided: 2026-11-13 · Updated: 2026-11-16 (decision 3: W-01 lists won in a won-only
 > build) · Implemented: `feat/landing-production-account`
+> · Decision 3 superseded by [ADR-0327](./0327-landing-opens-dollar-billing-wherever-the-server-lists-dollar-products.md)
+> (dollars open wherever the server lists dollar products, on any build); its other decisions stand
 > · Scope: `apps/landing` (`README.md` principle 10, § Two surfaces, § Billing outside Korea, § Sandbox
 > payments; `src/app/config/stage.ts`; `src/app/features/subscription/lib/createPortSetup.ts`,
 > `lib/billingCountry.ts`, `lib/port/PortProvider.tsx`, `pages/checkout/`, `pages/entry/PlansPage.tsx`)
@@ -68,6 +70,10 @@ membership read, which production already serves. Three things are not ready:
     reader's come from the server, which has no production dollar products: the English page was empty
     on the production host. W-01 now lists won wherever `foreignBilling` is false, so a visitor there sees
     won too; where the gate is shut, the catalog port keeps dollars for a reader of any other language.
+
+    _Superseded 2026-11-16 by [ADR-0327](./0327-landing-opens-dollar-billing-wherever-the-server-lists-dollar-products.md)._
+    The build no longer decides: dollars open wherever the server lists dollar products, and a visitor's
+    W-01 is in the language's currency on every stage.
 
 4. **India stays out of the country list on every stage.** The list was already `KR`, `US`, `JP` and
    "another country"; this records that India is left out on purpose (its cards register, but its rules

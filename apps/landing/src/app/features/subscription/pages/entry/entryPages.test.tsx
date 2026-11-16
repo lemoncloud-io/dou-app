@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
 import { createPortSetup } from '../../lib/createPortSetup';
-import { createMockPort } from '../../testing/mock';
+import { answerDollarCatalog, createMockPort } from '../../testing/mock';
 import { memoryStateStore } from '../../testing/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
@@ -75,17 +75,63 @@ describe('W-01 plans', () => {
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
 
-    it('lists won on the English page where the build bills in won only', async () => {
-        // A production build has no dollar products, so a signed-in reader asking for dollars got an
-        // empty catalog and an empty page. The fake server still sells dollars, so the request itself
-        // is what is checked, not an empty list.
-        const setup = { ...mockSetup('?mock=new-trial-used'), foreignBilling: false };
+    // Whether dollars are open is the server's dollar catalog's to say (`useForeignBilling`); the fake
+    // server sells dollars unless told otherwise, so the test above is the open case.
+    it.each(['empty', 'failure'] as const)(
+        'lists won to a signed-in English reader where the dollar catalog is %s',
+        async answer => {
+            const setup = mockSetup('?mock=new-trial-used');
+            answerDollarCatalog(setup.port, answer);
+            const listPlans = vi.spyOn(setup.port, 'listPlans');
+            renderAt('/subscription/plans', setup);
+
+            expect(
+                await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — ₩8,600 today$/ })
+            ).toBeTruthy();
+            expect(screen.queryByText(/\$/)).toBeNull();
+            expect(listPlans).toHaveBeenCalledWith({ currency: 'KRW' });
+        }
+    );
+
+    it('draws nothing until the dollar catalog is in, so the prices never switch currency', async () => {
+        const setup = mockSetup('?mock=new-trial-used');
+        const { release } = answerDollarCatalog(setup.port, 'held');
         const listPlans = vi.spyOn(setup.port, 'listPlans');
         renderAt('/subscription/plans', setup);
 
-        expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — ₩8,600 today$/ })).toBeTruthy();
-        expect(listPlans).toHaveBeenCalledWith({ currency: 'KRW' });
-        expect(listPlans).not.toHaveBeenCalledWith({ currency: 'USD' });
+        await waitFor(() => expect(listPlans).toHaveBeenCalledWith({ currency: 'USD' }));
+        expect(screen.queryByRole('heading', { name: 'DoU plans' })).toBeNull();
+        expect(screen.queryByText(/₩/)).toBeNull();
+        expect(listPlans).not.toHaveBeenCalledWith({ currency: 'KRW' });
+
+        release();
+        expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.00 today$/ })).toBeTruthy();
+        // The answer and the dollar list are one read.
+        expect(listPlans.mock.calls.filter(([input]) => input?.currency === 'USD')).toHaveLength(1);
+    });
+
+    it('lists dollars to an English visitor even where the server sells none: the published catalog has them', async () => {
+        const setup = mockSetup('?mock=visitor');
+        answerDollarCatalog(setup.port, 'empty');
+        renderAt('/subscription/plans', setup);
+
+        expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
+        expect(screen.getByText('$6.00')).toBeTruthy();
+        expect(screen.queryByText(/₩/)).toBeNull();
+    });
+
+    it('does not ask about dollars for a Korean reader, who is shown won either way', async () => {
+        await i18n.changeLanguage('ko');
+        try {
+            const setup = mockSetup('?mock=new-trial-used');
+            const listPlans = vi.spyOn(setup.port, 'listPlans');
+            renderAt('/subscription/plans', setup);
+
+            expect(await screen.findByRole('button', { name: /구독하기 — 오늘 ₩8,600$/ })).toBeTruthy();
+            expect(listPlans).not.toHaveBeenCalledWith({ currency: 'USD' });
+        } finally {
+            await i18n.changeLanguage('en');
+        }
     });
 
     it('offers a subscriber the adjacent plans and opens the change for the one picked', async () => {

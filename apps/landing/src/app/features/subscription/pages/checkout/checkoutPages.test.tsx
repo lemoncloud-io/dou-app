@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
-import { createMockPort } from '../../testing/mock';
+import { answerDollarCatalog, createMockPort } from '../../testing/mock';
 import { clearPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { memoryStateStore } from '../../testing/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
@@ -305,34 +305,39 @@ describe('W-08 checkout', () => {
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null').checkout.payer).toBeUndefined();
     });
 
-    it('stops any country outside Korea at a notice where the build bills in Korea only', async () => {
-        const setup = { ...(await withBillingEmail('?mock=new-trial-used')), foreignBilling: false };
-        renderAt('/subscription/checkout?plan=pro-tier-01', setup);
+    it.each(['empty', 'failure'] as const)(
+        'stops any country outside Korea at a notice where the dollar catalog is %s',
+        async answer => {
+            const setup = await withBillingEmail('?mock=new-trial-used');
+            answerDollarCatalog(setup.port, answer);
+            renderAt('/subscription/checkout?plan=pro-tier-01', setup);
 
-        await pickCountry('US');
-        expect(await screen.findByText('Paying from outside Korea is not available yet')).toBeTruthy();
-        expect(
-            screen.getByText('For now you can subscribe only with South Korea as the billing country.')
-        ).toBeTruthy();
-        // No currency, no amount, no payer, no consents and no way on.
-        expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
-        expect(screen.queryByText('$6.00')).toBeNull();
-        expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
-        expect(screen.queryByLabelText('Name')).toBeNull();
-        expect(screen.queryByLabelText('Agree to all')).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
+            await pickCountry('US');
+            expect(await screen.findByText('Paying from outside Korea is not available yet')).toBeTruthy();
+            expect(
+                screen.getByText('For now you can subscribe only with South Korea as the billing country.')
+            ).toBeTruthy();
+            // No currency, no amount, no payer, no consents and no way on.
+            expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
+            expect(screen.queryByText('$6.00')).toBeNull();
+            expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
+            expect(screen.queryByLabelText('Name')).toBeNull();
+            expect(screen.queryByLabelText('Agree to all')).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
 
-        // Korea goes on as before.
-        await fillPayer();
-        expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
-        expect(screen.getByText('You pay in Korean won (₩).')).toBeTruthy();
-        await consentAll();
-        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
-        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
-    });
+            // Korea goes on as before.
+            await fillPayer();
+            expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
+            expect(screen.getByText('You pay in Korean won (₩).')).toBeTruthy();
+            await consentAll();
+            fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+            await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+        }
+    );
 
-    it('sends a dollar checkout handed to W-05 back where the build bills in Korea only', async () => {
-        const setup = { ...(await withBillingEmail('?mock=new')), foreignBilling: false };
+    it('sends a dollar checkout handed to W-05 back where the server sells no dollars', async () => {
+        const setup = await withBillingEmail('?mock=new');
+        answerDollarCatalog(setup.port, 'empty');
         render(
             <MemoryRouter
                 initialEntries={[
@@ -352,6 +357,71 @@ describe('W-08 checkout', () => {
 
         await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
         expect(screen.queryByRole('heading', { name: 'Add a payment method' })).toBeNull();
+    });
+
+    it('never asks whether dollars are open for a checkout in Korea', async () => {
+        const setup = await withBillingEmail('?mock=new');
+        const listPlans = vi.spyOn(setup.port, 'listPlans');
+        renderAt('/subscription/checkout?plan=pro-tier-01', setup);
+        await fillPayer();
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+        await screen.findByRole('heading', { name: 'Add a payment method' });
+
+        expect(listPlans).not.toHaveBeenCalledWith({ currency: 'USD' });
+    });
+
+    it('holds everything after a country outside Korea back while the dollar answer is out', async () => {
+        const setup = await withBillingEmail('?mock=new-trial-used');
+        const { release } = answerDollarCatalog(setup.port, 'held');
+        renderAt('/subscription/checkout?plan=pro-tier-01', setup);
+
+        await pickCountry('US');
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 20));
+        });
+        // Neither the notice nor a price: the answer may go either way.
+        expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
+        expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
+        expect(screen.queryByText('$6.00')).toBeNull();
+        expect(screen.queryByLabelText('Agree to all')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
+
+        release();
+        expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
+        expect(screen.getByLabelText('Agree to all')).toBeTruthy();
+    });
+
+    it('waits for the dollar answer before it reads a dollar checkout W-05 handed back', async () => {
+        const setup = await withBillingEmail('?mock=new');
+        const { release } = answerDollarCatalog(setup.port, 'held');
+        render(
+            <MemoryRouter
+                initialEntries={[
+                    {
+                        pathname: '/subscription/checkout',
+                        search: '?plan=pro-tier-01',
+                        state: { checkout: { country: 'US' } },
+                    },
+                ]}
+            >
+                <Routes>
+                    <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
+                </Routes>
+                <Where />
+            </MemoryRouter>
+        );
+
+        // Read while the answer is out, the country would be refused and the form open empty.
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 20));
+        });
+        expect(screen.queryByRole('heading', { name: 'Review your order' })).toBeNull();
+
+        release();
+        expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
+        expect((screen.getByLabelText('Billing country') as HTMLSelectElement).value).toBe('US');
+        expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
     });
 
     it('opens filled in again when the reader comes back from W-05', async () => {
@@ -740,5 +810,38 @@ describe('W-14 plan change', () => {
         renderAt('/subscription/change?plan=pro-tier-01', mockSetup('?mock=new'));
 
         await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
+    });
+});
+
+// W-01's currency and W-08's notice follow one answer (`useForeignBilling`): the plans page cannot show
+// dollars that the checkout then refuses, nor won where the checkout would take dollars.
+describe('W-01 and W-08 on one dollar answer', () => {
+    const subscribeFromPlans = async (price: RegExp) => {
+        fireEvent.click(await screen.findByRole('button', { name: price }));
+        await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
+        await pickCountry('US');
+    };
+
+    it('shows dollars on both where the server sells them, reading the dollar catalog once', async () => {
+        const setup = await withBillingEmail('?mock=new-trial-used');
+        const listPlans = vi.spyOn(setup.port, 'listPlans');
+        renderAt('/subscription/plans', setup);
+
+        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — \$6\.00 today$/);
+
+        expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
+        expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
+        expect(listPlans.mock.calls.filter(([input]) => input?.currency === 'USD')).toHaveLength(1);
+    });
+
+    it('shows won on W-01 and the notice on W-08 where the server sells none', async () => {
+        const setup = await withBillingEmail('?mock=new-trial-used');
+        answerDollarCatalog(setup.port, 'empty');
+        renderAt('/subscription/plans', setup);
+
+        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — ₩8,600 today$/);
+
+        expect(await screen.findByText('Paying from outside Korea is not available yet')).toBeTruthy();
+        expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
     });
 });
