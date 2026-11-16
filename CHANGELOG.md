@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Features
+
+- (mobile,web,bridge-messages) open the owner switch on production in debug mode (ADR-0322)
+
 ## [2026-11-16] - root@0.157.2, @chatic/web@0.89.1
 
 ### Features
