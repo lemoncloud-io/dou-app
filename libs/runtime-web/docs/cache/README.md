@@ -12,7 +12,7 @@ and nothing else may branch on it.**
 
 ```ts
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
-    if (type === 'invitecloud' && !isNative()) return 'session'; // 0. lives as long as the tab's guest
+    if (type === 'invitecloud' && hostProfile().bridge === null) return 'session'; // 0. lives as long as the tab's guest
     if (!isInPhoneApp()) return 'web'; // 1. no shell, no other store to reach
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web'; // 2. pinned, with a reason
     if (!isNativeCacheTypeUsable(type)) return 'web'; // 3. the shell cannot be trusted with it
@@ -90,8 +90,8 @@ IndexedDB outlived it and reached every later tab's list, where only the `accept
 apps/web kept it out, and a row written before that field existed could not be kept out at all.
 
 So the row is stored where its only user is: `sessionStorage`, routed ahead of every other check. The
-test is `isNative()` from `@chatic/bridges`, not `isInPhoneApp()`, because it is the same predicate the
-app entry points use to choose `sessionStorage` for the session itself — the row and the guest share a
+test is whether `@chatic/bridges`' host profile found a bridge, not `isInPhoneApp()`, because it is the
+same answer the app entry points use to choose `sessionStorage` for the session itself — the row and the guest share a
 lifetime by construction. Inside a desktop shell the session is in `localStorage`, so the shell's
 invited clouds stay in IndexedDB; inside the mobile shell they stay native. A reload keeps the tab's
 `sessionStorage`, so it keeps both the guest and its clouds; "duplicate tab" copies both together.

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useDeviceInfo } from '@chatic/device-utils';
+import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { prepareImage, REPORT_PHOTO, useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { FloatingButton, IconBack, ModalTopBar, PhotoAttachField, TextField, Textarea } from '@chatic/web-ui-kit';

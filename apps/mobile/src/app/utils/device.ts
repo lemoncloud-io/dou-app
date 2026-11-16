@@ -1,4 +1,4 @@
-import { USER_AGENT_PREFIX_ANDROID, USER_AGENT_PREFIX_IOS } from '@chatic/device-utils';
+import { USER_AGENT_PREFIX_ANDROID, USER_AGENT_PREFIX_IOS } from '@chatic/bridge-messages';
 
 import DeviceInfo from 'react-native-device-info';
 import { Platform } from 'react-native';

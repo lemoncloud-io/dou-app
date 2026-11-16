@@ -4,32 +4,13 @@ import type { DeviceInfo, Env, PageLanguage, Platform, VersionInfo } from '@chat
 
 declare const __APP_VERSION__: string;
 
-declare global {
-    interface Window {
-        CHATIC_APP_PLATFORM?: string;
-        CHATIC_APP_APPLICATION?: string;
-        CHATIC_APP_STAGE?: string;
-        /** @deprecated Composite `deviceId:firebaseInstallId`; use CHATIC_APP_UNIQUE_DEVICE_ID + CHATIC_APP_FIREBASE_INSTALLATION_ID. */
-        CHATIC_APP_DEVICE_ID?: string;
-        CHATIC_APP_DEVICE_MODEL?: string;
-        CHATIC_APP_CURRENT_VERSION?: string;
-        CHATIC_APP_LATEST_VERSION?: string;
-        CHATIC_APP_SHOULD_UPDATE?: string;
-        CHATIC_APP_CURRENT_LANGUAGE?: string;
-        /** @deprecated Carries the bare device id despite the name; use CHATIC_APP_UNIQUE_DEVICE_ID. */
-        CHATIC_APP_INSTALLATION_ID?: string;
-        CHATIC_APP_UNIQUE_DEVICE_ID?: string;
-        CHATIC_APP_FIREBASE_INSTALLATION_ID?: string;
-    }
-}
-
 /**
  * Every spelling a shell has ever injected, mapped onto `Env`.
  *
  * Three vocabularies reach this one global. Mobile injects `Env` today but older installs still
  * send `VITE_ENV` verbatim (`'LOCAL' | 'DEV' | 'PROD'`), and desktop sends `'dev' | 'prod'` —
  * `'dev'` is not an `Env` member but is what the push broker's SNS application is named after
- * (`chatic-desktop-dev`, docs/specs/cross-cloud-push.md), so it is deliberately left alone on the
+ * (`chatic-desktop-dev`), so it is deliberately left alone on the
  * wire and translated here instead.
  *
  * The old-mobile rows are not optional. The web deploys before the app does, so there is always a
@@ -69,22 +50,27 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
     deviceInfo: null,
     versionInfo: null,
     syncDeviceAndVersionInfo: () => {
-        const platform = (window.CHATIC_APP_PLATFORM as Platform) || 'web';
-        const application = window.CHATIC_APP_APPLICATION || '';
-        const stage = toEnv(window.CHATIC_APP_STAGE);
-        const deviceId = window.CHATIC_APP_DEVICE_ID;
-        const deviceModel = window.CHATIC_APP_DEVICE_MODEL;
-        const currentVersion = window.CHATIC_APP_CURRENT_VERSION || '';
-        const latestVersion = window.CHATIC_APP_LATEST_VERSION || '';
-        const shouldUpdate = window.CHATIC_APP_SHOULD_UPDATE === 'true';
-        const appLang = window.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
-        const installId = window.CHATIC_APP_INSTALLATION_ID || '';
+        // Read off `window` on every sync, not from the host profile's boot snapshot: the phone runs its
+        // boot script again after load, and that pass can rewrite the device ids and the version check.
+        // A later sync therefore also puts the injected `latestVersion`/`shouldUpdate` back over what
+        // `updateVersionInfo` merged since — every mount of `useDeviceInfo` does that, as it always has.
+        const g = window;
+        const platform = (g.CHATIC_APP_PLATFORM as Platform) || 'web';
+        const application = g.CHATIC_APP_APPLICATION || '';
+        const stage = toEnv(g.CHATIC_APP_STAGE);
+        const deviceId = g.CHATIC_APP_DEVICE_ID;
+        const deviceModel = g.CHATIC_APP_DEVICE_MODEL;
+        const currentVersion = g.CHATIC_APP_CURRENT_VERSION || '';
+        const latestVersion = g.CHATIC_APP_LATEST_VERSION || '';
+        const shouldUpdate = g.CHATIC_APP_SHOULD_UPDATE === 'true';
+        const appLang = g.CHATIC_APP_CURRENT_LANGUAGE as PageLanguage | undefined;
+        const installId = g.CHATIC_APP_INSTALLATION_ID || '';
         // Mirror the new globals verbatim (undefined when absent so `??` fallbacks
         // work downstream). INSTALLATION_ID is deliberately not folded in: app
         // <= 0.15.x injected the Firebase installation id there, so it is not a
         // safe bare-device-id source.
-        const uniqueDeviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || undefined;
-        const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || undefined;
+        const uniqueDeviceId = g.CHATIC_APP_UNIQUE_DEVICE_ID || undefined;
+        const firebaseInstallationId = g.CHATIC_APP_FIREBASE_INSTALLATION_ID || undefined;
 
         const webVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
         const appVersion = currentVersion || webVersion;

@@ -7,8 +7,8 @@ jest.mock('@lemoncloud/react-page-transition', () => ({
     useNavigateWithTransition: () => navigateOriginal,
 }));
 let mockPlatform = 'ios';
-jest.mock('@chatic/device-utils', () => ({
-    useDeviceInfo: () => ({ deviceInfo: { platform: mockPlatform } }),
+jest.mock('@chatic/bridges', () => ({
+    hostProfile: () => ({ globals: { CHATIC_APP_PLATFORM: mockPlatform } }),
 }));
 
 const deferred = () => {

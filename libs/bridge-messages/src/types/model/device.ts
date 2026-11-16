@@ -61,3 +61,11 @@ export type FetchAppIconPayload = {
 export type FetchAppIconListPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
+
+/**
+ * The prefix the phone app appends to its WebView's User-Agent, per platform. Declared here, in the
+ * vocabulary both sides compile against, because it is part of what the app sends the web and the
+ * server. It says which shell is speaking, not what that shell can do.
+ */
+export const USER_AGENT_PREFIX_IOS = 'DOU_IOS';
+export const USER_AGENT_PREFIX_ANDROID = 'DOU_ANDROID';

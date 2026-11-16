@@ -74,8 +74,8 @@ sidebar preferences and their scope key, and small pure
 helpers over the DOM and over dates, query keys and images.
 
 **Out** — storage and its stores (`@chatic/storage`), design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
-(`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
-(`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
+(`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), what the host injected at boot
+(`@chatic/bridges`' host profile), setting keys, lanes and persistence (`@chatic/config`), domain data
 (`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
 (`@chatic/http`), and the transport types the SDK already declares, such as `ListResult` from
 `@lemoncloud/chatic-backend-api`.
@@ -120,7 +120,7 @@ build objects to an export that nobody imports. Three measurements, each reprodu
   `jest.mock('@chatic/shared')` wholesale for the same reason.
 
 None of that is a reason to leave. It is the reason to ask, before adding: does `@chatic/ui-kit`,
-`@chatic/config`, `@chatic/device-utils` or the feature itself own this? `@chatic/shared` is the
+`@chatic/config`, `@chatic/bridges` or the feature itself own this? `@chatic/shared` is the
 answer when all four say no, and `consts/` — the only directory `apps/mobile` can safely reach — is
 the part with the clearest claim to the name.
 
@@ -145,9 +145,8 @@ flowchart TD
 
     UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
     Assets["@chatic/assets<br/><i>Logo</i>"]:::ext
-    Bridges["@chatic/bridges<br/><i>logger</i>"]:::ext
+    Bridges["@chatic/bridges<br/><i>logger · hostProfile</i>"]:::ext
     Cfg["@chatic/config<br/><i>config · useConfigValue</i>"]:::ext
-    Dev["@chatic/device-utils<br/><i>useDeviceInfo</i>"]:::ext
 
     App --> Barrel
     RN -.-> Barrel
@@ -161,7 +160,6 @@ flowchart TD
     Comp --> UiKit
     Comp --> Assets
     Hooks --> Bridges
-    Hooks --> Dev
     Prefs --> Cfg
 ```
 
@@ -262,7 +260,8 @@ Seven things the filenames do not tell you.
   phone sign-in) are behind lazy routes and import the subpath. The alias is in `tsconfig.base.json`'s
   `paths`, and `apps/web/jest.config.js` maps it ahead of its generic `@chatic/*` rule.
 - **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
-  `@lemoncloud/react-page-transition` a platform from `@chatic/device-utils`. It is by far the
+  `@lemoncloud/react-page-transition` the platform the shell injected, read from `@chatic/bridges`'
+  host profile. It is by far the
   most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that
   builds that platform. The wrapper also puts `data-page-transition` on `<html>` for as long as a
   navigation runs, cleared when the last overlapping one settles. That attribute is a DOM contract, not

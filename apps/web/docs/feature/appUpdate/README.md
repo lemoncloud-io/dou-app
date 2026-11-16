@@ -34,7 +34,7 @@ independent by design, and neither suppresses the other.
 There is a boot-time injection, `CHATIC_APP_SHOULD_UPDATE`, and this feature deliberately ignores
 it. On a cold start the store lookup resolves _after_ the WebView is created, so the injected value
 is always `false`; the follow-up `OnUpdateDeviceInfo` push that would correct it is dropped whenever
-it lands before a `useDeviceInfo()` consumer has populated the device-info store. Only
+it lands before `GlobalBridgeListener` has populated the device-info store on mount. Only
 `appBridge.checkAppUpdate()` is correct at the moment it is asked.
 
 `useAppUpdateStatus` runs that call on mount and on every foreground return, and publishes the

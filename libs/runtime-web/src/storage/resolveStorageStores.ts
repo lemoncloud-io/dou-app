@@ -1,4 +1,4 @@
-import { BridgeStorageChannel, isNative, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
+import { BridgeStorageChannel, hostProfile, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { NativeSecureStore, TolerantStore, WebStore } from '@chatic/storage';
 
 import type { KeyValueStore } from '@chatic/storage';
@@ -6,7 +6,7 @@ import type { KeyValueStore } from '@chatic/storage';
 /**
  * What the choice of stores depends on, read once at boot.
  *
- * - `inShell` — the page runs inside an app or desktop shell (`isNative()`).
+ * - `inShell` — the page runs inside an app or desktop shell: the host profile found a bridge channel.
  * - `shellKeepsVault` — the shell listed `nativeSecure` in what it injected before the page ran. This,
  *   not `inShell`, is what says the session's secrets go to the device vault: every shell answers
  *   `isNative()`, vault or not.
@@ -46,7 +46,7 @@ export interface StorageStores {
 
 /** The environment as this page sees it. */
 export const readStorageEnvironment = (): StorageEnvironment => ({
-    inShell: isNative(),
+    inShell: hostProfile().bridge !== null,
     shellKeepsVault: shellKeepsStorageMedium('nativeSecure'),
     lateVaultConfirmed: WebStore.session().get(LATE_VAULT_MARK) === '1',
 });

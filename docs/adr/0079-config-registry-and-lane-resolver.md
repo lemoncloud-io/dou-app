@@ -54,7 +54,7 @@
 > in unrelated constants like `INVITE_LIST_LIMIT` · `MAX_INVITE_SELECTION`. Counted by word boundary, the
 > web bundle reads **20 kinds**, and separately there are **8 kinds** of `MAIN_VITE_*` used only by the
 > Electron main process (out of scope). Of the 20 kinds of shell-injected globals, **14 are already
-> owned by [`deviceInfoStore`](../../libs/device-utils/src/stores/deviceInfoStore.ts)** — though it is
+> owned by [`deviceInfoStore`](../../apps/web/src/app/stores/useDeviceInfoStore.ts)** — though it is
 > React-only and covers only device/version identity; `CHATIC_APP_PLATFORM` is read directly by
 > **11 files** outside it. The full classification is owned by the registry key proposal, which lived in
 > the root docs tree and has since been removed.

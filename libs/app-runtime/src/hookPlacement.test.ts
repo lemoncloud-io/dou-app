@@ -11,8 +11,8 @@ import { join, relative, sep } from 'path';
  * the problem — the only basis for deciding where a new hook belonged was whatever that folder had
  * done before.
  *
- * The repo-wide convention is already `hooks/` (`libs/shared/src/hooks` · `libs/device-utils/src/hooks`
- * · `libs/theme/src/hooks` + most app feature folders). This check turns that convention into a rule
+ * The repo-wide convention is already `hooks/` (`libs/shared/src/hooks` · `libs/theme/src/hooks`
+ * + most app feature folders). This check turns that convention into a rule
  * this package can verify mechanically.
  *
  * The judgment is by filename: a source file starting with `use*` must have `hooks/` in its path. The

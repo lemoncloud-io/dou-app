@@ -1,9 +1,8 @@
+import { hostProfile } from '@chatic/bridges';
+
 import type { RuntimePorts } from '@chatic/runtime-core';
 
 type TransportPorts = RuntimePorts['transport'];
-
-/** The globals the mobile and desktop shells inject before the page's own script runs. */
-type ShellGlobals = { CHATIC_APP_PLATFORM?: string };
 
 /**
  * `navigator.onLine` and the page's `online`/`offline` events. Outside a page there is nothing to
@@ -24,14 +23,14 @@ const online: TransportPorts['online'] = {
 };
 
 /**
- * The shell-injected platform and the user agent, read straight off `window` rather than through
- * device-utils' `deviceInfoStore`: that store is filled by a React hook on mount, and the first socket
- * can be created before it runs. The shells inject these globals before the page's own script.
+ * The shell-injected platform, from the host profile taken at boot, and the user agent. Not from
+ * `apps/web`'s device store: that store is filled by a React hook on mount, and the first socket can
+ * be created before it runs.
  */
 const device: TransportPorts['device'] = () => {
     if (typeof window === 'undefined') return {};
     return {
-        appPlatform: (window as unknown as ShellGlobals).CHATIC_APP_PLATFORM,
+        appPlatform: hostProfile().globals.CHATIC_APP_PLATFORM,
         userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
     };
 };

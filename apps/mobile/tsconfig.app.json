@@ -31,9 +31,6 @@
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/device-utils/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {

@@ -92,8 +92,10 @@ export const webConfigPorts: ConfigRuntimePorts = {
 because their storage ports are the stores their entry points built; the env part is identical.
 
 Each app supplies only `read`, a function from a raw name to its value, which is the one piece this
-lib cannot hold (`import.meta`). All four Vite apps write the same four lines of it: `VITE_*` names
-come from `import.meta.env`, everything else from `window`.
+lib cannot hold (`import.meta`). `apps/web`, `apps/desktop-web` and `apps/admin` write the same lines
+of it: `VITE_*` names come from `import.meta.env`, the shell's `CHATIC_APP_*` globals from
+`@chatic/bridges`' host profile — what the shell injected, taken once at boot — and anything else from
+`window`. `apps/landing` runs in a browser tab only and reads its build's values alone.
 
 The adapter carries one behaviour that looks arbitrary and is not. Exactly five raw names come back
 lowercased — `VITE_PROJECT`, `VITE_REGION`, `VITE_HOST`, `VITE_OAUTH_ENDPOINT` and
@@ -183,11 +185,11 @@ a toast.
 
 ### What each app wires
 
-| App                | env | storage | shell               | remote | callbacks |
-| ------------------ | :-: | :-----: | ------------------- | :----: | :-------: |
-| `apps/web`         |  ✓  |    ✓    | ✓ when `isNative()` |   —    |     ✓     |
-| `apps/desktop-web` |  ✓  |    ✓    | —                   |   —    |     —     |
-| `apps/admin`       |  ✓  |    ✓    | —                   |   —    |     —     |
+| App                | env | storage | shell        | remote | callbacks |
+| ------------------ | :-: | :-----: | ------------ | :----: | :-------: |
+| `apps/web`         |  ✓  |    ✓    | ✓ in a shell |   —    |     ✓     |
+| `apps/desktop-web` |  ✓  |    ✓    | —            |   —    |     —     |
+| `apps/admin`       |  ✓  |    ✓    | —            |   —    |     —     |
 
 Only `apps/web` runs inside a native shell, and it wires the port **conditionally**: a plain browser
 tab has no shell to round-trip a write to, and leaving the member unset rather than wired-and-always-
@@ -207,7 +209,7 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 ### What not to do
 
 - **Do not read `import.meta` anywhere but the adapter file.** It is the boundary the no-dependency rule is enforced at, and a second reader is a second source of truth for the same fact.
-- **Do not migrate an identity value into the registry.** `CHATIC_APP_PLATFORM` and `CHATIC_APP_INSTALLATION_ID` are read straight off `window` by device-token registration, push mute, the IAP screens and `libs/device-utils`' `deviceInfoStore`, on purpose. They feed contracts whose vocabulary is not `Stage`'s or `Platform`'s — a push broker wants lowercase `dev`/`prod`, and Electron's preload injects a platform (`desktop`) that the shared bridge union does not contain — so routing them through the registry would change the value that arrives.
+- **Do not migrate an identity value into the registry.** `CHATIC_APP_PLATFORM` and `CHATIC_APP_INSTALLATION_ID` are read as injected — straight off `window` by device-token registration, push mute and the IAP screens, and through `@chatic/bridges`' host profile by `apps/web`'s device store — on purpose. They feed contracts whose vocabulary is not `Stage`'s or `Platform`'s — a push broker wants lowercase `dev`/`prod`, and Electron's preload injects a platform (`desktop`) that the shared bridge union does not contain — so routing them through the registry would change the value that arrives.
 - **Do not wire the shell port "just in case".** A port that is present and always fails produces a visible error for every write; a port that is absent produces a quiet no-op, which is the correct behaviour when there is no shell.
 - **Do not build a bridge message with no caller.** The shell lane deliberately has no `FetchConfigBag` message: the boot envelope is synchronous and nothing needs an async fallback, so the message and its native handler have not been written.
 

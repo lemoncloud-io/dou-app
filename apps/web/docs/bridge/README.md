@@ -163,7 +163,7 @@ the runtime hook is a no-op.
 On the phone the session can belong to the shell's own runtime instead of the page. `main.tsx`
 settles which before anything boots, with `settleSessionOwner` from `@chatic/runtime-web`:
 
-- **No offer** in `window.CHATIC_APP_RUNTIME` (a browser, a shell that does not run its runtime) — the
+- **No offer** in `CHATIC_APP_RUNTIME`, as the host profile took it at boot (a browser, a shell that does not run its runtime) — the
   page holds the session, as it always has, and nothing is said to the shell.
 - **An offer** — the page says `RuntimeHello` and waits. On `native` it builds the mirror
   (`createBridgedRuntime`) in place of `createWebRuntime` and never opens the device vault: no

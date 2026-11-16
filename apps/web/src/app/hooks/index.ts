@@ -18,6 +18,7 @@ export * from './useCloudName';
 export * from './useChannelUnreads';
 export * from './useChatSyncRegistration';
 export * from './useCloudScope';
+export * from './useDeviceInfo';
 export * from './useDevicePairingEnabled';
 export * from './useDeviceSync';
 export * from './useHomeChannels';

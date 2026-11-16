@@ -38,7 +38,7 @@ What the app does **not** own:
 | Stores                                                | [`@chatic/storage`](../../libs/storage/README.md)                 |
 | Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
 | HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
-| Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
+| What the host injected at boot (the host profile)     | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
 | Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md)   |
 
 `@chatic/http` and `@chatic/logger` reach the app indirectly: HTTP through `@chatic/app-runtime`,

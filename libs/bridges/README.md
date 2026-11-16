@@ -91,7 +91,8 @@ dependencies, and must not assume a DOM — the e2e host has none.
 
 **In** — `WebBridgeClient` and its readiness/pending/event bookkeeping; the two `BridgeAdapter`
 implementations; `AppBridgeHost` with handler routing, the `WebAppReady` handshake and the event
-buffer; `JsonProtocol` and `MessageQueue`; `isNative()`; the protocol version constants; and the
+buffer; `JsonProtocol` and `MessageQueue`; `isNative()`; the host profile (`hostProfile()`) and the
+shell's boot globals and capability declaration it is built from; the protocol version constants; and the
 web→native log relay (`setupBridgeLogger`, `createNativeForwarder`, `appLogInfoCodec`).
 
 **Out** — the message vocabulary and every cross-boundary type
@@ -231,23 +232,67 @@ do not agree on which target the event fires at. Listeners are attached on the f
 subscription and torn down when the last one leaves, so a client that never subscribes leaves nothing
 bound to the page.
 
+### The host profile
+
+What the page knows about the host it runs in is one frozen object, `hostProfile()`, built the first
+time it is read — at boot, in each app's entry point, before the first render — and the same object
+for the rest of the page's life. It holds:
+
+| Field          | From                                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| `bridge`       | which channel the shell put on `window`, named by kind, or `null`      |
+| `globals`      | the boot globals listed in `host/shellGlobals.ts`, exactly as injected |
+| `storageMedia` | `CHATIC_APP_STORAGE_MEDIA`, the media the shell keeps                  |
+| `runtimeOffer` | `CHATIC_APP_RUNTIME`, a shell's offer to own the session, untouched    |
+| `capabilities` | `CHATIC_APP_CAPABILITIES`, the shell's declaration                     |
+
+**It is fixed at boot because a host does not change under a running page.** A profile that moved
+after the first paint would be a screen switching between two hosts. The storage choice made at
+boot already depended on the shell having set its channel and globals by then; the profile makes that
+one moment the source for every reader. Globals a shell writes again while the page runs — the log
+upload hold, the theme, the config bag — are not host facts and are not in it. The phone also runs
+its boot script once more after load, which can rewrite the device ids and the version check; the
+profile keeps the first values, and `apps/web`'s device store reads those four off `window` live. `buildHostProfile`
+is the pure half, from any object, for tests; `resetHostProfileForTests` forgets the built one.
+
+**A shell that declares nothing is described exactly as before.** `bridge` is found with the same
+three checks, in the same order, as `isNative()`, so `bridge !== null` and `isNative()` agree on
+every host — `host/hostProfile.spec.ts` holds that per channel. Its kind also tells the phone app's
+WebView (`react-native-webview`, the one shell with SQLite behind its bridge) from the others.
+`isNative()` itself is unchanged and still read live, by the client's readiness among others.
+
+**The capability declaration is one versioned object**, so a missing value means one thing:
+
+| What the shell set                                            | Answer for a capability                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
+| nothing                                                       | the capability's legacy rule                            |
+| something that is not an object with an integer `version` ≥ 1 | unavailable, logged once                                |
+| a `version` older than the one that introduced the key        | the legacy rule — that shell never knew the key         |
+| a `version` that carries the key, and no key                  | unavailable, logged — a bug in the shell, never guessed |
+| the key                                                       | what it says                                            |
+
+`resolveCapability` applies that table. Keys the page does not know, from a newer version, are
+ignored. Every capability has a legacy rule, and where nothing the page did before declarations
+existed can be reproduced its legacy rule answers "unavailable", so a new key never needs a guess
+written for it. No capability is defined yet; each arrives with the port that uses it.
+
 ### Directories
 
 ```text
 libs/bridges/src/
-├── index.ts       barrel — common · web · app · provider · logger · version · storage
+├── index.ts       barrel — common · web · app · provider · logger · version · storage · host
 ├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
 ├── version.ts     BRIDGE_VERSION · BRIDGE_VERSION_INFO
 ├── common/        JsonProtocol, MessageQueue, isNative, the message/adapter types
 ├── web/           WebBridgeClient + adapters/ (NativeBridgeAdapter, InMemoryAdapter)
 ├── app/           AppBridgeHost + IAppBridgeHost
 ├── logger/        the web→native relay, and the @chatic/logger re-export
-└── storage/       BridgeStorageChannel (StorageGet · StorageSave · StorageClear), shellKeepsStorageMedium
+├── storage/       BridgeStorageChannel (StorageGet · StorageSave · StorageClear), shellKeepsStorageMedium
+└── host/          hostProfile · buildHostProfile, the boot globals, the capability declaration
 ```
 
-26 production files, 7 spec files, 4,116 lines. The barrel exports 16 runtime values of its own — 6
-classes, 9 constants and a function — plus 13 interfaces, 6 type aliases, and everything `@chatic/logger`
-exports.
+30 production files, 9 spec files, about 4,700 lines. The barrel exports this package's classes,
+constants and functions, its interfaces and type aliases, and everything `@chatic/logger` exports.
 
 Names you would not find by guessing at a filename:
 

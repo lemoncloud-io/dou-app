@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { useDeviceInfo } from '@chatic/device-utils';
+import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { appBridge } from '../../../bridge';
 import { summarizeRegisterResult, type RegistrationSummary } from '../lib';
