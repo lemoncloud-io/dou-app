@@ -1,9 +1,10 @@
 # ADR-0311: Landing opens the account surface on the production host, for a production build, in won only
 
-> Status: Accepted · Decided: 2026-11-13 · Implemented: `feat/landing-production-account`
+> Status: Accepted · Decided: 2026-11-13 · Updated: 2026-11-16 (decision 3: W-01 lists won in a won-only
+> build) · Implemented: `feat/landing-production-account`
 > · Scope: `apps/landing` (`README.md` principle 10, § Two surfaces, § Billing outside Korea, § Sandbox
 > payments; `src/app/config/stage.ts`; `src/app/features/subscription/lib/createPortSetup.ts`,
-> `lib/billingCountry.ts`, `lib/port/PortProvider.tsx`, `pages/checkout/`)
+> `lib/billingCountry.ts`, `lib/port/PortProvider.tsx`, `pages/checkout/`, `pages/entry/PlansPage.tsx`)
 > · Amends: decision 5 of [ADR-0227](./0227-landing-serves-a-public-surface-and-a-signed-in-subscription-surface.md)
 > (the account surface shut on the production host) and, with it,
 > [ADR-0235](./0235-landing-lists-the-plans-on-every-host-before-checkout-opens.md)'s premise that the
@@ -57,10 +58,17 @@ membership read, which production already serves. Three things are not ready:
    production build, and the pages read it through `useForeignBilling`. W-08 keeps the billing-country
    picker and stops any country other than Korea at a notice that names no provider — no currency line,
    no amount, no consents, no way on (`billableIn`, `canContinueCheckout`) — and W-05 sends a dollar
-   checkout handed to it back to W-08 (`checkoutDetailsOf`). W-01 still shows dollar prices to a reader
-   of any language but Korean: the page's language picks the currency shown, the billing country the
-   currency charged. Every other build bills both, as before. Whether dollars open in production is a
-   later decision.
+   checkout handed to it back to W-08 (`checkoutDetailsOf`). W-01 lists won in every language in such
+   a build. Every other build bills both, as before, and there the page's language picks the currency
+   shown, the billing country the currency charged. Whether dollars open in production is a later
+   decision.
+
+    _Revised 2026-11-16._ As first decided, W-01 kept showing dollars to a reader of any language but
+    Korean. That held for a visitor, whose prices come from the published catalog, but a signed-in
+    reader's come from the server, which has no production dollar products: the English page was empty
+    on the production host. W-01 now lists won wherever `foreignBilling` is false, so a visitor there sees
+    won too; where the gate is shut, the catalog port keeps dollars for a reader of any other language.
+
 4. **India stays out of the country list on every stage.** The list was already `KR`, `US`, `JP` and
    "another country"; this records that India is left out on purpose (its cards register, but its rules
    need a mandate this design cannot create, so every monthly charge would be refused) and pins it with
