@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-16] - root@0.160.0, @chatic/desktop-web@0.58.0
+
+### Features
+
+- (data,desktop-web) manage channel webhooks from the desktop channel settings
+- (data) add the channel webhook data layer
+- (desktop-web) manage channel webhooks from the settings panel
+
 ## [2026-11-16] - No version updates
 
 ### Features
