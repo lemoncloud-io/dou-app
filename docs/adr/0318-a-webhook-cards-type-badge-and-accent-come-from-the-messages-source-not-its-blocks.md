@@ -1,6 +1,6 @@
 # ADR-0318: A webhook card's type badge and accent colour come from the message's `source$`, not its blocks
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/webhook-message-blocks`
+> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/desktop-webhook-card`
 > · Scope: `libs/block-kit/src/cardAccent.ts` · `libs/block-kit/src/BlockKitMessage.tsx` ·
 > `libs/block-kit/src/renderMrkdwn.tsx` · `apps/desktop-web/src/app/features/chat/components/MessageRow.tsx` ·
 > `apps/web/src/app/features/channels/components/ChannelMessageRow.tsx` ·

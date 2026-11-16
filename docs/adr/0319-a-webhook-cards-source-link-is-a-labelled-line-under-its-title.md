@@ -1,6 +1,6 @@
 # ADR-0319: A webhook card's source link is a labelled line under its title, read from `source$.url` first
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/webhook-message-blocks` · Supersedes
+> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/desktop-webhook-card` · Supersedes
 > [ADR-0246](./0246-a-webhook-cards-title-is-the-link-to-its-source.md)
 > · Scope: `libs/block-kit/src/sourceLink.ts` · `libs/block-kit/src/BlockKitMessage.tsx` ·
 > `apps/web/src/app/features/channels/components/ChannelMessageRow.tsx` ·
