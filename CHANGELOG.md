@@ -2,6 +2,12 @@
 
 ## [2026-11-16] - No version updates
 
+### Refactor
+
+- (ui-kit) import cn through the @chatic/ui-kit barrel, not the @chatic/lib/utils alias
+
+## [2026-11-16] - No version updates
+
 ### Features
 
 - (mobile,runtime-core,chatic-apps-sdk) mini app reads its cloud and may send text (ADR-0325)
