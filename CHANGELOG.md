@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-16] - No version updates
+
+### Refactor
+
+- (auth) fold @chatic/auth-sign into libs/auth as a leaf folder (ADR-0326)
+
 ## [2026-11-16] - root@0.158.0, @chatic/web@0.90.0
 
 ### Features
