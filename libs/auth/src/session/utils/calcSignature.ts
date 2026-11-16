@@ -1,7 +1,7 @@
-import { LemonHmacSigner } from '@chatic/auth-sign';
+import { LemonHmacSigner } from '../../signing';
 
 /**
- * The socket handshake signature — `@chatic/auth-sign` called directly, no web-core shim.
+ * The socket handshake signature — the formula in `src/signing/`, called directly, no web-core shim.
  *
  * Pure in the way that matters: the signer holds no session state (it is a stateless algorithm
  * object), so one instance serves every call and the answer depends only on the arguments. It sat in

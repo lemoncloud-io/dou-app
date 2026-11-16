@@ -29,7 +29,7 @@ live elsewhere and do not leak to apps: the socket and HTTP managers
 ([`libs/transport`](../transport/README.md)), the socket transport and its auth controller
 (`@lemoncloud/chatic-sockets-lib`), the data layer ([`libs/data`](../data/README.md)), the HTTP
 executor ([`libs/http`](../http/README.md)), the storage adapters ([`libs/db`](../db/README.md)),
-the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logger/README.md)).
+the HMAC signer (in [`libs/auth`](../auth/docs/socket/signing.md#the-formula)) and the logging core ([`libs/logger`](../logger/README.md)).
 [`libs/config`](../config/README.md) is the one exception an app touches directly — it calls
 `config.init()` from its own entry point, before this lib boots.
 
@@ -65,7 +65,7 @@ login/logout/switch use cases, device pairing, socket authentication wiring and 
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
 ([`libs/data`](../data/README.md)); the HTTP executor, retry and error classification
 ([`libs/http`](../http/README.md)); IndexedDB, native SQLite and Web Storage adapters
-([`libs/db`](../db/README.md)); the HMAC signature itself (`libs/auth-sign`); the log entry
+([`libs/db`](../db/README.md)); the HMAC signature itself ([`libs/auth`](../auth/docs/socket/signing.md#the-formula)); the log entry
 contract and its uploader ([`libs/logger`](../logger/README.md)); the settings registry
 ([`libs/config`](../config/README.md)); and everything a screen does with any of it.
 
@@ -96,7 +96,6 @@ flowchart TD
     SDK["chatic-sockets-lib<br/><i>ClientSocketV2 · AuthController</i>"]:::ext
     Data["@chatic/data"]:::ext
     Http["@chatic/http"]:::ext
-    Sign["@chatic/auth-sign"]:::ext
 
     App --> Init
     App --> Host
@@ -107,7 +106,6 @@ flowchart TD
     Hooks -->|"readers"| View
     View --> Store
     Auth --> Store
-    Auth --> Sign
     Auth -->|"repository"| DM
     Scope --> Store
     Scope -.->|"getBoundCid"| SM

@@ -115,7 +115,6 @@ graph TB
         DEVICE["device-utils<br/>Injected Device Info"]
         DB["db<br/>Cache Storage Engines"]
         LOGGER["logger<br/>Cross-Platform Logging"]
-        AUTHSIGN["auth-sign<br/>HMAC Request Signing"]
     end
 
     MOBILE --> BRIDGES & APPMSG
@@ -124,7 +123,7 @@ graph TB
     WEB --> RUNTIME & BRIDGES & DEVICE
     DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
     ADMIN --> DATA & UIKIT & SHARED & THEME
-    RUNTIME --> DATA & HTTP & AUTHSIGN
+    RUNTIME --> DATA & HTTP
     DATA --> DB & HTTP
 ```
 
@@ -156,7 +155,6 @@ dou-app/
 │   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
 │   ├── fake-shell/          # Fake native shell core of web-e2e; its answers back the virtual shell's
 │   ├── device-utils/        # Injected device info, reader hooks
-│   ├── auth-sign/           # Lemon HMAC request signing
 │   ├── logger/              # Cross-platform logging core
 │   ├── policy-content/      # Legal text (terms, privacy, child safety)
 │   ├── block-kit/           # Message block model consumed by block-kit-builder

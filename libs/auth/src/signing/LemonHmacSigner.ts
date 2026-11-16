@@ -1,7 +1,7 @@
 import hmacSHA256 from 'crypto-js/hmac-sha256.js';
 import encBase64 from 'crypto-js/enc-base64.js';
 
-import type { AuthSignResult, IAuthSigner, SignatureContext, SignaturePayload } from '../contracts';
+import type { AuthSignResult, IAuthSigner, SignatureContext, SignaturePayload } from './contracts';
 
 const hmac = (message: string, key: string): string => encBase64.stringify(hmacSHA256(message, key));
 
@@ -13,7 +13,7 @@ const hmac = (message: string, key: string): string => encBase64.stringify(hmacS
  * the payload has no field for it.
  *
  * Pure: no network, no storage, no globals. `current` and `userAgent` are required inputs rather
- * than defaults, because a default would have to read `new Date()` or `navigator`, and this lib
+ * than defaults, because a default would have to read `new Date()` or `navigator`, and the formula
  * runs under Node and React Native as well as a browser.
  */
 export class LemonHmacSigner implements IAuthSigner {

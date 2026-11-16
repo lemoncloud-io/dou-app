@@ -26,7 +26,7 @@ Consumers see the `@chatic/http` barrel and nothing else. `tsconfig.base.json` m
 
 What this lib does **not** own: endpoints, credentials, sessions and the log sink implementation
 (`libs/app-runtime`, injected as ports); domain mapping and caching (`@chatic/data`); the lemon HMAC
-signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
+signature ([`@chatic/auth`](../auth/docs/socket/signing.md#the-formula)); the socket transport
 (`@lemoncloud/chatic-sockets-lib`).
 
 ## Design principles
@@ -67,7 +67,7 @@ only implementation is a static stand-in that answers "statistics off"
 (`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
 
 **Out** — `HttpRuntimePorts` implementations (`libs/transport/src/http/`), view→domain mapping and
-cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the socket axis entirely.
+cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth`), and the socket axis entirely.
 
 ## Structure
 
