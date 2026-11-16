@@ -2,6 +2,12 @@
 
 ## [2026-11-16] - No version updates
 
+### Documentation
+
+- (block-kit,agents) add the block-kit readme and drop app and lib counts that went stale
+
+## [2026-11-16] - No version updates
+
 ### Refactor
 
 - (auth) fold @chatic/auth-sign into libs/auth as a leaf folder (ADR-0326)
