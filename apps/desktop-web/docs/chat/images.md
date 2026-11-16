@@ -43,8 +43,9 @@ each refused file its reason, checked in this order:
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
   extension. So is an office file's: DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types
   them by whichever app owns the extension on that machine — as a ZIP where none does, or under another
-  suite's own name for them. Typed as a ZIP or as anything the server does not know, a file with one of
-  those four extensions goes up as that document, never as an archive. A video or document whose
+  suite's own name for them. Typed as a ZIP, as a legacy Office type (`application/vnd.ms-excel` on a
+  `.xlsx`) or as anything the server does not know, a file with one of those four extensions goes up
+  as that document, never as an archive. A video or document whose
   extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
   saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
   it is sent as `application/zip`. Nothing reads an archive's bytes here; an empty one is refused
@@ -337,7 +338,8 @@ the bytes are read from the picked file instead of fetched.
   refuses two drawings on one canvas. A window drag redraws once it settles. The thumbnail of the page most in view is marked, and a
   thumbnail jumps to its page. Closing destroys the document and its worker, and so does a file
   that fails to open.
-- **A text file** (TXT, CSV, Markdown or JSON, all as plain text — nothing is rendered) shows its first 1 MB in a wrapping monospaced block, with a line saying so when
+- **A text file** (TXT, CSV, Markdown or JSON, all as plain text — nothing is rendered) shows its first
+  1 MB in a wrapping monospaced block, with a line saying so when
   the file is longer; the save still writes the whole file. Only that first 1 MB is fetched (a
   `Range` request; if storage answers with the whole file, reading stops at 1 MB), and the card's
   size says whether there is more. A UTF-16 byte-order mark picks

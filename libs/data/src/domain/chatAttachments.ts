@@ -157,7 +157,14 @@ const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
 
 // DOCX, XLSX, PPTX and HWPX: ZIP containers whose type the browser takes from whichever app owns the
 // extension on that machine. Without Office, or with another suite holding the extension, a real Word
-// file arrives as a ZIP or under that suite's own name for it — a type the server does not know.
+// file arrives as a ZIP or under that suite's own name for it — a type the server does not know. The
+// legacy Office types are that kind of name too: a suite that owns `.xlsx` may type it `application/vnd.ms-excel`.
+const LEGACY_OFFICE: ReadonlySet<string> = new Set([
+    'application/msword',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-powerpoint',
+]);
+
 const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -170,7 +177,7 @@ const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
  *
  * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
  * file its system does not know (HWP, often) over with an empty type. The one other case is an office
- * container's extension under a ZIP type or a type the server does not know: the extension names the
+ * container's extension under a ZIP type, a legacy Office type or a type the server does not know: the extension names the
  * document, and it goes up as that document, never as an archive. A video or document must end in its
  * format's extension, because the receiver saves it under that name — another format's extension is
  * refused, anything else gets the right one added. An image name is left alone; the server does not
@@ -185,7 +192,7 @@ export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAtt
         UNTYPED.has(declared) ||
         (named !== undefined &&
             OFFICE_CONTAINERS.has(named.type) &&
-            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE));
+            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE || LEGACY_OFFICE.has(typed.type)));
     const format = readsName ? named : typed;
     if (!format) return null;
     const { type, kind } = format;

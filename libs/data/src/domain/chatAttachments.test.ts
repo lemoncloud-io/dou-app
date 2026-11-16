@@ -64,7 +64,6 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'a.csv', type: 'application/json' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.json', type: 'text/plain' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'a.doc', type: 'application/vnd.ms-excel' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/msword' })).toBeNull();
     });
 
     // The server has no alias for it: a CSV that Windows types as an Excel sheet is refused there with a 400.
@@ -132,6 +131,9 @@ describe('chatAttachmentFormat', () => {
                 'application/x-zip-compressed',
                 'application/x-unknown-office',
                 'application/vnd.ms-office',
+                'application/vnd.ms-excel',
+                'application/msword',
+                'application/vnd.ms-powerpoint',
             ]) {
                 expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
             }

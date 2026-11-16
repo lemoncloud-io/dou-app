@@ -26,9 +26,9 @@ export const VOICE_EXTENSIONS: readonly string[] = Object.keys(PREVIEWS)
     .filter((extension): extension is string => !!extension);
 
 /**
- * Whether a sent file opens in the viewer, and as what. A PDF, a text file (TXT, CSV, Markdown or JSON, shown as plain text) or an HTML page is drawn, a
- * voice file played: nothing in the page draws an office or Hancom document without handing it to a third party,
- * and a video already plays in place. A file being sent, failed, or without an address has nothing to
+ * Whether a sent file opens in the viewer, and as what. A PDF, a text file (TXT, CSV, Markdown or JSON,
+ * shown as plain text) or an HTML page is drawn, a voice file played: nothing in the page draws an office
+ * or Hancom document without handing it to a third party, and a video already plays in place. A file being sent, failed, or without an address has nothing to
  * open.
  */
 export const canPreview = (file: ChatFile): FilePreview | null => {
