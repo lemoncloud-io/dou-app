@@ -307,7 +307,8 @@ most often gets wrong:
 
 A page's context carries `appLink`, `https://app.chatic.io/apps/<appId>` for the app id the web
 opened it as (`OpenSubWebView`'s `appId`), on the link host of this build — never from the page, so a
-page cannot point it elsewhere. Opened without an id, by an older web, the page's label stands in. A
+page cannot point it elsewhere. Opened without an id — by an older web, or from a page's own address tapped in a chat — the page's
+label stands in. A
 page shares `appLink` plus a query of its own; a tap opens the page in the app, at its root with that
 query, through the main web, which resolves the id — see
 [../system/deeplink.md](../system/deeplink.md#sub-webview-page-links). The shell only checks the link's

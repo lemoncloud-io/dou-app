@@ -691,6 +691,20 @@ Both play the selection haptic when tapped.
 - **Do not open a URL with an anchor's default.** Everything outbound goes through
   `openExternalUrl`, or the native WebView navigates away from the app carrying the session and
   offers no way back.
+- **A mini app link opens in the app, not the OS.** `openExternalUrl` hands every other address to
+  the OS browser, but in an app whose handshake lists `OpenSubWebView` it opens a mini app's app link
+  (`https://app.chatic.io/apps/<appId>?…`, or the dev host) or a page's own address
+  (`https://<label>.apps.chatic.io/…`, or the dev domain) in the sub WebView, over the room. A mini
+  app is meant to run with its bridge, and the OS would show its own address in a browser; whether the
+  OS hands an app link back to the app that sent it is not this app's to decide. A page's own address
+  counts too because a message sent before its page shared the app link carries one, but only on
+  this build's own page domain: a page of the other stage would run against this build's session, so
+  it goes to the OS. An app link names an app, resolved for this build's stage whatever its host; one
+  naming an app this build does not know goes to the OS, so a tap always opens something. A refusal
+  from the shell is logged and nothing opens. In an app without the sub WebView all of them go to the
+  OS as before. The reading and the opening are
+  `bridge/subWebViewLink.ts`, shared with the link the shell hands over
+  ([push-navigation.md](../../bridge/push-navigation.md)).
 - **Do not prevent `pointerdown` on touch** anywhere in the list. See the long-press note above.
 
 ## Notes for implementers and tests

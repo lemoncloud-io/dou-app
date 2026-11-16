@@ -105,7 +105,9 @@ as the app it runs in allows, and says where it went:
 
 `appId` names the app `url` was resolved from (`bridge/subWebViewApps.ts`); the shell builds the
 page's share link from it, so a link the page shares names the app rather than where it is hosted.
-A page link (below) never takes the two fallbacks above: it opens in the sub WebView or not at all.
+A page link the shell hands over (below) never takes the two fallbacks above: it opens in the sub
+WebView or not at all. A page link tapped in a chat message is the user asking for a link, so in an
+app without the sub WebView it goes to the OS as any other link does.
 
 The handshake is read through `shellCapabilities.supports('OpenSubWebView')`, so an older app is
 never asked something it would answer `NOT_FOUND`. A refusal from an app that does have it
@@ -128,7 +130,9 @@ handshake says `anyHttps`. A push or a page link still reaches only the reviewed
 only to a host of its own with a few messages, and has none of this app's state; the shell's side,
 and what it allows, is [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
 An app link to a page (`app.chatic.io/apps/<appId>?…`) opens one too, through `OnNavigate` — see
-[push-navigation.md](./push-navigation.md). The Lab opens one for its pages and its mini app card. The debug panel's
+[push-navigation.md](./push-navigation.md). So does a tap on such a link, or on a page's own address,
+in a chat message (`openExternalUrl`); `bridge/subWebViewLink.ts` reads and opens both, for either
+caller. The Lab opens one for its pages and its mini app card. The debug panel's
 **Sub WebView (app)** screen opens one and logs how
 it closed; the Bridge screen's `OpenSubWebView` preset sends the same request but shows no close event.
 
