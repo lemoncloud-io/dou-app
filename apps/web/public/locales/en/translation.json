@@ -51,7 +51,6 @@
     "home": {
         "welcome": "Welcome",
         "subtitle": "Manage your settings below",
-        "settings": "Settings",
         "logout": "Logout",
         "logoutInvited": "Logout Invited Account",
         "logoutFailed": "Logout failed",
@@ -999,7 +998,8 @@
                 "collapse": "View less"
             },
             "openProfile": "View {{name}}'s profile",
-            "openMembers": "View members"
+            "openMembers": "View members",
+            "openSettings": "Room settings"
         },
         "settings": {
             "title": "Room Settings",

@@ -82,7 +82,6 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
-jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({ DropdownMenuItem: () => null }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AvatarGroup: () => null,
     ChatRoomHeader: () => null,
@@ -118,7 +117,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 }));
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
-jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
 const mockEnterStack = jest.fn();
 jest.mock('../../../navigation', () => ({ useStackNavigate: () => mockEnterStack }));
 const mockFollowFooter = jest.fn();
