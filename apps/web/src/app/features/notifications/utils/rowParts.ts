@@ -12,6 +12,8 @@ export interface NotificationRowParts {
     context?: string;
     /** The original message, one line, already prefixed. */
     quote?: string;
+    /** The message line under it, before any `@name` is set apart. */
+    body: string;
     /** When — the time today, the date before that. */
     time: string;
 }
@@ -61,11 +63,16 @@ export const notificationRowParts = (
                   : item.kind === 'dmMessage'
                     ? t('notifications.inbox.context.dmMessage')
                     : undefined;
+    // A reaction says its emoji in the context line already, so its body is my message that was
+    // reacted to, with no quote line above (the design's reaction row). Without that message cached
+    // the emoji stands in, so the row is never blank.
+    const reaction = item.kind === 'reaction';
     return {
         chip,
         location: item.inDm ? t('notifications.inbox.dmLocation') : `#${item.channelName ?? ''}`,
         context,
-        quote: item.quote ? t('notifications.inbox.quote', { text: item.quote }) : undefined,
+        quote: item.quote && !reaction ? t('notifications.inbox.quote', { text: item.quote }) : undefined,
+        body: reaction ? item.quote || item.content : item.content,
         time: formatNotificationTime(item.createdAt, now, locale),
     };
 };
