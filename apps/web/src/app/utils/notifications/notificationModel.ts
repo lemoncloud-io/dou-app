@@ -72,10 +72,15 @@ export const MENTION_KINDS: ReadonlySet<NotificationKind> = new Set(['mention', 
 export const THREAD_KINDS: ReadonlySet<NotificationKind> = new Set(['replyToMine', 'participatedThread']);
 
 /**
- * The kinds a "looking for me" list shows: someone calling me, or answering me. A reaction, a plain
- * 1:1 message and a reply in a thread I only joined are left to the full inbox.
+ * The kinds a "looking for me" list shows: someone calling me, answering me, or reacting to what I
+ * wrote. A plain 1:1 message and a reply in a thread I only joined are left to the full inbox.
  */
-export const FIND_ME_KINDS: ReadonlySet<NotificationKind> = new Set(['mention', 'threadMention', 'replyToMine']);
+export const FIND_ME_KINDS: ReadonlySet<NotificationKind> = new Set([
+    'mention',
+    'threadMention',
+    'replyToMine',
+    'reaction',
+]);
 
 /**
  * The inbox key of a message: its id under its cloud. Message ids are the cloud's own, so two clouds

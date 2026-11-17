@@ -61,12 +61,34 @@ describe('FindMeSheet', () => {
         useNotificationStore.setState({ computed: items, items, overlay: { entries: {}, threads: {}, baselineAt: 0 } });
     });
 
-    it('lists only unread mentions and replies to me', () => {
+    it('lists only unread mentions, replies to me and reactions to me', () => {
         render(<FindMeSheet open onOpenChange={jest.fn()} />);
 
         expect(screen.getByText('a mention')).toBeInTheDocument();
         expect(screen.getByText('a reply')).toBeInTheDocument();
-        for (const gone of ['❤️', 'joined', 'old mention']) expect(screen.queryByText(gone)).not.toBeInTheDocument();
+        expect(screen.getByText('❤️')).toBeInTheDocument();
+        for (const gone of ['joined', 'old mention']) expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    });
+
+    it('counts a reaction under "All" only', () => {
+        render(<FindMeSheet open onOpenChange={jest.fn()} />);
+
+        expect(screen.getByRole('button', { name: /notifications\.findMe\.filters\.all/ })).toHaveTextContent('3');
+        expect(screen.getByRole('button', { name: /notifications\.findMe\.filters\.mention/ })).toHaveTextContent('1');
+        expect(screen.getByRole('button', { name: /notifications\.findMe\.filters\.thread/ })).toHaveTextContent('1');
+    });
+
+    it('opens at its full height whatever the list holds, so a filter change does not resize it', () => {
+        render(<FindMeSheet open onOpenChange={jest.fn()} />);
+        expect(screen.getByRole('dialog')).toHaveClass('h-[calc(90vh-var(--keyboard-height,0px))]');
+    });
+
+    it('closes from its X while browsing', () => {
+        const onOpenChange = jest.fn();
+        render(<FindMeSheet open onOpenChange={onOpenChange} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.findMe.close' }));
+        expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
     it("draws an author's photo, and reads no profile while closed", () => {
@@ -83,7 +105,12 @@ describe('FindMeSheet', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /notifications\.findMe\.filters\.thread/ }));
         expect(screen.queryByText('a mention')).not.toBeInTheDocument();
+        expect(screen.queryByText('❤️')).not.toBeInTheDocument();
         expect(screen.getByText('a reply')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /notifications\.findMe\.filters\.mention/ }));
+        expect(screen.queryByText('❤️')).not.toBeInTheDocument();
+        expect(screen.getByText('a mention')).toBeInTheDocument();
     });
 
     it('closes and opens the message on a tap, which takes it off the list', () => {
@@ -117,14 +144,14 @@ describe('FindMeSheet', () => {
             enterSelection();
             fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
 
-            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":3}' }));
 
             expect(useNotificationStore.getState().items.m.read).toBe(true);
             expect(screen.getByText('a mention')).toBeInTheDocument();
             expect(screen.getByText('a reply')).toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
 
-            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":2}' }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":3}' }));
             fireEvent.click(
                 within(screen.getByRole('alertdialog')).getByRole('button', {
                     name: 'notifications.inbox.deleteConfirm.confirm',
@@ -152,7 +179,7 @@ describe('FindMeSheet', () => {
             const { rerender } = render(<FindMeSheet open onOpenChange={jest.fn()} />);
             enterSelection();
             fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
-            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":3}' }));
 
             rerender(<FindMeSheet open={false} onOpenChange={jest.fn()} />);
             rerender(<FindMeSheet open onOpenChange={jest.fn()} />);

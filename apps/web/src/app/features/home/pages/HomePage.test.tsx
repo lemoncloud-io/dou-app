@@ -290,7 +290,7 @@ let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
 // section is read from it.
 let activeCloudChannels: unknown[] = [];
-// The notification inbox's items in scope — the find-me row counts the unread mentions and replies.
+// The notification inbox's items in scope — the find-me row counts the unread mentions, replies and reactions.
 let scopedNotifications: unknown[] = [];
 // The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
@@ -1111,7 +1111,7 @@ describe('HomePage — find-me row', () => {
         useFindMeSheetRequest.setState({ open: false });
     });
 
-    it('counts unread mentions and replies to me, and nothing else', () => {
+    it('counts unread mentions, replies and reactions to me, and nothing else', () => {
         scopedNotifications = [
             item({ kind: 'mention' }),
             item({ kind: 'replyToMine' }),
@@ -1121,7 +1121,7 @@ describe('HomePage — find-me row', () => {
         ];
         render(<HomePage />);
 
-        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":2}');
+        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":3}');
     });
 
     it('asks for the sheet when tapped', () => {
@@ -1133,7 +1133,7 @@ describe('HomePage — find-me row', () => {
     });
 
     it('is not drawn while nothing is looking for me', () => {
-        scopedNotifications = [item({ kind: 'reaction' })];
+        scopedNotifications = [item({ kind: 'participatedThread' }), item({ kind: 'reaction', read: true })];
         render(<HomePage />);
 
         expect(screen.queryByRole('button', { name: /homePage\.findMe/ })).not.toBeInTheDocument();

@@ -125,17 +125,18 @@ describe('groupByDay', () => {
 });
 
 describe('findMe', () => {
-    it('lists unread mentions, thread mentions and replies to mine, newest first', () => {
+    it('lists unread mentions, thread mentions, replies to mine and reactions to mine, newest first', () => {
         const result = findMe([
             item('mention', { createdAt: 1 }),
             item('threadMention', { kind: 'threadMention', createdAt: 3 }),
             item('reply', { kind: 'replyToMine', createdAt: 2 }),
+            item('reaction', { kind: 'reaction', createdAt: 4 }),
             item('joined', { kind: 'participatedThread' }),
-            item('reaction', { kind: 'reaction' }),
             item('dm', { kind: 'dmMessage', inDm: true }),
             item('readMention', { read: true }),
+            item('readReaction', { kind: 'reaction', read: true }),
         ]);
-        expect(ids(result)).toEqual(['threadMention', 'reply', 'mention']);
+        expect(ids(result)).toEqual(['reaction', 'threadMention', 'reply', 'mention']);
     });
 });
 
