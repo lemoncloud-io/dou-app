@@ -4,6 +4,21 @@
 
 ### Features
 
+- (web/channels) open a room at my first unread message, below an unread divider
+- (web-ui-kit) add the unread divider, a red label between light-red rules
+
+### Bug Fixes
+
+- (web/channels) land on the first unread message for real, below the header
+
+### Chores
+
+- (block-kit-builder) restore a spec file the merge's lint hook reformatted
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (host,web) pick attachments through the media port, not isNative() (ADR-0324)
 
 ## [2026-11-17] - No version updates
