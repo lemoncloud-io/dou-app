@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,desktop,shared) name sub webview displays titled, clean and immersive (ADR-0338)
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (web/channels) open room settings straight from the header's ⋯, not a one-item menu
 
 ## [2026-11-17] - root@0.166.2, @chatic/web@0.95.1
