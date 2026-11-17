@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-11-17] - root@0.162.0, @chatic/web@0.92.0
+
+### Features
+
+- (web) manage channel webhooks from the room settings
+- (data) add the channel webhook data layer
+- (desktop-web) manage channel webhooks from the settings panel
+- (web) manage channel webhooks from the room settings
+
 ## [2026-11-17] - root@0.161.3, @chatic/web@0.91.2
 
 ### Refactor
