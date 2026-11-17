@@ -4,6 +4,13 @@
 
 ### Features
 
+- (web/channels) show a group room's read receipt under my newest message only, with its readers
+- (web-ui-kit) add a readers mode to the read receipt, with who read it
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (web/channels) highlight a message jumped to as the design does, not as a flat tint
 - (web-ui-kit) outline a light bubble in lime under a highlighted row
 
