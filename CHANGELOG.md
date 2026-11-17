@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (mobile) load the logout marker through a local module, not the runtime library
+- (runtime-mobile,mobile) let the page own a launch whose vault holds no session (ADR-0332)
+
 ## [2026-11-17] - root@0.161.2, @chatic/landing@0.19.1
 
 ### Bug Fixes
