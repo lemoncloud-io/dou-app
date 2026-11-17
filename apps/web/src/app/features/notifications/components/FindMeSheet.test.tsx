@@ -78,6 +78,11 @@ describe('FindMeSheet', () => {
         expect(screen.getByRole('button', { name: /notifications\.findMe\.filters\.thread/ })).toHaveTextContent('1');
     });
 
+    it('opens at its full height whatever the list holds, so a filter change does not resize it', () => {
+        render(<FindMeSheet open onOpenChange={jest.fn()} />);
+        expect(screen.getByRole('dialog')).toHaveClass('h-[calc(90vh-var(--keyboard-height,0px))]');
+    });
+
     it('closes from its X while browsing', () => {
         const onOpenChange = jest.fn();
         render(<FindMeSheet open onOpenChange={onOpenChange} />);

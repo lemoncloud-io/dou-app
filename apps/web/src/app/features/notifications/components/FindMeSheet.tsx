@@ -88,6 +88,11 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
             <BottomSheet
                 open={open}
                 onOpenChange={onOpenChange}
+                // Always the design's full height (the top just under home's header), whatever the
+                // list holds: a sheet that fits its content jumps as a filter, a read or selection
+                // mode changes the list. The list scrolls inside instead. Same expression as the
+                // kit's max height, so the two stay equal while a keyboard is up.
+                className="h-[calc(90vh-var(--keyboard-height,0px))]"
                 title={
                     selection.active
                         ? t('notifications.inbox.selectedCount', { count: picked.ids.length })

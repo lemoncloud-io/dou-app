@@ -221,7 +221,9 @@ not:
 **The find-me sheet** (`components/FindMeSheet`) — what is looking for the reader now: `findMe` of the
 scope (unread mentions, thread mentions, replies to my messages and reactions to them), titled
 "나를 찾는 알림", narrowed by All / Mentions / Threads chips with counts, "Select", the close (X),
-and a tap that closes the sheet and opens the message. A reaction has no chip of its own, so it
+and a tap that closes the sheet and opens the message. It always opens at its full height — the
+design's, its top just under home's header — and the list scrolls inside, so a filter change, an
+item read or selection mode never resizes it. A reaction has no chip of its own, so it
 shows, and counts, under "All" only; "Threads" is replies to my messages. Reactions joined the
 sheet with the 2026-11 design: being reacted to is someone answering me too, while a new 1:1
 message (the room list's badge already says it) and a reply in a thread I only joined stay in the
