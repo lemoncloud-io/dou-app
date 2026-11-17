@@ -7,10 +7,12 @@ import {
     CopyPayloadButton,
     DeviceToggle,
     HistoryControls,
+    IncomingTemplateBar,
     PayloadPane,
     PreviewPane,
     EMPTY_PREVIEW_SOURCE,
     blocksToPayloadJson,
+    readIncomingCard,
     type PayloadParseFailure,
     type PreviewDevice,
     type PreviewSource,
@@ -33,6 +35,9 @@ const SEED: KnownBlock[] = toBlocks([
     },
 ]);
 
+// A card a sender linked here, read once: the link is how the page was opened, not state to track.
+const INCOMING = readIncomingCard(window.location.search, window.location.hash);
+
 export const App = () => {
     const blocks = useBuilderStore(state => state.blocks);
     // Which width the preview draws at. Deliberately outside the store: it is not
@@ -46,13 +51,16 @@ export const App = () => {
     // The message's `source$` — badge, accent colour, source link. Outside the store for the same
     // reason as `device`: the server builds it from the send's `meta`, so it is not in the payload
     // this tool exports, and undo or a saved payload must not carry it.
-    const [source, setSource] = useState<PreviewSource>(EMPTY_PREVIEW_SOURCE);
+    const [source, setSource] = useState<PreviewSource>(INCOMING?.source ?? EMPTY_PREVIEW_SOURCE);
 
     // The store decides whether this builder has ever held a message; `seed` is a
     // no-op once it has. Waiting for hydration first, or the check runs against
     // the empty initial state and the example lands on top of saved work.
     useEffect(() => {
-        if (useBuilderStore.persist.hasHydrated()) useBuilderStore.getState().seed(SEED);
+        if (!useBuilderStore.persist.hasHydrated()) return;
+        // A linked card replaces the message like picking a template does, so undo takes it back.
+        if (INCOMING) useBuilderStore.getState().setBlocks(INCOMING.blocks);
+        else useBuilderStore.getState().seed(SEED);
     }, []);
 
     const json = blocksToPayloadJson(blocks);
@@ -72,6 +80,12 @@ export const App = () => {
             }
             previewActions={
                 <div className="flex items-center gap-2">
+                    {INCOMING && (
+                        <>
+                            <IncomingTemplateBar templateId={INCOMING.templateId} />
+                            <span aria-hidden className="h-4 w-px bg-hairline" />
+                        </>
+                    )}
                     {/* Nothing to choose below `lg`: the pane is already narrower
                         than the mobile clamp, so both settings draw the same card. */}
                     <span className="hidden items-center gap-2 lg:flex">
