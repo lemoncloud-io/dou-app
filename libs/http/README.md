@@ -196,6 +196,10 @@ libs/http/src/
   the backend because no published `@lemoncloud/chatic-backend-api` carries them yet. The app keeps no
   copies of server types otherwise: when a release with them is published, the file is deleted and
   its importers switch to the package. It must not grow past what the server declares.
+- **`RelayCloudView` / `RelayCloudBody` (`gateways/clouds.ts`) are temporary too.** They add the one
+  field the relay put on a cloud after the backend types this app is pinned to — `miniAppUrl`, the
+  owner's mini app link. Only the next major of `@lemoncloud/chatic-backend-api` declares it; when the
+  app moves to it, the two aliases go and `CloudView` / `CloudBody` are used as they are.
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
 - **`HttpLogSink`, `NetworkLogFields` and `HttpMethod` live in `log/networkLog.ts`**, not in
