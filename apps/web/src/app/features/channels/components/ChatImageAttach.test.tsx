@@ -27,6 +27,14 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+// Who picks, as the host's media port says: the app when the case runs in the app.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { media: { kind: mockNative ? 'app' : 'page' } };
+        },
+    },
+}));
 let mockAppleTouch = false;
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),

@@ -37,6 +37,26 @@ The implementations live in the one app that sells, `apps/web` (`src/app/host/ch
 the website may take a buyer (`canCheckoutOnWeb`) — stay in the subscription feature and take the
 port's `kind` as input.
 
+### `media`
+
+Who picks the photos, videos and documents a person attaches: `{ kind: 'app' }` — the app's own picker,
+photo library, video conversion and the permission prompts behind them — or `{ kind: 'page' }`, the
+page's own file input.
+
+**The port carries the choice only.** The app-side picker and photo library take their types from the
+data layer (`ChatAttachmentSource`, `ShellFileRef`) and the runtime (`PrepareVideoPort`), which
+`layer:host` keeps this package away from. So they stay in `apps/web` (`bridge/attachmentPicker.ts`,
+`bridge/photoLibrary.ts`) and read this port to know whether they apply, as do the screens around them
+— the camera input's permission wait, the recent-photos strip, video conversion before a send and the
+permission banner's settings link (`apps/web/docs/bridge/host-ports.md`).
+
+`resolveMediaMethod(profile)` reads the key `media`, introduced in declaration version 2: `'app'` or
+`'page'`. A shell declaring version 1 — the first builds that declared `checkout` — never knew the key,
+so the legacy rule answers for it: a bridge means the app picks, as the screens assumed. A version-2
+declaration without the key, or with another value, is a bug in the shell and gets the page's input,
+the one picker every host has. Message by message, an older app's missing request (`NOT_FOUND`) still
+falls back the way it did; the declaration says who picks, not which of the app's messages exist.
+
 ## Who imports it
 
 `apps/web` and `apps/desktop-web`, each from one file: `src/app/host/publishHostPorts.ts`, which

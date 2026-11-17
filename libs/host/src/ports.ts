@@ -1,4 +1,5 @@
 import type { CheckoutPort } from './checkout';
+import type { MediaPort } from './media';
 
 /**
  * What the host does for a feature, one field per capability port.
@@ -10,4 +11,6 @@ import type { CheckoutPort } from './checkout';
 export interface HostPorts {
     /** How this host sells a subscription: through an app store, by handing over to the website, or not at all. */
     checkout: CheckoutPort;
+    /** Who picks the photos, videos and documents a person attaches: the app, or the page's own input. */
+    media: MediaPort;
 }

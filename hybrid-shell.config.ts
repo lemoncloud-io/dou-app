@@ -9,9 +9,10 @@ const BACKEND_ENV_SOURCE =
 
 /**
  * The app's own protocol, plus what this shell declares it can do. Its globals are the built-in
- * preset's, followed by `CHATIC_APP_CAPABILITIES` for the checkout a person picked (`DOU_SHELL_CHECKOUT`,
- * or `dou.checkout` in the shell's store) — nothing when none was picked, so the web answers as it does
- * for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
+ * preset's, followed by `CHATIC_APP_CAPABILITIES` for what a person picked: the checkout
+ * (`DOU_SHELL_CHECKOUT`, or `dou.checkout` in the shell's store) and who picks attachments
+ * (`DOU_SHELL_MEDIA`, or `dou.media`). Nothing is declared when neither was picked, so the web answers
+ * as it does for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
  */
 const douPreset = withCheckoutDeclaration(presets.appBridgeHost);
 
