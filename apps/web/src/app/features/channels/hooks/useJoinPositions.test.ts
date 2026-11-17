@@ -154,4 +154,20 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
 
         expect(registerSyncTarget).toHaveBeenCalledTimes(2);
     });
+
+    it('lists the active members whose cursor has reached a message, for the receipt faces', () => {
+        const { result } = renderHook(() =>
+            useJoinPositions(
+                'cloud-a',
+                'c1',
+                ['me', 'u1', 'u2'],
+                ['me', 'u1', 'u2', 'gone'],
+                cursors({ me: 9, u1: 5, u2: 3, gone: 9 }),
+                true
+            )
+        );
+
+        expect(result.current.getReaders(5)).toEqual(['me', 'u1']);
+        expect(result.current.getReaders(10)).toEqual([]);
+    });
 });

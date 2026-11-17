@@ -2,6 +2,8 @@ import * as React from 'react';
 
 import { cn } from '@chatic/ui-kit';
 
+import { IconAtSign } from '../../resources/icons';
+
 export interface ThreadSummaryProps extends Omit<React.ComponentPropsWithoutRef<'button'>, 'children'> {
     /**
      * Replier faces, newest thread participants first. Host-built nodes (an `ImageAvatar` or a
@@ -11,103 +13,113 @@ export interface ThreadSummaryProps extends Omit<React.ComponentPropsWithoutRef<
     avatars?: React.ReactNode[];
     /** Repliers beyond the shown faces; rendered as a `+N` pill closing the stack. */
     overflowCount?: number;
-    /** "20 comments" — the localized reply count. Always shown. */
+    /** "20 replies" — the localized reply count. Always shown. */
     replyLabel: string;
-    /** "3 new comments" — localized; omit when nothing is unseen. Carries the point-blue accent. */
+    /** "3 new replies" — localized; omit when nothing is unseen. Opens the blue new-reply box. */
     newReplyLabel?: string;
+    /** "Mentions me" — localized; set when an unseen reply calls the reader. Orange, with an @. */
+    mentionLabel?: string;
+    /** The newest reply as one line, "Name: text" — shown in the new-reply box, cut to fit. */
+    preview?: string;
     /** Last reply time, e.g. "12:06 PM". Omit to drop the segment. */
     time?: string;
     /** Mirrors the row for my own (right-aligned) messages: text first, faces last. */
     align?: 'start' | 'end';
 }
 
-/** `•` between segments — BK_300, so it separates without competing with the labels. */
-const Dot = () => (
-    <span aria-hidden className="text-[11px] leading-[26px] tracking-[0.055px] text-control-idle">
-        •
-    </span>
-);
+const TEXT = 'whitespace-nowrap text-[10px] leading-[14px] tracking-[-0.2px]';
 
 /**
- * The reply summary under a thread root: replier faces, then how many replies, how many are
- * new, and when the last one landed (Figma "comment case", 4703:43718). Tapping it opens the
- * thread.
+ * The reply summary under a thread root (Figma 5978:37669, "replies"). The first line is who
+ * replied, how many replies there are and, when nothing is new, when the last one landed. While
+ * replies are unseen a second line opens: a blue box with how many are new, "Mentions me" when
+ * one of them calls the reader, and the newest reply as "Name: text", with the time beside the
+ * box. Tapping anywhere opens the thread.
  *
- * Its own timestamp is the LAST REPLY's, not the root's — that is the whole point of the
- * segment. The root already carries its own time next to the bubble, so repeating it here
- * would say nothing, while "the conversation under this moved at 12:06" is the one fact the
- * collapsed thread cannot otherwise show.
+ * Its own timestamp is the LAST REPLY's, not the root's — the root already carries its own time
+ * next to the bubble, while "the conversation under this moved at 12:06" is the one fact the
+ * collapsed thread cannot otherwise show. With a second line the time moves down to it, next to
+ * the reply it dates.
  *
- * The unseen state is a colored label ("3 new comments") rather than a dot: a dot says only that
- * something is new, and by the time a row is worth interrupting for, how much is new is the
- * thing worth reading. Presentational only — what counts as unseen is the host's cursor
- * arithmetic, not this component's.
+ * Presentational only — what counts as unseen, whether it mentions the reader and how the
+ * preview reads are the host's.
  */
 export const ThreadSummary = React.forwardRef<HTMLButtonElement, ThreadSummaryProps>(
     (
-        { avatars = [], overflowCount = 0, replyLabel, newReplyLabel, time, align = 'start', className, ...props },
+        {
+            avatars = [],
+            overflowCount = 0,
+            replyLabel,
+            newReplyLabel,
+            mentionLabel,
+            preview,
+            time,
+            align = 'start',
+            className,
+            ...props
+        },
         ref
     ) => {
-        const faces = (
-            <span className="flex shrink-0 items-center">
-                {avatars.map((avatar, index) => (
-                    // Overlapped by 4px. Keyed by position because the host hands over opaque
-                    // nodes — it owns their identity, and re-keying here would fight it.
-                    <span key={index} className="-mr-1 flex size-5 shrink-0 items-center last:mr-0">
-                        {avatar}
-                    </span>
-                ))}
-                {overflowCount > 0 && (
-                    <span className="flex shrink-0 items-center justify-center rounded-3xl border border-background bg-input-border px-1 py-[3px] text-[11px] leading-none tracking-[0.055px] text-foreground">
-                        +{overflowCount}
-                    </span>
-                )}
-            </span>
-        );
-
-        const labels = (
-            // Reversed on my own side too, not just the faces: the design reads
-            // "12:06 PM · 1 new comment · 3 comments" there, i.e. the whole row mirrors, with the
-            // reply count landing nearest the bubble's trailing edge. The separator dots are
-            // siblings of the labels, so reversing the row carries them along correctly.
-            <span className={cn('flex min-w-0 items-center gap-px', align === 'end' && 'flex-row-reverse')}>
-                <span className="whitespace-nowrap text-[11px] font-medium leading-[26px] tracking-[-0.22px] text-foreground">
-                    {replyLabel}
+        const end = align === 'end';
+        const faces =
+            avatars.length > 0 || overflowCount > 0 ? (
+                <span className="flex shrink-0 items-center">
+                    {avatars.map((avatar, index) => (
+                        // Overlapped by 4px. Keyed by position because the host hands over opaque
+                        // nodes — it owns their identity, and re-keying here would fight it.
+                        <span key={index} className="-mr-1 flex size-5 shrink-0 items-center last:mr-0">
+                            {avatar}
+                        </span>
+                    ))}
+                    {overflowCount > 0 && (
+                        <span className="flex shrink-0 items-center justify-center rounded-3xl border border-background bg-input-border px-1 py-[3px] text-[10px] leading-none text-foreground">
+                            +{overflowCount}
+                        </span>
+                    )}
                 </span>
-                {newReplyLabel && (
-                    <>
-                        <Dot />
-                        <span className="whitespace-nowrap text-[11px] font-semibold leading-[26px] tracking-[-0.22px] text-point-blue">
-                            {newReplyLabel}
-                        </span>
-                    </>
-                )}
-                {time && (
-                    <>
-                        <Dot />
-                        <span className="whitespace-nowrap text-[11px] font-medium leading-[26px] tracking-[-0.22px] text-description">
-                            {time}
-                        </span>
-                    </>
-                )}
-            </span>
-        );
+            ) : null;
+        const timeLabel = time ? (
+            <span className={cn(TEXT, 'shrink-0 font-medium text-description')}>{time}</span>
+        ) : null;
 
         return (
             <button
                 ref={ref}
                 type="button"
                 className={cn(
-                    'flex h-[26px] w-fit max-w-full items-center gap-1 active:opacity-70',
-                    align === 'end' && 'flex-row-reverse',
+                    'flex w-fit max-w-full flex-col gap-1 px-1 text-left active:opacity-70',
+                    end ? 'items-end' : 'items-start',
                     className
                 )}
                 {...props}
             >
                 {/* Faces come first in the DOM either way; `flex-row-reverse` is what moves them
                     to the trailing edge, so a screen reader still hears who before how many. */}
-                {avatars.length > 0 || overflowCount > 0 ? faces : null}
-                {labels}
+                <span className={cn('flex max-w-full items-center gap-1.5', end && 'flex-row-reverse')}>
+                    {faces}
+                    <span className={cn(TEXT, 'shrink-0 font-medium text-foreground')}>{replyLabel}</span>
+                    {!newReplyLabel && timeLabel}
+                </span>
+                {newReplyLabel && (
+                    <span className={cn('flex max-w-full items-center gap-1.5', end && 'flex-row-reverse')}>
+                        <span
+                            data-new-replies
+                            className="flex min-w-0 items-center gap-1 rounded bg-point-blue/[0.08] p-1"
+                        >
+                            <span className={cn(TEXT, 'shrink-0 font-semibold text-point-blue')}>{newReplyLabel}</span>
+                            {mentionLabel && (
+                                <span className="flex shrink-0 items-center gap-px text-point-orange">
+                                    <IconAtSign size={10} strokeWidth={2.5} aria-hidden />
+                                    <span className={cn(TEXT, 'font-semibold tracking-[-0.3px]')}>{mentionLabel}</span>
+                                </span>
+                            )}
+                            {preview && (
+                                <span className={cn(TEXT, 'min-w-0 truncate text-description')}>{preview}</span>
+                            )}
+                        </span>
+                        {timeLabel}
+                    </span>
+                )}
             </button>
         );
     }

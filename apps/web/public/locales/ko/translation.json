@@ -941,6 +941,11 @@
             "readCount": "읽음 {{count}}",
             "unreadDivider_one": "여기부터 안 읽은 메시지 {{count}}개",
             "unreadDivider_other": "여기부터 안 읽은 메시지 {{count}}개",
+            "receipt": {
+                "read": "읽음",
+                "unconfirmed": "미확인",
+                "allRead": "모두 읽음"
+            },
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
             "messageDetail": "메시지 전체보기",
@@ -1137,6 +1142,8 @@
             "title": "스레드",
             "newReplyCount_one": "새 답글 {{count}}개",
             "newReplyCount_other": "새 답글 {{count}}개",
+            "mentionsMe": "나를 멘션",
+            "lastReply": "{{name}}: {{text}}",
             "rootOutsideJoinWindow": "다시 참여하기 전의 메시지라 볼 수 없어요. 상대방 화면에는 그대로 남아 있습니다."
         },
         "mention": {

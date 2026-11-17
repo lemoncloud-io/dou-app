@@ -23,6 +23,14 @@ jest.mock('../../../bridge/useAppForeground', () => ({ useAppForeground: jest.fn
 jest.mock('../../../bridge/attachmentPicker', () => ({ attachmentPicker: { prepareVideo: jest.fn() } }));
 let mockNative = true;
 jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who picks, as the host's media port says: the app when the case runs in the app.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { media: { kind: mockNative ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 

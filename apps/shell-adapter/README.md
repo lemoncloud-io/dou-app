@@ -97,7 +97,13 @@ can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-por
 | `none`               | `checkout: []`        | sells nothing                                                                                              |
 
 A choice kept under `dou.checkout` in the shell's store wins over the variable and applies from the next
-launch; nothing writes it yet. `src/checkout.ts` holds the choice and the declaration; the wrapped
+launch; nothing writes it yet.
+
+`DOU_SHELL_MEDIA=page` (or `app`) declares who picks what a person attaches, in `media` — `page` gives
+the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
+messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with no checkout
+picked, the shell declares the device preset's store, the answer the web would give anyway.
+`dou.media` in the store wins over the variable, as for checkout. `src/checkout.ts` holds the choice and the declaration; the wrapped
 preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
 
 **The virtual store answers on dev only, and only when a store was picked.** Its catalog has one product

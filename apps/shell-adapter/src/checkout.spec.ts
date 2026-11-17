@@ -5,7 +5,9 @@ import {
     checkoutChoice,
     fakeProducts,
     fakeStore,
+    MEDIA_STORE_KEY,
     launch,
+    mediaChoice,
     withCheckoutDeclaration,
 } from './checkout';
 
@@ -65,6 +67,28 @@ describe('fakeStore', () => {
         launch.env = 'prod';
         launch.choice = 'google';
         expect(fakeStore()).toBeUndefined();
+    });
+});
+
+describe('mediaChoice', () => {
+    it('makes no choice by default, and takes DOU_SHELL_MEDIA or the store, the store first', () => {
+        expect(mediaChoice(new Map(), '')).toBeUndefined();
+        expect(mediaChoice(new Map(), 'Page')).toBe('page');
+        expect(mediaChoice(new Map([[MEDIA_STORE_KEY, 'app']]), 'page')).toBe('app');
+        expect(mediaChoice(new Map(), 'camera')).toBeUndefined();
+    });
+});
+
+describe('capabilitiesScript with media', () => {
+    it('declares version 2 with the device store when only media is picked', () => {
+        expect(capabilitiesScript(undefined, 'page', 'ios')).toContain(
+            '{"version":2,"checkout":["apple"],"media":"page"}'
+        );
+        expect(capabilitiesScript(undefined, 'page', 'android')).toContain('"checkout":["google"]');
+    });
+
+    it('keeps a picked checkout beside it', () => {
+        expect(capabilitiesScript('web', 'page', 'ios')).toContain('{"version":2,"checkout":["web"],"media":"page"}');
     });
 });
 

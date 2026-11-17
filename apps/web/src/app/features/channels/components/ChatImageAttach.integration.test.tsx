@@ -34,6 +34,8 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => false }));
+// The page picks, as the host's media port says in a browser — the same answer as `isNative` above.
+jest.mock('@chatic/host', () => ({ host: { ports: { media: { kind: 'page' } } } }));
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),
     isAppleTouchWebKit: () => false,

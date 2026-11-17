@@ -1,6 +1,6 @@
 # ADR-0336: Android screens move on a horizontal shared axis, and its system back animates
 
-> Status: Accepted · Decided: 2026-11-17 · Implemented: `feat/android-page-transitions`
+> Status: Accepted; decision 1 superseded by [ADR-0337](./0337-android-screens-slide-like-ios.md) · Decided: 2026-11-17 · Implemented: `feat/android-page-transitions`
 > · Scope: `apps/web/src/pageTransitions.css` · `apps/web/src/app/navigation/useStackBack.ts`
 > · The module doc is [apps/web page transitions](../../apps/web/docs/shell/page-transitions.md)
 

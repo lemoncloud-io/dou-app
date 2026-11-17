@@ -61,8 +61,8 @@ const markNavigationStarted = (): (() => void) => {
  *
  * A navigation that arrives while one is running does not start a second transition. The package
  * clears every class it put on `<html>` when a transition finishes — including the classes a newer,
- * still-running transition put there — so on Android a second back press inside the first one's
- * 450ms would finish its motion on the iOS slide, the stylesheet's default. The second navigation
+ * still-running transition put there — so a second back press inside the first one's animation
+ * would lose `back-navigation` midway and finish its motion running forward. The second navigation
  * happens without motion instead, underneath the first one's animation, whose incoming screen is
  * live and shows it. It waits for the running transition to have navigated, so two navigations
  * still land in the order they were asked for.

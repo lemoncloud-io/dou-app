@@ -32,6 +32,14 @@ Every other request in `@chatic/bridge-messages` is deliberately unanswered (`NO
 its reason in `src/main/bridgeHandlers.contract.test.ts`. A new message fails that suite until it is
 handled or listed there.
 
+`RestartToUpdate` quits and hands over to the platform installer; on Windows that is the one-click
+installer with its own window, which starts the app again when it is done. The install runs after the
+app has exited, so the updater writes what it did up to that point — the version and executable of
+every run, each check, the installer it started and its arguments — to `updater.log` in the app's
+logs directory (`app.getPath('logs')`). A version that starts again after an install was started is
+an update that did not apply. The log starts over at a launch that finds it past 1 MiB, and a failed
+write is ignored: the log can never fail an update.
+
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
 `DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `index.ts` and the contract suite both use.
 

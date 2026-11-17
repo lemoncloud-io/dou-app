@@ -2,6 +2,32 @@
 
 ## [2026-11-17] - No version updates
 
+### Bug Fixes
+
+- (web/channels) hold an older page's retry wait for a scroll handled before the failure renders
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) show a group room's read receipt under my newest message only, with its readers
+- (web-ui-kit) add a readers mode to the read receipt, with who read it
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) highlight a message jumped to as the design does, not as a flat tint
+- (web-ui-kit) outline a light bubble in lime under a highlighted row
+
+## [2026-11-17] - root@0.166.0, @chatic/web@0.95.0
+
+### Features
+
+- (web) slide android screens in and out like ios, not a 30px fade-through (ADR-0337)
+
+## [2026-11-17] - No version updates
+
 ### Features
 
 - (web/notifications) draw a reaction row as the design does, with my message as its body

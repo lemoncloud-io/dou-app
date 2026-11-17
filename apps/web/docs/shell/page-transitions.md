@@ -1,9 +1,8 @@
 # page transitions — how one screen gives way to the next
 
-A screen change inside the app animates the way the platform does: on iOS the new screen slides in
-from the right over the old one, which drifts left and dims; on Android the two screens move 30px
-along a horizontal axis and fade through each other. Going back runs the same motion in reverse. A
-tab switch, a `replace`, and anything under the system's reduce-motion setting do not animate.
+A screen change inside the app slides, on both platforms: the new screen slides in from the right
+over the old one, which drifts left and dims. Going back runs the same motion in reverse. A tab
+switch, a `replace`, and anything under the system's reduce-motion setting do not animate.
 
 There is no native screen transition behind any of this. The whole app is one WebView, so every
 animation is the web's own, drawn with the View Transitions API: the browser snapshots the screen
@@ -79,8 +78,8 @@ Two back presses in quick succession are ordinary on Android, and two things kee
   navigates without motion, under the running animation (whose incoming screen is live, so it shows
   the newer destination), and only after the running transition has itself navigated, so the two land
   in order. A second transition would break the first: the package clears every class it set when a
-  transition finishes, including those of a newer one still running, which would drop the rest of its
-  motion to the iOS slide.
+  transition finishes, including those of a newer one still running, so a back would lose
+  `back-navigation` midway and finish its motion running forward.
 - **A rewind is counted from the moment it is asked for.** `canGoBackInApp` subtracts rewinds that
   have not landed yet (`noteRewindStarted` in `app/navigation/stackDepth.ts`), because the transition
   moves the browser a frame or more after the press. Without it, two presses on the screen right above
@@ -91,16 +90,15 @@ Two back presses in quick succession are ordinary on Android, and two things kee
 `@lemoncloud/page-transition-core/styles.css` holds the keyframes and is imported first in
 `main.tsx`; `src/pageTransitions.css` is imported right after it and replaces the Android rules.
 
-- **iOS — the package's slide.** New screen in from 100%, old one out to -30% and to 93% brightness,
-  350ms on `cubic-bezier(0.32, 0.72, 0, 1)`.
-- **Android — Material's shared axis X, this app's.** The package's own Android animation was a
-  vertical "lift" with both screens fading at once, which double-exposed them at half opacity in the
-  middle of every transition. The override moves the incoming screen in from 30px on the side it comes
-  from and the outgoing one 30px the other way, on Material's emphasized curve over 450ms (the
-  package's lift variables, so `customization` still applies). The fade is a fade-through: the old
-  screen is gone by 35% and only then does the new one appear, so no frame shows both. Movement and
-  fade are two animations on each pseudo-element because a keyframe stop inside one would restart the
-  slide's easing.
+- **Both platforms — the package's slide.** New screen in from 100%, old one out to -30% and to 93%
+  brightness, 350ms on `cubic-bezier(0.32, 0.72, 0, 1)`. Neither screen fades.
+- **Why Android needs an override at all.** The package's own Android animation is a vertical "lift":
+  both screens move 30px and fade at once. A 30px offset under a fade does not read as motion on a
+  phone — it reads as the screen fading out and the next one fading in — and the shared axis X that
+  replaced it for a day (30px sideways with a fade-through) read the same way. The override points
+  the `.android` rules at the slide's keyframes and `--pt-slide-*` variables, so `customization`
+  still applies, and leaves the package's `.android` stacking alone: it already puts the screen
+  moving in on top, as the slide does.
 
 The override uses the package's own selectors, so it is the import order in `main.tsx` that makes it
 win, not specificity. Keep it directly after the package's stylesheet.

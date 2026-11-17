@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
 > `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
-> (§ 5, for `checkout`); steps 3–7 follow
+> (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`); `files` and steps 4–7 follow
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
@@ -86,11 +86,9 @@ profile from inside the page. Every profile therefore traces back to one stateme
 
 ```ts
 window.CHATIC_APP_CAPABILITIES = {
-    version: 1,
+    version: 2,
     checkout: ['apple'],
-    media: [
-        /* … */
-    ] /* … */,
+    media: 'app' /* … */,
 };
 ```
 
@@ -113,6 +111,13 @@ its legacy rule answers "unavailable", so a new key never needs a guess written 
 `checkout`, is version 1 and arrived with step 2: a list of `'apple' | 'google' | 'web'`, preferred
 first, of which the page takes the first it knows; `[]` sells nothing. Its legacy rule is the one the
 screens used: a bridge means a store, Apple's on `ios`, and no bridge means the website.
+
+`media` is version 2 and arrived with step 3: `'app'` or `'page'`. A version-1 declaration — the first
+builds that declared `checkout` — never knew it, so its legacy rule answers: a bridge means the app
+picks. The `media` port carries that choice and nothing more. The picker and photo library it chooses
+between take their types from the data layer and the runtime, which `layer:host` keeps out of reach, so
+they stay in `apps/web` and read the port — a narrower port than § 2 describes, for a domain only one app
+has.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.
