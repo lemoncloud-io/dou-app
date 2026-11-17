@@ -158,6 +158,7 @@ const ADD_ACCOUNT_KEYS = [
     'limitDialog.changePlan',
     'limitDialog.manageSubscription',
     'emailAlreadyUsed',
+    'emailAlreadyRegistered',
     'subscriptionCanceled',
     'addFailed',
     'success',
