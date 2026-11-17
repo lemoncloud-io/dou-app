@@ -53,6 +53,9 @@ jest.mock('react-router-dom', () => ({
     useNavigationType: () => mockNavigationType,
 }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => null }));
+// Author photos, keyed `${placeId}@${ownerId}` as the profile reader keys them.
+let mockProfiles = new Map<string, { thumbnail?: string }>();
+jest.mock('../../../hooks/useSenderProfiles', () => ({ useSenderProfiles: () => mockProfiles }));
 const mockHaptic = jest.fn();
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 
@@ -90,8 +93,24 @@ describe('NotificationsPage', () => {
         useNotificationsViewStore.setState({ tab: 'all', unreadOnly: false });
         mockSelection = { selectedCloudId: 'c', selectedSiteId: 's' };
         mockNavigationType = 'POP';
+        mockProfiles = new Map();
         takeScroll('notifications:c:s');
         takeScroll('notifications:c:other');
+    });
+
+    it("draws the author's place-profile photo, and the default glyph where there is none", () => {
+        mockProfiles = new Map([['s@u1', { thumbnail: 'https://img.example/u1.png' }]]);
+        seed(
+            item({ id: 'a', placeId: 's', ownerId: 'u1', content: 'with photo' }),
+            item({ id: 'b', placeId: 's', ownerId: 'u2', content: 'no profile' }),
+            item({ id: 'c', ownerId: 'u1', content: 'no place' })
+        );
+        const { container } = render(<NotificationsPage />);
+
+        const images = container.querySelectorAll('img');
+        expect(images).toHaveLength(1);
+        expect(images[0]).toHaveAttribute('src', 'https://img.example/u1.png');
+        expect(rowByContent('with photo').querySelector('img')).toBe(images[0]);
     });
 
     it('lists the items with unread counts on the tabs', () => {

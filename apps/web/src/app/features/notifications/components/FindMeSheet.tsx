@@ -6,11 +6,12 @@ import { BottomSheet, FilterChip } from '@chatic/web-ui-kit';
 import { haptics } from '../../../bridge/haptics';
 import { useScopedNotifications } from '../../../hooks';
 import { MENTION_KINDS, findMe, type NotificationItem } from '../../../utils/notifications';
-import { useNotificationActions } from '../hooks';
+import { useNotificationActions, useNotificationAvatars } from '../hooks';
 import { NotificationListItem } from './NotificationListItem';
 
 const FIND_ME_FILTERS = ['all', 'mention', 'thread'] as const;
 type FindMeFilter = (typeof FIND_ME_FILTERS)[number];
+const NO_ITEMS: NotificationItem[] = [];
 
 const inFilter = (item: NotificationItem, filter: FindMeFilter): boolean =>
     filter === 'all' ? true : filter === 'mention' ? MENTION_KINDS.has(item.kind) : !MENTION_KINDS.has(item.kind);
@@ -34,6 +35,8 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
 
     const all = useMemo(() => findMe(items), [items]);
     const visible = useMemo(() => all.filter(item => inFilter(item, filter)), [all, filter]);
+    // Read only while the sheet is open: a closed sheet stays mounted under home.
+    const avatarOf = useNotificationAvatars(open ? visible : NO_ITEMS);
     const count = (id: FindMeFilter) => all.filter(item => inFilter(item, id)).length;
     const now = Date.now();
 
@@ -69,6 +72,7 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
                         key={item.id}
                         item={item}
                         now={now}
+                        avatarUrl={avatarOf(item)}
                         onPress={pressed => {
                             onOpenChange(false);
                             actions.open(pressed);
