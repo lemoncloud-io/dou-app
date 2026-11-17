@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web/mypage) scroll the MY tab under a header like the other tabs, with haptics
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (host,web) move files through the files port, not isNative() (ADR-0324)
 
 ## [2026-11-17] - No version updates
