@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/notifications) show the author's profile photo in the inbox, not the default glyph
+
 ## [2026-11-17] - root@0.163.0, @chatic/desktop-web@0.59.0
 
 ### Features
