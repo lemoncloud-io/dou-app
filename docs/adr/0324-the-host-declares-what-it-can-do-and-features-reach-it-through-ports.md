@@ -264,7 +264,8 @@ One domain per pull request, each with no change in behaviour on a shell that de
 7. `diagnostics` and `push`.
 
 `apps/desktop-web` adopts each port as its domain moves. The phone and desktop shells start
-declaring capabilities in their next releases. The legacy rule is deleted when the version floor
+declaring capabilities in their next releases (`feat/shells-declare-checkout`: the phone its store,
+the desktop `checkout: []`). The legacy rule is deleted when the version floor
 ([ADR-0292](./0292-a-phone-app-below-the-version-floor-sees-only-the-update-screen.md)) is raised past the first builds that declare.
 
 ## Alternatives

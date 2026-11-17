@@ -18,8 +18,10 @@ legacy rule). A feature reads `host.ports.<port>` where it uses it.
 | `web`                       | `checkout/webCheckout.ts`         | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
 | nothing                     | `{ kind: 'none' }` in the chooser | Nothing to sell                                                                        |
 
-A shell that declares nothing is answered as before: a bridge means a store — Apple's when the injected
-platform is `ios`, Google's otherwise — and no bridge means the website. A declaration
+The phone app declares its store and the desktop app declares that it sells nothing, from the first
+builds made after they began to declare; the e2e fake shell declares as the phone does. A shell that
+declares nothing — an older build — is answered as before: a bridge means a store (Apple's when the
+injected platform is `ios`, Google's otherwise), and no bridge means the website. A declaration
 (`CHATIC_APP_CAPABILITIES.checkout`) can say otherwise, which is what lets a development shell with a
 bridge check the website's checkout — the virtual shell's `DOU_SHELL_CHECKOUT`
 ([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)).

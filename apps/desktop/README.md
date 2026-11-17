@@ -112,6 +112,9 @@ The preload (`src/preload/index.ts`) sets these on `window` before the page runs
   `CHATIC_APP_CURRENT_LANGUAGE`, `CHATIC_APP_SHOULD_UPDATE` — the same keys the phone shell injects.
 - `CHATIC_APP_STORAGE_MEDIA` — `['nativeSecure']`: the storage media the shell keeps. The web picks
   its storage from this list alone, synchronously at boot.
+- `CHATIC_APP_CAPABILITIES` — `{ version: 1, checkout: [] }`: the desktop app sells no subscription.
+  Without it the web's rule for an app that declares nothing would read the bridge as a phone's and
+  pick Google's store; `desktop-web` publishes no checkout either way.
 - `ChaticMessageHandler.postMessage` — the bridge's web → app path. The sub view's page gets none
   of these; it has a preload of its own (Sub view above).
 - `electronAPI` — app version, platform, the dev-channel custom UI controls and launch-at-login.
