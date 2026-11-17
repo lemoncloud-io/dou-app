@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.161.1, @chatic/web@0.91.1
+
+### Bug Fixes
+
+- (web) stop fetching someone else's notes-to-self room after an account change
+
 ## [2026-11-17] - No version updates
 
 ### Features
