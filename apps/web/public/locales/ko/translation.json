@@ -247,7 +247,10 @@
         "appIcon": {
             "title": "앱 아이콘 설정",
             "default": "기본",
-            "WhiteIcon": "화이트"
+            "WhiteIcon": "화이트",
+            "MidnightIcon": "미드나잇",
+            "AuroraIcon": "오로라",
+            "SkyIcon": "맑은 하늘"
         },
         "viewOnboarding": "온보딩 다시 보기",
         "feedback": "피드백 보내기",

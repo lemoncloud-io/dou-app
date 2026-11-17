@@ -6,6 +6,8 @@ import { cn } from '@chatic/ui-kit';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
 import type { AppIconOption } from '@chatic/bridge-messages';
 
+import { isDefaultAppIcon } from '../hooks/useAppIcon';
+
 interface AppIconSelectSheetProps {
     isOpen: boolean;
     onClose: () => void;
@@ -51,12 +53,10 @@ export const AppIconSelectSheet = ({
                     </button>
                 </div>
                 <SheetDescription className="sr-only">{t('mypage.appIcon.title')}</SheetDescription>
-                <div className="px-5 py-2 max-h-[300px] overflow-y-auto">
+                <div className="px-5 py-2 max-h-[60vh] overflow-y-auto">
                     {availableIcons.map(icon => {
-                        const isDefaultIcon = icon.id === null || icon.id === 'default';
-                        const isCurrent = isDefaultIcon
-                            ? currentIcon === null || currentIcon === 'default'
-                            : currentIcon === icon.id;
+                        const isDefaultIcon = isDefaultAppIcon(icon.id);
+                        const isCurrent = isDefaultIcon ? isDefaultAppIcon(currentIcon) : currentIcon === icon.id;
 
                         const label = (() => {
                             if (isDefaultIcon) return t('mypage.appIcon.default');

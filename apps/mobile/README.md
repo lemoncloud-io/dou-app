@@ -176,8 +176,9 @@ apps/mobile/
 │       └── utils/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
 ├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension, ChaticShareExtension
+├── app-icons/             the logo master every app icon is generated from — docs/native/app-icons.md
 ├── fastlane/              store upload lanes
-└── docs/                  7 categories, 20 topic documents — see Documents
+└── docs/                  8 categories, 24 topic documents — see Documents
 ```
 
 There is no `screens/` directory to open beyond `features/main` and `features/subWebView`, and no `api/` directory at all —

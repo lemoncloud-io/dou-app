@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { webClient } from '@chatic/bridges';
 
-import { useAppIcon } from './useAppIcon';
+import { isDefaultAppIcon, useAppIcon } from './useAppIcon';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key }),
@@ -90,5 +90,34 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
         });
 
         expect(changed).toBe(false);
+    });
+});
+
+describe('isDefaultAppIcon', () => {
+    it('treats every name the primary icon goes by as the default', () => {
+        expect(isDefaultAppIcon(null)).toBe(true);
+        expect(isDefaultAppIcon('default')).toBe(true);
+        expect(isDefaultAppIcon('DefaultIcon')).toBe(true);
+    });
+
+    it('does not treat an alternate as the default', () => {
+        expect(isDefaultAppIcon('WhiteIcon')).toBe(false);
+    });
+});
+
+describe('useAppIcon — the primary icon reported by its stored name', () => {
+    it('labels DefaultIcon as the default icon', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) =>
+            Promise.resolve(
+                type === 'FetchAppIcon'
+                    ? { success: true, data: { supported: true, iconName: 'DefaultIcon' } }
+                    : { success: true, data: { availableIcons: [{ id: null, label: 'Default' }] } }
+            )
+        );
+        const { result } = renderHook(() => useAppIcon());
+
+        await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
+        expect(result.current.currentIconLabel).toBe('mypage.appIcon.default');
     });
 });

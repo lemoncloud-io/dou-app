@@ -247,7 +247,10 @@
         "appIcon": {
             "title": "App Icon Settings",
             "default": "Default",
-            "WhiteIcon": "White"
+            "WhiteIcon": "White",
+            "MidnightIcon": "Midnight",
+            "AuroraIcon": "Aurora",
+            "SkyIcon": "Clear Sky"
         },
         "viewOnboarding": "View Onboarding Again",
         "feedback": "Send feedback",
