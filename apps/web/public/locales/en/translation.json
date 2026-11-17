@@ -2145,6 +2145,7 @@
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account",
         "emailAlreadyUsed": "This email is already used by another account",
+        "emailAlreadyRegistered": "This email is already registered",
         "subscriptionCanceled": "Your subscription was cancelled, so no cloud can be added.",
         "addFailed": "Could not add the account",
         "emailInvalid": "That email address is not valid",

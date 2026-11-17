@@ -2145,6 +2145,7 @@
         "subscriptionRequired": "구독 중인 플랫폼에서만 클라우드를 추가할 수 있어요",
         "cloudUserRequired": "클라우드 사용자만 클라우드를 추가할 수 있어요",
         "emailAlreadyUsed": "이미 다른 계정에 사용 중인 이메일이에요",
+        "emailAlreadyRegistered": "이미 등록된 이메일이에요",
         "subscriptionCanceled": "구독이 취소되어 클라우드를 추가할 수 없어요.",
         "addFailed": "클라우드 추가에 실패했어요",
         "emailInvalid": "이메일 형식이 올바르지 않아요",
