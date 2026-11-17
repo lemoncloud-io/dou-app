@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.166.0, @chatic/web@0.95.0
+
+### Features
+
+- (web) slide android screens in and out like ios, not a 30px fade-through (ADR-0337)
+
 ## [2026-11-17] - No version updates
 
 ### Features
