@@ -621,20 +621,19 @@
             "quote": "Original: {{text}}",
             "unread": "Unread",
             "unknownSender": "Unknown",
-            "quick": {
-                "all": "Select all",
-                "unread": "Unread",
-                "read": "Read only"
-            },
+            "selectAll": "Select all",
             "markRead": "Mark as read {{count}}",
+            "markReadNone": "Mark as read",
             "delete": "Delete {{count}}",
+            "deleteNone": "Delete",
             "deleteConfirm": {
-                "title": "Delete {{count}} notifications?",
-                "description": "They leave this list only; the messages stay in their rooms.",
+                "title": "Delete the selected items?",
+                "description": "They leave the notification list only;\nthe messages stay in their rooms.",
                 "confirm": "Delete"
             },
-            "markedRead": "Marked {{count}} as read",
-            "deleted": "Deleted {{count}} notifications",
+            "markedRead_one": "Marked {{count}} notification as read",
+            "markedRead_other": "Marked {{count}} notifications as read",
+            "deleted": "Notifications deleted.",
             "undo": "Undo",
             "empty": {
                 "none": "No notifications yet",
@@ -652,6 +651,7 @@
         },
         "findMe": {
             "title": "Looking for you",
+            "close": "Close",
             "filters": {
                 "all": "All",
                 "mention": "Mentions",

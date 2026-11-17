@@ -31,3 +31,12 @@ export const NothingSelected: Story = {
         destructive: { label: '삭제', onClick: () => undefined, disabled: true },
     },
 };
+
+/** In a bottom sheet's footer — laid out in place, the sheet already clears the safe area. */
+export const Inline: Story = {
+    args: {
+        placement: 'inline',
+        secondary: { label: '읽음으로 표시 5', onClick: () => undefined },
+        destructive: { label: '삭제 6', onClick: () => undefined },
+    },
+};

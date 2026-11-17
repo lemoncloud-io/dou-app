@@ -181,15 +181,81 @@ describe('NotificationsPage', () => {
         expect(screen.getByText('notifications.inbox.title')).toBeInTheDocument();
     });
 
-    it('turns "mark as read" off when every picked item is already read', () => {
+    it('turns "mark as read" off, with no count, when every picked item is already read', () => {
         seed(item({ id: 'a', read: true, content: 'done' }));
         render(<NotificationsPage />);
 
         fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.select' }));
+        expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.deleteNone' })).toBeDisabled();
         fireEvent.click(rowByContent('done'));
 
-        expect(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":1}' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":1}' })).toBeEnabled();
+    });
+
+    it('offers "Select all" as the only quick pick, and counts only the unread picks for "mark as read"', () => {
+        seed(
+            item({ id: 'a', content: 'one', createdAt: now - 1 }),
+            item({ id: 'b', content: 'two', createdAt: now - 2 }),
+            item({ id: 'c', content: 'three', read: true, createdAt: now - 3 })
+        );
+        render(<NotificationsPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.select' }));
+
+        expect(screen.queryByText(/notifications\.inbox\.quick\./)).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
+
+        expect(screen.getByText('notifications.inbox.selectedCount:{"count":3}')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":3}' })).toBeEnabled();
+
+        // Pressed again on the whole list, it clears.
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
+        expect(screen.getByText('notifications.inbox.selectedCount:{"count":0}')).toBeInTheDocument();
+    });
+
+    it('keeps selection mode and the picks after "mark as read", so they can be deleted next', () => {
+        seed(
+            item({ id: 'a', content: 'one', createdAt: now - 1 }),
+            item({ id: 'b', content: 'two', read: true, createdAt: now - 2 })
+        );
+        render(<NotificationsPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.select' }));
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":1}' }));
+
+        expect(useNotificationStore.getState().items.a.read).toBe(true);
+        expect(mockToast).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'notifications.inbox.markedRead:{"count":1}' })
+        );
+        expect(screen.getByText('notifications.inbox.selectedCount:{"count":2}')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":2}' }));
+        fireEvent.click(
+            within(screen.getByRole('alertdialog')).getByRole('button', {
+                name: 'notifications.inbox.deleteConfirm.confirm',
+            })
+        );
+        expect(useNotificationStore.getState().items).toEqual({});
+        expect(screen.getByText('notifications.inbox.title')).toBeInTheDocument();
+    });
+
+    it('keeps items marked read in selection mode listed under "unread only" until the mode closes', () => {
+        seed(item({ id: 'a', content: 'one' }));
+        render(<NotificationsPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.select' }));
+        fireEvent.click(rowByContent('one'));
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":1}' }));
+        expect(screen.getByText('one')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":1}' })).toBeEnabled();
+
+        fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.cancel' }));
+        expect(screen.queryByText('one')).not.toBeInTheDocument();
     });
 
     it('says there is nothing yet, with no filter or select, when the inbox is empty', () => {
