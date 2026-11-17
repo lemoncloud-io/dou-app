@@ -329,7 +329,8 @@ installs meet them on every launch unless the web names the page ([The page's de
   before a web deploy can be the rollback mid-process.
 - **Logout markers cross owners in one direction only.** The "the vault clear was not confirmed" marker
   sits in each side's own plain store. A page's clear also reaches the runtime's file
-  (`useSecureStorageHandler` sets or removes the marker there with the clear's outcome), because the
+  (`runtimeLogoutMarker.ts`, loaded by `useSecureStorageHandler` only when a page clears the vault, sets
+  or removes the marker there with the clear's outcome), because the
   runtime declining a vault with no session makes page-owned launches routine and the runtime may own
   the next one. The other way has no need for it: a runtime marker means the vault still holds tokens,
   and the runtime's boot finishes the logout before any decline. The owner switch still does not check

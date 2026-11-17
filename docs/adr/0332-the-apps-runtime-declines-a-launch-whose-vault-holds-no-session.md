@@ -4,8 +4,8 @@
 > · Scope: `libs/runtime-mobile/src/boot.ts` (`NativeRuntimeNoSessionError`, `bootNativeRuntime`);
 > `apps/mobile/src/app/services/runtime/nativeRuntimeHost.ts` (the decline);
 > `libs/runtime-core/src/session/secretStorage.ts` (`setSecretLogoutPending`);
-> `apps/mobile/src/app/webview/hooks/` (`secureStorageHandlers.ts`, `useSecureStorageHandler.ts`: a page's
-> clear reaches the runtime's file)
+> `apps/mobile/src/app/webview/hooks/` (`secureStorageHandlers.ts`, `useSecureStorageHandler.ts`) and
+> `apps/mobile/src/app/services/runtime/runtimeLogoutMarker.ts` (a page's clear reaches the runtime's file)
 > · The behaviour is documented in [apps/mobile docs/runtime](../../apps/mobile/docs/runtime/README.md#an-install-that-skipped-the-pages-move)
 > and [libs/runtime-mobile](../../libs/runtime-mobile/README.md)
 > · Amends: [ADR-0330](./0330-production-starts-on-the-apps-runtime-and-the-web-names-the-default.md)
