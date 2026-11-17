@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) highlight a message jumped to as the design does, not as a flat tint
+- (web-ui-kit) outline a light bubble in lime under a highlighted row
+
 ## [2026-11-17] - root@0.166.0, @chatic/web@0.95.0
 
 ### Features
