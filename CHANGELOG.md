@@ -2,6 +2,12 @@
 
 ## [2026-11-17] - No version updates
 
+### Bug Fixes
+
+- (web/channels) stop a room jump from reading the previous room's channel, joins and chats
+
+## [2026-11-17] - No version updates
+
 ### Features
 
 - (web/channels) open a room at my first unread message, below an unread divider
