@@ -70,7 +70,7 @@ describe('W-01 plans', () => {
         expect(screen.getByText(/day 1 of each month/)).toBeTruthy();
 
         // The English page reads the price in dollars, as the checkout preview gives it.
-        fireEvent.click(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.00 today$/ }));
+        fireEvent.click(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.80 today$/ }));
 
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
@@ -86,7 +86,7 @@ describe('W-01 plans', () => {
             renderAt('/subscription/plans', setup);
 
             expect(
-                await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — ₩8,600 today$/ })
+                await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — ₩8,900 today$/ })
             ).toBeTruthy();
             expect(screen.queryByText(/\$/)).toBeNull();
             expect(listPlans).toHaveBeenCalledWith({ currency: 'KRW' });
@@ -105,7 +105,7 @@ describe('W-01 plans', () => {
         expect(listPlans).not.toHaveBeenCalledWith({ currency: 'KRW' });
 
         release();
-        expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.00 today$/ })).toBeTruthy();
+        expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.80 today$/ })).toBeTruthy();
         // The answer and the dollar list are one read.
         expect(listPlans.mock.calls.filter(([input]) => input?.currency === 'USD')).toHaveLength(1);
     });
@@ -116,7 +116,7 @@ describe('W-01 plans', () => {
         renderAt('/subscription/plans', setup);
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
-        expect(screen.getByText('$6.00')).toBeTruthy();
+        expect(screen.getByText('$6.80')).toBeTruthy();
         expect(screen.queryByText(/₩/)).toBeNull();
     });
 
@@ -127,7 +127,7 @@ describe('W-01 plans', () => {
             const listPlans = vi.spyOn(setup.port, 'listPlans');
             renderAt('/subscription/plans', setup);
 
-            expect(await screen.findByRole('button', { name: /구독하기 — 오늘 ₩8,600$/ })).toBeTruthy();
+            expect(await screen.findByRole('button', { name: /구독하기 — 오늘 ₩8,900$/ })).toBeTruthy();
             expect(listPlans).not.toHaveBeenCalledWith({ currency: 'USD' });
         } finally {
             await i18n.changeLanguage('en');
@@ -246,7 +246,7 @@ describe('W-01 plans with the account surface shut', () => {
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
         // A price list: every plan at full strength, none tagged by the web checkout's rules.
-        expect(screen.getByText('$30.00')).toBeTruthy();
+        expect(screen.getByText('$34.00')).toBeTruthy();
         expect(screen.queryByText('First plan · 7 days free')).toBeNull();
         expect(screen.queryByText('After subscribing')).toBeNull();
         expect(screen.queryByText(/not charged again on the web/)).toBeNull();

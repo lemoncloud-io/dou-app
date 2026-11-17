@@ -319,7 +319,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
         ],
         paymentMethods: CARDS,
         invoices: [
-            invoice('inv-6', '2026-10-25', 'refund', 'pro-tier-01', 'refunded', { amount: -8600, currency: 'KRW' }),
+            invoice('inv-6', '2026-10-25', 'refund', 'pro-tier-01', 'refunded', { amount: -8900, currency: 'KRW' }),
             invoice('inv-5', '2026-10-21', 'retry', 'pro-tier-02', 'paid'),
             invoice('inv-4', '2026-10-20', 'renewal', 'pro-tier-02', 'failed'),
             invoice('inv-3', '2026-10-05', 'upgrade', 'pro-tier-02', 'paid', { amount: 4590, currency: 'KRW' }),

@@ -293,8 +293,8 @@ describe('W-08 checkout', () => {
         expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
         expect(screen.queryByLabelText('Name')).toBeNull();
         // Monthly and due today, the trial being used — and no VAT claimed for a dollar price.
-        expect(await screen.findAllByText('$6.00')).toHaveLength(2);
-        expect(screen.queryByText(/\$6\.00 \(VAT/)).toBeNull();
+        expect(await screen.findAllByText('$6.80')).toHaveLength(2);
+        expect(screen.queryByText(/\$6\.80 \(VAT/)).toBeNull();
         await consentAll();
         fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
 
@@ -319,7 +319,7 @@ describe('W-08 checkout', () => {
             ).toBeTruthy();
             // No currency, no amount, no payer, no consents and no way on.
             expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
-            expect(screen.queryByText('$6.00')).toBeNull();
+            expect(screen.queryByText('$6.80')).toBeNull();
             expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
             expect(screen.queryByLabelText('Name')).toBeNull();
             expect(screen.queryByLabelText('Agree to all')).toBeNull();
@@ -383,7 +383,7 @@ describe('W-08 checkout', () => {
         // Neither the notice nor a price: the answer may go either way.
         expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
         expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
-        expect(screen.queryByText('$6.00')).toBeNull();
+        expect(screen.queryByText('$6.80')).toBeNull();
         expect(screen.queryByLabelText('Agree to all')).toBeNull();
         expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
 
@@ -558,14 +558,14 @@ describe('W-05 card, W-09 and W-06', () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new-trial-used'));
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,900' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
         expect(screen.getByText('2026.12.01')).toBeTruthy();
         // The amount is read from the invoice the charge left.
         expect(screen.getByText('Amount paid')).toBeTruthy();
-        expect(screen.getByText('₩8,600')).toBeTruthy();
+        expect(screen.getByText('₩8,900')).toBeTruthy();
     });
 
     it('leaves the amount out where the port keeps no invoices, instead of a dash', async () => {
@@ -576,7 +576,7 @@ describe('W-05 card, W-09 and W-06', () => {
         });
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,900' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
@@ -592,7 +592,7 @@ describe('W-05 card, W-09 and W-06', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
         await screen.findByRole('heading', { name: 'Add a payment method' });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Pay $6.00' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay $6.80' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
@@ -615,7 +615,7 @@ describe('W-05 card, W-09 and W-06', () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new-trial-used'));
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,900' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Close the window' }));
 
         expect(await screen.findByText('Payment canceled')).toBeTruthy();
@@ -717,7 +717,7 @@ describe('W-14 plan change', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Pay ₩[\d,]+ and upgrade$/ }));
 
         expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
-        expect(screen.getByText('₩25,800', { exact: false })).toBeTruthy();
+        expect(screen.getByText('₩26,700', { exact: false })).toBeTruthy();
         // The upgrade confirmation keeps the bar's back button; the first subscription's has none.
         expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
     });
@@ -827,7 +827,7 @@ describe('W-01 and W-08 on one dollar answer', () => {
         const listPlans = vi.spyOn(setup.port, 'listPlans');
         renderAt('/subscription/plans', setup);
 
-        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — \$6\.00 today$/);
+        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — \$6\.80 today$/);
 
         expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
         expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
@@ -839,7 +839,7 @@ describe('W-01 and W-08 on one dollar answer', () => {
         answerDollarCatalog(setup.port, 'empty');
         renderAt('/subscription/plans', setup);
 
-        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — ₩8,600 today$/);
+        await subscribeFromPlans(/^Subscribe to DoU Cloud 1 — ₩8,900 today$/);
 
         expect(await screen.findByText('Paying from outside Korea is not available yet')).toBeTruthy();
         expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();

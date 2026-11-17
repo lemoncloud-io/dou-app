@@ -27,12 +27,12 @@ const card = (id: string, provider: PaymentMethod['provider'], isDefault = false
 });
 
 describe('the plan catalog', () => {
-    it('sells the same tiers in won and in dollars, dollars in cents at $6 a step', () => {
+    it('sells the same tiers in won and in dollars, at the web prices: ₩8,900 and 680 cents a step', () => {
         expect(PLAN_CATALOG.map(plan => plan.monthly)).toEqual(
-            [1, 2, 3, 4, 5].map(sort => ({ amount: 8600 * sort, currency: 'KRW' }))
+            [1, 2, 3, 4, 5].map(sort => ({ amount: 8900 * sort, currency: 'KRW' }))
         );
         expect(planCatalogIn('USD').map(plan => plan.monthly)).toEqual(
-            [1, 2, 3, 4, 5].map(sort => ({ amount: 600 * sort, currency: 'USD' }))
+            [1, 2, 3, 4, 5].map(sort => ({ amount: 680 * sort, currency: 'USD' }))
         );
         expect(planCatalogIn('USD').map(plan => plan.id)).toEqual(PLAN_CATALOG.map(plan => plan.id));
     });
