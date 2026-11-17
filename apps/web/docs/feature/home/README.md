@@ -163,10 +163,11 @@ Switching a tab or a place plays the selection haptic (not on a tap of the one a
 does opening the find-me sheet; the chips ease their colours and sink a little when pressed, and the
 tab's underline grows out from its centre.
 
-Under the tabs, "나를 찾는 메시지 n ›" / "Looking for you n" counts the unread mentions of me and
-replies to my messages where the session is (`findMe`), and is not drawn at zero. It opens the
-find-me sheet, which the notifications feature owns: home raises `app/stores/useFindMeSheetRequest`,
-and the private shell mounts the sheet's host ([notifications](../notifications/README.md#screens)).
+Under the tabs, "나를 찾는 알림 n ›" / "Looking for you n" counts the unread mentions of me, replies to my
+messages and reactions to them where the session is (`findMe`), and is not drawn at zero. It opens
+the find-me sheet, which the notifications feature owns: home raises
+`app/stores/useFindMeSheetRequest`, and the private shell mounts the sheet's host
+([notifications](../notifications/README.md#screens)).
 
 Each cloud row carries, beside its unread count, the unread mentions of me and the unread replies in
 my threads in that room, counted from the device's notification inbox (`useNotificationStore`,

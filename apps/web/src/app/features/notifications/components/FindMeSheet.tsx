@@ -5,18 +5,19 @@ import { AlertDialog, BottomSheet, FilterChip, SelectionActionBar } from '@chati
 
 import { haptics } from '../../../bridge/haptics';
 import { useScopedNotifications } from '../../../hooks';
-import { MENTION_KINDS, findMe, type NotificationItem } from '../../../utils/notifications';
+import { MENTION_KINDS, THREAD_KINDS, findMe, type NotificationItem } from '../../../utils/notifications';
 import { pickedIn, useNotificationActions, useNotificationAvatars, useNotificationSelection, withHeld } from '../hooks';
 import { countedActionLabel } from '../utils/rowParts';
 import { NotificationListItem } from './NotificationListItem';
 
 const FIND_ME_FILTERS = ['all', 'mention', 'thread'] as const;
-const noop = () => undefined;
 type FindMeFilter = (typeof FIND_ME_FILTERS)[number];
 const NO_ITEMS: NotificationItem[] = [];
+const noop = () => undefined;
 
+// A reaction has no chip of its own: it shows under "All" only.
 const inFilter = (item: NotificationItem, filter: FindMeFilter): boolean =>
-    filter === 'all' ? true : filter === 'mention' ? MENTION_KINDS.has(item.kind) : !MENTION_KINDS.has(item.kind);
+    filter === 'all' ? true : filter === 'mention' ? MENTION_KINDS.has(item.kind) : THREAD_KINDS.has(item.kind);
 
 export interface FindMeSheetProps {
     open: boolean;
@@ -24,10 +25,10 @@ export interface FindMeSheetProps {
 }
 
 /**
- * "나를 찾는 메시지" — what is looking for the reader right now (Figma 6027:21566): the unread mentions
- * of them and replies to their messages where the session is, newest first. Reactions, new 1:1
- * messages and threads they only joined stay in the notifications tab. Reading an item — here or in
- * its room — takes it off this list; it stays in the tab.
+ * "나를 찾는 알림" — what is looking for the reader right now (Figma 6027:21566): the unread mentions
+ * of them, replies to their messages and reactions to their messages where the session is, newest
+ * first. New 1:1 messages and threads they only joined stay in the notifications tab. Reading an
+ * item — here or in its room — takes it off this list; it stays in the tab.
  *
  * "Select" (or a long press) enters selection mode (Figma 6036:21053 · 6202:25055 · 6036:22061): the
  * filter row gives way to "Select all", and the sheet's foot to the mark-read / delete bar. Items
@@ -92,9 +93,9 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
                         ? t('notifications.inbox.selectedCount', { count: picked.ids.length })
                         : t('notifications.findMe.title')
                 }
-                // Selection mode has no "Cancel": the design leaves by the sheet's close (X), which
-                // closes the sheet and with it the mode. Passing `onClose` is what draws the X.
-                onClose={selection.active ? noop : undefined}
+                // The X closes the sheet — in selection mode too, which has no "Cancel" and ends with
+                // the sheet. Passing `onClose` is what draws it; the close itself is `onOpenChange`.
+                onClose={noop}
                 closeLabel={t('notifications.findMe.close')}
                 footer={
                     selection.active ? (
