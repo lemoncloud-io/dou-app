@@ -2,6 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-27
 > · Amended by [ADR-0311](./0311-landing-opens-the-account-surface-on-the-production-host-in-won-only.md) (the account surface opens on the production host for a production build; the plans page alone stays where the gate is shut)
+> · Decision 4 amended by [ADR-0333](./0333-landing-publishes-the-web-prices-the-server-sells-not-the-store-prices.md) (the catalog follows the server's web prices, not the stores')
 > · Decision 1 amended by [ADR-0264](./0264-landing-drops-the-in-page-mock-and-keeps-the-fake-server-for-tests.md) (the plans page alone also where the build has no server addresses — `isSubscriptionAccountOpen`)
 > Scope: `apps/landing` (`README.md` principle 10 and § Plans before checkout opens,
 > `src/app/routes/CommonRoutes.tsx`, `src/app/config/stage.ts`, `src/app/features/subscription/`)
@@ -38,6 +39,10 @@ truth to a stranger: a visitor sees the same plans, prices and notes whoever the
    "Manage subscription" and "Sign in", and the phone notice drops "subscribe from a computer".
 4. **The prices have one home, `lib/catalog.ts`, which both ports read.** It is a published price list,
    changed together with the stores' prices — not mock data that happens to be shown.
+
+    _Amended 2026-11-17 (ADR-0333)._ It now changes together with the server's web products, whose
+    prices are set apart from the stores'.
+
 5. **The home header's "View plans" shows on every host**; "Sign in" still follows the gate.
 
 ## Alternatives

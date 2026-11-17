@@ -29,7 +29,7 @@ describe('SubscriptionRoutes with the account surface shut', () => {
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
         // An English reader is shown dollars; the Korean page shows won.
-        expect(screen.getByText('$6.00')).toBeTruthy();
+        expect(screen.getByText('$6.80')).toBeTruthy();
         expect(createHttpSetup).not.toHaveBeenCalled();
     });
 
@@ -43,8 +43,8 @@ describe('SubscriptionRoutes with the account surface shut', () => {
                     </Routes>
                 </MemoryRouter>
             );
-            expect(await screen.findByText('₩8,600/월')).toBeTruthy();
-            expect(screen.queryByText(/\$6\.00/)).toBeNull();
+            expect(await screen.findByText('₩8,900/월')).toBeTruthy();
+            expect(screen.queryByText(/\$6\.80/)).toBeNull();
         } finally {
             await i18n.changeLanguage('en');
         }
