@@ -6,6 +6,9 @@
 > `.github/workflows/force-deploy.yml`
 > · Amended: 2026-11-02 — sign-in is production in every build, and the toggles open on the build's
 > stage (decision 4)
+> · Amended by: [ADR-0335](./0335-admin-signs-in-on-the-backend-its-socket-refreshes-against.md) —
+> "production" in decision 4 is the relay backend's production stage, the backend the relay socket
+> refreshes against
 
 ## Context
 
