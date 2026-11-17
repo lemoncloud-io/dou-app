@@ -2,6 +2,12 @@
 
 ## [2026-11-17] - No version updates
 
+### Bug Fixes
+
+- (web/channels) hold an older page's retry wait for a scroll handled before the failure renders
+
+## [2026-11-17] - No version updates
+
 ### Features
 
 - (web/channels) show a group room's read receipt under my newest message only, with its readers
