@@ -104,4 +104,30 @@ describe('useChannelJoins — 방의 단일 join 관측', () => {
         expect(dispose).toHaveBeenCalledTimes(1);
         expect(observeList).toHaveBeenLastCalledWith({ channelId: 'c2', activeOnly: false }, expect.any(Function));
     });
+
+    it("never answers a new channel with the previous channel's rows", () => {
+        // A room-to-room move keeps the screen mounted: the render carrying the new id runs before
+        // the observer is re-subscribed, and rows read there became join targets of the wrong room.
+        observeList.mockImplementation((query, cb) => {
+            cb({ list: query.channelId === 'c1' ? [join('me'), join('old-member')] : [] });
+            return jest.fn();
+        });
+        const renders: Array<{ id: string; members: string[] }> = [];
+        const { rerender } = renderHook(
+            ({ id }) => {
+                const value = useChannelJoins(id);
+                renders.push({ id, members: value.activeMemberIds });
+                return value;
+            },
+            { initialProps: { id: 'c1' } }
+        );
+        expect(renders[renders.length - 1].members).toEqual(['me', 'old-member']);
+        renders.length = 0;
+
+        rerender({ id: 'c2' });
+
+        const underNewId = renders.filter(render => render.id === 'c2');
+        expect(underNewId.length).toBeGreaterThan(0);
+        expect(underNewId.every(render => render.members.length === 0)).toBe(true);
+    });
 });

@@ -43,6 +43,9 @@ const GAP_DIVIDER_MIN_MISSING = 11;
 /** No range answered for: what a channel reads before its ranges arrive. */
 const NOTHING_COVERED: readonly FeedRange[] = [];
 
+/** No rows: what a channel reads before its window arrives. One list, so derived memos keep their identity. */
+const NO_CHATS: DomainChat[] = [];
+
 /**
  * A stretch of the conversation between two cached rows that this run has not fetched: real history
  * the cache never held, as opposed to the holes deleted messages leave (see `FeedCoverage`).
@@ -198,13 +201,22 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // cursor, `rawChats` (reaction folding, thread building, "is row 1 loaded") — has to agree on
     // where my CURRENT membership starts. Windowing only `messages` left `rawChats` claiming the
     // conversation began at row 1 for someone who re-joined mid-thread (ADR-0067).
-    const chats = useMemo(() => cachedChats.filter(chat => isInJoinWindow(chat, joinedNo)), [cachedChats, joinedNo]);
+    //
+    // A window read for another channel is not this one's. A room that moves to another channel
+    // without remounting renders once with the previous channel's rows before the reset effect runs,
+    // and what it derived from them went out under the new id — the read marker sent the previous
+    // room's newest chatNo as this room's read (`chat.read` overflow). Until this channel's window is
+    // read, it has no rows and is still loading, the same as a fresh mount.
+    const isOtherChannelWindow = windowChannelId !== null && windowChannelId !== channelId;
+    const windowChats = isOtherChannelWindow ? NO_CHATS : cachedChats;
+    const isWindowLoading = isLoading || isOtherChannelWindow;
+    const chats = useMemo(() => windowChats.filter(chat => isInJoinWindow(chat, joinedNo)), [windowChats, joinedNo]);
 
     // Compared with the channel record before the join window: the record counts every row, and rows
     // the window hides are still rows the cache holds.
     const cachedNewestNo = useMemo(
-        () => cachedChats.reduce((max, chat) => (chat.chatNo && chat.chatNo > max ? chat.chatNo : max), 0),
-        [cachedChats]
+        () => windowChats.reduce((max, chat) => (chat.chatNo && chat.chatNo > max ? chat.chatNo : max), 0),
+        [windowChats]
     );
     useChannelHeadRefresh({
         channelId,
@@ -646,8 +658,8 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
          * nothing here predates my current membership.
          */
         rawChats: chats,
-        isLoading,
-        isEmpty: !isLoading && messages.length === 0,
+        isLoading: isWindowLoading,
+        isEmpty: !isWindowLoading && messages.length === 0,
         /**
          * An older page is in flight, or has come back and is waiting for the widened window to be
          * read. It turns false once the page's rows are in `messages`, and otherwise when the page

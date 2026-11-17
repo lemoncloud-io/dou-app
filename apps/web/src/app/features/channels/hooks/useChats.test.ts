@@ -1145,6 +1145,39 @@ describe('useChats — catching up to the channel record', () => {
         expect(forC2.every(p => p.isCacheRead === false)).toBe(true);
     });
 
+    it("never answers the next room with the previous room's rows, so nothing reads them as its own", () => {
+        // The room derives its read marker from the newest message. Read under the next room's id,
+        // the previous room's newest chatNo went out as the next room's read and the server refused
+        // it as an overflow.
+        chatObserveList.mockImplementation((query: { channelId: string }, cb: (result: unknown) => void) => {
+            if (query.channelId === 'c1') {
+                cb({ list: [chat({ id: 'a', chatNo: 118, ownerId: 'u1', createdAtMs: 400 })] });
+            }
+            return () => undefined;
+        });
+        const renders: Array<{ channelId: string; newest: number | undefined; isLoading: boolean }> = [];
+        const { rerender } = renderHook(
+            (props: { channelId: string }) => {
+                const value = useChats({ channelId: props.channelId, limit: 100 });
+                renders.push({
+                    channelId: props.channelId,
+                    newest: value.messages.at(-1)?.chatNo,
+                    isLoading: value.isLoading,
+                });
+                return value;
+            },
+            { initialProps: { channelId: 'c1' } }
+        );
+        expect(renders.at(-1)).toMatchObject({ channelId: 'c1', newest: 118 });
+        renders.length = 0;
+
+        rerender({ channelId: 'c2' });
+
+        const forC2 = renders.filter(render => render.channelId === 'c2');
+        expect(forC2.length).toBeGreaterThan(0);
+        expect(forC2.every(render => render.newest === undefined && render.isLoading)).toBe(true);
+    });
+
     it('reports the cache as unread until the first emission', () => {
         chatObserveList.mockImplementation(() => () => undefined);
 
