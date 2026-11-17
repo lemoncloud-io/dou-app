@@ -14,6 +14,7 @@ export * from './UpdateBanner';
 export * from './AppErrorBoundary';
 export * from './FormField';
 export * from './PageShell';
+export * from './RailTile';
 export * from './SettingsRow';
 export * from './paneHeader';
 export * from './ScrollHint';

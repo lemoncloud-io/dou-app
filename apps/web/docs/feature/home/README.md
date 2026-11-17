@@ -163,10 +163,11 @@ Switching a tab or a place plays the selection haptic (not on a tap of the one a
 does opening the find-me sheet; the chips ease their colours and sink a little when pressed, and the
 tab's underline grows out from its centre.
 
-Under the tabs, "나를 찾는 메시지 n ›" / "Looking for you n" counts the unread mentions of me and
-replies to my messages where the session is (`findMe`), and is not drawn at zero. It opens the
-find-me sheet, which the notifications feature owns: home raises `app/stores/useFindMeSheetRequest`,
-and the private shell mounts the sheet's host ([notifications](../notifications/README.md#screens)).
+Under the tabs, "나를 찾는 알림 n ›" / "Looking for you n" counts the unread mentions of me, replies to my
+messages and reactions to them where the session is (`findMe`), and is not drawn at zero. It opens
+the find-me sheet, which the notifications feature owns: home raises
+`app/stores/useFindMeSheetRequest`, and the private shell mounts the sheet's host
+([notifications](../notifications/README.md#screens)).
 
 Each cloud row carries, beside its unread count, the unread mentions of me and the unread replies in
 my threads in that room, counted from the device's notification inbox (`useNotificationStore`,
@@ -272,6 +273,29 @@ An invited row is titled by its cloud name with the owner caption ("sunny's clou
 cloud") under it. An invite can carry no cloud name, and the cached row has none until `cloud.get`
 fills it in after the first connect; until then the caption becomes the title and the second line
 goes, so the row never prints the raw cloud id.
+
+## Scrolling under the header
+
+The header stays put; everything under it — the banners or the place row, then the chat tabs and the
+rooms — is one scrolling body. As it scrolls:
+
+- **The place row scrolls away and the chat tabs pin under the header.** The tabs are `sticky`, so a
+  reader far down a long list can still change tab or start a room without scrolling back up.
+- **They pin 8px high.** The inline tab row carries 8px of padding above its labels; pinned at the
+  header's edge that padding read as a gap between the header and the tabs, so the row sticks at
+  `top: -8px` and the padding slides under the header instead. The 8px top gap of the list is padding
+  on the list's content, not on the scroller, for the same reason: a sticky row stops at the
+  scroller's padding edge, which left a strip of rows showing above the pinned tabs.
+- **One divider marks the edge content passes under.** While the place row slides beneath the
+  header, the header draws a hairline along its bottom; once the tabs pin, the header's goes and the
+  tabs' own underline is the divider. Never both, and nothing at the top of the list. The header's
+  border is always there and only changes colour, so it never shifts the layout by a pixel.
+
+The app's `useScrollChrome` works out both states — scrolled, and pinned — from the scroll event,
+measuring a zero-height anchor just before the tabs (the pinned row itself no longer moves, so it
+cannot be measured). A scroll restore fires a scroll event too, so a return part-way down lands with
+the tabs already pinned. The tabs sit above the rows (`z-10`): each row is positioned
+(`relative`), and a later positioned sibling paints over a sticky row that has no z-index.
 
 ## Pull to refresh
 

@@ -26,8 +26,13 @@ The header takes its `kind` from the channel's stereo, which picks the fallback 
 name as overrides); and its avatar from
 `resolveChannelAvatar` — the room's own `channel.thumbnail` in a self chat, else my place-profile
 photo; the peer's in a DM; and
-`channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
-`state: { roomDistance: 1 }`.
+`channel.thumbnail` otherwise.
+
+The ⋯ button opens the room's settings directly (`onMore`, labelled "room settings"), with
+`state: { roomDistance: 1 }`, in every kind of room — self, 1:1 and group. There is no dropdown:
+Settings would be its only item, so a menu would cost a tap and offer no choice. A second action that
+belongs behind ⋯ is the point to bring the dropdown (`moreMenu`) back, with the menu-aware
+`useMenuNavigate` for its items.
 
 Every person photo in the header is the **place profile's only**. A profile is per-place, and the
 member's user row carries an account-wide avatar nobody chose for this place; falling back to it put
@@ -45,11 +50,11 @@ room has a photo of its own and the row stands for a person.
 
 **Tapping the header.** In a 1:1 the avatar and title are one button that opens the peer's profile
 (see **Opening a person** below). In a group only the participant stack is a button, and it opens
-settings, the screen that lists the members, the same way the Settings menu item does
-(`state: { roomDistance: 1 }`). It uses plain `navigate`, because there is no menu to wait for. The
-title stays inert there, because a group's name and photo stand for the room, not a person. A self
-chat gets neither. `ChatRoomHeader` takes these as `onIdentityClick` and `onMetaClick`. The identity
-button wins when both are set, because a button cannot contain another button.
+settings, the screen that lists the members, the same way the ⋯ button does
+(`state: { roomDistance: 1 }`). The title stays inert there, because a group's name and photo stand
+for the room, not a person. A self chat gets neither. `ChatRoomHeader` takes these as
+`onIdentityClick` and `onMetaClick`. The identity button wins when both are set, because a button
+cannot contain another button.
 
 `loading` renders placeholders while the channel is unresolved. Without it the title falls back to
 the "unnamed channel" label for a beat, which reads as having opened the wrong room.
@@ -145,14 +150,19 @@ heard about the message. The server delete lives in the action sheet and is a di
 different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
-The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
-`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 안읽음 M`)
-while anybody is behind, and the single `allRead` label once nobody is. In English that label is
-`Read by all` — a bare `read 10` left the reader to work out from the member count whether that was
-everyone. In Korean it is `읽음 N`, the same `읽음` word the partial receipt opens with, so the two
-states read as one indicator losing its `안읽음` half; that missing half is what says nobody is
-left. The page passes the read count so the label can carry it.
-`dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
+The receipt's gates are set by the page: shown when `!isSelfChat && activeMemberIds.length >= 2`.
+
+- **A 1:1** (`mode: 'dm'`) prints the single unread badge beside the time of each message, and
+  nothing once it is read.
+- **A group room** (`mode: 'readers'`) prints one line, and only under **my newest message**
+  (`lastMineChatNo`), after its reactions and thread footer (Figma 5978:37669): how far the room has
+  caught up with me, instead of a count beside every bubble. Counted over the other active members
+  (`getReaders` from the join cursors, me left out): `읽음 N` with the first three readers' faces and
+  a `+N` pill while some have read; `미확인 N` while nobody has yet; `모두 읽음` once nobody is left.
+  A message still sending or failed has none; a spinner holds the line until the cursors sync.
+- A self chat never shows one.
+
+The kit's `count` mode (`read N • unread M` beside the time) is no longer drawn by the room.
 
 **Editing.** A message of mine is edited from the action sheet, **in the composer**: the composer
 becomes the editor. A strip above the field (`ComposerEditBar`) names the edit, quotes the message
@@ -278,7 +288,7 @@ reads louder.
 A sender's avatar and the name above it open that person's profile full-screen. This is
 `MemberProfileDialog`, the same sheet the settings member list opens
 ([channel-settings.md](./channel-settings.md)). In a 1:1 the header opens the peer the same way.
-In the room the sheet can **view, report and start a 1:1** — the last only where
+In the room the sheet can **view and start a 1:1** — the last only where
 `canStartDmFromProfile` allows ([dm-and-self-chat.md](./dm-and-self-chat.md)). `canKick` is always
 false, because removing someone belongs on the settings screen, where you can see the member list it
 changes. The owner
@@ -618,8 +628,36 @@ from the bottom — which decides whether rows arriving may push the oldest rows
 
 Per-channel offsets are remembered through `useScrollRestoration`: stashed on unmount, restored once
 on the next mount. Restoration beats the bottom pin (the first page arriving otherwise reads as a
-new latest message and overwrites it), and it is consumed exactly once, so entering from the home
-list still lands at the newest message.
+new latest message and overwrites it), and it is consumed exactly once.
+
+**Where the room opens** (Figma 6170:26376, spec F-13/F-14). Entering from the home list, the room
+works out once, from my read cursor as it stood on entry (`readCursorOf(readPositionOf(...))`, the
+cursor the unread badge counts from), where my unread messages start: the first drawn message from
+someone else past it (`unreadEntryOf`). If the drawn window may start after that, it widens the cached
+window once (`loadUntil`) before deciding; a first unread row that is not cached at all is not worth a
+network page here, and the oldest drawn one stands in.
+
+- It is decided from the drawn rows, not from the badge alone: the channel row's head can lag the
+  messages the chat sync has already cached, and a badge of 0 would hide unread rows on screen.
+- A red `UnreadDivider` — "여기부터 안 읽은 메시지 n개", n the larger of the badge (`unreadOf`) and the
+  unread rows drawn — sits above that row for the rest of the visit.
+- The room lands there through the jump store with `{ highlight: false, block: 'start', quiet: true }`:
+  the row at the top, the divider kept in view below the header by a scroll margin sized from the
+  measured header (`:has(+ [data-unread-divider])`, `--unread-divider-margin`),
+  no highlight, and no toast if it cannot get there. A few unread messages near the end leave the list
+  at the bottom anyway — a row there cannot scroll to the top.
+- When I have an unread mention at or after that row, the room lands on the oldest one instead, as an
+  ordinary highlighted jump, and the mentions pill counts what is left.
+- A back press onto a remembered offset (`POP` with a restore pending), or a visit that opens on a
+  message someone asked for (a search hit, a notification, a push), keeps its own position; the
+  divider still shows. A remembered offset alone does not: every room visited before has one, and
+  coming back in from the home list is a fresh look at what is new.
+- Until the room has decided, the first page's bottom pin is held (`suppressAutoScroll`): the pin is
+  deferred to a frame after every effect and would undo a landing decided in the same flush. With
+  nothing unread, the room pins itself to the newest message once it has decided.
+- After landing — at the first unread or at a mention — the latest pill counts from the entry cursor
+  for that first stay away from the bottom (`awayFromCursor`), so it says how many unread messages are
+  below rather than none.
 
 `suppressAutoScroll` stands the bottom pin down while a message jump is positioning the view;
 `scrollToBottom` defers to a `requestAnimationFrame` that runs after every effect, so without it the
@@ -677,6 +715,13 @@ apply.
 
 Both play the selection haptic when tapped.
 
+**The highlight.** Every jump — a mention pill, a search hit, a notification, a push — lands the same
+way (`useMessageJump`): the row scrolls to the centre and, for two seconds, sits in a rounded
+light-lime box 8px in from either edge, its light bubble turned to the page ground with a lime
+outline (Figma 6002:40741). The box is a pseudo-element behind the row and the outline an inset
+ring, so nothing in the row moves when it comes and goes; the bubble reads the row's
+`data-highlight` attribute for it. Taking the highlight off removes only the classes it added.
+
 ## What not to do
 
 - **Do not add a stereo branch to the page.** Pass a variant into a component. Scroll anchoring,
@@ -724,9 +769,9 @@ Both play the selection haptic when tapped.
   asks for it, and the optimistic-to-server id swap does not remount the row).
 - Opening a person is pinned by the `opening the sender profile` cases in
   `ChannelMessageRow.test.tsx` (what the row hands over, which rows are inert),
-  `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, the group stack's navigation,
-  never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks themselves are covered in
-  the kit's `ChatRoomHeader.test.tsx`.
+  `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, where the group stack and
+  the ⋯ button navigate, never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks
+  themselves are covered in the kit's `ChatRoomHeader.test.tsx`.
 - Mentions are pinned by `mentionInput.test.ts`, `mentionHighlight.test.ts`,
   `useMentionComposer.test.ts`, `MentionSuggestions.test.tsx`, the `mentions`
   cases of `ChannelRoomPage.test.tsx` and `ThreadPage.test.tsx`, and `mention.test.ts` in `libs/data`.

@@ -39,6 +39,8 @@ jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: ()
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds, hasCloudCatalog: true }),
 }));
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../../../ui/layouts', () => ({
     fixedViewportScreen: '',
@@ -74,6 +76,7 @@ describe('CloudEditPage', () => {
         await waitFor(() => expect(updateCloudName).toHaveBeenCalledWith({ id: 'CL1', name: 'Orange' }));
         expect(switchCloud).not.toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith(-1);
+        expect(mockHaptic.mock.calls).toEqual([['success']]);
     });
 
     it('patches the new name into the relay catalog query after the save', async () => {
@@ -112,6 +115,7 @@ describe('CloudEditPage', () => {
         );
         expect(setQueriesData).not.toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalledWith(-1);
+        expect(mockHaptic.mock.calls).toEqual([['error']]);
     });
 
     it('starts from the just-saved name while the catalog still answers with the old one', () => {

@@ -2,6 +2,7 @@ import type { EdgeInsets } from 'react-native-safe-area-context';
 import type { Env, RuntimeOffer, StorageMedium } from '@chatic/bridge-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
+import type { HostCapabilities } from './hostCapabilities';
 
 /**
  * Parameter interface for injecting device information
@@ -205,6 +206,14 @@ export const getStorageMediaScript = (media: readonly StorageMedium[]): string =
 `;
 
 /**
+ * Generates the app's capability declaration (`window.CHATIC_APP_CAPABILITIES`), or nothing. Read by
+ * the web once, before its first render, to choose how it reaches each capability (`hostCapabilities`).
+ * A bare assignment that cannot throw, placed early for the same reason as the storage media.
+ */
+export const getCapabilitiesScript = (capabilities: HostCapabilities | undefined): string =>
+    capabilities ? `\n    window.CHATIC_APP_CAPABILITIES = ${JSON.stringify(capabilities)};\n` : '';
+
+/**
  * Generates the shell's offer to own the session (`window.CHATIC_APP_RUNTIME`), or nothing. Like the
  * storage media it is read before the page's own scripts run: a page asks for the runtime handshake
  * only when it finds an offer, so a launch the page owns offers nothing and is never asked.
@@ -231,6 +240,8 @@ export interface SyncInjectionScriptParams {
     storageMedia?: readonly StorageMedium[];
     /** The offer to own the session, on a launch the app's runtime owns. Nothing otherwise. */
     runtimeOffer?: RuntimeOffer | null;
+    /** What this app declares it can do (`hostCapabilities`). Nothing when absent. */
+    capabilities?: HostCapabilities;
 }
 
 /**
@@ -255,6 +266,7 @@ export interface SyncInjectionScriptParams {
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
         ${getStorageMediaScript(params.storageMedia ?? [])}
+        ${getCapabilitiesScript(params.capabilities)}
         ${getRuntimeOfferScript(params.runtimeOffer)}
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
         ${getDeviceInfoScript(params.deviceInfo)}

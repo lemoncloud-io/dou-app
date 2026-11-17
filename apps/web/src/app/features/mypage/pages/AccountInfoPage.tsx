@@ -40,20 +40,6 @@ export const AccountInfoPage = () => {
                 </div>
 
                 <AccountLinkSection />
-
-                {/* Temporarily hidden — TODO: re-enable withdrawal entry
-                <div className="rounded-[18px] bg-card px-0.5 py-1.5 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
-                    <button
-                        onClick={() => navigate(ROUTES.mypage.account.withdrawal)}
-                        className="flex w-full items-center justify-between py-3 pl-4 pr-3"
-                    >
-                        <span className="text-[15px] font-medium text-foreground">
-                            {t('mypage.accountInfo.withdrawal')}
-                        </span>
-                        <ChevronRight size={18} className="text-muted-foreground" />
-                    </button>
-                </div>
-                */}
             </div>
         </div>
     );

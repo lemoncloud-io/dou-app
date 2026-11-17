@@ -46,4 +46,17 @@ describe('MessageBubble', () => {
         render(<MessageBubble>짧은 메시지</MessageBubble>);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
+
+    it('outlines a light bubble in lime under a highlighted ancestor, without a border that moves it', () => {
+        const { container } = render(
+            <>
+                <MessageBubble>other</MessageBubble>
+                <MessageBubble variant="mine">mine</MessageBubble>
+            </>
+        );
+        const [other, mine] = Array.from(container.querySelectorAll('[data-variant]'));
+        expect(other.className).toContain('[[data-highlight]_&]:ring-primary');
+        expect(other.className).not.toMatch(/(^| )border( |$)/);
+        expect(mine.className).not.toContain('[[data-highlight]_&]');
+    });
 });

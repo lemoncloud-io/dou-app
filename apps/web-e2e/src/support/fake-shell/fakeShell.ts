@@ -25,6 +25,11 @@ export interface FakeShellOptions {
     insets?: { top: number; bottom: number; left: number; right: number };
     /** The installed app's version. A current one unless a scenario is about an older app. */
     appVersion?: string;
+    /**
+     * What the app declares it can do. By default what the app declares on this platform — its store;
+     * `null` declares nothing, as an app built before declarations does.
+     */
+    capabilities?: AppInjectionParams['capabilities'] | null;
 }
 
 /**
@@ -198,6 +203,20 @@ export class FakeShell {
                 latestVersion: FAKE_SHELL_APP_VERSION,
                 shouldUpdate: false,
             },
+            // The app's own declaration (`hostCapabilities`): its platform's store.
+            ...(this.options.capabilities !== null && {
+                capabilities: this.options.capabilities ?? {
+                    version: 4,
+                    checkout: [ios ? 'apple' : 'google'],
+                    media: 'app',
+                    files: 'app',
+                    links: 'app',
+                    appShell: 'app',
+                    signIn: 'app',
+                    diagnostics: 'app',
+                    push: 'app',
+                },
+            }),
         };
     }
 }

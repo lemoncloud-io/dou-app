@@ -12,7 +12,7 @@ jest.mock('@chatic/config', () => ({
     config: { get: jest.fn((key: string) => ({ 'env.stage': 'test', 'env.project': 'chatic_web' })[key]) },
 }));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => false,
+    hostProfile: () => ({ bridge: null }),
 }));
 jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn() },

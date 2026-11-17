@@ -26,7 +26,14 @@ const GROUPS: Record<string, readonly string[]> = {
     // setting.
     // The stores an app keeps state in are chosen in `@chatic/runtime-web` (`resolveStorageStores`), which
     // also builds the runtime; this group hands the React surface the engine it built.
-    boot: ['initAppRuntime', 'isNativeApp', 'prepareSecretStorage', 'webTransport'],
+    boot: [
+        'discardWebSessionCopy',
+        'hasWebSessionCopy',
+        'initAppRuntime',
+        'isNativeApp',
+        'prepareSecretStorage',
+        'webTransport',
+    ],
     // Session state · auth. `confirmPhoneLogin`/`logoutSession` live in `@chatic/auth`'s socket/ —
     // to a consumer, all of them are "session".
     session: [

@@ -6,6 +6,7 @@ import type { RuntimeEngine, SecretStorageOutcome } from '@chatic/runtime-core';
 import { MemoryStore } from '@chatic/storage';
 import type { KeyValueStore, NativeReadResult, NativeStore } from '@chatic/storage';
 
+import { HOME_SEARCH_KEY } from './auth';
 import { createNativeRuntime } from './createNativeRuntime';
 import type { NativeRuntimeOptions } from './createNativeRuntime';
 import type { AppStateSource } from './foreground';
@@ -62,6 +63,32 @@ export class NativeRuntimeEnvError extends Error {
 }
 
 /**
+ * Thrown when the vault holds no session, after the secret-storage step has run and before anything is
+ * created: the page takes this launch instead.
+ *
+ * The page's boot is the only step that moves a session out of the page's own `localStorage` into the
+ * vault, and the runtime never sees that storage. An install updating from an app without a vault has
+ * its session there and nothing in the vault, so a runtime that started anyway would sign the device in
+ * as a guest over it. Letting the page own the launch moves the session, and the next launch finds it
+ * in the vault. On an install that is simply signed out it costs nothing: the page signs a guest in the
+ * same way the runtime would have, and the launch after that is the runtime's.
+ */
+export class NativeRuntimeNoSessionError extends Error {
+    readonly code = 'NATIVE_RUNTIME_NO_SESSION';
+
+    constructor(readonly secretStorage: SecretStorageOutcome) {
+        super(`the vault holds no session (${secretStorage}); the page takes this launch`);
+    }
+}
+
+/**
+ * The secret-storage outcomes that leave the vault without a session: it answered with no tokens, or a
+ * logout whose clear was never confirmed has just emptied it. A vault that could not be read is not
+ * among them: the runtime runs from the tab then, as it always has, rather than guess what it holds.
+ */
+const NO_SESSION_OUTCOMES: readonly SecretStorageOutcome[] = ['empty', 'logout-finished'];
+
+/**
  * Boots the runtime in React Native's process, in the order a page's entry boots it:
  *
  * 1. The build values, checked and handed to the config — a build without them throws
@@ -70,6 +97,8 @@ export class NativeRuntimeEnvError extends Error {
  * 3. The secret store, loaded through the step a page's boot runs (`prepareSecretStorage`): it
  *    finishes a logout whose clear was never confirmed before anything reads a token. There is no
  *    web storage behind the app, so the step's web copy and tab are empty.
+ *    A vault left with no session stops the boot here with `NativeRuntimeNoSessionError`, having
+ *    created nothing, and the page takes the launch.
  * 4. `createNativeRuntime`, with the loaded stores.
  *
  * Called once per launch; the caller keeps the engine for the rest of the process.
@@ -101,6 +130,14 @@ export const bootNativeRuntime = async ({
         // reads on its own.
         afterLogout: false,
     });
+
+    if (NO_SESSION_OUTCOMES.includes(secretStorage)) {
+        // The address a session's end saved is read only by the runtime this boot no longer creates. The
+        // page that takes the launch hears the same end on its own address, so the saved one goes now
+        // rather than reaching a runtime launch days later.
+        options.storage.plain.remove(HOME_SEARCH_KEY);
+        throw new NativeRuntimeNoSessionError(secretStorage);
+    }
 
     return { engine: createNativeRuntime(options), vault: read, secretStorage };
 };

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
@@ -46,10 +47,11 @@ export const useSocialLinks = () => {
 
     const linkProvider = useCallback(
         async (provider: SocialProvider) => {
-            if (!isNative()) {
-                // No native bridge means no way to obtain the provider's raw token (the existing
-                // browser OAuth relay only yields our own session token, not a native id/identity
-                // token — see social-links.md "non-native OAuth relay reuse investigation").
+            if (host.ports.signIn.kind !== 'app') {
+                // Where the page signs in (`host.ports.signIn`) there is no native bridge, so no way to
+                // obtain the provider's raw token (the existing browser OAuth relay only yields our own
+                // session token, not a native id/identity token — see social-links.md "non-native OAuth
+                // relay reuse investigation").
                 toast({ title: t('mypage.accountInfo.social.mobileOnly') });
                 return;
             }
@@ -100,19 +102,9 @@ export const useSocialLinks = () => {
         [confirmSocial, t, toast, verifySocial]
     );
 
-    /**
-     * Stub: there is no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042). This never
-     * mutates state or claims success — it only explains that the action isn't supported yet. The real
-     * unlink call gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
-     */
-    const requestUnlink = useCallback(() => {
-        toast({ title: t('mypage.accountInfo.social.unlinkComingSoon') });
-    }, [t, toast]);
-
     return {
         isLinked,
         linkProvider,
-        requestUnlink,
         isLinking: isLinkingSocial,
         /** `'unknown'` while the server has not told us — callers hide the section rather than guess. */
         socialState: linked.social,

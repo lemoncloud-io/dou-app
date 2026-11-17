@@ -10,7 +10,7 @@ const listPairings = jest.fn();
 const revokePairing = jest.fn();
 let mockNative = true;
 
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ bridge: mockNative ? 'react-native-webview' : null }) }));
 jest.mock('../../../data/hooks/useRuntimeRepositories', () => ({
     useRuntimeRepositories: () => ({ pairing: { listPairings, revokePairing } }),
 }));

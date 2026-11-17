@@ -56,7 +56,19 @@ export const kstDayStart = (date: string): number => Date.parse(`${date}T00:00:0
 /** Last instant of a Korean day. */
 export const kstDayEnd = (date: string): number => kstDayStart(date) + DAY_MS - 1;
 
-const isDate = (value?: string): value is string => !!value && DATE_RE.test(value) && !Number.isNaN(kstDayStart(value));
+/**
+ * True for a `YYYY-MM-DD` that names a real day — the only shape the server's `from`/`to` accept.
+ * Anything else (a datetime, `2026-02-30`) is refused with an "invalid format" error, so a value
+ * from the URL is checked here before it can reach a request. The round trip is what catches an
+ * impossible day: `Date.parse` rolls `02-30` over to March instead of failing.
+ */
+export const isKstDate = (value?: string): value is string => {
+    if (!value || !DATE_RE.test(value)) return false;
+    const start = kstDayStart(value);
+    return !Number.isNaN(start) && kstDate(start) === value;
+};
+
+const isDate = isKstDate;
 
 const spanOf = (preset: PeriodPreset, fromMs: number, toMs: number, exact: boolean): ResolvedPeriod => ({
     preset,

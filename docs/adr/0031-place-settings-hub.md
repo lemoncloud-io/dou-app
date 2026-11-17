@@ -1,6 +1,7 @@
 # ADR-0031: A route-based place settings hub
 
-> Status: Accepted · Decided: 2026-07-27
+> Status: Accepted · Decided: 2026-07-27 · the place-notifications placeholder row amended by
+> [ADR-0334](./0334-a-control-with-no-behaviour-is-not-rendered.md) (left out instead)
 
 ## Context
 

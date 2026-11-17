@@ -85,6 +85,22 @@ The record wins whenever the message has one; the text is only read for a
 message with none (an older client, a webhook). The words for "everyone" come
 from the existing `chat.mention.everyoneWord` key (`all` / `전체`).
 
+## Who the sender is
+
+The banner names the sender the way the feed does: their nick in the message's place, then the
+message's own `owner$.name`. The `owner$.name` is a snapshot the server took when the row was
+written. It can differ from the name the feed shows, even to the point of carrying another member's
+name, so it is only the fallback.
+
+`chatSenderName` (`src/app/shared/utils/senderName.ts`) holds that rule. The same rule names people in
+the inbox, the my-threads list and the channel list's preview line. The feed's
+`useSiteProfilesStore` holds only the place on screen, and a banner can come from any place. So
+`usePlaceProfiles` mirrors every place of the active cloud into `usePlaceProfilesStore`, one
+profile query per place. A query without a place would let one place's nick name the same person in
+another place. A message of mine is looked up under both my account id and my cloud id, since my
+profile row can sit under either. A webhook is never named by a profile, as in the feed. A raw-id
+snapshot names nobody, and a nameless 1:1 falls back to "New message".
+
 ## A push from the relay
 
 A push names its source cloud in `cid`. A message on the relay — the Home tile — carries `#` there

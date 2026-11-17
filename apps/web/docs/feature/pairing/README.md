@@ -32,7 +32,7 @@ features/pairing/
 The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
 under `/mypage`, but a static path outranks `mypage/*`, and one feature does not import another. For the
 same reason the flag hook, `useDevicePairingEnabled`, lives in `src/app/hooks`: every entry — the login
-screen, My page, settings, withdrawal, the home switch sheet and these pages — reads the flag through it.
+screen, My page, settings, the home switch sheet and these pages — reads the flag through it.
 
 ## The code screen
 
@@ -87,7 +87,7 @@ a phone. A desktop app has no code screen; it already signs in by phone or Googl
 ## The approval screen
 
 `/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require
-the flag, `isNative()`, an **account** (not a guest) and a session that is **not** itself a secondary
+the flag, the host's `signIn` port answering `'app'` (this device holds the account), an **account** (not a guest) and a session that is **not** itself a secondary
 device (`runtime.session.useIsPairedSession`). Approving hands on a sign-in, so the approving device has
 to hold one: the server would take an approval from a browser's phone login, and a guest app's approval
 of its invited clouds, as well — keeping approvals in signed-in apps is this screen's rule, not the
@@ -153,7 +153,7 @@ is sent back; everyone else gets the first section, and an approving app the sec
 
 ## Signing out of an approving app
 
-Settings' logout and the withdrawal screen go through `runtime.session.usePairingAwareLogout` while the
+Settings' logout goes through `runtime.session.usePairingAwareLogout` while the
 flag is on: an approving app with approvals still standing shows `mypage/components/PairingLogoutDialog`
 ("the N sign-ins this device approved end too", each with requester and scope, plus a caveat when a
 cloud approval is among them), revokes them all on confirm and then opens `/auth/logout` as before. With

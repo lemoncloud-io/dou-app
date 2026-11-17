@@ -9,7 +9,8 @@ import { BrandMark } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import type { OAuthCodeResult, OAuthLoginResult } from '@chatic/bridge-messages';
 
 import { PageHeader } from '../../../ui/components';
@@ -40,8 +41,10 @@ export const LoginPage = () => {
     // Development stages only (see the registry) — a way to switch between seeded test accounts.
     const emailLoginEnabled = useConfigValue<boolean>('feature.auth.emailLogin') === true;
 
-    const isOnMobileApp = isNative();
-    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
+    // Social sign-in is offered where the app signs in (`host.ports.signIn`); Apple's where it does on iOS.
+    const signIn = host.ports.signIn;
+    const isOnMobileApp = signIn.kind === 'app';
+    const isIOS = signIn.os === 'ios';
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
         runtime.session.useLoginRelaySocial();
 
@@ -227,7 +230,7 @@ export const LoginPage = () => {
                  * ownership follows the social account). That is enforced where it costs money — the
                  * purchase refuses before opening the store — so it does not need to gate sign-in here.
                  *
-                 * It needs no `isNative()` gate either: the verification is a socket call, so in a
+                 * It needs no `host.ports.signIn` gate either: the verification is a socket call, so in a
                  * browser it is the one way in. There the warning is also the only mention of social,
                  * which is why the browser drops the divider and folds "social is app-only" into it.
                  */}

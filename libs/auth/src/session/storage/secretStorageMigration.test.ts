@@ -97,9 +97,9 @@ describe('secretStorageMigration', () => {
         expect(store.status).toBe('unavailable');
     });
 
-    it('takes the vault as the truth when it holds values, and deletes a leftover web copy', async () => {
-        const { store } = shell({ vault: { [RELAY]: 'from-vault' } });
-        const web = webWith({ [RELAY]: 'stale' });
+    it('takes the vault as the truth when it holds values and no web copy is left', async () => {
+        const { store, calls } = shell({ vault: { [RELAY]: 'from-vault' } });
+        const web = webWith({});
 
         const outcome = await secretStorageMigration.prepare({
             vault: store,
@@ -111,7 +111,64 @@ describe('secretStorageMigration', () => {
 
         expect(outcome).toBe('vault');
         expect(store.get(RELAY)).toBe('from-vault');
+        expect(calls).not.toContain('save');
+    });
+
+    it('lets a web copy no page ever moved replace the session in the vault, then deletes the copy', async () => {
+        // The phone app's runtime signed in as a guest on an empty vault while the person's session
+        // was still in localStorage, never moved because no page had booted on the vault.
+        const { store, vault } = shell({ vault: { [RELAY]: 'runtime-guest', [CLOUD]: 'runtime-cloud' } });
+        const web = webWith({ [RELAY]: 'account' });
+
+        const outcome = await secretStorageMigration.prepare({
+            vault: store,
+            plain: web,
+            web,
+            tab: new MemoryStore(),
+            afterLogout: false,
+        });
+
+        expect(outcome).toBe('replaced');
+        expect(vault).toEqual({ [RELAY]: 'account' });
+        expect(store.get(RELAY)).toBe('account');
+        expect(store.get(CLOUD)).toBeNull();
         expect(web.get(RELAY)).toBeNull();
+    });
+
+    it('does not let a leftover without a relay token replace the vault session, and deletes it', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'from-vault' } });
+        const web = webWith({ [CLOUD]: 'stray' });
+
+        const outcome = await secretStorageMigration.prepare({
+            vault: store,
+            plain: web,
+            web,
+            tab: new MemoryStore(),
+            afterLogout: false,
+        });
+
+        expect(outcome).toBe('vault');
+        expect(vault).toEqual({ [RELAY]: 'from-vault' });
+        expect(web.get(CLOUD)).toBeNull();
+    });
+
+    it('keeps the web copy when the vault refuses the replacement, and signs the run in from it', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'runtime-guest' }, saveOk: false });
+        const web = webWith({ [RELAY]: 'account' });
+
+        const outcome = await secretStorageMigration.prepare({
+            vault: store,
+            plain: web,
+            web,
+            tab: new MemoryStore(),
+            afterLogout: false,
+        });
+
+        expect(outcome).toBe('migration-refused');
+        expect(vault).toEqual({ [RELAY]: 'runtime-guest' });
+        expect(web.get(RELAY)).toBe('account');
+        expect(store.get(RELAY)).toBe('account');
+        expect(store.status).toBe('unavailable');
     });
 
     it('signs this run in from the web copy when the vault is unavailable, and keeps the copy', async () => {
@@ -207,6 +264,32 @@ describe('secretStorageMigration', () => {
     });
 });
 
+describe('secretStorageMigration web copy helpers', () => {
+    it('says a web copy is there while any session token is, and not otherwise', () => {
+        expect(secretStorageMigration.hasWebCopy(webWith({ [CLOUD]: 'c' }))).toBe(true);
+        expect(secretStorageMigration.hasWebCopy(webWith({ 'chatic-delegator-id': 'guest-1' }))).toBe(false);
+    });
+
+    it('discards the session tokens only, so a later boot has nothing to replace the vault with', async () => {
+        const web = webWith({ [RELAY]: 'r', [CLOUD]: 'c', 'chatic-delegator-id': 'guest-1', other: 'x' });
+
+        secretStorageMigration.discardWebCopy(web);
+
+        expect(web.keys().sort()).toEqual(['chatic-delegator-id', 'other']);
+        const { store, vault } = shell({ vault: { [RELAY]: 'vault-session' } });
+        expect(
+            await secretStorageMigration.prepare({
+                vault: store,
+                plain: web,
+                web,
+                tab: new MemoryStore(),
+                afterLogout: false,
+            })
+        ).toBe('vault');
+        expect(vault[RELAY]).toBe('vault-session');
+    });
+});
+
 describe('secretStorageMigration and a tab copy an unavailable run left', () => {
     it('drops it once the vault answers again, so it cannot be read back later', async () => {
         const { store } = shell({ vault: { [RELAY]: 'from-vault' } });
@@ -278,6 +361,26 @@ describe('secretStorageMigration and the device guest id', () => {
 
         expect(vault).toEqual({ [RELAY]: 'r', [GUEST]: 'guest-1' });
         expect(store.get(RELAY)).toBe('r');
+    });
+
+    it('writes the plain id over the vault id when a web copy replaces the session', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'runtime-guest', [GUEST]: 'runtime-guest-id' } });
+        const web = webWith({ [RELAY]: 'account', [GUEST]: 'guest-1' });
+
+        expect(await boot(store, web)).toBe('replaced');
+
+        expect(vault).toEqual({ [RELAY]: 'account', [GUEST]: 'guest-1' });
+        expect(store.get(GUEST)).toBe('guest-1');
+        expect(web.get(GUEST)).toBe('guest-1');
+    });
+
+    it('keeps the vault id when a web copy replaces the session but the plain store has none', async () => {
+        const { store, vault } = shell({ vault: { [RELAY]: 'runtime-guest', [GUEST]: 'runtime-guest-id' } });
+        const web = webWith({ [RELAY]: 'account' });
+
+        expect(await boot(store, web)).toBe('replaced');
+
+        expect(vault).toEqual({ [RELAY]: 'account', [GUEST]: 'runtime-guest-id' });
     });
 
     it('never overwrites an id the vault already holds, and leaves the plain one as it is', async () => {

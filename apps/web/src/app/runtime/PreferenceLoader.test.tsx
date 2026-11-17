@@ -1,17 +1,23 @@
 import { render } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { appBridge, syncLanguageChoiceToShell } from '../bridge';
 import { PreferenceLoader } from './PreferenceLoader';
 
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+const mockIsNative = jest.fn((): boolean => false);
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: mockIsNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/config', () => ({
     config: { snapshot: jest.fn(), set: jest.fn() },
 }));
 jest.mock('../bridge', () => ({ appBridge: { fetchPreference: jest.fn() }, syncLanguageChoiceToShell: jest.fn() }));
 
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 const mockSnapshot = config.snapshot as jest.Mock;
 const mockSet = config.set as jest.Mock;
 const mockFetchPreference = appBridge.fetchPreference as jest.Mock;

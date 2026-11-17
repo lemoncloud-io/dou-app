@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { DeviceInfo, Env, PageLanguage, Platform, VersionInfo } from '@chatic/bridge-messages';
+import { liveShellGlobals } from '@chatic/bridges';
 
 declare const __APP_VERSION__: string;
 
@@ -50,11 +51,12 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
     deviceInfo: null,
     versionInfo: null,
     syncDeviceAndVersionInfo: () => {
-        // Read off `window` on every sync, not from the host profile's boot snapshot: the phone runs its
-        // boot script again after load, and that pass can rewrite the device ids and the version check.
+        // Read live (`liveShellGlobals()`) on every sync, not from the host profile's boot snapshot: the
+        // phone runs its boot script again after load, and that pass can rewrite the device ids and the
+        // version check.
         // A later sync therefore also puts the injected `latestVersion`/`shouldUpdate` back over what
         // `updateVersionInfo` merged since — every mount of `useDeviceInfo` does that, as it always has.
-        const g = window;
+        const g = liveShellGlobals();
         const platform = (g.CHATIC_APP_PLATFORM as Platform) || 'web';
         const application = g.CHATIC_APP_APPLICATION || '';
         const stage = toEnv(g.CHATIC_APP_STAGE);

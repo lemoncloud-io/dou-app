@@ -4,11 +4,59 @@
 > [`@chatic/host`](../../../../libs/host/README.md); the host profile they read is
 > [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
-What the host does for a feature — sell a subscription today, more domains as they move — reaches the
-feature through a port of `@chatic/host`, never through `isNative()` or a `CHATIC_APP_*` global.
+What the host does for a feature — sell a subscription, pick and move files, open links, run the app's
+frame, sign in, collect diagnostics, receive push — reaches the feature through a port of `@chatic/host`, never through `isNative()` or a `CHATIC_APP_*` global.
 `publishHostPorts.ts` chooses one implementation per port, once, from `main.tsx` right after
 `config.init()`, from what the host declared (or, for a shell built before declarations, the port's
 legacy rule). A feature reads `host.ports.<port>` where it uses it.
+
+## links, appShell, signIn, diagnostics, push
+
+Each is `{ kind: 'app' | 'page' }` (`appShell` and `signIn` add `os`), published from the declaration's
+version-4 keys or, before them, the legacy rule. Where each domain's files read it:
+
+- **links** — `openExternalUrl`, the clipboard copies, share intake (`bridge/shareIntake.ts`), sub web
+  views (`bridge/subWebView.ts`), contact and SMS invites, invite links, link previews, the licenses
+  page's link.
+- **appShell** — haptics, the language and theme sync with the shell, the back handler, the keyboard in
+  the attach panel, the update status, the app icon and the settings that offer it, the preference
+  loader, and the badge read for logs (`os` tells iOS from Android).
+- **signIn** — the login page and account linking (`os === 'ios'` offers Apple's own sign-in), social
+  links, and the pairing screens: the app holds the account and approves; the page asks. Also the
+  subscription entries that depend on who holds the account — My page's subscription row for a guest
+  and the cloud-manage page — since a subscription follows the account the app signs in with.
+- **diagnostics** — the console listener, the log context and uploader, the pending-report flusher,
+  telemetry's entry point, boot metrics, the debug switch's mode, and who held the session.
+- **push** — device-token registration, push mute, push taps (`usePushNavigate`) and the invited-cloud
+  runner.
+
+Identity and config values the shell injects — device ids, version, stage, the config bag — are not
+ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveShellGlobals()` /
+`liveShellValue()` where the shell rewrites them after load).
+
+## media
+
+Who picks what a person attaches. `publishHostPorts` publishes `{ kind: resolveMediaMethod() }`; the
+picker (`bridge/attachmentPicker.ts`) and the photo library (`bridge/photoLibrary.ts`) are unsupported
+unless it is `'app'`, and the attach panel then opens the page's own input. The same answer decides the
+three other places that used to ask `isNative()`: whether the camera input waits for the app's camera
+permission (`ChatImageAttach`), whether the recent-photos strip shows outside the grid, whether a send
+hands a video to the app to convert (`useSendImages`), and whether the permission banner can open the
+app's settings (`PermissionDeniedBanner`).
+
+## files
+
+Who moves a message's files. `publishHostPorts` publishes `{ kind: resolveFilesMethod() }`; where it is
+`'app'`:
+
+- `shellUpload` hands uploads to the app's transfer module and catches up with the ones it finished.
+- `shellDownload` catches up with the app's downloads. Saving or sharing a photo or video uses the same
+  downloads but is decided by the handshake (`shellCapabilities`), not by this port, so the catch-up
+  also runs wherever the handshake allows image export.
+- `useFileDownloads` lets the app download, keep, open and share a document.
+- The video-frame maker (`useVideoFrames`) asks the app for a video's first frame.
+
+Where it is `'page'`, the page PUTs, fetches and saves the file itself and draws frames from the bucket.
 
 ## checkout
 
@@ -18,10 +66,13 @@ legacy rule). A feature reads `host.ports.<port>` where it uses it.
 | `web`                       | `checkout/webCheckout.ts`         | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
 | nothing                     | `{ kind: 'none' }` in the chooser | Nothing to sell                                                                        |
 
-A shell that declares nothing is answered as before: a bridge means a store — Apple's when the injected
-platform is `ios`, Google's otherwise — and no bridge means the website. A declaration
+The phone app declares its store and the desktop app declares that it sells nothing, from the first
+builds made after they began to declare; the e2e fake shell declares as the phone does. A shell that
+declares nothing — an older build — is answered as before: a bridge means a store (Apple's when the
+injected platform is `ios`, Google's otherwise), and no bridge means the website. A declaration
 (`CHATIC_APP_CAPABILITIES.checkout`) can say otherwise, which is what lets a development shell with a
-bridge check the website's checkout.
+bridge check the website's checkout — the virtual shell's `DOU_SHELL_CHECKOUT`
+([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)).
 
 **A purchase settles from the shell's events, not from its reply.** `Purchase` is posted; the shell
 pushes `OnPurchaseSuccess` or `OnPurchaseError` later. `storeCheckout` listens to both for as long as

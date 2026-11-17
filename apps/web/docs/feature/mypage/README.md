@@ -13,9 +13,8 @@ floating nav, safe areas, keyboard insets — belongs to
 
 ## Layout
 
-Seventeen pages, ten components, nine hooks, one `lib/` helper, and `flags.ts` — one boolean waiting
-on a backend packet. The route table declares eighteen routes: the seventeen pages here plus
-feedback's, whose screen lives in another feature.
+Pages, components, hooks and one `lib/` helper. The route table declares one route per page here,
+plus feedback's, whose screen lives in another feature.
 
 ### The four depths
 
@@ -24,14 +23,13 @@ feedback's, whose screen lives in another feature.
 | `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                                      |
 | `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                               |
 | `EmailLoginPage`                                                | `/mypage/login/email`            | email + password sign-in, development stages only (`feature.auth.emailLogin`) |
-| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal                                  |
+| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links                                              |
 | `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                                   |
 | `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                  |
 | `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                               |
 | `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                       |
 | `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released                                   |
 | `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                    |
-| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                                              |
 | `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
 | `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
 | `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card, dev-only sub WebView pages, the debug unlock  |
@@ -289,6 +287,32 @@ mount and fills in later — so the owner's controls and `isOwner` stay off unti
 The tiers, the consent and the params are decided in ADR-0297; what the shell does with each tier is
 [sub-webview.md](../../../../mobile/docs/webview/sub-webview.md#where-it-may-go).
 
+### The hub's header follows the other tabs, and the screens answer by touch
+
+**The header.** `/mypage` is its own scrollport, so its header is `sticky` and carries the safe-area
+inset itself — padding on the container would scroll away with the cards and leave them passing
+under the status bar. Once the cards move, `useScrollChrome` flips `scrolled`: the header's hairline
+appears and the title steps from 22px to 20px, as home's divider and the notifications inbox's title
+do, so the three tabs behave alike. The border is always drawn and only changes colour, and the 36px
+gear sets the bar's height, so neither change moves the cards by a pixel. Both transitions stop
+under reduced motion.
+
+**Haptics.** Through `haptics.play` in `app/bridge/haptics.ts`. `selection`, `warning` and `success`
+mean what they already mean on home and in the notifications inbox; `error` is first used here, for a
+failure the screen also reports with a toast:
+
+| Moment                                                                                    | Kind        |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| A switch flips — dark mode, push, message preview, each Lab experiment                    | `selection` |
+| A different language is picked (picking the one in use plays nothing)                     | `selection` |
+| A destructive confirm opens — logout, releasing a cloud                                   | `warning`   |
+| The account profile or the cloud name is saved; a cloud is released                       | `success`   |
+| Saving the cloud name, releasing a cloud or changing push fails (each says so in a toast) | `error`     |
+
+Navigation rows play nothing: the page change is the feedback. The app icon sheet plays nothing
+either — iOS answers an icon change with its own alert. The pairing logout confirm that can follow
+the logout one plays nothing more, so one logout warns once.
+
 ### UI comes from web-ui-kit, and missing pieces are added there first
 
 `MenuCard` (rounded card with an optional section header), `ListRow` (leading/trailing/subtitle
@@ -327,11 +351,13 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 
 ## Notes for implementers and tests
 
-- **Sixteen specs cover this feature**, and they cover the hooks and the pure parts rather than the
-  screens: `useAppIcon`, `useClearLocalCaches`, `useDevicePushMute`, `useEnsureCloudSession`,
-  `useLanguagePreference`, `useOwnedClouds`, `useSocialLinks`, `useUpdateProfile`, `cloudStatusWord`, plus
-  `AccountLinkSection`, `CloudManageRow`, `CloudManagePage`, `CloudHubPage`, `CloudEditPage`,
-  `CloudDetailPage` and `LoginPage`. The other pages are checked in the browser preview.
+- **Specs sit beside the files they cover**, and most of the feature has one. What has none yet:
+  three hooks (`useDeleteCloud`, `useMiniAppLauncher`, `useOwnedCloud` — the last two run inside
+  the specs of `MiniAppCard` and the cloud pages, which leave them unmocked), six components
+  (`AppIconSelectSheet`, `CloudIdentity`, `CloudSessionGate`, `LogoutDialog`,
+  `SectionLabel`, `SocialProviderIcons`), and seven pages
+  (`AccountInfoPage`, `CloudPlacesPage`, `EmailLoginPage` and the four policy pages), which are
+  checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage
@@ -346,10 +372,12 @@ sheet and `useClearLocalCaches` for the clear-cache row.
   config key ([`@chatic/config`](../../../../../libs/config/README.md)); each toggle writes
   optimistically, sends `device.update-remote`, then reconciles to the server's echo or rolls back
   with a toast. Outside a native shell the toggle is disabled rather than allowed to 404.
-- **`SOCIAL_UNLINK_ENABLED` in `flags.ts` is false and stays false** until an unlink packet exists.
-  The control renders disabled rather than claiming a success it cannot deliver. `AccountLinkSection`
-  additionally hides itself when `link$` reads `'unknown'` — an account-security control that can
-  lie is worse than one that admits it does not know.
+- **There is no unlink control and no withdrawal screen.** Neither has a server call behind it, and a
+  control that cannot do what it says is left out rather than drawn disabled, answered with a "coming
+  soon" toast, or — as the old withdrawal screen did — answered by signing out while the warning
+  promised deletion. Each returns with its endpoint. `AccountLinkSection` additionally hides itself
+  when `link$` reads `'unknown'` — an account-security control that can lie is worse than one that
+  admits it does not know.
 - **`CloudEditPage` is reachable only through the cloud's hub.** The account tree deliberately does
   not link it: a cloud's name is not an account attribute. Every screen under `/mypage/cloud-manage/
 :id` leaves for the list on its own once the catalog says the id is not an owned cloud, rather

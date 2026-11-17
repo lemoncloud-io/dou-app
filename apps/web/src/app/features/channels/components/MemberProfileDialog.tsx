@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconCheck, ListRow, ModalTopBar, ProfileAvatar } from '@chatic/web-ui-kit';
 
 import { ConfirmDialog } from './ConfirmDialog';
@@ -20,7 +19,7 @@ interface MemberProfileDialogProps {
     member: ProfileMember | null;
     /** The displayed member is the room owner (shows the owner badge). */
     memberIsOwner?: boolean;
-    /** The displayed member is me — show "profile settings" instead of friend actions. */
+    /** The displayed member is me — show "profile settings" instead of member actions. */
     isSelf?: boolean;
     /** Viewer may remove this member from this room (group owner viewing a non-owner, non-self). */
     canKick?: boolean;
@@ -54,10 +53,10 @@ interface MemberProfileDialogProps {
  * Member profile ("프로필"). Full-screen dialog with an inline action list whose
  * items depend on WHO is viewing WHOM (ADR-0023):
  * - viewing myself → `프로필 설정` (opens the per-place profile editor).
- * - a viewer who may remove the member (room owner, place owner, or both) → `친구 설정` (deferred),
- *   `내보내기`, `신고` (deferred).
- * - anyone else viewing another member → `신고` only.
- * `친구 설정`/`신고` are UI-only for now (toast, no backend).
+ * - a viewer who may remove the member (room owner, place owner, or both) → `내보내기`.
+ * - anyone else viewing another member → no role row; the profile alone, plus `1:1 대화하기` where
+ *   the host offers it.
+ * Friend settings and reporting have no backend, so they are not offered rather than faked.
  *
  * `내보내기` asks for a scope first — this room, or the room's place — then confirms that scope in
  * its own words, then runs it. Only the scopes the viewer holds the right for are offered.
@@ -79,7 +78,6 @@ export const MemberProfileDialog = ({
     onStartDm,
 }: MemberProfileDialogProps) => {
     const { t } = useTranslation();
-    const { toast } = useToast();
     const [scopeSheetOpen, setScopeSheetOpen] = useState(false);
     /** The scope picked in the sheet, awaiting its confirm. */
     const [confirming, setConfirming] = useState<RemoveMemberScope | null>(null);
@@ -90,10 +88,6 @@ export const MemberProfileDialog = ({
     ];
     const canRemove = scopes.length > 0;
     const memberName = member?.name ?? '';
-
-    // Deferred, UI-only actions acknowledge with a neutral toast (no backend yet).
-    const handleReport = () => toast({ title: t('chat.settings.reportSuccess') });
-    const handleFriendSettings = () => toast({ title: t('chat.settings.comingSoon') });
 
     const handleChooseScope = (scope: RemoveMemberScope) => {
         setScopeSheetOpen(false);
@@ -106,21 +100,17 @@ export const MemberProfileDialog = ({
         setConfirming(null);
     };
 
-    // Row set by viewer role / target: self → profile settings; a viewer who may remove → manage +
-    // remove + report; otherwise report only.
+    // Row set by viewer role / target: self → profile settings; a viewer who may remove → remove;
+    // otherwise none.
     const roleRows: Array<{ key: string; label: string; onClick: () => void }> = isSelf
         ? [{ key: 'profile', label: t('chat.settings.profileSettings'), onClick: () => onOpenProfileSettings?.() }]
         : canRemove
-          ? [
-                { key: 'friendSettings', label: t('chat.settings.friendSettings'), onClick: handleFriendSettings },
-                { key: 'kick', label: t('chat.settings.removeMember'), onClick: () => setScopeSheetOpen(true) },
-                { key: 'report', label: t('chat.settings.report'), onClick: handleReport },
-            ]
-          : [{ key: 'report', label: t('chat.settings.report'), onClick: handleReport }];
+          ? [{ key: 'kick', label: t('chat.settings.removeMember'), onClick: () => setScopeSheetOpen(true) }]
+          : [];
 
-    // "Talk to them" goes first: it is the only row that starts something rather than managing or
-    // reporting. Never on my own profile — `isSelf` is checked here too, so a host that forgets cannot
-    // offer a room with myself. Provisional placement: no comp exists for this row.
+    // "Talk to them" goes first: it is the only row that starts something rather than managing. Never
+    // on my own profile — `isSelf` is checked here too, so a host that forgets cannot offer a room with
+    // myself. Provisional placement: no comp exists for this row.
     const rows =
         onStartDm && !isSelf
             ? [{ key: 'startDm', label: t('cloudDm.startFromProfile'), onClick: onStartDm }, ...roleRows]
@@ -166,12 +156,14 @@ export const MemberProfileDialog = ({
                             </span>
                         </div>
 
-                        {/* Action list */}
-                        <div className="mt-6 flex flex-col">
-                            {rows.map(row => (
-                                <ListRow key={row.key} title={row.label} onClick={row.onClick} />
-                            ))}
-                        </div>
+                        {/* Action list — absent, not empty, when the viewer has nothing to do here */}
+                        {rows.length > 0 && (
+                            <div data-testid="member-profile-actions" className="mt-6 flex flex-col">
+                                {rows.map(row => (
+                                    <ListRow key={row.key} title={row.label} onClick={row.onClick} />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

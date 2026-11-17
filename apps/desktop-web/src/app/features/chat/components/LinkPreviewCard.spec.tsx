@@ -2,11 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, render, screen, waitFor } from '@testing-library/react';
 
-// The card only talks to the shell: `isNative()` gates the fetch and
+// The card only talks to the shell: the `links` port gates the fetch and
 // `webClient.request` returns the unfurled metadata. Faking the module lets the
 // test drive whatever the shell "found" for a URL.
+// Who takes the page's links, as the host's `links` port says.
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: 'app' } };
+        },
+    },
+}));
 vi.mock('@chatic/bridges', () => ({
-    isNative: vi.fn(() => true),
     webClient: { request: vi.fn() },
 }));
 

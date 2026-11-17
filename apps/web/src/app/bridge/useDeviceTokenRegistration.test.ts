@@ -15,6 +15,7 @@ jest.mock('./appBridge', () => ({
 }));
 
 import { runtime } from '@chatic/app-runtime';
+import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
@@ -30,6 +31,9 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
+        // Each test plays a shell that injects its platform before the page boots: the host profile
+        // is built from `window` at the first read, which is the render below.
+        resetHostProfileForTests();
         mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
     });
 

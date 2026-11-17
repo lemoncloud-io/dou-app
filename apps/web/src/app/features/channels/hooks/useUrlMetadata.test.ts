@@ -1,12 +1,16 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import { appBridge } from '../../../bridge';
 import { __resetUrlMetadataCache, requestUrlMetadata, useUrlMetadata } from './useUrlMetadata';
 
-jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
+const mockIsNative = jest.fn();
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
 }));
 
 jest.mock('../../../bridge', () => ({
@@ -116,7 +120,7 @@ describe('useUrlMetadata', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         __resetUrlMetadataCache();
-        (isNative as jest.Mock).mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
     });
 
     it('resolves the metadata inside the native shell', async () => {
@@ -129,7 +133,7 @@ describe('useUrlMetadata', () => {
     });
 
     it('never asks in a plain browser — the shell is the only thing that can parse a page', async () => {
-        (isNative as jest.Mock).mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
 
         const { result } = renderHook(() => useUrlMetadata('https://example.com/a'));
 

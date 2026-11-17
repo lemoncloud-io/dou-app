@@ -300,7 +300,8 @@ main.tsx
 ├── migrateLegacyPhoneCountry(stores.webLocal)
 ├── settleSessionOwner (@chatic/runtime-web)                         (docs/bridge — who holds the session)
 │   ├── web    → vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage
-│   ├── native → no vault: the shell's runtime holds the session
+│   │            (a late vault reloads; tokens this run wrote to localStorage go first)
+│   ├── native → no vault: the shell's runtime holds the session (a sign-out drops the web token copy)
 │   └── null   → sessionOwnerUnsettled screen, nothing below runs
 ├── runtime.boot.initAppRuntime(createWebRuntime(...) | createBridgedRuntime(...))  (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)

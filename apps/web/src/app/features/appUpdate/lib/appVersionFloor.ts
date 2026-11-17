@@ -1,4 +1,4 @@
-import { isAppVersionAtLeast } from '@chatic/bridges';
+import { isAppVersionAtLeast, liveShellGlobals } from '@chatic/bridges';
 
 /**
  * The oldest phone app this web still runs in. A shell below it is shown the update screen and
@@ -36,8 +36,12 @@ export const isBelowAppVersionFloor = ({ platform, version }: ShellVersion, floo
     return !isAppVersionAtLeast(version, floor);
 };
 
-/** The injected globals. The shell writes them before the page's own scripts run. */
-export const readShellVersion = (): ShellVersion => ({
-    platform: typeof window === 'undefined' ? undefined : window.CHATIC_APP_PLATFORM,
-    version: typeof window === 'undefined' ? undefined : window.CHATIC_APP_CURRENT_VERSION,
-});
+/**
+ * The injected globals. The shell writes them before the page's own scripts run; they are read live
+ * (`liveShellGlobals()`), not from the host profile's boot snapshot, because the phone's second boot
+ * pass writes the version check again.
+ */
+export const readShellVersion = (): ShellVersion => {
+    const { CHATIC_APP_PLATFORM: platform, CHATIC_APP_CURRENT_VERSION: version } = liveShellGlobals();
+    return { platform, version };
+};

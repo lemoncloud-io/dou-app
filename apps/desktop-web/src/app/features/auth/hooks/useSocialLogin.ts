@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -42,8 +43,9 @@ const openAuthorize = (provider: OAuthProvider, intent: OAuthStartIntent, accoun
     openBrowser(buildAuthorizeUrl(provider, record.nonce));
 };
 
+/** The system browser where the app signs a person in (`host.ports.signIn`); this tab where the page does. */
 const openBrowser = (url: string): void => {
-    if (isNative()) window.open(url, '_blank');
+    if (host.ports.signIn.kind === 'app') window.open(url, '_blank');
     else window.location.assign(url);
 };
 

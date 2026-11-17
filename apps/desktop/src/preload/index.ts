@@ -44,6 +44,10 @@ const deviceInfo = {
     // The storage media main keeps for the web (the device vault). Set before the page runs, so the
     // web can choose its storage synchronously at boot.
     CHATIC_APP_STORAGE_MEDIA: DESKTOP_STORAGE_MEDIA,
+    // What this app can do, for the web to choose its host ports from before its first render. The
+    // desktop app sells no subscription: without this the web's rule for an app that declares nothing
+    // would read its bridge as a phone's and pick Google's store.
+    CHATIC_APP_CAPABILITIES: { version: 1, checkout: [] },
 } as const;
 
 /**

@@ -4,6 +4,208 @@
 
 ### Features
 
+- (web/channels) open room settings straight from the header's ⋯, not a one-item menu
+
+## [2026-11-17] - root@0.166.2, @chatic/web@0.95.1
+
+### Bug Fixes
+
+- (web) clear the bottom safe-area inset at the end of scrolling sub-pages
+
+## [2026-11-17] - root@0.166.1, @chatic/desktop-web@0.59.1
+
+### Features
+
+- (web,desktop-web) move links, appShell, signIn, diagnostics and push onto ports (ADR-0324)
+- (host) add the links, appShell, signIn, diagnostics and push ports (ADR-0324 v4)
+
+### Other
+
+- test: (desktop-web) drive the sender-name spec through the push port
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/mypage) scroll the MY tab under a header like the other tabs, with haptics
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) move files through the files port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/home) show the home banners under the chat tabs, above the rooms
+- (web/home) put the missing-profile banner under a cloud's place chips, not above them
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/channels) stop a room jump from reading the previous room's channel, joins and chats
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) open a room at my first unread message, below an unread divider
+- (web-ui-kit) add the unread divider, a red label between light-red rules
+
+### Bug Fixes
+
+- (web/channels) land on the first unread message for real, below the header
+
+### Chores
+
+- (block-kit-builder) restore a spec file the merge's lint hook reformatted
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) pick attachments through the media port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/channels) hold an older page's retry wait for a scroll handled before the failure renders
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) show a group room's read receipt under my newest message only, with its readers
+- (web-ui-kit) add a readers mode to the read receipt, with who read it
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) highlight a message jumped to as the design does, not as a flat tint
+- (web-ui-kit) outline a light bubble in lime under a highlighted row
+
+## [2026-11-17] - root@0.166.0, @chatic/web@0.95.0
+
+### Features
+
+- (web) slide android screens in and out like ios, not a 30px fade-through (ADR-0337)
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) draw a reaction row as the design does, with my message as its body
+
+## [2026-11-17] - root@0.165.0, @chatic/web@0.94.0
+
+### Features
+
+- (web) pin the home chat tabs under the header and step the inbox title down on scroll
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) open the find-me sheet at its full height, not at its content's
+- (web/notifications) count reactions to my messages in the find-me list, and rename it
+
+## [2026-11-17] - root@0.164.0, @chatic/web@0.93.0
+
+### Features
+
+- (web) move android screens on a horizontal shared axis and animate its system back (ADR-0336)
+
+### Bug Fixes
+
+- (shared) capture a page transition's destination after it renders, not before
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (mobile,desktop) declare the app's checkout to the web (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) keep picks after mark-read and give the find-me sheet a selection mode
+- (web-ui-kit) let the selection action bar sit in a sheet footer, not only fixed to the screen
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/notifications) show the author's profile photo in the inbox, not the default glyph
+
+## [2026-11-17] - root@0.163.0, @chatic/desktop-web@0.59.0
+
+### Features
+
+- (desktop-web) open the cloud's one server mini app link from settings and the nav rail
+- (data,http) read and save a cloud mini app link on the relay
+- (desktop-web,shared) set one server mini app link from settings
+- (desktop-web) open the mini app from the nav rail under DM
+
+### Bug Fixes
+
+- (desktop-web) read the mini app link fresh on every open
+
+## [2026-11-17] - root@0.162.0, @chatic/web@0.92.0
+
+### Features
+
+- (web) manage channel webhooks from the room settings
+- (data) add the channel webhook data layer
+- (desktop-web) manage channel webhooks from the settings panel
+- (web) manage channel webhooks from the room settings
+
+## [2026-11-17] - root@0.161.3, @chatic/web@0.91.2
+
+### Refactor
+
+- (web) remove mock-only controls instead of drawing them disabled (ADR-0334)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/subscription) say an email is already registered, not that the code failed to send
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (mobile) load the logout marker through a local module, not the runtime library
+- (runtime-mobile,mobile) let the page own a launch whose vault holds no session (ADR-0332)
+
+## [2026-11-17] - root@0.161.2, @chatic/landing@0.19.1
+
+### Bug Fixes
+
+- (landing) publish the server's web prices, not the app stores' (ADR-0333)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (auth,web) restore a session no page moved into the vault, not the runtime's guest (ADR-0331)
+
+## [2026-11-17] - root@0.161.1, @chatic/web@0.91.1
+
+### Bug Fixes
+
+- (web) stop fetching someone else's notes-to-self room after an account change
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (host,web) sell through the checkout port, not isNative() and the platform global (ADR-0324)
 
 ## [2026-11-16] - No version updates

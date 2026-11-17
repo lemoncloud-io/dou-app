@@ -55,8 +55,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {children}
         </div>
     ),
-    ReadReceipt: ({ readCount, unreadCount }: any) => (
-        <span data-testid="read-receipt" data-read={readCount} data-unread={unreadCount} />
+    ReadReceipt: ({ readCount, unreadCount, mode, readers }: any) => (
+        <span
+            data-testid="read-receipt"
+            data-read={readCount}
+            data-unread={unreadCount}
+            data-mode={mode}
+            data-faces={readers?.length ?? 0}
+        />
     ),
     ImageAvatar: ({ src, size }: any) => <img data-testid="image-avatar" src={src} data-size={size} alt="" />,
     DefaultAvatar: ({ size }: any) => <div data-testid="default-avatar" data-size={size} />,
@@ -158,6 +164,43 @@ describe('ChannelMessageRow', () => {
 
     it('omits the read receipt when read.show is false', () => {
         render(<ChannelMessageRow {...baseProps} read={{ ...read, show: false }} />);
+
+        expect(screen.queryByTestId('read-receipt')).not.toBeInTheDocument();
+    });
+
+    it("draws a group room's receipt as its own line with the readers' faces, not beside the time", () => {
+        const mine = { ...message, isOwner: true } as unknown as ClientChatView;
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={mine}
+                avatarOf={id => (id === 'u3' ? 'https://example.com/u3.png' : undefined)}
+                read={{
+                    show: true,
+                    isReady: true,
+                    readCount: 2,
+                    unreadCount: 3,
+                    mode: 'readers',
+                    readers: ['u3', 'u4'],
+                }}
+            />
+        );
+
+        const receipt = screen.getByTestId('read-receipt');
+        expect(receipt).toHaveAttribute('data-mode', 'readers');
+        expect(receipt).toHaveAttribute('data-faces', '2');
+        expect(screen.getByTestId('status-slot')).not.toContainElement(receipt);
+    });
+
+    it('draws no group receipt on a message still sending', () => {
+        const pending = { ...message, isOwner: true, isPending: true } as unknown as ClientChatView;
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={pending}
+                read={{ show: true, isReady: true, readCount: 0, unreadCount: 3, mode: 'readers', readers: [] }}
+            />
+        );
 
         expect(screen.queryByTestId('read-receipt')).not.toBeInTheDocument();
     });

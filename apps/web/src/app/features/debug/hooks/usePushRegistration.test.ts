@@ -1,6 +1,15 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+const mockIsNative = jest.fn();
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { push: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
+}));
+// The platform fallback, read only when the device store has none: no shell injected one here.
+jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         push: {
@@ -14,7 +23,6 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
-import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
@@ -29,7 +37,6 @@ const MESSAGES: PushRegistrationMessages = {
     checkFailed: 'Failed to check registration.',
 };
 
-const mockIsNative = isNative as jest.Mock;
 const mockUseMutation = runtime.push.useRegisterDeviceTokenMutation as jest.Mock;
 const mockUseDynamicDeviceId = runtime.session.useDynamicDeviceId as jest.Mock;
 const mockUseDeviceInfo = useDeviceInfo as jest.Mock;

@@ -67,7 +67,10 @@ always gets the base set and the bar (see [Where it may go](#where-it-may-go)) (
 declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
 one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
 the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
-page, and sets its display (`standard` asks for the bar; the default, `fullscreen`, has none) and orientation. It is fetched with a
+page, and sets its display (`titled` asks for the bar; the default, `clean`, has none; `immersive` is
+`clean` without the safe-area padding, see below) and orientation. The display names say what the user
+sees; the first apps called `titled` `standard` and `clean` `fullscreen`, and those names are still read
+(`subWebViewDisplayOf` in `@chatic/shared`, which the desktop reads with too). It is fetched with a
 3-second limit, kept in memory per origin for the run of the app, and refreshed behind each later
 open; failures fall back to the defaults and are logged. The strict default is deliberate: pages
 are written by people outside the app's team, who submit a bundle and ask for permissions in its
@@ -343,7 +346,7 @@ granted to the page without a prompt of its own once DoU holds the permission; t
 user sees is the OS's first one, under DoU's name). That is a decision, not an oversight: the cloud's
 owner chose the link and answers for it, as a page's author does. The desktop shell refuses every
 device request instead, so the two shells differ here. Its
-display is `standard`: the bar is always there and shows the site's host, ahead of any title the
+display is `titled`: the bar is always there and shows the site's host, ahead of any title the
 page sets or the web passes, so a third party under DoU's chrome cannot name itself DoU or draw a
 full-screen copy of it. It loads at once, with no manifest to wait for.
 
@@ -437,16 +440,30 @@ push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWe
 second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
 that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
 
-**A `fullscreen` page — the default — has no bar but keeps a close control**, floating over its top-right corner,
+**A `clean` page — the default — has no bar but keeps a close control**, floating over its top-right corner,
 so a page cannot leave the user without a way out. Until the manifest is in the screen shows that
 control alone and no page, so even a manifest that never answers leaves the user a way out. The
 manifest's orientation is applied with react-native-screens' `orientation` screen option once the
 manifest is in (not yet checked on a device for a full-screen modal).
 
-**The screen pads every edge by the safe area.** The page lies wholly inside it and needs no insets
+**The screen pads every edge by the safe area**, unless the page asked for `immersive`. The page lies
+wholly inside it and needs no insets
 (that `env(safe-area-inset-*)` then reads 0 is not yet checked on a device):
 top and bottom under the status bar (and the page's bar, if it asked for one) and above the home indicator, and the sides too, for the notch in
 landscape. The padding takes the theme background.
+
+**An `immersive` page gets no padding at all** and draws under the system bars, which stay visible,
+with the floating close control where `clean` has it. The theme background was the problem: a page with its own full-screen
+scenery showed it as a band above and below, and a single colour for the padding would only have moved
+the seam, since a page's own edge is rarely one flat colour. Such a page is told the insets instead, so
+it can keep its own controls clear: the screen hands them to `SubWebView`, which sets
+`--chatic-safe-area-inset-*` on the page's `<html>` with every load and again on each change
+(`subWebViewInsetScript.ts`). `env(safe-area-inset-*)` cannot carry this alone — WKWebView reports it
+only under `viewport-fit=cover`, and an Android WebView before M136 not at all — which is also why the
+main WebView is told its insets as custom properties. `SubWebView` pins `contentInsetAdjustmentBehavior`
+to `never`, react-native-webview's default: an inset the scroll view applied itself would be one WebKit
+then stopped reporting to `env()`. The desktop has no system bars and shows `immersive` as
+`clean`.
 
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
 goes through the close control or Android back, and the web always hears of it. If the screen leaves

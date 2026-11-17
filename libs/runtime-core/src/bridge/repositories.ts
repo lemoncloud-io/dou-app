@@ -115,6 +115,8 @@ export const REPOSITORY_METHODS = {
         makeCloud: 'call',
         releaseCloud: 'call',
         retryCloudSetup: 'call',
+        fetchMiniAppUrl: 'call',
+        saveMiniAppUrl: 'call',
     } satisfies CrossingsOf<PageRepositories['cloud']>,
     device: {
         syncDevice: 'send',

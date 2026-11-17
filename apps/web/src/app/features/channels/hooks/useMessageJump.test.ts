@@ -97,12 +97,80 @@ describe('useMessageJump', () => {
         );
 
         expect(node.scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
-        expect(node.classList.contains('bg-primary/10')).toBe(true);
+        expect(node.classList.contains('before:bg-primary/[0.08]')).toBe(true);
+        expect(node.hasAttribute('data-highlight')).toBe(true);
         expect(useMessageJumpStore.getState().target).toBeNull();
         expect(loadMore).not.toHaveBeenCalled();
 
-        act(() => jest.advanceTimersByTime(1600));
-        expect(node.classList.contains('bg-primary/10')).toBe(false);
+        act(() => jest.advanceTimersByTime(2000));
+        expect(node.classList.contains('before:bg-primary/[0.08]')).toBe(false);
+        expect(node.hasAttribute('data-highlight')).toBe(false);
+    });
+
+    it("lands the room's own entry jump at the top, unhighlighted", () => {
+        const containerRef = setup(5);
+        const node = containerRef.current.querySelector('[data-chat-no="5"]') as HTMLElement;
+        node.scrollIntoView = jest.fn();
+        useMessageJumpStore.getState().request('ch-1', 5, { highlight: false, block: 'start', quiet: true });
+
+        renderHook(() =>
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
+        );
+
+        expect(node.scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+        expect(node.hasAttribute('data-highlight')).toBe(false);
+    });
+
+    it('gives up a quiet jump without a toast', () => {
+        const containerRef = setup();
+        useMessageJumpStore.getState().request('ch-1', 999, { quiet: true });
+
+        renderHook(() =>
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: false,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
+        );
+
+        expect(useMessageJumpStore.getState().target).toBeNull();
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('leaves a class the row already had when the highlight ends', () => {
+        const containerRef = setup(5);
+        const node = containerRef.current.querySelector('[data-chat-no="5"]') as HTMLElement;
+        node.scrollIntoView = jest.fn();
+        node.classList.add('relative');
+        useMessageJumpStore.getState().request('ch-1', 5);
+
+        renderHook(() =>
+            useMessageJump({
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                loadUntil,
+            })
+        );
+        act(() => jest.advanceTimersByTime(2000));
+
+        expect(node.classList.contains('relative')).toBe(true);
+        expect(node.classList.contains('isolate')).toBe(false);
     });
 
     it('pages older when the target is not yet loaded, up to the budget', () => {

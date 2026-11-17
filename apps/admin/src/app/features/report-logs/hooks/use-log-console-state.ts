@@ -24,6 +24,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ROUND_2_AXES, type ReportKind, type ReportStage } from '../api/reportLogApi';
 import { FACET_KEYS, type FacetKey, type FacetSelection } from '../lib/logFacets';
 import { RECORD_FILTERS, type RecordFilter, type RecordKind } from '../lib/recordKinds';
+import { isKstDate } from '../lib/period';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
 import { openingStage } from '../../../config/stageEndpoints';
 
@@ -105,13 +106,22 @@ export const useLogConsoleState = (): LogConsoleState => {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const read = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams]);
+    const readDate = useCallback(
+        (key: string) => {
+            const value = searchParams.get(key) ?? '';
+            return isKstDate(value) ? value : '';
+        },
+        [searchParams]
+    );
 
     const server = useMemo<ServerAxes>(
         () => ({
             stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], openingStage()),
             kind: oneOf<ReportKind>(searchParams.get('kind'), REPORT_KINDS, 'all'),
-            from: read('from'),
-            to: read('to'),
+            // The server takes whole days only and fails the request on anything else, so a
+            // hand-edited link carrying a datetime is read as no bound rather than sent as-is.
+            from: readDate('from'),
+            to: readDate('to'),
             level: read('level'),
             uid: read('uid'),
             cid: read('cid'),

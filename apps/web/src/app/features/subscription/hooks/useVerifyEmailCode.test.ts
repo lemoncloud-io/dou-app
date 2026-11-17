@@ -21,6 +21,7 @@ jest.mock('@chatic/shared', () => ({ useCustomMutation: () => ({ mutateAsync }) 
 jest.mock('../consts', () => ({ IS_DEV: false }));
 
 const error = logger.error as jest.Mock;
+const warn = logger.warn as jest.Mock;
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -65,5 +66,26 @@ describe('useVerifyEmailCode — 단계별 실패 기록 (ADR-0099)', () => {
         await expect(result.current({ email: 'a@b.c', step: 'confirm', cloudId: 'cloud_1' })).rejects.toThrow();
 
         expect(error.mock.calls[0][2]).toMatchObject({ data: { step: 'confirm', hasCloudId: true } });
+    });
+
+    it('files an address another user registered as a warn, not an error', async () => {
+        mutateAsync.mockRejectedValue(new Error('409 CONFLICT - alias[x] is already registered'));
+        const { result } = renderHook(() => useVerifyEmailCode());
+
+        await expect(result.current({ email: 'a@b.c', step: 'send' })).rejects.toThrow('409 CONFLICT');
+
+        expect(error).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][1]).toContain('step=send');
+    });
+
+    it('keeps a 409 on confirm an error — a failed bind is a breakage', async () => {
+        mutateAsync.mockRejectedValue(new Error('409 CONFLICT - alias[x] is already registered'));
+        const { result } = renderHook(() => useVerifyEmailCode());
+
+        await expect(result.current({ email: 'a@b.c', step: 'confirm', cloudId: 'c1' })).rejects.toThrow();
+
+        expect(warn).not.toHaveBeenCalled();
+        expect(error).toHaveBeenCalledTimes(1);
     });
 });

@@ -36,6 +36,27 @@ refreshed token is written back through the session store, which also rebuilds t
 used to sign HTTP requests — so a report query issued after a long-open dashboard session signs with
 fresh credentials instead of tripping an expiry logout.
 
+## Which backend issues the session
+
+The relay socket sends `auth.refresh` to the relay backend, which looks the session up by its id in
+its own auth table. So the session has to come from that same backend. `VITE_OAUTH_ENDPOINT` names
+the relay backend's production stage (`dou-v1`) in every build, and both the code exchange
+(`/oauth/<provider>/token`) and the gate's profile read go there.
+
+A session from another account backend is the failure this rule prevents. The identity tokens of both
+backends are signed with the same key, so that session connects, verifies, and signs HTTP calls
+normally. Its first refresh then fails, 48 minutes after sign-in (0.8 of a one-hour token), with
+`400 INVALID - no auth found (or expired) @oauthRefresh(<id>)`. The controller retries and goes
+terminal, the session is cleared about a minute later, and every attempt raises a backend error
+alert. Until 2026-11 the console signed in on such a backend, and this happened to every session
+left open that long.
+
+The gate (`ProtectedRoute`) reads `$role.role` from `GET /users/0/profile` on the same backend and
+admits only `admin`. That is the operator's **site role** on the relay backend. The identity token's
+`roles` claim does not count. An account whose token carries `admin` but whose site role is `user`
+sees "You don't have access". The role is granted per stage: `dou-v1` decides who enters the console.
+A role on `dou-d1` only matters to a build signed in there, such as a local run with the dev keys.
+
 ## Login hydration flow
 
 1. An unauthenticated request to a protected route bounces to `/auth/login`, with the original path
@@ -53,3 +74,7 @@ fresh credentials instead of tripping an expiry logout.
 - **Refresh:** leave a dashboard open past a token's TTL, then re-query a report; it should succeed
   without a forced logout. Confirm in dev tools: the relay socket connects, an `onTokenRefresh` event
   fires, and the subsequent signed HTTP request succeeds.
+- **Refresh without the wait:** in a signed-in tab, import `requestRelaySessionRefresh` from
+  `libs/auth/src/index.ts` (the dev server's `/@fs/…` URL) and call it. It resolves `true` and the
+  stored token's `iat` moves to now. `false` with a `no auth found` backend error means the session
+  came from a backend the relay socket cannot refresh against.

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_USER_AGENT_PREFIX, getAppLanguage, t, toEnvStage } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
+import { hostCapabilities } from './utils/hostCapabilities';
 import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
@@ -146,6 +147,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // its first StorageGet.
         storageMedia: STORAGE_MEDIA,
         runtimeOffer: readRuntimeOffer(),
+        // What this build can do, for the web to choose its host ports from before its first render.
+        capabilities: hostCapabilities(Platform.OS),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: toEnvStage(Config.VITE_ENV),
             // Same flag that gates the console subscription in `provider.ts`.

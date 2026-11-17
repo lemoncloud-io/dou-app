@@ -46,7 +46,7 @@ cheap.
 **A failed check keeps the previous status.** The bridge rejects in a browser and on an older shell,
 and treating that as "no update" would be a guess in the wrong direction.
 
-**Non-native never asks.** `isNative()` false means no call and the "no update" default — a browser
+**Non-native never asks.** The host's `appShell` port answering `'page'` means no call and the "no update" default — a browser
 has no store build to compare against.
 
 ### The dialog opens on a derivation, not on an event

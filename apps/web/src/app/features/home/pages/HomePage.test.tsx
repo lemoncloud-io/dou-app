@@ -79,15 +79,18 @@ jest.mock('@chatic/web-ui-kit', () => ({
         avatar,
         planTier,
         planLoading,
+        className,
     }: {
         kind: string;
         name?: string;
         avatar?: any;
         planTier?: string;
         planLoading?: boolean;
+        className?: string;
     }) => (
         <header
             data-testid="header"
+            className={className}
             data-kind={kind}
             data-plan-tier={planTier ?? ''}
             data-plan-loading={String(!!planLoading)}
@@ -100,8 +103,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => <i />,
     ProfileAvatar: () => <img alt="" />,
     // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
-    SegmentedTabs: ({ items, value, onChange, trailing }: any) => (
-        <div data-testid="chat-tabs" data-value={value}>
+    SegmentedTabs: ({ items, value, onChange, trailing, className }: any) => (
+        <div data-testid="chat-tabs" data-value={value} className={className}>
             {items.map((item: any) => (
                 <button
                     key={item.id}
@@ -114,8 +117,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </div>
     ),
     // The gesture is the kit's to test; here a button stands in for a completed pull.
-    PullToRefresh: ({ children, onRefresh }: { children: any; onRefresh: () => Promise<unknown> }) => (
-        <div>
+    PullToRefresh: ({
+        children,
+        onRefresh,
+        onScroll,
+    }: {
+        children: any;
+        onRefresh: () => Promise<unknown>;
+        onScroll?: React.UIEventHandler<HTMLDivElement>;
+    }) => (
+        <div data-testid="home-scroll" onScroll={onScroll}>
             <button data-testid="pull-refresh" onClick={() => void onRefresh()} />
             {children}
         </div>
@@ -139,6 +150,8 @@ const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 // `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
+// Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
+jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'page', os: null } } } }));
 
 jest.mock('../../../hooks', () => ({
     useActiveCloudPlaces: (...args: unknown[]) => useActiveCloudPlaces(...(args as [])),
@@ -163,6 +176,8 @@ jest.mock('../../../hooks', () => ({
     useMyJoins: () => new Map(),
     useOtherCloudUnread: () => ({ byCloud: {}, total: 0 }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
+    // The real one: the header and tab styling under a scroll is what it decides.
+    useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
     // The dropdown entries navigate through this rather than through `navigate` directly, so that
@@ -290,7 +305,7 @@ let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
 // section is read from it.
 let activeCloudChannels: unknown[] = [];
-// The notification inbox's items in scope — the find-me row counts the unread mentions and replies.
+// The notification inbox's items in scope — the find-me row counts the unread mentions, replies and reactions.
 let scopedNotifications: unknown[] = [];
 // The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
@@ -638,6 +653,39 @@ describe('HomePage — cloud mode', () => {
         fireEvent.click(screen.getByTestId('open-place-info'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
+    });
+    // jsdom lays nothing out, so the scroll area and the anchor before the tabs get just the top
+    // the page measures: the scroll area at 100, the anchor wherever the case puts it.
+    it('pins the tabs under the header, moving the divider from the header to the tabs as they pin', () => {
+        render(<HomePage />);
+        const header = screen.getByTestId('header');
+        const tabs = screen.getByTestId('chat-tabs');
+        const list = screen.getByTestId('home-scroll');
+        const anchor = tabs.previousElementSibling as HTMLElement;
+        list.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
+        const scrollTo = (top: number, anchorTop: number) => {
+            anchor.getBoundingClientRect = () => ({ top: anchorTop }) as DOMRect;
+            list.scrollTop = top;
+            fireEvent.scroll(list);
+        };
+
+        expect(tabs).toHaveClass('sticky', 'top-[-8px]');
+        expect(header).toHaveClass('border-transparent');
+
+        // The chips are sliding under the header: its edge carries the divider.
+        scrollTo(30, 150);
+        expect(header).toHaveClass('border-input-border');
+
+        // Not yet: the tabs pin 8px up, tucking their top padding under the header.
+        scrollTo(76, 96);
+        expect(header).toHaveClass('border-input-border');
+
+        // The tabs have pinned: their own underline is the divider now.
+        scrollTo(84, 92);
+        expect(header).toHaveClass('border-transparent');
+
+        scrollTo(0, 180);
+        expect(header).toHaveClass('border-transparent');
     });
 });
 
@@ -1056,13 +1104,24 @@ describe('HomePage — pull to refresh', () => {
 });
 
 describe('HomePage — place profile banner', () => {
-    it('shows the banner in a cloud, above the Place section', () => {
+    // The banners sit under the chat tabs, above the rooms — in a cloud below the place chips too.
+    it('shows the banner in a cloud under the chat tabs', () => {
         selectedCloudId = 'cloud-1';
         isProfileNudgeVisible = true;
         render(<HomePage />);
 
         const banner = screen.getByTestId('place-profile-banner');
-        expect(banner.compareDocumentPosition(screen.getByTestId('place-list'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(banner.compareDocumentPosition(screen.getByTestId('place-list'))).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+        expect(banner.compareDocumentPosition(screen.getByTestId('chat-tabs'))).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+    });
+
+    it('puts the cloud promo under the chat tabs on the relay', () => {
+        selectedCloudId = 'default';
+        render(<HomePage />);
+
+        expect(screen.getByTestId('promo-banner').compareDocumentPosition(screen.getByTestId('chat-tabs'))).toBe(
+            Node.DOCUMENT_POSITION_PRECEDING
+        );
     });
 
     // One banner at a time on the relay: naming yourself comes before the cloud upsell.
@@ -1111,7 +1170,7 @@ describe('HomePage — find-me row', () => {
         useFindMeSheetRequest.setState({ open: false });
     });
 
-    it('counts unread mentions and replies to me, and nothing else', () => {
+    it('counts unread mentions, replies and reactions to me, and nothing else', () => {
         scopedNotifications = [
             item({ kind: 'mention' }),
             item({ kind: 'replyToMine' }),
@@ -1121,7 +1180,7 @@ describe('HomePage — find-me row', () => {
         ];
         render(<HomePage />);
 
-        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":2}');
+        expect(screen.getByRole('button', { name: /homePage\.findMe/ })).toHaveTextContent('{"count":3}');
     });
 
     it('asks for the sheet when tapped', () => {
@@ -1133,7 +1192,7 @@ describe('HomePage — find-me row', () => {
     });
 
     it('is not drawn while nothing is looking for me', () => {
-        scopedNotifications = [item({ kind: 'reaction' })];
+        scopedNotifications = [item({ kind: 'participatedThread' }), item({ kind: 'reaction', read: true })];
         render(<HomePage />);
 
         expect(screen.queryByRole('button', { name: /homePage\.findMe/ })).not.toBeInTheDocument();

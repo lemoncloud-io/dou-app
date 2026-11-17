@@ -7,8 +7,9 @@ implementation per host — and the app's entry point chooses those implementati
 host declared before the page ran. Only that entry point and `@chatic/bridges`' host profile ask the
 host what it is; lint holds the rest of the code to the ports.
 
-The decision and its reasoning are ADR-0324. Ports arrive one domain at a time, each with the step that
-moves its domain's features onto it. `checkout` is the first.
+The decision and its reasoning are ADR-0324. All eight of its ports are here: `checkout`, `media`,
+`files`, and the five that arrived together in declaration version 4 — `links`, `appShell`, `signIn`,
+`diagnostics` and `push`.
 
 ## Ports
 
@@ -37,11 +38,79 @@ The implementations live in the one app that sells, `apps/web` (`src/app/host/ch
 the website may take a buyer (`canCheckoutOnWeb`) — stay in the subscription feature and take the
 port's `kind` as input.
 
+### `media`
+
+Who picks the photos, videos and documents a person attaches: `{ kind: 'app' }` — the app's own picker,
+photo library, video conversion and the permission prompts behind them — or `{ kind: 'page' }`, the
+page's own file input.
+
+**The port carries the choice only.** The app-side picker and photo library take their types from the
+data layer (`ChatAttachmentSource`, `ShellFileRef`) and the runtime (`PrepareVideoPort`), which
+`layer:host` keeps this package away from. So they stay in `apps/web` (`bridge/attachmentPicker.ts`,
+`bridge/photoLibrary.ts`) and read this port to know whether they apply, as do the screens around them
+— the camera input's permission wait, the recent-photos strip, video conversion before a send and the
+permission banner's settings link (`apps/web/docs/bridge/host-ports.md`).
+
+`resolveMediaMethod(profile)` reads the key `media`, introduced in declaration version 2: `'app'` or
+`'page'`. A shell declaring version 1 — the first builds that declared `checkout` — never knew the key,
+so the legacy rule answers for it: a bridge means the app picks, as the screens assumed. A
+declaration of version 2 or later without the key, or with another value, is a bug in the shell and gets the page's input,
+the one picker every host has. Message by message, an older app's missing request (`NOT_FOUND`) still
+falls back the way it did; the declaration says who picks, not which of the app's messages exist.
+
+### `files`
+
+Who moves a message's files: `{ kind: 'app' }` — the app's transfer module uploads and downloads in the
+background, keeps a downloaded file to open, save or share, and reads a video's first frame from the
+device — or `{ kind: 'page' }`, the page's own requests: a PUT for an upload, a fetch saved under the
+file's name for a download, a frame drawn from the bucket's copy.
+
+It carries the choice only, for the reason `media` does: the transfer modules take their types from the
+data layer and the runtime. They stay in `apps/web` (`bridge/shellUpload.ts`, `bridge/shellDownload.ts`,
+`runtime/upload/`, `runtime/transfer/`) and read this port, as do `useFileDownloads` and the video-frame
+maker (`useVideoFrames`).
+
+`resolveFilesMethod(profile)` reads the key `files`, introduced in declaration **version 3**. Version 2
+shipped with `media` alone, so a build declaring 1 or 2 never knew the key and the legacy rule answers:
+a bridge means the app moves files. A declaration of version 3 or later without the key, or with another value,
+gets the page's requests, the ones every host can make, and a warning.
+
+### `links`, `appShell`, `signIn`, `diagnostics`, `push`
+
+Five domains that each choose, like `media` and `files`, between **the app** doing the work through its
+bridge and **the page** doing what a browser can (`{ kind: 'app' | 'page' }`, `appOrPage.ts`):
+
+| Port          | The app does                                                                                  | The page does                                      |
+| ------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `links`       | open a URL in the OS browser or a sub web view, the clipboard, share intake, SMS and contacts | `window.open`, the Clipboard API, plain links      |
+| `appShell`    | icon, badge, haptics, back gesture, keyboard, theme and language sync, update, foreground     | nothing beyond the browser's frame                 |
+| `signIn`      | social sign-in with the platform's own flows, account linking, approving a device's pairing   | the providers' web flows; this device asks to pair |
+| `diagnostics` | queue logs and issue reports, and was the entry point (the icon)                              | send its own, opened from a browser                |
+| `push`        | register the device's token, mute it, and receive taps and deliveries                         | nothing: a tab registers no device                 |
+
+`appShell` and `signIn` also carry `os` — `'ios' | 'android'` where the app does the work and said which
+phone it runs on, `null` anywhere else — because what they do differs by platform (the badge, Apple's
+sign-in). That is the one place the screens learn the platform for a decision; identity fields that only
+describe the device (its ids, version, stage) are read from the profile.
+
+All five keys are **version 4**, introduced together so that no build declares one without the others.
+Declarations of version 1 to 3 never knew them, and the legacy rule answers: a bridge means the app. A
+declaration of version 4 or later that leaves one out, or names another value, gets the page and a
+warning. `resolveAppOrPage` is that rule once, for every port from `media` on.
+
+**Libraries do not read these ports.** `@chatic/app-runtime` and `@chatic/theme` are also rendered by
+apps that publish no ports (`apps/admin`, `apps/landing`), where `host.ports` would throw. They read the
+host profile from `@chatic/bridges` instead — `bridge !== null` where they asked whether there is a
+bridge, the bridge's kind where they asked for the phone app's WebView alone (`isNativeApp()`), `globals`
+for identity — which gives the answers they gave before.
+
 ## Who imports it
 
 `apps/web` and `apps/desktop-web`, each from one file: `src/app/host/publishHostPorts.ts`, which
 `main.tsx` calls right after `config.init()`, before the first render. Features import `host` to read a
-port — `apps/web`'s subscription feature reads `checkout`.
+port — in `apps/web` the subscription feature reads `checkout`, the attach flow `media`, file transfers
+`files`, and the screens and runtime modules of the five v4 domains read theirs; `apps/desktop-web`
+reads the v4 ports for its links, sign-in, pairing, badge, update and notifications.
 
 ```bash
 git grep -n "@chatic/host" -- apps libs ':!*.md'
@@ -89,8 +158,9 @@ again) and any read of a `CHATIC_APP_*` global off `window` — directly, throug
 `window`, or through a function that returns it — outside the allowed files. Its allow-list,
 [`tools/eslint-rules/host-facts-allowlist.js`](../../tools/eslint-rules/host-facts-allowlist.js),
 started with every file that did either when the rule arrived. A domain that moves onto its port takes
-its files off, so the list is the migration's progress. The debug overlay stays on it, because
-showing the raw host facts is its job.
+its files off, so the list was the migration's progress; with every domain moved, only the permanent
+entries remain — the reader, the two entry points, and the debug overlay, because showing the raw host
+facts is its job.
 
 ## How to verify
 

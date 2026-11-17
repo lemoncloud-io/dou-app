@@ -1,7 +1,16 @@
-import { Loader2, Settings } from 'lucide-react';
-import { useEffect, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Loader2 } from 'lucide-react';
+import {
+    useEffect,
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigationType, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 
@@ -11,7 +20,6 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import {
     AvatarGroup,
     ChatRoomHeader,
@@ -24,9 +32,10 @@ import {
     MessageInput,
     type MessageInputProps,
     SystemNotice,
+    UnreadDivider,
 } from '@chatic/web-ui-kit';
 
-import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
+import { ChannelMessageRow, type MessageReadInfo, type MessageSender } from '../components/ChannelMessageRow';
 import { ComposerEditBar } from '../components/ComposerEditBar';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
@@ -87,16 +96,16 @@ import { chatGapKey, type ChatGap } from '../hooks/useChats';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
-import { canModifyMessage } from '@chatic/data';
+import { canModifyMessage, isMentioningViewer } from '@chatic/data';
 import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
 import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
+import { unreadEntryOf } from '../utils/unreadEntry';
+import { buildThreadIndex, unseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
-import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
 import { useDebugRoomMirror } from '../../debug';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
@@ -105,7 +114,7 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
 import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
-import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
+import { readCursorOf, readPositionOf, unreadOf } from '../../../utils/countUnread';
 
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
@@ -134,10 +143,6 @@ const readInRoomCloud = (cid: string, input: { channelId: string; chatNo: number
 
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
-    // The overflow (⋯) menu's own navigate: it lets the menu finish leaving before the page
-    // transition snapshots the screen, so the open menu is not carried off inside the outgoing
-    // page. See `hooks/menuDismissal`.
-    const navigateFromMenu = useMenuNavigate();
     // Only for leaving a room I am not in — see the not-a-member effect.
     const enterStack = useStackNavigate();
     const { t } = useTranslation();
@@ -306,14 +311,11 @@ export const ChannelRoomPage = () => {
     // into somebody else's self-chat, a group URL I never joined) gets 403 per member otherwise.
     const isMember = isChannelMember(channel, myJoin, userId);
 
-    const { getReadCount, isReady: isJoinReady } = useJoinPositions(
-        roomCid,
-        stableChannelIdForChannelHook,
-        activeMemberIds,
-        allMemberIds,
-        cursorByUser,
-        isMember
-    );
+    const {
+        getReadCount,
+        getReaders,
+        isReady: isJoinReady,
+    } = useJoinPositions(roomCid, stableChannelIdForChannelHook, activeMemberIds, allMemberIds, cursorByUser, isMember);
 
     // One reading of the room's kind for the whole screen, off `stereo` alone — never off the head
     // count, and never as `!self && !dm` (that negative form is what swallowed `public` elsewhere).
@@ -675,6 +677,10 @@ export const ChannelRoomPage = () => {
     // apps/web/docs/feature/channels/chat-room.md). A jump to one of its thread replies is the
     // thread page's, so it does not hold the room.
     const isJumpPending = useMessageJumpStore(s => isJumpTargetFor(s.target, stableChannelId));
+    // Until the room has decided where to open (below), the first page's bottom pin waits: it is
+    // deferred to a frame that runs after every effect, so it would undo a landing decided in the
+    // same flush. A room that decides not to land pins itself then. Only a member's room decides.
+    const [isLandingPending, setLandingPending] = useState(true);
 
     // Scrolling (following new messages to the bottom, holding a reader in history in place,
     // resize/focus correction, prefetching older pages) is owned by useChatScroll.
@@ -683,13 +689,14 @@ export const ChannelRoomPage = () => {
         handleScroll: handleChatScroll,
         isAwayFromBottom,
         scrollToBottom: scrollChatToBottom,
+        hasPendingRestore: hasPendingScrollRestore,
     } = useChatScroll({
         messages,
         hasMore,
         isLoadingMore,
         loadMore,
         inputRef,
-        suppressAutoScroll: isJumpPending,
+        suppressAutoScroll: isJumpPending || (isLandingPending && isMember),
         // While a message is being edited: opening the edit focuses the composer and grows it, and
         // either would pin the list to the bottom, away from the message being changed.
         holdBottomPin: editing.isEditing,
@@ -769,7 +776,52 @@ export const ChannelRoomPage = () => {
 
     // The floating shortcuts over the list: the reader's unread mentions here, or the messages that
     // arrived while they read history (Figma 6002:40133 · 6002:41749). See useRoomJumpPills.
-    const { pill: jumpPill, checkInView: checkMentionsInView } = useRoomJumpPills({
+    // The unread divider and where the room lands on entry (Figma 6170:26376). Both are worked out
+    // once per visit, from the read cursor as it stood when the room opened — entering moves it.
+    const [unreadDivider, setUnreadDivider] = useState<{ chatNo: number; count: number } | null>(null);
+    const [awayFromCursor, setAwayFromCursor] = useState<number | undefined>(undefined);
+    const entryRef = useRef({
+        channelId: stableChannelId,
+        skipLanding: false,
+        decided: false,
+        cursor: undefined as number | undefined,
+        count: 0,
+        widened: false,
+    });
+    if (entryRef.current.channelId !== stableChannelId) {
+        entryRef.current = {
+            channelId: stableChannelId,
+            skipLanding: false,
+            decided: false,
+            cursor: undefined,
+            count: 0,
+            widened: false,
+        };
+    }
+    useEffect(() => {
+        setUnreadDivider(null);
+        setAwayFromCursor(undefined);
+        setLandingPending(true);
+    }, [stableChannelId]);
+    // A return (a back press) to a remembered offset, or a visit that opens on a message someone asked
+    // for (a search hit, a notification, a push), keeps that position: the room lands on its own only
+    // when nothing else decided where to look. A remembered offset alone does not count — every room
+    // visited before has one, and coming back in from the home list is a fresh look at what is new.
+    // Read in a layout effect, after the restore claim is taken and before anything spends it.
+    const navigationType = useNavigationType();
+    useLayoutEffect(() => {
+        entryRef.current.skipLanding =
+            (navigationType === 'POP' && hasPendingScrollRestore()) ||
+            isJumpTargetFor(useMessageJumpStore.getState().target, stableChannelId) ||
+            searchParams.has('chatNo');
+        // Once per visit: the channel id names the visit.
+    }, [stableChannelId]);
+
+    const {
+        pill: jumpPill,
+        checkInView: checkMentionsInView,
+        firstMentionNo,
+    } = useRoomJumpPills({
         channelId: stableChannelId,
         messages,
         containerRef: messagesEndRef,
@@ -777,7 +829,54 @@ export const ChannelRoomPage = () => {
         scrollToBottom: scrollChatToBottom,
         // Unknown until the join stream answers: the pills take the first cursor known as the entry.
         readCursor: myJoin ? (readCursorOf(readPositionOf(myJoin, channel?.$join)) ?? 0) : undefined,
+        awayFromCursor,
     });
+
+    // Lands the room once its rows and my cursor are known: at the oldest unread mention, highlighted,
+    // when there is one; else at the first unread message, with the divider just above it on screen.
+    // Few unread messages leave the list at the bottom anyway — a row near the end cannot scroll to
+    // the top. Nothing unread, nothing happens.
+    useEffect(() => {
+        const entry = entryRef.current;
+        if (entry.decided || !myJoin || !channel || entry.channelId !== stableChannelId) return;
+        if (entry.cursor === undefined) {
+            entry.cursor = readCursorOf(readPositionOf(myJoin, channel.$join)) ?? 0;
+            entry.count = unreadOf(channel, myJoin);
+        }
+        if (messages.length === 0) return;
+        // Decided by the rows, not by the badge alone: the channel row's head can lag the messages
+        // the chat sync has already cached, and a badge of 0 would then hide unread rows on screen.
+        let at = unreadEntryOf(messages, entry.cursor, hasMore && !entry.widened);
+        if (at.kind === 'unknown') {
+            // The first unread row may be cached above the window: widen once, and decide on the
+            // next render; a row that is not cached at all is not worth a network page here.
+            entry.widened = true;
+            if (loadUntil(entry.cursor + 1)) return;
+            at = unreadEntryOf(messages, entry.cursor, false);
+        }
+        entry.decided = true;
+        setLandingPending(false);
+        if (at.kind !== 'at') {
+            // Nothing unread: open at the newest message, as the pin held above would have.
+            if (!entry.skipLanding) scrollChatToBottom();
+            return;
+        }
+        const cursor = entry.cursor;
+        const drawn = messages.filter(
+            message => !message.isOwner && !message.isSystem && (message.chatNo ?? 0) > cursor
+        ).length;
+        setUnreadDivider({ chatNo: at.chatNo, count: Math.max(entry.count, drawn) });
+        if (entry.skipLanding) return;
+        // Either way the reader starts above unread messages, so the latest pill counts them.
+        setAwayFromCursor(entry.cursor);
+        if (firstMentionNo !== undefined && firstMentionNo >= at.chatNo) {
+            useMessageJumpStore.getState().request(stableChannelId, firstMentionNo);
+            return;
+        }
+        useMessageJumpStore
+            .getState()
+            .request(stableChannelId, at.chatNo, { highlight: false, block: 'start', quiet: true });
+    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo, scrollChatToBottom]);
 
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();
@@ -1077,6 +1176,38 @@ export const ChannelRoomPage = () => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
+    // A group room shows its read receipt on my newest message only (Figma 5978:37669): one line
+    // that says how far the room has caught up with me, instead of a count beside every bubble.
+    const lastMineChatNo = useMemo(() => {
+        let last: number | undefined;
+        for (const message of messages) {
+            if (message.isOwner && message.chatNo !== undefined && (last === undefined || message.chatNo > last)) {
+                last = message.chatNo;
+            }
+        }
+        return last;
+    }, [messages]);
+
+    const groupReadOf = useCallback(
+        (chatNo: number | undefined): MessageReadInfo => {
+            if (!showReadReceipt || chatNo === undefined || chatNo !== lastMineChatNo) {
+                return { show: false, isReady: isJoinReady, readCount: 0, unreadCount: 0, mode: 'readers' };
+            }
+            // Mine is read by definition; the line counts everyone else.
+            const readers = getReaders(chatNo).filter(id => id !== userId);
+            const others = activeMemberIds.filter(id => id !== userId).length;
+            return {
+                show: true,
+                isReady: isJoinReady,
+                readCount: readers.length,
+                unreadCount: Math.max(0, others - readers.length),
+                mode: 'readers',
+                readers,
+            };
+        },
+        [showReadReceipt, lastMineChatNo, isJoinReady, getReaders, userId, activeMemberIds]
+    );
+
     const groupedMessages = useMemo(() => {
         return messages.reduce(
             (groups, message) => {
@@ -1113,9 +1244,16 @@ export const ChannelRoomPage = () => {
     const withGapDividers = (rows: ClientChatView[], elements: ReactNode[]): ReactNode[] =>
         elements.flatMap((element, index) => {
             const above = rows[index]?.id ? gapsAboveMessageId.get(rows[index].id as string) : undefined;
-            if (!above) return [element];
+            const unreadAbove =
+                unreadDivider && rows[index]?.chatNo === unreadDivider.chatNo ? (
+                    <div key="unread-divider" data-unread-divider>
+                        <UnreadDivider label={t('chat.room.unreadDivider', { count: unreadDivider.count })} />
+                    </div>
+                ) : null;
+            if (!above) return unreadAbove ? [element, unreadAbove] : [element];
             return [
                 element,
+                ...(unreadAbove ? [unreadAbove] : []),
                 ...[...above].reverse().map(gap => {
                     const key = chatGapKey(gap);
                     return (
@@ -1256,6 +1394,10 @@ export const ChannelRoomPage = () => {
         />
     );
 
+    // The room's settings, which also list its members. `roomDistance: 1` is how far settings sits
+    // from this room, so an invite started there can pop back onto this room's history entry.
+    const openSettings = () => navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } });
+
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
@@ -1273,29 +1415,13 @@ export const ChannelRoomPage = () => {
                     onIdentityClick={dmProfile ? () => openMemberProfile(dmProfile) : undefined}
                     identityLabel={dmProfile ? t('chat.room.openProfile', { name: dmProfile.name }) : undefined}
                     // A group's participant stack opens the screen that lists everyone — settings,
-                    // the same way the ⋯ menu reaches it. Plain `navigate`: no menu to wait out.
-                    onMetaClick={
-                        isGroupChat
-                            ? () =>
-                                  navigate(ROUTES.channels.settings(stableChannelId), {
-                                      state: { roomDistance: 1 },
-                                  })
-                            : undefined
-                    }
+                    // the same place the ⋯ button goes.
+                    onMetaClick={isGroupChat ? openSettings : undefined}
                     metaLabel={isGroupChat ? t('chat.room.openMembers') : undefined}
-                    moreMenu={
-                        <DropdownMenuItem
-                            onClick={() =>
-                                navigateFromMenu(ROUTES.channels.settings(stableChannelId), {
-                                    state: { roomDistance: 1 },
-                                })
-                            }
-                            className="cursor-pointer gap-2"
-                        >
-                            <Settings size={16} />
-                            <span>{t('home.settings')}</span>
-                        </DropdownMenuItem>
-                    }
+                    // ⋯ goes straight to settings rather than opening a menu: settings was the
+                    // menu's only item, so the menu only cost an extra tap.
+                    onMore={openSettings}
+                    moreLabel={t('chat.room.openSettings')}
                     className="border-b border-border"
                 />
             </div>
@@ -1370,7 +1496,16 @@ export const ChannelRoomPage = () => {
                                         <div
                                             key={dateKey}
                                             data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
-                                            className="flex flex-col-reverse gap-3"
+                                            // The row the room lands on keeps the unread divider
+                                            // above it in view when it is scrolled to the top: the
+                                            // list runs under the header, so the margin is the
+                                            // header, then the divider and the gap around it.
+                                            className="flex flex-col-reverse gap-3 [&_[data-chat-no]:has(+[data-unread-divider])]:scroll-mt-[var(--unread-divider-margin)]"
+                                            style={
+                                                {
+                                                    '--unread-divider-margin': `${headerHeight + 56}px`,
+                                                } as CSSProperties
+                                            }
                                         >
                                             {withGapDividers(
                                                 reversedMessages,
@@ -1469,14 +1604,16 @@ export const ChannelRoomPage = () => {
                                                     // any are — the footer prints the number. Zero
                                                     // until the baseline snapshot lands, so a thread
                                                     // never flashes an unseen count it then retracts.
-                                                    const unseenReplyCount =
+                                                    const unseen =
                                                         threadMeta && baselineReadNo !== null
-                                                            ? countUnseenReplies(
-                                                                  threadMeta,
-                                                                  baselineReadNo,
-                                                                  userId ?? null
-                                                              )
-                                                            : 0;
+                                                            ? unseenReplies(threadMeta, baselineReadNo, userId ?? null)
+                                                            : [];
+                                                    const unseenReplyCount = unseen.length;
+                                                    // The footer's "Mentions me": an unseen reply calls
+                                                    // the reader, by the same record the row's @me uses.
+                                                    const unseenRepliesMentionMe = unseen.some(entry =>
+                                                        isMentioningViewer(entry, mentionViewer.ids)
+                                                    );
 
                                                     return (
                                                         // The wrapper carries `data-chat-no` for the
@@ -1499,13 +1636,17 @@ export const ChannelRoomPage = () => {
                                                                 ownerDisplayName={ownerDisplayName}
                                                                 ownerAvatar={ownerAvatar}
                                                                 time={formatTime(message.timestamp)}
-                                                                read={{
-                                                                    show: showReadReceipt,
-                                                                    isReady: isJoinReady,
-                                                                    readCount,
-                                                                    unreadCount,
-                                                                    mode: isDmChat ? 'dm' : 'count',
-                                                                }}
+                                                                read={
+                                                                    isDmChat
+                                                                        ? {
+                                                                              show: showReadReceipt,
+                                                                              isReady: isJoinReady,
+                                                                              readCount,
+                                                                              unreadCount,
+                                                                              mode: 'dm',
+                                                                          }
+                                                                        : groupReadOf(message.chatNo)
+                                                                }
                                                                 onLongPress={() => handleOpenMessageActions(message)}
                                                                 onExpand={() =>
                                                                     setExpandedMessage({
@@ -1538,6 +1679,7 @@ export const ChannelRoomPage = () => {
                                                                 isEditTarget={editing.isEditTarget(message)}
                                                                 threadMeta={threadMeta}
                                                                 unseenReplyCount={unseenReplyCount}
+                                                                unseenRepliesMentionMe={unseenRepliesMentionMe}
                                                                 formatThreadTime={formatTime}
                                                                 onOpenThread={
                                                                     message.chatNo

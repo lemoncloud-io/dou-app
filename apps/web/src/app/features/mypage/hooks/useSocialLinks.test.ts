@@ -1,14 +1,20 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import type { LinkedAccounts } from '../../../hooks';
 import { useSocialLinks } from './useSocialLinks';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
+const mockIsNative = jest.fn();
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockIsNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 
@@ -41,8 +47,6 @@ jest.mock('../../../hooks', () => ({
     }),
     useLinkedAccounts: () => mockLinked,
 }));
-
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 
 const GOOGLE_TOKENS = { provider: 'google', idToken: 'tok' };
 
@@ -224,22 +228,5 @@ describe('useSocialLinks — 실패 문구', () => {
             title: 'mypage.accountInfo.social.alreadyLinkedElsewhere',
             variant: 'destructive',
         });
-    });
-});
-
-describe('useSocialLinks — 해제', () => {
-    it('requestUnlink은 스텁이다 — 상태를 바꾸지 않고 안내 토스트만 띄운다', () => {
-        mockLinked = { phone: 'absent', social: 'linked', socialProvider: 'google' };
-
-        const { result } = renderHook(() => useSocialLinks());
-        expect(result.current.isLinked('google')).toBe(true);
-
-        act(() => result.current.requestUnlink());
-
-        // Still linked — the stub never mutates state, so no false "unlinked" report.
-        expect(result.current.isLinked('google')).toBe(true);
-        expect(toastMock).toHaveBeenLastCalledWith(
-            expect.objectContaining({ title: 'mypage.accountInfo.social.unlinkComingSoon' })
-        );
     });
 });

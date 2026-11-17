@@ -1,4 +1,5 @@
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import type { AttachmentPickSource, PickedShellAttachment, RefusedAttachment } from '@chatic/bridge-messages';
 import type { runtime } from '@chatic/app-runtime';
 import {
@@ -13,7 +14,8 @@ import { base64ToFile } from './photoLibrary';
 
 /**
  * The app's own picker for chat videos and documents, and its video conversion — or `null` from
- * `pick` in a browser, which the attach panel takes as "use the page's own input".
+ * `pick` where the page picks (`host.ports.media`), which the attach panel takes as "use the page's
+ * own input".
  *
  * Videos and documents stay in the shell: it copies what was picked into its own folder and answers
  * with addresses, which the upload then sends from there. Photos are kept there too, already prepared,
@@ -103,7 +105,7 @@ const isPhotoFormat = (name: string, type: string): boolean => chatAttachmentFor
 
 class ShellAttachmentPicker implements AttachmentPicker {
     isUnsupported(): boolean {
-        return !isNative();
+        return host.ports.media.kind !== 'app';
     }
 
     async pick({

@@ -156,6 +156,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
 }));
 
+// The webhook section reaches the runtime for its list; the gate that mounts it is what the page tests check.
+jest.mock('../components/ChannelWebhooksSection', () => ({
+    ChannelWebhooksSection: (p: any) => <div data-testid="webhooks" data-channel={p.channelId} />,
+}));
+
 // Prop-capturing stubs so we can assert wiring without deep dialog rendering.
 let profileProps: any;
 jest.mock('../components/UpdateChannelDialog', () => ({
@@ -1110,5 +1115,23 @@ describe('ChannelSettingsPage', () => {
 
         expect(deleteChannel).toHaveBeenCalledWith({ channelId: 'ch1' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+});
+
+describe('ChannelSettingsPage — webhooks', () => {
+    it('shows the webhook section to the owner of a group room', () => {
+        channelValue = OWNER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        expect(screen.getByTestId('webhooks')).toBeInTheDocument();
+    });
+
+    it('hides it from a member, from a 1:1 and from a self chat', () => {
+        for (const value of [MEMBER_CHANNEL, DM_CHANNEL, SELF_CHANNEL]) {
+            channelValue = value;
+            const { unmount } = render(<ChannelSettingsPage />);
+            expect(screen.queryByTestId('webhooks')).not.toBeInTheDocument();
+            unmount();
+        }
     });
 });

@@ -1,10 +1,16 @@
-import { isNative } from '@chatic/bridges';
-
 import { appBridge } from '../../../bridge';
 import { copyMessageToClipboard } from './copyMessageToClipboard';
 
+const mockIsNative = jest.fn();
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
     logger: { error: jest.fn() },
 }));
 
@@ -31,7 +37,7 @@ describe('copyMessageToClipboard — 메시지 클립보드 복사', () => {
     });
 
     it('native 환경에서는 appBridge.copyClipBoard를 사용한다', async () => {
-        (isNative as jest.Mock).mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         (appBridge.copyClipBoard as jest.Mock).mockResolvedValueOnce({ type: 'CopyToClipboard', success: true });
 
         await expect(copyMessageToClipboard('hello')).resolves.toBeTruthy();
@@ -41,7 +47,7 @@ describe('copyMessageToClipboard — 메시지 클립보드 복사', () => {
     });
 
     it('일반 브라우저 환경에서는 Clipboard API를 사용한다', async () => {
-        (isNative as jest.Mock).mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
 
         await expect(copyMessageToClipboard('hello')).resolves.toBe(true);
 
@@ -50,7 +56,7 @@ describe('copyMessageToClipboard — 메시지 클립보드 복사', () => {
     });
 
     it('native bridge가 실패하면 false를 반환한다', async () => {
-        (isNative as jest.Mock).mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         (appBridge.copyClipBoard as jest.Mock).mockRejectedValueOnce(new Error('handler not found'));
 
         await expect(copyMessageToClipboard('hello')).resolves.toBe(false);

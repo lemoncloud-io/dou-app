@@ -102,7 +102,9 @@ those adds its handler.
 
 **The page gets the app's own boot script** (`getSyncInjectionScript` from
 `apps/mobile/src/app/webview/utils/injectionScripts.ts`), not a copy: device info, the
-`ChaticMessageHandler` relay, the config bag and the safe-area variables. The bag has onboarding
+`ChaticMessageHandler` relay, the config bag, the safe-area variables and the capability
+declaration, which is the app's own for the platform (its store) unless a scenario passes
+`capabilities` — `null` for an app built before declarations. The bag has onboarding
 done and the debug overlay off: the suite's `LOCAL` stage would otherwise float that overlay's
 button over the composer's Send. The script is loaded at run time from a computed path rather than
 imported, so `@chatic/mobile` does not become a dependency of this project — a static import would

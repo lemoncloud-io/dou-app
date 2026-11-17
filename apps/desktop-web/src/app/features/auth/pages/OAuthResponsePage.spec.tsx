@@ -7,7 +7,14 @@ let native = true;
 const completeFromHandoff = vi.fn();
 
 // Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs.
-vi.mock('@chatic/bridges', () => ({ isNative: () => native }));
+// Who signs a person in, as the host's `signIn` port says.
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: native ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 vi.mock('@chatic/config', () => ({ config: { get: () => 'chatic-dev' } }));
 vi.mock('../hooks', () => ({
     useSocialLogin: () => ({ completeFromHandoff, isError }),

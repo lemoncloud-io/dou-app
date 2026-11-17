@@ -51,9 +51,9 @@ an i18n key — because it reads as both.
 | `PlaceChannelManagePage` | `/place/:placeId/settings/channels` | Anyone in the place              |
 | `PlaceMembersPage`       | `/place/:placeId/settings/members`  | Anyone in the place              |
 
-The hub holds three cards — **Settings** (my profile, place profile, place information, members),
-**Notifications** (one disabled switch; place push has no backend yet, so it renders as a
-placeholder and holds no state) and **Chats** (sort, manage). Channel sort is a bottom sheet opened
+The hub holds two cards — **Settings** (my profile, place profile, place information, members) and
+**Chats** (sort, manage). The design also draws a place-notifications switch; place push has no
+backend, so the hub leaves the card out rather than show a switch that can never be turned on. Channel sort is a bottom sheet opened
 from the hub, not a page. Leaving and deleting are not here: they sit at the foot of the information
 screen, as the design draws them.
 

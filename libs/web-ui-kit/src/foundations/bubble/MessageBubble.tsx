@@ -22,6 +22,10 @@ export interface MessageBubbleProps {
  * The root is a named group (`group/bubble`) carrying `data-variant`, so content drawn inside can
  * pick a tint for the ground it sits on without being told: `mine` is navy in both themes, which a
  * fixed dark tint (right for the light bubble) disappears into. CodeBlock and InlineCode read it.
+ *
+ * Inside an ancestor marked `data-highlight` (a message jumped to), the light bubble turns to the
+ * page ground with a lime outline (Figma 6002:40741). The outline is an inset ring, not a border, so
+ * turning it on moves nothing.
  */
 export const MessageBubble = ({
     variant = 'other',
@@ -38,7 +42,7 @@ export const MessageBubble = ({
                 'group/bubble w-fit min-w-0 max-w-full px-[14px] py-2 text-[16px] leading-[1.28] tracking-[-0.08px]',
                 mine
                     ? 'rounded-b-[18px] rounded-tl-[18px] bg-bubble-mine text-bubble-mine-foreground'
-                    : 'rounded-b-[18px] rounded-tr-[18px] bg-bubble-other text-bubble-other-foreground',
+                    : 'rounded-b-[18px] rounded-tr-[18px] bg-bubble-other text-bubble-other-foreground [[data-highlight]_&]:bg-background [[data-highlight]_&]:ring-1 [[data-highlight]_&]:ring-inset [[data-highlight]_&]:ring-primary',
                 className
             )}
         >

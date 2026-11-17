@@ -129,8 +129,10 @@ The manifest names the page and asks for what it needs:
 ```
 
 A page has no bar by default: a small close button floats in the top-right corner, always, and the page
-draws its own header. Add `"display": "standard"` to get the app's bar with the page's title and a
-close button instead.
+draws its own header (`"display": "clean"`). Add `"display": "titled"` to get the app's bar with the page's title and a
+close button instead. A page that draws its own scenery to the screen's edges — a game, say — sets
+`"display": "immersive"`: it then runs under the status bar and the home indicator, and pads its own
+controls with the insets the README's Layout notes describe.
 
 `manifestVersion` must be `1`; the app ignores a manifest it cannot read. Ask only for the permissions
 the page uses — `clipboard`, `share`, `openUrl`, `userKey`, and for reading the app's data `session`,
@@ -147,7 +149,8 @@ has the detail on each.
   Keep the page's own data in `apps.storage`, not `localStorage`, which goes when the system clears
   website data. What must follow the user to another phone goes on your own server, under
   `apps.getUserKey()`.
-- **The page lies inside the safe area on every edge.** There are no insets to handle.
+- **The page lies inside the safe area on every edge**, unless its manifest asks for `immersive`.
+  There are no insets to handle; an `immersive` page handles them itself.
 - **Dark mode follows the app's theme**, from `apps.context.theme`, not the phone's.
 - **Share `apps.link({ … })`**, not the page's address, and read what a link carries from
   `location.search` when the page starts.

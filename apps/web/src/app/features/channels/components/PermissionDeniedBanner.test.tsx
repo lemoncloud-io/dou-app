@@ -6,7 +6,14 @@ const openSettings = jest.fn();
 let isNativeValue = true;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => isNativeValue }));
+// Who picks, as the host's media port says: the app when the case runs in the app.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { media: { kind: isNativeValue ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('../../../bridge', () => ({ appBridge: { openSettings } }));
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => <span />,

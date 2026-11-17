@@ -160,7 +160,7 @@ describe('W-12 payment methods', () => {
         fireEvent.click(within(await cardRow('현대 ···· 5678')).getByRole('button', { name: 'Make default' }));
         const dialog = await screen.findByRole('dialog', { name: 'Change your default card?' });
         expect(
-            within(dialog).getByText('From the next payment (2026.11.20 · ₩17,200), 현대 ···· 5678 is charged.')
+            within(dialog).getByText('From the next payment (2026.11.20 · ₩17,800), 현대 ···· 5678 is charged.')
         ).toBeTruthy();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Make default' }));
 
@@ -227,7 +227,7 @@ describe('W-12 payment methods', () => {
     it('while a payment is failing, charges the overdue amount to the card just added', async () => {
         renderAt(url, '?mock=past-due');
 
-        expect(await screen.findByText('₩17,200 overdue · 5 days until access is restricted')).toBeTruthy();
+        expect(await screen.findByText('₩17,800 overdue · 5 days until access is restricted')).toBeTruthy();
         expect(within(await cardRow('신한 ···· 1234')).getByText('Payment failed · 카드 한도 초과')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'Add card' }));
@@ -240,7 +240,7 @@ describe('W-12 payment methods', () => {
 
         expect(await screen.findByText(/^Make .+ the default and pay now\?$/)).toBeTruthy();
         expect(screen.getByText('Day 30 of each month (unchanged)')).toBeTruthy();
-        fireEvent.click(screen.getByRole('button', { name: 'Make default and pay ₩17,200' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Make default and pay ₩17,800' }));
 
         await waitFor(() => expect(where()).toMatch(/^\/subscription\/checkout\/status\?attempt=.+/));
     });
@@ -248,13 +248,13 @@ describe('W-12 payment methods', () => {
     it('counts a single day left in the singular', async () => {
         renderAt(url, '?mock=past-due&now=2026-11-05');
 
-        expect(await screen.findByText('₩17,200 overdue · 1 day until access is restricted')).toBeTruthy();
+        expect(await screen.findByText('₩17,800 overdue · 1 day until access is restricted')).toBeTruthy();
     });
 
     it('says access is already restricted once it is', async () => {
         renderAt(url, '?mock=restricted');
 
-        expect(await screen.findByText('₩17,200 overdue · access is restricted')).toBeTruthy();
+        expect(await screen.findByText('₩17,800 overdue · access is restricted')).toBeTruthy();
     });
 });
 
@@ -278,7 +278,7 @@ describe('W-13 billing history', () => {
 
         const rows = (await screen.findAllByRole('row')).slice(1);
         const refund = rows.find(row => within(row).queryByText('Refund · DoU Cloud 1')) as HTMLElement;
-        expect(within(refund).getByText('-₩8,600')).toBeTruthy();
+        expect(within(refund).getByText('-₩8,900')).toBeTruthy();
         expect(within(refund).getByRole('link', { name: /Refund receipt/ })).toBeTruthy();
         const failed = rows.find(row => within(row).queryByText('Failed')) as HTMLElement;
         expect(within(failed).queryByRole('link')).toBeNull();
@@ -297,7 +297,7 @@ describe('W-13 billing history', () => {
         renderAt(url, '?mock=trial');
 
         expect(await screen.findByText('No payments yet')).toBeTruthy();
-        expect(screen.getByText("You're on a free trial. The first payment (₩8,600) is on 2026.11.06.")).toBeTruthy();
+        expect(screen.getByText("You're on a free trial. The first payment (₩8,900) is on 2026.11.06.")).toBeTruthy();
     });
 });
 

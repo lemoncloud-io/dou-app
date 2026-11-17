@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-import { isNative, webClient } from '@chatic/bridges';
+import { hostProfile, webClient } from '@chatic/bridges';
 import { TolerantStore, WebStore } from '@chatic/storage';
 
 import type { KeyValueStore } from '@chatic/storage';
@@ -46,7 +46,8 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(() => (storage.get(storageKey) as Theme) || defaultTheme);
     const [systemIsDark, setSystemIsDark] = useState(prefersDark);
-    const isOnMobileApp = isNative();
+    // Whether there is a shell bridge to tell, as the host profile recorded it at boot.
+    const isOnMobileApp = hostProfile().bridge !== null;
 
     // While the choice is 'system', follow the OS as it changes, not only as it was at launch.
     // The read on subscribe catches a change made while another choice was active.
@@ -69,7 +70,7 @@ export function ThemeProvider({
         root.classList.add(resolvedTheme);
     }, [resolvedTheme]);
 
-    // Sync theme preference to native storage.
+    // Sync theme preference to native storage, where there is a bridge to post it through.
     useEffect(() => {
         if (!isOnMobileApp) return;
 

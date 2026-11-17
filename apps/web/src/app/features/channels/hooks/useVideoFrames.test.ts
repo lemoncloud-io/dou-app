@@ -6,7 +6,7 @@ import type { FrameOutcome, VideoFrameRequest, VideoFrames } from '../lib/videoF
 import { setImageCacheForTest } from './useCachedImages';
 import { setVideoFramesForTest, useVideoFrames } from './useVideoFrames';
 
-jest.mock('@chatic/bridges', () => ({ isNative: () => true }));
+jest.mock('@chatic/host', () => ({ host: { ports: { files: { kind: 'app' } } } }));
 
 const cache = new ImageCache({
     store: null,

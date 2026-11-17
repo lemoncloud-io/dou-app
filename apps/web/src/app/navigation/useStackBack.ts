@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
-import { canGoBackInApp } from './stackDepth';
+import { useNavigateWithTransition } from '@chatic/shared';
+
+import { canGoBackInApp, noteRewindStarted } from './stackDepth';
 
 /**
  * What the app did with a back request.
@@ -48,9 +49,16 @@ export interface BackInput {
  * Note an overlay that refuses the press still returns `overlay-closed`. The name describes the
  * branch, not the outcome of the close: what matters to every caller is that the overlay layer
  * consumed the press, so the app is emphatically not done with back while a dialog is up.
+ *
+ * The rewind plays the back page transition, the same one the header's back arrow plays. The press
+ * this answers is Android's back button or gesture, which used to switch screens with no motion while
+ * the arrow on the same screen slid. iOS never gets here: its back is the WebView's own swipe, which
+ * animates natively and reaches the page only as a `popstate` afterwards. The outcome is reported
+ * at once; the transition finishes on its own, and until the rewind has landed `canGoBackInApp`
+ * already counts it, so a second press in that window judges from where the first one is going.
  */
 export const useStackBack = (): ((input: BackInput) => BackOutcome) => {
-    const navigate = useNavigate();
+    const navigate = useNavigateWithTransition();
 
     return useCallback(
         ({ hasBlockingOverlay, closeTopOverlay }: BackInput): BackOutcome => {
@@ -60,7 +68,8 @@ export const useStackBack = (): ((input: BackInput) => BackOutcome) => {
             }
 
             if (canGoBackInApp()) {
-                navigate(-1);
+                noteRewindStarted();
+                void navigate(-1);
                 return 'navigated';
             }
 

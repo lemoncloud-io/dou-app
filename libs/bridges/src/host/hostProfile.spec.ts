@@ -1,6 +1,6 @@
 import { isNative } from '../common/utils';
 import { buildHostProfile, hostProfile, resetHostProfileForTests } from './hostProfile';
-import { SHELL_GLOBAL_NAMES } from './shellGlobals';
+import { liveShellGlobals, liveShellValue, SHELL_GLOBAL_NAMES } from './shellGlobals';
 
 const post = { postMessage: jest.fn() };
 
@@ -114,5 +114,26 @@ describe('hostProfile', () => {
 
         expect(hostProfile()).toBe(first);
         expect(hostProfile().globals.CHATIC_APP_PLATFORM).toBe('ios');
+    });
+});
+
+describe('live shell readers', () => {
+    const w = window as unknown as Record<string, unknown>;
+    afterEach(() => {
+        delete w['CHATIC_APP_UNIQUE_DEVICE_ID'];
+        delete w['CHATIC_APP_LOG_UPLOAD_HOLD'];
+    });
+
+    it('reads a boot global as it stands now, after the shell rewrote it', () => {
+        w['CHATIC_APP_UNIQUE_DEVICE_ID'] = 'first';
+        expect(liveShellGlobals().CHATIC_APP_UNIQUE_DEVICE_ID).toBe('first');
+        w['CHATIC_APP_UNIQUE_DEVICE_ID'] = 'second';
+        expect(liveShellGlobals().CHATIC_APP_UNIQUE_DEVICE_ID).toBe('second');
+    });
+
+    it('reads a value the shell writes while the page runs, untouched', () => {
+        expect(liveShellValue('CHATIC_APP_LOG_UPLOAD_HOLD')).toBeUndefined();
+        w['CHATIC_APP_LOG_UPLOAD_HOLD'] = true;
+        expect(liveShellValue('CHATIC_APP_LOG_UPLOAD_HOLD')).toBe(true);
     });
 });

@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { DefaultAvatar, ImageAvatar, ThreadSummary } from '@chatic/web-ui-kit';
 
 import type { ThreadMeta } from '../utils/buildThread';
+import { lastChatPreview } from '../utils/lastChatPreview';
 
-// The avatar stack answers "who is in there" at a glance; past a few faces it stops
-// adding information and starts costing row height. Five is what the design's stack
-// holds before it switches to a `+N` counter (Figma 4703:43719).
-const MAX_REPLIER_AVATARS = 5;
+// The design's reply line shows two faces and no counter (Figma 5978:37669): the count beside
+// them already says how many there are.
+const MAX_REPLIER_AVATARS = 2;
 
 interface ThreadFooterProps {
     meta: ThreadMeta;
@@ -18,6 +18,10 @@ interface ThreadFooterProps {
      * Computed by the room, which owns the read baseline (see `countUnseenReplies`).
      */
     unseenCount: number;
+    /** An unseen reply calls the reader — the new-reply box adds "Mentions me". */
+    mentionsMe?: boolean;
+    /** Resolves the newest reply's author for its preview. */
+    nameOf?: (userId: string) => string;
     onOpen: () => void;
     /**
      * Resolves a replier's avatar from the caller's profile/member caches. Takes
@@ -53,6 +57,8 @@ interface ThreadFooterProps {
 export const ThreadFooter = ({
     meta,
     unseenCount,
+    mentionsMe,
+    nameOf,
     onOpen,
     avatarOf,
     formatTime,
@@ -71,12 +77,27 @@ export const ThreadFooter = ({
         );
     });
 
+    // The newest reply, as "Name: text", in the new-reply box. It is the thread's newest, which
+    // while anything is unseen is an unseen one or my own answer after it — either way the line
+    // that says where the thread stands. Read as a room message: the thread mark would only
+    // repeat what the box already says.
+    const last = meta.lastReply;
+    const lastText = last ? lastChatPreview({ ...last, parentId: undefined }, t) : '';
+    const lastName = last?.ownerId ? nameOf?.(last.ownerId) : undefined;
+    const preview =
+        unseenCount > 0 && lastText
+            ? lastName
+                ? t('chat.thread.lastReply', { name: lastName, text: lastText })
+                : lastText
+            : undefined;
+
     return (
         <ThreadSummary
             avatars={avatars}
-            overflowCount={Math.max(0, meta.repliers.length - MAX_REPLIER_AVATARS)}
             replyLabel={t('chat.thread.replyCount', { count: meta.count })}
             newReplyLabel={unseenCount > 0 ? t('chat.thread.newReplyCount', { count: unseenCount }) : undefined}
+            mentionLabel={unseenCount > 0 && mentionsMe ? t('chat.thread.mentionsMe') : undefined}
+            preview={preview}
             time={meta.lastReplyAt ? formatTime?.(new Date(meta.lastReplyAt)) : undefined}
             align={align}
             onClick={onOpen}

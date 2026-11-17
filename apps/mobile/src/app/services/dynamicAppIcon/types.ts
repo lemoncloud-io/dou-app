@@ -8,6 +8,9 @@ export interface AppIconOption {
 export const AVAILABLE_ICONS: AppIconOption[] = [
     { id: null, label: 'Default' },
     { id: 'WhiteIcon', label: 'White' },
+    { id: 'MidnightIcon', label: 'Midnight' },
+    { id: 'AuroraIcon', label: 'Aurora' },
+    { id: 'SkyIcon', label: 'Clear Sky' },
 ];
 
 export interface IDynamicAppIconService {

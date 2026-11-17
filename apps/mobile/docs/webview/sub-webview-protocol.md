@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.28.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)**, **(2.26.0)** or **(2.27.0)**
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)**, **(2.26.0)**, **(2.27.0)** or **(2.29.0)**
 > arrived with that bridge version; an app built before it lacks it, which a page learns from the
 > handshake rather than from a version number.
 
@@ -221,8 +221,9 @@ it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebView
 - The page's host answers `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle` and
   `ReportSubWebViewError`, on every tier, and nothing else — every other request is `NOT_FOUND`,
   whatever the manifest declares. A manifest gives the bar its fallback name and the display
-  (`standard` by default here; `fullscreen` fills the window and keeps the bar). An external site
-  is always `standard`.
+  (`titled` by default here; `clean` fills the window and keeps the bar; **(2.29.0)** `immersive`
+  is shown as `clean`, since a window has no system bars). An external site is always `titled`.
+  The display names are the phone's, earlier names included (see [Layout](#layout)).
 - Only the opened origin loads in the view. Another https URL — a link, a redirect, `window.open` —
   goes to the OS browser and the view stays. Other schemes are dropped.
 - Esc and the bar's close control close the view as `user`. There is no close guard and no
@@ -256,7 +257,7 @@ it gets the base set, the bar, and its host as the bar's title whatever it sets 
 | `manifestVersion` | `1`                                                                                                                                                                                    | No manifest at all         |
 | `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                                     | No title from the manifest |
 | `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; **(2.26.0)** `session`, `cloud`, `place`, `channel`, `chat`, `user`; **(2.27.0)** `chatSend` ([Runtime reads](#runtime-reads-2260)) | The base set only          |
-| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))                                                                                                                           | `fullscreen` (no bar)      |
+| `display`         | `titled` (the bar), `clean` (no bar) or `immersive` (no bar, no safe-area padding); see [Layout](#layout) for the names before 2.29.0                                                  | `clean` (no bar)           |
 | `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                                         | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
@@ -353,7 +354,7 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | -------------------------------------------- | ----------------------------------- | ----------------------- |
 | One message from the page, serialized        | **(2.15.0)** 64 KiB (string length) | `TOO_LARGE`, as `ERROR` |
 | `params` (from the opener), `result` (to it) | 16 KiB serialized, JSON only        | `INVALID`               |
-| Title in the bar (`standard` display)        | 1–100 characters after trimming     | `INVALID`               |
+| Title in the bar (`titled` display)          | 1–100 characters after trimming     | `INVALID`               |
 | Share sheet title / message / link           | 100 / 4,000 / 2,048 characters      | `INVALID`               |
 | **(2.18.0)** A storage key                   | 1–200 characters                    | `INVALID`               |
 | **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
@@ -418,7 +419,7 @@ to stop running soon after the reply, possibly before it is delivered.
 | ------------------- | ----- | --------- |
 | `{ title: string }` | `{}`  | `INVALID` |
 
-When the page shows the bar (`display: standard`), it shows, in order of precedence: the title set here, the document's `<title>`, the opener's
+When the page shows the bar (`display: titled`), it shows, in order of precedence: the title set here, the document's `<title>`, the opener's
 `title`, the manifest's `name`. A title set here lasts until the next page load in the view.
 
 ### `CopyToClipboard`
@@ -703,7 +704,7 @@ in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
 The opener sends `OpenSubWebView { url, title?, params?, appId? }` — `appId` **(2.19.0)** naming the
 app it resolved `url` from — and the shell shows the view full screen,
 reads the page's [manifest](#manifest-2160), and then loads the page under a floating close control
-alone — or, for a page whose manifest sets `display: standard`, under a bar with the title and a close
+alone — or, for a page whose manifest sets `display: titled`, under a bar with the title and a close
 control. Each page load — the first, a
 reload, a navigation — gets a fresh host, and the previous load's claims (title, back, close guard)
 are gone: the shell drops them when a load starts, and a request the previous load sends after that
@@ -762,20 +763,55 @@ Android is measured; on iOS it is not yet checked on a device (see the last sect
 
 ## Layout
 
-**(2.15.0) The page's viewport lies inside the safe area on every edge.** The shell pads the view by
+**(2.29.0) The displays are named by what the user sees: `titled`, `clean` and `immersive`.** The first
+two were `standard` and `fullscreen` before 2.29.0. Those names are still read and mean what they
+did, so a page deployed with one keeps its look; a new page uses the new names. An app released
+before 2.29.0 knows only the old ones and shows any new name with its default — on the phone no bar,
+inside the safe area — so a page that needs the bar on such an app says `standard` until its users
+have updated.
+
+**(2.15.0) The page's viewport lies inside the safe area on every edge**, for `titled` and `clean`.
+The shell pads the view by
 the device's insets on all four sides — top and bottom under the bar and above the home indicator,
 left and right in landscape — and fills the padding with the app's theme background. A page needs no
 inset handling; `env(safe-area-inset-*)` is expected to read 0 in the view, which is not yet checked
 on a device (see the last section). (Before 2.15.0 the shell padded only top and bottom, so in
-landscape a notch could cover the page's side.)
+landscape a notch could cover the page's side.) `immersive` is the one exception, below.
 
-**(2.16.0) `display: fullscreen` has no bar, and it is the default.** An app released before the default
+**(2.16.0) `display: clean` (then `fullscreen`) has no bar, and it is the default.** An app released before the default
 changed shows the bar when the manifest says nothing. No bridge version marks the change and the
 handshake does not report it, so a page cannot tell which default its app has: one that needs the bar,
 or needs none, says so in its manifest rather than relying on the default. The shell draws a floating close control
 over the page's top-right corner instead of the bar, always, so a page cannot leave the user without a way out; a page
-SHOULD keep that corner clear. The padding stays: a page still cannot draw behind the status bar or
-the home indicator, and a full-bleed mode is not part of this protocol.
+SHOULD keep that corner clear. The padding stays: a `clean` page still cannot draw behind the
+status bar or the home indicator.
+
+**(2.29.0) `display: immersive` is `clean` without the padding.** The view spans the whole screen
+and the page draws under the status bar, the home indicator and, in landscape, the notch; the padding
+and its theme colour are gone. The system bars themselves stay visible. The floating close control
+stays where `clean` puts it, below the
+status bar and clear of the notch. The page then owns the safe area:
+
+- **The shell tells the page how far each system bar reaches**, as `--chatic-safe-area-inset-top`,
+  `--chatic-safe-area-inset-right`, `--chatic-safe-area-inset-bottom` and `--chatic-safe-area-inset-left`
+  on `<html>`, in `px`. They are set before the page's scripts where the document has a root element by
+  then (or as soon as it has one, on Android), again when the load ends, and again whenever the insets change (a rotation). Only an
+  `immersive` view gets them.
+- **The page MUST set `viewport-fit=cover` in its viewport meta.** Without it WebKit keeps the layout
+  out of a landscape notch by itself, so a page that also pads by the shell's properties pads that
+  side twice, and `env()` reads 0.
+- **`env(safe-area-inset-*)` says the same where the WebView supports it**: on iOS under
+  `viewport-fit=cover` (the shell keeps WKWebView's scroll view from insetting the
+  content, which is what lets WebKit report the safe area); on Android from WebView M136 for a WebView
+  that fills the screen, and from M144 for any. An older Android WebView reports 0.
+- **A page SHOULD read the property first and fall back to `env()`**:
+  `padding-top: var(--chatic-safe-area-inset-top, env(safe-area-inset-top, 0px))`. Its controls and
+  anything tappable stay clear of the insets; its scenery runs under them.
+- **A phone app released before 2.29.0 reads `immersive` as a wrong value and shows the page with no
+  bar, padded**, as `clean`. The properties are then never set and `env()` reads 0, so a page written
+  as above lays out correctly on both. An older desktop shows it with the bar, as it does any page
+  whose manifest it cannot read a display from.
+- The status bar's icons keep the app's theme; a page cannot change them.
 
 **(2.16.0) The manifest's `orientation` holds the view** `portrait` or `landscape`, or lets it follow
 the device (`any`). It applies to the view only; the app underneath returns to its own when the
@@ -828,8 +864,9 @@ keeps the old one for a while is decided with that change.
 | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Notice before a `page`, `host` or `system` close            | Save as you go; `visibilitychange`                                     |
 | A background or foreground push                             | `visibilitychange`                                                     |
-| Safe-area insets                                            | Not needed: the viewport is inside the safe area                       |
-| Drawing behind the system bars                              | `fullscreen` drops the bar; the system bars stay outside the page      |
+| Safe-area insets on `titled` and `clean`                    | Not needed: the viewport is inside the safe area                       |
+| A colour for the safe-area padding                          | **(2.29.0)** `immersive`, which has no padding to colour               |
+| The status bar's icon colour                                | Not provided: it follows the app's theme                               |
 | Talking to the opener while open                            | `params` and `result`                                                  |
 | Data that follows the user to another device                | The page's own server, keyed by `GetSubWebViewUserKey`                 |
 | Files, purchases, push                                      | Not yet                                                                |
@@ -845,6 +882,11 @@ tests, but have not been watched on a device:
   (Android's is measured: the main web's client depends on it);
 - that `env(safe-area-inset-*)` reads 0 in the padded view, in portrait and in landscape, on both
   platforms;
+- **(2.29.0)** that in an `immersive` view `env(safe-area-inset-*)` reads the bars' reach on iOS (with
+  `viewport-fit=cover`) and on Android (WebView M136 and later), that the `--chatic-safe-area-inset-*`
+  properties are in place before the page's first paint on Android, where the first injection can
+  trail the page, that they follow a rotation, and that a focused input near the bottom stays above the
+  keyboard in the unpadded view on Android;
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
   Android, which runs edge to edge;
 - **(2.17.0)** that iOS and Android hand an `/apps/…` link to the app (the association file and the

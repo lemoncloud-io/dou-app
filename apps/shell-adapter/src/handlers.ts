@@ -11,6 +11,7 @@ import {
 } from '@chatic/fake-shell';
 import type { HandlerContext, Handlers } from '@lemoncloud/hybrid-shell';
 
+import { fakeProducts, fakePurchase, fakeStore, type FakePurchase } from './checkout';
 import { mobileRoutes } from './routes';
 import type { DouMethods } from './types';
 
@@ -48,6 +49,75 @@ const preferences = (shell: HandlerContext): Map<string, unknown> => {
 
 /** A failed reply with the app's error code, as the mobile handlers answer a domain failure. */
 const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
+
+export const NO_STORE_SKUS =
+    'The virtual store has no products: apps/mobile/.env.dev names no VITE_SUBSCRIPTION_IAP_* SKUs';
+
+export const STORE_NOT_IMITATED =
+    'In-app purchase is not imitated here — start the shell with DOU_SHELL_CHECKOUT=apple or google on dev to use the virtual store';
+
+/** The purchases the virtual store has made since the shell page loaded, for a restore to find. */
+const fakePurchases = (shell: HandlerContext): FakePurchase[] => {
+    const found = shell.store.get('dou.iap.purchases');
+    if (Array.isArray(found)) return found as FakePurchase[];
+    const created: FakePurchase[] = [];
+    shell.store.set('dou.iap.purchases', created);
+    return created;
+};
+
+/**
+ * The store, when this launch sells through the virtual one (`checkout.ts`): a catalog with an
+ * obviously fake price, a purchase that succeeds at once with a fake receipt, and the rest of the
+ * store's calls. The receipt goes to the dev server for validation like any other and is refused
+ * there, so the store path can be followed to that refusal — never further, and never on prod.
+ *
+ * Without the virtual store the same calls are refused at once as unsupported, rather than left to the
+ * panel: a purchase sheet that is not there reads as one, and the web waits a minute for it.
+ */
+const storeHandlers: Handlers<DouMethods> = {
+    FetchProducts: (_params, shell) => {
+        const store = fakeStore();
+        if (!store) throw notImitated(shell, 'FetchProducts');
+        const products = fakeProducts(store);
+        // Without the mobile app's dev SKUs the plan cards show no price; say why, once per call.
+        if (!products.length) {
+            shell.log.append({ source: 'unsupported', type: 'FetchProducts', data: { message: NO_STORE_SKUS } });
+        }
+        return { products };
+    },
+    Purchase: ({ id }, shell) => {
+        const store = fakeStore();
+        if (!store) {
+            shell.notify('OnPurchaseError', { error: { code: 'iap-not-available', message: STORE_NOT_IMITATED } });
+            throw notImitated(shell, 'Purchase');
+        }
+        const purchase = fakePurchase(store, id);
+        fakePurchases(shell).push(purchase);
+        // After the reply, as a store's sheet answers after the request went out.
+        setTimeout(() => shell.notify('OnPurchaseSuccess', { purchase }), 0);
+        return {};
+    },
+    FinishPurchaseTransaction: ({ purchase }, shell) => {
+        if (!fakeStore()) throw notImitated(shell, 'FinishPurchaseTransaction');
+        const held = fakePurchases(shell);
+        const at = held.findIndex(p => p.purchaseToken === purchase.purchaseToken);
+        if (at !== -1) held.splice(at, 1);
+        return { purchase };
+    },
+    FetchCurrentPurchases: (_params, shell) => {
+        if (!fakeStore()) throw notImitated(shell, 'FetchCurrentPurchases');
+        return { purchases: fakePurchases(shell) };
+    },
+    OpenSubscriptionManagement: (_params, shell) => {
+        throw notImitated(shell, 'OpenSubscriptionManagement');
+    },
+};
+
+/** Logs a store call the shell does not answer, and the refusal the web reads as an app without it. */
+function notImitated(shell: HandlerContext, type: string): Error {
+    shell.log.append({ source: 'unsupported', type, data: { message: STORE_NOT_IMITATED } });
+    return failure('NOT_FOUND', STORE_NOT_IMITATED);
+}
 
 /** The settings the app stores, and sign-in. */
 const shellHandlers: Handlers<DouMethods> = {
@@ -150,4 +220,5 @@ export default {
     ...fromTable(bootAnswers),
     ...fromTable(() => cache.handlers()),
     ...shellHandlers,
+    ...storeHandlers,
 } satisfies Handlers<DouMethods>;

@@ -472,8 +472,8 @@ The pages read the same flag where it changes what they offer:
   exist on that host; its footer is the same everywhere and carries the refund policy link.
 
 `lib/catalog.ts` is therefore a published price list, not test data: the tests' fake server sells
-exactly this catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
-dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
+exactly this catalog, and a price changes there together with the server's web products. It holds each tier in won
+and in dollars — the web prices, ₩8,900 and $6.80 a cloud, set apart from the app stores' prices (ADR-0333); W-01 shows the currency of the page's language —
 won in Korean, dollars otherwise (for a signed-in reader, won while the server sells no dollars) — or,
 for a subscriber, the subscription's own. What a checkout charges is decided by its billing country, not by
 the language. Where the account surface opens, the catalog port is not used; it remains wherever the

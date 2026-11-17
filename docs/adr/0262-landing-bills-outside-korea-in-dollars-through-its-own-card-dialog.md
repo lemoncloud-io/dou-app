@@ -3,6 +3,7 @@
 > Status: Accepted · Decided: 2026-10-30
 > · The "test mode only" consequence amended by [ADR-0311](./0311-landing-opens-the-account-surface-on-the-production-host-in-won-only.md) (production opens in won only; dollars stay shut there)
 > · and again by [ADR-0327](./0327-landing-opens-dollar-billing-wherever-the-server-lists-dollar-products.md) (dollars open on any stage once the server lists dollar products, production included)
+> · The dollar price in decision 6 amended by [ADR-0333](./0333-landing-publishes-the-web-prices-the-server-sells-not-the-store-prices.md) (the web's own $6.80 a cloud, not the stores' price)
 > Scope: `apps/landing` (`README.md` § The server, `src/app/features/subscription/lib/billingCountry.ts`,
 > `lib/paymentMethods.ts`, `lib/port/cardEntry.ts`, `lib/port/http/`, `components/CardEntryWindow.tsx`,
 > `pages/checkout/CheckoutPage.tsx`, `pages/billing/PaymentMethodsPage.tsx`); the root `package.json`
@@ -58,7 +59,7 @@ card is always typed into the provider's own window.
    `formatMoney` divides by the currency's fraction digits. Nothing else converts.
 6. **W-01 prices the plans in the page language's currency.** Korean readers see won, everyone else
    dollars, from a published catalog that now holds both (the dollar price is the app stores' price
-   outside Korea). A subscriber sees their own subscription's currency. What a checkout charges is the
+   outside Korea — _amended 2026-11-17 (ADR-0333): the web's own price, $6.80 a cloud_). A subscriber sees their own subscription's currency. What a checkout charges is the
    billing country's, shown on W-08.
 
 7. **The server decides who gets the free trial.** The trial stays at each product's `trialDays`

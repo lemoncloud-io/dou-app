@@ -85,6 +85,8 @@ store applies each change.
 ## Mini apps
 
 A section of its own, after Startup (`components/MiniAppSettingsItem.tsx`, `hooks/useMiniAppLauncher.ts`).
+The nav rail's Mini app tile under DM (`components/MiniAppRailButton.tsx`) is the same launcher, with
+the same dialogs and conditions ([nav rail](../shell/nav-rail.md#mini-app)).
 It opens a cloud's mini apps in the desktop shell's sub view, a modal over the app. The shell side is
 in `apps/desktop` (Sub view), and what the page receives is in the sub WebView protocol
 (`apps/mobile/docs/webview/sub-webview-protocol.md`).
@@ -93,46 +95,48 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
   desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
   shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
-  has no owner and no mini apps. It is also hidden on production: mini apps are not released there
+  has no owner and no mini app link. It is also hidden on production: mini apps are not released there
   yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV` (a build with no stage hides it
   too).
-- **Open mini apps.** Everyone in the cloud gets this one row, and it always opens DoU's hub
-  (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise). The hub is the
-  way in: it lists the cloud's mini apps and, when one is chosen, closes with
-  `result: { action: 'openMiniApp', id }`. The web looks that id up in the cloud's list and opens the
-  address it holds there — the hub never hands over an address, and an id the list does not hold opens
-  nothing.
+- **The link.** A cloud has one mini app link, kept on the relay as the cloud's `miniAppUrl` field
+  (`hooks/useCloudMiniApp.ts`, through `CloudRepository.fetchMiniAppUrl` / `saveMiniAppUrl`; react-query
+  is its only cache). `''` means none. The relay checks nothing about the value, so the web checks it
+  again before opening it, by the same rule it saves by.
+- **Open mini app.** Everyone in the cloud gets this row. It opens the cloud's link when there is one
+  the shell would open, and DoU's hub otherwise (`https://apps.chatic.io/` on a PROD build,
+  `https://apps-dev.chatic.io/` otherwise) — a stored value the shell would refuse opens the hub and is
+  logged. The row's hint names the link's host, or says the hub will open. Every press reads the link
+  from the relay again rather than trusting the cache — the owner may have changed it from another
+  device, and nothing tells this one; a cloud switch while that read is out opens nothing, and a read
+  that fails is a failure toast.
 - **What a page receives.** `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open place, my id
   in this cloud, and my name, which is my place nick (under my id in this cloud, else my account id),
-  else the cloud profile's name. Only the hub is also told whether I own the cloud, and the cloud's
-  mini apps (`miniApps`: id, name and host each). A second press while the request is still out sends
-  nothing. A refusal from the shell, or a session that has no id in this cloud yet, is a failure toast.
-- **Adding, editing, removing.** The cloud's owner alone sees the list here: one row per mini app (its
-  name, the host under it) that opens its edit dialog, and an "Add mini app" row (the cloud tile's
-  `kind === 'owned'`). The dialog takes a name and an address, both
-  checked by `checkMiniAppLink` (`@chatic/shared`): a name of 1 to `MINI_APP_LINK_NAME_MAX` (30)
-  characters, and an address the shell opens by its trust rule, so a saved address is never one the
-  shell would refuse. An address on the hub's own hosts, any path, is refused with its own message: a
-  page there would be told the owner flag and the list, and its close result read as the hub's.
-  Editing an existing one also offers Remove; while the dialog closes it keeps showing what it edited.
-    - A cloud keeps at most `MINI_APP_LINK_LIMIT` (10). At the limit the add row is gone.
-    - The list is kept on this computer only, in `localStorage` under `dou.miniAppLinks.<cloudId>`, as
-      JSON, read back through `parseMiniAppLinks`, which drops any entry the rules no longer pass.
-      There is no server field yet, so the list shows only on the computer it was saved on — to
-      whoever opens that cloud there, the owner or, on a shared computer, a member signed in to it.
-      Members on their own computers do not see it. Switching clouds shows that cloud's list, and
-      drops what the previous cloud left waiting: an open dialog, a consent not yet answered, and the
-      result of a hub opened for it.
-    - A storage that refuses the write says so in the dialog.
+  else the cloud profile's name. Only the hub is also told whether I own the cloud; its `miniApps` list
+  is always empty now that the cloud has one link instead of a list. A second press while the request
+  is still out sends nothing. A refusal from the shell, or a session that has no id in this cloud yet,
+  is a failure toast.
+- **Setting the link.** The cloud's owner alone (the cloud tile's `kind === 'owned'`) also gets a
+  "Mini app link" row, its hint the link's host or "Not set" (no hint until the link is read). It
+  reads the link from the relay again, not from the cache, and opens a dialog on what it holds — a read
+  that fails opens no dialog and says so, so the owner never overwrites a link they cannot see. The
+  dialog takes one address,
+  checked by `checkMiniAppUrl` (`@chatic/shared`) before it is sent: an address the shell opens by its
+  trust rule, so a saved link is never one the shell would refuse. An address on the hub's own hosts,
+  any path, is refused with its own message: a page there would be told the owner flag, and its close
+  result read as the hub's. Save sends `PUT /clouds/:id { miniAppUrl }`; with a link set the dialog
+  also offers Remove, which saves `''`. A save the relay refuses keeps the dialog open and says so.
+    - The link is not secret. The relay returns it to anyone who reads the cloud by its id, signed in
+      or not, so the dialog tells the owner not to put secrets in it.
+    - Switching clouds drops what the previous cloud left waiting: an open dialog, a consent not yet
+      answered, and the result of a hub opened for it.
 - **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
   whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
   remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
   person's yes does not send another's names. DoU's own pages are not asked about.
 - **Back from the hub.** When the hub view this screen opened closes with
-  `result: { action: 'openMiniAppLinkSettings' }`, the add dialog opens, and only for the owner — a
-  member's request is dropped then, not kept for the day the catalog names them the owner; with
-  `openMiniApp`, the chosen mini app opens (above). Any other view's result, and any other result, is
-  ignored.
+  `result: { action: 'openMiniAppLinkSettings' }`, the link dialog opens, and only for the owner — a
+  member's request is dropped then, not kept for the day the catalog names them the owner. Any other
+  view's result, and any other result (an `openMiniApp` from an older hub included), is ignored.
 
 ## Documents
 

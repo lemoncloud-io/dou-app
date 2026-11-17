@@ -171,4 +171,20 @@ describe('useRoomJumpPills', () => {
         rerender({ ...props, isAwayFromBottom: false, messages: [message(1), message(2), message(3), message(4)] });
         expect(result.current.pill).toBeNull();
     });
+
+    it('counts from the entry cursor when the room itself sent the reader up to their first unread', () => {
+        useNotificationStore.setState({ computed: {}, items: {} });
+        const props = {
+            channelId: 'room',
+            messages: [message(1), message(2), message(3), message(4)],
+            containerRef: container,
+            isAwayFromBottom: false,
+            scrollToBottom,
+            awayFromCursor: 1,
+        };
+        const { result, rerender } = renderHook(p => useRoomJumpPills(p), { initialProps: props });
+
+        rerender({ ...props, isAwayFromBottom: true });
+        expect(result.current.pill).toMatchObject({ variant: 'latest', count: 3 });
+    });
 });

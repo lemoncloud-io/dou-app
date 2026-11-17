@@ -1,11 +1,15 @@
-import { isNative } from '@chatic/bridges';
-
 import { appBridge } from '../../../bridge';
 import { openSubWebViewTarget } from '../../../bridge/subWebViewLink';
 import { openExternalUrl } from './openExternalUrl';
 
-jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
+const mockIsNative = jest.fn();
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
 }));
 
 jest.mock('../../../bridge', () => ({
@@ -40,7 +44,7 @@ describe('openExternalUrl', () => {
     });
 
     it('hands the URL to the native shell inside the app', () => {
-        (isNative as jest.Mock).mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
 
         openExternalUrl('https://example.com/a');
 
@@ -50,7 +54,7 @@ describe('openExternalUrl', () => {
     });
 
     it('opens a new tab in a plain browser', () => {
-        (isNative as jest.Mock).mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
 
         openExternalUrl('https://example.com/a');
 
@@ -59,7 +63,7 @@ describe('openExternalUrl', () => {
     });
 
     describe('a mini app link', () => {
-        beforeEach(() => (isNative as jest.Mock).mockReturnValue(true));
+        beforeEach(() => mockIsNative.mockReturnValue(true));
 
         it('opens the app a link names in the sub WebView, not the OS browser', () => {
             openExternalUrl('https://app.chatic.io/apps/dou-raise');
@@ -115,7 +119,7 @@ describe('openExternalUrl', () => {
 
     // The browser has no sub WebView: a link there opens a tab, whatever it names.
     it('opens a mini app link in a new tab in a plain browser', () => {
-        (isNative as jest.Mock).mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
 
         openExternalUrl('https://app.chatic.io/apps/dou-raise');
 

@@ -4,7 +4,6 @@ export { InviteCodeCard } from './InviteCodeCard';
 export { MemberListItem } from './MemberListItem';
 export { MemberProfileDialog } from './MemberProfileDialog';
 export { PermissionDeniedBanner } from './PermissionDeniedBanner';
-export { RoomNotificationDialog } from './RoomNotificationDialog';
 export { JoinNickDialog } from './JoinNickDialog';
 export { UpdateChannelDialog } from './UpdateChannelDialog';
 export * from './PlaceProfileEditDialog';

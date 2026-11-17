@@ -1,4 +1,5 @@
 import {
+    getCapabilitiesScript,
     getConfigBagScript,
     getDebugModeScript,
     getDeviceInfoScript,
@@ -231,6 +232,40 @@ describe('getStorageMediaScript', () => {
         expect(win.CHATIC_APP_STORAGE_MEDIA).toEqual(['nativeSecure']);
         expect(win.CHATIC_APP_CONFIG_BAG).toEqual({ 'ui.onboardingCompleted': 'true' });
         expect(postMessage).not.toHaveBeenCalled();
+    });
+});
+
+describe('getCapabilitiesScript', () => {
+    const base = {
+        insets: { top: 0, bottom: 0, left: 0, right: 0 },
+        keyboardHeight: 0,
+        deviceInfo: makeParams(),
+        theme: 'dark' as const,
+    };
+
+    it('declares what the app can do, in the boot script', () => {
+        const script = getSyncInjectionScript({ ...base, capabilities: { version: 1, checkout: ['apple'] } });
+
+        expect(script).toContain('window.CHATIC_APP_CAPABILITIES = {"version":1,"checkout":["apple"]};');
+    });
+
+    it('declares nothing when not given, as an app built before declarations', () => {
+        expect(getCapabilitiesScript(undefined)).toBe('');
+        expect(getSyncInjectionScript(base)).not.toContain('CHATIC_APP_CAPABILITIES');
+    });
+
+    it('is set even when a later snippet throws', () => {
+        const script = getSyncInjectionScript({ ...base, capabilities: { version: 1, checkout: ['google'] } });
+        const win: Record<string, unknown> = { ReactNativeWebView: { postMessage: jest.fn() } };
+        // A document whose root throws on access: the safe-area snippet, which comes later, fails.
+        const document = {
+            get documentElement(): never {
+                throw new Error('no root');
+            },
+        };
+        new Function('window', 'document', script)(win, document);
+
+        expect(win.CHATIC_APP_CAPABILITIES).toEqual({ version: 1, checkout: ['google'] });
     });
 });
 

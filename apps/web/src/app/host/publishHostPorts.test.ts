@@ -1,4 +1,4 @@
-import { host, resolveCheckoutMethod } from '@chatic/host';
+import { host, resolveCheckoutMethod, resolveFilesMethod, resolveMediaMethod, resolveSignIn } from '@chatic/host';
 
 import { publishHostPorts } from './publishHostPorts';
 import { storeCheckout } from './checkout/storeCheckout';
@@ -6,6 +6,9 @@ import { storeCheckout } from './checkout/storeCheckout';
 jest.mock('@chatic/host', () => ({
     ...jest.requireActual('@chatic/host'),
     resolveCheckoutMethod: jest.fn(),
+    resolveMediaMethod: jest.fn(() => 'app'),
+    resolveFilesMethod: jest.fn(() => 'app'),
+    resolveSignIn: jest.fn(() => ({ kind: 'app', os: 'ios' })),
 }));
 jest.mock('./checkout/storeCheckout', () => ({
     storeCheckout: jest.fn((store: string) => ({ kind: 'store', store })),
@@ -32,5 +35,37 @@ describe('publishHostPorts — checkout', () => {
 
     it('sells nothing when the host sells nothing', () => {
         expect(publishing('none')).toEqual({ kind: 'none' });
+    });
+});
+
+describe('publishHostPorts — media', () => {
+    it.each(['app', 'page'] as const)('lets %s pick when the host says so', method => {
+        (resolveMediaMethod as jest.Mock).mockReturnValue(method);
+        publishing('none');
+
+        expect(host.ports.media).toEqual({ kind: method });
+    });
+});
+
+describe('publishHostPorts — the v4 domains', () => {
+    it('publishes what each resolver answers', () => {
+        publishing('none');
+
+        expect(host.ports.signIn).toEqual({ kind: 'app', os: 'ios' });
+        expect(resolveSignIn).toHaveBeenCalled();
+        // The rest are read from the real profile, which under jsdom has no bridge: the page.
+        expect(host.ports.links).toEqual({ kind: 'page' });
+        expect(host.ports.appShell).toEqual({ kind: 'page', os: null });
+        expect(host.ports.diagnostics).toEqual({ kind: 'page' });
+        expect(host.ports.push).toEqual({ kind: 'page' });
+    });
+});
+
+describe('publishHostPorts — files', () => {
+    it.each(['app', 'page'] as const)('lets %s move files when the host says so', method => {
+        (resolveFilesMethod as jest.Mock).mockReturnValue(method);
+        publishing('none');
+
+        expect(host.ports.files).toEqual({ kind: method });
     });
 });

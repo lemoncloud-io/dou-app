@@ -1,5 +1,6 @@
 import {
     fitsSubWebViewData,
+    subWebViewDisplayOf,
     isOpenableSubWebViewUrl,
     isSubWebViewAppId,
     isSubWebViewParams,
@@ -128,4 +129,20 @@ describe('the push and deep-link gate', () => {
             expect(subWebViewPageUrlOfNavigatePath(`/sub-webview?url=${encodeURIComponent(url)}`)).toBeNull();
         }
     );
+});
+
+describe('subWebViewDisplayOf', () => {
+    it.each(['titled', 'clean', 'immersive'] as const)('reads %s as itself', display => {
+        expect(subWebViewDisplayOf(display)).toBe(display);
+    });
+
+    // A page deployed before the rename keeps the look it asked for.
+    it('reads the earlier names as the displays they became', () => {
+        expect(subWebViewDisplayOf('standard')).toBe('titled');
+        expect(subWebViewDisplayOf('fullscreen')).toBe('clean');
+    });
+
+    it.each([undefined, null, 1, 'edgeToEdge', 'Titled', 'toString', '__proto__'])('reads %p as no display', value => {
+        expect(subWebViewDisplayOf(value)).toBeUndefined();
+    });
 });

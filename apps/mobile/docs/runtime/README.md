@@ -9,7 +9,7 @@ the runtime starts, and what it keeps running.
 **A dev or production build runs it by default; the web can send installs back to the page.** 0.32.0
 was the first app version that carried the runtime, and it shipped switched off in production. From
 0.32.1 a production build starts every install nobody switched on the runtime, as the dev build already
-did; the web build can name the page instead for those installs, from their next start, without an app
+did (from 0.32.2, on a launch whose vault holds a session); the web build can name the page instead for those installs, from their next start, without an app
 release (see [The page's default](#the-pages-default)). The owner switch still moves one install either
 way, answered in production only while the app's debug mode is on (see [The switch](#the-switch)). On a
 launch whose owner is `native`, the app offers the session to the page
@@ -117,7 +117,8 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
 
 - **Any build answers it, production included, with no debug mode.** It is the rollback for the runtime
   being the production default: a web deploy naming `web` sends real installs back to the page, with no
-  app release and no store review.
+  app release and no store review. An install whose session the page never moved into the vault gets it
+  back on that launch ([An install that skipped the page's move](#an-install-that-skipped-the-pages-move)).
 - **It takes effect from the next start and never restarts.** The owner is settled once per launch, so the
   launch that hears it keeps its owner. An install therefore moves two starts after the deploy at the
   earliest: one to hear the new value, one to run on it.
@@ -132,10 +133,17 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
   `WEB_PROD_APP_SESSION_OWNER`, which the deploy workflows write into the web's `.env`. Changing the
   variable does nothing until the next web deploy.
 - An app from before 2.28.0 of the bridge does not list the request, and the page sends it nothing.
+- **It cannot reach an app that dies starting its runtime.** The runtime starts on the page's first
+  hello (`runtimeBridge.ts`), before the page sends `WebAppReady`, so a start that kills the process — a
+  native module the build left out, say — kills it before this request is sent, on every launch. The
+  lever for that is the web's own switch, `VITE_SESSION_MIRROR_DISABLED` (deploys read it from
+  `WEB_DEV_SESSION_MIRROR_DISABLED` / `WEB_PROD_SESSION_MIRROR_DISABLED`): a page that never says hello
+  never starts the runtime, owns the launch itself, and names `web` here for the starts after it. It
+  moves every install, switched ones included, until a web deploy without it.
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
-without the runtime's services): **This run** says App (native) for both. The device scenarios switch
+without the runtime's services) or declined a vault with no session: **This run** says App (native) for both. The device scenarios switch
 through this screen with `--session-owner native` (release `device-verify.md`).
 
 The vault's tokens are the same keychain item for both owners, so a session carries over a switch. What
@@ -180,7 +188,10 @@ the boot took and what the vault held.
 
 A start that fails answers `null`, and the page keeps the session. A failed boot created nothing; a run
 that fails after the boot stops what it had started, so the runtime exists without running. The log
-says which of the two happened.
+says which of the two happened. A boot that finds no session in the vault is not a failure: it also
+creates nothing and answers `null`, so the page takes the launch, and it is logged as a decline
+(`session.native_runtime_declined`), not as `session.native_runtime_failed` (see
+[An install that skipped the page's move](#an-install-that-skipped-the-pages-move)).
 
 ## The device, as the page knows it
 
@@ -201,8 +212,34 @@ had one launch of a page build that copies it has the id on either side. One swi
 before such a launch reads none until it logs in as a guest, which also writes it. Dev and production
 builds accept that gap since they default to the runtime: an install that never ran a copying page
 build before it got the runtime default starts without the id, so it does not see the invited clouds
-it accepted until it signs in as a guest again. A production install updating from 0.32.0 ran the
-production web on its earlier launches, so it has the id once that web build copies it.
+it accepted until it signs in as a guest again. An install that ran 0.32.0 ran the page on its earlier
+launches, so it has the id once that web build copies it. Production installs mostly went from 0.31.2
+straight to 0.32.1, and those have neither the id nor their tokens in the vault; see the next section.
+
+### An install that skipped the page's move
+
+The tokens reach the vault the same way as the guest's id: a launch the page owns moves them out of the
+page's `localStorage` (`secretStorageMigration` in `libs/auth`). Apps before 0.32.0 have no vault, and
+production installs went from 0.31.2 straight to 0.32.1, whose first launch is the runtime's. That launch
+finds an empty vault and signs the device in as a guest, so the person looks signed out: their own clouds
+are gone, and an invited cloud answers `delegate-cloud` with 403. The page, mirroring, never opens the vault,
+so the person's session stays in `localStorage`.
+
+The page's move gets it back. A web copy still in `localStorage` next to tokens in the vault can only mean
+no page has booted on that vault, so the move lets the copy replace the vault's tokens, and the guest's id
+with them, instead of taking the vault as the truth. The install needs one launch the page owns for it,
+which a web build naming `web` ([The page's default](#the-pages-default)) gives it from its next start.
+Without that move, naming `web` would have deleted the person's session: the vault's guest tokens would
+have counted as the truth. The first launch after such an update is the runtime's whatever the web says,
+because the app settles the owner before any web build is heard. A sign-out on a launch the runtime owns
+deletes that copy as well, so the next launch the page owns does not bring back the account the person left.
+
+From 0.32.2 that first launch is the page's instead. The runtime declines any launch whose vault holds no
+session (`NativeRuntimeNoSessionError` from the boot, logged as `session.native_runtime_declined`): the
+host answers the page's hello with `web`, the page moves the session out of `localStorage`, and the next
+launch finds it in the vault and is the runtime's. A signed-out install pays one launch on the page, where
+the page signs a guest in as the runtime would have. So an install updating from an app without a vault
+never meets the guest sign-in, whatever the web build names.
 
 ## The page's side of the bridge
 
@@ -290,9 +327,14 @@ installs meet them on every launch unless the web names the page ([The page's de
   `RUNTIME_CONTRACT_MISMATCH` refusal. Reloaded into the first kind, such a page would boot a second
   session. The offer has to say the session is held (and the page then ask whatever its switch says)
   before a web deploy can be the rollback mid-process.
-- **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
-  side's own plain store. A launch owned by one side does not see the other's, so the owner must not
-  change while one is set. The owner switch does not check for one.
+- **Logout markers cross owners in one direction only.** The "the vault clear was not confirmed" marker
+  sits in each side's own plain store. A page's clear also reaches the runtime's file
+  (`runtimeLogoutMarker.ts`, loaded by `useSecureStorageHandler` only when a page clears the vault, sets
+  or removes the marker there with the clear's outcome), because the
+  runtime declining a vault with no session makes page-owned launches routine and the runtime may own
+  the next one. The other way has no need for it: a runtime marker means the vault still holds tokens,
+  and the runtime's boot finishes the logout before any decline. The owner switch still does not check
+  for a marker.
 - **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
   restarted context sends a `boot` trace and a `first_screen` sample as a launch would; they need a type
   of their own now that production runs the runtime.

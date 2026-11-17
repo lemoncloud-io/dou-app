@@ -256,11 +256,11 @@ describe('createMockPort — the state machine', () => {
         expect(await port.changePlan('pro-tier-01')).toEqual({ scheduled: true, effectiveAt: '2026-11-20' });
         const scheduled = await port.getSubscription('sub-2');
         expect(scheduled.pendingChange).toEqual({ planId: 'pro-tier-01', effectiveAt: '2026-11-20' });
-        expect(scheduled.nextAmount).toEqual({ amount: 8600, currency: 'KRW' });
+        expect(scheduled.nextAmount).toEqual({ amount: 8900, currency: 'KRW' });
 
         const cancelled = await port.cancelScheduledChange('sub-2');
         expect(cancelled.pendingChange).toBeUndefined();
-        expect(cancelled.nextAmount).toEqual({ amount: 17200, currency: 'KRW' });
+        expect(cancelled.nextAmount).toEqual({ amount: 17800, currency: 'KRW' });
     });
 
     it('refuses to cancel a scheduled downgrade on the day it applies', async () => {
@@ -397,8 +397,8 @@ describe('createMockPort — the state machine', () => {
 
     it("prices the plans in the currency asked for, and otherwise in the subscription's", async () => {
         const { port } = setup('?mock=active');
-        expect((await port.listPlans())[0].monthly).toEqual({ amount: 8600, currency: 'KRW' });
-        expect((await port.listPlans({ currency: 'USD' }))[0].monthly).toEqual({ amount: 600, currency: 'USD' });
+        expect((await port.listPlans())[0].monthly).toEqual({ amount: 8900, currency: 'KRW' });
+        expect((await port.listPlans({ currency: 'USD' }))[0].monthly).toEqual({ amount: 680, currency: 'USD' });
         expect((await port.previewCheckout('pro-tier-01', { currency: 'USD' })).plan.monthly.currency).toBe('USD');
     });
 

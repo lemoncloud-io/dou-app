@@ -64,3 +64,30 @@ export const readShellGlobals = (source: Readonly<Record<string, unknown>> | und
     }
     return globals;
 };
+
+/**
+ * The boot globals as they stand now, not as the profile kept them. Only for a reader that has to see
+ * a value the shell rewrites after load — the phone's second boot pass can change the device ids, the
+ * version check and the language — which is `apps/web`'s device store, its version floor and language
+ * preference, and the session's device id. Everything else reads `hostProfile().globals`.
+ */
+export const liveShellGlobals = (): ShellGlobals =>
+    readShellGlobals(typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>));
+
+/**
+ * Values a shell writes while the page runs, which are therefore not host facts and not in the
+ * profile: the config bag the shell keeps for the page, the debug switch, the log upload hold, and the
+ * run id its logs carry.
+ */
+export const LIVE_SHELL_VALUE_NAMES = [
+    'CHATIC_APP_CONFIG_BAG',
+    'CHATIC_APP_DEBUG_MODE',
+    'CHATIC_APP_LOG_UPLOAD_HOLD',
+    'CHATIC_APP_RUN_ID',
+] as const;
+
+export type LiveShellValueName = (typeof LIVE_SHELL_VALUE_NAMES)[number];
+
+/** One of those values as it stands now, untyped: each reader validates what it gets. */
+export const liveShellValue = (name: LiveShellValueName): unknown =>
+    typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>)[name];

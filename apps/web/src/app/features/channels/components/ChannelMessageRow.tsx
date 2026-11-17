@@ -48,8 +48,13 @@ export interface MessageReadInfo {
     readCount: number;
     /** Members who have not read this message yet. */
     unreadCount: number;
-    /** Receipt presentation: `count` (group N·M) or `dm` (1:1 "1" badge). Defaults to `count`. */
-    mode?: 'count' | 'dm';
+    /**
+     * Receipt presentation: `count` (N·M beside the time), `dm` (1:1 "1" badge), or `readers` — the
+     * group room's line under my newest message, with who read it. Defaults to `count`.
+     */
+    mode?: 'count' | 'dm' | 'readers';
+    /** `readers` mode: who has read it, by user id, me excluded. */
+    readers?: string[];
 }
 
 export interface ChannelMessageRowProps {
@@ -87,6 +92,8 @@ export interface ChannelMessageRowProps {
     threadMeta?: ThreadMeta;
     /** How many replies are newer than my read cursor (ADR-0093 decision 5); 0 = none. */
     unseenReplyCount?: number;
+    /** An unseen reply in this message's thread calls the reader — the footer says so. */
+    unseenRepliesMentionMe?: boolean;
     /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
     formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
@@ -151,6 +158,7 @@ export const ChannelMessageRow = ({
     avatarOf,
     threadMeta,
     unseenReplyCount,
+    unseenRepliesMentionMe,
     formatThreadTime,
     onOpenThread,
     isEditTarget = false,
@@ -426,7 +434,7 @@ export const ChannelMessageRow = ({
                     )}
                 </span>
             );
-        } else if (read.show && message.chatNo !== undefined) {
+        } else if (read.show && message.chatNo !== undefined && read.mode !== 'readers') {
             status = read.isReady ? (
                 <ReadReceipt
                     mode={read.mode}
@@ -441,6 +449,37 @@ export const ChannelMessageRow = ({
             );
         }
     }
+
+    // The group room's receipt: its own line under my newest message, after the reactions and the
+    // thread footer (Figma 5978:37669), with the readers' faces. A spinner holds its place until the
+    // join cursors have synced, as the beside-the-time receipt does.
+    const receiptLine =
+        read.show &&
+        read.mode === 'readers' &&
+        message.chatNo !== undefined &&
+        !message.isPending &&
+        !message.isFailed ? (
+            read.isReady ? (
+                <ReadReceipt
+                    mode="readers"
+                    readCount={read.readCount}
+                    unreadCount={read.unreadCount}
+                    readers={(read.readers ?? []).map(id => {
+                        const src = avatarOf?.(id);
+                        return src ? (
+                            <ImageAvatar key={id} src={src} alt="" size={20} className="ring-1 ring-background" />
+                        ) : (
+                            <DefaultAvatar key={id} size={20} className="ring-1 ring-background" />
+                        );
+                    })}
+                    readLabel={t('chat.room.receipt.read')}
+                    unreadLabel={t('chat.room.receipt.unconfirmed')}
+                    allReadLabel={t('chat.room.receipt.allRead')}
+                />
+            ) : (
+                <Loader2 size={11} className="m-1 animate-spin text-muted-foreground" />
+            )
+        ) : null;
 
     // The images, in place of the bubble or under it — either way a long-press target, with the
     // same selection and callout suppression as the bubble (the callout here is iOS's own image
@@ -656,12 +695,15 @@ export const ChannelMessageRow = ({
                 <ThreadFooter
                     meta={threadMeta}
                     unseenCount={unseenReplyCount ?? 0}
+                    mentionsMe={unseenRepliesMentionMe}
+                    nameOf={nameOf}
                     onOpen={onOpenThread}
                     avatarOf={avatarOf}
                     formatTime={formatThreadTime}
                     align={mine ? 'end' : 'start'}
                 />
             )}
+            {receiptLine}
         </MessageRow>
     );
 };

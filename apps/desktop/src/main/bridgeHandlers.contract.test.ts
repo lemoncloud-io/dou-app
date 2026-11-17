@@ -16,7 +16,15 @@ import { startUpdater } from './updater';
 
 // updater.ts registers the two auto-update handlers and is the one module here that needs electron.
 // Packaged, so it registers them; the update feed itself is a stub.
-jest.mock('electron', () => ({ app: { isPackaged: true, on: jest.fn() }, powerMonitor: { on: jest.fn() } }));
+jest.mock('electron', () => ({
+    app: { isPackaged: true, on: jest.fn(), getPath: () => 'logs', getVersion: () => '1.0.0' },
+    powerMonitor: { on: jest.fn() },
+}));
+// The updater's file log is covered by its own suite; here it must not write into the real logs.
+jest.mock('./updaterLog', () => ({
+    createUpdaterLog: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }),
+}));
+
 jest.mock('electron-updater', () => ({
     __esModule: true,
     default: {

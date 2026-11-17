@@ -43,6 +43,9 @@ const GAP_DIVIDER_MIN_MISSING = 11;
 /** No range answered for: what a channel reads before its ranges arrive. */
 const NOTHING_COVERED: readonly FeedRange[] = [];
 
+/** No rows: what a channel reads before its window arrives. One list, so derived memos keep their identity. */
+const NO_CHATS: DomainChat[] = [];
+
 /**
  * A stretch of the conversation between two cached rows that this run has not fetched: real history
  * the cache never held, as opposed to the holes deleted messages leave (see `FeedCoverage`).
@@ -142,8 +145,9 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // after a jump — a page, rows arriving — goes to whichever axis is the wider one (`growWindow`).
     const [jumpLimit, setJumpLimit] = useState(0);
     const observeLimit = Math.max(pageLimit, jumpLimit);
-    // True while a failed page waits out its retry delay. `loadMore` reads it, so the end of the wait
-    // hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
+    // True while a failed page waits out its retry delay. `loadMore` depends on it, so the end of the
+    // wait hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
+    // Whether to wait is read from `backingOffRef`, not from this: see there.
     const [isBackingOff, setIsBackingOff] = useState(false);
     // The ranges a feed page has answered for in this run (`observeFeedCoverage`), and whose they are.
     // The repository binds a subscription to the cloud and account selected when it is made, and the
@@ -186,6 +190,11 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // The cursor of the last page whose rows reached the window.
     const lastCursorRef = useRef<number | null>(null);
     const failuresRef = useRef(0);
+    // The wait itself, read synchronously like `loadingMoreRef`. A failure releases `loadingMoreRef`
+    // at once, but `isBackingOff` reaches a caller only with the next commit, and a scroll event can
+    // be handled before that by the previous render's handler, whose `loadMore` saw no wait. That
+    // caller sent the failed page again at once, and the second failure doubled the wait.
+    const backingOffRef = useRef(false);
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     // The newest chatNo this window has held, to tell rows that arrived from rows already counted.
     const newestNoRef = useRef(0);
@@ -198,13 +207,22 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // cursor, `rawChats` (reaction folding, thread building, "is row 1 loaded") — has to agree on
     // where my CURRENT membership starts. Windowing only `messages` left `rawChats` claiming the
     // conversation began at row 1 for someone who re-joined mid-thread (ADR-0067).
-    const chats = useMemo(() => cachedChats.filter(chat => isInJoinWindow(chat, joinedNo)), [cachedChats, joinedNo]);
+    //
+    // A window read for another channel is not this one's. A room that moves to another channel
+    // without remounting renders once with the previous channel's rows before the reset effect runs,
+    // and what it derived from them went out under the new id — the read marker sent the previous
+    // room's newest chatNo as this room's read (`chat.read` overflow). Until this channel's window is
+    // read, it has no rows and is still loading, the same as a fresh mount.
+    const isOtherChannelWindow = windowChannelId !== null && windowChannelId !== channelId;
+    const windowChats = isOtherChannelWindow ? NO_CHATS : cachedChats;
+    const isWindowLoading = isLoading || isOtherChannelWindow;
+    const chats = useMemo(() => windowChats.filter(chat => isInJoinWindow(chat, joinedNo)), [windowChats, joinedNo]);
 
     // Compared with the channel record before the join window: the record counts every row, and rows
     // the window hides are still rows the cache holds.
     const cachedNewestNo = useMemo(
-        () => cachedChats.reduce((max, chat) => (chat.chatNo && chat.chatNo > max ? chat.chatNo : max), 0),
-        [cachedChats]
+        () => windowChats.reduce((max, chat) => (chat.chatNo && chat.chatNo > max ? chat.chatNo : max), 0),
+        [windowChats]
     );
     useChannelHeadRefresh({
         channelId,
@@ -256,6 +274,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     const endBackoff = useCallback(() => {
         failuresRef.current = 0;
         clearTimeout(retryTimerRef.current);
+        backingOffRef.current = false;
         setIsBackingOff(false);
     }, []);
 
@@ -362,7 +381,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     const loadMore = useCallback(
         async ({ immediate = false }: LoadMoreOptions = {}) => {
             if (!channelId || !isVerified || !hasMore || loadingMoreRef.current) return;
-            if (isBackingOff && !immediate) return;
+            if (backingOffRef.current && !immediate) return;
             // Read the oldest cached row from the ref so the cursor reflects the live list without
             // making `chats` a dependency. observeList is chat_no-descending, so the smallest chatNo
             // is the page boundary to fetch before. Unsent rows carry chatNo 0 until the server numbers
@@ -444,9 +463,13 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
                 // over a single dropped request — a reconnect mid-scroll was enough.
                 failuresRef.current += 1;
                 const wait = Math.min(LOAD_MORE_RETRY_MAX_MS, LOAD_MORE_RETRY_BASE_MS * 2 ** (failuresRef.current - 1));
+                backingOffRef.current = true;
                 setIsBackingOff(true);
                 clearTimeout(retryTimerRef.current);
-                retryTimerRef.current = setTimeout(() => setIsBackingOff(false), wait);
+                retryTimerRef.current = setTimeout(() => {
+                    backingOffRef.current = false;
+                    setIsBackingOff(false);
+                }, wait);
                 releasePaging();
             }
         },
@@ -646,8 +669,8 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
          * nothing here predates my current membership.
          */
         rawChats: chats,
-        isLoading,
-        isEmpty: !isLoading && messages.length === 0,
+        isLoading: isWindowLoading,
+        isEmpty: !isWindowLoading && messages.length === 0,
         /**
          * An older page is in flight, or has come back and is waiting for the widened window to be
          * read. It turns false once the page's rows are in `messages`, and otherwise when the page

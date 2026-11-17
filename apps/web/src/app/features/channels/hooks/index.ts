@@ -30,3 +30,4 @@ export * from './useRoomOpenTrace';
 export * from './useRoomSyncTrace';
 export * from './useChatInputLock';
 export * from './useRoomJumpPills';
+export * from './useChannelWebhooks';

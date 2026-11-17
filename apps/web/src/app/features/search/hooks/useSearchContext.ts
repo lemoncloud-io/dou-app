@@ -20,7 +20,7 @@ import { pickDmPeerId } from '../../channels/utils/dmPeer';
 import { lastChatPreview } from '../../channels/utils/lastChatPreview';
 import { messageSearchText } from '../../channels/utils/messagePlainText';
 import type { CloudSearchResult, GlobalSearchResults } from './useGlobalSearch';
-import { useSenderProfiles, type SenderProfileRef } from './useSenderProfiles';
+import { useSenderProfiles, type SenderProfileRef } from '../../../hooks/useSenderProfiles';
 
 const EMPTY_CONTEXT: GlobalCacheContext = {
     channelsByRef: {},

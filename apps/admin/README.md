@@ -55,6 +55,11 @@ stages. Each service's base on each stage is its own env key, read through
   (`VITE_OAUTH_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`, …) name
   `v1` in every build, development included: the admin accounts and their session live there. The
   stage toggles reach `d1` through the keys above.
+- **"Production" for sign-in means the relay backend (`dou-v1`)**, the same backend the relay socket
+  refreshes against. A session is renewed only by the backend that issued it. A session from any
+  other account backend passes the socket's token check but fails its first refresh, 48 minutes in,
+  and the console logs out a minute later. [auth/](docs/auth/README.md#which-backend-issues-the-session)
+  has the detail.
 - **Each toggle opens on the build's stage**, not the session's: `v1` in a production build
   (`VITE_ENV=PROD`), `d1` in any other (`src/app/config/stageEndpoints.ts`, `openingStage`). A
   development build that opened on production would put an operator's first write there.

@@ -1,3 +1,14 @@
+/** Whether the `diagnostics` port sends the logs through the app — what `isNative()` used to answer. */
+let mockInsideTheApp = false;
+jest.mock('@chatic/host', () => ({
+    host: {
+        isPublished: true,
+        get ports() {
+            return { diagnostics: { kind: mockInsideTheApp ? 'app' : 'page' } };
+        },
+    },
+}));
+
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
@@ -31,7 +42,7 @@ beforeEach(() => {
     delete (window as Record<string, unknown>).CHATIC_APP_CURRENT_VERSION;
     delete (window as Record<string, unknown>).CHATIC_APP_PLATFORM;
     delete (window as Record<string, unknown>).CHATIC_APP_DEVICE_MODEL;
-    delete (window as Record<string, unknown>).ReactNativeWebView;
+    mockInsideTheApp = false;
 });
 
 describe('readLogContext', () => {
@@ -113,9 +124,8 @@ describe('attachLogContext', () => {
 describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
     const warn = jest.spyOn(logger, 'warn').mockImplementation();
 
-    /** isNative() reads a window global — this runs it as-is, without mocking. */
     const insideTheApp = () => {
-        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        mockInsideTheApp = true;
     };
 
     beforeEach(() => warn.mockClear());
@@ -165,7 +175,7 @@ describe('readLogContext — statistics context', () => {
     });
 
     it('takes the injected platform inside the app', () => {
-        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        mockInsideTheApp = true;
         (window as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
 
         expect(readLogContext()).toMatchObject({ platform: 'ios', host: 'app' });
@@ -174,7 +184,7 @@ describe('readLogContext — statistics context', () => {
 
 describe('the session owner', () => {
     it('stamps who holds the session inside the app, once the entry point has settled it', () => {
-        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        mockInsideTheApp = true;
         expect(readLogContext().sessionOwner).toBeUndefined();
 
         setLaunchSessionOwner('native');

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { attachmentPicker } from '../../../bridge/attachmentPicker';
@@ -34,7 +34,7 @@ export const useSendImages = (room: Room) => {
         ...room,
         put: getShellPut(),
         putShellFile: getShellFilePut(),
-        ...(isNative() ? { prepareVideo: attachmentPicker.prepareVideo } : {}),
+        ...(host.ports.media.kind === 'app' ? { prepareVideo: attachmentPicker.prepareVideo } : {}),
         onVideoRefused,
         beforeSweep: syncShellTransfers,
         // A send can start the moment the page comes back to the front — from an OS picker above all —

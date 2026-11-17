@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -12,6 +12,7 @@ import { MenuCard } from '@chatic/web-ui-kit';
 import { useCloudName, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { useApprovedPairings, useMyDevices, useRevokePairing, useUnlinkDevice } from '../hooks';
 import { approvedPairingRows, deviceKindKey } from '../lib/deviceRows';
@@ -22,13 +23,14 @@ const RELAY_SELECTION = 'default';
  * My devices, and — on an approving app — the web sign-ins it approved.
  *
  * A browser guest has no account whose devices there are to list; anyone else sees the first section.
- * The second is the approver's: inside the app, on a session that is not itself signed in through an
- * approval (the relay answers 403 to anyone else anyway).
+ * The second is the approver's: inside the app (where `host.ports.signIn` says the app signs in), on a
+ * session that is not itself signed in through an approval (the relay answers 403 to anyone else
+ * anyway).
  */
 export const PairingDevicesPage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
-    if (!enabled || (isGuest && !isNative())) return <Navigate to={ROUTES.mypage.root} replace />;
+    if (!enabled || (isGuest && host.ports.signIn.kind !== 'app')) return <Navigate to={ROUTES.mypage.root} replace />;
     return <PairingDevicesScreen />;
 };
 
@@ -40,7 +42,7 @@ const PairingDevicesScreen = () => {
     const isPaired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
     // The approvals are an approving app's: an account's, not a secondary device's.
-    const showApprovals = isNative() && !isGuest && !isPaired;
+    const showApprovals = host.ports.signIn.kind === 'app' && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
     const cloudName = useCloudName();
@@ -214,6 +216,7 @@ const PairingDevicesScreen = () => {
                         )}
                     </section>
                 )}
+                <SafeAreaBottomSpacer />
             </div>
 
             <ConfirmDialog

@@ -1,7 +1,14 @@
 const mockIsNative = jest.fn();
 const mockRequest = jest.fn();
+// Who moves files, as the host's `files` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { files: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockIsNative(),
     logger: { info: jest.fn() },
     webClient: { request: (...args: unknown[]) => mockRequest(...args), onEvent: jest.fn(() => () => undefined) },
 }));

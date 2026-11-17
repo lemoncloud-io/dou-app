@@ -63,6 +63,33 @@ describe('createSecureStorageHandlers', () => {
         });
     });
 
+    it("tells the runtime's side whether the page's clear was confirmed, so its next boot can finish the logout", async () => {
+        const vault = createVault();
+        const onClearResult = jest.fn();
+        const { handleStorageClear } = createSecureStorageHandlers(vault, logger, { onClearResult });
+
+        await handleStorageClear(request('StorageClear', { medium: 'nativeSecure' }));
+        vault.clear.mockResolvedValueOnce(false);
+        const refused = await handleStorageClear(request('StorageClear', { medium: 'nativeSecure' }));
+
+        expect(onClearResult.mock.calls).toEqual([[true], [false]]);
+        expect(refused).toEqual({ type: 'OnStorageClear', success: true, data: { ok: false } });
+    });
+
+    it('still answers the page when recording the clear for the runtime throws', async () => {
+        const vault = createVault();
+        const onClearResult = jest.fn(() => {
+            throw new Error('mmkv');
+        });
+        const { handleStorageClear } = createSecureStorageHandlers(vault, logger, { onClearResult });
+
+        await expect(handleStorageClear(request('StorageClear', { medium: 'nativeSecure' }))).resolves.toEqual({
+            type: 'OnStorageClear',
+            success: true,
+            data: { ok: true },
+        });
+    });
+
     it.each([
         ['StorageGet', { medium: 'localStorage' }],
         ['StorageSave', { medium: 'electronSafe', set: {}, remove: [] }],
@@ -131,6 +158,18 @@ describe('createSecureStorageHandlers', () => {
             });
             expect(vault.save).not.toHaveBeenCalled();
             expect(vault.clear).not.toHaveBeenCalled();
+        });
+
+        it('records no clear for the runtime when it refused one', async () => {
+            const onClearResult = jest.fn();
+            const { handleStorageClear } = createSecureStorageHandlers(createVault(), logger, {
+                ownsSession: () => true,
+                onClearResult,
+            });
+
+            await handleStorageClear(request('StorageClear', { medium: 'nativeSecure' }));
+
+            expect(onClearResult).not.toHaveBeenCalled();
         });
 
         it('logs a refusal once per kind of message, however often the page asks', async () => {

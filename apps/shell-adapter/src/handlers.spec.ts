@@ -1,6 +1,7 @@
 import type { HandlerContext } from '@lemoncloud/hybrid-shell';
 
-import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED } from './handlers';
+import { launch } from './checkout';
+import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED, STORE_NOT_IMITATED } from './handlers';
 import { mobileRoutes } from './routes';
 
 /** The shell's side of a call, with only what these handlers read. */
@@ -12,6 +13,7 @@ const context = (platform: 'ios' | 'android' = 'ios') => {
         store: new Map<string, unknown>(),
         log: { append: (line: { source: string; type: string }) => void lines.push(line) },
         auth: { signIn },
+        notify: vi.fn(() => true),
     } as unknown as HandlerContext;
     return { shell, lines, signIn };
 };
@@ -121,6 +123,64 @@ describe('the shell handlers', () => {
         await expect(call('CheckAppUpdate', {}, context('android').shell)).resolves.toMatchObject({
             platform: 'android',
             updateAvailable: false,
+        });
+    });
+
+    describe('the virtual store', () => {
+        afterEach(() => {
+            launch.env = undefined;
+            launch.choice = undefined;
+            vi.useRealTimers();
+        });
+
+        it('refuses every store call at once, and logs it, when no store was picked', async () => {
+            const { shell, lines } = context();
+            launch.env = 'dev';
+
+            await expect(call('FetchProducts', {}, shell)).rejects.toMatchObject({
+                code: 'NOT_FOUND',
+                message: STORE_NOT_IMITATED,
+            });
+            await expect(call('Purchase', { id: 'p' }, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+            // The web's purchase waits for an event, not the reply, so the refusal is sent as one too.
+            expect(shell.notify).toHaveBeenCalledWith('OnPurchaseError', {
+                error: { code: 'iap-not-available', message: STORE_NOT_IMITATED },
+            });
+            expect(lines.map(line => line.type)).toEqual(['FetchProducts', 'Purchase']);
+        });
+
+        it('never answers on prod, even with a store picked', async () => {
+            const { shell } = context();
+            launch.env = 'prod';
+            launch.choice = 'apple';
+
+            await expect(call('FetchProducts', {}, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+            await expect(call('Purchase', { id: 'p' }, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+            const sent = (shell.notify as ReturnType<typeof vi.fn>).mock.calls.map(([name]) => name);
+            expect(sent).toEqual(['OnPurchaseError']);
+        });
+
+        it('sells on dev: a catalog, then a purchase that succeeds with a fake receipt, kept until finished', async () => {
+            vi.useFakeTimers();
+            const { shell } = context('android');
+            launch.env = 'dev';
+            launch.choice = 'google';
+
+            await expect(call('FetchProducts', {}, shell)).resolves.toEqual({ products: expect.any(Array) });
+            await expect(call('Purchase', { id: 'dou_pro_subscription' }, shell)).resolves.toEqual({});
+            vi.runAllTimers();
+
+            const purchase = (shell.notify as ReturnType<typeof vi.fn>).mock.calls.find(
+                ([name]) => name === 'OnPurchaseSuccess'
+            )?.[1].purchase;
+            expect(purchase).toMatchObject({
+                productId: 'dou_pro_subscription',
+                purchaseToken: expect.stringMatching(/^virtual-receipt-/),
+            });
+            await expect(call('FetchCurrentPurchases', {}, shell)).resolves.toEqual({ purchases: [purchase] });
+
+            await expect(call('FinishPurchaseTransaction', { purchase }, shell)).resolves.toEqual({ purchase });
+            await expect(call('FetchCurrentPurchases', {}, shell)).resolves.toEqual({ purchases: [] });
         });
     });
 });

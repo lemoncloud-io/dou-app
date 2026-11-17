@@ -85,7 +85,7 @@ describe('W-10 subscription list', () => {
         expect(await screen.findByText('Current subscriptions')).toBeTruthy();
         expect(wide('DoU Cloud 2')).toBeTruthy();
         expect(wide('Next payment 2026.11.20')).toBeTruthy();
-        expect(wide('₩17,200 charged automatically')).toBeTruthy();
+        expect(wide('₩17,800 charged automatically')).toBeTruthy();
         expect((await screen.findAllByText('Paid on the web · 신한 ···· 1234'))[0]).toBeTruthy();
         expect(screen.getByText('Ended subscriptions')).toBeTruthy();
         expect(wide('Ended 2026.09.19')).toBeTruthy();
@@ -126,7 +126,7 @@ describe('W-18 subscription detail', () => {
         renderAt('/subscription/sub-2', '?mock=active');
 
         expect(await screen.findByText('Automatic payment scheduled')).toBeTruthy();
-        expect(await screen.findByText('₩17,200 will be charged to 신한 ···· 1234 on 2026.11.20.')).toBeTruthy();
+        expect(await screen.findByText('₩17,800 will be charged to 신한 ···· 1234 on 2026.11.20.')).toBeTruthy();
         expect(button('Change plan')).toBeTruthy();
         expect(button('Cancel subscription')).toBeTruthy();
         expect(await screen.findByText('DoU Cloud 2 · Renewal')).toBeTruthy();

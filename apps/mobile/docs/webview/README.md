@@ -324,6 +324,13 @@ instead of surfacing as an opaque "Script error.":
   decides from this list alone whether to ask for the device vault, so it is set before the page runs;
   a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
   the post-load injection, so the list is in both
+- `CHATIC_APP_CAPABILITIES` — what this build declares it can do (`utils/hostCapabilities.ts`): version
+  4, with `checkout: ['apple']` on iOS and `['google']` on Android — never the website, which a
+  store-distributed app may not point a buyer at — and `'app'` for every other key (`media`, `files`,
+  `links`, `appShell`, `signIn`, `diagnostics`, `push`), since this app does each of those itself. The web chooses its `@chatic/host` ports from it
+  before its first render; a build without it gets the web's rule for an app that declares nothing,
+  which gives the same answer. Set early in the script, beside the storage media, so a later snippet
+  that throws cannot skip it
 - `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }`, only on
   a launch the app's own runtime owns; absent otherwise, so a page asks for the runtime handshake only
   when the app will answer it — see [../runtime/README.md](../runtime/README.md)

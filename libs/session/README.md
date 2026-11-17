@@ -107,9 +107,12 @@ the invited clouds it accepted were hidden from it there and a new invite could 
 
 The plain copy is kept rather than moved, for three readers: a web build from before this reads only
 it, a run whose vault cannot be read falls back to it, and the vault boot copies it into a vault that
-lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies only ever hold this device's guest
+lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies normally hold this device's guest
 — the server registers one per device id — so when they differ, because the other side ended a session
-and wrote only its own copies, either one names the same user.
+and wrote only its own copies, either one names the same user. The exception is a vault the page never
+booted on: the app's runtime may have signed in as a guest there while the person's session was still in
+`localStorage`. When that web copy replaces the vault's tokens, the boot writes the plain id over the
+vault's, because the plain one is the id the page accepted invites under.
 
 ### Two ports: secret and plain
 

@@ -4,10 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { MemberProfileDialog } from './MemberProfileDialog';
 
-const toastMock = jest.fn();
-
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 jest.mock('@chatic/web-ui-kit', () => ({
     ProfileAvatar: ({ alt }: { alt?: string }) => <div data-testid="avatar" aria-label={alt} />,
     ModalTopBar: ({ title }: { title?: string }) => <div>{title}</div>,
@@ -49,43 +46,35 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
             />
         );
 
-        expect(screen.queryByText('chat.settings.report')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat.settings.removeMember')).not.toBeInTheDocument();
         fireEvent.click(screen.getByText('chat.settings.profileSettings'));
         expect(onOpenProfileSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('뷰어=초대받은자(canKick=false, 비-self): 신고만 노출', () => {
+    it('shows no action list to a viewer who may not remove the member', () => {
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
 
-        expect(screen.getByText('chat.settings.report')).toBeInTheDocument();
-        expect(screen.queryByText('chat.settings.friendSettings')).not.toBeInTheDocument();
-        expect(screen.queryByText('chat.settings.removeMember')).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('button')).toEqual([]);
+        // Not an empty block under the name either: the list container itself is left out.
+        expect(screen.queryByTestId('member-profile-actions')).not.toBeInTheDocument();
     });
 
-    it('뷰어=소유자(canKick): 친구 설정·내보내기·신고 노출, 신고/친구설정은 토스트만', () => {
+    it('offers only removal to a viewer who may remove the member', () => {
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick />);
 
-        fireEvent.click(screen.getByText('chat.settings.report'));
-        expect(toastMock).toHaveBeenCalledWith({ title: 'chat.settings.reportSuccess' });
-
-        fireEvent.click(screen.getByText('chat.settings.friendSettings'));
-        expect(toastMock).toHaveBeenCalledWith({ title: 'chat.settings.comingSoon' });
+        expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['chat.settings.removeMember']);
     });
 
     // The host decides where a 1:1 can start; without its handler no row offers it.
     it('offers no way to start a 1:1 when the host gives no handler, whoever is viewing', () => {
-        const actions = () => screen.getAllByRole('button').map(button => button.textContent);
+        const actions = () => screen.queryAllByRole('button').map(button => button.textContent);
 
         const owner = render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick />);
-        expect(actions()).toEqual([
-            'chat.settings.friendSettings',
-            'chat.settings.removeMember',
-            'chat.settings.report',
-        ]);
+        expect(actions()).toEqual(['chat.settings.removeMember']);
         owner.unmount();
 
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
-        expect(actions()).toEqual(['chat.settings.report']);
+        expect(actions()).toEqual([]);
     });
 
     it('puts the start-1:1 row first when the host gives a handler, and runs it on tap', () => {
@@ -95,12 +84,7 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         );
 
         const actions = screen.getAllByRole('button').map(button => button.textContent);
-        expect(actions).toEqual([
-            'cloudDm.startFromProfile',
-            'chat.settings.friendSettings',
-            'chat.settings.removeMember',
-            'chat.settings.report',
-        ]);
+        expect(actions).toEqual(['cloudDm.startFromProfile', 'chat.settings.removeMember']);
         fireEvent.click(screen.getByText('cloudDm.startFromProfile'));
         expect(onStartDm).toHaveBeenCalledTimes(1);
     });

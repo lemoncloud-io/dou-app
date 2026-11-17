@@ -2,9 +2,9 @@ import { renderHook } from '@testing-library/react';
 
 import { useStackBack } from './useStackBack';
 
-jest.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 
-const navigate = jest.fn();
+const navigate = jest.fn((_to: number) => Promise.resolve());
 
 /** Puts the app at a given depth, the way the router would have. */
 const standingAt = (depth: number | null) => window.history.pushState(depth === null ? {} : { idx: depth }, '');
@@ -17,6 +17,8 @@ const back = (hasBlockingOverlay: boolean, closeTopOverlay = jest.fn(() => true)
 describe('useStackBack', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Lands any rewind an earlier case left in flight, so each case reads the depth it set.
+        for (let i = 0; i < 3; i++) window.dispatchEvent(new PopStateEvent('popstate'));
         standingAt(0);
     });
 
@@ -54,6 +56,16 @@ describe('useStackBack', () => {
 
             expect(back(false).outcome).toBe('navigated');
             expect(navigate).toHaveBeenCalledWith(-1);
+        });
+
+        // The rewind plays a page transition, so the browser moves a frame or more after the press.
+        // A second press before then must not take the app past its first screen.
+        it('does not rewind twice from one entry above the first screen', () => {
+            standingAt(1);
+
+            expect(back(false).outcome).toBe('navigated');
+            expect(back(false).outcome).toBe('not-consumed');
+            expect(navigate).toHaveBeenCalledTimes(1);
         });
 
         // The branch that had no name. The app is on its first screen with nothing open, so there

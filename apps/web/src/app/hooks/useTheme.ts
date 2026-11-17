@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
+import { host } from '@chatic/host';
 import { appBridge } from '../bridge';
 import { deviceStore } from '../storage';
 import type { Theme } from '../stores/preferenceKeys';
@@ -41,9 +41,12 @@ const subscribeSystemPrefersDark = (onChange: () => void): (() => void) => {
  * Confirmed + one retry for the same reason the original `usePreferenceStore.setTheme` used it:
  * the realistic failure is a transient drop, not a rejected value, and a dropped write here is not
  * self-healing — the two layers would disagree until the next full app restart.
+ *
+ * Only where the app runs the frame around the page (the host's `appShell` port); a browser has no
+ * native store to push to.
  */
 const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
-    if (!isNative()) return;
+    if (host.ports.appShell.kind !== 'app') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'theme', value: theme });
     try {
         await attempt();

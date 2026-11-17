@@ -354,7 +354,14 @@ so skipping leaves one to register later (`EmailRequiredBanner`, `findUnboundClo
 blocking creation. What is not optional is uniqueness: `useCloudEmailGuard` refuses a reused address
 on `send`/`resend`, before a code goes out, because the backend does not error — it silently
 overwrites the first cloud's `verify$.cloudId` pointer and breaks that cloud's release cascade. A
-released (`expired`) cloud frees its address again.
+released (`expired`) cloud frees its address again. An address **another user** registered is the
+relay's to refuse, since the app cannot see other users' clouds: `send`/`resend` answer
+`409 CONFLICT - alias[…] is already registered`, and the guard turns that into its own refusal
+(`addAccount.emailAlreadyRegistered`) rather than the generic "failed to send", and
+`useVerifyEmailCode` files it as a `warn`, since it is an answer rather than a breakage. Both apply to
+`send`/`resend` only, where the relay raises it. `isEmailAlreadyRegistered` matches the leading
+`409 CONFLICT` alone — the only conflict those steps raise — and anchors it at the start of the
+message, because the rest echoes the address.
 
 **`Purchase` is the bridge's one push-result command.** The store answers with `OnPurchaseSuccess` /
 `OnPurchaseError` rather than a reply. The `checkout` port turns that back into a promise and is the

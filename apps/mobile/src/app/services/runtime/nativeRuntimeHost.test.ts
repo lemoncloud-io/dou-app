@@ -72,6 +72,25 @@ describe('createNativeRuntimeHost', () => {
         });
     });
 
+    it('answers null and logs a decline, not a failure, when the vault holds no session', async () => {
+        const declined = Object.assign(new Error('no session'), {
+            code: 'NATIVE_RUNTIME_NO_SESSION',
+            secretStorage: 'empty',
+        });
+        const { deps, host } = setup({ boot: jest.fn(async () => Promise.reject(declined)) });
+
+        await expect(host.start()).resolves.toBeNull();
+        expect(host.engine()).toBeNull();
+        expect(deps.run).not.toHaveBeenCalled();
+        expect(deps.logService.error).not.toHaveBeenCalled();
+        expect(deps.logService.info).toHaveBeenCalledWith('session.native_runtime_declined', expect.any(String), {
+            secretStorage: 'empty',
+        });
+        // Once per process: a page that says hello again hears the same answer without another boot.
+        await expect(host.start()).resolves.toBeNull();
+        expect(deps.boot).toHaveBeenCalledTimes(1);
+    });
+
     it('tells its listeners when a session ends, and survives one that throws', async () => {
         let leaveToHome: (params: URLSearchParams) => void = () => undefined;
         const { host, deps } = setup({
