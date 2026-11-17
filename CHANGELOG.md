@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.166.3, @chatic/desktop-web@0.59.2
+
+### Bug Fixes
+
+- (desktop-web) name search match senders by place nick
+
 ## [2026-11-17] - No version updates
 
 ### Features
