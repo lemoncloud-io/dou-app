@@ -1,4 +1,5 @@
 import type { CheckoutPort } from './checkout';
+import type { FilesPort } from './files';
 import type { MediaPort } from './media';
 
 /**
@@ -13,4 +14,6 @@ export interface HostPorts {
     checkout: CheckoutPort;
     /** Who picks the photos, videos and documents a person attaches: the app, or the page's own input. */
     media: MediaPort;
+    /** Who moves a message's files — uploads, downloads, a video's first frame: the app, or the page's own requests. */
+    files: FilesPort;
 }

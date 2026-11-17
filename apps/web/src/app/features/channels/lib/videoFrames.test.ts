@@ -14,7 +14,7 @@ const setup = (over: Partial<VideoFramesDeps> = {}) => {
                 return src;
             }),
         },
-        isNative: jest.fn(() => true),
+        fromApp: jest.fn(() => true),
         readShellFrame: jest.fn(async () => jpeg()),
         fetch: jest.fn(
             async () => ({ ok: true, status: 206, blob: async () => new Blob(['mp4']) }) as unknown as Response
@@ -85,7 +85,7 @@ describe('VideoFrames — in the app', () => {
 });
 
 describe('VideoFrames — in a browser', () => {
-    const browser = (over: Partial<VideoFramesDeps> = {}) => setup({ isNative: jest.fn(() => false), ...over });
+    const browser = (over: Partial<VideoFramesDeps> = {}) => setup({ fromApp: jest.fn(() => false), ...over });
 
     it('draws the frame from the first 2 MiB, fetched with CORS and never from the HTTP cache', async () => {
         const { frames, deps } = browser();

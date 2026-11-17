@@ -103,7 +103,15 @@ launch; nothing writes it yet.
 the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
 messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with no checkout
 picked, the shell declares the device preset's store, the answer the web would give anyway.
-`dou.media` in the store wins over the variable, as for checkout. `src/checkout.ts` holds the choice and the declaration; the wrapped
+`dou.media` in the store wins over the variable, as for checkout.
+
+`DOU_SHELL_FILES=page` (or `app`) declares who moves a message's files, in `files` — `page` has the page
+PUT uploads, fetch downloads and draw video frames from the bucket, as a browser does, rather than
+asking the shell's transfer messages. It takes declaration version 3, which has to carry `checkout` and
+`media` too: unpicked, `checkout` is declared as the device's store and `media` as the same as `files`.
+`dou.files` in the store wins over the variable. Picking `DOU_SHELL_MEDIA=app` with
+`DOU_SHELL_FILES=page` is a pair no real host declares: the app's picker hands back videos and documents
+as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choice and the declaration; the wrapped
 preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
 
 **The virtual store answers on dev only, and only when a store was picked.** Its catalog has one product

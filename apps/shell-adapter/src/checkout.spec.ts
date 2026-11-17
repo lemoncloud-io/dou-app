@@ -5,6 +5,8 @@ import {
     checkoutChoice,
     fakeProducts,
     fakeStore,
+    FILES_STORE_KEY,
+    filesChoice,
     MEDIA_STORE_KEY,
     launch,
     mediaChoice,
@@ -89,6 +91,31 @@ describe('capabilitiesScript with media', () => {
 
     it('keeps a picked checkout beside it', () => {
         expect(capabilitiesScript('web', 'page', 'ios')).toContain('{"version":2,"checkout":["web"],"media":"page"}');
+    });
+});
+
+describe('filesChoice', () => {
+    it('makes no choice by default, and takes DOU_SHELL_FILES or the store, the store first', () => {
+        expect(filesChoice(new Map(), '')).toBeUndefined();
+        expect(filesChoice(new Map(), 'Page')).toBe('page');
+        expect(filesChoice(new Map([[FILES_STORE_KEY, 'app']]), 'page')).toBe('app');
+        expect(filesChoice(new Map(), 'cloud')).toBeUndefined();
+    });
+});
+
+describe('capabilitiesScript with files', () => {
+    it('declares version 3 with the device store, and media following files, when only files is picked', () => {
+        expect(capabilitiesScript(undefined, undefined, 'ios', 'page')).toContain(
+            '{"version":3,"checkout":["apple"],"media":"page","files":"page"}'
+        );
+        expect(capabilitiesScript(undefined, undefined, 'ios', 'app')).toContain('"media":"app","files":"app"');
+        expect(capabilitiesScript(undefined, undefined, 'android', 'page')).toContain('"checkout":["google"]');
+    });
+
+    it('keeps a picked checkout and media beside it', () => {
+        expect(capabilitiesScript('web', 'page', 'ios', 'app')).toContain(
+            '{"version":3,"checkout":["web"],"media":"page","files":"app"}'
+        );
     });
 });
 

@@ -52,16 +52,34 @@ permission banner's settings link (`apps/web/docs/bridge/host-ports.md`).
 
 `resolveMediaMethod(profile)` reads the key `media`, introduced in declaration version 2: `'app'` or
 `'page'`. A shell declaring version 1 — the first builds that declared `checkout` — never knew the key,
-so the legacy rule answers for it: a bridge means the app picks, as the screens assumed. A version-2
-declaration without the key, or with another value, is a bug in the shell and gets the page's input,
+so the legacy rule answers for it: a bridge means the app picks, as the screens assumed. A
+declaration of version 2 or later without the key, or with another value, is a bug in the shell and gets the page's input,
 the one picker every host has. Message by message, an older app's missing request (`NOT_FOUND`) still
 falls back the way it did; the declaration says who picks, not which of the app's messages exist.
+
+### `files`
+
+Who moves a message's files: `{ kind: 'app' }` — the app's transfer module uploads and downloads in the
+background, keeps a downloaded file to open, save or share, and reads a video's first frame from the
+device — or `{ kind: 'page' }`, the page's own requests: a PUT for an upload, a fetch saved under the
+file's name for a download, a frame drawn from the bucket's copy.
+
+It carries the choice only, for the reason `media` does: the transfer modules take their types from the
+data layer and the runtime. They stay in `apps/web` (`bridge/shellUpload.ts`, `bridge/shellDownload.ts`,
+`runtime/upload/`, `runtime/transfer/`) and read this port, as do `useFileDownloads` and the video-frame
+maker (`useVideoFrames`).
+
+`resolveFilesMethod(profile)` reads the key `files`, introduced in declaration **version 3**. Version 2
+shipped with `media` alone, so a build declaring 1 or 2 never knew the key and the legacy rule answers:
+a bridge means the app moves files. A declaration of version 3 or later without the key, or with another value,
+gets the page's requests, the ones every host can make, and a warning.
 
 ## Who imports it
 
 `apps/web` and `apps/desktop-web`, each from one file: `src/app/host/publishHostPorts.ts`, which
 `main.tsx` calls right after `config.init()`, before the first render. Features import `host` to read a
-port — `apps/web`'s subscription feature reads `checkout`.
+port — `apps/web`'s subscription feature reads `checkout`, its attach flow `media`, and its file
+transfers `files`.
 
 ```bash
 git grep -n "@chatic/host" -- apps libs ':!*.md'

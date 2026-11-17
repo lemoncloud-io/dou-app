@@ -1,4 +1,4 @@
-import { host, resolveCheckoutMethod, resolveMediaMethod } from '@chatic/host';
+import { host, resolveCheckoutMethod, resolveFilesMethod, resolveMediaMethod } from '@chatic/host';
 
 import { publishHostPorts } from './publishHostPorts';
 import { storeCheckout } from './checkout/storeCheckout';
@@ -7,6 +7,7 @@ jest.mock('@chatic/host', () => ({
     ...jest.requireActual('@chatic/host'),
     resolveCheckoutMethod: jest.fn(),
     resolveMediaMethod: jest.fn(() => 'app'),
+    resolveFilesMethod: jest.fn(() => 'app'),
 }));
 jest.mock('./checkout/storeCheckout', () => ({
     storeCheckout: jest.fn((store: string) => ({ kind: 'store', store })),
@@ -42,5 +43,14 @@ describe('publishHostPorts — media', () => {
         publishing('none');
 
         expect(host.ports.media).toEqual({ kind: method });
+    });
+});
+
+describe('publishHostPorts — files', () => {
+    it.each(['app', 'page'] as const)('lets %s move files when the host says so', method => {
+        (resolveFilesMethod as jest.Mock).mockReturnValue(method);
+        publishing('none');
+
+        expect(host.ports.files).toEqual({ kind: method });
     });
 });

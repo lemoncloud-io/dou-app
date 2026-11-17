@@ -41,7 +41,8 @@ export type ShellFrameReader = (url: string) => Promise<Blob>;
 
 export interface VideoFramesDeps {
     cache: Pick<ImageCache, 'lookup' | 'put'>;
-    isNative: () => boolean;
+    /** Whether the app reads the frame from the device (the host's `files` port), rather than the page from the bucket. */
+    fromApp: () => boolean;
     readShellFrame: ShellFrameReader;
     fetch: (url: string, init: RequestInit) => Promise<Response>;
     /** `drawVideoFrame` from `@chatic/shared`. */
@@ -171,7 +172,7 @@ export class VideoFrames {
     }
 
     private async make(request: VideoFrameRequest): Promise<Made> {
-        const made = this.deps.isNative() ? await this.fromShell(request.url) : await this.fromBucket(request.url);
+        const made = this.deps.fromApp() ? await this.fromShell(request.url) : await this.fromBucket(request.url);
         if (made instanceof Blob) {
             return { kind: 'image', src: await this.deps.cache.put(request.key, 'frame', made) };
         }

@@ -1,7 +1,14 @@
 const request = jest.fn();
 let native = true;
+// Who moves files, as the host's `files` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { files: { kind: native ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => native,
     logger: { info: jest.fn() },
     webClient: {
         request: (message: unknown) => request(message),
@@ -41,6 +48,20 @@ describe('syncShellDownloads', () => {
         await syncShellDownloads();
 
         expect(request).not.toHaveBeenCalled();
+    });
+
+    it('still catches up where the page moves files but the handshake allows image export', async () => {
+        native = false;
+        shellCapabilities.setReport({
+            protocolVersion: '2.3.0',
+            supportedWebMessages: ['SaveToPhotoLibrary', 'ShareFile'],
+            supportedAppMessages: [],
+        });
+
+        await syncShellDownloads();
+
+        expect(request).toHaveBeenCalledWith({ type: 'ListFileTransfers', data: {} });
+        shellCapabilities.reset();
     });
 });
 

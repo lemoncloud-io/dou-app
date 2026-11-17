@@ -21,6 +21,7 @@ export interface StoreSkus {
 
 declare const __DOU_SHELL_CHECKOUT__: string | undefined;
 declare const __DOU_SHELL_MEDIA__: string | undefined;
+declare const __DOU_SHELL_FILES__: string | undefined;
 
 /** Who picks attachments, as a person picks it: the app's own picker, or the page's input. */
 export const SHELL_MEDIA_CHOICES = ['app', 'page'] as const;
@@ -28,6 +29,13 @@ export type ShellMediaChoice = (typeof SHELL_MEDIA_CHOICES)[number];
 
 /** Where a handler or a scenario keeps a media choice; read at every launch, like `dou.checkout`. */
 export const MEDIA_STORE_KEY = 'dou.media';
+
+/** Who moves a message's files, as a person picks it: the app's transfer module, or the page's own requests. */
+export const SHELL_FILES_CHOICES = ['app', 'page'] as const;
+export type ShellFilesChoice = (typeof SHELL_FILES_CHOICES)[number];
+
+/** Where a handler or a scenario keeps a files choice; read at every launch, like `dou.checkout`. */
+export const FILES_STORE_KEY = 'dou.files';
 declare const __DOU_SHELL_STORE_SKUS__: StoreSkus | undefined;
 
 const isChoice = (value: unknown): value is ShellCheckoutChoice =>
@@ -55,29 +63,52 @@ export const checkoutChoice = (
 export const mediaChoice = (
     store?: ReadonlyMap<string, unknown>,
     fromEnv: string | undefined = typeof __DOU_SHELL_MEDIA__ === 'string' ? __DOU_SHELL_MEDIA__ : undefined
-): ShellMediaChoice | undefined => {
-    const kept = store?.get(MEDIA_STORE_KEY);
-    if ((SHELL_MEDIA_CHOICES as readonly unknown[]).includes(kept)) return kept as ShellMediaChoice;
+): ShellMediaChoice | undefined => keptOrEnv(SHELL_MEDIA_CHOICES, store?.get(MEDIA_STORE_KEY), fromEnv);
+
+/**
+ * The files choice for this launch: `dou.files` in the shell's store first, then `DOU_SHELL_FILES`. No
+ * choice leaves files to the web's rule for a declaration without it — the app moves them, as before.
+ */
+export const filesChoice = (
+    store?: ReadonlyMap<string, unknown>,
+    fromEnv: string | undefined = typeof __DOU_SHELL_FILES__ === 'string' ? __DOU_SHELL_FILES__ : undefined
+): ShellFilesChoice | undefined => keptOrEnv(SHELL_FILES_CHOICES, store?.get(FILES_STORE_KEY), fromEnv);
+
+/** A choice kept in the store if it is one of `choices`, else the environment's, else none. */
+const keptOrEnv = <T extends string>(
+    choices: readonly T[],
+    kept: unknown,
+    fromEnv: string | undefined
+): T | undefined => {
+    if ((choices as readonly unknown[]).includes(kept)) return kept as T;
     const env = fromEnv?.trim().toLowerCase();
-    return (SHELL_MEDIA_CHOICES as readonly unknown[]).includes(env) ? (env as ShellMediaChoice) : undefined;
+    return (choices as readonly unknown[]).includes(env) ? (env as T) : undefined;
 };
 
 /**
  * The declaration the shell injects for its choices, after the preset's own globals; nothing when
- * nothing was picked. Declaring `media` takes version 2, and a version-2 declaration has to carry
- * `checkout` too — a key its version requires and that is missing reads as a bug, not as "the legacy
- * answer" — so an unpicked checkout is declared as what the web would answer anyway: the device's store.
+ * nothing was picked. It takes the lowest version that holds what was picked: `checkout` alone is
+ * version 1, `media` takes 2, `files` takes 3. A declaration has to carry every key its version
+ * requires — one that is missing reads as a bug, not as "the legacy answer" — so a key not picked is
+ * declared as what the web would answer anyway for this shell, which has a bridge: the device's store.
+ * An unpicked `media` follows `files`: what the app's picker hands back for a video or a document is a
+ * file in the app's folder, which only the app's transfer module can send, so the app cannot pick where
+ * the page moves files.
  */
 export const capabilitiesScript = (
     checkout: ShellCheckoutChoice | undefined,
     media: ShellMediaChoice | undefined = undefined,
-    platform: string | undefined = undefined
+    platform: string | undefined = undefined,
+    files: ShellFilesChoice | undefined = undefined
 ): string => {
-    if (!checkout && !media) return '';
+    if (!checkout && !media && !files) return '';
     const methods = (choice: ShellCheckoutChoice) => (choice === 'none' ? [] : [choice]);
-    const declaration = media
-        ? { version: 2, checkout: methods(checkout ?? (platform === 'ios' ? 'apple' : 'google')), media }
-        : { version: 1, checkout: methods(checkout as ShellCheckoutChoice) };
+    const store = (): ShellCheckoutChoice => checkout ?? (platform === 'ios' ? 'apple' : 'google');
+    const declaration = files
+        ? { version: 3, checkout: methods(store()), media: media ?? files, files }
+        : media
+          ? { version: 2, checkout: methods(store()), media }
+          : { version: 1, checkout: methods(checkout as ShellCheckoutChoice) };
     return `\nwindow.CHATIC_APP_CAPABILITIES = ${JSON.stringify(declaration)};\n`;
 };
 
@@ -92,7 +123,7 @@ export const launch: { env: 'dev' | 'prod' | undefined; choice: ShellCheckoutCho
 };
 
 /**
- * A preset that declares this shell's checkout and media: the given preset's globals, then
+ * A preset that declares this shell's checkout, media and files: the given preset's globals, then
  * `CHATIC_APP_CAPABILITIES` for the choices. It also records the launch's backend and choice, which the
  * virtual store needs and the handlers cannot learn any other way.
  */
@@ -104,7 +135,10 @@ export const withCheckoutDeclaration = (preset: ProtocolPreset): ProtocolPreset 
             const choice = checkoutChoice(store);
             launch.env = env;
             launch.choice = choice;
-            return preset.globals(...args) + capabilitiesScript(choice, mediaChoice(store), device.platform);
+            return (
+                preset.globals(...args) +
+                capabilitiesScript(choice, mediaChoice(store), device.platform, filesChoice(store))
+            );
         },
     });
 
