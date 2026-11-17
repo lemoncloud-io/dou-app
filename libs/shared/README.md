@@ -286,6 +286,9 @@ Seven things the filenames do not tell you.
       is spelled out in both libs and pinned by both libs' tests. It is not set on Android — the WebView
       there is Blink, which paints the frost inside the snapshots (measured in Chrome 154), so holding a
       header opaque there would only delay its glass.
+    - **The animations themselves are CSS the app loads,** not this lib: the package's stylesheet, and
+      apps/web's own Android override after it
+      ([apps/web page transitions](../../apps/web/docs/shell/page-transitions.md)).
 
 ## Usage
 

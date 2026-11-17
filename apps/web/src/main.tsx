@@ -3,6 +3,9 @@ import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
+// After the package's stylesheet on purpose: it replaces the package's Android animation with the
+// same selectors, so the import order is what makes it win.
+import './pageTransitions.css';
 
 import { BridgeStorageChannel, hostProfile, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
