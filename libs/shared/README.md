@@ -228,8 +228,11 @@ Seven things the filenames do not tell you.
   userinfo, a port, a backslash, whitespace, an IP literal — and the limits on what crosses with it
   (`params` and `result` at most 16 KiB, a title 100 characters). Both shells check a request against it and
   both webs check a link an owner saves against it, so the web never stores a link the shell would
-  refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
-  than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the
+  refuse. It also reads a page manifest's `display` for both shells (`subWebViewDisplayOf`): `titled`,
+  `clean`, `immersive`, and `standard` and `fullscreen`, the earlier names for the first two, so the
+  phone and the desktop cannot read a name differently. It imports nothing, on purpose: the desktop
+  shell's main bundle aliases this one file rather than pulling the whole barrel into Electron's main
+  process. `utils/miniAppLaunchParams.ts` builds the
   `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
   and the cloud's mini app list (`miniApps`, name and host) for a `firstParty` page only. `utils/miniAppLinks.ts` holds the rules for the mini apps an owner adds
   to a cloud, so both webs keep the same list: `checkMiniAppLink` (a name of 1–30 characters, an

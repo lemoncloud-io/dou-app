@@ -96,10 +96,17 @@ export type SubWebViewDeviceKind = 'camera' | 'microphone';
 export type SubWebViewDevicePermissionState = 'granted' | 'prompt' | 'blocked';
 
 /**
- * `fullscreen`, the default, shows no bar and keeps a floating close control; `standard` shows the
- * shell's bar with the page's title and a close control.
+ * How the shell shows a page, named by what the user sees:
+ * - `titled` — the shell's bar above the page, with its title and a close control.
+ * - `clean` — the page alone under a floating close control, inside the safe area. The phone's default.
+ * - `immersive` — `clean` drawn under the status bar and the home indicator as well: the shell pads no
+ *   edge, and the page keeps its own controls clear with the safe-area insets. The system bars stay.
+ *
+ * The first apps named `titled` `standard` and `clean` `fullscreen`; a manifest may still say so
+ * (`subWebViewDisplayOf` in `@chatic/shared`). An app that predates the rename shows any of the three
+ * new names with its own default: `fullscreen` on the phone, `standard` on the desktop.
  */
-export type SubWebViewDisplay = 'standard' | 'fullscreen';
+export type SubWebViewDisplay = 'titled' | 'clean' | 'immersive';
 
 /** The orientation the view is held in; `any` follows the device. */
 export type SubWebViewOrientation = 'any' | 'portrait' | 'landscape';
@@ -107,7 +114,7 @@ export type SubWebViewOrientation = 'any' | 'portrait' | 'landscape';
 /**
  * A page's manifest, served from its own origin at `/.well-known/chatic-app.json`. The shell reads it
  * before it shows the page. With none, or one it cannot read, the page gets the base set only and
- * the standard display. Unknown fields are ignored; a known field with a wrong value is ignored too.
+ * the default display: `clean` on the phone, `titled` on the desktop. Unknown fields are ignored; a known field with a wrong value is ignored too.
  */
 export type SubWebViewManifest = {
     manifestVersion: 1;

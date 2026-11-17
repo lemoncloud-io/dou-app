@@ -74,8 +74,9 @@ registered link only where it does.
 **Trust by tier.** An external site gets no manifest fetch — not even a request to its
 `/.well-known` — and is always shown with the bar, titled with its host whatever the page or the web
 asks: a third-party page under DoU's chrome must not be able to name itself DoU. A trusted page's
-manifest gives the bar its fallback name and the display (`standard` by default; `fullscreen` fills
-the window, bar kept). No tier gets more than the base set below.
+manifest gives the bar its fallback name and the display, read as the phone reads it, earlier names
+included (`titled` by default; `clean` fills the window, bar kept; `immersive` is shown as `clean`,
+since a window has no system bars). No tier gets more than the base set below.
 
 **The view.** Two `WebContentsView`s added to the main window: the shell's chrome (a dimmed backdrop,
 the card, the bar with its close control — a local page, `subWebViewChrome.ts`) and the page over it.

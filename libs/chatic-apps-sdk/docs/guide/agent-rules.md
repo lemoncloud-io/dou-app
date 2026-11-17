@@ -56,8 +56,11 @@ code. Read the part you need before you write code that depends on it.
     data `session`, `cloud`, `place`, `channel`, `chat`, `user`) in `/.well-known/chatic-app.json` — and
     nothing it does not use. A call that needs one fails with `NOT_SUPPORTED` without it; a runtime method
     outside what the runtime permissions open fails with `RUNTIME_NOT_ALLOWED`.
-17. Do not draw for the safe area: the page already lies inside it on every edge.
-18. The page has no title bar unless the manifest sets `"display": "standard"`: draw your own header and
+17. Do not draw for the safe area: the page already lies inside it on every edge. The exception is a
+    manifest with `"display": "immersive"`, for a page whose scenery must reach the screen's edges: then
+    add `viewport-fit=cover` to the viewport meta and pad every header, control and tappable element with
+    `var(--chatic-safe-area-inset-<edge>, env(safe-area-inset-<edge>, 0px))`.
+18. The page has no title bar unless the manifest sets `"display": "titled"`: draw your own header and
     title, and keep the top-right corner clear, where the app's close button floats.
 
 ## Before you say it is done
