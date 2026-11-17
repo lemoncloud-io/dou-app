@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) sell through the checkout port, not isNative() and the platform global (ADR-0324)
+
 ## [2026-11-16] - No version updates
 
 ### Features
