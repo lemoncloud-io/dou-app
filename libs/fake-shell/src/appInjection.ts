@@ -10,7 +10,17 @@ export interface AppInjectionParams {
     configBag: Record<string, string>;
     deviceInfo: Record<string, string | boolean>;
     /** What the app declares it can do — the shape `hostCapabilities` builds. Nothing when absent. */
-    capabilities?: { version: number; checkout: string[]; media?: string; files?: string };
+    capabilities?: {
+        version: number;
+        checkout: string[];
+        media?: string;
+        files?: string;
+        links?: string;
+        appShell?: string;
+        signIn?: string;
+        diagnostics?: string;
+        push?: string;
+    };
 }
 
 /** The shape of `apps/mobile/src/app/webview/utils/injectionScripts.ts`, as far as a fake shell calls it. */

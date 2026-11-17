@@ -1,4 +1,6 @@
-import { hostProfile, logger, resolveCapability, type HostProfile } from '@chatic/bridges';
+import { hostProfile, type HostProfile } from '@chatic/bridges';
+
+import { resolveAppOrPage, type AppOrPage } from './appOrPage';
 
 /**
  * Who picks the photos, videos and documents a person attaches.
@@ -15,33 +17,15 @@ export interface MediaPort {
     readonly kind: MediaMethod;
 }
 
-export type MediaMethod = 'app' | 'page';
+export type MediaMethod = AppOrPage;
 
 /** The declaration version that introduced `media`. */
 export const MEDIA_INTRODUCED_IN = 2;
-
-const MEDIA_METHODS: readonly MediaMethod[] = ['app', 'page'];
-
-/** What the page did before the port: the app picked wherever there was a bridge to ask it through. */
-const legacyMediaMethod = (profile: HostProfile): MediaMethod => (profile.bridge === null ? 'page' : 'app');
 
 /**
  * Who picks on this host. A declaration names `'app'` or `'page'`; anything else is a bug in the shell,
  * answered with the page's own input — the one picker every host has — and logged. A declaration older
  * than version 2 never knew the key, so the legacy rule answers for it.
  */
-export const resolveMediaMethod = (profile: HostProfile = hostProfile()): MediaMethod => {
-    const source = resolveCapability(profile.capabilities, 'media', MEDIA_INTRODUCED_IN);
-    switch (source.from) {
-        case 'legacy':
-            return legacyMediaMethod(profile);
-        case 'unavailable':
-            return 'page';
-        case 'declaration':
-            if ((MEDIA_METHODS as readonly unknown[]).includes(source.value)) return source.value as MediaMethod;
-            logger.warn('BRIDGE', '[host] the declared media is not a method this page knows; the page picks', {
-                value: source.value,
-            });
-            return 'page';
-    }
-};
+export const resolveMediaMethod = (profile: HostProfile = hostProfile()): MediaMethod =>
+    resolveAppOrPage(profile, 'media', MEDIA_INTRODUCED_IN);
