@@ -4,6 +4,13 @@
 
 ### Bug Fixes
 
+- (web/home) show the home banners under the chat tabs, above the rooms
+- (web/home) put the missing-profile banner under a cloud's place chips, not above them
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
 - (web/channels) stop a room jump from reading the previous room's channel, joins and chats
 
 ## [2026-11-17] - No version updates
