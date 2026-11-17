@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,desktop) declare the app's checkout to the web (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Features
+
 - (web/notifications) keep picks after mark-read and give the find-me sheet a selection mode
 - (web-ui-kit) let the selection action bar sit in a sheet footer, not only fixed to the screen
 
