@@ -237,7 +237,13 @@ column sliding in, the action bar rising where the nav was, a row's ground easin
 read and picked) plus fades as the header and the chip rows swap with selection mode; every one of
 them is off under `prefers-reduced-motion`.
 
-Avatars are the default person glyph for now: an item keeps its author's id and name, not a photo.
+**Avatars.** An item keeps its author's id and name, not a photo — the cached row has none. The
+photo is the author's place profile, read for the whole list by `hooks/useNotificationAvatars`
+through the app-wide `useSenderProfiles` that search uses for its authors: the profile cache first,
+one fetch per author it does not hold, one subscription per place, and no poll, since the inbox
+covers rooms the reader has not opened and a profile sync per author would keep running for them.
+The find-me sheet reads only while it is open. An item with no place (a relay 1:1), an author with
+no profile in that place, or a profile with no photo draws the default person glyph.
 
 ## Limits
 

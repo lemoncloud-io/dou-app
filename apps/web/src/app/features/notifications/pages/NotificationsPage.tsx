@@ -28,7 +28,7 @@ import {
     type NotificationTab,
 } from '../../../utils/notifications';
 import { NotificationListItem } from '../components/NotificationListItem';
-import { QUICK_SELECTIONS, useNotificationActions, useNotificationSelection } from '../hooks';
+import { QUICK_SELECTIONS, useNotificationActions, useNotificationAvatars, useNotificationSelection } from '../hooks';
 import { useNotificationsViewStore } from '../stores/useNotificationsViewStore';
 import { formatDayHeading } from '../utils/rowParts';
 
@@ -75,6 +75,7 @@ export const NotificationsPage = () => {
     const now = Date.now();
     const groups = groupByDay(visible, now);
     const selection = useNotificationSelection(visible);
+    const avatarOf = useNotificationAvatars(visible);
     // Opening an item navigates away and unmounts this page, so without this a back press lands at
     // the top. Ready once rows are drawn: an offset applied to an empty list clamps to 0 and is lost.
     const {
@@ -260,6 +261,7 @@ export const NotificationsPage = () => {
                                     key={item.id}
                                     item={item}
                                     now={now}
+                                    avatarUrl={avatarOf(item)}
                                     selectable={selection.active}
                                     selected={selection.selected.has(item.id)}
                                     onPress={onPress}

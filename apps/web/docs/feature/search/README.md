@@ -71,7 +71,8 @@ actually shows for that person. There is no fallback to the account name: that i
 private label, and an unresolved author simply reads as unnamed.
 
 A profile sync is registered per member only while a room is open, so a result from a room the user
-has never opened has nothing cached. `useSenderProfiles` therefore goes through `ProfileRepository`
+has never opened has nothing cached. `useSenderProfiles` (app-wide in `app/hooks`, since the
+notification inbox reads its authors' photos the same way) therefore goes through `ProfileRepository`
 — observing the cache for what is there and fetching the rest — with **one subscription per place**
 rather than per row, and it registers **no sync target**: search shows a snapshot, and a poll per
 author would keep running for people whose rooms are not even open.

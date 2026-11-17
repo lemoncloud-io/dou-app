@@ -27,6 +27,12 @@ jest.mock('../../../hooks', () => ({
         return Object.values(store((state: { items: Record<string, unknown> }) => state.items));
     },
 }));
+const mockUseSenderProfiles = jest.fn(
+    (_refs: unknown[]) => new Map([['s@u1', { thumbnail: 'https://img.example/u1.png' }]])
+);
+jest.mock('../../../hooks/useSenderProfiles', () => ({
+    useSenderProfiles: (refs: unknown[]) => mockUseSenderProfiles(refs),
+}));
 
 const item = (over: Partial<NotificationItem>): NotificationItem => ({
     id: over.id ?? 'x',
@@ -45,7 +51,7 @@ describe('FindMeSheet', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         const items = {
-            m: item({ id: 'm', content: 'a mention' }),
+            m: item({ id: 'm', placeId: 's', ownerId: 'u1', content: 'a mention' }),
             r: item({ id: 'r', kind: 'replyToMine', content: 'a reply' }),
             x: item({ id: 'x', kind: 'reaction', content: '❤️' }),
             p: item({ id: 'p', kind: 'participatedThread', content: 'joined' }),
@@ -61,6 +67,15 @@ describe('FindMeSheet', () => {
         expect(screen.getByText('a mention')).toBeInTheDocument();
         expect(screen.getByText('a reply')).toBeInTheDocument();
         for (const gone of ['❤️', 'joined', 'old mention']) expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    });
+
+    it("draws an author's photo, and reads no profile while closed", () => {
+        const { container, rerender } = render(<FindMeSheet open onOpenChange={jest.fn()} />);
+        expect(container.ownerDocument.querySelector('img')).toHaveAttribute('src', 'https://img.example/u1.png');
+        expect(mockUseSenderProfiles).toHaveBeenLastCalledWith([{ sid: 's', userId: 'u1' }]);
+
+        rerender(<FindMeSheet open={false} onOpenChange={jest.fn()} />);
+        expect(mockUseSenderProfiles).toHaveBeenLastCalledWith([]);
     });
 
     it('narrows to mentions or threads', () => {
