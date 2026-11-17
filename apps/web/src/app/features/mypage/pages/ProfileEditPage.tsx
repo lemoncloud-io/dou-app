@@ -10,6 +10,7 @@ import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-k
 
 import { useUpdateProfile } from '../hooks';
 import { useMyUser } from '../../../hooks';
+import { haptics } from '../../../bridge/haptics';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 
@@ -63,6 +64,7 @@ export const ProfileEditPage = () => {
                 photo: imageUrl !== initialRef.current.imageUrl ? imageUrl : undefined,
             });
 
+            haptics.play('success');
             toast({ title: t('profileEdit.saveSuccess') });
             navigate(-1);
         } catch (error) {

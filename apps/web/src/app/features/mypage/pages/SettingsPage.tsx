@@ -5,6 +5,7 @@ import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative } from '@chatic/bridges';
 import { appBridge } from '../../../bridge';
+import { haptics } from '../../../bridge/haptics';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
@@ -67,6 +68,7 @@ export const SettingsPage = () => {
     };
 
     const handleThemeToggle = () => {
+        haptics.play('selection');
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
@@ -215,7 +217,14 @@ export const SettingsPage = () => {
                 {/* Logout */}
                 {!isGuest && (
                     <MenuCard>
-                        <ListRow title={t('mypage.logout')} destructive onClick={() => setIsLogoutDialogOpen(true)} />
+                        <ListRow
+                            title={t('mypage.logout')}
+                            destructive
+                            onClick={() => {
+                                haptics.play('warning');
+                                setIsLogoutDialogOpen(true);
+                            }}
+                        />
                     </MenuCard>
                 )}
             </div>

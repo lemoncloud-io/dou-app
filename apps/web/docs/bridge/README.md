@@ -80,7 +80,8 @@ features newer than the oldest app this page runs in (the sub WebView, the voice
 
 `haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. Every
 call is a one-way `post`, which the shell plays without answering. A browser is never asked. What home uses it for →
-[feature/home/README.md](../feature/home/README.md#haptics).
+[feature/home/README.md](../feature/home/README.md#haptics); the MY tab and its settings →
+[feature/mypage/README.md](../feature/mypage/README.md#the-hubs-header-follows-the-other-tabs-and-the-screens-answer-by-touch).
 
 ## Voice messages: `audioRecorder`
 

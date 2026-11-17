@@ -28,6 +28,8 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesD
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 // The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'ko' } }),
@@ -120,6 +122,17 @@ describe('CloudDetailPage — releasing', () => {
         expect(navigate).toHaveBeenCalledTimes(1);
         expect(navigate).toHaveBeenCalledWith('/mypage/cloud-manage', { replace: true });
         expect(logoutCloudSession).not.toHaveBeenCalled();
+        // A warning as the irreversible confirm opens, then the release's own outcome.
+        expect(mockHaptic.mock.calls).toEqual([['warning'], ['success']]);
+    });
+
+    it('warns as the confirm opens, and plays nothing more when it is cancelled', () => {
+        render(<CloudDetailPage />);
+        fireEvent.click(screen.getByText(`${K}.delete`));
+        fireEvent.click(screen.getByText('common.cancel'));
+
+        expect(mockHaptic.mock.calls).toEqual([['warning']]);
+        expect(mockDeleteCloud).not.toHaveBeenCalled();
     });
 
     it('ends the cloud session when the released cloud was the active one', async () => {
@@ -151,5 +164,6 @@ describe('CloudDetailPage — releasing', () => {
             })
         );
         expect(navigate).not.toHaveBeenCalledWith('/mypage/cloud-manage', { replace: true });
+        expect(mockHaptic.mock.calls).toEqual([['warning'], ['error']]);
     });
 });
