@@ -523,14 +523,28 @@ export const HomePage = () => {
                 <p className="text-sm">{t('homePage.loadingCloud')}</p>
             </div>
         );
-    const profileBanner = (
-        <PlaceProfileBanner
-            visible={profileNudge.isVisible}
-            onDismiss={profileNudge.dismiss}
-            onSaved={profileNudge.markPresent}
-            className="pb-2"
-        />
+    // The home's banners sit under the chat tabs, above the rooms. A missing profile is the same gap
+    // on the relay and in a cloud, so both homes show that one; on the relay the cloud promo takes
+    // its turn otherwise — one banner at a time, naming yourself before an upsell. Each owns its own
+    // gutter and renders nothing when hidden, so no ghost box remains. The promo is off until the
+    // catalog has actually answered: before that `clouds` is an empty stand-in that reads as "owns
+    // no cloud", so an owner saw the pitch appear on every cold start and vanish a beat later. Hiding
+    // is the safe default for a promo — a missed beat costs nothing, a wrong one tells a paying user
+    // to go subscribe.
+    const homeBanners = (
+        <>
+            <PlaceProfileBanner
+                visible={profileNudge.isVisible}
+                onDismiss={profileNudge.dismiss}
+                onSaved={profileNudge.markPresent}
+                className="py-2"
+            />
+            {isDefaultCloud && hasCloudCatalog && !profileNudge.isVisible && (
+                <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="py-2" />
+            )}
+        </>
     );
+    const hasChatTabs = !!selectedPlaceId || cloudSelfChannels.length > 0;
     // A tab's count is unknown, not zero, while its rooms are still arriving.
     const tabCount = (rooms: readonly unknown[]): number | undefined =>
         isChannelSectionLoading || isCloudSelfLoading ? undefined : rooms.length;
@@ -579,50 +593,27 @@ export const HomePage = () => {
                 // between the header and the pinned tabs.
                 contentClassName="flex flex-col pt-2"
             >
-                {/* Relay: no Place section — the single relay place is auto-connected, so the list
-                    carries no information. Its slot goes to the cloud upsell instead. The banner
-                    owns its own gutter and renders nothing when hidden, so no ghost box remains.
-                    It is off until the catalog has actually answered: before that `clouds` is an
-                    empty stand-in that reads as "owns no cloud", so an owner saw the pitch appear
-                    on every cold start and vanish a beat later. Hiding is the safe default for a
-                    promo — a missed beat costs nothing, a wrong one tells a paying user to go
-                    subscribe. */}
-                {/* A missing profile is the same gap on the relay and in a cloud, so both homes show
-                    the banner, under the header. In a cloud the place chips belong to the header —
-                    they say which place the profile is missing in — so the banner sits below them,
-                    not between the two. One banner at a time, so on the relay it takes the cloud
-                    promo's turn — naming yourself comes before an upsell. */}
-                {isDefaultCloud ? (
-                    <>
-                        {profileBanner}
-                        {hasCloudCatalog && !profileNudge.isVisible && (
-                            <CloudPromoBanner
-                                hasOwnedCloud={hasOwnedCloud}
-                                onAddCloud={openCloudGuide}
-                                className="pb-2"
-                            />
-                        )}
-                    </>
-                ) : (
-                    <>
-                        <PlaceChipRow
-                            places={places}
-                            selectedPlaceId={selectedPlaceId}
-                            unreadByPlace={unreadByPlace}
-                            isLoading={isPlacesLoading}
-                            isSwitching={isSwitching}
-                            onSelectPlace={switchPlace}
-                            onCreatePlace={handleCreatePlace}
-                            canAddPlace={canAddPlace}
-                        />
-                        {profileBanner}
-                    </>
+                {/* Relay: no place chips — the single relay place is auto-connected, so the row would
+                    carry no information. */}
+                {!isDefaultCloud && (
+                    <PlaceChipRow
+                        places={places}
+                        selectedPlaceId={selectedPlaceId}
+                        unreadByPlace={unreadByPlace}
+                        isLoading={isPlacesLoading}
+                        isSwitching={isSwitching}
+                        onSelectPlace={switchPlace}
+                        onCreatePlace={handleCreatePlace}
+                        canAddPlace={canAddPlace}
+                    />
                 )}
 
+                {/* With no tabs to sit under (no place yet), the banners lead the guidance instead. */}
+                {!hasChatTabs && homeBanners}
                 {/* No place yet: the guidance (or the loading state) leads. A cloud's notes-to-self room
                     still lists below it — it belongs to no place. */}
                 {!selectedPlaceId && noPlaceBody}
-                {(selectedPlaceId || cloudSelfChannels.length > 0) && (
+                {hasChatTabs && (
                     <>
                         <div ref={tabsAnchorRef} aria-hidden />
                         <SegmentedTabs
@@ -669,6 +660,7 @@ export const HomePage = () => {
                                 )
                             }
                         />
+                        {homeBanners}
                         {findMeCount > 0 && (
                             <button
                                 type="button"
