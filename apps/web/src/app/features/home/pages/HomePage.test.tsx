@@ -1102,13 +1102,15 @@ describe('HomePage — pull to refresh', () => {
 });
 
 describe('HomePage — place profile banner', () => {
-    it('shows the banner in a cloud, above the Place section', () => {
+    // The place chips belong to the header — they name the place the profile is missing in — so
+    // the banner sits under them rather than splitting the two.
+    it('shows the banner in a cloud under the place chips', () => {
         selectedCloudId = 'cloud-1';
         isProfileNudgeVisible = true;
         render(<HomePage />);
 
         const banner = screen.getByTestId('place-profile-banner');
-        expect(banner.compareDocumentPosition(screen.getByTestId('place-list'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+        expect(banner.compareDocumentPosition(screen.getByTestId('place-list'))).toBe(Node.DOCUMENT_POSITION_PRECEDING);
     });
 
     // One banner at a time on the relay: naming yourself comes before the cloud upsell.

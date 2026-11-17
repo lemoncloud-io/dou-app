@@ -523,6 +523,14 @@ export const HomePage = () => {
                 <p className="text-sm">{t('homePage.loadingCloud')}</p>
             </div>
         );
+    const profileBanner = (
+        <PlaceProfileBanner
+            visible={profileNudge.isVisible}
+            onDismiss={profileNudge.dismiss}
+            onSaved={profileNudge.markPresent}
+            className="pb-2"
+        />
+    );
     // A tab's count is unknown, not zero, while its rooms are still arriving.
     const tabCount = (rooms: readonly unknown[]): number | undefined =>
         isChannelSectionLoading || isCloudSelfLoading ? undefined : rooms.length;
@@ -579,31 +587,36 @@ export const HomePage = () => {
                     on every cold start and vanish a beat later. Hiding is the safe default for a
                     promo — a missed beat costs nothing, a wrong one tells a paying user to go
                     subscribe. */}
-                {/* Above both homes' first section: a missing profile is the same gap on the relay
-                    and in a cloud. One banner at a time, so on the relay it takes the cloud
+                {/* A missing profile is the same gap on the relay and in a cloud, so both homes show
+                    the banner, under the header. In a cloud the place chips belong to the header —
+                    they say which place the profile is missing in — so the banner sits below them,
+                    not between the two. One banner at a time, so on the relay it takes the cloud
                     promo's turn — naming yourself comes before an upsell. */}
-                <PlaceProfileBanner
-                    visible={profileNudge.isVisible}
-                    onDismiss={profileNudge.dismiss}
-                    onSaved={profileNudge.markPresent}
-                    className="pb-2"
-                />
                 {isDefaultCloud ? (
-                    hasCloudCatalog &&
-                    !profileNudge.isVisible && (
-                        <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
-                    )
+                    <>
+                        {profileBanner}
+                        {hasCloudCatalog && !profileNudge.isVisible && (
+                            <CloudPromoBanner
+                                hasOwnedCloud={hasOwnedCloud}
+                                onAddCloud={openCloudGuide}
+                                className="pb-2"
+                            />
+                        )}
+                    </>
                 ) : (
-                    <PlaceChipRow
-                        places={places}
-                        selectedPlaceId={selectedPlaceId}
-                        unreadByPlace={unreadByPlace}
-                        isLoading={isPlacesLoading}
-                        isSwitching={isSwitching}
-                        onSelectPlace={switchPlace}
-                        onCreatePlace={handleCreatePlace}
-                        canAddPlace={canAddPlace}
-                    />
+                    <>
+                        <PlaceChipRow
+                            places={places}
+                            selectedPlaceId={selectedPlaceId}
+                            unreadByPlace={unreadByPlace}
+                            isLoading={isPlacesLoading}
+                            isSwitching={isSwitching}
+                            onSelectPlace={switchPlace}
+                            onCreatePlace={handleCreatePlace}
+                            canAddPlace={canAddPlace}
+                        />
+                        {profileBanner}
+                    </>
                 )}
 
                 {/* No place yet: the guidance (or the loading state) leads. A cloud's notes-to-self room

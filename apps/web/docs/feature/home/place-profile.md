@@ -86,8 +86,9 @@ banner is where they are asked again. `usePlaceProfileNudge` decides; `PlaceProf
 - **Closing it lasts until the app starts again**, per place and person (`${sid}@${uid}`, in an
   in-memory store). Persisted, it would become a one-time notice and leave the people it is for
   without a name; in component state, leaving home for a room would bring it back.
-- **One banner at a time on the relay.** It sits above the first section in both homes, and on the
-  relay it takes the cloud promo's slot while it shows.
+- **Under the header.** On the relay it sits right under the header, and takes the cloud promo's slot
+  while it shows — one banner at a time. In a cloud it sits under the place chips: they belong to the
+  header and name the place the profile is missing in, so the banner does not split the two.
 
 Places I never open are not asked about. The server writes a profile to the place the session is in,
 so the banner can only ask about the active one.
