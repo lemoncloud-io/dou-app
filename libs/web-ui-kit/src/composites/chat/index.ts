@@ -8,6 +8,7 @@ export * from './ReadReceipt';
 export * from './SystemMessage';
 export * from './SystemNotice';
 export * from './ThreadSummary';
+export * from './UnreadDivider';
 export * from './AttachActionTile';
 export * from './AttachPanel';
 export * from './AttachSourceSheet';
