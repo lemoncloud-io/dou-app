@@ -171,6 +171,42 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
+        <activity-alias
+            android:name=".MidnightIcon"
+            android:enabled="false"
+            android:exported="true"
+            android:roundIcon="@mipmap/ic_launcher_midnight_round"
+            android:icon="@mipmap/ic_launcher_midnight"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".AuroraIcon"
+            android:enabled="false"
+            android:exported="true"
+            android:roundIcon="@mipmap/ic_launcher_aurora_round"
+            android:icon="@mipmap/ic_launcher_aurora"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".SkyIcon"
+            android:enabled="false"
+            android:exported="true"
+            android:roundIcon="@mipmap/ic_launcher_sky_round"
+            android:icon="@mipmap/ic_launcher_sky"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name="io.chatic.dou.service.TransferService"
