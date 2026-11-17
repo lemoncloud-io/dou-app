@@ -202,6 +202,12 @@ not:
   mode);
 - three empty states — nothing at all (no filter row, no "Select"), an empty tab (named), and nothing
   unread under "Unread only" (with "Show all notifications");
+- **the title steps down once the list scrolls** — "Notifications" goes from 28px to 20px (eased,
+  none under reduced motion) and back at the top, so the header reads as a bar rather than a heading
+  over the rows. Only the type changes: the header keeps its height. A header that shrank would hand
+  its height to the list, and a list only just long enough to scroll would then fit, snap back to the
+  top and grow the header again, round and round. The tabs and the header stay fixed above the list,
+  and the tabs' underline is the divider, so nothing else changes with the scroll;
 - **coming back lands where the reader left.** Opening an item navigates away and unmounts the page,
   so the tab and "Unread only" live outside it, in memory (`stores/useNotificationsViewStore`), and the
   list's offset is kept by the app's `useScrollRestoration`. The two go together: an offset restored

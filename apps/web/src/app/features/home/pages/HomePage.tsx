@@ -5,6 +5,7 @@ import { Loader2, X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
+import { cn } from '@chatic/ui-kit';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 import { useMembershipInfo } from '../../../hooks/useMembership';
@@ -35,6 +36,7 @@ import {
     useMyProfile,
     useOnboarding,
     useScopedNotifications,
+    useScrollChrome,
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
@@ -81,6 +83,9 @@ import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { resolveHeaderProfile } from '../lib';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
+
+/** The chat tabs' sticky `top`, in px — minus the tab row's own top padding (see the tabs below). */
+const TABS_PIN_TOP = -8;
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -284,6 +289,15 @@ export const HomePage = () => {
     // against a still-loading (short) list.
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelSectionLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
+    // The place chips scroll away and the chat tabs pin under the header, so the tabs stay in reach
+    // down a long list. One divider marks the edge content passes under: the header's while the
+    // chips are sliding beneath it, then the tabs' own underline once they pin.
+    const {
+        scrolled,
+        pinned: tabsPinned,
+        anchorRef: tabsAnchorRef,
+        track: trackScroll,
+    } = useScrollChrome(TABS_PIN_TOP);
 
     // Pull-to-refresh re-asks everything this screen draws: the background sync's lists (places,
     // channel delta — which carries the cloud 1:1s too — profiles, sent invites, the relay self
@@ -529,6 +543,11 @@ export const HomePage = () => {
                 switcherLabel={t('homePage.switchCloud')}
                 avatar={profileMenu}
                 profileLabel={t('homePage.profile')}
+                // The border is always there, only its colour changes, so the bar never moves by a pixel.
+                className={cn(
+                    'border-b transition-colors duration-200 motion-reduce:transition-none',
+                    scrolled && !tabsPinned ? 'border-input-border' : 'border-transparent'
+                )}
             />
 
             {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
@@ -536,15 +555,21 @@ export const HomePage = () => {
                 not from padding on this container — see BottomNavSpacer for why. */}
             <PullToRefresh
                 ref={scrollContainerRef}
-                onScroll={handleListScroll}
+                onScroll={event => {
+                    handleListScroll();
+                    trackScroll(event.currentTarget);
+                }}
                 onRefresh={handleRefresh}
                 // A light tick for each step of the gauge short of full, and the stronger tap when it
                 // fills and the refresh starts — so a pull is felt filling up, not only at its end.
                 onTick={() => haptics.play('selection')}
                 onFill={() => haptics.play('impact')}
                 refreshingLabel={t('homePage.refreshing')}
-                className="min-h-0 flex-1 overflow-y-auto pt-2"
-                contentClassName="flex flex-col"
+                className="min-h-0 flex-1 overflow-y-auto"
+                // The top gap is the content's, not the scroller's: a sticky row stops at the
+                // scroller's padding edge, so padding there would leave a strip of rows showing
+                // between the header and the pinned tabs.
+                contentClassName="flex flex-col pt-2"
             >
                 {/* Relay: no Place section — the single relay place is auto-connected, so the list
                     carries no information. Its slot goes to the cloud upsell instead. The banner
@@ -586,7 +611,13 @@ export const HomePage = () => {
                 {!selectedPlaceId && noPlaceBody}
                 {(selectedPlaceId || cloudSelfChannels.length > 0) && (
                     <>
+                        <div ref={tabsAnchorRef} aria-hidden />
                         <SegmentedTabs
+                            // Above the rows: each row is positioned (`relative`), and a later
+                            // positioned sibling paints over a sticky row that has no z-index.
+                            // Pinned 8px up: the row's own top padding tucks under the header, so the
+                            // labels sit right below it instead of a blank strip further down.
+                            className="sticky top-[-8px] z-10 bg-background"
                             variant="inline"
                             items={
                                 isDefaultCloud
