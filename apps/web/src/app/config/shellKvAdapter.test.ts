@@ -2,6 +2,7 @@ import { webClient } from '@chatic/bridges';
 import { createShellKvAdapter } from './shellKvAdapter';
 
 jest.mock('@chatic/bridges', () => ({
+    liveShellValue: jest.requireActual('@chatic/bridges').liveShellValue,
     webClient: { post: jest.fn(), request: jest.fn() },
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));

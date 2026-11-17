@@ -4,11 +4,35 @@
 > [`@chatic/host`](../../../../libs/host/README.md); the host profile they read is
 > [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
-What the host does for a feature — sell a subscription today, more domains as they move — reaches the
-feature through a port of `@chatic/host`, never through `isNative()` or a `CHATIC_APP_*` global.
+What the host does for a feature — sell a subscription, pick and move files, open links, run the app's
+frame, sign in, collect diagnostics, receive push — reaches the feature through a port of `@chatic/host`, never through `isNative()` or a `CHATIC_APP_*` global.
 `publishHostPorts.ts` chooses one implementation per port, once, from `main.tsx` right after
 `config.init()`, from what the host declared (or, for a shell built before declarations, the port's
 legacy rule). A feature reads `host.ports.<port>` where it uses it.
+
+## links, appShell, signIn, diagnostics, push
+
+Each is `{ kind: 'app' | 'page' }` (`appShell` and `signIn` add `os`), published from the declaration's
+version-4 keys or, before them, the legacy rule. Where each domain's files read it:
+
+- **links** — `openExternalUrl`, the clipboard copies, share intake (`bridge/shareIntake.ts`), sub web
+  views (`bridge/subWebView.ts`), contact and SMS invites, invite links, link previews, the licenses
+  page's link.
+- **appShell** — haptics, the language and theme sync with the shell, the back handler, the keyboard in
+  the attach panel, the update status, the app icon and the settings that offer it, the preference
+  loader, and the badge read for logs (`os` tells iOS from Android).
+- **signIn** — the login page and account linking (`os === 'ios'` offers Apple's own sign-in), social
+  links, and the pairing screens: the app holds the account and approves; the page asks. Also the
+  subscription entries that depend on who holds the account — My page's subscription row for a guest
+  and the cloud-manage page — since a subscription follows the account the app signs in with.
+- **diagnostics** — the console listener, the log context and uploader, the pending-report flusher,
+  telemetry's entry point, boot metrics, the debug switch's mode, and who held the session.
+- **push** — device-token registration, push mute, push taps (`usePushNavigate`) and the invited-cloud
+  runner.
+
+Identity and config values the shell injects — device ids, version, stage, the config bag — are not
+ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveShellGlobals()` /
+`liveShellValue()` where the shell rewrites them after load).
 
 ## media
 

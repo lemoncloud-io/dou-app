@@ -20,6 +20,8 @@ vi.mock('@chatic/app-runtime', async () => {
     };
 });
 // The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
+// The sub web view's launcher asks the links port; the page takes its own links, as in a browser.
+vi.mock('@chatic/host', () => ({ host: { ports: { links: { kind: 'page' } } } }));
 vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
 }));

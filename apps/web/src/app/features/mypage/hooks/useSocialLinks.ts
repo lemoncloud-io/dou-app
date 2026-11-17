@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
@@ -46,10 +47,11 @@ export const useSocialLinks = () => {
 
     const linkProvider = useCallback(
         async (provider: SocialProvider) => {
-            if (!isNative()) {
-                // No native bridge means no way to obtain the provider's raw token (the existing
-                // browser OAuth relay only yields our own session token, not a native id/identity
-                // token — see social-links.md "non-native OAuth relay reuse investigation").
+            if (host.ports.signIn.kind !== 'app') {
+                // Where the page signs in (`host.ports.signIn`) there is no native bridge, so no way to
+                // obtain the provider's raw token (the existing browser OAuth relay only yields our own
+                // session token, not a native id/identity token — see social-links.md "non-native OAuth
+                // relay reuse investigation").
                 toast({ title: t('mypage.accountInfo.social.mobileOnly') });
                 return;
             }

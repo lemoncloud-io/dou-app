@@ -69,6 +69,10 @@ describe('the phone platform on appShell and signIn', () => {
         expect(resolveSignIn(phone(platform)).os).toBe(os);
     });
 
+    it('names none for a platform global that is not a string', () => {
+        expect(resolveAppShell(phone(42 as unknown as string)).os).toBeNull();
+    });
+
     it('names none where the page does it, whatever the platform global says', () => {
         expect(resolveAppShell(browser({ CHATIC_APP_PLATFORM: 'ios' })).os).toBeNull();
         expect(resolveSignIn(phone('ios', v4({ signIn: 'page' }))).os).toBeNull();

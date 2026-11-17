@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 
-import { isNative } from '@chatic/bridges';
+import { hostProfile } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { host } from '@chatic/host';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { appBridge } from '../../../bridge';
@@ -9,7 +10,8 @@ import { summarizeRegisterResult, type RegistrationSummary } from '../lib';
 
 /**
  * Lifecycle of a single "check registration" run.
- * - `no-native`: not inside the app shell, so no push token exists.
+ * - `no-native`: the `push` port says the app does not receive notifications here (not inside the
+ *   app shell), so no push token exists.
  * - `no-token`: shell returned no token (permission denied / not yet issued).
  * - `done`: server responded; inspect `summary` for the verdict.
  */
@@ -61,7 +63,7 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
         setError(null);
         setSummary(null);
 
-        if (!isNative()) {
+        if (host.ports.push.kind !== 'app') {
             setState('no-native');
             setError(messages.noNative);
             return;
@@ -84,7 +86,7 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
             const result = await mutateAsync({
                 deviceToken: nextToken,
                 deviceId,
-                platform: deviceInfo?.platform ?? window.CHATIC_APP_PLATFORM,
+                platform: deviceInfo?.platform ?? hostProfile().globals.CHATIC_APP_PLATFORM,
                 installId: firebaseInstallationId,
                 application: APPLICATION,
                 force: true,

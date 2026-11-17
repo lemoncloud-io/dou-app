@@ -14,8 +14,15 @@ const session = vi.hoisted(() => ({
     signOutGuest: vi.fn(),
 }));
 
+// Who signs a person in, as the host's `signIn` port says.
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: 'app', os: null } };
+        },
+    },
+}));
 vi.mock('@chatic/bridges', () => ({
-    isNative: () => true,
     logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
 }));
 vi.mock('@chatic/app-runtime', () => ({

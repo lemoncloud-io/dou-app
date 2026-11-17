@@ -9,7 +9,14 @@ jest.mock('react-router-dom', () => ({
     useLocation: () => ({ pathname: '/', key: 'default' }),
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => isNativeValue }));
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: isNativeValue ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('../bridge', () => ({
     appBridge: { setCanGoBack: jest.fn() },
     useOnBackPressed: jest.fn(),

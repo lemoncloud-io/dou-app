@@ -1,12 +1,13 @@
-import { createLogId, isNative, logger, setLogContextProvider } from '@chatic/bridges';
+import { createLogId, liveShellGlobals, liveShellValue, logger, setLogContextProvider } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
 import { readLaunchSessionOwner } from '../launchSessionOwner';
 import { currentTelemetrySessionId } from '../telemetry/telemetryRuntime';
 import { routeTemplateOf } from '../telemetry/routeTemplate';
+import { diagnosticsKind } from './diagnosticsKind';
 
-import type { LogContext } from '@chatic/bridges';
+import type { LogContext, ShellGlobals } from '@chatic/bridges';
 
 /**
  * Supplies the context stamped onto every entry at dispatch.
@@ -21,16 +22,6 @@ import type { LogContext } from '@chatic/bridges';
 declare const __APP_VERSION__: string;
 const WEB_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined;
 
-interface NativeGlobals {
-    CHATIC_APP_RUN_ID?: string;
-    CHATIC_APP_CURRENT_VERSION?: string;
-    CHATIC_APP_PLATFORM?: string;
-    CHATIC_APP_OS_VERSION?: string;
-    CHATIC_APP_DEVICE_MODEL?: string;
-}
-
-const nativeGlobals = (): NativeGlobals => window as unknown as NativeGlobals;
-
 let webRunId: string | undefined;
 
 /**
@@ -42,7 +33,9 @@ let webRunId: string | undefined;
  * to reach the same verdict — must see the absence rather than a locally issued
  * substitute (ADR-0071).
  */
-export const readInjectedRunId = (): string | undefined => nativeGlobals().CHATIC_APP_RUN_ID;
+export const readInjectedRunId = (): string | undefined =>
+    // Read as it stands now, a value the shell writes rather than a host fact; the shell injects a string.
+    liveShellValue('CHATIC_APP_RUN_ID') as string | undefined;
 
 /**
  * Identifier for one app run — the primary axis for exploring logs, since
@@ -65,11 +58,12 @@ const readNetwork = (): string | undefined =>
     (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType;
 
 /**
- * The device family and the host. Inside the app the platform is the one the shell injects; a
- * standalone tab is `web` whatever it runs on, because what differs there is the browser, not the OS.
+ * The device family and the host. Where the `diagnostics` port sends the logs through the app, the
+ * platform is the one the shell injects; where the page sends its own (a standalone tab) it is `web`
+ * whatever it runs on, because what differs there is the browser, not the OS.
  */
-const deviceContext = (globals: NativeGlobals): Pick<LogContext, 'platform' | 'host' | 'network' | 'locale'> => {
-    const hybrid = isNative();
+const deviceContext = (globals: ShellGlobals): Pick<LogContext, 'platform' | 'host' | 'network' | 'locale'> => {
+    const hybrid = diagnosticsKind() === 'app';
     const injected = globals.CHATIC_APP_PLATFORM;
     return {
         platform: hybrid && (injected === 'ios' || injected === 'android') ? injected : 'web',
@@ -80,7 +74,9 @@ const deviceContext = (globals: NativeGlobals): Pick<LogContext, 'platform' | 'h
 };
 
 export const readLogContext = (): LogContext => {
-    const globals = nativeGlobals();
+    // Live, not the boot profile: the phone's second boot pass can rewrite the version, and an entry
+    // carries what was true when it was written.
+    const globals = liveShellGlobals();
     const trail = getRouteTrail();
     const route = trail.at(-1);
 
@@ -131,15 +127,16 @@ export const attachLogContext = (): (() => void) => {
  * least the web half stays groupable, and that substitution is silent: two runIds for one launch
  * look exactly like two launches.
  *
- * Reported once, at `warn`, and **only inside the app**. In a plain browser there is no native half
- * to join, so a locally minted id is simply the right answer and nothing is wrong.
+ * Reported once, at `warn`, and **only where the `diagnostics` port sends the logs through the app**.
+ * In a plain browser the page sends its own, there is no native half to join, and a locally minted id
+ * is simply the right answer.
  *
  * Called separately from `attachLogContext` rather than inside it because of the boot ordering in
  * `main.tsx`: the context provider is registered before the upload queue subscribes, so an entry
  * emitted at that point would be published to nobody. This runs after the queue is wired.
  */
 export const reportRunIdJoin = (): void => {
-    if (!isNative()) return;
+    if (diagnosticsKind() !== 'app') return;
     if (readInjectedRunId()) return;
 
     logger.warn('APP', 'no native runId injected — native and web entries cannot be joined this run', {

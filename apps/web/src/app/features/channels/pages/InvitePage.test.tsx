@@ -20,8 +20,15 @@ jest.mock('react-router-dom', () => ({
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: isNativeValue ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => isNativeValue,
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));

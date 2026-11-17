@@ -23,9 +23,16 @@ vi.mock('@chatic/app-runtime', () => ({
 
 // The link card only draws inside the desktop shell, which answers `FetchUrlMetadata`
 // with the unfurled page. Faking the bridge makes every link "resolve" to a card.
+// Who takes the page's links, as the host's `links` port says.
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: 'app' } };
+        },
+    },
+}));
 vi.mock('@chatic/bridges', async importOriginal => ({
     ...(await importOriginal<object>()),
-    isNative: () => true,
     webClient: {
         request: vi.fn().mockResolvedValue({
             data: { success: true, url: 'https://leki.example/', title: 'leki wiki', siteName: 'leki' },

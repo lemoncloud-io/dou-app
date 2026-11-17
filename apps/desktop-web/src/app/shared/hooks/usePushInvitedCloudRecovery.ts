@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
+import { host } from '@chatic/host';
 
 import { useOwnedCloudIds } from './useCloudCatalog';
 
@@ -25,13 +26,14 @@ const inflight = new Set<string>();
  * Runs beside presentation, never inside it: the presenter drops silent pushes,
  * muted channels, own messages and DND windows, but a dropped cloud still needs
  * its endpoints back. Owned-catalog clouds are skipped — the catalog is their
- * record, and an invited row for one would mislabel it. No-op in a plain browser.
+ * record, and an invited row for one would mislabel it. No-op where the `push` port
+ * says the app delivers no notifications (a plain browser).
  */
 export const usePushInvitedCloudRecovery = (): void => {
     const owned = useOwnedCloudIds();
 
     useEffect(() => {
-        if (!isNative()) return;
+        if (host.ports.push.kind !== 'app') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const data = (message?.data as { notification?: { data?: Record<string, string> } })?.notification?.data;
             const cid = pushCloudIdOf(data?.cid);

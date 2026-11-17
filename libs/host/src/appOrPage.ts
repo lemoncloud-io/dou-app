@@ -39,7 +39,8 @@ export type HostOs = 'ios' | 'android' | null;
  */
 export const hostOsOf = (profile: HostProfile, kind: AppOrPage): HostOs => {
     if (kind !== 'app') return null;
-    const platform = profile.globals.CHATIC_APP_PLATFORM?.toLowerCase();
+    const injected: unknown = profile.globals.CHATIC_APP_PLATFORM;
+    const platform = typeof injected === 'string' ? injected.toLowerCase() : undefined;
     return platform === 'ios' || platform === 'android' ? platform : null;
 };
 

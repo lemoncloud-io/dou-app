@@ -1,4 +1,4 @@
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 // Direct path, not the `bridge` barrel: the barrel re-exports ./navigation, which pulls
 // usePushNavigate → @chatic/web-core → webTransport's `import.meta.env`. ts-jest emits CommonJS,
@@ -17,8 +17,10 @@ import { appBridge } from '../../../bridge/appBridge';
 export const copyTextWithResult = async (value: string | null | undefined): Promise<boolean> => {
     if (!value) return false;
 
+    // The app's clipboard where it takes the page's links (`host.ports.links`), else the page's.
+    const appCopies = host.ports.links.kind === 'app';
     try {
-        if (isNative()) {
+        if (appCopies) {
             await appBridge.copyClipBoard(value);
             return true;
         }

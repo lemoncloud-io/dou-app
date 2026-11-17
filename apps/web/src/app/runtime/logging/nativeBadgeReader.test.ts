@@ -1,31 +1,40 @@
-import { isNative } from '@chatic/bridges';
-
 import { appBridge } from '../../bridge/appBridge';
 import { nativeBadgeReader } from './nativeBadgeReader';
 
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+const mockIsNative = jest.fn((): boolean => true);
+let mockPlatform: string | undefined;
+// The host's `appShell` port: the app runs the frame where `mockIsNative()`, and its `os` is the
+// platform the shell injected, lower-cased, as `@chatic/host` resolves it.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            const kind = mockIsNative() ? 'app' : 'page';
+            const platform = mockPlatform?.toLowerCase();
+            const os = kind === 'app' && (platform === 'ios' || platform === 'android') ? platform : null;
+            return { appShell: { kind, os } };
+        },
+    },
+}));
 jest.mock('../../bridge/appBridge', () => ({
     appBridge: { fetchBadgeCount: jest.fn(), fetchBadgeBase: jest.fn() },
 }));
 
-const isNativeMock = isNative as jest.Mock;
 const fetchCount = appBridge.fetchBadgeCount as jest.Mock;
 const fetchBase = appBridge.fetchBadgeBase as jest.Mock;
 
 const setPlatform = (platform?: string) => {
-    if (platform === undefined) delete window.CHATIC_APP_PLATFORM;
-    else window.CHATIC_APP_PLATFORM = platform;
+    mockPlatform = platform;
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
-    isNativeMock.mockReturnValue(true);
+    mockIsNative.mockReturnValue(true);
     setPlatform('ios');
 });
 
 describe('nativeBadgeReader — 기기가 실제로 보여주는 뱃지', () => {
     it('네이티브가 아니면 null이다 — 브라우저에는 아이콘 뱃지가 없다', async () => {
-        isNativeMock.mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
 
         await expect(nativeBadgeReader.read()).resolves.toBeNull();
         expect(fetchCount).not.toHaveBeenCalled();

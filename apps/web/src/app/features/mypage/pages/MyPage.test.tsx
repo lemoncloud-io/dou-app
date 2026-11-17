@@ -10,7 +10,14 @@ let mockGuest = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/app-runtime', () => ({ runtime: { session: { useIsPairedSession: () => mockPaired } } }));
 jest.mock('@chatic/config/react', () => ({
     useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),

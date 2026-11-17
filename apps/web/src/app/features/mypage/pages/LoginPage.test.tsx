@@ -43,10 +43,17 @@ jest.mock('@chatic/config/react', () => ({
     useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
 }));
 
-// Native by default so the social buttons render; the browser tests flip it.
+// The app signs in by default so the social buttons render; the browser tests flip it.
 let mockIsNative = true;
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockIsNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockIsNative,
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 

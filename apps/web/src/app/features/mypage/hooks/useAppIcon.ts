@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/bridge-messages';
+import { host } from '@chatic/host';
 
 /**
  * Encapsulates native app-icon support: fetching the current icon and the
  * available icon list on mount, changing the icon, and resolving the
- * localized label for the current icon. No-ops on non-native platforms.
+ * localized label for the current icon. No-ops unless the app runs the frame
+ * around the page (the host's `appShell` port).
  */
 export const useAppIcon = () => {
     const { t } = useTranslation();
@@ -16,7 +18,7 @@ export const useAppIcon = () => {
     const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
 
     useEffect(() => {
-        if (!isNative()) return;
+        if (host.ports.appShell.kind !== 'app') return;
 
         webClient
             .request({ type: 'FetchAppIcon', data: {} })

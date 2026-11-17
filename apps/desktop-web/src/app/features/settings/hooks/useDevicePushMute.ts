@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
+import { hostProfile } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
 
@@ -16,9 +17,11 @@ import { useConfigValue } from '@chatic/config/react';
  * store holds only settings this app has no config-registry key for yet).
  *
  * `isSupported` mirrors the push-registration gate. Only the Electron shell injects
- * `CHATIC_APP_PLATFORM` and registers a device with pushes-api, so in a plain browser
- * there is no device for the write to address and it would always fail. The switch is
- * disabled there, with a reason rather than a silently greyed control.
+ * `CHATIC_APP_PLATFORM` (read from the host profile) and registers a device with pushes-api, so
+ * in a plain browser there is no device for the write to address and it would always fail. The
+ * switch is disabled there, with a reason rather than a silently greyed control. It reads the
+ * platform rather than the `push` port because that is what it has always read: a host that has a
+ * bridge but injects no platform would answer differently.
  *
  * `apps/web` has a hook of the same name and shape, also reading `ui.pushMuted`. It is not shared:
  * the web one reports failure through a toast this app does not use, so lifting it would mean
@@ -30,8 +33,8 @@ export const useDevicePushMute = () => {
     const pushMuted = useConfigValue<boolean>('ui.pushMuted') ?? false;
     const setPushMuted = (value: boolean) => config.set('ui.pushMuted', value, { lane: 'local' });
 
-    // Shell globals are injected before the app boots, so one read per render is stable.
-    const isSupported = typeof window !== 'undefined' && !!window.CHATIC_APP_PLATFORM;
+    // Shell globals are injected before the app boots, so the profile's boot value is stable.
+    const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;
 
     const mutation = useMutation({
         mutationFn: (muted: boolean) => device.updateRemotePushMute(muted),

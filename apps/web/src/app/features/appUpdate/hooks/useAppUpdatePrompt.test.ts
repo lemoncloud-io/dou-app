@@ -1,8 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: mockIsNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: (...args: unknown[]) => mockIsNative(...args),
     // `useAppUpdateStatus` logs the check result; a partial logger mock breaks this suite even
     // though it asserts nothing about logging.
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },

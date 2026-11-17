@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
+import { hostProfile } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
@@ -15,8 +16,9 @@ import { useConfigValue } from '@chatic/config/react';
  * toast on failure.
  *
  * `isSupported` mirrors the push-registration gate (useDeviceTokenRegistration): only a native
- * shell (CHATIC_APP_PLATFORM) registers a push device with pushes-api, so outside a shell the
- * write would always 404 — the UI disables the toggle instead.
+ * shell (CHATIC_APP_PLATFORM, as the host profile kept it) registers a push device with pushes-api,
+ * so outside a shell the write would always 404 — the UI disables the toggle instead. It is the
+ * platform rather than the `push` port because that gate is the platform too.
  */
 export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();
@@ -25,8 +27,8 @@ export const useDevicePushMute = () => {
     const pushMuted = useConfigValue<boolean>('ui.pushMuted') ?? false;
     const setPushMuted = (value: boolean) => config.set('ui.pushMuted', value, { lane: 'local' });
 
-    // Shell globals are injected before the web app boots, so reading once per render is stable.
-    const isSupported = typeof window !== 'undefined' && !!window.CHATIC_APP_PLATFORM;
+    // Shell globals are injected before the web app boots, so the profile's boot value is stable.
+    const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;
 
     const mutation = useMutation({
         mutationFn: (muted: boolean) => device.updateRemotePushMute(muted),

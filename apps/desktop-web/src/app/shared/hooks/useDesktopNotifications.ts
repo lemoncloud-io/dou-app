@@ -3,8 +3,9 @@ import { useEffect, useRef } from 'react';
 import i18next from 'i18next';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { host } from '@chatic/host';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
@@ -34,11 +35,7 @@ import {
 // its kind first (`Mention · #name`, `@all · #name`); DMs and non-mentions keep the
 // old title. Translated at notify time via i18next, not a render-captured `t` —
 // the feed callback outlives the render that registered it.
-const notificationTitle = (
-    channel: DomainChannel,
-    latest: ChannelLastChat,
-    kind: MentionKind | null
-): string => {
+const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat, kind: MentionKind | null): string => {
     const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
     if (isNotifyDm(channel)) return target;
     if (kind === 'direct') return i18next.t('notification.mentionTitle', { target });
@@ -62,8 +59,8 @@ const isViewing = (channelId: string): boolean =>
  * Desktop-only OS notifications. The shared chat-feed engine (useChannelChatFeeds) streams every
  * registered channel's genuinely-new messages here; when a newer message from someone else
  * arrives while the window is hidden, ask the shell to show an OS notification. Covers channels
- * across every place the user belongs to. The banners are a no-op outside the Desktop Shell
- * (isNative() false) and swallow NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade
+ * across every place the user belongs to. The banners are a no-op where the `push` port says the
+ * app delivers no notifications (outside the Desktop Shell) and swallow NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade
  * gracefully (ADR-0001).
  *
  * The per-channel notify mode is reverse-synced separately (`join.observeList`): another device
@@ -85,9 +82,10 @@ export const useDesktopNotifications = (): void => {
     // dropped optimistic own sentinels and skipped the cache warm-up baseline, so `chats` are
     // persisted messages strictly above the previous high-water mark.
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        // No-op outside the Desktop Shell — the renderer must never raise an OS banner in a
-        // plain browser (webClient would NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
-        if (!isNative()) return;
+        // No-op unless the `push` port says the app delivers notifications (the Desktop Shell) — the
+        // renderer must never raise an OS banner in a plain browser (webClient would
+        // NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
+        if (host.ports.push.kind !== 'app') return;
 
         // The channel watermark gives us the latest message (chat content streams only for the
         // focused room in v2, so background notifications ride the channel record instead).

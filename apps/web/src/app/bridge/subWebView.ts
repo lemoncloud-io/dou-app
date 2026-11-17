@@ -1,12 +1,13 @@
 import type { SubWebViewParams } from '@chatic/bridge-messages';
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from './appBridge';
 import { shellCapabilities } from './shellCapabilities';
 
 /**
  * Where a page asked for with `openSubWebView` went: the app's sub WebView, the OS browser (an app
- * built before the sub WebView), or a new browser tab (no app at all).
+ * built before the sub WebView), or a new browser tab (where the page takes its own links,
+ * `host.ports.links`).
  */
 export type SubWebViewOpening = { via: 'subWebView'; viewId: string } | { via: 'external' } | { via: 'browser' };
 
@@ -35,7 +36,7 @@ export const openSubWebView = async ({
     params?: SubWebViewParams;
     appId?: string;
 }): Promise<SubWebViewOpening> => {
-    if (!isNative()) {
+    if (host.ports.links.kind !== 'app') {
         window.open(url, '_blank', 'noopener,noreferrer');
         return { via: 'browser' };
     }

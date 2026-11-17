@@ -4,7 +4,14 @@ import { shellCapabilities } from './shellCapabilities';
 import { openSubWebView } from './subWebView';
 
 let mockNative = true;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: mockNative ? 'app' : 'page' } };
+        },
+    },
+}));
 
 const openURL = jest.fn();
 const requestOpen = jest.fn();

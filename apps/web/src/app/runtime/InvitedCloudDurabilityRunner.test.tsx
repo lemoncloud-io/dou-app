@@ -7,9 +7,16 @@ import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 
 const cloudRepository = { name: 'cloud-repository' };
 
+const mockIsNativeApp = jest.fn();
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { push: { kind: mockIsNativeApp() ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { isNativeApp: jest.fn() },
         data: {
             useRuntimeRepositories: jest.fn(),
             useInvitedCloudNameSync: jest.fn(),
@@ -23,7 +30,7 @@ type ReceiveMessage = { data?: { notification?: { data?: Record<string, unknown>
 let captured: ((message: ReceiveMessage) => void) | undefined;
 
 const recoverMock = runtime.data.recoverInvitedCloudIfMissing as jest.Mock;
-const isNativeAppMock = runtime.boot.isNativeApp as jest.Mock;
+const isNativeAppMock = mockIsNativeApp;
 
 /** Hands the runner a foreground push, the way the bridge would. */
 const deliver = (data: Record<string, unknown>) => {

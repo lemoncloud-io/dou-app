@@ -34,6 +34,23 @@ vi.mock('@chatic/bridges', async () => ({
     ...(await vi.importActual<typeof BridgesModule>('@chatic/bridges')),
     isNative: () => false,
 }));
+// A plain browser tab, as `isNative()` false says: every port the routes reach answers the page, so no
+// notification tap or menu-bar link is listened for.
+vi.mock('@chatic/host', () => ({
+    host: {
+        isPublished: true,
+        ports: {
+            checkout: { kind: 'none' },
+            media: { kind: 'page' },
+            files: { kind: 'page' },
+            links: { kind: 'page' },
+            appShell: { kind: 'page', os: null },
+            signIn: { kind: 'page', os: null },
+            diagnostics: { kind: 'page' },
+            push: { kind: 'page' },
+        },
+    },
+}));
 vi.mock('./features/chat', () => ({
     HomePage: () => <p>home page</p>,
     ShortcutsDialog: () => null,

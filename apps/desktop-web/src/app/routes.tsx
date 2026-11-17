@@ -1,8 +1,9 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { host } from '@chatic/host';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
@@ -42,7 +43,9 @@ const NotificationOpenListener = () => {
         navigate('/');
     }, [pendingNonce, navigate]);
     useEffect(() => {
-        if (!isNative()) return;
+        // Notification taps, and the menu bar's links that ride the same event, arrive only where the
+        // `push` port says the app delivers them.
+        if (host.ports.push.kind !== 'app') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;

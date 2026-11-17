@@ -3,10 +3,14 @@ import { logger } from '@chatic/bridges';
 import { attachConsoleListener } from './consoleListener';
 
 let mockIsNative = false;
-jest.mock('@chatic/bridges', () => {
-    const actual = jest.requireActual('@chatic/bridges');
-    return { ...actual, isNative: () => mockIsNative };
-});
+jest.mock('@chatic/host', () => ({
+    host: {
+        isPublished: true,
+        get ports() {
+            return { diagnostics: { kind: mockIsNative ? 'app' : 'page' } };
+        },
+    },
+}));
 
 let detach: (() => void) | undefined;
 let consoleLogSpy: jest.SpyInstance;

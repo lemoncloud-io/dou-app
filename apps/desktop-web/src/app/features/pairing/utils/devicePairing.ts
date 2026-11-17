@@ -1,5 +1,5 @@
-import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
+import { host } from '@chatic/host';
 
 import { isRelayGuest } from '../../../shared/hooks/useRelayAccount';
 
@@ -11,16 +11,18 @@ import { isRelayGuest } from '../../../shared/hooks/useRelayAccount';
 export const isDevicePairingEnabled = (): boolean => config.get<boolean>('feature.auth.devicePairing') === true;
 
 /**
- * Whether this client can be the requesting side: a plain browser. The desktop app signs in on its
- * own, and a code shown inside it would ask a phone to approve the app it is already beside.
+ * Whether this client can be the requesting side: a plain browser, where the page signs in
+ * (`host.ports.signIn`). The desktop app signs in on its own, and a code shown inside it would ask a
+ * phone to approve the app it is already beside.
  */
-export const canRequestPairing = (): boolean => isDevicePairingEnabled() && !isNative();
+export const canRequestPairing = (): boolean => isDevicePairingEnabled() && host.ports.signIn.kind !== 'app';
 
 /**
- * Whether this client can be the approving side: the desktop app, signed in to an account, and only one
- * that signed in for itself. Approving hands on a sign-in, so the device doing it has to hold one: a
- * guest has none of its own to give. A session that was itself paired is a delegate of another device
- * — letting it approve would hand out access that the account never granted from a device it trusts.
+ * Whether this client can be the approving side: the desktop app (where the app signs in,
+ * `host.ports.signIn`), signed in to an account, and only one that signed in for itself. Approving
+ * hands on a sign-in, so the device doing it has to hold one: a guest has none of its own to give. A
+ * session that was itself paired is a delegate of another device — letting it approve would hand out
+ * access that the account never granted from a device it trusts.
  */
 export const canApprovePairing = (isPairedSession: boolean): boolean =>
-    isDevicePairingEnabled() && isNative() && !isPairedSession && !isRelayGuest();
+    isDevicePairingEnabled() && host.ports.signIn.kind === 'app' && !isPairedSession && !isRelayGuest();

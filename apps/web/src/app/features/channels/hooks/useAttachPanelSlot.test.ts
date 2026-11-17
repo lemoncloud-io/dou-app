@@ -13,7 +13,14 @@ import {
 } from './useAttachPanelSlot';
 
 let mockNative = true;
-jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+// Whether the app runs the frame around the page, keyboard included, as the host's `appShell` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: mockNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 
 /** One frame of the fake clock: jest's fake `requestAnimationFrame` runs every 16 ms. */
 const FRAME_MS = 16;

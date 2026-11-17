@@ -4,11 +4,19 @@ import { act, renderHook } from '@testing-library/react';
 
 import type * as ZustandModule from 'zustand';
 
-// Mock the bridge (control isNative; capture logger.warn) and the two stores the
-// hook reads. The stores are real zustand instances so selector reads, getState()
-// and setState() all behave exactly as in the app — only their module wiring is faked.
+// Mock the host (control whether the app runs the frame, through its `appShell` port), the bridge
+// (capture logger.warn) and the two stores the hook reads. The stores are real zustand instances so
+// selector reads, getState() and setState() all behave exactly as in the app — only their module
+// wiring is faked.
+const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => true) }));
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: isNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 vi.mock('@chatic/bridges', () => ({
-    isNative: vi.fn(() => true),
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 // v2: socket verification comes from app-runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
@@ -30,7 +38,6 @@ vi.mock('@chatic/app-runtime', async () => {
     };
 });
 
-import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 // The mocked exports ARE zustand stores (hook + setState); cast for the test driver.
@@ -114,7 +121,7 @@ describe('useSocketWedgeReload', () => {
         unmount();
     });
 
-    it('is a no-op outside the Electron shell (isNative false)', () => {
+    it('is a no-op outside the Electron shell (the app does not run the frame)', () => {
         vi.mocked(isNative).mockReturnValue(false);
         const { unmount } = arm();
         setVerified(false);

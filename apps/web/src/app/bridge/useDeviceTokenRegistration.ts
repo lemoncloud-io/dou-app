@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
+import { hostProfile } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';
 
@@ -36,7 +37,7 @@ const nativeRecordMirror: runtime.push.DeviceTokenDelegate['nativeRecordMirror']
  * `appBridge.fetchFcmToken()` into the runtime's runtime.push.DeviceTokenDelegate. All
  * registration policy (auth gating, once-per-install dedup, retry) lives in runtime-core's
  * `PushRegistration`, started through `runtime.push` — this file
- * only supplies the shell-specific pieces: the token fetch, the window-injected platform identifier,
+ * only supplies the shell-specific pieces: the token fetch, the platform identifier the shell injected,
  * and the native mirror for the registration record. Device identity (deviceId / firebase
  * installation id) is resolved inside the runtime via useDynamicDeviceId, the single source shared
  * with the socket side.
@@ -44,13 +45,13 @@ const nativeRecordMirror: runtime.push.DeviceTokenDelegate['nativeRecordMirror']
  * `stage` is deliberately NOT sent: mobile builds carry their stage in the flavor's
  * google-services.json, and the app has always registered without it.
  *
- * Outside the native shell (no CHATIC_APP_PLATFORM) the delegate is null and
+ * Outside the native shell (no CHATIC_APP_PLATFORM in the host profile) the delegate is null and
  * the runtime hook is a no-op.
  */
 export const useDeviceTokenRegistration = (): void => {
-    // Shell globals are injected before the web app boots, so resolving once is safe.
+    // Shell globals are injected before the web app boots, so the profile's boot value is the one to use.
     const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
-        const platform = typeof window !== 'undefined' ? window.CHATIC_APP_PLATFORM : undefined;
+        const platform = hostProfile().globals.CHATIC_APP_PLATFORM;
         if (!platform) return null;
         return {
             fetchDeviceToken: () =>

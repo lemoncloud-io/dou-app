@@ -30,7 +30,14 @@ jest.mock('qrcode.react', () => ({
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 let mockNative = false;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
 jest.mock('@chatic/app-runtime', () => ({

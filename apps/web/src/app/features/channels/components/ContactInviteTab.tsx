@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/bridge-messages';
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import {
     Button,
     FloatingButton,
@@ -71,7 +72,8 @@ export const ContactInviteTab = ({
     const { t } = useTranslation();
     const { toast } = useToast();
 
-    const isOnMobileApp = isNative();
+    // Contacts and SMS invites are the app's where it takes the page's links (`host.ports.links`).
+    const isOnMobileApp = host.ports.links.kind === 'app';
     const [search, setSearch] = useState('');
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);
@@ -87,7 +89,8 @@ export const ContactInviteTab = ({
     );
 
     /**
-     * Loads contacts only on native. Web has no contacts access → funneled into the invite link.
+     * Loads contacts only where the app takes the links. The page has no contacts access → funneled
+     * into the invite link.
      *
      * Only called once the tab is actually shown. `getContacts()` raises the OS permission popup,
      * and a host that opens on another tab would otherwise **prompt for permission even from a user

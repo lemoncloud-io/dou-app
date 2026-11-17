@@ -150,6 +150,8 @@ const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 // `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
+// Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
+jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'page', os: null } } } }));
 
 jest.mock('../../../hooks', () => ({
     useActiveCloudPlaces: (...args: unknown[]) => useActiveCloudPlaces(...(args as [])),

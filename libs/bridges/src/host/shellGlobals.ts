@@ -67,9 +67,9 @@ export const readShellGlobals = (source: Readonly<Record<string, unknown>> | und
 
 /**
  * The boot globals as they stand now, not as the profile kept them. Only for a reader that has to see
- * a value the shell rewrites after load — the phone's second boot pass can change the device ids and
- * the version check — which is `apps/web`'s device store and the session's device id. Everything else
- * reads `hostProfile().globals`.
+ * a value the shell rewrites after load — the phone's second boot pass can change the device ids, the
+ * version check and the language — which is `apps/web`'s device store, its version floor and language
+ * preference, and the session's device id. Everything else reads `hostProfile().globals`.
  */
 export const liveShellGlobals = (): ShellGlobals =>
     readShellGlobals(typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>));

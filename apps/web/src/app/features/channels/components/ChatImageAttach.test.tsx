@@ -27,11 +27,15 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
-// Who picks, as the host's media port says: the app when the case runs in the app.
+// Who picks, as the host's media port says, and who runs the frame around the page, as its `appShell`
+// port says: the app for both when the case runs in the app.
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { media: { kind: mockNative ? 'app' : 'page' } };
+            return {
+                media: { kind: mockNative ? 'app' : 'page' },
+                appShell: { kind: mockNative ? 'app' : 'page', os: null },
+            };
         },
     },
 }));

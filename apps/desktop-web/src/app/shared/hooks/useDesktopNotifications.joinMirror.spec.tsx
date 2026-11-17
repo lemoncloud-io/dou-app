@@ -13,8 +13,14 @@ const joinEmitters = new Map<string, Emit>();
 let native = true;
 
 vi.mock('@chatic/bridges', () => ({
-    isNative: () => native,
     webClient: { request: vi.fn() },
+}));
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { push: { kind: native ? 'app' : 'page' } };
+        },
+    },
 }));
 
 vi.mock('@chatic/app-runtime', () => {
