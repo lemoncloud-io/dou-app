@@ -26,7 +26,7 @@ import {
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
-import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
+import { ChannelMessageRow, type MessageReadInfo, type MessageSender } from '../components/ChannelMessageRow';
 import { ComposerEditBar } from '../components/ComposerEditBar';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
@@ -306,14 +306,11 @@ export const ChannelRoomPage = () => {
     // into somebody else's self-chat, a group URL I never joined) gets 403 per member otherwise.
     const isMember = isChannelMember(channel, myJoin, userId);
 
-    const { getReadCount, isReady: isJoinReady } = useJoinPositions(
-        roomCid,
-        stableChannelIdForChannelHook,
-        activeMemberIds,
-        allMemberIds,
-        cursorByUser,
-        isMember
-    );
+    const {
+        getReadCount,
+        getReaders,
+        isReady: isJoinReady,
+    } = useJoinPositions(roomCid, stableChannelIdForChannelHook, activeMemberIds, allMemberIds, cursorByUser, isMember);
 
     // One reading of the room's kind for the whole screen, off `stereo` alone — never off the head
     // count, and never as `!self && !dm` (that negative form is what swallowed `public` elsewhere).
@@ -1077,6 +1074,38 @@ export const ChannelRoomPage = () => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
+    // A group room shows its read receipt on my newest message only (Figma 5978:37669): one line
+    // that says how far the room has caught up with me, instead of a count beside every bubble.
+    const lastMineChatNo = useMemo(() => {
+        let last: number | undefined;
+        for (const message of messages) {
+            if (message.isOwner && message.chatNo !== undefined && (last === undefined || message.chatNo > last)) {
+                last = message.chatNo;
+            }
+        }
+        return last;
+    }, [messages]);
+
+    const groupReadOf = useCallback(
+        (chatNo: number | undefined): MessageReadInfo => {
+            if (!showReadReceipt || chatNo === undefined || chatNo !== lastMineChatNo) {
+                return { show: false, isReady: isJoinReady, readCount: 0, unreadCount: 0, mode: 'readers' };
+            }
+            // Mine is read by definition; the line counts everyone else.
+            const readers = getReaders(chatNo).filter(id => id !== userId);
+            const others = activeMemberIds.filter(id => id !== userId).length;
+            return {
+                show: true,
+                isReady: isJoinReady,
+                readCount: readers.length,
+                unreadCount: Math.max(0, others - readers.length),
+                mode: 'readers',
+                readers,
+            };
+        },
+        [showReadReceipt, lastMineChatNo, isJoinReady, getReaders, userId, activeMemberIds]
+    );
+
     const groupedMessages = useMemo(() => {
         return messages.reduce(
             (groups, message) => {
@@ -1501,13 +1530,17 @@ export const ChannelRoomPage = () => {
                                                                 ownerDisplayName={ownerDisplayName}
                                                                 ownerAvatar={ownerAvatar}
                                                                 time={formatTime(message.timestamp)}
-                                                                read={{
-                                                                    show: showReadReceipt,
-                                                                    isReady: isJoinReady,
-                                                                    readCount,
-                                                                    unreadCount,
-                                                                    mode: isDmChat ? 'dm' : 'count',
-                                                                }}
+                                                                read={
+                                                                    isDmChat
+                                                                        ? {
+                                                                              show: showReadReceipt,
+                                                                              isReady: isJoinReady,
+                                                                              readCount,
+                                                                              unreadCount,
+                                                                              mode: 'dm',
+                                                                          }
+                                                                        : groupReadOf(message.chatNo)
+                                                                }
                                                                 onLongPress={() => handleOpenMessageActions(message)}
                                                                 onExpand={() =>
                                                                     setExpandedMessage({

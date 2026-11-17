@@ -939,6 +939,11 @@
             "unread": "안읽음",
             "allRead": "읽음 {{count}}",
             "readCount": "읽음 {{count}}",
+            "receipt": {
+                "read": "읽음",
+                "unconfirmed": "미확인",
+                "allRead": "모두 읽음"
+            },
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
             "messageDetail": "메시지 전체보기",
