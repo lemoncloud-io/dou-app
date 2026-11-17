@@ -26,8 +26,13 @@ The header takes its `kind` from the channel's stereo, which picks the fallback 
 name as overrides); and its avatar from
 `resolveChannelAvatar` — the room's own `channel.thumbnail` in a self chat, else my place-profile
 photo; the peer's in a DM; and
-`channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
-`state: { roomDistance: 1 }`.
+`channel.thumbnail` otherwise.
+
+The ⋯ button opens the room's settings directly (`onMore`, labelled "room settings"), with
+`state: { roomDistance: 1 }`, in every kind of room — self, 1:1 and group. There is no dropdown:
+Settings would be its only item, so a menu would cost a tap and offer no choice. A second action that
+belongs behind ⋯ is the point to bring the dropdown (`moreMenu`) back, with the menu-aware
+`useMenuNavigate` for its items.
 
 Every person photo in the header is the **place profile's only**. A profile is per-place, and the
 member's user row carries an account-wide avatar nobody chose for this place; falling back to it put
@@ -45,11 +50,11 @@ room has a photo of its own and the row stands for a person.
 
 **Tapping the header.** In a 1:1 the avatar and title are one button that opens the peer's profile
 (see **Opening a person** below). In a group only the participant stack is a button, and it opens
-settings, the screen that lists the members, the same way the Settings menu item does
-(`state: { roomDistance: 1 }`). It uses plain `navigate`, because there is no menu to wait for. The
-title stays inert there, because a group's name and photo stand for the room, not a person. A self
-chat gets neither. `ChatRoomHeader` takes these as `onIdentityClick` and `onMetaClick`. The identity
-button wins when both are set, because a button cannot contain another button.
+settings, the screen that lists the members, the same way the ⋯ button does
+(`state: { roomDistance: 1 }`). The title stays inert there, because a group's name and photo stand
+for the room, not a person. A self chat gets neither. `ChatRoomHeader` takes these as
+`onIdentityClick` and `onMetaClick`. The identity button wins when both are set, because a button
+cannot contain another button.
 
 `loading` renders placeholders while the channel is unresolved. Without it the title falls back to
 the "unnamed channel" label for a beat, which reads as having opened the wrong room.
@@ -764,9 +769,9 @@ ring, so nothing in the row moves when it comes and goes; the bubble reads the r
   asks for it, and the optimistic-to-server id swap does not remount the row).
 - Opening a person is pinned by the `opening the sender profile` cases in
   `ChannelMessageRow.test.tsx` (what the row hands over, which rows are inert),
-  `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, the group stack's navigation,
-  never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks themselves are covered in
-  the kit's `ChatRoomHeader.test.tsx`.
+  `ChannelRoomPage.profile.test.tsx` (the sheet's props, the 1:1 header, where the group stack and
+  the ⋯ button navigate, never my own profile) and `ThreadPage.profile.test.tsx`. The header hooks
+  themselves are covered in the kit's `ChatRoomHeader.test.tsx`.
 - Mentions are pinned by `mentionInput.test.ts`, `mentionHighlight.test.ts`,
   `useMentionComposer.test.ts`, `MentionSuggestions.test.tsx`, the `mentions`
   cases of `ChannelRoomPage.test.tsx` and `ThreadPage.test.tsx`, and `mention.test.ts` in `libs/data`.

@@ -1,4 +1,4 @@
-import { Loader2, Settings } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
     useEffect,
     useCallback,
@@ -20,7 +20,6 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import {
     AvatarGroup,
     ChatRoomHeader,
@@ -107,7 +106,6 @@ import { unreadEntryOf } from '../utils/unreadEntry';
 import { buildThreadIndex, unseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
-import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
 import { useDebugRoomMirror } from '../../debug';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
@@ -145,10 +143,6 @@ const readInRoomCloud = (cid: string, input: { channelId: string; chatNo: number
 
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
-    // The overflow (⋯) menu's own navigate: it lets the menu finish leaving before the page
-    // transition snapshots the screen, so the open menu is not carried off inside the outgoing
-    // page. See `hooks/menuDismissal`.
-    const navigateFromMenu = useMenuNavigate();
     // Only for leaving a room I am not in — see the not-a-member effect.
     const enterStack = useStackNavigate();
     const { t } = useTranslation();
@@ -1400,6 +1394,10 @@ export const ChannelRoomPage = () => {
         />
     );
 
+    // The room's settings, which also list its members. `roomDistance: 1` is how far settings sits
+    // from this room, so an invite started there can pop back onto this room's history entry.
+    const openSettings = () => navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } });
+
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
@@ -1417,29 +1415,13 @@ export const ChannelRoomPage = () => {
                     onIdentityClick={dmProfile ? () => openMemberProfile(dmProfile) : undefined}
                     identityLabel={dmProfile ? t('chat.room.openProfile', { name: dmProfile.name }) : undefined}
                     // A group's participant stack opens the screen that lists everyone — settings,
-                    // the same way the ⋯ menu reaches it. Plain `navigate`: no menu to wait out.
-                    onMetaClick={
-                        isGroupChat
-                            ? () =>
-                                  navigate(ROUTES.channels.settings(stableChannelId), {
-                                      state: { roomDistance: 1 },
-                                  })
-                            : undefined
-                    }
+                    // the same place the ⋯ button goes.
+                    onMetaClick={isGroupChat ? openSettings : undefined}
                     metaLabel={isGroupChat ? t('chat.room.openMembers') : undefined}
-                    moreMenu={
-                        <DropdownMenuItem
-                            onClick={() =>
-                                navigateFromMenu(ROUTES.channels.settings(stableChannelId), {
-                                    state: { roomDistance: 1 },
-                                })
-                            }
-                            className="cursor-pointer gap-2"
-                        >
-                            <Settings size={16} />
-                            <span>{t('home.settings')}</span>
-                        </DropdownMenuItem>
-                    }
+                    // ⋯ goes straight to settings rather than opening a menu: settings was the
+                    // menu's only item, so the menu only cost an extra tap.
+                    onMore={openSettings}
+                    moreLabel={t('chat.room.openSettings')}
                     className="border-b border-border"
                 />
             </div>

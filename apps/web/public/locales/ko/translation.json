@@ -51,7 +51,6 @@
     "home": {
         "welcome": "환영합니다",
         "subtitle": "아래에서 설정을 관리하세요",
-        "settings": "설정",
         "logout": "로그아웃",
         "logoutInvited": "초대 계정 로그아웃",
         "logoutFailed": "로그아웃 실패",
@@ -999,7 +998,8 @@
                 "collapse": "간략히 보기"
             },
             "openProfile": "{{name}} 프로필 보기",
-            "openMembers": "대화 상대 보기"
+            "openMembers": "대화 상대 보기",
+            "openSettings": "방 설정"
         },
         "settings": {
             "title": "방 설정",
