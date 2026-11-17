@@ -132,6 +132,13 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
   `WEB_PROD_APP_SESSION_OWNER`, which the deploy workflows write into the web's `.env`. Changing the
   variable does nothing until the next web deploy.
 - An app from before 2.28.0 of the bridge does not list the request, and the page sends it nothing.
+- **It cannot reach an app that dies starting its runtime.** The runtime starts on the page's first
+  hello (`runtimeBridge.ts`), before the page sends `WebAppReady`, so a start that kills the process — a
+  native module the build left out, say — kills it before this request is sent, on every launch. The
+  lever for that is the web's own switch, `VITE_SESSION_MIRROR_DISABLED` (deploys read it from
+  `WEB_DEV_SESSION_MIRROR_DISABLED` / `WEB_PROD_SESSION_MIRROR_DISABLED`): a page that never says hello
+  never starts the runtime, owns the launch itself, and names `web` here for the starts after it. It
+  moves every install, switched ones included, until a web deploy without it.
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build

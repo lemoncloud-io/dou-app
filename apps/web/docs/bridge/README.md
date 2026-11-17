@@ -190,9 +190,13 @@ does on the page's own launches. Every log entry made inside the app after the s
 the page's again whatever the installed app offers — the rollback for the shell owning the session. Two
 limits:
 
-- **It needs the variable in the build.** The deploy workflows write `.env` from a fixed list of
-  variables, so the line has to be added there (or to `.env.prod` for a local `web:build:prod`); it is
-  listed, commented out, in `.env.example`.
+- **It needs the variable in the build.** The deploy workflows fill it from the
+  `WEB_DEV_SESSION_MIRROR_DISABLED` / `WEB_PROD_SESSION_MIRROR_DISABLED` repository variables (`true`
+  turns it on; unset or anything else leaves the page asking), so setting one does nothing until the
+  next web deploy of that stage. A local `web:build:prod` reads it from `.env.prod`; it is listed,
+  commented out, in `.env.example`. It is the rollback that reaches a launch the shell's runtime cannot
+  survive: an app that dies while starting its runtime dies before `WebAppReady`, so the default owner
+  below never reaches it, while a page that never asks never starts that runtime at all.
 - **It takes effect from the next app process.** The shell's offer reads the same whether or not it
   already holds the session, so a page that does not ask cannot tell. A page reloaded into a process
   whose shell already answered `native` would boot a second session beside it; a page in a fresh
