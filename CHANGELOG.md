@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) draw a reaction row as the design does, with my message as its body
+
 ## [2026-11-17] - root@0.165.0, @chatic/web@0.94.0
 
 ### Features
