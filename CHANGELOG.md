@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-11-17] - root@0.163.0, @chatic/desktop-web@0.59.0
+
+### Features
+
+- (desktop-web) open the cloud's one server mini app link from settings and the nav rail
+- (data,http) read and save a cloud mini app link on the relay
+- (desktop-web,shared) set one server mini app link from settings
+- (desktop-web) open the mini app from the nav rail under DM
+
+### Bug Fixes
+
+- (desktop-web) read the mini app link fresh on every open
+
 ## [2026-11-17] - root@0.162.0, @chatic/web@0.92.0
 
 ### Features
