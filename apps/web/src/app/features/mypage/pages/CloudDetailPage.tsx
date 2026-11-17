@@ -16,6 +16,7 @@ import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types
 import { ROUTES } from '../../../routes/paths';
 import { cloudDisplayName } from '../../../utils';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
+import { haptics } from '../../../bridge/haptics';
 import { PageHeader } from '../../../ui/components';
 import { CloudIdentity } from '../components/CloudIdentity';
 import { useDeleteCloud } from '../hooks/useDeleteCloud';
@@ -72,6 +73,7 @@ export const CloudDetailPage = () => {
                 return { ...old, list: old.list.filter(c => c.id !== id) };
             });
             logger.info('CLOUD', 'cloud released', { cloudId: id, wasActive });
+            haptics.play('success');
             toast({ title: t('mypage.cloudManage.deleteSuccess') });
             if (wasActive) {
                 await logoutCloudSession();
@@ -82,6 +84,7 @@ export const CloudDetailPage = () => {
         } catch (error) {
             // Releasing a cloud is irreversible and cascades; a failure has to leave a trace.
             logger.error('CLOUD', 'cloud release failed', { error, data: { cloudId: id } });
+            haptics.play('error');
             toast({ title: t('mypage.cloudManage.deleteFailed'), variant: 'destructive' });
             isReleasing.current = false;
         }
@@ -126,7 +129,10 @@ export const CloudDetailPage = () => {
                         title={t('mypage.cloudManage.delete')}
                         destructive
                         disabled={deleteCloud.isPending}
-                        onClick={() => setIsConfirmOpen(true)}
+                        onClick={() => {
+                            haptics.play('warning');
+                            setIsConfirmOpen(true);
+                        }}
                     />
                 </div>
             )}
