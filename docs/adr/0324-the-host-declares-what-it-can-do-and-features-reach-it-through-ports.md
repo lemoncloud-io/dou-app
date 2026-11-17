@@ -1,7 +1,8 @@
 # ADR-0324: The host declares what it can do, and features reach it through ports chosen at the entry point
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
-> `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2); steps 3–7 follow
+> `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
+> (§ 5, for `checkout`); steps 3–7 follow
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
@@ -232,6 +233,16 @@ change.
 What the virtual shell declares is read from that store, so a handler or a scenario that changes it —
 `checkout: ['web']` to check the website hand-off, a store to check the purchase path against the
 fake implementation — takes effect at the next relaunch, the way a real host's declaration does.
+
+As built for `checkout`: a person picks the method with `DOU_SHELL_CHECKOUT` when starting the shell,
+and a choice under `dou.checkout` in the store wins over it (the shell offers no tool to write the store
+yet, so nothing does). Unset, the shell declares nothing and the web takes the legacy store path, as
+before; the shell itself now refuses the store's calls at once rather than leaving them to its panel. The fake store is the shell's, not the web's: its handlers answer the store's bridge messages
+with a fake catalog and a fake receipt, on dev only, and the web's real store port drives them — so the
+web's own purchase code runs, up to the dev server refusing the receipt. Two things the decision
+assumed did not hold: Vite's `define` does not reach the shell page in dev (a transform plugin writes
+the values in instead), and the shell's handler context does not say which backend it runs against
+(the wrapped preset's `globals` records it, since it is told).
 
 ## Migration
 
