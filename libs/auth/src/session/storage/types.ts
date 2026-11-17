@@ -23,6 +23,7 @@ export type SecretStorageOutcome =
     | 'unavailable'
     | 'vault'
     | 'migrated'
+    | 'replaced'
     | 'migration-refused'
     | 'empty';
 
@@ -40,4 +41,13 @@ export interface ISecretStorageMigration {
      * entry point built the stores and before anything reads the session. Never rejects.
      */
     prepare(boot: SecretStorageBoot): Promise<SecretStorageOutcome>;
+    /** Whether `web` still holds any of the session's tokens: a copy no boot has moved into a vault. */
+    hasWebCopy(web: KeyValueStore): boolean;
+    /**
+     * Deletes the session's tokens from `web`. A boot that finds them next to tokens in the vault lets
+     * them replace the vault's (`prepare`), so a copy the person's session has since moved on from has to
+     * go before that boot: one left from before a sign-out on a launch the shell owned, or one a page
+     * wrote before it learned the shell keeps a vault.
+     */
+    discardWebCopy(web: KeyValueStore): void;
 }

@@ -117,7 +117,8 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
 
 - **Any build answers it, production included, with no debug mode.** It is the rollback for the runtime
   being the production default: a web deploy naming `web` sends real installs back to the page, with no
-  app release and no store review.
+  app release and no store review. An install whose session the page never moved into the vault gets it
+  back on that launch ([An install that skipped the page's move](#an-install-that-skipped-the-pages-move)).
 - **It takes effect from the next start and never restarts.** The owner is settled once per launch, so the
   launch that hears it keeps its owner. An install therefore moves two starts after the deploy at the
   earliest: one to hear the new value, one to run on it.
@@ -201,8 +202,27 @@ had one launch of a page build that copies it has the id on either side. One swi
 before such a launch reads none until it logs in as a guest, which also writes it. Dev and production
 builds accept that gap since they default to the runtime: an install that never ran a copying page
 build before it got the runtime default starts without the id, so it does not see the invited clouds
-it accepted until it signs in as a guest again. A production install updating from 0.32.0 ran the
-production web on its earlier launches, so it has the id once that web build copies it.
+it accepted until it signs in as a guest again. An install that ran 0.32.0 ran the page on its earlier
+launches, so it has the id once that web build copies it. Production installs mostly went from 0.31.2
+straight to 0.32.1, and those have neither the id nor their tokens in the vault; see the next section.
+
+### An install that skipped the page's move
+
+The tokens reach the vault the same way as the guest's id: a launch the page owns moves them out of the
+page's `localStorage` (`secretStorageMigration` in `libs/auth`). Apps before 0.32.0 have no vault, and
+production installs went from 0.31.2 straight to 0.32.1, whose first launch is the runtime's. That launch
+finds an empty vault and signs the device in as a guest, so the person looks signed out: their own clouds
+are gone, and an invited cloud answers `delegate-cloud` with 403. The page, mirroring, never opens the vault,
+so the person's session stays in `localStorage`.
+
+The page's move gets it back. A web copy still in `localStorage` next to tokens in the vault can only mean
+no page has booted on that vault, so the move lets the copy replace the vault's tokens, and the guest's id
+with them, instead of taking the vault as the truth. The install needs one launch the page owns for it,
+which a web build naming `web` ([The page's default](#the-pages-default)) gives it from its next start.
+Without that move, naming `web` would have deleted the person's session: the vault's guest tokens would
+have counted as the truth. The first launch after such an update is the runtime's whatever the web says,
+because the app settles the owner before any web build is heard. A sign-out on a launch the runtime owns
+deletes that copy as well, so the next launch the page owns does not bring back the account the person left.
 
 ## The page's side of the bridge
 

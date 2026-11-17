@@ -1,5 +1,6 @@
 import { secretStorageMigration } from '@chatic/auth';
 import type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
+import type { KeyValueStore } from '@chatic/storage';
 
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 
@@ -12,3 +13,17 @@ export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
  */
 export const prepareSecretStorage = (boot: SecretStorageBoot): Promise<SecretStorageOutcome> =>
     secretStorageMigration.prepare(boot);
+
+/**
+ * Whether web storage still holds a copy of the session's tokens that no boot has moved into a vault.
+ * The boot lets such a copy replace what the vault holds, so a page that is about to hand the session
+ * to the vault asks this first.
+ */
+export const hasWebSessionCopy = (web: KeyValueStore): boolean => secretStorageMigration.hasWebCopy(web);
+
+/**
+ * Deletes the copy of the session's tokens from web storage, for a page whose session has moved on
+ * from it — a sign-out on a launch the shell owns, or tokens written before the page learned the shell
+ * keeps a vault. Left in place, the next boot would let it replace the vault's session.
+ */
+export const discardWebSessionCopy = (web: KeyValueStore): void => secretStorageMigration.discardWebCopy(web);

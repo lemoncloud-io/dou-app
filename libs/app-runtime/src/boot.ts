@@ -27,7 +27,7 @@ export { isNativeApp } from './utils/isNativeApp';
 // left in web storage into it. There is no setter to swap the stores after boot: the session's stores
 // are wired once, when the runtime is built, and a second wiring anywhere else would silently replace
 // that choice.
-export { prepareSecretStorage } from './sessionStorageBoot';
+export { discardWebSessionCopy, hasWebSessionCopy, prepareSecretStorage } from './sessionStorageBoot';
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';
 
