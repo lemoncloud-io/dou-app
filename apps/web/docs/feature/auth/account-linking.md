@@ -165,8 +165,8 @@ ordering. `useLinkAccount().confirm` is the `link` proof's.
 
 - **Email is typed but has no screen.** The server answers 501 on an email send. The slot exists in
   the vocabulary and nothing drives it.
-- **Unlinking does not exist.** There is no detach packet, and `SOCIAL_UNLINK_ENABLED` stays `false`
-  in `apps/web/src/app/features/mypage/flags.ts` until one arrives.
+- **Unlinking does not exist.** There is no detach packet, so the account card draws no unlink control
+  at all; it comes back together with the packet.
 - **Several credentials of one kind is not a client limitation.** `link$.social` is a single slot and
   the server enforces it with `type-linked`. Changing a number, a second account of the same kind and
   a `login` mode for social or email are all undefined server-side.

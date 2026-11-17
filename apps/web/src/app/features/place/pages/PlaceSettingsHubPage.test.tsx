@@ -132,3 +132,14 @@ describe('PlaceSettingsHubPage — no leave row', () => {
         expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
     });
 });
+
+// Place push has no backend, so the hub offers no switch that could never be turned on.
+describe('PlaceSettingsHubPage — no notification card', () => {
+    it('renders no notification section or switch', () => {
+        mockPlace = { id: 'p1', isOwner: true };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.queryByText('placeSettings.sectionNotifications')).not.toBeInTheDocument();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    });
+});

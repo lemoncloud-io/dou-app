@@ -6,7 +6,6 @@ import { isNative } from '@chatic/bridges';
 
 import { useLinkedAccounts } from '../../../hooks';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
-import { SOCIAL_UNLINK_ENABLED } from '../flags';
 import { useSocialLinks } from '../hooks';
 import { AppleIcon, GoogleIcon } from './SocialProviderIcons';
 
@@ -18,11 +17,9 @@ interface CredentialRowProps {
     isLinked: boolean;
     isBusy: boolean;
     onLink: () => void;
-    /** Omitted where there is nothing to unlink yet (the phone row has no endpoint either way). */
-    onUnlink?: () => void;
 }
 
-const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onUnlink }: CredentialRowProps) => {
+const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink }: CredentialRowProps) => {
     const { t } = useTranslation();
 
     return (
@@ -32,23 +29,8 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onU
                 {label}
             </span>
             {isLinked ? (
-                <span className="flex items-center gap-2">
-                    <span className="text-[14px] text-muted-foreground">
-                        {linkedLabel ?? t('mypage.accountInfo.social.linked')}
-                    </span>
-                    {/* Stub: no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042) —
-                        disabled rather than faking a success. `title` gives a hover hint without
-                        adding new layout. */}
-                    {onUnlink && (
-                        <button
-                            onClick={onUnlink}
-                            disabled={!SOCIAL_UNLINK_ENABLED}
-                            title={SOCIAL_UNLINK_ENABLED ? undefined : t('mypage.accountInfo.social.unlinkComingSoon')}
-                            className="text-[13px] font-medium text-muted-foreground underline decoration-dotted disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            {t('mypage.accountInfo.social.unlink')}
-                        </button>
-                    )}
+                <span className="text-[14px] text-muted-foreground">
+                    {linkedLabel ?? t('mypage.accountInfo.social.linked')}
                 </span>
             ) : (
                 <button
@@ -80,7 +62,7 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink, onU
 export const AccountLinkSection = () => {
     const { t } = useTranslation();
     const { isGuest } = runtime.session.useRuntimeProfile();
-    const { isLinked, linkProvider, requestUnlink, isLinking, socialState } = useSocialLinks();
+    const { isLinked, linkProvider, isLinking, socialState } = useSocialLinks();
     const linked = useLinkedAccounts();
     const [isPhoneSheetOpen, setIsPhoneSheetOpen] = useState(false);
 
@@ -121,7 +103,6 @@ export const AccountLinkSection = () => {
                     isLinked={isLinked('google')}
                     isBusy={isLinking}
                     onLink={() => void linkProvider('google')}
-                    onUnlink={requestUnlink}
                 />
                 {isIOS && (
                     <CredentialRow
@@ -130,7 +111,6 @@ export const AccountLinkSection = () => {
                         isLinked={isLinked('apple')}
                         isBusy={isLinking}
                         onLink={() => void linkProvider('apple')}
-                        onUnlink={requestUnlink}
                     />
                 )}
             </div>

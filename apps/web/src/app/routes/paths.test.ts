@@ -49,7 +49,6 @@ describe('ROUTES — 상수 경로', () => {
         });
         expect(ROUTES.mypage.account.info).toBe('/mypage/account');
         expect(ROUTES.mypage.account.edit).toBe('/mypage/edit');
-        expect(ROUTES.mypage.account.withdrawal).toBe('/mypage/withdrawal');
         expect(ROUTES.mypage.cloud.manage).toBe('/mypage/cloud-manage');
         expect(ROUTES.mypage.cloud.hub('CL1')).toBe('/mypage/cloud-manage/CL1');
         expect(ROUTES.mypage.cloud.edit('CL1')).toBe('/mypage/cloud-manage/CL1/edit');

@@ -225,11 +225,11 @@ two round trips and only one can ever be open.
 
 Rows depend on the viewer's role and on the target:
 
-| Viewer / target                                | Rows                                                 |
-| ---------------------------------------------- | ---------------------------------------------------- |
-| me                                             | profile settings → `PlaceProfileEditDialog`          |
-| room owner and/or place owner → another member | (`1:1 대화하기`) · friend settings · remove · report |
-| anyone else → another member                   | (`1:1 대화하기`) · report                            |
+| Viewer / target                                | Rows                                        |
+| ---------------------------------------------- | ------------------------------------------- |
+| me                                             | profile settings → `PlaceProfileEditDialog` |
+| room owner and/or place owner → another member | (`1:1 대화하기`) · remove                   |
+| anyone else → another member                   | (`1:1 대화하기`), or no action list at all  |
 
 `1:1 대화하기` leads the rows only where a cloud 1:1 can open from here: the host passes `onStartDm`
 when `canStartDmFromProfile` holds — a cloud group room in the session's cloud and place, another
@@ -251,9 +251,10 @@ with no removal at all: removing someone belongs where the roster it changes is 
 The place scope's copy says "every group room", not "every room": `place.leave` takes the member out
 of the place's group rooms and leaves their 1:1s, which the app cannot end for someone else.
 
-**Friend settings and report are UI-only**: neither has a backend, so both acknowledge with a toast.
-They are rows rather than hidden items because the design has them, and a toast manages the
-expectation better than a dead tap does.
+**There is no friend settings or report row**, although the design draws both. Neither has a
+backend, and a row that answers with a "coming soon" toast — or, for report, with a success nothing
+backed — promises more than the app does. Each comes back with its call. When the viewer has no row
+at all, the action list is not drawn, so the profile ends at the name rather than at an empty block.
 
 ## What not to do
 
