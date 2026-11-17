@@ -194,7 +194,9 @@ not:
 - five tabs (`SegmentedTabs`, inline) with their unread counts, a zero hidden;
 - "Unread only" (`FilterChip`) and "Mark all read", which covers the current tab only;
 - the items by day, newest first, each one the kit's `NotificationRow` through `NotificationListItem`.
-  The row's chip, location, context and quote come from `utils/rowParts` (pure, tested);
+  The row's chip, location, context, quote and body come from `utils/rowParts` (pure, tested). A
+  reaction's row is drawn as the design has it: the emoji in the context ("내 메시지에 반응 ❤️"), my
+  message reacted to as the body, and no quote line — the emoji if that message is not cached;
 - a tap reads the item and goes to its message (`?chatNo=` on the room or the thread; a reaction goes
   to the message reacted to);
 - **selection mode** — from "Select" or a long press, which starts with that row picked; "Cancel"

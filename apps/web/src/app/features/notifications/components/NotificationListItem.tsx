@@ -30,8 +30,7 @@ export const NotificationListItem = ({
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
     const parts = notificationRowParts(item, t, now, locale);
-    // A reaction's line is the emoji; the message reacted to is the quote above it.
-    const body = splitMentions(item.content).map((part, index) =>
+    const body = splitMentions(parts.body).map((part, index) =>
         part.mention ? (
             <b key={index} className="font-semibold text-foreground">
                 {part.text}
