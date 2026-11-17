@@ -432,7 +432,6 @@ export const HomePage = () => {
         !isChannelSectionLoading;
     const handleStartCloudDm = () => navigate(ROUTES.channels.startDm);
 
-    // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
 
     // Right-side profile → dropdown. The header shows my place profile; the entries are the place

@@ -8,7 +8,6 @@ import type { LinkedAccounts, LinkedState } from '../../../hooks';
 import type { SocialProvider } from '../hooks';
 
 const linkProvider = jest.fn();
-const requestUnlink = jest.fn();
 let mockIsGuest = false;
 /** What the server says this account has proved (`link$`), as `useLinkedAccounts` reads it. */
 let mockLinked: LinkedAccounts = { phone: 'linked', social: 'absent', phoneHint: '1234' };
@@ -39,7 +38,6 @@ jest.mock('../hooks', () => ({
     useSocialLinks: () => ({
         isLinked,
         linkProvider,
-        requestUnlink,
         isLinking: mockIsLinking,
         socialState: mockSocialState,
     }),
@@ -180,14 +178,6 @@ describe('AccountLinkSection — 번호 행', () => {
 
         expect(screen.queryByText(/^phone-sheet:/)).not.toBeInTheDocument();
     });
-
-    it('번호 행에는 해제가 없다 — 뗄 엔드포인트도 없다', () => {
-        render(<AccountLinkSection />);
-
-        expect(
-            within(row(PHONE)).queryByRole('button', { name: 'mypage.accountInfo.social.unlink' })
-        ).not.toBeInTheDocument();
-    });
 });
 
 describe('AccountLinkSection — 소셜 행', () => {
@@ -219,15 +209,16 @@ describe('AccountLinkSection — 소셜 행', () => {
         expect(within(row('Google')).getByRole('button', { name: LINK })).toBeDisabled();
     });
 
-    it('해제 버튼은 비활성이다 — 엔드포인트가 없으니 성공을 흉내내지 않는다', () => {
+    it('renders a linked credential as a label alone, with no control to act on it', () => {
         mockLinked = { phone: 'linked', social: 'linked', socialProvider: 'google', phoneHint: '1234' };
         mockSocialState = 'linked';
         mockLinkedProvider = 'google';
 
         render(<AccountLinkSection />);
 
-        expect(within(row('Google')).getByRole('button', { name: 'mypage.accountInfo.social.unlink' })).toBeDisabled();
-        expect(requestUnlink).not.toHaveBeenCalled();
+        // There is no unlink endpoint, so a linked row offers nothing to press rather than a dead button.
+        expect(within(row('Google')).queryByRole('button')).not.toBeInTheDocument();
+        expect(within(row(PHONE)).queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('Apple 행은 iOS 앱에서만 나온다 (LoginPage와 같은 조건)', () => {

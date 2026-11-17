@@ -265,12 +265,9 @@
             "title": "내 정보",
             "profileEdit": "프로필 수정",
             "cloudProfileEdit": "클라우드 프로필 수정",
-            "withdrawal": "탈퇴",
             "social": {
                 "linked": "연동됨",
                 "link": "연동하기",
-                "unlink": "연동 해제",
-                "unlinkComingSoon": "곧 지원될 예정이에요",
                 "mobileOnly": "모바일 앱에서 진행해 주세요",
                 "linkSuccess": "연동됐어요",
                 "linkFailed": "연동에 실패했어요",
@@ -579,20 +576,6 @@
             "cancel": "취소",
             "confirm": "로그아웃"
         },
-        "withdrawal": {
-            "title": "회원 탈퇴",
-            "heading": "{{name}}님",
-            "question": "DoU를 떠나시겠어요? 😥",
-            "warning1": "탈퇴를 하시면 모든 데이터는 복원할 수 없으며,",
-            "warning2": "영구적으로 삭제됩니다.",
-            "confirm": "확인"
-        },
-        "withdrawalDialog": {
-            "title": "떠난다니 아쉽네요..",
-            "description": "언제든지 다시 DoU를 찾아주세요!",
-            "cancel": "취소",
-            "confirm": "탈퇴"
-        },
         "clearCache": {
             "title": "캐시 정리",
             "failed": "캐시를 모두 정리하지 못했어요. 다시 시도해 주세요."
@@ -705,7 +688,6 @@
         "menuClose": "닫기",
         "search": "검색",
         "switchCloud": "클라우드 전환",
-        "directComingSoon": "1:1 대화는 준비 중이에요",
         "noPlaceTitle": "접속한 플레이스가 없어요",
         "noPlaceDescription": "플레이스에 접속해 대화를 시작해보세요",
         "loadingCloud": "클라우드를 불러오는 중이에요",
@@ -1058,23 +1040,6 @@
                 "confirm": "나가기"
             },
             "noMembers": "친구가 없습니다",
-            "notificationSettings": {
-                "title": "알림 설정",
-                "appNotificationOff": "앱 알림이 꺼져 있어요",
-                "appNotificationOffDesc": "알림을 푸시로 확인하려면 기기 설정을 해주세요",
-                "messageNotification": "메시지 알림",
-                "messageNotificationDesc": "친구가 보낸 대화 메시지 알림을 받을 수 있어요"
-            },
-            "report": "신고",
-            "block": "차단하기",
-            "reportSuccess": "신고가 완료되었습니다.",
-            "blockSuccess": "차단되었습니다",
-            "reportDialog": {
-                "title": "친구 신고",
-                "description": "허위 신고는 이용 제한을 받을 수 있습니다.",
-                "reasonPlaceholder": "신고 사유를 입력해 주세요",
-                "confirm": "신고"
-            },
             "blockDialog": {
                 "title": "친구를 차단하시겠습니까?",
                 "description": "차단하면 이 친구의 메시지를 더 이상 받지 않습니다.",
@@ -1087,9 +1052,7 @@
             "close": "닫기",
             "profileSettings": "프로필 설정",
             "profileSetupRequired": "프로필 설정 필요",
-            "friendSettings": "친구 설정",
             "removeMember": "내보내기",
-            "comingSoon": "준비 중인 기능이에요",
             "removeScope": {
                 "title": "{{name}}님을 내보낼 범위를 선택해 주세요",
                 "description": "선택한 범위에서 {{name}}님이 나가게 됩니다.",
@@ -1430,17 +1393,13 @@
     "placeSettings": {
         "title": "플레이스 설정",
         "sectionSettings": "설정",
-        "sectionNotifications": "알림",
         "sectionChats": "대화방",
         "myProfile": "내 프로필",
         "placeProfile": "플레이스 프로필",
         "placeDetail": "플레이스 정보",
-        "placeNotifications": "플레이스 알림",
-        "placeNotificationsDescription": "해당 플레이스의 푸시 알림을 받습니다.",
         "channelSort": "대화방 정렬",
         "channelManage": "대화방 관리",
         "ownerOnly": "소유자만 변경할 수 있어요",
-        "comingSoon": "준비 중이에요",
         "members": "친구",
         "networkError": "연결 상태를 확인하고 다시 시도해 주세요."
     },

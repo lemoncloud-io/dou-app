@@ -226,20 +226,3 @@ describe('useSocialLinks — 실패 문구', () => {
         });
     });
 });
-
-describe('useSocialLinks — 해제', () => {
-    it('requestUnlink은 스텁이다 — 상태를 바꾸지 않고 안내 토스트만 띄운다', () => {
-        mockLinked = { phone: 'absent', social: 'linked', socialProvider: 'google' };
-
-        const { result } = renderHook(() => useSocialLinks());
-        expect(result.current.isLinked('google')).toBe(true);
-
-        act(() => result.current.requestUnlink());
-
-        // Still linked — the stub never mutates state, so no false "unlinked" report.
-        expect(result.current.isLinked('google')).toBe(true);
-        expect(toastMock).toHaveBeenLastCalledWith(
-            expect.objectContaining({ title: 'mypage.accountInfo.social.unlinkComingSoon' })
-        );
-    });
-});

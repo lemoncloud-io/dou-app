@@ -55,7 +55,7 @@ export const MyPage = () => {
     );
 
     // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
-    // is connected. It opens My Info, the account hub: profile editing, social links and withdrawal
+    // is connected. It opens My Info, the account hub: profile editing and social links
     // all hang off it, and this row is now their only way in.
     const handleProfileClick = () => {
         navigate(ROUTES.mypage.account.info);

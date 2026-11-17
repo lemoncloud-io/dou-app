@@ -32,7 +32,7 @@ features/pairing/
 The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
 under `/mypage`, but a static path outranks `mypage/*`, and one feature does not import another. For the
 same reason the flag hook, `useDevicePairingEnabled`, lives in `src/app/hooks`: every entry — the login
-screen, My page, settings, withdrawal, the home switch sheet and these pages — reads the flag through it.
+screen, My page, settings, the home switch sheet and these pages — reads the flag through it.
 
 ## The code screen
 
@@ -153,7 +153,7 @@ is sent back; everyone else gets the first section, and an approving app the sec
 
 ## Signing out of an approving app
 
-Settings' logout and the withdrawal screen go through `runtime.session.usePairingAwareLogout` while the
+Settings' logout goes through `runtime.session.usePairingAwareLogout` while the
 flag is on: an approving app with approvals still standing shows `mypage/components/PairingLogoutDialog`
 ("the N sign-ins this device approved end too", each with requester and scope, plus a caveat when a
 cloud approval is among them), revokes them all on confirm and then opens `/auth/logout` as before. With

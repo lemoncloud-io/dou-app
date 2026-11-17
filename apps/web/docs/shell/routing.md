@@ -66,7 +66,6 @@ export const ROUTES = {
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',
-            withdrawal: '/mypage/withdrawal',
         },
         // cloud OWNERSHIP, distinct from `account` (login credentials); one cloud's tree below the list
         cloud: { manage: '/mypage/cloud-manage', hub: (id) => …, edit: (id) => …, detail: (id) => …, places: (id) => … },

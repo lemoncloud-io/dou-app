@@ -100,19 +100,9 @@ export const useSocialLinks = () => {
         [confirmSocial, t, toast, verifySocial]
     );
 
-    /**
-     * Stub: there is no unlink endpoint yet (ADR-0089 request #7, still open in ADR-0042). This never
-     * mutates state or claims success — it only explains that the action isn't supported yet. The real
-     * unlink call gets wired in here once `SOCIAL_UNLINK_ENABLED` flips (see ../flags.ts).
-     */
-    const requestUnlink = useCallback(() => {
-        toast({ title: t('mypage.accountInfo.social.unlinkComingSoon') });
-    }, [t, toast]);
-
     return {
         isLinked,
         linkProvider,
-        requestUnlink,
         isLinking: isLinkingSocial,
         /** `'unknown'` while the server has not told us — callers hide the section rather than guess. */
         socialState: linked.social,

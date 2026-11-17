@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
-import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
+import { IconChevronRight, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
 import { ChannelSortSheet } from '../components/ChannelSortSheet';
@@ -15,12 +15,12 @@ import { HOME_PLACE_ID } from '../../../utils/resolvePlaceDisplayName';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 /**
- * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
- * cards: "설정" (my profile / place profile / place information, previewing its introduction),
- * "알림" (place push toggle) and "대화방" (chat sort / chat management). The place-profile row
- * writes, so it is owner-only and disabled for non-owners (server `isOwner` is the authority —
- * ADR-0031); the place-information row only reads, so it stays open to everyone (ADR-0047). The
- * notification toggle is still a placeholder (no backend support).
+ * Place settings hub — the landing screen reached from the home profile dropdown. Two titled
+ * cards: "설정" (my profile / place profile / place information, previewing its introduction) and
+ * "대화방" (chat sort / chat management). The place-profile row writes, so it is owner-only and
+ * disabled for non-owners (server `isOwner` is the authority); the place-information row only reads,
+ * so it stays open to everyone. There is no place notification card: place push has no backend, and a
+ * switch that cannot be turned on is not offered.
  *
  * The "Members" row exists only for a member of a real place — not on the relay's own place, a system
  * place nobody joins, and not for a guest — and opens the member screen for everyone in the place.
@@ -83,18 +83,6 @@ export const PlaceSettingsHubPage = () => {
                             onClick={placeId ? go(ROUTES.place.settingsMembers(placeId)) : undefined}
                         />
                     )}
-                </MenuCard>
-
-                <MenuCard title={t('placeSettings.sectionNotifications')}>
-                    {/* UI-only toggle: place push notifications have no backend support yet, so the
-                        switch is rendered disabled and holds no state. */}
-                    <ListRow
-                        title={t('placeSettings.placeNotifications')}
-                        trailing={<Switch checked={false} disabled label={t('placeSettings.placeNotifications')} />}
-                    />
-                    <p className="pl-4 pr-3 text-[13px] leading-[1.2] tracking-[-0.065px] text-description">
-                        {t('placeSettings.placeNotificationsDescription')}
-                    </p>
                 </MenuCard>
 
                 <MenuCard title={t('placeSettings.sectionChats')}>

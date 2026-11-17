@@ -13,9 +13,8 @@ floating nav, safe areas, keyboard insets — belongs to
 
 ## Layout
 
-Seventeen pages, ten components, nine hooks, one `lib/` helper, and `flags.ts` — one boolean waiting
-on a backend packet. The route table declares eighteen routes: the seventeen pages here plus
-feedback's, whose screen lives in another feature.
+Pages, components, hooks and one `lib/` helper. The route table declares one route per page here,
+plus feedback's, whose screen lives in another feature.
 
 ### The four depths
 
@@ -24,14 +23,13 @@ feedback's, whose screen lives in another feature.
 | `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                                      |
 | `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                               |
 | `EmailLoginPage`                                                | `/mypage/login/email`            | email + password sign-in, development stages only (`feature.auth.emailLogin`) |
-| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal                                  |
+| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links                                              |
 | `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                                   |
 | `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                  |
 | `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                               |
 | `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                       |
 | `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released                                   |
 | `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                    |
-| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                                              |
 | `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
 | `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
 | `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card, dev-only sub WebView pages, the debug unlock  |
@@ -346,10 +344,12 @@ sheet and `useClearLocalCaches` for the clear-cache row.
   config key ([`@chatic/config`](../../../../../libs/config/README.md)); each toggle writes
   optimistically, sends `device.update-remote`, then reconciles to the server's echo or rolls back
   with a toast. Outside a native shell the toggle is disabled rather than allowed to 404.
-- **`SOCIAL_UNLINK_ENABLED` in `flags.ts` is false and stays false** until an unlink packet exists.
-  The control renders disabled rather than claiming a success it cannot deliver. `AccountLinkSection`
-  additionally hides itself when `link$` reads `'unknown'` — an account-security control that can
-  lie is worse than one that admits it does not know.
+- **There is no unlink control and no withdrawal screen.** Neither has a server call behind it, and a
+  control that cannot do what it says is left out rather than drawn disabled, answered with a "coming
+  soon" toast, or — as the old withdrawal screen did — answered by signing out while the warning
+  promised deletion. Each returns with its endpoint. `AccountLinkSection` additionally hides itself
+  when `link$` reads `'unknown'` — an account-security control that can lie is worse than one that
+  admits it does not know.
 - **`CloudEditPage` is reachable only through the cloud's hub.** The account tree deliberately does
   not link it: a cloud's name is not an account attribute. Every screen under `/mypage/cloud-manage/
 :id` leaves for the list on its own once the catalog says the id is not an owned cloud, rather

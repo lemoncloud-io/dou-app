@@ -16,8 +16,7 @@ group because the subject is account credentials — the same subject as
 
 ## Layout
 
-The card, its rows and the social-linking hook live in `features/mypage`; `flags.ts` there holds one
-constant, `SOCIAL_UNLINK_ENABLED` (`false`). The two hooks it reads — `useLinkedAccounts` (the
+The card, its rows and the social-linking hook live in `features/mypage`. The two hooks it reads — `useLinkedAccounts` (the
 `link$` reader) and `useLinkAccount` (the packet surface) — live in the app's shared `hooks/`,
 because the phone sheet, the subscription purchase gate and this card all use them. Nothing under
 `features/account` is involved.
@@ -103,18 +102,18 @@ around; the server has not defined it.
 `AccountLinkSection` renders two guards and then up to three rows.
 
 `AccountLinkSection` renders nothing at all for a guest, and nothing when either slot reads
-`'unknown'`. Past those two guards it draws up to three rows, each either a hint plus a disabled
-unlink control, or a link button.
+`'unknown'`. Past those two guards it draws up to three rows, each either a "linked" label or a link
+button.
 
 - **Phone** opens `PhoneVerifySheet` with `mode="link"`. Linked, it shows the masked tail the server
-  returned (`phoneHint`) — the full number is never sent back. The phone row passes no `onUnlink`, so
-  it has no unlink control at all.
+  returned (`phoneHint`) — the full number is never sent back.
 - **Google** is always offered. **Apple** appears only when `isNative()` and
   `window.CHATIC_APP_PLATFORM` is `ios`. The provider list is decided in JSX, mirroring
   `mypage/LoginPage.tsx`, rather than hard-coded inside the hook.
-- The unlink control on the social rows is rendered **disabled**, with a `title` explaining why.
-  There is no unlink packet; hiding the control would be tidier and would also hide the fact that
-  the capability is missing.
+- **A linked row has no control at all.** There is no unlink packet, so there is no unlink button —
+  not a disabled one, and not one that answers with a "coming soon" toast. A disabled control on a
+  phone has no hover to explain itself, so it read as broken rather than as planned. The button comes
+  back in the same change as the packet.
 
 ### The nudge above the card
 
@@ -189,16 +188,16 @@ fall back on it: render nothing, skip the nudge, let the server decide.
    in a preview; only `hooks/*.ts` is unit-tested, so logic in a component is logic without a test.
 4. Run `verify` before `confirm`, and branch on the reason. Skipping `verify` turns an explainable
    refusal into a bare status code.
-5. Where the backend endpoint does not exist yet, add a `false` constant to `flags.ts` with the
-   reason, and render the control disabled rather than hiding it.
+5. Where the backend endpoint does not exist yet, leave the control out. It lands in the same change
+   as the endpoint — not disabled, and not answered with a "coming soon" toast before then.
 
 ### What not to do
 
 - **Do not cache linked state locally.** A per-device mirror cannot see a link made on another
   device and reads as unlinked after a cache wipe. The server slot has neither problem, and a stale
   local copy is exactly the lie the `'unknown'` state exists to prevent.
-- **Do not report a success the server did not give.** The unlink control is a stub; it raises an
-  explanatory toast and changes nothing.
+- **Do not report a success the server did not give**, and do not draw a control the server cannot
+  serve yet.
 - **Do not parse error messages.** `getSocketErrorCode` is the only branch input.
 - **Do not put this card on `CloudManagePage`.** That screen lists clouds — workspaces the user owns
   and subscribes to, a `CloudView` with `ownerId`, a billing `email` and membership fields. A social
@@ -238,8 +237,9 @@ npx tsc -b apps/web/tsconfig.app.json
 
 `useSocialLinks.test.ts` covers the state reading (slot absent, wrong provider, `'unknown'`), the
 `verify` → `confirm` order and the stop before `confirm`, the native cancel, every message key in the
-table above, the non-native path, and that `requestUnlink` mutates nothing.
-`AccountLinkSection.test.tsx` covers the two guards and the rows.
+table above, and the non-native path.
+`AccountLinkSection.test.tsx` covers the two guards and the rows, including that a linked row offers
+nothing to press.
 
 The type check must be `tsc -b`. A `--noEmit -p` run reads the libraries' last-emitted `.d.ts` files,
 so a stale `dist` invents errors that are not in the source.
