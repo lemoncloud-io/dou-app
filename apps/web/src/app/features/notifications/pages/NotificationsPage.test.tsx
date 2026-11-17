@@ -36,6 +36,7 @@ jest.mock('../../../hooks', () => {
         useScrollRestoration: restoration.useScrollRestoration,
         takeScroll: restoration.takeScroll,
         toCloudId: (cid: string | null | undefined) => cid || 'default',
+        useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
     };
 });
 // Where the session is, for the scroll memory's key. Mutable so a test can move it.
@@ -307,6 +308,21 @@ describe('NotificationsPage', () => {
 
         fireEvent.click(rowByContent('open me'));
         expect(mockHaptic).not.toHaveBeenCalled();
+    });
+
+    it('steps the title down once the list scrolls, and back up at the top', () => {
+        seed(item({ id: 'a', content: 'first' }));
+        const { container } = render(<NotificationsPage />);
+        const title = screen.getByRole('heading', { level: 1 });
+        const list = container.querySelector('.overflow-y-auto') as HTMLElement;
+
+        expect(title).toHaveAttribute('data-compact', 'false');
+        list.scrollTop = 40;
+        fireEvent.scroll(list);
+        expect(title).toHaveAttribute('data-compact', 'true');
+        list.scrollTop = 0;
+        fireEvent.scroll(list);
+        expect(title).toHaveAttribute('data-compact', 'false');
     });
 
     describe('coming back from an opened item', () => {

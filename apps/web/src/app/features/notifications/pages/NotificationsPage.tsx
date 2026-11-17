@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigationType } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
+import { cn } from '@chatic/ui-kit';
 
 import {
     AlertDialog,
@@ -14,7 +15,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { haptics } from '../../../bridge/haptics';
-import { takeScroll, toCloudId, useScopedNotifications, useScrollRestoration } from '../../../hooks';
+import { takeScroll, toCloudId, useScopedNotifications, useScrollChrome, useScrollRestoration } from '../../../hooks';
 import { useBottomNavSuppression } from '../../../stores/useBottomNavSuppression';
 import { BottomNavSpacer } from '../../../ui/components';
 import {
@@ -89,6 +90,9 @@ export const NotificationsPage = () => {
         onScroll: handleListScroll,
         consumePendingRestore,
     } = useScrollRestoration(scrollKey, visible.length > 0);
+    // The large title steps down once the list moves, so the rows get the reader's eye and the header
+    // reads as a bar rather than a heading (no sticky row here: the tabs sit outside the list).
+    const { scrolled, track: trackScroll } = useScrollChrome();
     // Changing the filter changes the list under a claim still waiting for rows (say, the return
     // landed on "nothing unread"): the old offset means nothing against the new list, so drop it.
     const changeUnreadOnly = (on: boolean) => {
@@ -181,7 +185,16 @@ export const NotificationsPage = () => {
                         key="browsing"
                         className="flex w-full items-center justify-between duration-200 animate-in fade-in-0 motion-reduce:animate-none"
                     >
-                        <h1 className="text-[28px] font-bold leading-[25px] tracking-[-0.5px] text-brand-ink dark:text-foreground">
+                        {/* Only the type shrinks; the bar keeps its height. A shorter bar would hand
+                            its height to the list, and a list just long enough to scroll would then
+                            fit, snap back to the top and grow the bar again — over and over. */}
+                        <h1
+                            data-compact={scrolled}
+                            className={cn(
+                                'font-bold leading-[25px] tracking-[-0.5px] text-brand-ink transition-[font-size] duration-200 ease-out motion-reduce:transition-none dark:text-foreground',
+                                scrolled ? 'text-[20px]' : 'text-[28px]'
+                            )}
+                        >
                             {t('notifications.inbox.title')}
                         </h1>
                         {hasAnything && (
@@ -210,7 +223,14 @@ export const NotificationsPage = () => {
                 }}
             />
 
-            <div ref={scrollContainerRef} onScroll={handleListScroll} className="min-h-0 flex-1 overflow-y-auto">
+            <div
+                ref={scrollContainerRef}
+                onScroll={event => {
+                    handleListScroll();
+                    trackScroll(event.currentTarget);
+                }}
+                className="min-h-0 flex-1 overflow-y-auto"
+            >
                 {hasAnything &&
                     (selection.active ? (
                         <div

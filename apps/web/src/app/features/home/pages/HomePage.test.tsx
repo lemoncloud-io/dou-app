@@ -79,15 +79,18 @@ jest.mock('@chatic/web-ui-kit', () => ({
         avatar,
         planTier,
         planLoading,
+        className,
     }: {
         kind: string;
         name?: string;
         avatar?: any;
         planTier?: string;
         planLoading?: boolean;
+        className?: string;
     }) => (
         <header
             data-testid="header"
+            className={className}
             data-kind={kind}
             data-plan-tier={planTier ?? ''}
             data-plan-loading={String(!!planLoading)}
@@ -100,8 +103,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => <i />,
     ProfileAvatar: () => <img alt="" />,
     // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
-    SegmentedTabs: ({ items, value, onChange, trailing }: any) => (
-        <div data-testid="chat-tabs" data-value={value}>
+    SegmentedTabs: ({ items, value, onChange, trailing, className }: any) => (
+        <div data-testid="chat-tabs" data-value={value} className={className}>
             {items.map((item: any) => (
                 <button
                     key={item.id}
@@ -114,8 +117,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </div>
     ),
     // The gesture is the kit's to test; here a button stands in for a completed pull.
-    PullToRefresh: ({ children, onRefresh }: { children: any; onRefresh: () => Promise<unknown> }) => (
-        <div>
+    PullToRefresh: ({
+        children,
+        onRefresh,
+        onScroll,
+    }: {
+        children: any;
+        onRefresh: () => Promise<unknown>;
+        onScroll?: React.UIEventHandler<HTMLDivElement>;
+    }) => (
+        <div data-testid="home-scroll" onScroll={onScroll}>
             <button data-testid="pull-refresh" onClick={() => void onRefresh()} />
             {children}
         </div>
@@ -163,6 +174,8 @@ jest.mock('../../../hooks', () => ({
     useMyJoins: () => new Map(),
     useOtherCloudUnread: () => ({ byCloud: {}, total: 0 }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
+    // The real one: the header and tab styling under a scroll is what it decides.
+    useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
     // The dropdown entries navigate through this rather than through `navigate` directly, so that
@@ -638,6 +651,39 @@ describe('HomePage — cloud mode', () => {
         fireEvent.click(screen.getByTestId('open-place-info'));
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
+    });
+    // jsdom lays nothing out, so the scroll area and the anchor before the tabs get just the top
+    // the page measures: the scroll area at 100, the anchor wherever the case puts it.
+    it('pins the tabs under the header, moving the divider from the header to the tabs as they pin', () => {
+        render(<HomePage />);
+        const header = screen.getByTestId('header');
+        const tabs = screen.getByTestId('chat-tabs');
+        const list = screen.getByTestId('home-scroll');
+        const anchor = tabs.previousElementSibling as HTMLElement;
+        list.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
+        const scrollTo = (top: number, anchorTop: number) => {
+            anchor.getBoundingClientRect = () => ({ top: anchorTop }) as DOMRect;
+            list.scrollTop = top;
+            fireEvent.scroll(list);
+        };
+
+        expect(tabs).toHaveClass('sticky', 'top-[-8px]');
+        expect(header).toHaveClass('border-transparent');
+
+        // The chips are sliding under the header: its edge carries the divider.
+        scrollTo(30, 150);
+        expect(header).toHaveClass('border-input-border');
+
+        // Not yet: the tabs pin 8px up, tucking their top padding under the header.
+        scrollTo(76, 96);
+        expect(header).toHaveClass('border-input-border');
+
+        // The tabs have pinned: their own underline is the divider now.
+        scrollTo(84, 92);
+        expect(header).toHaveClass('border-transparent');
+
+        scrollTo(0, 180);
+        expect(header).toHaveClass('border-transparent');
     });
 });
 
