@@ -533,6 +533,31 @@ describe('useChats — older pages', () => {
         expect(result.current.hasMore).toBe(true);
     });
 
+    it('holds the wait for a loadMore from before the failure, whose render never saw it', async () => {
+        jest.useFakeTimers();
+        seedChats([chat({ id: 'a', chatNo: 5, ownerId: 'u1' })]);
+        chatRefreshList.mockRejectedValueOnce(new Error('socket closed')).mockResolvedValue({ fetchedCount: 0 });
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        // A scroll handler the failure's own render has not replaced yet still calls this one.
+        const beforeFailure = result.current.loadMore;
+        await act(async () => {
+            await beforeFailure();
+        });
+        await act(async () => {
+            await beforeFailure();
+        });
+        expect(chatRefreshList).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            jest.advanceTimersByTime(2000);
+        });
+        await act(async () => {
+            await result.current.loadMore();
+        });
+        expect(chatRefreshList).toHaveBeenCalledTimes(2);
+    });
+
     it("sends a person's request at once, past a failed page's wait", async () => {
         seedChats([chat({ id: 'a', chatNo: 5, ownerId: 'u1' })]);
         chatRefreshList.mockRejectedValueOnce(new Error('socket closed')).mockResolvedValue({ fetchedCount: 0 });
