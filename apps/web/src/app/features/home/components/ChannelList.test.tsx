@@ -1001,6 +1001,29 @@ describe('ChannelList — room-open trace', () => {
         expect(mockPrefetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'g1');
         expect(traceAtFetch).toBeDefined();
     });
+
+    // A stale row of the previous account's notes-to-self room: its feed is refused to anyone else.
+    it("does not fetch somebody else's notes-to-self room on the tap", () => {
+        mockPrefetchRoomFeed.mockClear();
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({
+                        id: 'U:1000124',
+                        name: 'old notes',
+                        stereo: 'self',
+                        ownerId: '1000124',
+                        memberNo: 1,
+                    }),
+                ]}
+                isLoading={false}
+            />
+        );
+
+        fireEvent.click(screen.getByTestId('row-title'));
+
+        expect(mockPrefetchRoomFeed).not.toHaveBeenCalled();
+    });
 });
 
 // An image message has no text, so its preview would be a blank line — it reads as a photo count.

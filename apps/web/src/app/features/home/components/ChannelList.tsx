@@ -318,7 +318,8 @@ const ChannelItem = ({
             // after the room mounts. The trace has to exist first: the fetch takes it.
             onClick={() => {
                 roomOpenTrace.begin(channel.id, 'list');
-                void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
+                // Not for somebody else's self-chat: its feed is refused, and the room bounces out of it.
+                if (!isForeignSelfChat) void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
                 navigate(ROUTES.channels.room(channel.id), { state: { channel } });
             }}
         />

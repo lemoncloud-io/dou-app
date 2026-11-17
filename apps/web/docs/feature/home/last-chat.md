@@ -55,7 +55,11 @@ rooms home lists: the session place's slice (`useHomeChannels`) plus the cloud's
 it was tagged with. It used to be home's own, and home unmounts when the reader navigates away, so a
 message in another room that arrived while a room or another tab was open was dropped until home came
 back. App-wide, the cache holds the place's rooms whatever screen is open, which other readers of
-that cache — the notification inbox among them — rely on. It has two mechanisms, because
+that cache — the notification inbox among them — rely on. Somebody else's notes-to-self room is
+left out of that list: a row like that is only ever left over from the previous account (a
+guest→social promotion or an account switch swaps the uid while the cached rows still hold the old
+account's room), and the server refuses its feed to anyone but the owner, so a catch-up on it could
+only fail. The home row skips its `channel.get` for the same reason. It has two mechanisms, because
 `ChatSyncPlan.run` is a no-op and registering alone loads nothing:
 
 - **Target registration** — `runtime.sync.registerSyncTarget({ type: 'chat', id: channelId }, { cid })` per channel, under the
