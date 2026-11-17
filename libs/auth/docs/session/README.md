@@ -142,7 +142,8 @@ lived before, deleting the web copy only once the shell confirmed the vault hold
 | (a logout, or its marker set) | any      | empty the vault, then read it; delete the web copy; drop marker |
 | unavailable                   | yes      | this run signs in from the copy, held in the tab; keep the copy |
 | unavailable                   | no       | this run keeps the session in the tab                           |
-| values                        | any      | the vault is the truth; delete the web copy                     |
+| values                        | no       | the vault is the truth                                          |
+| values                        | yes      | the copy replaces the vault's tokens; delete it once confirmed  |
 | empty                         | yes      | write the copy to the vault; delete it once confirmed           |
 | empty                         | no       | signed out                                                      |
 
@@ -154,15 +155,32 @@ device key that was invalidated, data from another device): it empties it and th
 again. Every row is decided from what the vault and web storage hold, so a boot that dies half-way does
 the move again next time.
 
+**A web copy next to vault tokens wins**, when it holds the relay token (without it the copy is a
+leftover and is deleted as before). Every boot that reads the vault deletes the web copy, and
+nothing writes the tokens to `localStorage` while a vault is in use, so a copy still there means no page has booted on
+this vault and its tokens were written by something else. The phone app's own runtime is that something:
+an install that updated straight from an app without a vault starts the runtime on an empty vault, which
+signs the device in as a guest while the person's session is still in `localStorage`. The copy replaces
+the vault's whole token set (a token it lacks is removed, so nothing of the other session is left) and
+the device guest's id from the plain store is written over the vault's in the same write, since the plain
+id is the one the page accepted invites under. The web copy is deleted once the shell confirms; a refused
+write is `migration-refused`, as for an empty vault. Taking the vault as the truth here would delete the
+last copy of the person's session. Because the copy wins, a copy the person has moved on from must not
+survive to the next boot: `discardWebCopy` (app-facing as `runtime.boot.discardWebSessionCopy`) deletes
+it, and `hasWebCopy` (`runtime.boot.hasWebSessionCopy`) says whether one is there. `apps/web` calls the
+first at a sign-out on a launch the phone app's runtime owns, and before it reloads onto a vault it found
+only after booting without one, unless the copy was there when it started.
+
 **The rows are decided by the tokens alone.** The vault may also hold the device guest's id (below),
 and a vault holding only that id is not a signed-in one: it takes the `empty` rows, so a web copy of
 the tokens is still moved rather than deleted.
 
 **The device guest's id is copied, never moved.** In three rows the boot copies `chatic-delegator-id`
 from the plain store into the vault if the vault lacks it, and leaves the plain copy where it is:
-`values`; `empty` with no web copy; and `empty` with a web copy, once the move is confirmed. It does not
-overwrite an id the vault already holds. It does not run in the logout row, in the unavailable rows, or
-after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
+`values` with no web copy; `empty` with no web copy; and `empty` with a web copy, once the move is
+confirmed. It does not overwrite an id the vault already holds, except in the `values` row with a web
+copy, above, where it goes over the vault's with the tokens. It does not run in the logout row, in the
+unavailable rows, or after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
 unanswered offer leaves the store on the vault with the session's tokens, where a refused `set` would
 switch the whole run to the tab. The boot does not wait for it either, so a shell that never answers
 does not hold every launch for the full timeout. A copy that does not land is logged, the reader

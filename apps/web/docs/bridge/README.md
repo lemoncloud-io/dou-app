@@ -173,7 +173,10 @@ settles which before anything boots, with `settleSessionOwner` from `@chatic/run
 - **An offer** — the page says `RuntimeHello` and waits. On `native` it builds the mirror
   (`createBridgedRuntime`) in place of `createWebRuntime` and never opens the device vault: no
   `prepareSecretStorage`, no late-vault reload, no watch for a vault that was locked at launch. The
-  vault is the shell's for that launch.
+  vault is the shell's for that launch. At a sign-out it deletes, besides its own signed-out keys, any
+  copy of the session's tokens still in `localStorage` (`runtime.boot.discardWebSessionCopy`): such a
+  copy is from an app without a vault, and the next launch the page owns would otherwise let it replace
+  the vault's session (`libs/auth` docs/session, "The device vault at boot").
 - **No settled answer** — it asks again for 30 s of the page being shown, behind the boot cover, then
   shows the error screen (`runtime/sessionOwnerUnsettled.tsx`) in place of the app. Its button reloads,
   and so does the app coming back to the foreground — a shell that could not answer while the device

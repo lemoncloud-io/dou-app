@@ -127,6 +127,10 @@ const sessionOwner = settleSessionOwner({
 // localStorage as it always did, and a browser in the tab's sessionStorage. On a launch the shell owns,
 // the vault is the shell's alone: the page never opens it.
 const vault = stores.vault;
+// Read before anything can sign in: whether localStorage held the session's tokens when this page
+// started. Only a run without a vault writes them there, and `adoptLateVault` needs to tell those
+// apart from a copy an older app left behind.
+const webSessionCopyAtBoot = !vault && runtime.boot.hasWebSessionCopy(stores.webLocal);
 const bootReady: Promise<SessionOwnerChoice> = sessionOwner.then(async choice => {
     if (choice.sessionOwner !== 'web' || !vault) return choice;
     const outcome = await runtime.boot.prepareSecretStorage({
@@ -149,6 +153,10 @@ const bootReady: Promise<SessionOwnerChoice> = sessionOwner.then(async choice =>
  * marked and reloaded once, and the next boot takes the vault from the start.
  */
 const adoptLateVault = (): void => {
+    // Tokens this run wrote to localStorage before it knew about the vault (a guest sign-in on a session
+    // already moved there) would replace the vault's session at the next boot, so they go. A copy that
+    // was there at boot is a session no page has moved yet, and stays for that boot to move.
+    if (!webSessionCopyAtBoot) runtime.boot.discardWebSessionCopy(stores.webLocal);
     stores.webSession.set(LATE_VAULT_MARK, '1');
     window.location.reload();
 };
@@ -215,9 +223,18 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
     // On a launch the shell owns, its runtime cannot reach the page's storage, so the page takes its
     // own signed-out keys: at each sign-out, and at the boot that follows one (`?logout=1` — the shell
     // restarts the page there when its session ends), as the page's runtime does on its own launches.
+    //
+    // The session's tokens in localStorage go too. On such a launch they can only be a copy from an app
+    // without a vault that no page has moved yet, and the next launch the page owns lets that copy
+    // replace whatever the vault then holds, which would sign the person back in to the account they
+    // just left.
     if (owner.sessionOwner === 'native') {
-        runtime.session.registerSessionLogoutCallback(() => dropSignedOutKeys(stores.plain));
-        if (new URLSearchParams(window.location.search).get('logout') === '1') dropSignedOutKeys(stores.plain);
+        const dropSignedOut = () => {
+            dropSignedOutKeys(stores.plain);
+            runtime.boot.discardWebSessionCopy(stores.webLocal);
+        };
+        runtime.session.registerSessionLogoutCallback(dropSignedOut);
+        if (new URLSearchParams(window.location.search).get('logout') === '1') dropSignedOut();
     }
 
     // A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the

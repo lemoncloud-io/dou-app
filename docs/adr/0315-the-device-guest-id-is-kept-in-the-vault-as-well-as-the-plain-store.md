@@ -13,6 +13,8 @@
 > · Amends: [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md) — one plain
 > session value now reaches the app's runtime; [ADR-0293](./0293-session-tokens-live-in-the-device-vault-and-lemon-web-core-keeps-none.md)
 > — the vault holds one value that is not a token, written in both ports
+> · Amended by: [ADR-0331](./0331-a-web-copy-no-page-moved-wins-over-the-vault.md) decisions 2 and 7 — the boot writes the plain id over the
+> vault's when a web copy replaces the vault's tokens
 
 ## Context
 

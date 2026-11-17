@@ -1,5 +1,5 @@
 import { logger } from '@chatic/logger';
-import { DELEGATOR_ID_KEY, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from '@chatic/session';
+import { DELEGATOR_ID_KEY, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS, type SessionKey } from '@chatic/session';
 
 import type { KeyValueStore, NativeStore } from '@chatic/storage';
 import { dropLemonLeftovers } from './lemonLeftovers.util';
@@ -21,7 +21,8 @@ import type { ISecretStorageMigration, SecretStorageBoot, SecretStorageOutcome }
  * | (logout marker set)   | any      | empty the vault, delete the web copy, drop the marker          |
  * | unavailable           | yes      | this run signs in from the copy, held in the tab; keep the copy |
  * | unavailable           | no       | this run keeps the session in the tab                          |
- * | values                | any      | the vault is the truth; delete the web copy                    |
+ * | values                | no       | the vault is the truth                                         |
+ * | values                | yes      | the copy replaces the vault's tokens; delete it once confirmed |
  * | empty                 | yes      | write the copy into the vault; delete it once confirmed        |
  * | empty                 | no       | signed out                                                     |
  *
@@ -32,9 +33,16 @@ import type { ISecretStorageMigration, SecretStorageBoot, SecretStorageOutcome }
  * (see `copyDelegatorId`), and a vault holding only that id is not a signed-in one.
  *
  * In three rows the device guest's id is then copied into the vault from the plain store, if the vault
- * lacks it: `values`; `empty` with no web copy; and `empty` with a web copy, once the move is
- * confirmed. Never in the logout row, the unavailable rows, or a move the vault refused.
+ * lacks it: `values` with no web copy; `empty` with no web copy; and `empty` with a web copy, once the
+ * move is confirmed. Never in the logout row, the unavailable rows, or a move the vault refused. In the
+ * `values` row with a web copy it is written over the vault's, with the tokens (`replaceWithWebCopy`).
  */
+/**
+ * The token a session cannot be without. A web copy that lacks it is a leftover, not a session, and
+ * never replaces what the vault holds.
+ */
+const RELAY_TOKEN_KEY: SessionKey = 'chatic-relay-token';
+
 class SecretStorageMigration implements ISecretStorageMigration {
     async prepare({ vault, plain, web, tab, afterLogout }: SecretStorageBoot): Promise<SecretStorageOutcome> {
         // A logout empties the vault before it leaves the page; this second clear is for one whose
@@ -73,6 +81,8 @@ class SecretStorageMigration implements ISecretStorageMigration {
         if (read.reset) logger.warn('SESSION', '[secretStorage] the vault could not be decrypted and was emptied');
 
         const tokensInVault = SESSION_KEYS.secret.some(key => key in read.values);
+        const webCopyIsSession = webCopy.some(([key]) => key === RELAY_TOKEN_KEY);
+        if (tokensInVault && webCopyIsSession) return this.replaceWithWebCopy(vault, plain, web, webCopy);
         if (tokensInVault) {
             this.dropWebCopy(web);
             this.copyDelegatorId(vault, plain);
@@ -95,6 +105,57 @@ class SecretStorageMigration implements ISecretStorageMigration {
         this.dropWebCopy(web);
         this.copyDelegatorId(vault, plain);
         return 'migrated';
+    }
+
+    /**
+     * A vault holding a session while the web copy was never moved. Every boot that reads the vault
+     * deletes the web copy, and nothing writes one any more, so a web copy next to vault tokens means
+     * no page has ever booted on this vault: the tokens in it were written by something else. The
+     * phone app's own runtime is that something. An install updating straight from an app without a
+     * vault starts the runtime on an empty vault, which signs the device in as a guest while the
+     * person's session is still in this origin's `localStorage`. Taking the vault as the truth here
+     * would delete that session, so the web copy wins.
+     *
+     * The copy replaces the vault's whole token set rather than merging into it: a token the copy
+     * lacks would otherwise keep belonging to the other session. The device guest's id goes with it,
+     * overwriting the vault's, because the plain copy is the one the page has accepted invites under,
+     * while the vault's was written by the same guest sign-in. Both go out in one write; nothing is
+     * deleted until the shell confirms it.
+     */
+    private async replaceWithWebCopy(
+        vault: NativeStore,
+        plain: KeyValueStore,
+        web: KeyValueStore,
+        webCopy: [string, string][]
+    ): Promise<SecretStorageOutcome> {
+        logger.warn(
+            'session.web_copy_replaced_vault',
+            'the vault holds a session the page never moved; the web copy wins'
+        );
+        const copied = new Set(webCopy.map(([key]) => key));
+        webCopy.forEach(([key, value]) => vault.set(key, value));
+        SESSION_KEYS.secret.filter(key => !copied.has(key)).forEach(key => vault.remove(key));
+        const guestId = plain.get(DELEGATOR_ID_KEY);
+        if (guestId) vault.set(DELEGATOR_ID_KEY, guestId);
+        try {
+            await vault.flush();
+        } catch {
+            logger.warn(
+                'session.web_copy_replace_refused',
+                'the vault did not confirm the replacement; the web copy stays'
+            );
+            return 'migration-refused';
+        }
+        this.dropWebCopy(web);
+        return 'replaced';
+    }
+
+    hasWebCopy(web: KeyValueStore): boolean {
+        return this.webCopy(web).length > 0;
+    }
+
+    discardWebCopy(web: KeyValueStore): void {
+        SESSION_KEYS.secret.forEach(key => web.remove(key));
     }
 
     /**
