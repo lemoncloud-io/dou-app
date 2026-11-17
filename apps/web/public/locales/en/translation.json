@@ -939,6 +939,8 @@
             "unread": "Unread",
             "allRead": "Read by all",
             "readCount": "Read {{count}}",
+            "unreadDivider_one": "{{count}} unread message from here",
+            "unreadDivider_other": "{{count}} unread messages from here",
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",
             "messageDetail": "Full Message",

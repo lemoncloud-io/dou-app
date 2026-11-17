@@ -939,6 +939,8 @@
             "unread": "안읽음",
             "allRead": "읽음 {{count}}",
             "readCount": "읽음 {{count}}",
+            "unreadDivider_one": "여기부터 안 읽은 메시지 {{count}}개",
+            "unreadDivider_other": "여기부터 안 읽은 메시지 {{count}}개",
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
             "messageDetail": "메시지 전체보기",

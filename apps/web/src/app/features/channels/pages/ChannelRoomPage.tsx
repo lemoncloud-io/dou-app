@@ -1,5 +1,5 @@
 import { Loader2, Settings } from 'lucide-react';
-import { useEffect, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import {
     MessageInput,
     type MessageInputProps,
     SystemNotice,
+    UnreadDivider,
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
@@ -93,6 +94,7 @@ import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
 import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { unreadEntryOf } from '../utils/unreadEntry';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
@@ -105,7 +107,7 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
 import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
 import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
-import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
+import { readCursorOf, readPositionOf, unreadOf } from '../../../utils/countUnread';
 
 // Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
@@ -683,6 +685,7 @@ export const ChannelRoomPage = () => {
         handleScroll: handleChatScroll,
         isAwayFromBottom,
         scrollToBottom: scrollChatToBottom,
+        hasPendingRestore: hasPendingScrollRestore,
     } = useChatScroll({
         messages,
         hasMore,
@@ -769,7 +772,49 @@ export const ChannelRoomPage = () => {
 
     // The floating shortcuts over the list: the reader's unread mentions here, or the messages that
     // arrived while they read history (Figma 6002:40133 · 6002:41749). See useRoomJumpPills.
-    const { pill: jumpPill, checkInView: checkMentionsInView } = useRoomJumpPills({
+    // The unread divider and where the room lands on entry (Figma 6170:26376). Both are worked out
+    // once per visit, from the read cursor as it stood when the room opened — entering moves it.
+    const [unreadDivider, setUnreadDivider] = useState<{ chatNo: number; count: number } | null>(null);
+    const [awayFromCursor, setAwayFromCursor] = useState<number | undefined>(undefined);
+    const entryRef = useRef({
+        channelId: stableChannelId,
+        skipLanding: false,
+        decided: false,
+        cursor: undefined as number | undefined,
+        count: 0,
+        widened: false,
+    });
+    if (entryRef.current.channelId !== stableChannelId) {
+        entryRef.current = {
+            channelId: stableChannelId,
+            skipLanding: false,
+            decided: false,
+            cursor: undefined,
+            count: 0,
+            widened: false,
+        };
+    }
+    useEffect(() => {
+        setUnreadDivider(null);
+        setAwayFromCursor(undefined);
+    }, [stableChannelId]);
+    // A visit that returns to a remembered offset, or that opens on a message someone asked for (a
+    // search hit, a notification, a push), keeps that position: the room lands on its own only when
+    // nothing else decided where to look. Read in a layout effect, after the restore claim is taken
+    // and before anything spends it.
+    useLayoutEffect(() => {
+        entryRef.current.skipLanding =
+            hasPendingScrollRestore() ||
+            isJumpTargetFor(useMessageJumpStore.getState().target, stableChannelId) ||
+            searchParams.has('chatNo');
+        // Once per visit: the channel id names the visit.
+    }, [stableChannelId]);
+
+    const {
+        pill: jumpPill,
+        checkInView: checkMentionsInView,
+        firstMentionNo,
+    } = useRoomJumpPills({
         channelId: stableChannelId,
         messages,
         containerRef: messagesEndRef,
@@ -777,7 +822,46 @@ export const ChannelRoomPage = () => {
         scrollToBottom: scrollChatToBottom,
         // Unknown until the join stream answers: the pills take the first cursor known as the entry.
         readCursor: myJoin ? (readCursorOf(readPositionOf(myJoin, channel?.$join)) ?? 0) : undefined,
+        awayFromCursor,
     });
+
+    // Lands the room once its rows and my cursor are known: at the oldest unread mention, highlighted,
+    // when there is one; else at the first unread message, with the divider just above it on screen.
+    // Few unread messages leave the list at the bottom anyway — a row near the end cannot scroll to
+    // the top. Nothing unread, nothing happens.
+    useEffect(() => {
+        const entry = entryRef.current;
+        if (entry.decided || !myJoin || !channel || entry.channelId !== stableChannelId) return;
+        if (entry.cursor === undefined) {
+            entry.cursor = readCursorOf(readPositionOf(myJoin, channel.$join)) ?? 0;
+            entry.count = unreadOf(channel, myJoin);
+        }
+        if (messages.length === 0) return;
+        if (entry.count <= 0) {
+            entry.decided = true;
+            return;
+        }
+        let at = unreadEntryOf(messages, entry.cursor, hasMore && !entry.widened);
+        if (at.kind === 'unknown') {
+            // The first unread row may be cached above the window: widen once, and decide on the
+            // next render; a row that is not cached at all is not worth a network page here.
+            entry.widened = true;
+            if (loadUntil(entry.cursor + 1)) return;
+            at = unreadEntryOf(messages, entry.cursor, false);
+        }
+        entry.decided = true;
+        if (at.kind !== 'at') return;
+        setUnreadDivider({ chatNo: at.chatNo, count: entry.count });
+        if (entry.skipLanding) return;
+        if (firstMentionNo !== undefined && firstMentionNo >= at.chatNo) {
+            useMessageJumpStore.getState().request(stableChannelId, firstMentionNo);
+            return;
+        }
+        setAwayFromCursor(entry.cursor);
+        useMessageJumpStore
+            .getState()
+            .request(stableChannelId, at.chatNo, { highlight: false, block: 'start', quiet: true });
+    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo]);
 
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();
@@ -1113,9 +1197,16 @@ export const ChannelRoomPage = () => {
     const withGapDividers = (rows: ClientChatView[], elements: ReactNode[]): ReactNode[] =>
         elements.flatMap((element, index) => {
             const above = rows[index]?.id ? gapsAboveMessageId.get(rows[index].id as string) : undefined;
-            if (!above) return [element];
+            const unreadAbove =
+                unreadDivider && rows[index]?.chatNo === unreadDivider.chatNo ? (
+                    <div key="unread-divider" data-unread-divider>
+                        <UnreadDivider label={t('chat.room.unreadDivider', { count: unreadDivider.count })} />
+                    </div>
+                ) : null;
+            if (!above) return unreadAbove ? [element, unreadAbove] : [element];
             return [
                 element,
+                ...(unreadAbove ? [unreadAbove] : []),
                 ...[...above].reverse().map(gap => {
                     const key = chatGapKey(gap);
                     return (
@@ -1370,7 +1461,9 @@ export const ChannelRoomPage = () => {
                                         <div
                                             key={dateKey}
                                             data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
-                                            className="flex flex-col-reverse gap-3"
+                                            // The row the room lands on keeps the unread divider
+                                            // above it in view when it is scrolled to the top.
+                                            className="flex flex-col-reverse gap-3 [&_[data-chat-no]:has(+[data-unread-divider])]:scroll-mt-12"
                                         >
                                             {withGapDividers(
                                                 reversedMessages,

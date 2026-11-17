@@ -170,7 +170,7 @@ jest.mock('../hooks', () => ({
     }),
     // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
     useRoomJumpPills: () => ({ pill: null, checkInView: jest.fn() }),
-    useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn() }),
+    useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn(), hasPendingRestore: () => false }),
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
     useDmPeer: () => mockDmPeer,
     useJoinPositions: () => ({ getReadCount: () => ({ readCount: 0, unreadCount: 0 }), isReady: false }),

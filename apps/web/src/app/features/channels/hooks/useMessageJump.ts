@@ -145,7 +145,7 @@ export const useMessageJump = ({
         // other side erased their history.
         if (!isInJoinWindow({ chatNo: target.chatNo }, joinedNo)) {
             progressRef.current.done = true;
-            toast({ title: t('chat.jumpOutsideJoinWindow') });
+            if (!target.quiet) toast({ title: t('chat.jumpOutsideJoinWindow') });
             clear();
             onGiveUpRef.current?.();
             return;
@@ -153,10 +153,12 @@ export const useMessageJump = ({
 
         const node = container.querySelector<HTMLElement>(`[data-chat-no="${target.chatNo}"]`);
         if (node) {
-            node.scrollIntoView({ block: 'center' });
-            highlight(node, true);
-            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-            highlightTimerRef.current = setTimeout(() => highlight(node, false), HIGHLIGHT_MS);
+            node.scrollIntoView({ block: target.block ?? 'center' });
+            if (target.highlight !== false) {
+                highlight(node, true);
+                if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+                highlightTimerRef.current = setTimeout(() => highlight(node, false), HIGHLIGHT_MS);
+            }
             progressRef.current.done = true;
             clear();
             return;
@@ -200,7 +202,7 @@ export const useMessageJump = ({
         // used to fail.
         if (!isLoadingMore && (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES)) {
             progressRef.current.done = true;
-            toast({ title: t('search.messageJumpFailed') });
+            if (!target.quiet) toast({ title: t('search.messageJumpFailed') });
             clear();
             onGiveUpRef.current?.();
         }
