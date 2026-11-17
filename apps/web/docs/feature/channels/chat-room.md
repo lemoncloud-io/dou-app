@@ -677,6 +677,13 @@ apply.
 
 Both play the selection haptic when tapped.
 
+**The highlight.** Every jump — a mention pill, a search hit, a notification, a push — lands the same
+way (`useMessageJump`): the row scrolls to the centre and, for two seconds, sits in a rounded
+light-lime box 8px in from either edge, its light bubble turned to the page ground with a lime
+outline (Figma 6002:40741). The box is a pseudo-element behind the row and the outline an inset
+ring, so nothing in the row moves when it comes and goes; the bubble reads the row's
+`data-highlight` attribute for it. Taking the highlight off removes only the classes it added.
+
 ## What not to do
 
 - **Do not add a stereo branch to the page.** Pass a variant into a component. Scroll anchoring,

@@ -11,8 +11,38 @@ import type { LoadMoreOptions } from './useChats';
 
 /** Matches desktop-web's MessageList jump budget. */
 const MAX_JUMP_PAGES = 8;
-const HIGHLIGHT_MS = 1600;
-const HIGHLIGHT_CLASSNAMES = ['bg-primary/10', 'transition-colors'];
+const HIGHLIGHT_MS = 2000;
+// The design's highlight (Figma 6002:40741): a rounded light-lime box 8px in from either edge,
+// drawn as a pseudo-element behind the row so nothing in the row moves; the bubble reads the
+// `data-highlight` attribute set beside these and outlines itself in lime.
+const HIGHLIGHT_CLASSNAMES = [
+    'relative',
+    'isolate',
+    "before:content-['']",
+    'before:absolute',
+    'before:inset-x-2',
+    'before:-inset-y-1',
+    'before:-z-10',
+    'before:rounded-lg',
+    'before:bg-primary/[0.08]',
+    'before:pointer-events-none',
+];
+
+// What a highlight added, per node, so taking it off leaves any class the row already had —
+// `relative` above all — where it was.
+const added = new WeakMap<HTMLElement, string[]>();
+
+const highlight = (node: HTMLElement, on: boolean) => {
+    if (on) {
+        const names = HIGHLIGHT_CLASSNAMES.filter(name => !node.classList.contains(name));
+        node.classList.add(...names);
+        added.set(node, [...(added.get(node) ?? []), ...names]);
+    } else {
+        node.classList.remove(...(added.get(node) ?? []));
+        added.delete(node);
+    }
+    node.toggleAttribute('data-highlight', on);
+};
 
 interface UseMessageJumpParams {
     channelId: string;
@@ -124,9 +154,9 @@ export const useMessageJump = ({
         const node = container.querySelector<HTMLElement>(`[data-chat-no="${target.chatNo}"]`);
         if (node) {
             node.scrollIntoView({ block: 'center' });
-            node.classList.add(...HIGHLIGHT_CLASSNAMES);
+            highlight(node, true);
             if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-            highlightTimerRef.current = setTimeout(() => node.classList.remove(...HIGHLIGHT_CLASSNAMES), HIGHLIGHT_MS);
+            highlightTimerRef.current = setTimeout(() => highlight(node, false), HIGHLIGHT_MS);
             progressRef.current.done = true;
             clear();
             return;
