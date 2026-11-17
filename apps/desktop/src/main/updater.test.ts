@@ -2,7 +2,15 @@ import { pushedEventErrors, pushedEvents } from './appEventContract';
 
 // updater.ts reaches electron and electron-updater, neither of which loads under jest. Packaged, so
 // startUpdater runs; the feed is a stub whose events the tests fire by hand.
-jest.mock('electron', () => ({ app: { isPackaged: true, on: jest.fn() }, powerMonitor: { on: jest.fn() } }));
+jest.mock('electron', () => ({
+    app: { isPackaged: true, on: jest.fn(), getPath: () => 'logs', getVersion: () => '1.0.0' },
+    powerMonitor: { on: jest.fn() },
+}));
+// The updater's file log is covered by its own suite; here it must not write into the real logs.
+jest.mock('./updaterLog', () => {
+    const log = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    return { createUpdaterLog: jest.fn(() => log) };
+});
 jest.mock('electron-updater', () => {
     const listeners: Record<string, (...args: unknown[]) => void> = {};
     return {
@@ -19,28 +27,38 @@ jest.mock('electron-updater', () => {
     };
 });
 
-type Feed = { listeners: Record<string, (...args: unknown[]) => void> };
+type Feed = {
+    listeners: Record<string, (...args: unknown[]) => void>;
+    quitAndInstall: jest.Mock;
+    logger?: unknown;
+};
 
 /** A fresh updater per test: its listeners attach once per module, and it remembers the last status. */
-const start = () => {
+const start = (beforeQuit: () => void = jest.fn()) => {
     const host = { pushEvent: jest.fn(), registerHandler: jest.fn() };
     let feed!: Feed;
+    let createUpdaterLog!: jest.Mock;
     jest.isolateModules(() => {
         const { startUpdater } = require('./updater');
         feed = require('electron-updater').default.autoUpdater;
-        startUpdater(host, jest.fn());
+        createUpdaterLog = require('./updaterLog').createUpdaterLog;
+        startUpdater(host, beforeQuit);
     });
     const handler = (type: string) => host.registerHandler.mock.calls.find(([name]) => name === type)?.[1];
-    return { host, fire: (event: string, ...args: unknown[]) => feed.listeners[event](...args), handler };
+    return {
+        host,
+        feed,
+        createUpdaterLog,
+        fire: (event: string, ...args: unknown[]) => feed.listeners[event](...args),
+        handler,
+    };
 };
 
-describe('updater app → web event contract', () => {
-    beforeEach(() => {
-        // startUpdater arms a check loop; the contract only needs what it pushes.
-        jest.spyOn(global, 'setInterval').mockReturnValue(0 as any);
-    });
-    afterEach(() => jest.restoreAllMocks());
+// startUpdater arms a check loop; no test here needs it to run.
+beforeEach(() => jest.spyOn(global, 'setInterval').mockReturnValue(0 as any));
+afterEach(() => jest.restoreAllMocks());
 
+describe('updater app → web event contract', () => {
     it("pushes 'OnUpdateStatus' through an update's whole course", () => {
         const { host, fire, handler } = start();
 
@@ -76,5 +94,33 @@ describe('updater app → web event contract', () => {
         fire('error', new Error('offline'));
 
         expect(host.pushEvent).not.toHaveBeenCalled();
+    });
+});
+
+describe('updater restart', () => {
+    // Close-to-tray swallows the window's close unless the quit guard is flipped first: the installer
+    // would start while the app it replaces is still running.
+    it('flips the quit guard, then installs with the default arguments', () => {
+        const order: string[] = [];
+        const { feed, handler } = start(() => order.push('beforeQuit'));
+        feed.quitAndInstall.mockImplementation(() => order.push('quitAndInstall'));
+        jest.spyOn(global, 'setImmediate').mockImplementation(((run: () => void) => run()) as any);
+
+        handler('RestartToUpdate')();
+
+        expect(order).toEqual(['beforeQuit', 'quitAndInstall']);
+        expect(feed.quitAndInstall).toHaveBeenCalledWith();
+    });
+});
+
+describe('updater log', () => {
+    // Without a logger electron-updater writes to the console, which a packaged app does not have.
+    it('gives the feed the file log, opened with the version and the executable', () => {
+        const { feed, createUpdaterLog } = start();
+        const log = createUpdaterLog.mock.results[0].value;
+
+        expect(createUpdaterLog).toHaveBeenCalledWith('logs');
+        expect(feed.logger).toBe(log);
+        expect(log.info).toHaveBeenCalledWith(`Updater started: version 1.0.0, running ${process.execPath}`);
     });
 });
