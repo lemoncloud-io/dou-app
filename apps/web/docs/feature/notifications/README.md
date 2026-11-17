@@ -197,12 +197,9 @@ not:
   The row's chip, location, context and quote come from `utils/rowParts` (pure, tested);
 - a tap reads the item and goes to its message (`?chatNo=` on the room or the thread; a reaction goes
   to the message reacted to);
-- **selection mode** — from "Select" or a long press, which starts with that row picked
-  (`useNotificationSelection`). The quick chips pick all / unread / read of what is visible, and a
-  chip pressed again on its own set clears it. The bottom bar (`SelectionActionBar`, drawn over the
-  nav) marks read — off when everything picked is already read — or deletes after a confirm. Both
-  close the mode and show a 3-second toast whose "Undo" puts back exactly what changed
-  (`useNotificationActions`). Deleting takes items off the inbox only; the messages stay;
+- **selection mode** — from "Select" or a long press, which starts with that row picked; "Cancel"
+  leaves it, and the action bar is drawn over the nav. The rules are the sheet's too (§ Selection
+  mode);
 - three empty states — nothing at all (no filter row, no "Select"), an empty tab (named), and nothing
   unread under "Unread only" (with "Show all notifications");
 - **coming back lands where the reader left.** Opening an item navigates away and unmounts the page,
@@ -223,13 +220,36 @@ not:
 
 **The find-me sheet** (`components/FindMeSheet`) — what is looking for the reader now: `findMe` of the
 scope (unread mentions, thread mentions and replies to my messages), narrowed by All / Mentions /
-Threads chips with counts, "Mark all read", and a tap that closes the sheet and opens the message.
+Threads chips with counts, "Select", and a tap that closes the sheet and opens the message.
 Reading an item anywhere takes it off the sheet; it stays in the tab. Home's row raises it through
 `app/stores/useFindMeSheetRequest`, and the private shell mounts `FindMeSheetHost` to answer, since
-home may not import this feature. The sheet has no selection mode.
+home may not import this feature. In selection mode the title becomes the count, the filter row gives
+way to "Select all", the footnote to the action bar (laid out in the sheet's footer), and the close
+(X) is the way out — closing the sheet ends the mode, and a sheet opened again starts browsing. The
+sheet drew "Mark all read" before it had a selection mode; "Select" took its place, as the design has
+it, and "Select all" then "Mark as read" does the same job.
 
-**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter and quick-select
-chips, a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
+### Selection mode
+
+The tab and the sheet share one set of rules (`useNotificationSelection`, `SelectionActionBar`):
+
+- **One quick pick, "Select all".** It picks every visible item — the tab and filter in force — and,
+  pressed again while that is exactly the selection, clears it. Rows toggle one by one. There is no
+  "unread" or "read" pick: what is picked is told apart by the bar instead.
+- **"Mark as read n" counts the unread among the picks**, and applies to those only. With only read
+  items picked it is off and drops its number; with nothing picked both buttons are off and
+  numberless. "Delete n" counts every pick.
+- **Marking read keeps the mode and the picks**, so the same items can be deleted next; "mark as
+  read" turns off, "delete" stays. A list that drops read items — the sheet, or the tab under
+  "Unread only" — would take them away at that moment, so they are held (`withHeld`) and stay listed
+  until the mode closes. A held item that is deleted, or leaves the scope, is gone all the same.
+- **Deleting closes the mode**, after a confirm. Deleting takes items off the inbox only; the messages
+  stay.
+- Both show a 3-second toast whose "Undo" puts back exactly what changed (`useNotificationActions`).
+  "Undo" on a mark-read while still selecting turns the held items unread again, still picked.
+
+**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter chips and
+"Select all", a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
 as a long press commits to selection mode; a warning as the delete confirm opens; success once a mark
 read or a delete has gone through, and a tick for "Undo". Opening an item plays nothing — the page
 change is the feedback. Motion comes from the kit parts (the underline growing under a tab, the check

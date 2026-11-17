@@ -90,3 +90,10 @@ export const splitMentions = (content: string): { text: string; mention: boolean
         .split(/(@[^\s@]+)/)
         .filter(part => part.length > 0)
         .map(part => ({ text: part, mention: part.startsWith('@') }));
+
+/**
+ * A selection bar button's label: "<action> n" while it acts on something, the bare "<action>" (the
+ * `<key>None` string) when it acts on nothing — the design drops a "0" rather than showing it.
+ */
+export const countedActionLabel = (t: TFunction, key: string, count: number): string =>
+    count > 0 ? t(key, { count }) : t(`${key}None`);

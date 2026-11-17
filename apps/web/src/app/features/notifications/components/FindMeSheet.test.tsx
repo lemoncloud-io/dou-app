@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import { useNotificationStore } from '../../../stores/useNotificationStore';
 import type { NotificationItem } from '../../../utils/notifications';
@@ -95,5 +95,70 @@ describe('FindMeSheet', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
         expect(mockNavigate).toHaveBeenCalledWith('/channels/ch/room?chatNo=3');
         expect(screen.queryByText('a mention')).not.toBeInTheDocument();
+    });
+
+    describe('selection mode', () => {
+        const enterSelection = () =>
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.select' }));
+
+        it('swaps the filters for "Select all" and the footnote for the action bar', () => {
+            render(<FindMeSheet open onOpenChange={jest.fn()} />);
+            enterSelection();
+
+            expect(screen.getByText('notifications.inbox.selectedCount:{"count":0}')).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /notifications\.findMe\.filters\./ })).not.toBeInTheDocument();
+            expect(screen.queryByText('notifications.findMe.footnote')).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'notifications.inbox.deleteNone' })).toBeDisabled();
+        });
+
+        it('keeps items marked read listed and picked, so they can be deleted next', () => {
+            render(<FindMeSheet open onOpenChange={jest.fn()} />);
+            enterSelection();
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
+
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' }));
+
+            expect(useNotificationStore.getState().items.m.read).toBe(true);
+            expect(screen.getByText('a mention')).toBeInTheDocument();
+            expect(screen.getByText('a reply')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'notifications.inbox.markReadNone' })).toBeDisabled();
+
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":2}' }));
+            fireEvent.click(
+                within(screen.getByRole('alertdialog')).getByRole('button', {
+                    name: 'notifications.inbox.deleteConfirm.confirm',
+                })
+            );
+            expect(useNotificationStore.getState().items.m).toBeUndefined();
+            expect(useNotificationStore.getState().items.r).toBeUndefined();
+            // The mode closed with it.
+            expect(screen.getByText('notifications.findMe.title')).toBeInTheDocument();
+        });
+
+        it('toggles a row instead of opening it', () => {
+            const onOpenChange = jest.fn();
+            render(<FindMeSheet open onOpenChange={onOpenChange} />);
+            enterSelection();
+
+            fireEvent.click(screen.getByText('a mention').closest('[role="button"]') as HTMLElement);
+
+            expect(onOpenChange).not.toHaveBeenCalled();
+            expect(mockNavigate).not.toHaveBeenCalled();
+            expect(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":1}' })).toBeEnabled();
+        });
+
+        it('lets go of picks and held items when the sheet closes', () => {
+            const { rerender } = render(<FindMeSheet open onOpenChange={jest.fn()} />);
+            enterSelection();
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
+            fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' }));
+
+            rerender(<FindMeSheet open={false} onOpenChange={jest.fn()} />);
+            rerender(<FindMeSheet open onOpenChange={jest.fn()} />);
+
+            expect(screen.getByText('notifications.findMe.title')).toBeInTheDocument();
+            expect(screen.queryByText('a mention')).not.toBeInTheDocument();
+        });
     });
 });

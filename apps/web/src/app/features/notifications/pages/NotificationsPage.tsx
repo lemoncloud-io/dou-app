@@ -28,15 +28,16 @@ import {
     type NotificationTab,
 } from '../../../utils/notifications';
 import { NotificationListItem } from '../components/NotificationListItem';
-import { QUICK_SELECTIONS, useNotificationActions, useNotificationAvatars, useNotificationSelection } from '../hooks';
+import { pickedIn, useNotificationActions, useNotificationAvatars, useNotificationSelection, withHeld } from '../hooks';
 import { useNotificationsViewStore } from '../stores/useNotificationsViewStore';
-import { formatDayHeading } from '../utils/rowParts';
+import { countedActionLabel, formatDayHeading } from '../utils/rowParts';
 
 /**
  * "내 알림" — the notifications tab (Figma 6021:18427). Everything that called or answered the reader
  * where the session is, read or not: five tabs with their unread counts, an "unread only" filter,
  * "mark all read" for the tab, the items by day, newest first. A tap opens the message; a long press
- * or "Select" enters selection mode, where the bottom bar marks read or deletes (with undo).
+ * or "Select" enters selection mode (Figma 6026:19667 · 6192:25181 · 6206:25408), where the bottom bar
+ * marks the picked unread items read — keeping the picks, so they can be deleted next — or deletes.
  */
 export const NotificationsPage = () => {
     const { t, i18n } = useTranslation();
@@ -71,10 +72,15 @@ export const NotificationsPage = () => {
 
     const counts = useMemo(() => unreadCounts(items), [items]);
     const inTab = useMemo(() => newestFirst(byTab(items, tab)), [items, tab]);
-    const visible = useMemo(() => filterUnreadOnly(inTab, unreadOnly), [inTab, unreadOnly]);
+    const selection = useNotificationSelection();
+    // Under "unread only", marking picks read would drop them mid-selection; held ones stay listed.
+    const visible = useMemo(
+        () => withHeld(filterUnreadOnly(inTab, unreadOnly), inTab, selection.held),
+        [inTab, unreadOnly, selection.held]
+    );
     const now = Date.now();
     const groups = groupByDay(visible, now);
-    const selection = useNotificationSelection(visible);
+    const picked = pickedIn(visible, selection.selected);
     const avatarOf = useNotificationAvatars(visible);
     // Opening an item navigates away and unmounts this page, so without this a back press lands at
     // the top. Ready once rows are drawn: an offset applied to an empty list clamps to 0 and is lost.
@@ -99,6 +105,7 @@ export const NotificationsPage = () => {
     const hasAnything = items.length > 0;
     const tabUnread = inTab.some(item => !item.read);
     const tabLabel = (id: NotificationTab) => t(`notifications.inbox.tabs.${id}`);
+    const countedLabel = (key: string, count: number) => countedActionLabel(t, key, count);
 
     // Haptics: a tick for every toggle and switch, a firmer tap as a long press commits to selection
     // mode, a warning as the delete confirm opens; the actions play their own success.
@@ -118,10 +125,10 @@ export const NotificationsPage = () => {
         selection.enter(item.id);
     };
 
-    const selectedIds = selection.selectedItems.map(item => item.id);
-    const finish = (run: () => void) => {
-        run();
-        selection.exit();
+    const markPickedRead = () => {
+        // The mode and the picks stay: the next step is often deleting the same items.
+        selection.hold(picked.unreadIds);
+        actions.markRead(picked.unreadIds);
     };
 
     // The design's empty block: a bell in a grey disc, centred (Figma 6033:21159 · 6033:21419).
@@ -166,7 +173,7 @@ export const NotificationsPage = () => {
                             {t('notifications.inbox.cancel')}
                         </button>
                         <h1 className="text-[17px] font-bold text-foreground">
-                            {t('notifications.inbox.selectedCount', { count: selectedIds.length })}
+                            {t('notifications.inbox.selectedCount', { count: picked.ids.length })}
                         </h1>
                     </div>
                 ) : (
@@ -210,17 +217,14 @@ export const NotificationsPage = () => {
                             key="quick"
                             className="flex gap-1.5 px-4 py-2 duration-200 animate-in fade-in-0 motion-reduce:animate-none"
                         >
-                            {QUICK_SELECTIONS.map(quick => (
-                                <FilterChip
-                                    key={quick}
-                                    label={t(`notifications.inbox.quick.${quick}`)}
-                                    selected={selection.pressedQuick === quick}
-                                    onClick={() => {
-                                        tick();
-                                        selection.quickSelect(quick);
-                                    }}
-                                />
-                            ))}
+                            <FilterChip
+                                label={t('notifications.inbox.selectAll')}
+                                selected={picked.all}
+                                onClick={() => {
+                                    tick();
+                                    selection.toggleAll(visible.map(item => item.id));
+                                }}
+                            />
                         </div>
                     ) : (
                         <div
@@ -276,13 +280,13 @@ export const NotificationsPage = () => {
             {selection.active && (
                 <SelectionActionBar
                     secondary={{
-                        label: t('notifications.inbox.markRead', { count: selectedIds.length }),
-                        disabled: !selection.selectedItems.some(item => !item.read),
-                        onClick: () => finish(() => actions.markRead(selectedIds)),
+                        label: countedLabel('notifications.inbox.markRead', picked.unreadIds.length),
+                        disabled: picked.unreadIds.length === 0,
+                        onClick: markPickedRead,
                     }}
                     destructive={{
-                        label: t('notifications.inbox.delete', { count: selectedIds.length }),
-                        disabled: selectedIds.length === 0,
+                        label: countedLabel('notifications.inbox.delete', picked.ids.length),
+                        disabled: picked.ids.length === 0,
                         onClick: () => {
                             haptics.play('warning');
                             setConfirmDelete(true);
@@ -294,14 +298,15 @@ export const NotificationsPage = () => {
             <AlertDialog
                 open={confirmDelete}
                 onOpenChange={setConfirmDelete}
-                title={t('notifications.inbox.deleteConfirm.title', { count: selectedIds.length })}
+                title={t('notifications.inbox.deleteConfirm.title', { count: picked.ids.length })}
                 description={t('notifications.inbox.deleteConfirm.description')}
                 cancelLabel={t('notifications.inbox.cancel')}
                 confirmLabel={t('notifications.inbox.deleteConfirm.confirm')}
                 destructive
                 onConfirm={() => {
                     setConfirmDelete(false);
-                    finish(() => actions.remove(selectedIds));
+                    actions.remove(picked.ids);
+                    selection.exit();
                 }}
             />
         </div>
