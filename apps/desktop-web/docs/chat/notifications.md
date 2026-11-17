@@ -93,7 +93,8 @@ written. It can differ from the name the feed shows, even to the point of carryi
 name, so it is only the fallback.
 
 `chatSenderName` (`src/app/shared/utils/senderName.ts`) holds that rule. The same rule names people in
-the inbox, the my-threads list and the channel list's preview line. The feed's
+the inbox, the my-threads list, the channel list's preview line and the message search rows (which
+fall back to the account name in the `user` cache rather than the snapshot). The feed's
 `useSiteProfilesStore` holds only the place on screen, and a banner can come from any place. So
 `usePlaceProfiles` mirrors every place of the active cloud into `usePlaceProfilesStore`, one
 profile query per place. A query without a place would let one place's nick name the same person in
