@@ -1,11 +1,18 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import type * as AppRuntime from '@chatic/app-runtime';
+
 import '../../../../i18n';
 
-const search = vi.hoisted(() => ({ isSearching: false, empty: false, scannedCount: 2 as number | null }));
+const search = vi.hoisted(() => ({
+    isSearching: false,
+    empty: false,
+    scannedCount: 2 as number | null,
+    ownMatch: false,
+}));
 const seenChannels = vi.hoisted(() => ({ list: [] as unknown[][] }));
-const channel = { id: 'c1', name: 'general' };
+const channel = { id: 'c1', name: 'general', sid: 's1', $join: { userId: 'me-cloud' } };
 const chat = (id: string, ownerId: string, content: string) => ({ id, chatNo: 1, ownerId, content, createdAt: 1 });
 
 vi.mock('../hooks', () => ({
@@ -18,7 +25,10 @@ vi.mock('../hooks', () => ({
                 : [
                       {
                           channel,
-                          matches: [chat('m1', 'ada', 'the deploy plan'), chat('m2', 'bob', 'deploy plan v2')],
+                          matches: [
+                              chat('m1', 'ada', 'the deploy plan'),
+                              chat('m2', search.ownMatch ? 'me-cloud' : 'bob', 'deploy plan v2'),
+                          ],
                           matchCount: 2,
                       },
                   ],
@@ -28,12 +38,23 @@ vi.mock('../hooks', () => ({
         };
     },
 }));
+vi.mock('@chatic/app-runtime', async importOriginal => {
+    const actual = await importOriginal<typeof AppRuntime>();
+    return {
+        ...actual,
+        runtime: {
+            ...actual.runtime,
+            session: { ...actual.runtime.session, useSessionIdentity: () => ({ userId: 'me' }) },
+        },
+    };
+});
 vi.mock('../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
     useChannelLabels: () => (ch: { name: string }) => ch.name,
     useAuthorNames: () => new Map([['ada', 'Ada']]),
 }));
 
+import { usePlaceProfilesStore } from '../../../shared/stores/usePlaceProfilesStore';
 import { useSearchDialogStore } from '../stores';
 import { SearchDialog } from './SearchDialog';
 
@@ -58,7 +79,9 @@ describe('SearchDialog rows', () => {
         search.isSearching = false;
         search.empty = false;
         search.scannedCount = 2;
+        search.ownMatch = false;
         seenChannels.list = [];
+        act(() => usePlaceProfilesStore.setState({ bySid: {} }));
     });
 
     // Two hits from different people read as the same line twice.
@@ -68,6 +91,23 @@ describe('SearchDialog rows', () => {
         expect(options[1]).toContain('Ada');
         // Not resolved yet: no stand-in name that would flash and then change.
         expect(options[2]).not.toMatch(/bob|Someone/);
+    });
+
+    // The OS banner named a sender by their place nick while search still showed the account name.
+    it("names a match's sender by their nick in the channel's place", async () => {
+        act(() => usePlaceProfilesStore.getState().setPlace('s1', { ada: { nick: 'Ada Nick' } }));
+        await openWith('deploy');
+        const options = screen.getAllByRole('option').map(option => option.textContent);
+        expect(options[1]).toContain('Ada Nick');
+    });
+
+    // A message of mine carries my cloud id while my nick can sit under my account id.
+    it('names my own match by my nick under either of my ids', async () => {
+        act(() => usePlaceProfilesStore.getState().setPlace('s1', { me: { nick: 'My Nick' } }));
+        search.ownMatch = true;
+        await openWith('deploy');
+        const options = screen.getAllByRole('option').map(option => option.textContent);
+        expect(options[2]).toContain('My Nick');
     });
 
     // The previous count stayed up and jumped as the cache filled in.

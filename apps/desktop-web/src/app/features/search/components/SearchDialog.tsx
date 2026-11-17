@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { Hash, Search, User } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/data';
+import { runtime } from '@chatic/app-runtime';
+import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
@@ -12,9 +13,11 @@ import {
     channelRef,
     formatShortDate,
     messagePlainText,
+    senderNameIn,
     useAuthorNames,
     useChannelLabels,
     useListboxNav,
+    usePlaceProfilesStore,
 } from '../../../shared';
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
@@ -103,6 +106,17 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
     // as the same line twice.
     const ownerIds = useMemo(() => results.flatMap(result => result.matches.map(chat => chat.ownerId)), [results]);
     const names = useAuthorNames(ownerIds);
+    const { userId: myUid } = runtime.session.useSessionIdentity();
+    const profilesBySid = usePlaceProfilesStore(s => s.bySid);
+    // The sender's nick in the channel's place wins over their account name, as in the feed and the
+    // OS banner; the account name is the fallback. The row's `owner$` snapshot is left out on purpose,
+    // so nothing but a nick can come back from `senderNameIn`.
+    const senderOf = (chat: DomainChat, channel: DomainChannel): string | undefined =>
+        senderNameIn({ ownerId: chat.ownerId, stereo: chat.stereo }, profilesBySid[channel.sid ?? ''], {
+            uid: myUid,
+            name: '',
+            cloudUid: channel.$join?.userId ?? null,
+        }) || (chat.ownerId ? names.get(chat.ownerId) : undefined);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
@@ -355,7 +369,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                                                     {/* Blank until the profile resolves: a stand-in name
                                                         flashed on every row, then changed. */}
                                                     <span className="min-w-0 flex-1 truncate text-caption font-semibold text-foreground">
-                                                        {chat.ownerId ? names.get(chat.ownerId) : undefined}
+                                                        {senderOf(chat, result.channel)}
                                                     </span>
                                                     <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
                                                         {formatWhen(chat.createdAt ?? chat.createdAtMs, t)}
