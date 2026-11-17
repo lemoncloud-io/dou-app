@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.166.2, @chatic/web@0.95.1
+
+### Bug Fixes
+
+- (web) clear the bottom safe-area inset at the end of scrolling sub-pages
+
 ## [2026-11-17] - root@0.166.1, @chatic/desktop-web@0.59.1
 
 ### Features
