@@ -36,11 +36,7 @@ describe('readIncomingCard', () => {
         const card = {
             ...CARD,
             text: '오후반차',
-            fields: [
-                { title: '날짜', value: '10월 7일 (수)' },
-                { title: '일수', value: 1 },
-                { title: '빈칸', value: '' },
-            ],
+            fields: [{ title: '날짜', value: '10월 7일 (수)' }, { title: '일수', value: 1 }, { title: '빈칸', value: '' }],
         };
         const incoming = readIncomingCard('?template=lemoment.leave', `#card=${encode(card)}`);
 
