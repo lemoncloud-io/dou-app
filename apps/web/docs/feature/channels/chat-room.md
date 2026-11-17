@@ -627,18 +627,27 @@ someone else past it (`unreadEntryOf`). If the drawn window may start after that
 window once (`loadUntil`) before deciding; a first unread row that is not cached at all is not worth a
 network page here, and the oldest drawn one stands in.
 
-- A red `UnreadDivider` — "여기부터 안 읽은 메시지 n개", n from `unreadOf` like the home badge — sits
-  above that row for the rest of the visit.
+- It is decided from the drawn rows, not from the badge alone: the channel row's head can lag the
+  messages the chat sync has already cached, and a badge of 0 would hide unread rows on screen.
+- A red `UnreadDivider` — "여기부터 안 읽은 메시지 n개", n the larger of the badge (`unreadOf`) and the
+  unread rows drawn — sits above that row for the rest of the visit.
 - The room lands there through the jump store with `{ highlight: false, block: 'start', quiet: true }`:
-  the row at the top, the divider kept in view by a scroll margin (`:has(+ [data-unread-divider])`),
+  the row at the top, the divider kept in view below the header by a scroll margin sized from the
+  measured header (`:has(+ [data-unread-divider])`, `--unread-divider-margin`),
   no highlight, and no toast if it cannot get there. A few unread messages near the end leave the list
   at the bottom anyway — a row there cannot scroll to the top.
 - When I have an unread mention at or after that row, the room lands on the oldest one instead, as an
   ordinary highlighted jump, and the mentions pill counts what is left.
-- Nothing unread, or a visit that restores a remembered offset or opens on a message someone asked for
-  (a search hit, a notification, a push), keeps its own position; the divider still shows.
-- The latest pill counts from the entry cursor for that first stay away from the bottom
-  (`awayFromCursor`), so it says how many unread messages are below rather than none.
+- A back press onto a remembered offset (`POP` with a restore pending), or a visit that opens on a
+  message someone asked for (a search hit, a notification, a push), keeps its own position; the
+  divider still shows. A remembered offset alone does not: every room visited before has one, and
+  coming back in from the home list is a fresh look at what is new.
+- Until the room has decided, the first page's bottom pin is held (`suppressAutoScroll`): the pin is
+  deferred to a frame after every effect and would undo a landing decided in the same flush. With
+  nothing unread, the room pins itself to the newest message once it has decided.
+- After landing — at the first unread or at a mention — the latest pill counts from the entry cursor
+  for that first stay away from the bottom (`awayFromCursor`), so it says how many unread messages are
+  below rather than none.
 
 `suppressAutoScroll` stands the bottom pin down while a message jump is positioning the view;
 `scrollToBottom` defers to a `requestAnimationFrame` that runs after every effect, so without it the

@@ -9,6 +9,9 @@ import type { ClientChatView, DomainChannel } from '../types';
 let mockChannel: Partial<DomainChannel> | null = null;
 let mockMessages: Partial<ClientChatView>[] = [];
 let mockMyJoin: Record<string, unknown> | null = null;
+let mockNavigationType = 'PUSH';
+let mockPendingRestore = false;
+const mockScrollToBottom = jest.fn();
 let mockSelectedCloudId = 'cloud-a';
 let mockChannelId = 'ch1';
 // The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
@@ -44,6 +47,7 @@ jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: mockChannelId }),
     useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearchParams],
     useLocation: () => ({ state: null }),
+    useNavigationType: () => mockNavigationType,
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), info: jest.fn() }, isNative: () => false }));
@@ -269,7 +273,12 @@ jest.mock('../hooks', () => ({
     useRoomJumpPills: () => ({ pill: mockJumpPill, checkInView: jest.fn() }),
     useChatScroll: (args: Record<string, unknown>) => {
         mockChatScrollArgs = args;
-        return { containerRef: { current: null }, handleScroll: jest.fn(), hasPendingRestore: () => false };
+        return {
+            containerRef: { current: null },
+            handleScroll: jest.fn(),
+            scrollToBottom: mockScrollToBottom,
+            hasPendingRestore: () => mockPendingRestore,
+        };
     },
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
     useDmPeer: () => null,
@@ -309,6 +318,9 @@ beforeEach(() => {
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockMyJoin = null;
+    mockNavigationType = 'PUSH';
+    mockPendingRestore = false;
+    mockScrollToBottom.mockReset();
     useMessageJumpStore.setState({ target: null });
     mockGaps = [];
     mockFillGap.mockReset();
@@ -385,12 +397,38 @@ describe('ChannelRoomPage — unread on entry', () => {
         });
     });
 
-    it('draws no divider and lands nowhere when everything was read', () => {
+    it('draws no divider, lands nowhere and opens at the newest message when everything was read', () => {
         mockMyJoin = { id: 'ch1@uid-b', readNo: 14, chatNo: 14 };
         render(<ChannelRoomPage />);
 
         expect(screen.queryByRole('separator', { name: 'chat.room.unreadDivider' })).not.toBeInTheDocument();
         expect(useMessageJumpStore.getState().target).toBeNull();
+        expect(mockScrollToBottom).toHaveBeenCalled();
+    });
+
+    it('lands even with a remembered offset when entered anew, not by a back press', () => {
+        mockMyJoin = { id: 'ch1@uid-b', readNo: 12, chatNo: 12 };
+        mockPendingRestore = true;
+        render(<ChannelRoomPage />);
+
+        expect(useMessageJumpStore.getState().target).toMatchObject({ chatNo: 13, block: 'start' });
+    });
+
+    it('keeps the remembered offset on a back press', () => {
+        mockMyJoin = { id: 'ch1@uid-b', readNo: 12, chatNo: 12 };
+        mockPendingRestore = true;
+        mockNavigationType = 'POP';
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByRole('separator', { name: 'chat.room.unreadDivider' })).toBeInTheDocument();
+        expect(useMessageJumpStore.getState().target).toBeNull();
+    });
+
+    it('holds the bottom pin until it has decided where to open', () => {
+        mockChannel = { ...mockChannel, memberIds: ['peer', 'uid-b'] };
+        render(<ChannelRoomPage />);
+        // No join yet: undecided.
+        expect(mockChatScrollArgs.suppressAutoScroll).toBe(true);
     });
 
     it('keeps a jump someone asked for instead of landing on its own', () => {

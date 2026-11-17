@@ -1,7 +1,16 @@
 import { Loader2, Settings } from 'lucide-react';
-import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+    useEffect,
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigationType, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 
@@ -677,6 +686,10 @@ export const ChannelRoomPage = () => {
     // apps/web/docs/feature/channels/chat-room.md). A jump to one of its thread replies is the
     // thread page's, so it does not hold the room.
     const isJumpPending = useMessageJumpStore(s => isJumpTargetFor(s.target, stableChannelId));
+    // Until the room has decided where to open (below), the first page's bottom pin waits: it is
+    // deferred to a frame that runs after every effect, so it would undo a landing decided in the
+    // same flush. A room that decides not to land pins itself then. Only a member's room decides.
+    const [isLandingPending, setLandingPending] = useState(true);
 
     // Scrolling (following new messages to the bottom, holding a reader in history in place,
     // resize/focus correction, prefetching older pages) is owned by useChatScroll.
@@ -692,7 +705,7 @@ export const ChannelRoomPage = () => {
         isLoadingMore,
         loadMore,
         inputRef,
-        suppressAutoScroll: isJumpPending,
+        suppressAutoScroll: isJumpPending || (isLandingPending && isMember),
         // While a message is being edited: opening the edit focuses the composer and grows it, and
         // either would pin the list to the bottom, away from the message being changed.
         holdBottomPin: editing.isEditing,
@@ -797,14 +810,17 @@ export const ChannelRoomPage = () => {
     useEffect(() => {
         setUnreadDivider(null);
         setAwayFromCursor(undefined);
+        setLandingPending(true);
     }, [stableChannelId]);
-    // A visit that returns to a remembered offset, or that opens on a message someone asked for (a
-    // search hit, a notification, a push), keeps that position: the room lands on its own only when
-    // nothing else decided where to look. Read in a layout effect, after the restore claim is taken
-    // and before anything spends it.
+    // A return (a back press) to a remembered offset, or a visit that opens on a message someone asked
+    // for (a search hit, a notification, a push), keeps that position: the room lands on its own only
+    // when nothing else decided where to look. A remembered offset alone does not count — every room
+    // visited before has one, and coming back in from the home list is a fresh look at what is new.
+    // Read in a layout effect, after the restore claim is taken and before anything spends it.
+    const navigationType = useNavigationType();
     useLayoutEffect(() => {
         entryRef.current.skipLanding =
-            hasPendingScrollRestore() ||
+            (navigationType === 'POP' && hasPendingScrollRestore()) ||
             isJumpTargetFor(useMessageJumpStore.getState().target, stableChannelId) ||
             searchParams.has('chatNo');
         // Once per visit: the channel id names the visit.
@@ -837,10 +853,8 @@ export const ChannelRoomPage = () => {
             entry.count = unreadOf(channel, myJoin);
         }
         if (messages.length === 0) return;
-        if (entry.count <= 0) {
-            entry.decided = true;
-            return;
-        }
+        // Decided by the rows, not by the badge alone: the channel row's head can lag the messages
+        // the chat sync has already cached, and a badge of 0 would then hide unread rows on screen.
         let at = unreadEntryOf(messages, entry.cursor, hasMore && !entry.widened);
         if (at.kind === 'unknown') {
             // The first unread row may be cached above the window: widen once, and decide on the
@@ -850,18 +864,28 @@ export const ChannelRoomPage = () => {
             at = unreadEntryOf(messages, entry.cursor, false);
         }
         entry.decided = true;
-        if (at.kind !== 'at') return;
-        setUnreadDivider({ chatNo: at.chatNo, count: entry.count });
+        setLandingPending(false);
+        if (at.kind !== 'at') {
+            // Nothing unread: open at the newest message, as the pin held above would have.
+            if (!entry.skipLanding) scrollChatToBottom();
+            return;
+        }
+        const cursor = entry.cursor;
+        const drawn = messages.filter(
+            message => !message.isOwner && !message.isSystem && (message.chatNo ?? 0) > cursor
+        ).length;
+        setUnreadDivider({ chatNo: at.chatNo, count: Math.max(entry.count, drawn) });
         if (entry.skipLanding) return;
+        // Either way the reader starts above unread messages, so the latest pill counts them.
+        setAwayFromCursor(entry.cursor);
         if (firstMentionNo !== undefined && firstMentionNo >= at.chatNo) {
             useMessageJumpStore.getState().request(stableChannelId, firstMentionNo);
             return;
         }
-        setAwayFromCursor(entry.cursor);
         useMessageJumpStore
             .getState()
             .request(stableChannelId, at.chatNo, { highlight: false, block: 'start', quiet: true });
-    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo]);
+    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo, scrollChatToBottom]);
 
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();
@@ -1462,8 +1486,15 @@ export const ChannelRoomPage = () => {
                                             key={dateKey}
                                             data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
                                             // The row the room lands on keeps the unread divider
-                                            // above it in view when it is scrolled to the top.
-                                            className="flex flex-col-reverse gap-3 [&_[data-chat-no]:has(+[data-unread-divider])]:scroll-mt-12"
+                                            // above it in view when it is scrolled to the top: the
+                                            // list runs under the header, so the margin is the
+                                            // header, then the divider and the gap around it.
+                                            className="flex flex-col-reverse gap-3 [&_[data-chat-no]:has(+[data-unread-divider])]:scroll-mt-[var(--unread-divider-margin)]"
+                                            style={
+                                                {
+                                                    '--unread-divider-margin': `${headerHeight + 56}px`,
+                                                } as CSSProperties
+                                            }
                                         >
                                             {withGapDividers(
                                                 reversedMessages,

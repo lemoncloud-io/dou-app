@@ -26,6 +26,7 @@ jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
     useSearchParams: () => [new URLSearchParams(), jest.fn()],
     useLocation: () => ({ state: null }),
+    useNavigationType: () => 'PUSH',
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), info: jest.fn() }, isNative: () => false }));
