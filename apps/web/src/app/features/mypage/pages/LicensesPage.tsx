@@ -6,6 +6,7 @@ import { host } from '@chatic/host';
 import { appBridge } from '../../../bridge';
 
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 
 const GITHUB_URL = 'https://github.com/lemoncloud-io/dou-app';
 
@@ -129,6 +130,7 @@ export const LicensesPage = () => {
                         )}
                     </div>
                 </div>
+                <SafeAreaBottomSpacer />
             </div>
         </div>
     );

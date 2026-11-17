@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { type SupportedLanguage, TERMS_CONTENTS } from '../consts';
 
 export const TermsPage = () => {
@@ -38,6 +39,7 @@ export const TermsPage = () => {
                         ))}
                     </div>
                 </div>
+                <SafeAreaBottomSpacer />
             </div>
         </div>
     );

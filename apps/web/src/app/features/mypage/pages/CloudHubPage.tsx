@@ -9,6 +9,7 @@ import { IconChevronRight, IconSpinner, ListRow, MenuCard } from '@chatic/web-ui
 
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { canRetryCloudSetup, cloudDisplayName, isCloudEnterable, resolveCloudRowState } from '../../../utils';
 import { CloudIdentity } from '../components/CloudIdentity';
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
@@ -105,6 +106,7 @@ export const CloudHubPage = () => {
                     )}
                 </div>
             )}
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

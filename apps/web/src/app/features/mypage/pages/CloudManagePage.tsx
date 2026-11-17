@@ -7,6 +7,7 @@ import { Button, Divider, IconPlus, IconSpinner, PromoBanner } from '@chatic/web
 import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { CloudManageBanner, CurrentPlanCard, useCloudManageScene, useCloudQuota } from '../../subscription';
 import { CloudManageRow } from '../components/CloudManageRow';
 import { SectionLabel } from '../components/SectionLabel';
@@ -134,6 +135,7 @@ export const CloudManagePage = () => {
                 <PageHeader title={t('mypage.cloudManage.title')} />
             </div>
             {body}
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

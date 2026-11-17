@@ -5,6 +5,7 @@ import { ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { useDevicePushMute } from '../hooks';
 import { useBlurLastMessage } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { haptics } from '../../../bridge/haptics';
 
 /**
@@ -60,6 +61,7 @@ export const NotificationSettingsPage = () => {
                     />
                 </MenuCard>
             </div>
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

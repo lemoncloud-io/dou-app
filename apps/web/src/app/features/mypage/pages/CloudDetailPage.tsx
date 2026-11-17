@@ -18,6 +18,7 @@ import { cloudDisplayName } from '../../../utils';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { haptics } from '../../../bridge/haptics';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { CloudIdentity } from '../components/CloudIdentity';
 import { useDeleteCloud } from '../hooks/useDeleteCloud';
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
@@ -152,6 +153,7 @@ export const CloudDetailPage = () => {
                 destructive
                 onConfirm={() => void release()}
             />
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

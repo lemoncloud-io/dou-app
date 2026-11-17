@@ -8,6 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { IconChevronRight, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { ChannelSortSheet } from '../components/ChannelSortSheet';
 import { ROUTES } from '../../../routes/paths';
 import { HOME_PLACE_ID } from '../../../utils/resolvePlaceDisplayName';
@@ -97,6 +98,7 @@ export const PlaceSettingsHubPage = () => {
                         onClick={placeId ? go(ROUTES.place.settingsChannels(placeId)) : undefined}
                     />
                 </MenuCard>
+                <SafeAreaBottomSpacer />
             </div>
 
             <ChannelSortSheet open={isSortSheetOpen} onOpenChange={setIsSortSheetOpen} placeId={placeId} />

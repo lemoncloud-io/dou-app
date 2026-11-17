@@ -10,6 +10,7 @@ import { openSubWebView, resolveSubWebViewAppUrl } from '../../../bridge';
 import { haptics } from '../../../bridge/haptics';
 import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { isDevBuild } from '../../../utils/buildEnv';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { MiniAppCard } from '../components/MiniAppCard';
@@ -155,6 +156,7 @@ export const LabPage = () => {
                 onSubmit={submitCode}
                 onCancel={cancelChallenge}
             />
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

@@ -15,6 +15,7 @@ import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks
 import { useOnboarding, useTheme } from '../../../hooks';
 import { useAppUpdateStatus } from '../../appUpdate';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { ROUTES } from '../../../routes/paths';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
@@ -247,6 +248,7 @@ export const SettingsPage = () => {
                 availableIcons={availableIcons}
                 onSelectIcon={selectIcon}
             />
+            <SafeAreaBottomSpacer />
         </div>
     );
 };
