@@ -1,5 +1,6 @@
-import { defineShell } from '@lemoncloud/hybrid-shell';
+import { defineShell, presets } from '@lemoncloud/hybrid-shell';
 
+import { withCheckoutDeclaration } from './apps/shell-adapter/src/checkout';
 import { deepLinkNavigation, pushTapNavigation } from './apps/shell-adapter/src/routes';
 import type { DouEvents, DouMethods } from './apps/shell-adapter/src/types';
 
@@ -7,12 +8,20 @@ const BACKEND_ENV_SOURCE =
     'download it from the team secrets repository, where it sits at the same path (ONBOARDING.md § Env and Firebase files)';
 
 /**
+ * The app's own protocol, plus what this shell declares it can do. Its globals are the built-in
+ * preset's, followed by `CHATIC_APP_CAPABILITIES` for the checkout a person picked (`DOU_SHELL_CHECKOUT`,
+ * or `dou.checkout` in the shell's store) — nothing when none was picked, so the web answers as it does
+ * for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
+ */
+const douPreset = withCheckoutDeclaration(presets.appBridgeHost);
+
+/**
  * `yarn local`: the web in the virtual mobile shell (`@lemoncloud/hybrid-shell`), or the web alone, or
  * the simulator run. What each part means is in `apps/shell-adapter/README.md`.
  */
 export default defineShell<DouMethods, DouEvents>({
     app: { name: 'chatic', displayName: 'DoU' },
-    preset: 'app-bridge-host',
+    preset: douPreset,
     web: {
         // Vite straight from the web's folder: `nx serve` would add its own process tree, which a stop
         // has to reach through.

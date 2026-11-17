@@ -21,7 +21,8 @@ legacy rule). A feature reads `host.ports.<port>` where it uses it.
 A shell that declares nothing is answered as before: a bridge means a store — Apple's when the injected
 platform is `ios`, Google's otherwise — and no bridge means the website. A declaration
 (`CHATIC_APP_CAPABILITIES.checkout`) can say otherwise, which is what lets a development shell with a
-bridge check the website's checkout.
+bridge check the website's checkout — the virtual shell's `DOU_SHELL_CHECKOUT`
+([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)).
 
 **A purchase settles from the shell's events, not from its reply.** `Purchase` is posted; the shell
 pushes `OnPurchaseSuccess` or `OnPurchaseError` later. `storeCheckout` listens to both for as long as

@@ -16,6 +16,7 @@ yarn local --mode native            # the simulator run, unchanged (yarn mobile:
 yarn local --mode native --platform android
 yarn local --check                  # what it would do, and what is missing; starts nothing
 yarn local:pair                     # the dev shell in its own window, signed in from a phone (below)
+DOU_SHELL_CHECKOUT=web yarn local   # the shell declares how it sells (§ Checkout): web, apple, google, none
 ```
 
 An unnamed backend is dev. Before it starts anything it checks what it needs; a missing env file is
@@ -68,7 +69,7 @@ This table is the reference. Adding an imitation changes it in the same commit.
 | Push token (`FetchFcmToken`)                                                             | **Refused.** Named as `push.token`, which the shell never answers, so the web registers no device: a fake token would put a fake device on the server                     |
 | App badge (`SetBadgeCount`)                                                              | **Recorded and shown** beside the phone and in `status().badge`. There is no OS badge                                                                                     |
 | Photos, camera, file save, contacts, SMS, app icon, app update, haptics, file transfer   | **Not imitated.** No handler answers them: the panel asks for 5 seconds, then the request fails, which the web reads as an older app and falls back where it has one      |
-| In-app purchase                                                                          | **Not imitated** — on prod a receipt check would reach the real server                                                                                                    |
+| In-app purchase                                                                          | **Imitated on dev only, when picked** (§ Checkout): a virtual store with a fake price and a fake receipt the dev server refuses. Otherwise refused at once and logged     |
 | Input: user agent, pointer, touch                                                        | **Not imitated.** The frame keeps the desktop browser's: Enter sends instead of adding a line, and focus does not scroll into view. Check those in the native mode        |
 
 Every request the shell does not answer is logged as `unsupported` and shown as a notice beside the
@@ -81,6 +82,35 @@ A fresh browser profile starts on the app's onboarding, which holds a link until
 once and the settings above keep it done.
 
 The web dev server sets no Content-Security-Policy, so nothing is stripped for the shell's frame.
+
+## Checkout
+
+The shell declares how it sells, in `CHATIC_APP_CAPABILITIES.checkout`, the way an app declares what it
+can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-ports.md`). Pick it with
+`DOU_SHELL_CHECKOUT` when starting the shell:
+
+| `DOU_SHELL_CHECKOUT` | The shell declares    | The web                                                                                                    |
+| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| (unset)              | nothing               | answers as for an app built before declarations: a store, Apple's on an iPhone preset, Google's on Android |
+| `web`                | `checkout: ['web']`   | hands every way into the plan picker to the website's checkout, as a browser tab does                      |
+| `apple`, `google`    | `checkout: [<store>]` | sells through that store — the virtual store below                                                         |
+| `none`               | `checkout: []`        | sells nothing                                                                                              |
+
+A choice kept under `dou.checkout` in the shell's store wins over the variable and applies from the next
+launch; nothing writes it yet. `src/checkout.ts` holds the choice and the declaration; the wrapped
+preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
+
+**The virtual store answers on dev only, and only when a store was picked.** Its catalog has one product
+per SKU the mobile app sells on dev — read from `apps/mobile/.env.dev` and no other file, as the app's
+dev build reads it, so the server's plans join it as they join the real store's — each priced
+`₩0 (virtual store)`. Without that file the catalog is empty, the plan cards show no price, and the
+shell logs why. A purchase succeeds at once with a
+`virtual-receipt-…` token; the web then asks the dev server to validate it, which refuses, and the web
+shows that refusal. So the store path can be followed from the price to that refusal, never further.
+Finishing and listing held purchases work on what the virtual store sold since the page loaded; opening
+the store's subscription management is not imitated. On prod, or with no store picked, every store call
+is refused at once as unsupported — a purchase also gets `OnPurchaseError`, so the web does not wait a
+minute for a sheet that is not there.
 
 ## Sign-in
 
