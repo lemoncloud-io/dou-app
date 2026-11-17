@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-11-17] - root@0.166.1, @chatic/desktop-web@0.59.1
+
+### Features
+
+- (web,desktop-web) move links, appShell, signIn, diagnostics and push onto ports (ADR-0324)
+- (host) add the links, appShell, signIn, diagnostics and push ports (ADR-0324 v4)
+
+### Other
+
+- test: (desktop-web) drive the sender-name spec through the push port
+
 ## [2026-11-17] - No version updates
 
 ### Features
