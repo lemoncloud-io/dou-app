@@ -9,6 +9,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     Hint,
+    chatSenderName,
     lastChatNoOf,
     messagePreview,
     outgoingMessagePreview,
@@ -174,7 +175,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
             {
                 root: {
                     preview: messagePreview(root),
-                    ownerName: root.owner$?.name || names.get(root.ownerId ?? '') || '',
+                    ownerName: chatSenderName(root, channel.sid, viewer) || names.get(root.ownerId ?? '') || '',
                 },
             }
         );

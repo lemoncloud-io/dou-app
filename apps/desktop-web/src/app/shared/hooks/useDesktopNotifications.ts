@@ -8,7 +8,7 @@ import { runtime } from '@chatic/app-runtime';
 import { host } from '@chatic/host';
 
 import { usePlaces } from './usePlaces';
-import { useChannelChatFeeds, type ChannelChatFeed, type ChannelLastChat } from './useChannelChatFeeds';
+import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import {
     buildOpenDeeplink,
     isNamedByRecord,
@@ -20,6 +20,7 @@ import {
     resolveMyMentionNames,
     messagePlainText,
     messagePreview,
+    chatSenderName,
     type MentionKind,
 } from '../utils';
 import {
@@ -35,8 +36,8 @@ import {
 // its kind first (`Mention · #name`, `@all · #name`); DMs and non-mentions keep the
 // old title. Translated at notify time via i18next, not a render-captured `t` —
 // the feed callback outlives the render that registered it.
-const notificationTitle = (channel: DomainChannel, latest: ChannelLastChat, kind: MentionKind | null): string => {
-    const target = channel.name ? `#${channel.name}` : (latest.owner$?.name ?? 'New message');
+const notificationTitle = (channel: DomainChannel, sender: string, kind: MentionKind | null): string => {
+    const target = channel.name ? `#${channel.name}` : sender || 'New message';
     if (isNotifyDm(channel)) return target;
     if (kind === 'direct') return i18next.t('notification.mentionTitle', { target });
     if (kind === 'everyone') {
@@ -134,14 +135,14 @@ export const useDesktopNotifications = (): void => {
         if (notifyMode === 'mention' && kind === null) return;
 
         // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
-        // title already is the sender, so don't repeat it. Matches the cross-cloud banner.
-        const sender = chat.owner$?.name;
+        // title already is the sender, so don't repeat it. The sender is named as the feed names them.
+        const sender = chatSenderName(chat, placeId);
         const body = messagePreview(chat);
         void webClient
             .request({
                 type: 'ShowNotification',
                 data: {
-                    title: notificationTitle(channel, chat, kind),
+                    title: notificationTitle(channel, sender, kind),
                     body: channel.name && sender ? `${sender}: ${body}` : body,
                     channelId: channel.id,
                     // Clicking the notification routes here (place + channel, + thread root).

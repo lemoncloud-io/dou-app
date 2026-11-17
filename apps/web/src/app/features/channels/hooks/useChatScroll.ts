@@ -330,7 +330,7 @@ export const useChatScroll = ({
         checkLoadMore();
     }, [restorationOnScroll, containerRef, captureView, checkLoadMore]);
 
-    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom };
+    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom, hasPendingRestore };
 };
 
 /** Whether `id` is in the list, scanned from the end — where a message that was the latest still sits. */

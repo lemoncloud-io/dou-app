@@ -2,6 +2,34 @@
 
 ## [2026-11-17] - No version updates
 
+### Bug Fixes
+
+- (web/home) show the home banners under the chat tabs, above the rooms
+- (web/home) put the missing-profile banner under a cloud's place chips, not above them
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/channels) stop a room jump from reading the previous room's channel, joins and chats
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) open a room at my first unread message, below an unread divider
+- (web-ui-kit) add the unread divider, a red label between light-red rules
+
+### Bug Fixes
+
+- (web/channels) land on the first unread message for real, below the header
+
+### Chores
+
+- (block-kit-builder) restore a spec file the merge's lint hook reformatted
+
+## [2026-11-17] - No version updates
+
 ### Features
 
 - (host,web) pick attachments through the media port, not isNative() (ADR-0324)

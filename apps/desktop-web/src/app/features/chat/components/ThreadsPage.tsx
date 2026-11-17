@@ -5,13 +5,16 @@ import { MessagesSquare } from 'lucide-react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
 import { cn } from '@chatic/ui-kit';
+import { runtime } from '@chatic/app-runtime';
 
 import {
     PANE_HEADER,
     formatListTime,
     isThreadUnread,
     messagePreview,
+    senderNameIn,
     threadsInScope,
+    usePlaceProfilesStore,
     toastFailure,
     useMyThreadsStore,
     useNotificationsPanelStore,
@@ -53,19 +56,19 @@ const SEEN_DWELL_MS = 1000;
 
 interface ReplyLineProps {
     message: DomainChat;
+    /** The author, as the card names them. */
+    author: string;
     /** A failed row of mine offers what the room's row does: send again, or drop it. */
     onRetry?: () => void;
     onDiscard?: () => void;
 }
 
-const ReplyLine = ({ message, onRetry, onDiscard }: ReplyLineProps) => {
+const ReplyLine = ({ message, author, onRetry, onDiscard }: ReplyLineProps) => {
     const { t } = useTranslation();
     return (
         <div className={cn('flex flex-col gap-0.5', message.isPending && 'opacity-60')}>
             <span className="flex items-baseline gap-2">
-                <span className="truncate text-caption font-semibold text-foreground">
-                    {message.owner$?.name ?? ''}
-                </span>
+                <span className="truncate text-caption font-semibold text-foreground">{author}</span>
                 {message.createdAt !== undefined && (
                     <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
                         {formatListTime(message.createdAt)}
@@ -96,6 +99,11 @@ const ReplyLine = ({ message, onRetry, onDiscard }: ReplyLineProps) => {
 
 const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadCardProps) => {
     const { t } = useTranslation();
+    const profiles = usePlaceProfilesStore(s => (thread.placeId ? s.bySid[thread.placeId] : undefined));
+    // The thread's channel is not listed here, so my cloud id there is unknown: a persisted message of
+    // mine is still found under its owner id, and an optimistic one under my account id.
+    const { userId: myUid } = runtime.session.useSessionIdentity();
+    const authorOf = (message: DomainChat) => senderNameIn(message, profiles, { uid: myUid, name: '' });
     const markSeen = useMyThreadsStore(s => s.markSeen);
     const ref = useRef<HTMLElement>(null);
     // Read a little ahead of the screen so a card is filled by the time it scrolls in — once: scrolling
@@ -165,7 +173,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 reactionEvents={reactionEvents}
                             />
                         ) : (
-                            <ReplyLine message={state.root} />
+                            <ReplyLine message={state.root} author={authorOf(state.root)} />
                         )
                     ) : (
                         <p className="text-caption text-muted-foreground">
@@ -193,6 +201,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 <ReplyLine
                                     key={reply.id ?? reply.tempId ?? reply.chatNo}
                                     message={reply}
+                                    author={authorOf(reply)}
                                     onRetry={() => settle(retryMessage(reply))}
                                     onDiscard={() => settle(discardMessage(reply))}
                                 />

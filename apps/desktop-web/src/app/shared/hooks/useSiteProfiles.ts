@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { type PlaceProfileEntry, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
+import { type PlaceProfileEntry, toProfileMap, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
 import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';
 
 /**
@@ -38,11 +38,7 @@ export const useSiteProfiles = (): void => {
         reset();
         if (!selectedPlaceId) return;
         const unsubscribe = profileRepository.observeList({ sid: selectedPlaceId }, result => {
-            const next: Record<string, PlaceProfileEntry> = {};
-            for (const item of result?.list ?? []) {
-                if (item.uid) next[item.uid] = { nick: item.nick, thumbnail: item.thumbnail };
-            }
-            setAll(next);
+            setAll(toProfileMap(result?.list));
         });
         return unsubscribe;
     }, [profileRepository, selectedPlaceId, setAll, reset]);

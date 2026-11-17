@@ -148,6 +148,25 @@ read and not the React state, so one join write produced three callbacks and thr
 The screen subscribes once and passes `joins` down — `useChannelMembers` takes them as a
 parameter rather than opening its own observer.
 
+### An observer answers only for the channel it was asked about
+
+The room screen stays mounted when it moves straight from one room to another — a push toast, a
+search jump, a link inside a room. The render that carries the new `channelId` runs before the
+observers' effects re-subscribe, so their state still describes the previous room — the channel row
+for that one render, the join rows until the new room's observer first emits. Read under the new
+id, that state paired the new room with the old room's roster and join rows: the room
+registered `<new channelId>@<old member>` join targets, each of them answered 404 twice, and the
+sync engine logged every one as `sync target stopped — join, local rows dropped` — typically on the
+next send, whose sync nudge is what repeats the poll. The message window did the same to the read
+marker: the previous room's newest `chatNo` went out as the new room's read, and the server refused
+it as an overflow.
+
+So `useChannel`, `useChannelJoins` and `useChats` keep the id their state belongs to, and a render
+whose id differs answers as a fresh mount would: no channel and still loading (a matching `seed` is
+still shown), no join rows, no messages and still loading. "Still loading" rather than "nothing" matters — the room reads a resolved
+absence as a removal and leaves. Entering a room from the home list mounts a new screen and never
+had this window.
+
 ### `myJoin`, never `channel.$join`
 
 `channel.$join` is a projection and lags the join cache. Anything that has to reflect a write

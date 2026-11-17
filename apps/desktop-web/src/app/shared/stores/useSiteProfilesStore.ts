@@ -6,6 +6,17 @@ export interface PlaceProfileEntry {
     thumbnail?: string;
 }
 
+/** A profile-cache answer as the uid → override map both profile stores hold. */
+export const toProfileMap = (
+    list: ReadonlyArray<{ uid?: string; nick?: string; thumbnail?: string }> | undefined
+): Record<string, PlaceProfileEntry> => {
+    const map: Record<string, PlaceProfileEntry> = {};
+    for (const item of list ?? []) {
+        if (item.uid) map[item.uid] = { nick: item.nick, thumbnail: item.thumbnail };
+    }
+    return map;
+};
+
 interface SiteProfilesState {
     /** uid → active Place Profile for the CURRENT place. Absence = use Global. */
     profiles: Record<string, PlaceProfileEntry>;

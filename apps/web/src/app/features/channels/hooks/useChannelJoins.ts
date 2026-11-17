@@ -14,6 +14,9 @@ export interface ChannelJoins {
     cursorByUser: Map<string, number>;
 }
 
+/** One empty list for every "nothing yet", so the hook's derived memos keep their identity. */
+const NO_JOINS: DomainJoin[] = [];
+
 /**
  * The join (membership + read-state) rows for one channel — ONE subscription, four readings.
  *
@@ -41,14 +44,25 @@ export const useChannelJoins = (channelId: string | null): ChannelJoins => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { userId } = runtime.session.useSessionIdentity();
 
-    const [joins, setJoins] = useState<DomainJoin[]>([]);
+    // The rows are kept with the channel they were observed for. When the id changes, the previous
+    // room's rows used to stay in place until the new room's observer first emitted — from the
+    // render carrying the new id onwards. Read under the new id they made "my join" and the read
+    // cursors of another room, and the screen registered join targets for members this room does
+    // not have. A late callback from the old subscription cannot overwrite the new room either.
+    const [observed, setObserved] = useState<{ channelId: string | null; list: DomainJoin[] }>({
+        channelId,
+        list: NO_JOINS,
+    });
+    const joins = observed.channelId === channelId ? observed.list : NO_JOINS;
 
     useEffect(() => {
         if (!channelId) {
-            setJoins([]);
+            setObserved({ channelId, list: NO_JOINS });
             return;
         }
-        return joinRepository.observeList({ channelId, activeOnly: false }, result => setJoins(result?.list ?? []));
+        return joinRepository.observeList({ channelId, activeOnly: false }, result =>
+            setObserved({ channelId, list: result?.list ?? NO_JOINS })
+        );
     }, [joinRepository, channelId]);
 
     const myJoin = useMemo(

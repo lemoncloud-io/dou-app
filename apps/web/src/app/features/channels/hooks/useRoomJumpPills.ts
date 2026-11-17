@@ -76,6 +76,7 @@ export const useRoomJumpPills = ({
     isAwayFromBottom,
     scrollToBottom,
     readCursor,
+    awayFromCursor,
 }: {
     channelId: string;
     messages: readonly ClientChatView[];
@@ -84,6 +85,12 @@ export const useRoomJumpPills = ({
     scrollToBottom: (smooth?: boolean) => void;
     /** The room's read cursor as the page has it; undefined until its join is known. */
     readCursor?: number;
+    /**
+     * Set when the room itself sent the reader up on entry, to their first unread message: the
+     * "latest" count of that first stay away from the bottom then runs from this cursor, so it says
+     * how many unread messages are below, not how many arrived since the landing (none yet).
+     */
+    awayFromCursor?: number;
 }) => {
     const cloudId = useSelectedCloudId();
     const roomKey = notificationRoomKey(cloudId, channelId);
@@ -151,7 +158,7 @@ export const useRoomJumpPills = ({
     // The newest message when the reader left the bottom; what arrives after it is "latest".
     const leftAt = useRef<number | null>(null);
     const newestChatNo = messages.length > 0 ? (messages[messages.length - 1].chatNo ?? 0) : 0;
-    if (isAwayFromBottom && leftAt.current === null) leftAt.current = newestChatNo;
+    if (isAwayFromBottom && leftAt.current === null) leftAt.current = awayFromCursor ?? newestChatNo;
     if (!isAwayFromBottom) leftAt.current = null;
     const latestCount = useMemo(
         () => (isAwayFromBottom && leftAt.current !== null ? newMessagesSince(messages, leftAt.current) : 0),
@@ -170,5 +177,8 @@ export const useRoomJumpPills = ({
               ? ({ variant: 'latest', count: latestCount, onClick: jumpToLatest } as const)
               : null;
 
-    return { pill, checkInView };
+    // The oldest unread mention taken at entry — where the room lands when it opens on one.
+    const firstMentionNo = mentions[0]?.chatNo;
+
+    return { pill, checkInView, firstMentionNo };
 };
