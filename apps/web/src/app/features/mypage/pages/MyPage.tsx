@@ -4,10 +4,11 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 
+import { cn } from '@chatic/ui-kit';
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
 import { BottomNavSpacer } from '../../../ui/components';
-import { useIsAccountGuest, useMyUser } from '../../../hooks';
+import { useIsAccountGuest, useMyUser, useScrollChrome } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
@@ -42,6 +43,9 @@ export const MyPage = () => {
     // An app guest signs in before buying, so the row waits for an account. A browser guest is handed
     // to the website like anyone else — it signs the buyer in itself — so the row is there too.
     const canOpenSubscription = !isGuest || !appSignsIn;
+    // The same chrome as the other tabs: once the cards pass under the header it gains its divider
+    // and the title steps down, so the three tabs read alike as they scroll.
+    const { scrolled, track: trackScroll } = useScrollChrome();
 
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
@@ -66,9 +70,30 @@ export const MyPage = () => {
     return (
         // Trailing clearance for the floating nav comes from BottomNavSpacer at the end of the
         // content, not from padding on this container — see BottomNavSpacer for why.
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-safe-top">
-            <header className="flex items-center justify-between px-4 py-3">
-                <h1 className="text-[22px] font-bold tracking-[-0.11px] text-foreground">{t('mypage.title')}</h1>
+        <div
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background"
+            onScroll={event => trackScroll(event.currentTarget)}
+        >
+            {/* The page is the scrollport, so the header sticks, and it carries the safe-area inset
+                itself: on the container, the inset would scroll away and leave the cards passing
+                under the status bar. The border is always there and only changes colour, so the bar
+                never moves by a pixel; the 36px gear sets its height, so the smaller title does not
+                shrink it either. */}
+            <header
+                className={cn(
+                    'sticky top-0 z-20 flex shrink-0 items-center justify-between border-b bg-background px-4 pb-3 pt-[calc(var(--safe-top,0px)+0.75rem)] transition-colors duration-200 motion-reduce:transition-none',
+                    scrolled ? 'border-input-border' : 'border-transparent'
+                )}
+            >
+                <h1
+                    data-compact={scrolled}
+                    className={cn(
+                        'font-bold tracking-[-0.11px] text-foreground transition-[font-size] duration-200 ease-out motion-reduce:transition-none',
+                        scrolled ? 'text-[20px]' : 'text-[22px]'
+                    )}
+                >
+                    {t('mypage.title')}
+                </h1>
                 <button
                     onClick={() => navigate(ROUTES.mypage.settings.root)}
                     aria-label={t('mypage.settings.openLabel')}

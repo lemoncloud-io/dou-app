@@ -7,6 +7,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
 
+import { haptics } from '../../../bridge/haptics';
+
 /**
  * Device-global push mute toggle state + writer. There is no standalone `muted` read endpoint, so
  * the displayed state comes from `ui.pushMuted` (`@chatic/config`, default OFF = notifications ON).
@@ -42,6 +44,7 @@ export const useDevicePushMute = () => {
             onSuccess: confirmedMuted => setPushMuted(confirmedMuted), // reconcile to the server value
             onError: () => {
                 setPushMuted(prevMuted); // rollback the optimistic flip
+                haptics.play('error');
                 toast({ title: t('mypage.push.updateFailed'), variant: 'destructive' });
             },
         });

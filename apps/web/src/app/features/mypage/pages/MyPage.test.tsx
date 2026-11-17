@@ -1,3 +1,5 @@
+import '@testing-library/jest-dom';
+
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import { MyPage } from './MyPage';
@@ -35,7 +37,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ),
 }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => null }));
-jest.mock('../../../hooks', () => ({ useIsAccountGuest: () => mockGuest, useMyUser: () => ({ name: 'me' }) }));
+jest.mock('../../../hooks', () => ({
+    useIsAccountGuest: () => mockGuest,
+    useMyUser: () => ({ name: 'me' }),
+    useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
+}));
 jest.mock('../../auth/hooks', () => ({ useNavigateToLogin: () => jest.fn() }));
 
 beforeEach(() => {
@@ -125,5 +131,27 @@ describe('MyPage — secondary device', () => {
         mockNative = false;
         render(<MyPage />);
         expect(screen.queryByTestId('mypage-secondary-device')).toBeNull();
+    });
+});
+
+describe('MyPage — header as the cards scroll', () => {
+    it('steps the title down and draws the divider once the cards move, and undoes both at the top', () => {
+        const { container } = render(<MyPage />);
+        const title = screen.getByRole('heading', { level: 1 });
+        const header = container.querySelector('header') as HTMLElement;
+        const page = container.querySelector('.overflow-y-auto') as HTMLElement;
+
+        expect(title).toHaveAttribute('data-compact', 'false');
+        expect(header).toHaveClass('border-transparent');
+
+        page.scrollTop = 40;
+        fireEvent.scroll(page);
+        expect(title).toHaveAttribute('data-compact', 'true');
+        expect(header).toHaveClass('border-input-border');
+
+        page.scrollTop = 0;
+        fireEvent.scroll(page);
+        expect(title).toHaveAttribute('data-compact', 'false');
+        expect(header).toHaveClass('border-transparent');
     });
 });

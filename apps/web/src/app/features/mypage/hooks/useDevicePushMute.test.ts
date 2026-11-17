@@ -31,6 +31,9 @@ jest.mock('@chatic/config/react', () => ({
     useConfigValue: () => mutedState,
 }));
 
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
+
 const updateRemotePushMuteMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: new QueryClient() }, children);
@@ -62,6 +65,7 @@ describe('useDevicePushMute', () => {
         // The relay destination is pinned inside the data layer (DeviceSocketDataSource), so the
         // hook passes only the value.
         expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true);
+        expect(mockHaptic).not.toHaveBeenCalled();
     });
 
     it('네이티브 셸이 아니면 isSupported=false, 셸이면 true (push 디바이스 존재 여부와 동일 신호)', () => {
@@ -92,5 +96,6 @@ describe('useDevicePushMute', () => {
         expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
         expect(setPushMutedMock).toHaveBeenNthCalledWith(2, false);
         expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+        expect(mockHaptic.mock.calls).toEqual([['error']]);
     });
 });
