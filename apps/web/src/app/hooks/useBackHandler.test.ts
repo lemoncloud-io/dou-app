@@ -3,19 +3,19 @@ import { renderHook } from '@testing-library/react';
 import { appBridge } from '../bridge';
 import { useBackHandler } from './useBackHandler';
 
-// `useNavigate` is reached through `useStackBack`, which this hook now delegates its judgement to;
-// the real router is not stood up here because the judgement has its own suite.
+// The rewind is reached through `useStackBack`, which this hook delegates its judgement to; the real
+// router is not stood up here because the judgement has its own suite.
 jest.mock('react-router-dom', () => ({
     useLocation: () => ({ pathname: '/', key: 'default' }),
-    useNavigate: () => navigate,
 }));
+jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/bridges', () => ({ isNative: () => isNativeValue }));
 jest.mock('../bridge', () => ({
     appBridge: { setCanGoBack: jest.fn() },
     useOnBackPressed: jest.fn(),
 }));
 
-const navigate = jest.fn();
+const navigate = jest.fn((_to: number) => Promise.resolve());
 let isNativeValue = false;
 
 /**
@@ -40,6 +40,8 @@ describe('useBackHandler — the back press judgement', () => {
         jest.restoreAllMocks();
         document.body.innerHTML = '';
         isNativeValue = false;
+        // Lands any rewind an earlier case left in flight, so each case reads the depth it set.
+        for (let i = 0; i < 5; i++) window.dispatchEvent(new PopStateEvent('popstate'));
         withStackDepth(0);
     });
 

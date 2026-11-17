@@ -3,10 +3,12 @@
  *
  * This file is the whole of what the rest of the app may use. The module is several files because
  * the split is load-bearing, not because the concern is: only `useStackNavigate` and `useStackBack`
- * may touch the router, and everything else is pure. A grep over this directory is what enforces
- * that, and it only works while those are separate files. Importing a concrete path from outside
- * bypasses nothing, but it does tie a caller to an arrangement that exists for the module's sake
- * rather than the caller's — so callers come through here.
+ * may touch the router, and everything else stays off it. A grep over this directory is what enforces
+ * that, and it only works while those are separate files. The grep is for `react-router-dom` and for
+ * `useNavigateWithTransition`, which is how `useStackBack` reaches the router to play the back page
+ * transition. Importing a concrete path from outside bypasses nothing, but it does tie a caller to an
+ * arrangement that exists for the module's sake rather than the caller's — so callers come through
+ * here.
  *
  * The three questions it answers, and nothing else:
  *

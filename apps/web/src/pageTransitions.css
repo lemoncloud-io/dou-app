@@ -1,0 +1,101 @@
+/*
+ * Android's page transition: Material's shared axis X, replacing @lemoncloud/page-transition-core's
+ * "lift" for the `.android` class that package puts on <html> while a transition runs.
+ *
+ * The lift moved both screens 30px vertically and faded them simultaneously, so the middle of every
+ * transition showed the two screens double-exposed at half opacity, and vertical motion is not what
+ * Android itself does between a screen and the one it opens. Shared axis X is: the incoming screen
+ * enters 30px from the side it is coming from while the outgoing one leaves 30px the other way, and
+ * the fade is a fade-through — the outgoing screen is gone by 35% of the duration and only then does
+ * the incoming one appear — so no frame shows both. Back runs the same axis the other way.
+ *
+ * Movement and opacity are separate animations because a keyframe stop inside one animation would
+ * restart its easing at that stop, and the slide has to ease once from start to end. Duration and
+ * easing keep the package's lift variables (450ms, Material's emphasized curve), so a per-navigation
+ * `customization` still overrides them through the same properties.
+ *
+ * This file is imported right after the package's stylesheet; the selectors are the package's own,
+ * so it is that order — not specificity — that makes these rules win. Reduced motion stays the
+ * package's: its `prefers-reduced-motion` rule turns every view-transition animation off with
+ * `!important`, which outranks everything here.
+ */
+
+@keyframes chatic-axis-x-slide-out-start {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-30px);
+    }
+}
+
+@keyframes chatic-axis-x-slide-in-end {
+    from {
+        transform: translateX(30px);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes chatic-axis-x-slide-out-end {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(30px);
+    }
+}
+
+@keyframes chatic-axis-x-slide-in-start {
+    from {
+        transform: translateX(-30px);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes chatic-fade-through-out {
+    from {
+        opacity: 1;
+    }
+    35%,
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes chatic-fade-through-in {
+    from,
+    35% {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.android::view-transition-old(root),
+.android::view-transition-new(root),
+.android.back-navigation::view-transition-old(root),
+.android.back-navigation::view-transition-new(root) {
+    animation-duration: var(--pt-duration-override, var(--pt-lift-duration));
+    animation-timing-function: var(--pt-easing-override, var(--pt-lift-easing)), linear;
+}
+
+.android::view-transition-old(root) {
+    animation-name: chatic-axis-x-slide-out-start, chatic-fade-through-out;
+}
+
+.android::view-transition-new(root) {
+    animation-name: chatic-axis-x-slide-in-end, chatic-fade-through-in;
+}
+
+.android.back-navigation::view-transition-old(root) {
+    animation-name: chatic-axis-x-slide-out-end, chatic-fade-through-out;
+}
+
+.android.back-navigation::view-transition-new(root) {
+    animation-name: chatic-axis-x-slide-in-start, chatic-fade-through-in;
+}

@@ -259,17 +259,36 @@ Seven things the filenames do not tell you.
   land that metadata in the initial chunk. Its consumers (the web phone-verification screens, the desktop
   phone sign-in) are behind lazy routes and import the subpath. The alias is in `tsconfig.base.json`'s
   `paths`, and `apps/web/jest.config.js` maps it ahead of its generic `@chatic/*` rule.
-- **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
-  `@lemoncloud/react-page-transition` the platform the shell injected, read from `@chatic/bridges`'
-  host profile. It is by far the
-  most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that
-  builds that platform. The wrapper also puts `data-page-transition` on `<html>` for as long as a
-  navigation runs, cleared when the last overlapping one settles. That attribute is a DOM contract, not
-  an import: WebKit paints no `backdrop-filter` inside a view transition's snapshots, and web-ui-kit's
-  `HeaderGlass` reads it to keep a glass header opaque through the slide instead of frosting in one
-  frame at its end. The name is spelled out in both libs and pinned by both libs' tests. It is not set
-  on Android — the WebView there is Blink, which paints the frost inside the snapshots (measured in
-  Chrome 154), so holding a header opaque there would only delay its glass.
+- **`usePageTransition.ts` exports `useNavigateWithTransition`,** `navigate` with a platform page
+  transition. It is by far the most-imported symbol in the lib. It takes the same options and returns
+  the same promise as `@lemoncloud/react-page-transition`'s hook, but starts the transition itself
+  through `@lemoncloud/page-transition-core`'s `executePageTransition`, feeding it the platform the
+  shell injected (read from `@chatic/bridges`' host profile).
+    - **It does not use the React package's hook, because that hook let the browser capture the
+      incoming screen before it existed.** A view transition captures the new screen as soon as its
+      update callback settles; the package's callback settled as soon as `navigate` returned. React
+      renders a route change in a later task, and `navigate(-1)` does not reach the router until the
+      browser has moved entries, so for every back arrow the capture was the screen being left: the
+      first frames slid the room out over a copy of the room. For a push it depended on React's task
+      beating the next frame. `waitForDestination.ts` makes the callback wait for the first DOM change
+      after the navigation — for a history delta, after `history.state` shows the other entry — capped
+      at 300ms; the page does not paint while it waits, so the cap bounds a freeze, and only a
+      navigation that renders nothing reaches it. A lazy screen whose code has not loaded commits its
+      Suspense fallback first, and that fallback is what is captured, as before.
+    - **A navigation made while one of its transitions is running goes through without a second
+      transition,** after the running one has navigated. The package clears every class it set when a
+      transition finishes, a newer running transition's included, so overlapping two would drop the
+      second one's motion midway. `animation: 'none'` also skips the transition and the wait.
+    - **It puts `data-page-transition` on `<html>` for as long as a navigation runs,** cleared when the
+      last overlapping one settles. That attribute is a DOM contract, not an import: WebKit paints no
+      `backdrop-filter` inside a view transition's snapshots, and web-ui-kit's `HeaderGlass` reads it to
+      keep a glass header opaque through the slide instead of frosting in one frame at its end. The name
+      is spelled out in both libs and pinned by both libs' tests. It is not set on Android — the WebView
+      there is Blink, which paints the frost inside the snapshots (measured in Chrome 154), so holding a
+      header opaque there would only delay its glass.
+    - **The animations themselves are CSS the app loads,** not this lib: the package's stylesheet, and
+      apps/web's own Android override after it
+      ([apps/web page transitions](../../apps/web/docs/shell/page-transitions.md)).
 
 ## Usage
 
