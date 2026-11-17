@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { create } from 'zustand';
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 import { useAppForeground } from '../../../bridge/useAppForeground';
@@ -36,15 +37,16 @@ export const useAppUpdateStore = create<AppUpdateStore>(set => ({
 /**
  * Checks for an app update on mount and on every foreground return, publishes the result to the
  * shared store, and returns the current status. Safe to mount from several places at once — the
- * native side caches a successful lookup, so the extra calls are cheap. Non-native (plain browser)
- * never calls the bridge and stays on the "no update" default.
+ * native side caches a successful lookup, so the extra calls are cheap. Only where the app runs the
+ * frame around the page (the host's `appShell` port) is the bridge asked; anywhere else (a plain
+ * browser) it never is, and the status stays on the "no update" default.
  */
 export const useAppUpdateStatus = (): AppUpdateStatus => {
     const updateAvailable = useAppUpdateStore(state => state.updateAvailable);
     const latestVersion = useAppUpdateStore(state => state.latestVersion);
 
     const check = useCallback(async () => {
-        if (!isNative()) return;
+        if (host.ports.appShell.kind !== 'app') return;
         try {
             const response = await appBridge.checkAppUpdate();
             const next = {

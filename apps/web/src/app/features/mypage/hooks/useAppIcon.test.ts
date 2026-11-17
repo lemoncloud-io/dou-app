@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 
 import { useAppIcon } from './useAppIcon';
 
@@ -9,11 +9,18 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
     webClient: { request: jest.fn() },
 }));
+const mockIsNative = jest.fn((): boolean => false);
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { appShell: { kind: mockIsNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 
-const isNativeMock = isNative as jest.Mock;
 const requestMock = webClient.request as jest.Mock;
 
 // Resolve each bridge request based on its message type.
@@ -40,7 +47,7 @@ beforeEach(() => {
 
 describe('useAppIcon — 네이티브 앱 아이콘', () => {
     it('비네이티브에서는 브릿지를 호출하지 않고 기본값을 유지한다', () => {
-        isNativeMock.mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
         const { result } = renderHook(() => useAppIcon());
 
         expect(requestMock).not.toHaveBeenCalled();
@@ -49,7 +56,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('네이티브에서는 마운트 시 아이콘 상태와 목록을 불러온다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         mockBridge();
         const { result } = renderHook(() => useAppIcon());
 
@@ -59,7 +66,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('selectIcon이 성공하면 현재 아이콘을 갱신하고 true를 반환한다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         mockBridge();
         const { result } = renderHook(() => useAppIcon());
 
@@ -73,7 +80,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('selectIcon이 실패하면 false를 반환한다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         requestMock.mockResolvedValue({ success: false });
         const { result } = renderHook(() => useAppIcon());
 

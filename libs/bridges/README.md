@@ -252,7 +252,12 @@ boot already depended on the shell having set its channel and globals by then; t
 one moment the source for every reader. Globals a shell writes again while the page runs — the log
 upload hold, the theme, the config bag — are not host facts and are not in it. The phone also runs
 its boot script once more after load, which can rewrite the device ids and the version check; the
-profile keeps the first values, and `apps/web`'s device store reads those four off `window` live. `buildHostProfile`
+profile keeps the first values. Two readers here serve the code that has to see the later ones:
+`liveShellGlobals()` reads the same names off `window` now (the device store, the version floor and
+the language preference in `apps/web`, and the session's device id), and `liveShellValue(name)` reads a value the shell writes while the page runs —
+the config bag, the debug switch, the log upload hold, the run id — untyped, for its reader to check.
+With them, this package is the only code outside the debug overlay and the two entry points that reads
+a `CHATIC_APP_*` global. `buildHostProfile`
 is the pure half, from any object, for tests; `resetHostProfileForTests` forgets the built one.
 
 **A shell that declares nothing is described exactly as before.** `bridge` is found with the same
@@ -274,7 +279,8 @@ WebView (`react-native-webview`, the one shell with SQLite behind its bridge) fr
 `resolveCapability` applies that table. Keys the page does not know, from a newer version, are
 ignored. Every capability has a legacy rule, and where nothing the page did before declarations
 existed can be reproduced its legacy rule answers "unavailable", so a new key never needs a guess
-written for it. No capability is defined yet; each arrives with the port that uses it.
+written for it. The keys and their versions — `checkout` 1, `media` 2, `files` 3, and `links`,
+`appShell`, `signIn`, `diagnostics`, `push` 4 — are read by the ports in `@chatic/host`.
 
 ### Directories
 

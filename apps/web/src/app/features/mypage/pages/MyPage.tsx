@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { runtime } from '@chatic/app-runtime';
 
 import { cn } from '@chatic/ui-kit';
@@ -34,13 +34,15 @@ export const MyPage = () => {
     // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
     // its own to give. A device that is itself signed in through an approval never approves another —
     // it would sign out with its own approver.
+    // Whether this device is an app that signs in and approves pairings is `host.ports.signIn`'s answer.
     const isPairedSession = runtime.session.useIsPairedSession();
-    const canApprovePairing = pairingEnabled && isNative() && !isGuest && !isPairedSession;
+    const appSignsIn = host.ports.signIn.kind === 'app';
+    const canApprovePairing = pairingEnabled && appSignsIn && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
-    const canListDevices = pairingEnabled && (!isGuest || isNative());
+    const canListDevices = pairingEnabled && (!isGuest || appSignsIn);
     // An app guest signs in before buying, so the row waits for an account. A browser guest is handed
     // to the website like anyone else — it signs the buyer in itself — so the row is there too.
-    const canOpenSubscription = !isGuest || !isNative();
+    const canOpenSubscription = !isGuest || !appSignsIn;
     // The same chrome as the other tabs: once the cards pass under the header it gains its divider
     // and the title steps down, so the three tabs read alike as they scroll.
     const { scrolled, track: trackScroll } = useScrollChrome();
@@ -143,7 +145,7 @@ export const MyPage = () => {
 
                 {/* A secondary device signs out with the app that approved it — said here, where the
                     user looks for who they are signed in as, since nothing else on the screen shows it. */}
-                {pairingEnabled && isNative() && isPairedSession && (
+                {pairingEnabled && appSignsIn && isPairedSession && (
                     <p
                         className="px-1 text-[13px] leading-[1.5] text-description"
                         data-testid="mypage-secondary-device"

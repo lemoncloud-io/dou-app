@@ -2,8 +2,6 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import type { LinkedAccounts, LinkedState } from '../../../hooks';
 import type { SocialProvider } from '../hooks';
 
@@ -19,6 +17,9 @@ let mockSocialState: LinkedState = 'absent';
 /** Which provider the single server-side social slot holds, or none. */
 let mockLinkedProvider: SocialProvider | null = null;
 let mockIsLinking = false;
+const mockIsNative = jest.fn((): boolean => true);
+/** The phone platform the app signs in on, as the port reports it where the app signs in. */
+let mockPlatform: 'ios' | 'android' = 'android';
 const isLinked = jest.fn((provider: SocialProvider) => mockLinkedProvider === provider);
 
 jest.mock('react-i18next', () => ({
@@ -32,7 +33,14 @@ jest.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockIsNative() ? 'app' : 'page', os: mockIsNative() ? mockPlatform : null } };
+        },
+    },
+}));
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: () => mockLinked }));
 jest.mock('../hooks', () => ({
     useSocialLinks: () => ({
@@ -57,8 +65,6 @@ jest.mock('../../auth/components/PhoneVerifySheet', () => ({
 
 import { AccountLinkSection } from './AccountLinkSection';
 
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
-
 const PHONE = 'mypage.accountInfo.social.phone';
 const LINK = 'mypage.accountInfo.social.link';
 const LINKED = 'mypage.accountInfo.social.linked';
@@ -75,7 +81,7 @@ beforeEach(() => {
     mockSocialState = 'absent';
     mockLinkedProvider = null;
     mockIsLinking = false;
-    window.CHATIC_APP_PLATFORM = 'android';
+    mockPlatform = 'android';
 });
 
 describe('AccountLinkSection — 서버가 말하기 전에는 침묵한다 (ADR-0042 §5)', () => {
@@ -222,7 +228,7 @@ describe('AccountLinkSection — 소셜 행', () => {
     });
 
     it('Apple 행은 iOS 앱에서만 나온다 (LoginPage와 같은 조건)', () => {
-        window.CHATIC_APP_PLATFORM = 'ios';
+        mockPlatform = 'ios';
 
         render(<AccountLinkSection />);
 
@@ -231,7 +237,7 @@ describe('AccountLinkSection — 소셜 행', () => {
 
     it('네이티브가 아니면 Apple 행이 없다', () => {
         mockIsNative.mockReturnValue(false);
-        window.CHATIC_APP_PLATFORM = 'ios';
+        mockPlatform = 'ios';
 
         render(<AccountLinkSection />);
 

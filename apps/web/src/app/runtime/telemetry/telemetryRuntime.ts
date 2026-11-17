@@ -3,9 +3,9 @@ import {
     TelemetrySampler,
     createLogId,
     ingestLogEntry,
-    isNative,
     setTelemetryRecorder,
 } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { getLongTaskStats } from '../../features/debug/metrics/longTasks';
 import { setPerfTelemetryRecorder } from '../perf';
@@ -75,7 +75,8 @@ export const startTelemetry = (options: StartTelemetryOptions): (() => void) => 
     const session = new TelemetrySession({
         now,
         createId: createLogId,
-        entry: isNative() ? 'icon' : 'browser',
+        // The entry point the `diagnostics` port reports: the app's icon, or a browser.
+        entry: host.ports.diagnostics.kind === 'app' ? 'icon' : 'browser',
         recordEvent: (name, fields) => recorder.event(name, fields),
         // The tracker is declared below; this only runs on a later rollover.
         onNewSession: () => tracker.restart(),

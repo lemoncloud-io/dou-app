@@ -23,7 +23,14 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 jest.mock('react-router-dom', () => ({ Navigate: ({ to }: { to: string }) => <div data-testid="redirect">{to}</div> }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-ui-kit', () => ({
     MenuCard: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-card">{children}</div>,

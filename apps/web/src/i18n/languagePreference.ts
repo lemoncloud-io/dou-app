@@ -1,3 +1,4 @@
+import { liveShellGlobals, liveShellValue } from '@chatic/bridges';
 import { storageKeyFor } from '@chatic/config';
 
 /** Languages with a complete bundle under `public/locales`. */
@@ -54,10 +55,9 @@ export const readStoredLanguagePreference = ({ bag, storage }: StoredLanguageSou
     }
 };
 
-/** The boot envelope as the shell injected it, or nothing outside a shell. */
+/** The boot envelope as the shell injected it, or nothing outside a shell. Read live, at the call. */
 export const readShellConfigBag = (): Readonly<Record<string, unknown>> | undefined => {
-    if (typeof window === 'undefined') return undefined;
-    const bag = (window as { CHATIC_APP_CONFIG_BAG?: unknown }).CHATIC_APP_CONFIG_BAG;
+    const bag = liveShellValue('CHATIC_APP_CONFIG_BAG');
     return bag && typeof bag === 'object' ? (bag as Record<string, unknown>) : undefined;
 };
 
@@ -69,10 +69,14 @@ export const readShellConfigBag = (): Readonly<Record<string, unknown>> | undefi
  * only English, so a Korean phone reads `en-US` there. The shell reads the real device locale
  * (react-native-localize) and injects it as `CHATIC_APP_CURRENT_LANGUAGE` before the page loads.
  * A plain browser has no shell, and there `navigator.languages` is the device's own list.
+ *
+ * The injected language is read live at each call (`liveShellGlobals()`), not from the host profile's
+ * boot snapshot: the phone's second boot pass writes it again, and a later call (Settings switching
+ * back to `system`) has always seen the value as it stands then.
  */
 export const deviceLanguageCandidates = (): string[] => {
     if (typeof window === 'undefined') return [];
-    const injected = (window as { CHATIC_APP_CURRENT_LANGUAGE?: unknown }).CHATIC_APP_CURRENT_LANGUAGE;
+    const injected: unknown = liveShellGlobals().CHATIC_APP_CURRENT_LANGUAGE;
     const nav = typeof navigator === 'undefined' ? undefined : navigator;
     return [
         ...(typeof injected === 'string' ? [injected] : []),

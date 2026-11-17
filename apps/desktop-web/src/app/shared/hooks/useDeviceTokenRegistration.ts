@@ -1,15 +1,8 @@
 import { useMemo } from 'react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { hostProfile, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-
-declare global {
-    interface Window {
-        CHATIC_APP_PLATFORM?: string;
-        CHATIC_APP_INSTALLATION_ID?: string;
-        CHATIC_APP_STAGE?: string;
-    }
-}
+import { host } from '@chatic/host';
 
 const APPLICATION = 'chatic';
 const DEFAULT_PLATFORM = 'desktop';
@@ -28,11 +21,14 @@ const DEFAULT_PLATFORM = 'desktop';
  * is re-minted, which is what `subscribeTokenChange` forwards: desktop stays open for days, so
  * waiting for the next launch to notice a rotation would leave the endpoint stale for that long.
  *
- * Outside the Electron shell (`isNative()` false) the delegate is null and the runtime hook no-ops.
+ * Where the `push` port says the app does not receive notifications (outside the Electron shell) the
+ * delegate is null and the runtime hook no-ops. The device's identity — platform, install id, stage — is
+ * what the shell injected at boot, read from the host profile.
  */
 export const useDeviceTokenRegistration = (): void => {
     const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
-        if (!isNative()) return null;
+        if (host.ports.push.kind !== 'app') return null;
+        const globals = hostProfile().globals;
         return {
             fetchDeviceToken: () =>
                 webClient
@@ -41,12 +37,12 @@ export const useDeviceTokenRegistration = (): void => {
                     // Main resolves '' when FCM is unconfigured or still registering; the runtime
                     // treats an empty token as a failure and retries on the next trigger.
                     .catch(() => null),
-            platform: window.CHATIC_APP_PLATFORM ?? DEFAULT_PLATFORM,
-            installId: window.CHATIC_APP_INSTALLATION_ID,
+            platform: globals.CHATIC_APP_PLATFORM ?? DEFAULT_PLATFORM,
+            installId: globals.CHATIC_APP_INSTALLATION_ID,
             application: APPLICATION,
             // Without an explicit stage the broker defaults to ITS default ('dev'), registering a
             // production desktop into the chatic-desktop-dev SNS app.
-            stage: window.CHATIC_APP_STAGE,
+            stage: globals.CHATIC_APP_STAGE,
             subscribeTokenChange: onChange =>
                 webClient.onEvent('OnFetchFcmToken', () => {
                     onChange();

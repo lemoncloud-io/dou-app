@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { runtime } from '@chatic/app-runtime';
+import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
@@ -72,12 +73,15 @@ describe('useDevicePushMute', () => {
         expect(result.current.isSupported).toBe(false); // jsdom: no shell global
         unmount();
 
+        // A shell that injects its platform before the page boots, when the host profile is built.
         window.CHATIC_APP_PLATFORM = 'ios';
+        resetHostProfileForTests();
         try {
             const { result: shellResult } = renderHook(() => useDevicePushMute(), { wrapper });
             expect(shellResult.current.isSupported).toBe(true);
         } finally {
             delete window.CHATIC_APP_PLATFORM;
+            resetHostProfileForTests();
         }
     });
 

@@ -1,3 +1,4 @@
+import { liveShellValue } from '@chatic/bridges';
 import { config } from '@chatic/config';
 
 /**
@@ -45,13 +46,13 @@ export const isLogCollectionEnabled = (): boolean => config.get<boolean>('log.co
  *
  * Injected as a window global by the native side (see mobile
  * `injectionScripts.ts`), the same way the debug-mode unlock crosses that
- * boundary. This is a native-owned signal independent of `log.upload.hold` (the app's own debug
+ * boundary, and read as it stands now (`liveShellValue`): the app can flip it
+ * while the page runs. This is a native-owned signal independent of `log.upload.hold` (the app's own debug
  * menu does not yet write through the generic shell KV bridge — see ADR-0079 config-registry-track
  * "모바일 debugSettingsStore 통합"), so each stays truthful about the lever it actually controls.
  * Either one being on holds — a hold is a hold, whoever asked for it.
  */
-export const isLogUploadHeldByApp = (): boolean =>
-    (window as unknown as { CHATIC_APP_LOG_UPLOAD_HOLD?: boolean }).CHATIC_APP_LOG_UPLOAD_HOLD === true;
+export const isLogUploadHeldByApp = (): boolean => liveShellValue('CHATIC_APP_LOG_UPLOAD_HOLD') === true;
 
 /** Whether batches stay in the queue instead of being sent. */
 export const isLogUploadHeld = (): boolean => config.get<boolean>('log.upload.hold') === true || isLogUploadHeldByApp();

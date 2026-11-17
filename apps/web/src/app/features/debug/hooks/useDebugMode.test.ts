@@ -1,6 +1,13 @@
 // Mock the bridge so the hook's native propagation is observable and jsdom
-// never touches the real webClient.
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+// never touches the real webClient; the `diagnostics` port decides whether it propagates.
+const mockIsNative = jest.fn();
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { diagnostics: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
 // The registry decides visibility by build stage (ADR-0080 Decision 4); the facade is mocked so the
 // stage rule can be stated per test instead of standing up ports.
@@ -19,13 +26,11 @@ jest.mock('@chatic/config', () => ({
 
 import { act, renderHook } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import { appBridge } from '../../../bridge';
 import { setDebugModeEnabled, useDebugMode } from './useDebugMode';
 import { DEBUG_STORAGE_KEY } from '../consts';
 
-const isNativeMock = isNative as jest.Mock;
+const isNativeMock = mockIsNative;
 const setDebugModeMock = appBridge.setDebugMode as jest.Mock;
 
 describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {

@@ -7,7 +7,8 @@ const setTheme = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ getStoreUrl: () => undefined, useNavigateWithTransition: () => jest.fn() }));
-jest.mock('@chatic/bridges', () => ({ isNative: () => false }));
+// A browser tab: the page runs no app frame, as the `appShell` port says there.
+jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'page', os: null } } } }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {

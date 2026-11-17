@@ -107,8 +107,8 @@ button.
 
 - **Phone** opens `PhoneVerifySheet` with `mode="link"`. Linked, it shows the masked tail the server
   returned (`phoneHint`) — the full number is never sent back.
-- **Google** is always offered. **Apple** appears only when `isNative()` and
-  `window.CHATIC_APP_PLATFORM` is `ios`. The provider list is decided in JSX, mirroring
+- **Google** is always offered. **Apple** appears only when the host's `signIn` port says the
+  app signs in on iOS (`os === 'ios'`). The provider list is decided in JSX, mirroring
   `mypage/LoginPage.tsx`, rather than hard-coded inside the hook.
 - **A linked row has no control at all.** There is no unlink packet, so there is no unlink button —
   not a disabled one, and not one that answers with a "coming soon" toast. A disabled control on a

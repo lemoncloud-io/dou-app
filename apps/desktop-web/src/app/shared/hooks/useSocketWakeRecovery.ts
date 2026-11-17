@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { host } from '@chatic/host';
 
 // Rapid focus/visibility/online toggling shouldn't churn the socket — coalesce
 // wake kicks into one attempt per window.
@@ -14,14 +14,15 @@ const RECOVER_THROTTLE_MS = 5_000;
  * resulting `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK
  * owns reconnect — there is no manual recover() to call). Only fires while the
  * socket is actually unverified; a genuinely expired token still fails re-auth and falls
- * through to useSocketWedgeReload's reload. Electron only (a plain browser tab manages its
- * own lifecycle and must never be poked like this).
+ * through to useSocketWedgeReload's reload. Only where the app runs the frame around the page
+ * (the host's `appShell` port: Electron) — a plain browser tab manages its own lifecycle and must
+ * never be poked like this.
  */
 export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
 
     useEffect(() => {
-        if (!isNative()) return;
+        if (host.ports.appShell.kind !== 'app') return;
 
         const kick = () => {
             // Ignore blur/hide edges — only recover when the app is actually in front.

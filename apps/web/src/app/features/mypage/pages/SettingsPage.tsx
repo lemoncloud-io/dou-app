@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { appBridge } from '../../../bridge';
 import { haptics } from '../../../bridge/haptics';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
@@ -72,8 +72,10 @@ export const SettingsPage = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
+    // Part of the update check: where the app runs the frame around the page (the host's `appShell`
+    // port) it opens its own store listing; anywhere else the page opens the store's web page.
     const handleOpenStore = () => {
-        if (isNative()) {
+        if (host.ports.appShell.kind === 'app') {
             appBridge.openStore();
             return;
         }
@@ -126,7 +128,7 @@ export const SettingsPage = () => {
                         }
                         onClick={() => setIsLanguageSheetOpen(true)}
                     />
-                    {isNative() && isIconChangeSupported && (
+                    {host.ports.appShell.kind === 'app' && isIconChangeSupported && (
                         <ListRow
                             title={t('mypage.appIconSettings')}
                             trailing={

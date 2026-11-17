@@ -3,7 +3,7 @@ import { config } from '@chatic/config';
 import { runtimeData } from '../data/dataCommands';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
-import { isNative } from '@chatic/bridges';
+import { hostProfile } from '@chatic/bridges';
 import { logger } from '@chatic/logger';
 
 import type { IssueReportWireBody } from '@chatic/http';
@@ -31,9 +31,13 @@ const REPORT_STEREO_ISSUE = 'issue';
  * deployed as `CHATIC_ADMIN`, so it's distinguishable without the caller declaring its own identity.
  * `env.project` is already lowercase (`createWebEnvAdapter` lowercases it the same way `web-config`
  * did) — this just carries `WEB_PROJECT.toLowerCase()` forward unchanged.
+ *
+ * A page with a shell bridge at boot (the host profile's `bridge`) reports as `mobile`, as it always
+ * has — including the desktop shell. This library is also rendered by apps that publish no
+ * `@chatic/host` ports (admin), so it reads the profile rather than a port.
  */
 const resolveAppType = (): AppType => {
-    if (isNative()) return 'mobile';
+    if (hostProfile().bridge !== null) return 'mobile';
     return (config.get<string>('env.project') ?? '').includes('admin') ? 'admin' : 'web';
 };
 

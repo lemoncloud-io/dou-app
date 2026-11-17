@@ -55,7 +55,11 @@ jest.mock('react-router-dom', () => ({
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));
-jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({
+    logger: { error: jest.fn() },
+    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
+    liveShellValue: () => undefined,
+}));
 // Partial mock: keep the real module for everything else. `@chatic/app-runtime`'s session hooks now
 // reach `createQueryKeys` at import time, and a fully-replaced module would drop it.
 jest.mock('@chatic/shared', () => ({

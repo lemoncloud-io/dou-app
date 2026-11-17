@@ -3,8 +3,15 @@ import { fetchShareIntake, releaseShareIntake } from './shareIntake';
 let mockNative = true;
 const mockRequest = jest.fn();
 const mockLogger = { warn: jest.fn() };
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { links: { kind: mockNative ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockNative,
     webClient: { request: (...args: unknown[]) => mockRequest(...args) },
     logger: { warn: (...args: unknown[]) => mockLogger.warn(...args), info: jest.fn(), error: jest.fn() },
 }));

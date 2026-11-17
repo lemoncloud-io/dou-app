@@ -220,9 +220,10 @@ page names `web`. The deploy workflows fill it from the `WEB_DEV_APP_SESSION_OWN
 
 ## Without a native shell
 
-`isNative()` (from `@chatic/bridges`) is false in a plain browser tab, and every `appBridge` request
-call rejects `NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid
-paying that wait branches on `isNative()` first rather than calling through and catching.
+In a plain browser tab there is no bridge, and every `appBridge` request call rejects
+`NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid paying that wait
+asks its domain's `@chatic/host` port first ([host-ports.md](./host-ports.md)) — `'page'` there means no
+bridge to ask — rather than calling through and catching.
 
 ## Related
 

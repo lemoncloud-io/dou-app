@@ -1,4 +1,4 @@
-import { host, resolveCheckoutMethod, resolveFilesMethod, resolveMediaMethod } from '@chatic/host';
+import { host, resolveCheckoutMethod, resolveFilesMethod, resolveMediaMethod, resolveSignIn } from '@chatic/host';
 
 import { publishHostPorts } from './publishHostPorts';
 import { storeCheckout } from './checkout/storeCheckout';
@@ -8,6 +8,7 @@ jest.mock('@chatic/host', () => ({
     resolveCheckoutMethod: jest.fn(),
     resolveMediaMethod: jest.fn(() => 'app'),
     resolveFilesMethod: jest.fn(() => 'app'),
+    resolveSignIn: jest.fn(() => ({ kind: 'app', os: 'ios' })),
 }));
 jest.mock('./checkout/storeCheckout', () => ({
     storeCheckout: jest.fn((store: string) => ({ kind: 'store', store })),
@@ -43,6 +44,20 @@ describe('publishHostPorts — media', () => {
         publishing('none');
 
         expect(host.ports.media).toEqual({ kind: method });
+    });
+});
+
+describe('publishHostPorts — the v4 domains', () => {
+    it('publishes what each resolver answers', () => {
+        publishing('none');
+
+        expect(host.ports.signIn).toEqual({ kind: 'app', os: 'ios' });
+        expect(resolveSignIn).toHaveBeenCalled();
+        // The rest are read from the real profile, which under jsdom has no bridge: the page.
+        expect(host.ports.links).toEqual({ kind: 'page' });
+        expect(host.ports.appShell).toEqual({ kind: 'page', os: null });
+        expect(host.ports.diagnostics).toEqual({ kind: 'page' });
+        expect(host.ports.push).toEqual({ kind: 'page' });
     });
 });
 

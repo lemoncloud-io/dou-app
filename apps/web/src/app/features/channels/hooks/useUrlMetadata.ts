@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 
@@ -76,7 +76,8 @@ export const __resetUrlMetadataCache = () => {
 /**
  * Preview metadata for a link, or null while unresolved or when there is nothing to show.
  *
- * Returns null in a plain browser: parsing needs the native shell, so there is no point asking.
+ * Returns null where the page takes its own links (`host.ports.links`), as in a plain browser:
+ * parsing needs the app, so there is no point asking.
  */
 export const useUrlMetadata = (url: string): UrlMetadata | null => {
     // Read synchronously so a row that scrolled out and back shows its card without a flash. The
@@ -87,7 +88,7 @@ export const useUrlMetadata = (url: string): UrlMetadata | null => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => cache.get(url) ?? null);
 
     useEffect(() => {
-        if (!isNative()) return;
+        if (host.ports.links.kind !== 'app') return;
 
         let active = true;
         void requestUrlMetadata(url).then(result => {
