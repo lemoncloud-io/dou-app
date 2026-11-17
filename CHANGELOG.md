@@ -2,6 +2,12 @@
 
 ## [2026-11-17] - No version updates
 
+### Features
+
+- (host,web) pick attachments through the media port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
 ### Bug Fixes
 
 - (web/channels) hold an older page's retry wait for a scroll handled before the failure renders
