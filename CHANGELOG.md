@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.161.2, @chatic/landing@0.19.1
+
+### Bug Fixes
+
+- (landing) publish the server's web prices, not the app stores' (ADR-0333)
+
 ## [2026-11-17] - No version updates
 
 ### Bug Fixes
