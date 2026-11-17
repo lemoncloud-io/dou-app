@@ -231,9 +231,9 @@ describe('the sub view policy', () => {
         expect(fetchesManifest('external')).toBe(false);
         expect(fetchesManifest('reviewed')).toBe(true);
         expect(fetchesManifest('firstParty')).toBe(true);
-        expect(displayOf('external', { display: 'fullscreen' })).toBe('standard');
-        expect(displayOf('reviewed', { display: 'fullscreen' })).toBe('fullscreen');
-        expect(displayOf('firstParty', {})).toBe('standard');
+        expect(displayOf('external', { display: 'clean' })).toBe('titled');
+        expect(displayOf('reviewed', { display: 'clean' })).toBe('clean');
+        expect(displayOf('firstParty', {})).toBe('titled');
     });
 
     it('titles an external site with its host, whatever the page or the web asked for', () => {
@@ -255,12 +255,23 @@ describe('the sub view policy', () => {
     });
 
     it('reads a manifest field by field, ignoring what it does not know', () => {
-        expect(readDesktopSubWebViewManifest({ manifestVersion: 1, name: ' Hub ', display: 'standard' })).toEqual({
+        expect(readDesktopSubWebViewManifest({ manifestVersion: 1, name: ' Hub ', display: 'titled' })).toEqual({
             name: 'Hub',
-            display: 'standard',
+            display: 'titled',
         });
         expect(readDesktopSubWebViewManifest({ manifestVersion: 1, name: 'x'.repeat(101), display: 'tv' })).toEqual({});
         expect(readDesktopSubWebViewManifest({ manifestVersion: 2, name: 'Hub' })).toEqual({});
+        // A window has no system bars to draw under: the page fills it as `clean` does.
+        expect(readDesktopSubWebViewManifest({ manifestVersion: 1, display: 'immersive' })).toEqual({
+            display: 'clean',
+        });
+        // A page deployed before the rename keeps its look.
+        expect(readDesktopSubWebViewManifest({ manifestVersion: 1, display: 'standard' })).toEqual({
+            display: 'titled',
+        });
+        expect(readDesktopSubWebViewManifest({ manifestVersion: 1, display: 'fullscreen' })).toEqual({
+            display: 'clean',
+        });
         expect(readDesktopSubWebViewManifest(null)).toEqual({});
     });
 
@@ -298,18 +309,18 @@ describe('the sub view policy', () => {
         expect(elsewhere.ChaticSubWebView).toBeUndefined();
     });
 
-    it('puts the page under the bar, inside a card for standard and over the whole window for fullscreen', () => {
-        const standard = modalLayoutOf({ width: 1280, height: 800 }, 'standard');
-        const fullscreen = modalLayoutOf({ width: 1280, height: 800 }, 'fullscreen');
+    it('puts the page under the bar, inside a card for titled and over the whole window for clean', () => {
+        const titled = modalLayoutOf({ width: 1280, height: 800 }, 'titled');
+        const clean = modalLayoutOf({ width: 1280, height: 800 }, 'clean');
 
-        expect(standard.card).toEqual({ x: 160, y: 40, width: 960, height: 720 });
-        expect(standard.page).toEqual({
+        expect(titled.card).toEqual({ x: 160, y: 40, width: 960, height: 720 });
+        expect(titled.page).toEqual({
             x: 160,
             y: 40 + SUB_WEBVIEW_BAR_HEIGHT,
             width: 960,
             height: 720 - SUB_WEBVIEW_BAR_HEIGHT,
         });
-        expect(fullscreen.page).toEqual({
+        expect(clean.page).toEqual({
             x: 0,
             y: SUB_WEBVIEW_BAR_HEIGHT,
             width: 1280,
@@ -490,7 +501,7 @@ describe('the sub view window', () => {
 
     it('reads a reviewed page’s manifest from its own origin before showing it, and applies its display', async () => {
         const { service, page } = setup();
-        mocked.__state.manifest = { manifestVersion: 1, name: 'Quiz', display: 'fullscreen' };
+        mocked.__state.manifest = { manifestVersion: 1, name: 'Quiz', display: 'clean' };
 
         service.open({ url: 'https://quiz.apps.chatic.io/' });
         await flush();

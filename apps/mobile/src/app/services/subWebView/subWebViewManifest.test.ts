@@ -27,7 +27,7 @@ describe('parseSubWebViewManifest', () => {
                 manifestVersion: 1,
                 name: ' DoU Quiz ',
                 permissions: ['share', 'userKey'],
-                display: 'fullscreen',
+                display: 'clean',
                 orientation: 'landscape',
             })
         );
@@ -36,7 +36,7 @@ describe('parseSubWebViewManifest', () => {
             name: 'DoU Quiz',
             permissions: new Set(['share', 'userKey']),
             runtimePermissions: new Set(),
-            display: 'fullscreen',
+            display: 'clean',
             orientation: 'landscape',
         });
     });
@@ -47,7 +47,7 @@ describe('parseSubWebViewManifest', () => {
                 manifestVersion: 1,
                 name: 'x'.repeat(101),
                 permissions: ['share', 'camera', 3],
-                display: 'immersive',
+                display: 'theatre',
                 orientation: 'sideways',
                 extra: true,
             })
@@ -56,7 +56,7 @@ describe('parseSubWebViewManifest', () => {
         expect(manifest).toEqual({
             permissions: new Set(['share']),
             runtimePermissions: new Set(),
-            display: 'fullscreen',
+            display: 'clean',
             orientation: 'any',
         });
     });
@@ -77,7 +77,7 @@ describe('parseSubWebViewManifest', () => {
         expect(DEFAULT_SUB_WEBVIEW_MANIFEST).toEqual({
             permissions: new Set(),
             runtimePermissions: new Set(),
-            display: 'fullscreen',
+            display: 'clean',
             orientation: 'any',
         });
     });
@@ -87,9 +87,20 @@ describe('parseSubWebViewManifest', () => {
         const display = (fields: object) =>
             parseSubWebViewManifest(JSON.stringify({ manifestVersion: 1, ...fields }))?.display;
 
-        expect(display({})).toBe('fullscreen');
-        expect(display({ display: 'standard' })).toBe('standard');
-        expect(display({ display: 'fullscreen' })).toBe('fullscreen');
+        expect(display({})).toBe('clean');
+        expect(display({ display: 'titled' })).toBe('titled');
+        expect(display({ display: 'clean' })).toBe('clean');
+        expect(display({ display: 'immersive' })).toBe('immersive');
+        expect(display({ display: 'edgeToEdge' })).toBe('clean');
+    });
+
+    // A page deployed before the rename keeps the look it asked for.
+    it('reads the earlier display names as the displays they became', () => {
+        const display = (fields: object) =>
+            parseSubWebViewManifest(JSON.stringify({ manifestVersion: 1, ...fields }))?.display;
+
+        expect(display({ display: 'standard' })).toBe('titled');
+        expect(display({ display: 'fullscreen' })).toBe('clean');
     });
 
     it.each([

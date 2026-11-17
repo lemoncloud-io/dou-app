@@ -3,6 +3,7 @@ import { Linking, Platform, StyleSheet } from 'react-native';
 import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
+import type { EdgeInsets } from 'react-native-safe-area-context';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import type {
     SubWebViewCloseTrigger,
@@ -22,6 +23,7 @@ import { originOf } from '../utils/url';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { createSubWebViewCloseGuard } from './subWebViewCloseGuard';
+import { buildSubWebViewInsetScript } from './subWebViewInsetScript';
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 import { openSubWebViewRuntime } from './subWebViewRuntimeAccess';
@@ -46,6 +48,12 @@ interface SubWebViewProps {
     onTitleChange?: (title: string) => void;
     /** A title the page asked for with `SetSubWebViewTitle`; `undefined` when a new page starts loading. */
     onTitleRequest?: (title: string | undefined) => void;
+    /**
+     * The safe-area insets of an `immersive` view, drawn under the system bars, which the page is told as custom properties,
+     * kept current as they change. Absent, the screen keeps the view inside the safe area and the
+     * page is told nothing.
+     */
+    insets?: EdgeInsets;
 }
 
 const openExternal = (url: string) => Linking.openURL(url);
@@ -82,6 +90,7 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         onRequestClose,
         onTitleChange,
         onTitleRequest,
+        insets,
     },
     ref
 ) {
@@ -218,6 +227,12 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     useSubWebViewBack(onBack);
 
     const contextScript = useMemo(() => buildSubWebViewContextScript(context, url), [context, url]);
+    const insetScript = insets ? buildSubWebViewInsetScript(insets) : '';
+    // A load runs it with the context script; a change while the page is up (a rotation) is pushed.
+    const pageScript = useMemo(() => contextScript + insetScript, [contextScript, insetScript]);
+    useEffect(() => {
+        if (insetScript) webViewRef.current?.injectJavaScript(insetScript);
+    }, [insetScript]);
 
     // The page read the context once; a change after that arrives as an event. The host holds it
     // until the page's handshake, so a page still loading misses nothing.
@@ -277,10 +292,14 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             ref={webViewRef}
             source={{ uri: url }}
             style={[styles.webView, { backgroundColor }]}
-            injectedJavaScriptBeforeContentLoaded={contextScript}
+            injectedJavaScriptBeforeContentLoaded={pageScript}
             // Again at load end: on Android the first run does not always precede the page's own
             // scripts. The script stops when it finds the context already defined.
-            injectedJavaScript={contextScript}
+            injectedJavaScript={pageScript}
+            // Pinned at the library's default: the scroll view does not inset the content, so
+            // WebKit reports the safe area the view overlaps to `env(safe-area-inset-*)` instead —
+            // 0 inside the padded screen, the bars' reach for an `immersive` one.
+            contentInsetAdjustmentBehavior="never"
             onLoadStart={onLoadStart}
             onMessage={onMessage}
             // Everything, so every navigation reaches the decision below: react-native-webview checks

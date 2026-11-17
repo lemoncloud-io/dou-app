@@ -33,12 +33,12 @@ const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['o
 const EXTERNAL_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
     permissions: new Set<never>(),
     runtimePermissions: new Set<never>(),
-    display: 'standard',
+    display: 'titled',
     orientation: 'any',
 });
 
 /**
- * Chrome only — a floating close control alone by default, or for a `standard` page a bar with the
+ * Chrome only — a floating close control alone by default, or for a `titled` page a bar with the
  * title and a close control over the page. The page's manifest decides which, its orientation and what its bridge
  * answers, so the page is not loaded until the manifest is in; until then the screen shows only the
  * close control, so even a manifest that never answers cannot keep the user in. An external site has
@@ -109,24 +109,30 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
         </TouchableOpacity>
     );
 
-    const fullscreen = manifest?.display === 'fullscreen';
+    const immersive = manifest?.display === 'immersive';
+    // Both lose the bar; only `immersive` loses the padding as well.
+    const barless = manifest?.display === 'clean' || immersive;
 
     return (
         // Every edge padded, so the page lies wholly inside the safe area and needs no insets of its
-        // own — the sides too, for the notch in landscape. A fullscreen page loses the bar, not that.
+        // own — the sides too, for the notch in landscape. A `clean` page loses the bar, not that.
+        // An `immersive` page loses both: it draws under the system bars, and is told how far they
+        // reach so it can keep its own controls clear of them.
         <View
             style={[
                 styles.container,
-                {
-                    backgroundColor,
-                    paddingTop: insets.top,
-                    paddingBottom: insets.bottom,
-                    paddingLeft: insets.left,
-                    paddingRight: insets.right,
-                },
+                immersive
+                    ? { backgroundColor }
+                    : {
+                          backgroundColor,
+                          paddingTop: insets.top,
+                          paddingBottom: insets.bottom,
+                          paddingLeft: insets.left,
+                          paddingRight: insets.right,
+                      },
             ]}
         >
-            {manifest && !fullscreen && (
+            {manifest && !barless && (
                 <View style={styles.bar}>
                     <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
                         {externalTitle ?? requestedTitle ?? pageTitle ?? title ?? manifest.name ?? ''}
@@ -147,9 +153,11 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     onRequestClose={close}
                     onTitleChange={setPageTitle}
                     onTitleRequest={setRequestedTitle}
+                    {...(immersive ? { insets } : {})}
                 />
             )}
-            {(!manifest || fullscreen) && (
+            {/* Where `clean` has it for an `immersive` page too: clear of the status bar and the notch. */}
+            {(!manifest || barless) && (
                 <View style={[styles.floatingSlot, { top: insets.top + 8, right: insets.right + 8 }]}>
                     {closeControl(true)}
                 </View>

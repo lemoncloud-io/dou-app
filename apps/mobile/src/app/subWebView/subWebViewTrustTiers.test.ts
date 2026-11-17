@@ -34,7 +34,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../hooks', () => ({ useResolvedTheme: () => ({ isDark: false, backgroundColor: '#FFFFFF' }) }));
 jest.mock('../utils', () => ({ t: (key: string) => key }));
 jest.mock('../services', () => ({
-    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'fullscreen', orientation: 'any' },
+    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'clean', orientation: 'any' },
     subWebViewService: { close: jest.fn() },
     subWebViewManifestStore: { get: (origin: string) => mockManifestGet(origin) },
 }));
@@ -115,7 +115,7 @@ describe('the screen, by tier', () => {
     it('fetches no manifest for an external site and loads it at once, with the base set only', async () => {
         mockManifestGet.mockResolvedValue({
             permissions: new Set(['userKey']),
-            display: 'fullscreen',
+            display: 'clean',
             orientation: 'any',
         });
 
@@ -140,7 +140,7 @@ describe('the screen, by tier', () => {
         mockManifestGet.mockResolvedValue({
             name: 'Hub',
             permissions: new Set(),
-            display: 'standard',
+            display: 'titled',
             orientation: 'any',
         });
 

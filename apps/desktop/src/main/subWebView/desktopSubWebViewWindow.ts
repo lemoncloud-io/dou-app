@@ -330,7 +330,7 @@ export const attachDesktopSubWebView = (
         const chrome = new WebContentsView({
             webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, javascript: true },
         });
-        const current: Shown = { view, chrome, page: null, display: 'standard', host: null, titles: {}, handOffs: [] };
+        const current: Shown = { view, chrome, page: null, display: 'titled', host: null, titles: {}, handOffs: [] };
         shown = current;
         chrome.setBackgroundColor('#00000000');
         chrome.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

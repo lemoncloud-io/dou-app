@@ -67,6 +67,27 @@ export const SUB_WEBVIEW_DATA_LIMIT = 16 * 1024;
 /** The longest title a page may put in the shell's bar. */
 export const SUB_WEBVIEW_TITLE_LIMIT = 100;
 
+/** How a page is shown, as `SubWebViewDisplay` in `@chatic/bridge-messages` names it. */
+type SubWebViewDisplayName = 'titled' | 'clean' | 'immersive';
+
+// The names the first apps shipped with. Still read, so a page deployed with one keeps its look; never
+// written in a guide again.
+const EARLIER_DISPLAY_NAMES: Readonly<Record<string, SubWebViewDisplayName>> = {
+    standard: 'titled',
+    fullscreen: 'clean',
+};
+
+/**
+ * A manifest's `display`, read the same way by both shells: `titled`, `clean` or `immersive`, or an
+ * earlier name for one of them. Anything else is no display at all, and the shell applies its default.
+ */
+export const subWebViewDisplayOf = (value: unknown): SubWebViewDisplayName | undefined => {
+    if (value === 'titled' || value === 'clean' || value === 'immersive') return value;
+    return typeof value === 'string' && Object.prototype.hasOwnProperty.call(EARLIER_DISPLAY_NAMES, value)
+        ? EARLIER_DISPLAY_NAMES[value]
+        : undefined;
+};
+
 /**
  * The longest message a page may send, as a serialized string's length (65,536 characters). Room for
  * a 16 KiB `result` several times over; past it the host answers `TOO_LARGE`.

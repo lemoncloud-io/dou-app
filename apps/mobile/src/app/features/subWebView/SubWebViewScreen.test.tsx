@@ -15,7 +15,7 @@ const mockManifestGet = jest.fn();
 
 const MANIFEST = {
     permissions: new Set(['share']),
-    display: 'standard',
+    display: 'titled',
     orientation: 'any',
 };
 
@@ -40,7 +40,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../hooks', () => ({ useResolvedTheme: () => ({ isDark: false, backgroundColor: '#FFFFFF' }) }));
 jest.mock('../../utils', () => ({ t: (key: string) => key }));
 jest.mock('../../services', () => ({
-    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'fullscreen', orientation: 'any' },
+    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'clean', orientation: 'any' },
     subWebViewService: { close: (...args: unknown[]) => mockClose(...args) },
     subWebViewManifestStore: { get: (origin: string) => mockManifestGet(origin) },
 }));
@@ -72,6 +72,15 @@ const renderScreen = async (manifest: Record<string, unknown> = MANIFEST) => {
     await act(async () => undefined);
     return { navigation, view };
 };
+
+/** The screen's own container as last drawn, once the manifest is in: the style holding `flex: 1`. */
+const lastContainerStyle = () =>
+    mockViewStyles
+        .filter(
+            (style): style is unknown[] =>
+                Array.isArray(style) && style.some(part => (part as { flex?: number } | undefined)?.flex === 1)
+        )
+        .pop();
 
 /** The close control drawn last: the bar's, or the floating one. */
 const pressClose = () => mockClosePresses[mockClosePresses.length - 1]?.();
@@ -167,9 +176,9 @@ describe('SubWebViewScreen', () => {
         expect(navigation.setOptions).toHaveBeenCalledWith({ orientation: option });
     });
 
-    it('drops the bar for a fullscreen page and floats the close control instead', async () => {
+    it('drops the bar for a clean page and floats the close control instead', async () => {
         mockExposeHandle = true;
-        const { view } = await renderScreen({ ...MANIFEST, display: 'fullscreen' });
+        const { view } = await renderScreen({ ...MANIFEST, display: 'clean' });
 
         expect(view.container.textContent).not.toContain('From web');
         pressClose();
@@ -195,6 +204,46 @@ describe('SubWebViewScreen', () => {
                 expect.objectContaining({ paddingTop: 47, paddingBottom: 34, paddingLeft: 12, paddingRight: 21 }),
             ])
         );
+    });
+
+    it.each(['titled', 'clean'])('keeps a %s page inside the safe area and tells it no insets', async display => {
+        await renderScreen({ ...MANIFEST, display });
+
+        expect(lastContainerStyle()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ paddingTop: 47, paddingBottom: 34, paddingLeft: 12, paddingRight: 21 }),
+            ])
+        );
+        expect(mockWebViewProps).not.toHaveProperty('insets');
+    });
+
+    // The page draws under the system bars, so it is told how far they reach instead.
+    it('pads no edge for an immersive page and hands the view the insets', async () => {
+        await renderScreen({ ...MANIFEST, display: 'immersive' });
+
+        const container = lastContainerStyle();
+        expect(container).toBeDefined();
+        for (const style of container ?? []) {
+            expect(style).not.toHaveProperty('paddingTop');
+            expect(style).not.toHaveProperty('paddingBottom');
+            expect(style).not.toHaveProperty('paddingLeft');
+            expect(style).not.toHaveProperty('paddingRight');
+        }
+        expect(mockWebViewProps).toEqual(
+            expect.objectContaining({ insets: { top: 47, bottom: 34, left: 12, right: 21 } })
+        );
+    });
+
+    it('draws no bar for an immersive page, and floats the close control where clean has it', async () => {
+        mockExposeHandle = true;
+        const { view } = await renderScreen({ ...MANIFEST, display: 'immersive' });
+
+        expect(view.container.textContent).not.toContain('From web');
+        expect(mockViewStyles).toContainEqual(
+            expect.arrayContaining([expect.objectContaining({ top: 55, right: 29 })])
+        );
+        pressClose();
+        expect(mockRequestCloseHandle).toHaveBeenCalledWith('control');
     });
 
     // The service's close event is what takes the screen down; the screen leaves nothing to chance

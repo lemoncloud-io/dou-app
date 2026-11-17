@@ -4,7 +4,12 @@
  * view is configured. `desktopSubWebViewWindow.ts` is the only caller.
  */
 import type { SubWebViewContext, SubWebViewDisplay } from '@chatic/bridge-messages';
-import { SUB_WEBVIEW_TITLE_LIMIT, subWebViewOriginOf, type SubWebViewTrust } from '@chatic/shared/subWebViewTrust';
+import {
+    SUB_WEBVIEW_TITLE_LIMIT,
+    subWebViewDisplayOf,
+    subWebViewOriginOf,
+    type SubWebViewTrust,
+} from '@chatic/shared/subWebViewTrust';
 
 /** What the view does with a navigation: load it in place, hand it to the OS browser, or drop it. */
 export type DesktopSubWebViewNavigation = 'load' | 'external' | 'block';
@@ -56,16 +61,19 @@ export const acceptsSubWebViewMessage = (
 /**
  * A page's manifest, as far as this shell reads it: the bar's fallback name and the display. The
  * desktop page host has no permission-gated requests, so `permissions` grants nothing here and is not
- * read. Anything malformed is ignored field by field, as on the phone.
+ * read. Anything malformed is ignored field by field, as on the phone, and the display is read as the
+ * phone reads it, earlier names included. A window has no system bars to draw under, so `immersive`
+ * is shown as the `clean` it extends.
  */
 export const readDesktopSubWebViewManifest = (json: unknown): { name?: string; display?: SubWebViewDisplay } => {
     if (!json || typeof json !== 'object' || (json as { manifestVersion?: unknown }).manifestVersion !== 1) return {};
-    const { name, display } = json as { name?: unknown; display?: unknown };
+    const { name, display: declared } = json as { name?: unknown; display?: unknown };
+    const display = subWebViewDisplayOf(declared);
     return {
         ...(typeof name === 'string' && name.trim() && name.length <= SUB_WEBVIEW_TITLE_LIMIT
             ? { name: name.trim() }
             : {}),
-        ...(display === 'standard' || display === 'fullscreen' ? { display } : {}),
+        ...(display ? { display: display === 'immersive' ? ('clean' as const) : display } : {}),
     };
 };
 
@@ -73,12 +81,12 @@ export const readDesktopSubWebViewManifest = (json: unknown): { name?: string; d
 export const fetchesManifest = (trust: SubWebViewTrust): boolean => trust !== 'external';
 
 /**
- * How the view is shown. An external site is always `standard` — a modal without a bar would let a
+ * How the view is shown. An external site is always `titled` — a modal without a bar would let a
  * third-party page draw what looks like DoU's own screen. A trusted page takes its manifest's display,
- * `standard` by default on the desktop: the phone's full-screen default exists for a phone's size.
+ * `titled` by default on the desktop: the phone's barless default exists for a phone's size.
  */
 export const displayOf = (trust: SubWebViewTrust, manifest: { display?: SubWebViewDisplay }): SubWebViewDisplay =>
-    trust === 'external' ? 'standard' : (manifest.display ?? 'standard');
+    trust === 'external' ? 'titled' : (manifest.display ?? 'titled');
 
 /**
  * What the bar shows. For an external site, its host and nothing else: the page's own title, and
@@ -159,7 +167,7 @@ export const buildDesktopSubWebViewContextScript = (context: SubWebViewContext, 
 /** Height of the shell's bar over the page, in pixels. */
 export const SUB_WEBVIEW_BAR_HEIGHT = 44;
 
-/** The modal's widest and its margin from the window's edge, for `standard`. */
+/** The modal's widest and its margin from the window's edge, for `titled`. */
 const MODAL_MAX_WIDTH = 960;
 const MODAL_MARGIN = 40;
 
@@ -171,15 +179,15 @@ export interface Rect {
 }
 
 /**
- * Where the modal sits in a window's content area: `standard` is a centred card with a margin,
- * `fullscreen` the whole content area. The bar is the card's top strip; the page fills the rest.
+ * Where the modal sits in a window's content area: `titled` is a centred card with a margin,
+ * `clean` the whole content area. The bar is the card's top strip; the page fills the rest.
  */
 export const modalLayoutOf = (
     content: { width: number; height: number },
     display: SubWebViewDisplay
 ): { card: Rect; page: Rect } => {
     const card =
-        display === 'fullscreen'
+        display === 'clean'
             ? { x: 0, y: 0, width: content.width, height: content.height }
             : (() => {
                   const width = Math.max(0, Math.min(MODAL_MAX_WIDTH, content.width - MODAL_MARGIN * 2));

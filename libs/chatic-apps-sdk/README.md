@@ -219,7 +219,7 @@ The calls marked above need a permission your page asks for in a file on its own
     "manifestVersion": 1,
     "name": "Quiz",
     "permissions": ["share", "userKey"],
-    "display": "standard",
+    "display": "titled",
     "orientation": "portrait"
 }
 ```
@@ -227,9 +227,17 @@ The calls marked above need a permission your page asks for in a file on its own
 You ask; an administrator grants them when your page is reviewed, and only what was granted is
 deployed. Without the file your page gets everything else but not what these permissions unlock: a call
 that needs one fails with `NOT_SUPPORTED`, and without a runtime permission `supports('runtime')` is
-`false`. A page has **no bar by default**: a small close button floats in the top-right corner
-(keep it clear) and the page draws its own header. `display: "standard"` asks for the app's bar, with
-the page's title and a close button; `orientation` is `any`, `portrait` or `landscape`. The app reads
+`false`. `display` says how the page is shown:
+
+| `display`         | What the user sees                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `clean` (default) | The page alone, with a small close button floating in the top-right corner (keep it clear)             |
+| `titled`          | The app's bar above the page, with its title and a close button                                        |
+| `immersive`       | `clean`, but the page fills the whole screen, under the status bar and the home indicator (see Layout) |
+
+Apps from before bridge 2.29.0 called `titled` `standard` and `clean` `fullscreen`, and know only
+those names: they show a new name as `clean`. Current apps read both. `orientation` is `any`,
+`portrait` or `landscape`. The app reads
 the file before it shows your page, keeps it for the rest of its run, and fetches a fresh copy behind
 each later open: a change to the file takes effect one open later.
 
@@ -322,8 +330,28 @@ to DoU's own hub only; your page never receives them.
   "DoU would like to…". What your page uses is part of its review.
 - **Your own server**: calls to it are ordinary cross-origin requests from `https://<name>.apps.chatic.io`;
   allow that origin in its CORS settings.
-- **Layout**: the page sits inside the safe area on every edge; there are no insets to handle. Use the
+- **Layout**: the page sits inside the safe area on every edge, unless its manifest sets `immersive`
+  (below); there are no insets to handle. Use the
   context's `theme`, not the OS's, for dark mode — the user can set DoU's theme apart from the phone's.
+- **Immersive** (`display: "immersive"`, app bridge 2.29.0): the page fills the whole screen,
+  under the status bar, the home indicator and a landscape notch, and keeps its own controls clear of
+  them. The status bar stays visible. The app sets `--chatic-safe-area-inset-top`, `-right`, `-bottom` and `-left` on `<html>`; read
+  them first and fall back to `env()`, which not every Android WebView reports. The viewport meta must
+  say `viewport-fit=cover`: without it iOS keeps the page out of a landscape notch itself, and padding
+  by the properties as well pads that side twice:
+
+    ```css
+    .hud {
+        padding-top: var(--chatic-safe-area-inset-top, env(safe-area-inset-top, 0px));
+    }
+    .dock {
+        padding-bottom: var(--chatic-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    }
+    ```
+
+    An older app shows the page padded, as `clean` (an older desktop app, with the bar), and the
+    insets read 0, so the same CSS is right on both. The close button still floats top-right, below the status bar. The status bar's icons follow
+    the app's theme.
 
 ## Try it without the app
 
