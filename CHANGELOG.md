@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) open the find-me sheet at its full height, not at its content's
+- (web/notifications) count reactions to my messages in the find-me list, and rename it
+
 ## [2026-11-17] - root@0.164.0, @chatic/web@0.93.0
 
 ### Features
