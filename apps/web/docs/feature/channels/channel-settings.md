@@ -26,14 +26,18 @@ creating a place profile is not a channel concern and this screen only opens it.
 | Room files      | four kinds, this device's counts                    | same                                      | same                      |
 | Chat settings   | notification level: all · mention · off; input lock | notification level: all · off; input lock | —                         |
 | Room members    | add-friend row (owner) + member list                | member list, departed peer kept           | member list (me alone)    |
+| Webhooks        | owner only: `ChannelWebhooksSection`                | —                                         | —                         |
 | Destructive row | owner: delete · member: leave                       | leave, for both sides                     | —                         |
 
-Six rules behind that table:
+Seven rules behind that table:
 
 - **Room files sits under the name, in every kind of room** (`RoomFilesEntry`): photos·videos, files,
   audio and links with how many this device has found, each opening [the file list](./room-files.md) on
   its tab. It is not drawn at all where the installed app cannot count yet.
 
+- **Webhooks are the owner's, in a group room only** (`ChannelWebhooksSection`, between the member list and
+  the destructive row; see [Webhooks](#webhooks)). A member, a 1:1 and a self chat never mount it, so
+  their sessions never read the list.
 - **A DM has no delete and no add-friend.** Re-inviting needs the room to still exist, so letting
   the inviter erase it would take away the only way back; and a 1:1 is a fixed pairing, so there is
   nobody to add. The ownership branch used everywhere else does not apply here.
@@ -256,6 +260,30 @@ backend, and a row that answers with a "coming soon" toast — or, for report, w
 backed — promises more than the app does. Each comes back with its call. When the viewer has no row
 at all, the action list is not drawn, so the profile ends at the name rather than at an empty block.
 
+## Webhooks
+
+The owner of a group room manages the webhooks that let another service post into it. The section is
+`ChannelWebhooksSection`, its data is `useChannelWebhooks`, and the data layer behind it is
+[`libs/data/docs/remote/socket.md`](../../../../../libs/data/docs/remote/socket.md#webhook).
+
+- **List.** A "New webhook" row, then one row per live webhook: its name ("Unnamed webhook" when
+  empty), "Last used <date>" or "Never used", the expiry date or "No expiry", and a trailing "Paused"
+  or "Expired" (`expiresAt` in the past; `0` is never). The list is read once the socket is verified,
+  again on the unverified→verified edge and on "Try again". Loading, empty and error lines are shown.
+- **Issue.** `IssueWebhookDialog` asks for an optional name and an expiry (none, 7, 30 or 90 days)
+  and then shows the **token and the endpoint URL once**, each with a copy button
+  (`copyMessageToClipboard`, so the native clipboard inside the app). The URL is the `Location` the
+  server returns on issue; a server with no endpoint configured returns none, and the dialog says so
+  instead of guessing one. The token lives in the dialog's own state and nowhere else — not the
+  repository, a store, the cache or a log — and any close drops it. The dialog says it cannot be read
+  again.
+- **A row opens a sheet** with Pause/Resume (`disabled`), an expiry choice (`expiresAt`, `0` =
+  never) and Delete, which goes through `ConfirmDialog` naming the webhook. A row changes only after the
+  server accepted the write; a refusal leaves it as it was and raises a failure toast.
+
+A cloud server that does not have the webhook action yet answers an error, which the list shows as
+its error line.
+
 ## What not to do
 
 - **Do not read `channel.$join` for anything that must reflect a write.** The notification level and
@@ -263,6 +291,8 @@ at all, the action list is not drawn, so the profile ends at the name rather tha
 - **Do not invent a title or an avatar rule here.** `useChannelTitle` and `resolveChannelAvatar` are
   shared with the room header, the home list and place channel management; a fourth answer is how
   the same room ends up with two names.
+- **Do not keep the webhook token anywhere but `IssueWebhookDialog`'s state.** It is returned once by
+  `webhook.make-token`; a store, a query cache or a log line would outlive the dialog that shows it.
 - **Do not branch the destructive row on ownership alone.** A DM leaves regardless of who owns it.
 - **Do not gate the profile prompt on `isMembersLoading` or an empty profile map.** Use the server's
   answer, `usePlaceProfileAbsent`.

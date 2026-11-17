@@ -45,6 +45,7 @@ import {
     resolveChannelAvatar,
 } from '../lib';
 import { RoomFilesEntry } from '../components/RoomFilesEntry';
+import { ChannelWebhooksSection } from '../components/ChannelWebhooksSection';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel, notifyLevelOf, notifyLevelsFor } from '../utils/notifyLevel';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
@@ -555,6 +556,9 @@ export const ChannelSettingsPage = () => {
                             />
                         )}
                         {memberList}
+
+                        {/* Owner-only. A 1:1 has no webhook (a self chat never reaches this branch). */}
+                        {isOwner && !isDmChat && channelId && <ChannelWebhooksSection channelId={channelId} />}
 
                         {/* Destructive action — owner deletes the room, members leave it. A DM has no
                             delete at ALL, not even for the inviter: re-inviting needs the room to
