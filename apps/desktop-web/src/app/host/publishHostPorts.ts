@@ -10,5 +10,6 @@ import { host } from '@chatic/host';
  */
 export const publishHostPorts = (): void => {
     // The desktop app sells nothing: no screen of it offers a subscription.
-    host.publish({ checkout: { kind: 'none' } });
+    // No screen of the desktop app attaches through an app picker: its inputs are the page's own.
+    host.publish({ checkout: { kind: 'none' }, media: { kind: 'page' } });
 };

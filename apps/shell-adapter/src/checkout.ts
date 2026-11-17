@@ -20,6 +20,14 @@ export interface StoreSkus {
 }
 
 declare const __DOU_SHELL_CHECKOUT__: string | undefined;
+declare const __DOU_SHELL_MEDIA__: string | undefined;
+
+/** Who picks attachments, as a person picks it: the app's own picker, or the page's input. */
+export const SHELL_MEDIA_CHOICES = ['app', 'page'] as const;
+export type ShellMediaChoice = (typeof SHELL_MEDIA_CHOICES)[number];
+
+/** Where a handler or a scenario keeps a media choice; read at every launch, like `dou.checkout`. */
+export const MEDIA_STORE_KEY = 'dou.media';
 declare const __DOU_SHELL_STORE_SKUS__: StoreSkus | undefined;
 
 const isChoice = (value: unknown): value is ShellCheckoutChoice =>
@@ -40,10 +48,36 @@ export const checkoutChoice = (
     return isChoice(env) ? env : undefined;
 };
 
-/** The declaration the shell injects for a choice, after the preset's own globals; nothing for none. */
-export const capabilitiesScript = (choice: ShellCheckoutChoice | undefined): string => {
-    if (!choice) return '';
-    const declaration = { version: 1, checkout: choice === 'none' ? [] : [choice] };
+/**
+ * The media choice for this launch: `dou.media` in the shell's store first, then `DOU_SHELL_MEDIA`. No
+ * choice leaves media to the web's rule for a declaration without it — the app picks, as before.
+ */
+export const mediaChoice = (
+    store?: ReadonlyMap<string, unknown>,
+    fromEnv: string | undefined = typeof __DOU_SHELL_MEDIA__ === 'string' ? __DOU_SHELL_MEDIA__ : undefined
+): ShellMediaChoice | undefined => {
+    const kept = store?.get(MEDIA_STORE_KEY);
+    if ((SHELL_MEDIA_CHOICES as readonly unknown[]).includes(kept)) return kept as ShellMediaChoice;
+    const env = fromEnv?.trim().toLowerCase();
+    return (SHELL_MEDIA_CHOICES as readonly unknown[]).includes(env) ? (env as ShellMediaChoice) : undefined;
+};
+
+/**
+ * The declaration the shell injects for its choices, after the preset's own globals; nothing when
+ * nothing was picked. Declaring `media` takes version 2, and a version-2 declaration has to carry
+ * `checkout` too — a key its version requires and that is missing reads as a bug, not as "the legacy
+ * answer" — so an unpicked checkout is declared as what the web would answer anyway: the device's store.
+ */
+export const capabilitiesScript = (
+    checkout: ShellCheckoutChoice | undefined,
+    media: ShellMediaChoice | undefined = undefined,
+    platform: string | undefined = undefined
+): string => {
+    if (!checkout && !media) return '';
+    const methods = (choice: ShellCheckoutChoice) => (choice === 'none' ? [] : [choice]);
+    const declaration = media
+        ? { version: 2, checkout: methods(checkout ?? (platform === 'ios' ? 'apple' : 'google')), media }
+        : { version: 1, checkout: methods(checkout as ShellCheckoutChoice) };
     return `\nwindow.CHATIC_APP_CAPABILITIES = ${JSON.stringify(declaration)};\n`;
 };
 
@@ -58,19 +92,19 @@ export const launch: { env: 'dev' | 'prod' | undefined; choice: ShellCheckoutCho
 };
 
 /**
- * A preset that declares this shell's checkout: the given preset's globals, then
- * `CHATIC_APP_CAPABILITIES` for the choice. It also records the launch's backend and choice, which the
+ * A preset that declares this shell's checkout and media: the given preset's globals, then
+ * `CHATIC_APP_CAPABILITIES` for the choices. It also records the launch's backend and choice, which the
  * virtual store needs and the handlers cannot learn any other way.
  */
 export const withCheckoutDeclaration = (preset: ProtocolPreset): ProtocolPreset =>
     Object.assign(Object.create(preset) as ProtocolPreset, {
         name: preset.name,
         globals: (...args: Parameters<ProtocolPreset['globals']>) => {
-            const [, , env, store] = args;
+            const [, device, env, store] = args;
             const choice = checkoutChoice(store);
             launch.env = env;
             launch.choice = choice;
-            return preset.globals(...args) + capabilitiesScript(choice);
+            return preset.globals(...args) + capabilitiesScript(choice, mediaChoice(store), device.platform);
         },
     });
 

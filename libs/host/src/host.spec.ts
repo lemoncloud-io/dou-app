@@ -2,7 +2,7 @@ import { HostFacade } from './host';
 
 import type { HostPorts } from './ports';
 
-const none = (): HostPorts => ({ checkout: { kind: 'none' } });
+const none = (): HostPorts => ({ checkout: { kind: 'none' }, media: { kind: 'page' } });
 
 describe('host', () => {
     it('refuses a read before the entry point publishes', () => {

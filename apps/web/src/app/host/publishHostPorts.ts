@@ -1,4 +1,4 @@
-import { host, resolveCheckoutMethod, type CheckoutPort } from '@chatic/host';
+import { host, resolveCheckoutMethod, resolveMediaMethod, type CheckoutPort } from '@chatic/host';
 
 import { storeCheckout } from './checkout/storeCheckout';
 import { webCheckout } from './checkout/webCheckout';
@@ -20,5 +20,5 @@ const chooseCheckout = (): CheckoutPort => {
  * profile; a host built before declarations is answered by the port's legacy rule.
  */
 export const publishHostPorts = (): void => {
-    host.publish({ checkout: chooseCheckout() });
+    host.publish({ checkout: chooseCheckout(), media: { kind: resolveMediaMethod() } });
 };

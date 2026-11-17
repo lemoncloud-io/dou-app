@@ -10,6 +10,16 @@ feature through a port of `@chatic/host`, never through `isNative()` or a `CHATI
 `config.init()`, from what the host declared (or, for a shell built before declarations, the port's
 legacy rule). A feature reads `host.ports.<port>` where it uses it.
 
+## media
+
+Who picks what a person attaches. `publishHostPorts` publishes `{ kind: resolveMediaMethod() }`; the
+picker (`bridge/attachmentPicker.ts`) and the photo library (`bridge/photoLibrary.ts`) are unsupported
+unless it is `'app'`, and the attach panel then opens the page's own input. The same answer decides the
+three other places that used to ask `isNative()`: whether the camera input waits for the app's camera
+permission (`ChatImageAttach`), whether the recent-photos strip shows outside the grid, whether a send
+hands a video to the app to convert (`useSendImages`), and whether the permission banner can open the
+app's settings (`PermissionDeniedBanner`).
+
 ## checkout
 
 | What the host sells through | Implementation                    | What it does                                                                           |

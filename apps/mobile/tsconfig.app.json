@@ -28,19 +28,19 @@
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
     "references": [
         {
+            "path": "../../libs/chatic-apps-sdk/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/runtime-mobile/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/perf/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/shared/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/bridge-messages/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/logger/tsconfig.lib.json"
         },
         {
             "path": "../../libs/data/tsconfig.lib.json"
@@ -49,10 +49,13 @@
             "path": "../../libs/db/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/runtime-mobile/tsconfig.lib.json"
+            "path": "../../libs/shared/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/storage/tsconfig.lib.json"
+            "path": "../../libs/logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         }
     ]
 }
