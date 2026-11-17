@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { RELAY_CLOUD_ID, type ChatMentionBody, type DomainChannel, type DomainChat } from '@chatic/data';
 
 import {
+    chatSenderName,
     messagePreview,
     outgoingMessagePreview,
     threadChannel,
@@ -61,7 +62,7 @@ export const ThreadCardReply = ({ channel, root, rootNo, onSettled }: ThreadCard
                 at: Date.now(),
                 mine: true,
             },
-            { root: { preview: messagePreview(root), ownerName: root.owner$?.name ?? '' } }
+            { root: { preview: messagePreview(root), ownerName: chatSenderName(root, channel.sid, viewer) } }
         );
     };
 
