@@ -142,8 +142,9 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // after a jump — a page, rows arriving — goes to whichever axis is the wider one (`growWindow`).
     const [jumpLimit, setJumpLimit] = useState(0);
     const observeLimit = Math.max(pageLimit, jumpLimit);
-    // True while a failed page waits out its retry delay. `loadMore` reads it, so the end of the wait
-    // hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
+    // True while a failed page waits out its retry delay. `loadMore` depends on it, so the end of the
+    // wait hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
+    // Whether to wait is read from `backingOffRef`, not from this: see there.
     const [isBackingOff, setIsBackingOff] = useState(false);
     // The ranges a feed page has answered for in this run (`observeFeedCoverage`), and whose they are.
     // The repository binds a subscription to the cloud and account selected when it is made, and the
@@ -186,6 +187,11 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     // The cursor of the last page whose rows reached the window.
     const lastCursorRef = useRef<number | null>(null);
     const failuresRef = useRef(0);
+    // The wait itself, read synchronously like `loadingMoreRef`. A failure releases `loadingMoreRef`
+    // at once, but `isBackingOff` reaches a caller only with the next commit, and a scroll event can
+    // be handled before that by the previous render's handler, whose `loadMore` saw no wait. That
+    // caller sent the failed page again at once, and the second failure doubled the wait.
+    const backingOffRef = useRef(false);
     const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     // The newest chatNo this window has held, to tell rows that arrived from rows already counted.
     const newestNoRef = useRef(0);
@@ -256,6 +262,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     const endBackoff = useCallback(() => {
         failuresRef.current = 0;
         clearTimeout(retryTimerRef.current);
+        backingOffRef.current = false;
         setIsBackingOff(false);
     }, []);
 
@@ -362,7 +369,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
     const loadMore = useCallback(
         async ({ immediate = false }: LoadMoreOptions = {}) => {
             if (!channelId || !isVerified || !hasMore || loadingMoreRef.current) return;
-            if (isBackingOff && !immediate) return;
+            if (backingOffRef.current && !immediate) return;
             // Read the oldest cached row from the ref so the cursor reflects the live list without
             // making `chats` a dependency. observeList is chat_no-descending, so the smallest chatNo
             // is the page boundary to fetch before. Unsent rows carry chatNo 0 until the server numbers
@@ -444,9 +451,13 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channe
                 // over a single dropped request — a reconnect mid-scroll was enough.
                 failuresRef.current += 1;
                 const wait = Math.min(LOAD_MORE_RETRY_MAX_MS, LOAD_MORE_RETRY_BASE_MS * 2 ** (failuresRef.current - 1));
+                backingOffRef.current = true;
                 setIsBackingOff(true);
                 clearTimeout(retryTimerRef.current);
-                retryTimerRef.current = setTimeout(() => setIsBackingOff(false), wait);
+                retryTimerRef.current = setTimeout(() => {
+                    backingOffRef.current = false;
+                    setIsBackingOff(false);
+                }, wait);
                 releasePaging();
             }
         },
