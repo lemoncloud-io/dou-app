@@ -6,6 +6,7 @@ import { useDevicePushMute } from '../hooks';
 import { useBlurLastMessage } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
+import { haptics } from '../../../bridge/haptics';
 
 /**
  * Notification preferences, one level under the settings depth. The Figma settings list only
@@ -36,12 +37,27 @@ export const NotificationSettingsPage = () => {
                         title={t('mypage.pushNotifications')}
                         subtitle={pushSupported ? undefined : t('mypage.push.appOnly')}
                         trailing={
-                            <Switch checked={pushEnabled} onCheckedChange={setPushEnabled} disabled={!pushSupported} />
+                            <Switch
+                                checked={pushEnabled}
+                                onCheckedChange={on => {
+                                    haptics.play('selection');
+                                    setPushEnabled(on);
+                                }}
+                                disabled={!pushSupported}
+                            />
                         }
                     />
                     <ListRow
                         title={t('mypage.messagePreview')}
-                        trailing={<Switch checked={!blurLastMessage} onCheckedChange={v => setBlurLastMessage(!v)} />}
+                        trailing={
+                            <Switch
+                                checked={!blurLastMessage}
+                                onCheckedChange={v => {
+                                    haptics.play('selection');
+                                    setBlurLastMessage(!v);
+                                }}
+                            />
+                        }
                     />
                 </MenuCard>
             </div>

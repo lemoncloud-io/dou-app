@@ -287,6 +287,32 @@ mount and fills in later — so the owner's controls and `isOwner` stay off unti
 The tiers, the consent and the params are decided in ADR-0297; what the shell does with each tier is
 [sub-webview.md](../../../../mobile/docs/webview/sub-webview.md#where-it-may-go).
 
+### The hub's header follows the other tabs, and the screens answer by touch
+
+**The header.** `/mypage` is its own scrollport, so its header is `sticky` and carries the safe-area
+inset itself — padding on the container would scroll away with the cards and leave them passing
+under the status bar. Once the cards move, `useScrollChrome` flips `scrolled`: the header's hairline
+appears and the title steps from 22px to 20px, as home's divider and the notifications inbox's title
+do, so the three tabs behave alike. The border is always drawn and only changes colour, and the 36px
+gear sets the bar's height, so neither change moves the cards by a pixel. Both transitions stop
+under reduced motion.
+
+**Haptics.** Through `haptics.play` in `app/bridge/haptics.ts`. `selection`, `warning` and `success`
+mean what they already mean on home and in the notifications inbox; `error` is first used here, for a
+failure the screen also reports with a toast:
+
+| Moment                                                                                    | Kind        |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| A switch flips — dark mode, push, message preview, each Lab experiment                    | `selection` |
+| A different language is picked (picking the one in use plays nothing)                     | `selection` |
+| A destructive confirm opens — logout, releasing a cloud                                   | `warning`   |
+| The account profile or the cloud name is saved; a cloud is released                       | `success`   |
+| Saving the cloud name, releasing a cloud or changing push fails (each says so in a toast) | `error`     |
+
+Navigation rows play nothing: the page change is the feedback. The app icon sheet plays nothing
+either — iOS answers an icon change with its own alert. The pairing logout confirm that can follow
+the logout one plays nothing more, so one logout warns once.
+
 ### UI comes from web-ui-kit, and missing pieces are added there first
 
 `MenuCard` (rounded card with an optional section header), `ListRow` (leading/trailing/subtitle
@@ -325,11 +351,13 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 
 ## Notes for implementers and tests
 
-- **Sixteen specs cover this feature**, and they cover the hooks and the pure parts rather than the
-  screens: `useAppIcon`, `useClearLocalCaches`, `useDevicePushMute`, `useEnsureCloudSession`,
-  `useLanguagePreference`, `useOwnedClouds`, `useSocialLinks`, `useUpdateProfile`, `cloudStatusWord`, plus
-  `AccountLinkSection`, `CloudManageRow`, `CloudManagePage`, `CloudHubPage`, `CloudEditPage`,
-  `CloudDetailPage` and `LoginPage`. The other pages are checked in the browser preview.
+- **Specs sit beside the files they cover**, and most of the feature has one. What has none yet:
+  three hooks (`useDeleteCloud`, `useMiniAppLauncher`, `useOwnedCloud` — the last two run inside
+  the specs of `MiniAppCard` and the cloud pages, which leave them unmocked), six components
+  (`AppIconSelectSheet`, `CloudIdentity`, `CloudSessionGate`, `LogoutDialog`,
+  `SectionLabel`, `SocialProviderIcons`), and seven pages
+  (`AccountInfoPage`, `CloudPlacesPage`, `EmailLoginPage` and the four policy pages), which are
+  checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage

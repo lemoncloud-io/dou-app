@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { isNative } from '@chatic/bridges';
+import { hostProfile } from '@chatic/bridges';
 import type { PairingListItem } from '@chatic/http';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
@@ -29,8 +29,10 @@ export interface PairingAwareLogout {
  * clean. So the order is: read the approvals, confirm when there are any, revoke them all, then the
  * app's ordinary logout (`onLogout`).
  *
- * Only an approving device asks: inside the app, on a session that is not itself a secondary device.
- * A browser and a secondary device log out straight away, and so does an approving device whose list
+ * Only an approving device asks: a page with a shell bridge (the host profile's `bridge`, read here
+ * rather than `@chatic/host`'s `signIn` port because this library is also rendered by apps that publish
+ * no ports), on a session that is not itself a secondary device. A page without a bridge and a
+ * secondary device log out straight away, and so does an approving device whose list
  * cannot be read — the server catches up on its own, so a failed read must never hold a logout hostage.
  * A failed revoke does not stop the logout either.
  */
@@ -42,7 +44,7 @@ export const usePairingAwareLogout = (onLogout: () => void): PairingAwareLogout 
     latest.current = onLogout;
 
     const start = useCallback(async () => {
-        if (!isNative() || isPairedSession()) return latest.current();
+        if (hostProfile().bridge === null || isPairedSession()) return latest.current();
         setBusy(true);
         let standing: PairingListItem[] = [];
         try {

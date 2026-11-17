@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-ki
 
 import type { LanguagePreference } from '../../../../i18n/languagePreference';
 import { useLanguagePreference } from '../hooks/useLanguagePreference';
+import { haptics } from '../../../bridge/haptics';
 
 interface LanguageSelectSheetProps {
     isOpen: boolean;
@@ -26,6 +27,7 @@ export const LanguageSelectSheet = ({ isOpen, onClose }: LanguageSelectSheetProp
     const { preference, setPreference } = useLanguagePreference();
 
     const handleLanguageChange = (next: LanguagePreference) => {
+        if (next !== preference) haptics.play('selection');
         setPreference(next);
         onClose();
     };

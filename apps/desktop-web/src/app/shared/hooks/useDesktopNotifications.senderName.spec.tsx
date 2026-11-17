@@ -11,10 +11,13 @@ let feedHandler: ((feed: unknown) => void) | null = null;
 const request = vi.hoisted(() => vi.fn());
 
 vi.mock('@chatic/bridges', () => ({
-    isNative: () => true,
     webClient: { request },
 }));
 
+// The desktop shell delivers notifications, as the `push` port says there.
+vi.mock('@chatic/host', () => ({
+    host: { ports: { push: { kind: 'app' } } },
+}));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {

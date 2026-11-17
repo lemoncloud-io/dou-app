@@ -14,9 +14,13 @@ import type { LogUploaderHandle } from './logUploader';
 
 let mockIsNative = false;
 
-jest.mock('@chatic/bridges', () => ({
-    ...jest.requireActual('@chatic/bridges'),
-    isNative: () => mockIsNative,
+jest.mock('@chatic/host', () => ({
+    host: {
+        isPublished: true,
+        get ports() {
+            return { diagnostics: { kind: mockIsNative ? 'app' : 'page' } };
+        },
+    },
 }));
 
 let collectionEnabled = true;

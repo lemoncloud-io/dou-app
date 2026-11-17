@@ -1,4 +1,15 @@
-import { host, resolveCheckoutMethod, resolveFilesMethod, resolveMediaMethod, type CheckoutPort } from '@chatic/host';
+import {
+    host,
+    resolveAppShell,
+    resolveCheckoutMethod,
+    resolveDiagnosticsMethod,
+    resolveFilesMethod,
+    resolveLinksMethod,
+    resolveMediaMethod,
+    resolvePushMethod,
+    resolveSignIn,
+    type CheckoutPort,
+} from '@chatic/host';
 
 import { storeCheckout } from './checkout/storeCheckout';
 import { webCheckout } from './checkout/webCheckout';
@@ -24,5 +35,10 @@ export const publishHostPorts = (): void => {
         checkout: chooseCheckout(),
         media: { kind: resolveMediaMethod() },
         files: { kind: resolveFilesMethod() },
+        links: { kind: resolveLinksMethod() },
+        appShell: resolveAppShell(),
+        signIn: resolveSignIn(),
+        diagnostics: { kind: resolveDiagnosticsMethod() },
+        push: { kind: resolvePushMethod() },
     });
 };

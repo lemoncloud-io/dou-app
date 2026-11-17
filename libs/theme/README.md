@@ -66,8 +66,9 @@ settings with lanes and shell hydration are `@chatic/config`'s.
    nothing waits for the shell and nothing retries. A shell without a `SavePreference` handler answers
    `NOT_FOUND`, which a post never sees. Treat the native copy as a convenience for the shell, never
    as the source of truth.
-5. **The DOM effect and the bridge effect are separate, and only the second is gated.** `isNative()`
-   guards the `SavePreference` post; the class write runs everywhere. Keep it that way — the class is
+5. **The DOM effect and the bridge effect are separate, and only the second is gated.** Whether the
+   host profile has a bridge (`hostProfile().bridge !== null`, from `@chatic/bridges`) guards the
+   `SavePreference` post; the class write runs everywhere. Keep it that way — the class is
    what the page looks like and it must not depend on which shell is hosting it.
 6. **`useTheme` must be called under a provider, and nothing enforces it.** See
    [Scenario 6](#6-a-component-rendered-outside-the-provider). The guard in the hook cannot fire.
@@ -99,7 +100,7 @@ flowchart TD
     Hook["hooks/useTheme<br/><i>+ isDarkTheme</i>"]:::hook
 
     Root["document.documentElement<br/><i>one class: light or dark</i>"]:::ext
-    Bridge["@chatic/bridges<br/><i>isNative · webClient.post</i>"]:::ext
+    Bridge["@chatic/bridges<br/><i>hostProfile · webClient.post</i>"]:::ext
     Consumer["Header · ThemeToggle · BuilderLayout · SettingsPage"]:::ext
 
     Pre -->|reads, before the bundle| LS
@@ -134,7 +135,7 @@ sequenceDiagram
     P->>LS: setItem('vite-ui-theme', 'dark')
     P->>P: setState → re-render
     P->>D: classList.remove('light','dark') → add('dark')
-    alt isNative()
+    alt hostProfile().bridge !== null
         P->>B: post SavePreference { key: 'theme', value: 'dark' }
     end
     Note over P,B: fire and forget — no response is awaited
@@ -231,8 +232,9 @@ query once on subscribe, so a change the OS made while `light` or `dark` was cho
 
 ### 4. Running inside the native shell
 
-`isNative()` is true when the page has a `ReactNativeWebView`, `ChaticMessageHandler` or WebKit
-message handler. The second effect then posts `SavePreference { key: 'theme', value: theme }`. That
+The host profile has a bridge when the page had a `ReactNativeWebView`, `ChaticMessageHandler` or WebKit
+message handler at boot — the answer `isNative()` gave. This library reads the profile rather than a
+`@chatic/host` port because apps that publish no ports render it too. The second effect then posts `SavePreference { key: 'theme', value: theme }`. That
 effect has **no "the user chose this" guard**: it runs on mount as well as on change, so simply
 opening the app inside a shell writes the current — possibly defaulted — theme into native storage.
 

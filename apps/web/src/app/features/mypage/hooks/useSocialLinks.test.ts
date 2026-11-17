@@ -1,14 +1,20 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import type { LinkedAccounts } from '../../../hooks';
 import { useSocialLinks } from './useSocialLinks';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
+const mockIsNative = jest.fn();
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: mockIsNative() ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 
@@ -41,8 +47,6 @@ jest.mock('../../../hooks', () => ({
     }),
     useLinkedAccounts: () => mockLinked,
 }));
-
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 
 const GOOGLE_TOKENS = { provider: 'google', idToken: 'tok' };
 

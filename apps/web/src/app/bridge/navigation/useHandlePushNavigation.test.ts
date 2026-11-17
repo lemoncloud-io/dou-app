@@ -11,10 +11,19 @@ import { useHandlePushNavigation } from './useHandlePushNavigation';
 import { configurePerfTraces, getActivePerfTrace, resetPerfTraces } from '@chatic/perf';
 import { roomOpenTrace } from '../../runtime/perf';
 
-// The invited-cloud recovery step added to usePushNavigate pulls three more app-runtime exports.
-// runtime.boot.isNativeApp must be present and falsy: an undefined stub throws inside the switch block, which
-// the best-effort catch swallows into a plain navigate — silently losing the cloud/site switch this
-// suite asserts on. The recovery itself is native-only, so it never runs here.
+// The invited-cloud recovery step added to usePushNavigate pulls more app-runtime exports, and asks the
+// `push` port whether the app receives notifications. The port must be mocked and answer `page` by
+// default: an unpublished host throws inside the switch block, which the best-effort catch swallows
+// into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery
+// itself runs only where the app receives notifications, so it never runs here unless a test says so.
+const mockIsNativeApp = jest.fn(() => false);
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { push: { kind: mockIsNativeApp() ? 'app' : 'page' } };
+        },
+    },
+}));
 const cacheRead = jest.fn();
 const getChat = jest.fn();
 const channelCacheRead = jest.fn();
@@ -23,9 +32,6 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
             waitUntilVerified: jest.fn(),
-        },
-        boot: {
-            isNativeApp: jest.fn(() => false),
         },
         data: {
             recoverInvitedCloudIfMissing: jest.fn(),
@@ -385,7 +391,7 @@ describe('useHandlePushNavigation', () => {
 
         it("'#'는 native여도 invited-cloud 복구 대상이 아니다", async () => {
             // clearAllMocks doesn't clear mockReturnValue, so restore it within the test.
-            (runtime.boot.isNativeApp as jest.Mock).mockReturnValue(true);
+            mockIsNativeApp.mockReturnValue(true);
             try {
                 setCloudActive();
                 setResolved({ target: '/channels/dm1/room', cid: '#', sid: 's1' });
@@ -395,7 +401,7 @@ describe('useHandlePushNavigation', () => {
                 expect(runtime.data.recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
                 expect(logoutCloudSession).toHaveBeenCalledTimes(1);
             } finally {
-                (runtime.boot.isNativeApp as jest.Mock).mockReturnValue(false);
+                mockIsNativeApp.mockReturnValue(false);
             }
         });
 
@@ -774,7 +780,7 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('marks the recovery step when the native app runs it', async () => {
-            (runtime.boot.isNativeApp as jest.Mock).mockReturnValueOnce(true);
+            mockIsNativeApp.mockReturnValueOnce(true);
             setSelection('c1', 's1');
             setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's1' });
 

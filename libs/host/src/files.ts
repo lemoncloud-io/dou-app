@@ -1,4 +1,6 @@
-import { hostProfile, logger, resolveCapability, type HostProfile } from '@chatic/bridges';
+import { hostProfile, type HostProfile } from '@chatic/bridges';
+
+import { resolveAppOrPage, type AppOrPage } from './appOrPage';
 
 /**
  * Who moves a message's files: uploads, downloads, and the first frame of a video without a poster.
@@ -16,7 +18,7 @@ export interface FilesPort {
     readonly kind: FilesMethod;
 }
 
-export type FilesMethod = 'app' | 'page';
+export type FilesMethod = AppOrPage;
 
 /**
  * The declaration version that introduced `files`. Version 2 shipped with `media` alone, so a build
@@ -24,28 +26,10 @@ export type FilesMethod = 'app' | 'page';
  */
 export const FILES_INTRODUCED_IN = 3;
 
-const FILES_METHODS: readonly FilesMethod[] = ['app', 'page'];
-
-/** What the page did before the port: the app moved files wherever there was a bridge to ask it through. */
-const legacyFilesMethod = (profile: HostProfile): FilesMethod => (profile.bridge === null ? 'page' : 'app');
-
 /**
  * Who moves files on this host. A declaration names `'app'` or `'page'`; anything else is a bug in the
  * shell, answered with the page's own requests — the ones every host can make — and logged. A
  * declaration older than version 3 never knew the key, so the legacy rule answers for it.
  */
-export const resolveFilesMethod = (profile: HostProfile = hostProfile()): FilesMethod => {
-    const source = resolveCapability(profile.capabilities, 'files', FILES_INTRODUCED_IN);
-    switch (source.from) {
-        case 'legacy':
-            return legacyFilesMethod(profile);
-        case 'unavailable':
-            return 'page';
-        case 'declaration':
-            if ((FILES_METHODS as readonly unknown[]).includes(source.value)) return source.value as FilesMethod;
-            logger.warn('BRIDGE', '[host] the declared files is not a method this page knows; the page moves files', {
-                value: source.value,
-            });
-            return 'page';
-    }
-};
+export const resolveFilesMethod = (profile: HostProfile = hostProfile()): FilesMethod =>
+    resolveAppOrPage(profile, 'files', FILES_INTRODUCED_IN);

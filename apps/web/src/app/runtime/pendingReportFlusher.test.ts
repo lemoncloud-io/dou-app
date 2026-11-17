@@ -3,8 +3,15 @@ import type { PendingReportInfo } from '@chatic/bridge-messages';
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();
 
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { diagnostics: { kind: mockIsNative() ? 'app' : 'page' } };
+        },
+    },
+}));
+
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockIsNative(),
     ingestLogEntry: (...args: unknown[]) => mockIngestLogEntry(...args),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));

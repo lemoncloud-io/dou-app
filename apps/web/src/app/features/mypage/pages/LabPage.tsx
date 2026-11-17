@@ -7,6 +7,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
 import { openSubWebView, resolveSubWebViewAppUrl } from '../../../bridge';
+import { haptics } from '../../../bridge/haptics';
 import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
@@ -79,7 +80,10 @@ export const LabPage = () => {
                         trailing={
                             <Switch
                                 checked={placeInvite.isEnabled}
-                                onCheckedChange={placeInvite.setEnabled}
+                                onCheckedChange={on => {
+                                    haptics.play('selection');
+                                    placeInvite.setEnabled(on);
+                                }}
                                 label={t('mypage.lab.placeInvite')}
                             />
                         }
@@ -92,7 +96,10 @@ export const LabPage = () => {
                         trailing={
                             <Switch
                                 checked={chatInputLock.isEnabled}
-                                onCheckedChange={chatInputLock.setEnabled}
+                                onCheckedChange={on => {
+                                    haptics.play('selection');
+                                    chatInputLock.setEnabled(on);
+                                }}
                                 label={t('mypage.lab.chatInputLock')}
                             />
                         }

@@ -2,18 +2,8 @@ import { useState } from 'react';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { liveShellGlobals } from '@chatic/bridges';
 import { identityStore } from '@chatic/session';
-
-declare global {
-    interface Window {
-        /** @deprecated Composite `bareId:firebaseInstallId` from legacy app shells; kept as a parse source for both ids. */
-        CHATIC_APP_DEVICE_ID?: string;
-        /** Bare unique device id injected by app shells carrying the new device-id fields. */
-        CHATIC_APP_UNIQUE_DEVICE_ID?: string;
-        /** Firebase installation id injected by app shells carrying the new device-id fields. */
-        CHATIC_APP_FIREBASE_INSTALLATION_ID?: string;
-    }
-}
 
 /**
  * Resolves the device identity from native runtime injection or persisted session state.
@@ -51,13 +41,15 @@ export const readSessionDeviceId = (): string => identityStore.getOrMakeDeviceId
 
 /**
  * The resolution `useDynamicDeviceId` describes, outside React — for the connection controller, which
- * reads it on every pass. The shell's injected ids win over the page's own; they are read from
- * `window` each call, as the hook reads them on each render. The page's own is asked for only when
- * there is no shell id.
+ * reads it on every pass. The shell's injected ids win over the page's own; they are read live
+ * (`liveShellGlobals()`, not the host profile's boot snapshot) on each call, as the hook reads them on
+ * each render, because the phone's second boot pass can rewrite them. The page's own is asked for only
+ * when there is no shell id.
  */
 export const resolveDeviceIds = (sessionDeviceId: () => string) => {
-    const [compositeBareId, compositeFirebaseId] = (window.CHATIC_APP_DEVICE_ID ?? '').split(':');
-    const deviceId = window.CHATIC_APP_UNIQUE_DEVICE_ID || compositeBareId || sessionDeviceId();
-    const firebaseInstallationId = window.CHATIC_APP_FIREBASE_INSTALLATION_ID || compositeFirebaseId || undefined;
+    const shell = liveShellGlobals();
+    const [compositeBareId, compositeFirebaseId] = (shell.CHATIC_APP_DEVICE_ID ?? '').split(':');
+    const deviceId = shell.CHATIC_APP_UNIQUE_DEVICE_ID || compositeBareId || sessionDeviceId();
+    const firebaseInstallationId = shell.CHATIC_APP_FIREBASE_INSTALLATION_ID || compositeFirebaseId || undefined;
     return { deviceId, firebaseInstallationId };
 };

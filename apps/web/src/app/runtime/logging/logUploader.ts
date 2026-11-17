@@ -3,12 +3,12 @@ import {
     createLogUploadQueue,
     createLogUploadScheduler,
     createQueueLogStore,
-    isNative,
     logHub,
 } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
 import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
+import { diagnosticsKind } from './diagnosticsKind';
 import { clearNativeLogQueue, createNativeUploadSource } from './nativeUploadSource';
 import { noteStatisticsDropped, selectTelemetryForUpload } from '../telemetry/telemetryRuntime';
 import { registerLogQueueView } from './logQueueView';
@@ -61,13 +61,14 @@ export interface LogUploaderHandle {
 
 export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderHandle => {
     /**
-     * Which side owns the store, decided once: the app's store inside the app,
-     * the page's own queue in a browser. Every entry reaches the app as it is
+     * Which side owns the store, decided once, by the `diagnostics` port: the
+     * app's store where the app keeps the logs, the page's own queue where the
+     * page sends its own (a browser). Every entry reaches the app as it is
      * dispatched, so in a hybrid run the web keeps no copy of its own.
      */
     // An app below the version floor boots only as far as the update screen, and may predate the app's
     // log store; its logs stay in the page's own queue.
-    const hybrid = isNative() && !isBelowAppVersionFloor(readShellVersion());
+    const hybrid = diagnosticsKind() === 'app' && !isBelowAppVersionFloor(readShellVersion());
 
     // Tab-scoped and stable across reloads; a per-load id would leak a key
     // pair on every refresh and strand the previous load's queue.
@@ -153,7 +154,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
             queue.clear();
             persistNow();
         }
-        if (isNative()) void clearNativeLogQueue();
+        if (diagnosticsKind() === 'app') void clearNativeLogQueue();
         return true;
     };
 

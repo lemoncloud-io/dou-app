@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, Divider, IconPlus, IconSpinner, PromoBanner } from '@chatic/web-ui-kit';
 
@@ -30,7 +30,9 @@ import { useOwnedClouds } from '../hooks/useOwnedClouds';
 export const CloudManagePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const isOnMobileApp = isNative();
+    // Subscribing is offered where the app signs a person in (`host.ports.signIn`): a subscription
+    // follows the social account, which only the app signs in with. Elsewhere the empty state says so.
+    const isOnMobileApp = host.ports.signIn.kind === 'app';
 
     const { clouds, isPendingClouds } = useOwnedClouds();
     const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();

@@ -13,8 +13,14 @@ let ownedClouds: Array<{ id: string }> = [];
 
 vi.mock('@chatic/bridges', () => ({
     webClient: { onEvent: vi.fn(() => () => undefined) },
-    isNative: () => isNativeShell,
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { push: { kind: isNativeShell ? 'app' : 'page' } };
+        },
+    },
 }));
 
 vi.mock('@chatic/app-runtime', () => ({

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { resetHostProfileForTests } from '@chatic/bridges';
+
 const updateRemotePushMute = vi.fn();
 
 // The hook's only collaborator is the device repository; faking the runtime lets the
@@ -55,6 +57,9 @@ describe('useDevicePushMute', () => {
         mutedState = false;
         listeners.clear();
         window.CHATIC_APP_PLATFORM = 'desktop';
+        // The shell injects its platform before the page boots; the host profile is built from `window`
+        // at its first read, in the render.
+        resetHostProfileForTests();
     });
 
     it('is unsupported outside the shell, where no device is registered to address', () => {
@@ -62,6 +67,12 @@ describe('useDevicePushMute', () => {
         const { result } = renderHook(() => useDevicePushMute(), { wrapper });
 
         expect(result.current.isSupported).toBe(false);
+    });
+
+    it('is supported inside the shell, which injected its platform', () => {
+        const { result } = renderHook(() => useDevicePushMute(), { wrapper });
+
+        expect(result.current.isSupported).toBe(true);
     });
 
     it('flips before the request lands, so the switch does not lag the click', async () => {

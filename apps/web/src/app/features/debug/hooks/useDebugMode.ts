@@ -1,7 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-import { isNative } from '@chatic/bridges';
+import { liveShellValue } from '@chatic/bridges';
 import { config, CONFIG_UNLOCK_KEY } from '@chatic/config';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY, DEBUG_OVERLAY_KEY as OVERLAY_KEY } from '../consts';
@@ -10,8 +11,8 @@ import { tabStore } from '../../../storage';
 // Inside the native shell the persisted native flag is the source of truth —
 // injected as a window global (see mobile injectionScripts.ts) so a restarted
 // WebView boots already unlocked and the two sides never need separate unlocks.
-const readInjectedFlag = () =>
-    (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE === true;
+// Read as it stands now: this page writes it too (`setDebugModeEnabled`).
+const readInjectedFlag = () => liveShellValue('CHATIC_APP_DEBUG_MODE') === true;
 
 /**
  * The registry row is the POLICY (`byStage: { LOCAL: true, DEV: true }`, PROD fail-closed), read
@@ -60,8 +61,8 @@ export const setDebugModeEnabled = (enabled: boolean) => {
     // Harmless before `config.init()` — the facade answers `notWired` instead of throwing.
     if (enabled) config.set(CONFIG_UNLOCK_KEY, true, { lane: 'local' });
     else config.clear(CONFIG_UNLOCK_KEY, { lane: 'local' });
-    if (isNative()) {
-        // Single unlock/lock covers both layers (PROD included).
+    if (host.ports.diagnostics.kind === 'app') {
+        // Where the app keeps the diagnostics, a single unlock/lock covers both layers (PROD included).
         appBridge.setDebugMode(enabled);
         (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = enabled;
     }

@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false, guest: false }));
 
 vi.mock('@chatic/config', () => ({ config: { get: () => env.flag } }));
-vi.mock('@chatic/bridges', () => ({ isNative: () => env.native }));
+// Who signs a person in, as the host's `signIn` port says.
+vi.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: env.native ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 vi.mock('../../../shared/hooks/useRelayAccount', () => ({ isRelayGuest: () => env.guest }));
 
 import { canApprovePairing, canRequestPairing, isDevicePairingEnabled } from './devicePairing';

@@ -1,11 +1,12 @@
-import { isNative } from '@chatic/bridges';
+import { host } from '@chatic/host';
 
 import { appBridge } from '../../../bridge';
 import { shellCapabilities } from '../../../bridge/shellCapabilities';
 import { openSubWebViewTarget, subWebViewTargetOfUrl } from '../../../bridge/subWebViewLink';
 
 /**
- * Opens a URL outside the app: the OS browser in the native shell, a new tab otherwise.
+ * Opens a URL outside the app: the OS browser where the app takes the page's links
+ * (`host.ports.links`), a new tab where the page does.
  *
  * Loading an arbitrary link inside the webview would strand the user in a page with no back
  * affordance and our session cookies attached, so the shell always hands it to the OS.
@@ -18,7 +19,7 @@ import { openSubWebViewTarget, subWebViewTargetOfUrl } from '../../../bridge/sub
  * a tap the user asked for should open something, not nothing.
  */
 export const openExternalUrl = (url: string) => {
-    if (isNative()) {
+    if (host.ports.links.kind === 'app') {
         const subWebViewTarget = shellCapabilities.supports('OpenSubWebView') ? subWebViewTargetOfUrl(url) : null;
         if (subWebViewTarget) {
             void openSubWebViewTarget(subWebViewTarget).then(opening => {

@@ -11,17 +11,31 @@
  * - `files` (version 3): who moves a message's files. This app does: its transfer module uploads and
  *   downloads in the background, keeps a downloaded file to open, save or share, and reads a video's
  *   first frame.
+ * - `links`, `appShell`, `signIn`, `diagnostics`, `push` (version 4, together): who takes links out of
+ *   the page, runs the frame around it (icon, badge, haptics, back, keyboard, theme and language,
+ *   update), signs a person in and approves a pairing, receives the page's logs and reports, and
+ *   registers the device for notifications. This app does all five.
  */
 export interface HostCapabilities {
-    version: 3;
+    version: 4;
     checkout: Array<'apple' | 'google' | 'web'>;
     media: 'app' | 'page';
     files: 'app' | 'page';
+    links: 'app' | 'page';
+    appShell: 'app' | 'page';
+    signIn: 'app' | 'page';
+    diagnostics: 'app' | 'page';
+    push: 'app' | 'page';
 }
 
 export const hostCapabilities = (os: string): HostCapabilities => ({
-    version: 3,
+    version: 4,
     checkout: [os === 'ios' ? 'apple' : 'google'],
     media: 'app',
     files: 'app',
+    links: 'app',
+    appShell: 'app',
+    signIn: 'app',
+    diagnostics: 'app',
+    push: 'app',
 });

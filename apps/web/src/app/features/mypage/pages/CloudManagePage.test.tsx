@@ -13,8 +13,15 @@ let scene = { isLoading: false, hasSubscription: true, banner: undefined as stri
 let quota = { used: 0, limit: 2 as number | null };
 let onNative = true;
 
+// Who signs a person in, as the host's `signIn` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { signIn: { kind: onNative ? 'app' : 'page', os: null } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => onNative,
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
