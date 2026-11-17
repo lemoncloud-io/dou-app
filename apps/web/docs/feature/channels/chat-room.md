@@ -145,14 +145,19 @@ heard about the message. The server delete lives in the action sheet and is a di
 different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
-The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
-`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 안읽음 M`)
-while anybody is behind, and the single `allRead` label once nobody is. In English that label is
-`Read by all` — a bare `read 10` left the reader to work out from the member count whether that was
-everyone. In Korean it is `읽음 N`, the same `읽음` word the partial receipt opens with, so the two
-states read as one indicator losing its `안읽음` half; that missing half is what says nobody is
-left. The page passes the read count so the label can carry it.
-`dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
+The receipt's gates are set by the page: shown when `!isSelfChat && activeMemberIds.length >= 2`.
+
+- **A 1:1** (`mode: 'dm'`) prints the single unread badge beside the time of each message, and
+  nothing once it is read.
+- **A group room** (`mode: 'readers'`) prints one line, and only under **my newest message**
+  (`lastMineChatNo`), after its reactions and thread footer (Figma 5978:37669): how far the room has
+  caught up with me, instead of a count beside every bubble. Counted over the other active members
+  (`getReaders` from the join cursors, me left out): `읽음 N` with the first three readers' faces and
+  a `+N` pill while some have read; `미확인 N` while nobody has yet; `모두 읽음` once nobody is left.
+  A message still sending or failed has none; a spinner holds the line until the cursors sync.
+- A self chat never shows one.
+
+The kit's `count` mode (`read N • unread M` beside the time) is no longer drawn by the room.
 
 **Editing.** A message of mine is edited from the action sheet, **in the composer**: the composer
 becomes the editor. A strip above the field (`ComposerEditBar`) names the edit, quotes the message

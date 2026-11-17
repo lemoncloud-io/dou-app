@@ -939,6 +939,11 @@
             "unread": "Unread",
             "allRead": "Read by all",
             "readCount": "Read {{count}}",
+            "receipt": {
+                "read": "Read",
+                "unconfirmed": "Unconfirmed",
+                "allRead": "Read by all"
+            },
             "unreadCount": "Unread {{count}}",
             "viewAll": "View All",
             "messageDetail": "Full Message",
