@@ -182,9 +182,9 @@ folds a reply-to-a-reply back onto the root, so the action sheet inside a thread
 ### What is derived
 
 `buildThreadIndex(rawChats)` produces one `ThreadMeta` per root — the loaded reply `count`,
-`lastReplyAt`, `lastReplyNo`, `lastReplyOwnerId`, the unique `repliers` in first-seen order, and
-`entries` (every loaded reply as `chatNo` + author). `buildThread(rawChats, rootNo)` assembles one
-root plus its replies for the thread page.
+`lastReplyAt`, `lastReplyNo`, `lastReplyOwnerId`, the newest reply itself (`lastReply`), the unique
+`repliers` in first-seen order, and `entries` (every loaded reply as `chatNo` + author + its mention
+record). `buildThread(rawChats, rootNo)` assembles one root plus its replies for the thread page.
 
 `entries` exists because the footer prints **how many** replies are new, and no aggregate can answer
 that: the read baseline is per-viewer and arrives long after the derivation runs. Subtracting
@@ -200,6 +200,20 @@ read cursor **snapshotted on entry**: the live cursor is useless here, since the
 advances it to the channel head within a beat of entering. My own reply never dots my own thread.
 Leaving and re-entering takes a fresh snapshot, so a thread visited in between loses its dot —
 exactly the semantics the read cursor already has.
+
+### The footer
+
+The footer (`ThreadFooter` over the kit's `ThreadSummary`, Figma 5978:37669) is two lines:
+
+- **Always** — two replier faces, "답글 n개", and, while nothing is new, the last reply's time.
+- **While replies are unseen** (`unseenReplies`) — a blue box with "새 답글 n개", "@나를 멘션" when
+  one of those unseen replies calls me (`isMentioningViewer` on its mention record, the same rule
+  as the row's @me and the inbox), and the newest reply as "Name: text" cut to fit; the last reply's
+  time moves down beside the box. The preview reads the reply as a room message would
+  (`lastChatPreview`), without the thread mark the box already implies. It is the thread's newest
+  reply, so it can be my own answer after the unseen ones — the line says where the thread stands.
+
+The whole footer is one button that opens the thread. My own message mirrors both lines.
 
 ### The thread page
 

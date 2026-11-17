@@ -3,7 +3,10 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
 jest.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+    useTranslation: () => ({
+        t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k),
+        i18n: { language: 'ko' },
+    }),
 }));
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
@@ -14,12 +17,24 @@ jest.mock('@chatic/web-ui-kit', () => ({
     DefaultAvatar: () => <div data-testid="default-avatar" />,
     // Faithful enough to assert against: which faces were chosen, and which of the three text
     // segments the footer decided to print.
-    ThreadSummary: ({ avatars, overflowCount, replyLabel, newReplyLabel, time, align, ...rest }: any) => (
+    ThreadSummary: ({
+        avatars,
+        overflowCount,
+        replyLabel,
+        newReplyLabel,
+        mentionLabel,
+        preview,
+        time,
+        align,
+        ...rest
+    }: any) => (
         <button {...rest} data-align={align}>
             {avatars}
             {overflowCount > 0 && <span data-testid="overflow">+{overflowCount}</span>}
             <span data-testid="reply-label">{replyLabel}</span>
             {newReplyLabel && <span data-testid="new-reply-label">{newReplyLabel}</span>}
+            {mentionLabel && <span data-testid="mention-label">{mentionLabel}</span>}
+            {preview && <span data-testid="preview">{preview}</span>}
             {time && <span data-testid="time">{time}</span>}
         </button>
     ),
@@ -78,15 +93,49 @@ describe('ThreadFooter — 스레드 루트의 답글 푸터', () => {
         expect(screen.queryByTestId('time')).toBeNull();
     });
 
-    it('답글자가 많아도 아바타는 5개까지만 쌓고 나머지는 +N으로 센다', () => {
+    it('shows two replier faces and no counter, however many replied', () => {
         const repliers = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(id => ({
             id,
             thumbnail: `https://embed/${id}.png`,
         }));
         render(<ThreadFooter {...baseProps} meta={meta({ repliers, count: 7 })} />);
 
-        expect(screen.getAllByTestId('image-avatar')).toHaveLength(5);
-        expect(screen.getByTestId('overflow')).toHaveTextContent('+2');
+        expect(screen.getAllByTestId('image-avatar')).toHaveLength(2);
+        expect(screen.queryByTestId('overflow')).toBeNull();
+    });
+
+    describe('the new-reply box', () => {
+        const lastReply = { chatNo: 7, ownerId: 'bob', content: 'second place is better', parentId: '3' } as any;
+
+        it('previews the newest reply as "Name: text" while replies are unseen', () => {
+            render(
+                <ThreadFooter
+                    {...baseProps}
+                    meta={meta({ lastReply })}
+                    unseenCount={1}
+                    nameOf={id => (id === 'bob' ? 'Mom' : id)}
+                />
+            );
+            expect(screen.getByTestId('preview')).toHaveTextContent(
+                'chat.thread.lastReply:{"name":"Mom","text":"second place is better"}'
+            );
+        });
+
+        it('previews nothing while every reply has been seen', () => {
+            render(<ThreadFooter {...baseProps} meta={meta({ lastReply })} unseenCount={0} nameOf={() => 'Mom'} />);
+            expect(screen.queryByTestId('preview')).toBeNull();
+        });
+
+        it('says "mentions me" only when an unseen reply calls the reader', () => {
+            const { rerender } = render(<ThreadFooter {...baseProps} unseenCount={1} mentionsMe={false} />);
+            expect(screen.queryByTestId('mention-label')).toBeNull();
+
+            rerender(<ThreadFooter {...baseProps} unseenCount={1} mentionsMe />);
+            expect(screen.getByTestId('mention-label')).toHaveTextContent('chat.thread.mentionsMe');
+
+            rerender(<ThreadFooter {...baseProps} unseenCount={0} mentionsMe />);
+            expect(screen.queryByTestId('mention-label')).toBeNull();
+        });
     });
 
     it('내 메시지의 푸터는 반대쪽으로 정렬한다', () => {
