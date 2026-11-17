@@ -110,6 +110,16 @@ inset produces something like `undefinedpx`, and a single invalid `calc()` colla
 used to erase the fixed 224px along with the inset. Splitting the two means a bad inset only costs
 the inset.
 
+Every other page whose own scroll container runs to the bottom edge — settings, cloud and place
+settings, policies, pairing, search, a room's files — ends it with `<SafeAreaBottomSpacer />`, the
+same split without the nav: the page keeps its fixed bottom padding (`pb-8`, `py-6`) as breathing
+room, and the spacer adds `--safe-bottom` below it. A fixed padding on its own is not enough on
+Android, where the WebView runs under a 3-button navigation bar of about 48px, and a 32px padding left
+the last card under the buttons. Pages that dock a CTA (`KeyboardAwareLayout`,
+`KeyboardSafeAreaSpacer`), use `ScreenLayout`, or open in a slide-up/fullscreen `DialogContent` or a
+`BottomSheet` already sit above the inset and do not need it. Pages import it from its own file, not
+the `ui/components` barrel, which page tests replace with a stub.
+
 ## Snackbar clearance (`--toast-lift`)
 
 The snackbar (`@chatic/ui-kit`'s `Toaster`, mounted once in `AppRuntime`) rests at the bottom, 16px

@@ -33,6 +33,7 @@ import {
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { ROUTES } from '../../../routes/paths';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { threadRootNo } from '../../../utils/notifications/notificationModel';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useChannel } from '../hooks/useChannel';
@@ -489,6 +490,7 @@ export const RoomFilesPage = () => {
                     </div>
                 )}
                 {selecting && <div aria-hidden className="h-32" />}
+                <SafeAreaBottomSpacer />
             </div>
             {selecting && (
                 <FileSelectionActionBar

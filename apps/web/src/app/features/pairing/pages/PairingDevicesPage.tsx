@@ -12,6 +12,7 @@ import { MenuCard } from '@chatic/web-ui-kit';
 import { useCloudName, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { useApprovedPairings, useMyDevices, useRevokePairing, useUnlinkDevice } from '../hooks';
 import { approvedPairingRows, deviceKindKey } from '../lib/deviceRows';
@@ -214,6 +215,7 @@ const PairingDevicesScreen = () => {
                         )}
                     </section>
                 )}
+                <SafeAreaBottomSpacer />
             </div>
 
             <ConfirmDialog

@@ -8,6 +8,7 @@ import { IconChevronRight, IconSpinner, ImageAvatar, ListRow, PlaceAvatar } from
 import { useActiveCloudPlaces } from '../../../hooks/useActiveCloudPlaces';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import {
     MAX_PLACES,
     cloudDisplayName,
@@ -111,6 +112,7 @@ export const CloudPlacesPage = () => {
                     </CloudSessionGate>
                 </div>
             )}
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

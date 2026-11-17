@@ -22,6 +22,7 @@ import { useHomeChannels } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { PageHeader } from '../../../ui';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { HOME_PLACE_ID, resolvePlaceDisplayName } from '../../../utils/resolvePlaceDisplayName';
 import { channelKindOf, resolveChannelTitle } from '../../channels/lib';
 import { PlaceConfirmDialog } from '../components/PlaceConfirmDialog';
@@ -263,6 +264,7 @@ export const PlaceDetailPage = () => {
                         </>
                     )}
                 </div>
+                <SafeAreaBottomSpacer />
             </div>
 
             <PlaceConfirmDialog

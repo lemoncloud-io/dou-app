@@ -21,6 +21,7 @@ import {
 } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { QrScannerSheet } from '../components/QrScannerSheet';
 import { useNow, usePairingApproval } from '../hooks';
 import { canScanLive, type LiveQrOpenFailure } from '../lib/liveQrScanner';
@@ -204,6 +205,7 @@ const PairingApproveScreen = () => {
                         onCancel={reset}
                     />
                 )}
+                <SafeAreaBottomSpacer />
             </div>
         </div>
     );
