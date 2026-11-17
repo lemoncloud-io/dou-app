@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (auth,web) restore a session no page moved into the vault, not the runtime's guest (ADR-0331)
+
 ## [2026-11-17] - root@0.161.1, @chatic/web@0.91.1
 
 ### Bug Fixes
