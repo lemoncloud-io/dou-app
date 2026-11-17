@@ -42,6 +42,7 @@ export * from './useUser';
 export * from './useMyProfile';
 export * from './useAccountName';
 export * from './useSiteProfiles';
+export * from './usePlaceProfiles';
 export * from './useAuthorNames';
 export * from './useChannelLabels';
 export * from './useCopyToClipboard';

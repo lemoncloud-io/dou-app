@@ -19,6 +19,7 @@ import {
     useDeviceTokenRegistration,
     useInboxCapture,
     useMyThreadsCapture,
+    usePlaceProfiles,
     usePushInvitedCloudRecovery,
     usePlaceUnreadCounts,
     useRefreshOnPush,
@@ -38,6 +39,8 @@ import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
+    // Every place's nicks, so the banner, the inbox and my threads name a sender as the feed does.
+    usePlaceProfiles();
     useDesktopNotifications();
     // A channel first seen in a place with a chosen notification level takes that level.
     usePlaceNotifyInheritance();
