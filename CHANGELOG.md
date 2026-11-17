@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.165.0, @chatic/web@0.94.0
+
+### Features
+
+- (web) pin the home chat tabs under the header and step the inbox title down on scroll
+
 ## [2026-11-17] - No version updates
 
 ### Features
