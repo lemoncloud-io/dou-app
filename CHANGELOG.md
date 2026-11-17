@@ -2,6 +2,13 @@
 
 ## [2026-11-17] - No version updates
 
+### Features
+
+- (web/notifications) keep picks after mark-read and give the find-me sheet a selection mode
+- (web-ui-kit) let the selection action bar sit in a sheet footer, not only fixed to the screen
+
+## [2026-11-17] - No version updates
+
 ### Bug Fixes
 
 - (web/notifications) show the author's profile photo in the inbox, not the default glyph
