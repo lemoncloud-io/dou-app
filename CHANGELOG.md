@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-17] - root@0.164.0, @chatic/web@0.93.0
+
+### Features
+
+- (web) move android screens on a horizontal shared axis and animate its system back (ADR-0336)
+
+### Bug Fixes
+
+- (shared) capture a page transition's destination after it renders, not before
+
 ## [2026-11-17] - No version updates
 
 ### Features
