@@ -8,15 +8,20 @@
  *   review forbids it — so the website is not listed.
  * - `media` (version 2): who picks what a person attaches. This app does, with its own picker, photo
  *   library and video conversion.
+ * - `files` (version 3): who moves a message's files. This app does: its transfer module uploads and
+ *   downloads in the background, keeps a downloaded file to open, save or share, and reads a video's
+ *   first frame.
  */
 export interface HostCapabilities {
-    version: 2;
+    version: 3;
     checkout: Array<'apple' | 'google' | 'web'>;
     media: 'app' | 'page';
+    files: 'app' | 'page';
 }
 
 export const hostCapabilities = (os: string): HostCapabilities => ({
-    version: 2,
+    version: 3,
     checkout: [os === 'ios' ? 'apple' : 'google'],
     media: 'app',
+    files: 'app',
 });

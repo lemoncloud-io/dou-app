@@ -53,8 +53,8 @@ of routing through this component.
 ## File transfers: `shellUpload`
 
 `shellUpload.ts` picks the PUT an image message uses and owns the one per-page native transfer
-registry behind it: `getShellPut()` returns the native sender inside the app and the page's own
-`xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
+registry behind it: `getShellPut()` returns the native sender where the app moves files (the
+host's `files` port) and the page's own `xhrPut` otherwise, and `syncShellTransfers()` catches up with transfers the shell finished while
 the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
 through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
 from `@chatic/runtime-web`, and the native sender also uses it for a page video or document.

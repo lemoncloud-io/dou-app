@@ -325,9 +325,9 @@ instead of surfacing as an opaque "Script error.":
   a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
   the post-load injection, so the list is in both
 - `CHATIC_APP_CAPABILITIES` — what this build declares it can do (`utils/hostCapabilities.ts`): version
-  2, with `checkout: ['apple']` on iOS and `['google']` on Android — never the website, which a
-  store-distributed app may not point a buyer at — and `media: 'app'`, since this app picks what a person
-  attaches. The web chooses its `@chatic/host` ports from it
+  3, with `checkout: ['apple']` on iOS and `['google']` on Android — never the website, which a
+  store-distributed app may not point a buyer at — `media: 'app'`, since this app picks what a person
+  attaches, and `files: 'app'`, since its transfer module moves a message's files. The web chooses its `@chatic/host` ports from it
   before its first render; a build without it gets the web's rule for an app that declares nothing,
   which gives the same answer. Set early in the script, beside the storage media, so a later snippet
   that throws cannot skip it

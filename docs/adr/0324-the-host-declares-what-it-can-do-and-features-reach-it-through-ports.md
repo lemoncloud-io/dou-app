@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
 > `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
-> (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`); `files` and steps 4–7 follow
+> (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`), `feat/host-files-port` (step 3, `files`); steps 4–7 follow
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
@@ -86,9 +86,10 @@ profile from inside the page. Every profile therefore traces back to one stateme
 
 ```ts
 window.CHATIC_APP_CAPABILITIES = {
-    version: 2,
+    version: 3,
     checkout: ['apple'],
-    media: 'app' /* … */,
+    media: 'app',
+    files: 'app' /* … */,
 };
 ```
 
@@ -118,6 +119,12 @@ picks. The `media` port carries that choice and nothing more. The picker and pho
 between take their types from the data layer and the runtime, which `layer:host` keeps out of reach, so
 they stay in `apps/web` and read the port — a narrower port than § 2 describes, for a domain only one app
 has.
+
+`files` is version 3, the rest of step 3: `'app'` or `'page'`, for uploads, downloads and a video's first
+frame. It is not version 2 because version-2 declarations were already being built without it: had the
+key joined version 2, those builds would read as declaring it missing and move files through the page.
+Declarations of version 1 or 2 get the legacy rule — a bridge means the app — and the port is as narrow
+as `media`'s, for the same reason.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.

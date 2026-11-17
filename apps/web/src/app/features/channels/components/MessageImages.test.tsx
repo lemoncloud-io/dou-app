@@ -14,7 +14,14 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 let mockNative = false;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Who moves files, as the host's `files` port says: the app when the case runs in the app.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { files: { kind: mockNative ? 'app' : 'page' } };
+        },
+    },
+}));
 const mockDownload = jest.fn();
 jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]) => mockDownload(...args) }));
 const toast = jest.fn();

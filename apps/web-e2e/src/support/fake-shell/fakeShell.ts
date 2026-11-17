@@ -206,9 +206,10 @@ export class FakeShell {
             // The app's own declaration (`hostCapabilities`): its platform's store.
             ...(this.options.capabilities !== null && {
                 capabilities: this.options.capabilities ?? {
-                    version: 2,
+                    version: 3,
                     checkout: [ios ? 'apple' : 'google'],
                     media: 'app',
+                    files: 'app',
                 },
             }),
         };

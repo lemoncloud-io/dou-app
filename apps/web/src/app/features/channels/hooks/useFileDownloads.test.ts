@@ -16,8 +16,15 @@ jest.mock('react-i18next', () => ({
 
 let native = true;
 const request = jest.fn();
+// Who moves files, as the host's `files` port says.
+jest.mock('@chatic/host', () => ({
+    host: {
+        get ports() {
+            return { files: { kind: native ? 'app' : 'page' } };
+        },
+    },
+}));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => native,
     logger: { error: jest.fn() },
     webClient: { request: (message: unknown, options: unknown) => request(message, options) },
 }));

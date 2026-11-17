@@ -2,11 +2,11 @@ import { hostCapabilities } from './hostCapabilities';
 
 describe('hostCapabilities', () => {
     it("declares Apple's store on iOS", () => {
-        expect(hostCapabilities('ios')).toEqual({ version: 2, checkout: ['apple'], media: 'app' });
+        expect(hostCapabilities('ios')).toEqual({ version: 3, checkout: ['apple'], media: 'app', files: 'app' });
     });
 
     it("declares Google's store on Android", () => {
-        expect(hostCapabilities('android')).toEqual({ version: 2, checkout: ['google'], media: 'app' });
+        expect(hostCapabilities('android')).toEqual({ version: 3, checkout: ['google'], media: 'app', files: 'app' });
     });
 
     it('never offers the website, which a store-distributed app may not point a buyer at', () => {

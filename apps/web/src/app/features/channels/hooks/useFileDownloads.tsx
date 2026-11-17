@@ -2,7 +2,8 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
+import { host } from '@chatic/host';
 import { isPendingUploadSlot, type ChatFileSlot, type DomainChat } from '@chatic/data';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -238,9 +239,12 @@ export interface BatchFile {
     chatId?: string;
 }
 
+/** Whether the app downloads and keeps files on this host, as the host's `files` port says. */
+const appMovesFiles = (): boolean => host.ports.files.kind === 'app';
+
 /** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
 const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {
-    if (!isNative()) {
+    if (!appMovesFiles()) {
         for (const { file, chatId } of list) await downloadHere({ ...context, chatId }, file, refresh);
         return;
     }
@@ -252,6 +256,9 @@ const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: 
 
 /**
  * A message's document cards: what each download button shows, and what pressing a card does.
+ *
+ * The host's `files` port says which of the two ways below applies: `page` is a browser's, `app` the
+ * app's.
  *
  * In a browser the button and the card body both fetch the file and save it under its own name. A
  * signed address that has expired (403) has the message read again for fresh ones, and the user
@@ -273,7 +280,7 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
 
     const stateOf = useCallback(
         (file: ChatFileSlot): MessageFileDownloadState => {
-            if (!isNative()) return downloading.has(file.key) ? 'downloading' : 'idle';
+            if (!appMovesFiles()) return downloading.has(file.key) ? 'downloading' : 'idle';
             if (downloading.has(file.key)) return 'downloading';
             return kept.has(file.key) ? 'done' : 'idle';
         },
@@ -290,7 +297,7 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
     const download = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
             const context = { cid, chatId: fromChatId ?? chatId, t };
-            if (!isNative()) return downloadHere(context, file, refresh);
+            if (!appMovesFiles()) return downloadHere(context, file, refresh);
             await perform(context, 'save', file);
         },
         [chatId, cid, refresh, t]
@@ -300,7 +307,7 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
     const open = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
             const context = { cid, chatId: fromChatId ?? chatId, t };
-            if (!isNative()) return downloadHere(context, file, refresh);
+            if (!appMovesFiles()) return downloadHere(context, file, refresh);
             await perform(context, 'open', file);
         },
         [chatId, cid, refresh, t]
@@ -309,7 +316,7 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
     /** The action sheet's "Share file": in the app only, download if needed and put it on the share sheet. */
     const share = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
-            if (!isNative()) return;
+            if (!appMovesFiles()) return;
             await perform({ cid, chatId: fromChatId ?? chatId, t }, 'share', file);
         },
         [chatId, cid, t]

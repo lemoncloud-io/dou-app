@@ -20,6 +20,20 @@ permission (`ChatImageAttach`), whether the recent-photos strip shows outside th
 hands a video to the app to convert (`useSendImages`), and whether the permission banner can open the
 app's settings (`PermissionDeniedBanner`).
 
+## files
+
+Who moves a message's files. `publishHostPorts` publishes `{ kind: resolveFilesMethod() }`; where it is
+`'app'`:
+
+- `shellUpload` hands uploads to the app's transfer module and catches up with the ones it finished.
+- `shellDownload` catches up with the app's downloads. Saving or sharing a photo or video uses the same
+  downloads but is decided by the handshake (`shellCapabilities`), not by this port, so the catch-up
+  also runs wherever the handshake allows image export.
+- `useFileDownloads` lets the app download, keep, open and share a document.
+- The video-frame maker (`useVideoFrames`) asks the app for a video's first frame.
+
+Where it is `'page'`, the page PUTs, fetches and saves the file itself and draws frames from the bucket.
+
 ## checkout
 
 | What the host sells through | Implementation                    | What it does                                                                           |
