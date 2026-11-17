@@ -159,8 +159,10 @@ the move again next time.
 leftover and is deleted as before). Every boot that reads the vault deletes the web copy, and
 nothing writes the tokens to `localStorage` while a vault is in use, so a copy still there means no page has booted on
 this vault and its tokens were written by something else. The phone app's own runtime is that something:
-an install that updated straight from an app without a vault starts the runtime on an empty vault, which
-signs the device in as a guest while the person's session is still in `localStorage`. The copy replaces
+on app 0.32.1, an install that updated straight from an app without a vault started the runtime on an
+empty vault, which signed the device in as a guest while the person's session was still in
+`localStorage`. From 0.32.2 the runtime declines a launch whose vault holds no session, and the page
+moves the copy itself; this row is what recovers the installs 0.32.1 already reached. The copy replaces
 the vault's whole token set (a token it lacks is removed, so nothing of the other session is left) and
 the device guest's id from the plain store is written over the vault's in the same write, since the plain
 id is the one the page accepted invites under. The web copy is deleted once the shell confirms; a refused

@@ -9,7 +9,7 @@ the runtime starts, and what it keeps running.
 **A dev or production build runs it by default; the web can send installs back to the page.** 0.32.0
 was the first app version that carried the runtime, and it shipped switched off in production. From
 0.32.1 a production build starts every install nobody switched on the runtime, as the dev build already
-did; the web build can name the page instead for those installs, from their next start, without an app
+did (from 0.32.2, on a launch whose vault holds a session); the web build can name the page instead for those installs, from their next start, without an app
 release (see [The page's default](#the-pages-default)). The owner switch still moves one install either
 way, answered in production only while the app's debug mode is on (see [The switch](#the-switch)). On a
 launch whose owner is `native`, the app offers the session to the page
@@ -143,7 +143,7 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
-without the runtime's services): **This run** says App (native) for both. The device scenarios switch
+without the runtime's services) or declined a vault with no session: **This run** says App (native) for both. The device scenarios switch
 through this screen with `--session-owner native` (release `device-verify.md`).
 
 The vault's tokens are the same keychain item for both owners, so a session carries over a switch. What
@@ -188,7 +188,10 @@ the boot took and what the vault held.
 
 A start that fails answers `null`, and the page keeps the session. A failed boot created nothing; a run
 that fails after the boot stops what it had started, so the runtime exists without running. The log
-says which of the two happened.
+says which of the two happened. A boot that finds no session in the vault is not a failure: it also
+creates nothing and answers `null`, so the page takes the launch, and it is logged as a decline
+(`session.native_runtime_declined`), not as `session.native_runtime_failed` (see
+[An install that skipped the page's move](#an-install-that-skipped-the-pages-move)).
 
 ## The device, as the page knows it
 
@@ -230,6 +233,13 @@ Without that move, naming `web` would have deleted the person's session: the vau
 have counted as the truth. The first launch after such an update is the runtime's whatever the web says,
 because the app settles the owner before any web build is heard. A sign-out on a launch the runtime owns
 deletes that copy as well, so the next launch the page owns does not bring back the account the person left.
+
+From 0.32.2 that first launch is the page's instead. The runtime declines any launch whose vault holds no
+session (`NativeRuntimeNoSessionError` from the boot, logged as `session.native_runtime_declined`): the
+host answers the page's hello with `web`, the page moves the session out of `localStorage`, and the next
+launch finds it in the vault and is the runtime's. A signed-out install pays one launch on the page, where
+the page signs a guest in as the runtime would have. So an install updating from an app without a vault
+never meets the guest sign-in, whatever the web build names.
 
 ## The page's side of the bridge
 
@@ -317,9 +327,14 @@ installs meet them on every launch unless the web names the page ([The page's de
   `RUNTIME_CONTRACT_MISMATCH` refusal. Reloaded into the first kind, such a page would boot a second
   session. The offer has to say the session is held (and the page then ask whatever its switch says)
   before a web deploy can be the rollback mid-process.
-- **Logout markers do not cross owners.** The "the vault clear was not confirmed" marker sits in each
-  side's own plain store. A launch owned by one side does not see the other's, so the owner must not
-  change while one is set. The owner switch does not check for one.
+- **Logout markers cross owners in one direction only.** The "the vault clear was not confirmed" marker
+  sits in each side's own plain store. A page's clear also reaches the runtime's file
+  (`runtimeLogoutMarker.ts`, loaded by `useSecureStorageHandler` only when a page clears the vault, sets
+  or removes the marker there with the clear's outcome), because the
+  runtime declining a vault with no session makes page-owned launches routine and the runtime may own
+  the next one. The other way has no need for it: a runtime marker means the vault still holds tokens,
+  and the runtime's boot finishes the logout before any decline. The owner switch still does not check
+  for a marker.
 - **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
   restarted context sends a `boot` trace and a `first_screen` sample as a launch would; they need a type
   of their own now that production runs the runtime.

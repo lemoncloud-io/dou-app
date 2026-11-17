@@ -1,5 +1,6 @@
 import { secretStorageMigration } from '@chatic/auth';
 import type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
+import { SECRET_LOGOUT_PENDING_KEY } from '@chatic/session';
 import type { KeyValueStore } from '@chatic/storage';
 
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
@@ -27,3 +28,15 @@ export const hasWebSessionCopy = (web: KeyValueStore): boolean => secretStorageM
  * keeps a vault. Left in place, the next boot would let it replace the vault's session.
  */
 export const discardWebSessionCopy = (web: KeyValueStore): void => secretStorageMigration.discardWebCopy(web);
+
+/**
+ * Records in `plain` whether a logout's vault clear is still unconfirmed, for a store this boot step
+ * reads but whose own logout did not run there. The phone app keeps one plain store per side (the page's
+ * `localStorage`, the runtime's file), and either may own the next launch, so a clear one side could not
+ * confirm has to be visible to the other's boot too. `true` sets the marker the step finishes the logout
+ * from; `false` removes it once a clear was confirmed, so a later sign-in is not emptied by it.
+ */
+export const setSecretLogoutPending = (plain: KeyValueStore, pending: boolean): void => {
+    if (pending) plain.set(SECRET_LOGOUT_PENDING_KEY, '1');
+    else plain.remove(SECRET_LOGOUT_PENDING_KEY);
+};

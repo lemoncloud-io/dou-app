@@ -12,6 +12,8 @@
 > decisions 1 and 3
 > · Amended by: [ADR-0331](./0331-a-web-copy-no-page-moved-wins-over-the-vault.md) — production installs went from 0.31.2
 > straight to 0.32.1, not through 0.32.0
+> · Amended by: [ADR-0332](./0332-the-apps-runtime-declines-a-launch-whose-vault-holds-no-session.md) decision 1 — the runtime
+> declines a launch whose vault holds no session
 
 ## Context
 

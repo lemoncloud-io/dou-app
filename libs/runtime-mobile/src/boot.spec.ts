@@ -3,7 +3,13 @@ import { MemoryStore } from '@chatic/storage';
 import type { NativeReadResult } from '@chatic/storage';
 
 import { HOME_SEARCH_KEY } from './auth';
-import { NativeRuntimeEnvError, bootNativeRuntime, missingNativeRuntimeEnv, NATIVE_RUNTIME_ENV_KEYS } from './boot';
+import {
+    NativeRuntimeEnvError,
+    NativeRuntimeNoSessionError,
+    bootNativeRuntime,
+    missingNativeRuntimeEnv,
+    NATIVE_RUNTIME_ENV_KEYS,
+} from './boot';
 import { createNativeRuntime } from './createNativeRuntime';
 import { nativeSecretStore } from './storage';
 
@@ -106,13 +112,56 @@ describe('bootNativeRuntime', () => {
         expect(options.storage.secret.get('chatic-relay-token')).toBe('guest-after-logout');
     });
 
-    it('finishes a logout whose clear was never confirmed', async () => {
-        const { options, plain } = setup({ 'chatic-relay-token': 'old' });
+    it('finishes a logout whose clear was never confirmed, then leaves the emptied vault to the page', async () => {
+        const { options, plain, vault } = setup({ 'chatic-relay-token': 'old' });
         plain.set(SECRET_LOGOUT_PENDING_KEY, '1');
+
+        await expect(bootNativeRuntime({ ...options, env: name => FULL_ENV[name] })).rejects.toEqual(
+            new NativeRuntimeNoSessionError('logout-finished')
+        );
+        expect(vault.clear).toHaveBeenCalled();
+        expect(plain.get(SECRET_LOGOUT_PENDING_KEY)).toBeNull();
+        expect(createNativeRuntime).not.toHaveBeenCalled();
+    });
+
+    it('creates nothing on a vault with no session, so the page can move one it still holds', async () => {
+        // An install updating from an app without a vault: its session is in the page's localStorage.
+        const { options, vault } = setup();
+
+        const booting = bootNativeRuntime({ ...options, env: name => FULL_ENV[name] });
+
+        await expect(booting).rejects.toBeInstanceOf(NativeRuntimeNoSessionError);
+        await expect(booting).rejects.toMatchObject({ code: 'NATIVE_RUNTIME_NO_SESSION', secretStorage: 'empty' });
+        expect(createNativeRuntime).not.toHaveBeenCalled();
+        expect(vault.save).not.toHaveBeenCalled();
+    });
+
+    it('drops the address a session end saved, which only the runtime it no longer creates would read', async () => {
+        const { options, plain } = setup();
+        plain.set(HOME_SEARCH_KEY, 'logout=1');
+
+        await expect(bootNativeRuntime({ ...options, env: name => FULL_ENV[name] })).rejects.toBeInstanceOf(
+            NativeRuntimeNoSessionError
+        );
+        expect(plain.get(HOME_SEARCH_KEY)).toBeNull();
+    });
+
+    it('still creates the runtime on a vault it could not read, rather than guess it holds no session', async () => {
+        const { options, vault } = setup();
+        vault.get.mockResolvedValue({ status: 'unavailable', reason: 'error', values: {} });
 
         const boot = await bootNativeRuntime({ ...options, env: name => FULL_ENV[name] });
 
-        expect(boot.secretStorage).toBe('logout-finished');
-        expect(plain.get(SECRET_LOGOUT_PENDING_KEY)).toBeNull();
+        expect(boot.secretStorage).toBe('unavailable');
+        expect(createNativeRuntime).toHaveBeenCalled();
+    });
+
+    it('does not count a vault holding only the device guest id as a session', async () => {
+        const { options } = setup({ 'chatic-delegator-id': 'guest-1' });
+
+        await expect(bootNativeRuntime({ ...options, env: name => FULL_ENV[name] })).rejects.toMatchObject({
+            secretStorage: 'empty',
+        });
+        expect(createNativeRuntime).not.toHaveBeenCalled();
     });
 });

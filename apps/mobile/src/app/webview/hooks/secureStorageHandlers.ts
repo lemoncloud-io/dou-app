@@ -17,11 +17,19 @@ import type { ISecureStorageService } from '../../services/secureStorage';
  * in it is the session's tokens, and the page reaches the session through the runtime without ever
  * holding one. So the page is answered as it is by a vault it cannot use — `unavailable`, `ok: false` —
  * and nothing it sends reads, overwrites or empties the session. Off until the app runs the session.
+ *
+ * A clear the page asks for is the end of its session. Its outcome goes to `onClearResult` as well: the
+ * page keeps its own "clear not confirmed" marker in its storage, which the app's runtime cannot read, and
+ * the runtime may own the next launch. Without it, a refused clear would leave the tokens in the vault and
+ * the runtime would boot on them, signing the person back in.
  */
 export const createSecureStorageHandlers = (
     vault: ISecureStorageService,
     logger: ILogService,
-    { ownsSession = () => false }: { ownsSession?: () => boolean } = {}
+    {
+        ownsSession = () => false,
+        onClearResult = () => undefined,
+    }: { ownsSession?: () => boolean; onClearResult?: (ok: boolean) => void } = {}
 ) => {
     // Once per kind of message: a page that cannot use the vault asks again on every return to the front.
     const reported = new Set<string>();
@@ -75,6 +83,12 @@ export const createSecureStorageHandlers = (
             return { type: 'OnStorageClear' as const, success: true, data: { ok: false } };
         }
         const ok = await vault.clear();
+        try {
+            onClearResult(ok);
+        } catch (error) {
+            // The page's own answer must not depend on it: the page keeps its marker either way.
+            logger.warn('SECURE_STORAGE', 'Could not record the clear for the runtime', { error });
+        }
         return { type: 'OnStorageClear' as const, success: true, data: { ok } };
     };
 
