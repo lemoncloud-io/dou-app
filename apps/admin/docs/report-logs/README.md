@@ -114,6 +114,11 @@ the browser by **occurrence** time, and the covering days sent to the server. Fo
 the resolved period says so (`exact: false`). Each tab's default: user and reports `7d`, errors
 `24h`, statistics `7d`.
 
+That server answers any other shape — a datetime such as `2026-11-17T03:45:00`, or an impossible day
+such as `2026-02-30` — by failing the whole request, so a `from`/`to` from the URL is checked
+(`isKstDate`) before it is used. A period tab treats a bad value as no custom range and falls back to
+today; the full-log tab treats it as no bound.
+
 ## Counting: the server's numbers or the fetched rows
 
 A fetch stops at one page (500 rows, newest arrival first), so counting fetched rows answers "how

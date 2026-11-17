@@ -68,6 +68,13 @@ describe('useLogConsoleState — 기본값', () => {
         expect(api.server.kind).toBe('all');
         expect(api.mode).toBe('list');
     });
+
+    it('drops a from/to that is not a whole day, since the server fails the request on it', () => {
+        setup('/report-logs?from=2026-11-17T03:45:00&to=2026-02-30');
+
+        expect(api.server.from).toBe('');
+        expect(api.server.to).toBe('');
+    });
 });
 
 describe('useLogConsoleState — URL 왕복', () => {

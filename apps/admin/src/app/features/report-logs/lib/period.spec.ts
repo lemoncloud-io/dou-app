@@ -51,6 +51,9 @@ describe('period', () => {
             toDate: '2026-10-12',
         });
         expect(resolvePeriod({ preset: 'custom', from: 'nope' }, NOW).preset).toBe('today');
+        // A datetime or an impossible day is refused by the server, so it counts as junk too.
+        expect(resolvePeriod({ preset: 'custom', from: '2026-10-10T03:45:00' }, NOW).preset).toBe('today');
+        expect(resolvePeriod({ preset: 'custom', from: '2026-02-30' }, NOW).preset).toBe('today');
     });
 
     it('centres an around window on the instant, half an hour each side', () => {
