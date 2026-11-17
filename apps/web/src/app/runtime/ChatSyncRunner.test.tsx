@@ -8,16 +8,18 @@ import { useHomeChannels } from '../hooks/useHomeChannels';
 import { ChatSyncRunner } from './ChatSyncRunner';
 
 jest.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { useSessionSelection: jest.fn() } },
+    runtime: { session: { useSessionSelection: jest.fn(), useUidInCloud: jest.fn() } },
 }));
 jest.mock('../hooks/useChatSyncRegistration', () => ({ useChatSyncRegistration: jest.fn() }));
 jest.mock('../hooks/useHomeChannels', () => ({ useHomeChannels: jest.fn() }));
 jest.mock('../features/channels/hooks', () => ({ useCloudSelfChannels: jest.fn() }));
+jest.mock('../hooks/useCloudScope', () => ({ useSelectedCloudId: () => 'cloud-a' }));
 
 describe('ChatSyncRunner', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId: '10001' });
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue('1001002');
     });
 
     it("registers the chat sync for the session place's rooms and the cloud's notes-to-self room", () => {
@@ -38,5 +40,38 @@ describe('ChatSyncRunner', () => {
         render(<ChatSyncRunner />);
 
         expect(useChatSyncRegistration).toHaveBeenCalledWith([{ id: 'c1' }, { id: 'self' }]);
+    });
+
+    /**
+     * Path seen in a production alert, uid 1001002 reading guest 1000124's notes-to-self room:
+     *   403 FORBIDDEN - not a member of channel @verifyJoin(join/U:1000124)  GET /chats/U:1000124/feed
+     * The cached rows still held the previous account's room, and the catch-up pulled its feed.
+     */
+    it("leaves out somebody else's notes-to-self room, from either slice", () => {
+        const foreign = { id: 'U:1000124', stereo: 'self', ownerId: '1000124' };
+        const mine = { id: 'U:1001002', stereo: 'self', ownerId: '1001002' };
+        (useHomeChannels as jest.Mock).mockReturnValue({ channels: [{ id: 'c1' }, foreign], isLoading: false });
+        (useCloudSelfChannels as jest.Mock).mockReturnValue({ channels: [foreign, mine], isLoading: false });
+
+        render(<ChatSyncRunner />);
+
+        expect(runtime.session.useUidInCloud).toHaveBeenCalledWith('cloud-a');
+        expect(useChatSyncRegistration).toHaveBeenCalledWith([{ id: 'c1' }, mine]);
+    });
+
+    it('keeps a notes-to-self room while the owner or the session uid is still unknown', () => {
+        const ownerless = { id: 'U:1000124', stereo: 'self' };
+        (useHomeChannels as jest.Mock).mockReturnValue({ channels: [], isLoading: false });
+        (useCloudSelfChannels as jest.Mock).mockReturnValue({ channels: [ownerless], isLoading: false });
+
+        const { rerender } = render(<ChatSyncRunner />);
+        expect(useChatSyncRegistration).toHaveBeenLastCalledWith([ownerless]);
+
+        const owned = { id: 'U:1000124', stereo: 'self', ownerId: '1000124' };
+        (useCloudSelfChannels as jest.Mock).mockReturnValue({ channels: [owned], isLoading: false });
+        (runtime.session.useUidInCloud as jest.Mock).mockReturnValue(null);
+
+        rerender(<ChatSyncRunner />);
+        expect(useChatSyncRegistration).toHaveBeenLastCalledWith([owned]);
     });
 });
