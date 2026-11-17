@@ -77,7 +77,12 @@ export type { SessionCommands } from './session/commands';
 
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
-export { discardWebSessionCopy, hasWebSessionCopy, prepareSecretStorage } from './session/secretStorage';
+export {
+    discardWebSessionCopy,
+    hasWebSessionCopy,
+    prepareSecretStorage,
+    setSecretLogoutPending,
+} from './session/secretStorage';
 export type { SecretStorageBoot, SecretStorageOutcome } from './session/secretStorage';
 
 // the credential guards an app starts with its own policy

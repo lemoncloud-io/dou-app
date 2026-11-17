@@ -8,7 +8,7 @@ them. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/REA
 
 The mobile app can boot it (`apps/mobile/docs/runtime/`), on a launch whose owner is set to the app;
 a dev or production build (from app 0.32.1) sets it for installs nobody switched, unless the web names
-the page. An app boots it with
+the page. A launch whose vault holds no session is declined and goes to the page (from 0.32.2). An app boots it with
 `bootNativeRuntime` and keeps it alive with `runNativeRuntime`:
 
 ```ts
@@ -39,18 +39,18 @@ const engine = createNativeRuntime({
 });
 ```
 
-| Export                                                                    | Does                                                                                                                              |
-| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine                     |
-| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                       |
-| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process                      |
-| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                                   |
-| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                                |
-| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                        |
-| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime                     |
-| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop                      |
-| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core        |
-| `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`, `RuntimeEngine`  | runtime-core's, handed on: the whitelist a sub WebView page's runtime requests pass, and the engine type its bridge is built over |
+| Export                                                                    | Does                                                                                                                                                                                   |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine                                                                          |
+| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                                                                            |
+| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process                                                                           |
+| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                                                                                        |
+| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                                                                                     |
+| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                                                                             |
+| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime, or throws `NativeRuntimeNoSessionError` when the vault holds no session |
+| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop                                                                           |
+| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core                                                             |
+| `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`, `RuntimeEngine`  | runtime-core's, handed on: the whitelist a sub WebView page's runtime requests pass, and the engine type its bridge is built over                                                      |
 
 The ports `createNativeRuntime` fills, the same in every React Native app:
 
@@ -123,7 +123,13 @@ vault, so this runtime reads it through `secret` (`libs/session` README, `identi
    `?logout=1` belongs to the one document the logout opened, while the address the auth port saved
    outlives the logout as long as the process runs on — a guest signed in after it would lose its
    tokens at the next launch — and the logout empties the vault before it ends anyway. The app has no
-   web storage behind it, so the step's web copy and tab are empty.
+   web storage behind it, so the step's web copy and tab are empty. When the step leaves the vault with
+   no session (`empty`, or `logout-finished`), the boot throws `NativeRuntimeNoSessionError` and creates
+   nothing: the page takes that launch. Only the page's boot can move a session out of the page's own
+   `localStorage`, where an install updating from an app without a vault still has it, and on a
+   signed-out install the page signs a guest in as the runtime would have. The next launch finds a
+   session in the vault and is the runtime's. A vault that could not be read is not a missing session;
+   the runtime runs from the tab then, as before.
 4. **`createNativeRuntime`**, with the loaded stores.
 
 `runNativeRuntime` then starts what a page's runtime host starts on mount: the session controller

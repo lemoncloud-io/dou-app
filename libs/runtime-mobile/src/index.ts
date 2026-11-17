@@ -12,13 +12,21 @@ export { NATIVE_VAULT_TIMEOUT_MS, keyValueStoreOn, nativeSecretStore, waitForUnl
 export type { DeviceVault, KeyValueFile, NativeSecretStoreOptions } from './storage';
 
 // the boot: build values, the vault, the secret-storage step, then the runtime
-export { NATIVE_RUNTIME_ENV_KEYS, NativeRuntimeEnvError, bootNativeRuntime, missingNativeRuntimeEnv } from './boot';
+export {
+    NATIVE_RUNTIME_ENV_KEYS,
+    NativeRuntimeEnvError,
+    NativeRuntimeNoSessionError,
+    bootNativeRuntime,
+    missingNativeRuntimeEnv,
+} from './boot';
 export type { NativeRuntimeBoot, NativeRuntimeBootOptions } from './boot';
 export { NATIVE_RELAY_GUARD_POLICY, runNativeRuntime } from './run';
 export type { NativeRuntimeRunOptions } from './run';
 
 // the shell's half of the runtime across the bridge
 export { RUNTIME_CONTRACTS, RUNTIME_LISTENER_MARKER, createRuntimeBridgeHost } from '@chatic/runtime-core';
+// For the app's vault bridge: a page's logout whose clear the vault refused has to reach the runtime's boot.
+export { setSecretLogoutPending } from '@chatic/runtime-core';
 export type { RuntimeBridgeHost, RuntimeHostAnswer, RuntimePayloadSample } from '@chatic/runtime-core';
 
 // what a sub WebView page may ask of the runtime, for the shell's page host
