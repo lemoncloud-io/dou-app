@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-17] - root@0.161.3, @chatic/web@0.91.2
+
+### Refactor
+
+- (web) remove mock-only controls instead of drawing them disabled (ADR-0334)
+
 ## [2026-11-17] - No version updates
 
 ### Bug Fixes
