@@ -147,8 +147,9 @@ jobs:
                   echo "desktop build version: $VERSION"
                   # The generic update feed (provider + per-env URL) is baked into the build config
                   # itself — prod in apps/desktop/package.json `build`, dev in electron-builder.dev.json
-                  # — so it is NOT overridden on the CLI. electron-builder 25.1.8 can't patch a config
-                  # array via `-c.publish.0.*` (it yields publish:{"0":{}}, failing schema validation).
+                  # — so it is NOT overridden on the CLI. electron-builder can't patch a config array
+                  # via `-c.publish.0.*` (it yields publish:{"0":{}}, failing schema validation; still
+                  # so on 26.18.0).
                   # --publish never: generate latest*.yml locally and upload to S3 ourselves (next
                   # step) — the generic provider isn't auto-publishable by electron-builder.
                   EXTRA="-c.extraMetadata.version=$VERSION --publish never"
