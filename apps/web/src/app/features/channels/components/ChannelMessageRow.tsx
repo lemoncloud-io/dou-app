@@ -87,6 +87,8 @@ export interface ChannelMessageRowProps {
     threadMeta?: ThreadMeta;
     /** How many replies are newer than my read cursor (ADR-0093 decision 5); 0 = none. */
     unseenReplyCount?: number;
+    /** An unseen reply in this message's thread calls the reader — the footer says so. */
+    unseenRepliesMentionMe?: boolean;
     /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
     formatThreadTime?: (date: Date) => string;
     /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
@@ -151,6 +153,7 @@ export const ChannelMessageRow = ({
     avatarOf,
     threadMeta,
     unseenReplyCount,
+    unseenRepliesMentionMe,
     formatThreadTime,
     onOpenThread,
     isEditTarget = false,
@@ -656,6 +659,8 @@ export const ChannelMessageRow = ({
                 <ThreadFooter
                     meta={threadMeta}
                     unseenCount={unseenReplyCount ?? 0}
+                    mentionsMe={unseenRepliesMentionMe}
+                    nameOf={nameOf}
                     onOpen={onOpenThread}
                     avatarOf={avatarOf}
                     formatTime={formatThreadTime}

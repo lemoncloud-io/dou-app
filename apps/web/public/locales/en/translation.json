@@ -1135,6 +1135,8 @@
             "title": "Thread",
             "newReplyCount_one": "{{count}} new comment",
             "newReplyCount_other": "{{count}} new comments",
+            "mentionsMe": "Mentions you",
+            "lastReply": "{{name}}: {{text}}",
             "rootOutsideJoinWindow": "That message is from before you rejoined, so it isn't shown here. It is still on the other participant's screen."
         },
         "mention": {

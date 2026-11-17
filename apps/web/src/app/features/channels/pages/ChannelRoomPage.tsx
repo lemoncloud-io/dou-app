@@ -87,13 +87,13 @@ import { chatGapKey, type ChatGap } from '../hooks/useChats';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
-import { canModifyMessage } from '@chatic/data';
+import { canModifyMessage, isMentioningViewer } from '@chatic/data';
 import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
 import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
-import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
+import { buildThreadIndex, unseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
@@ -1469,14 +1469,16 @@ export const ChannelRoomPage = () => {
                                                     // any are — the footer prints the number. Zero
                                                     // until the baseline snapshot lands, so a thread
                                                     // never flashes an unseen count it then retracts.
-                                                    const unseenReplyCount =
+                                                    const unseen =
                                                         threadMeta && baselineReadNo !== null
-                                                            ? countUnseenReplies(
-                                                                  threadMeta,
-                                                                  baselineReadNo,
-                                                                  userId ?? null
-                                                              )
-                                                            : 0;
+                                                            ? unseenReplies(threadMeta, baselineReadNo, userId ?? null)
+                                                            : [];
+                                                    const unseenReplyCount = unseen.length;
+                                                    // The footer's "Mentions me": an unseen reply calls
+                                                    // the reader, by the same record the row's @me uses.
+                                                    const unseenRepliesMentionMe = unseen.some(entry =>
+                                                        isMentioningViewer(entry, mentionViewer.ids)
+                                                    );
 
                                                     return (
                                                         // The wrapper carries `data-chat-no` for the
@@ -1538,6 +1540,7 @@ export const ChannelRoomPage = () => {
                                                                 isEditTarget={editing.isEditTarget(message)}
                                                                 threadMeta={threadMeta}
                                                                 unseenReplyCount={unseenReplyCount}
+                                                                unseenRepliesMentionMe={unseenRepliesMentionMe}
                                                                 formatThreadTime={formatTime}
                                                                 onOpenThread={
                                                                     message.chatNo
