@@ -2,6 +2,12 @@
 
 ## [2026-11-17] - No version updates
 
+### Features
+
+- (host,web) move files through the files port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
 ### Bug Fixes
 
 - (web/home) show the home banners under the chat tabs, above the rooms
