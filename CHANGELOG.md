@@ -4,6 +4,12 @@
 
 ### Features
 
+- (desktop-web,desktop) step back and forward through visited rooms
+
+## [2026-11-18] - No version updates
+
+### Features
+
 - (desktop-web,desktop) go back with Mod+[, mouse, swipe and menu
 
 ## [2026-11-18] - No version updates
