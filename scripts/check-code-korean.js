@@ -16,7 +16,7 @@
  *
  * Usage:
  *   node scripts/check-code-korean.js              # every tracked source file
- *   node scripts/check-code-korean.js libs/app-runtime
+ *   node scripts/check-code-korean.js libs/runtime
  */
 const fs = require('fs');
 const path = require('path');

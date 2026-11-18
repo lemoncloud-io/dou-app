@@ -36,7 +36,7 @@ jest.mock('@chatic/runtime', () =>
             useSessionSelection: jest.fn(),
             useSwitchCloudSession: jest.fn(),
         },
-        // The invited-cloud recovery step added to usePushNavigate pulls more app-runtime exports, and asks the
+        // The invited-cloud recovery step added to usePushNavigate pulls more runtime exports, and asks the
         // `push` port whether the app receives notifications. The port must be mocked and answer `browser` by
         // default: an unpublished host throws inside the switch block, which the best-effort catch swallows
         // into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery

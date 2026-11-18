@@ -16,7 +16,7 @@ const PREVIEW_LOOKBACK = 20;
  * time. The channel record's `lastChat$` is whatever the newest chat is — thread
  * replies and reaction events included — so it can't drive a "real messages only"
  * preview, and it holds just that one message, with no way to fall back to the previous
- * one. Instead compose the app-runtime chat primitives like the room's `useChats`:
+ * one. Instead compose the runtime's chat primitives like the room's `useChats`:
  * `runtime.sync.useChatSync` registers + primes the chat target, `chat.observeList` streams the
  * cache, and the freshness bridge pulls the newest page when the channel record runs
  * ahead of the cache (desktop chat sync can't deliver mid-session messages — see

@@ -52,9 +52,6 @@
             "path": "./apps/admin"
         },
         {
-            "path": "./libs/host"
-        },
-        {
             "path": "./libs/http"
         },
         {

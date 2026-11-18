@@ -30,8 +30,8 @@ export interface PairingAwareLogout {
  * app's ordinary logout (`onLogout`).
  *
  * Only an approving device asks: a page with a shell bridge (the host profile's `bridge`, read here
- * rather than `@chatic/host`'s `signIn` port because this library is also rendered by apps that publish
- * no ports), on a session that is not itself a secondary device. A page without a bridge and a
+ * rather than the `signIn` host port because this library is also rendered by apps that declare
+ * no host ports), on a session that is not itself a secondary device. A page without a bridge and a
  * secondary device log out straight away, and so does an approving device whose list
  * cannot be read — the server catches up on its own, so a failed read must never hold a logout hostage.
  * A failed revoke does not stop the logout either.

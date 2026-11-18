@@ -11,6 +11,7 @@ import {
     missingNativeRuntimeEnv,
     mobileHostFacts,
     startRuntime,
+    storageMobileVault,
     transportMobile,
 } from '@chatic/runtime-mobile';
 import type {
@@ -28,7 +29,6 @@ import { createCacheMessageHandlers } from '../app/services/cache/cacheMessages'
 import type { CacheMessageServices } from '../app/services/cache/cacheMessages';
 import { createInProcessCacheClient } from '../app/services/cache/inProcessCacheClient';
 import type { SessionOwnerChoice } from '../app/services/runtime/sessionOwner';
-import { storageMobileVaultReported } from './adapters';
 
 /** What the app's runtime is built from: the native handles the app opens, and its way home. */
 export interface MobileRuntimeSources {
@@ -79,7 +79,7 @@ export const mobile = ({
         name: 'mobile',
         facts: mobileHostFacts({ userAgent }),
         ports: {
-            storage: { default: storageMobileVaultReported({ vault, files, onLoad: onSessionLoad }) },
+            storage: { default: storageMobileVault({ vault, files, onLoad: onSessionLoad }) },
             transport: { default: transportMobile },
             auth: { default: authMobile({ leaveToHome }) },
             cache: { default: cacheMobileSqlite(createInProcessCacheClient(createCacheMessageHandlers(cache))) },
@@ -125,18 +125,20 @@ export const startMobileRuntime = async (
         data: { runtime: 'mobile', owner: owner.owner, source: owner.source },
     });
 
-    let load: NativeSessionLoad | null = null;
+    // A holder rather than a `let`: the callback writes it, and a narrowed `let` would read as `null`
+    // here because TypeScript does not follow an assignment made inside a callback.
+    const loaded: { value: NativeSessionLoad | null } = { value: null };
     const started = await startRuntime(
         mobile({
             ...sources,
             onSessionLoad: next => {
-                load = next;
+                loaded.value = next;
             },
         }),
         options
     );
     // `engine.core` — the declaration's engine — always builds one, over a storage it loaded first.
-    const loaded = load as NativeSessionLoad | null;
-    if (!started.engine || !loaded) throw new Error('[mobile] the runtime started without an engine');
-    return { engine: started.engine, vault: loaded.vault, secretStorage: loaded.secretStorage };
+    const load = loaded.value;
+    if (!started.engine || !load) throw new Error('[mobile] the runtime started without an engine');
+    return { engine: started.engine, vault: load.vault, secretStorage: load.secretStorage };
 };

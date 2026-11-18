@@ -82,7 +82,7 @@ class RoomOpenTraceSlot {
      * Two traces, begun together: `chat_room_open` ends when the room first shows messages, which
      * may be the cache's; `chat_room_sync` ends when it shows the synced, latest ones. The second is
      * not carried through this slot but published as the active `chat_room_sync`, because the sync
-     * hooks that mark its phases live in `libs/app-runtime` and cannot reach this module.
+     * hooks that mark its phases live in the runtime's packages (`libs/runtime-core`) and cannot reach this module.
      */
     public begin(channelId: string, entry: RoomOpenEntry, handedOver?: HandedOverPerfTrace): PerfTrace {
         // A room left moments ago is still in its grace window; that user did leave, so close it as

@@ -1,7 +1,5 @@
-// `@chatic/runtime-client/host` — the host ports alone: their contracts and the one holder, with none
-// of the engine behind the package barrel. `@chatic/host` re-exports from here while it lasts, so a
-// module that only asks the host what it can do does not load the runtime to find out; the barrel sells
-// the same names from the same files, so both reach one holder.
+// The host ports: their contracts and the one holder the start publishes into. The package barrel
+// sells these names from here.
 export { HOST_PORT_NAMES } from './ports';
 export {
     HostFacade,

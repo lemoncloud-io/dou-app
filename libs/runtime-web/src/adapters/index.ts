@@ -21,8 +21,7 @@ import { webTransportPorts } from '../transport';
 
 /**
  * An adapter for a web page: one way of filling one port, asked about this page's `WebHostFacts`.
- * Each one wraps the factory of the same port, so a declaration that names the adapters `createWebRuntime`
- * uses builds the same runtime.
+ * Each one wraps the factory of the same port, so an adapter builds what that factory builds on its own.
  */
 export type WebAdapter<P extends PortName> = Adapter<P, RuntimePorts[P], WebHostFacts>;
 

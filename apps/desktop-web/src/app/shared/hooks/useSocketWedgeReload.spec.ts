@@ -12,7 +12,7 @@ const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => true) }));
 vi.mock('@chatic/bridges', () => ({
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-// v2: socket verification comes from app-runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
+// v2: socket verification comes from the runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
 // `runtime.connection.getRuntimeSocketState()` (imperative, re-checked inside the grace timer) —
 // back both with one zustand store so they stay consistent. Auth is `runtime.session.useSessionAuth()`.
 vi.mock('@chatic/runtime', async () => {
@@ -23,8 +23,8 @@ vi.mock('@chatic/runtime', async () => {
             useRuntimeSocketState: socketStore,
             getRuntimeSocketState: () => socketStore.getState(),
         },
-        // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 step 3). Still
-        // a zustand store because the test drives it with setState.
+        // `useSessionAuth` is the session group's, no longer @chatic/web-core's. Still a zustand
+        // store because the test drives it with setState.
         session: { useSessionAuth: create(() => ({ isAuthenticated: false })) },
         get appShell() {
             return { kind: isNative() ? 'shell' : 'browser', os: null };

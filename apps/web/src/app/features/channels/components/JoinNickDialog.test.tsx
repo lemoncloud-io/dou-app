@@ -34,7 +34,7 @@ jest.mock('../hooks', () => ({
     useChannelMutations: () => ({ updateChannel, isPending: { update: false } }),
 }));
 // The dialog surfaces my place-profile nick as the placeholder. Mock the app-level hooks barrel
-// so the test doesn't pull in the real app-runtime (socket lib) transitively.
+// so the test doesn't pull in the real runtime (socket lib) transitively.
 jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '플레이스닉' } }) }));
 
 describe('JoinNickDialog', () => {

@@ -1,7 +1,7 @@
 // @chatic/runtime — what the call part of an app imports: the runtime, the host's ports and the
 // domain's names. An app's declaration part (its `src/config/` and entry point) imports
 // `@chatic/runtime-web` or `@chatic/runtime-mobile` and starts the runtime; everything after that reads
-// it through this package. See docs/adr/0002.
+// it through this package. Every client runs this one engine and builds its own screens over it.
 //
 // # The facade
 //
@@ -38,7 +38,7 @@
 
 // There is no second, un-grouped lane for the runtime. The 67 names were flat until 275 consumer files
 // were moved onto the groups in one pass, and keeping a flat alias afterwards would mean shipping every
-// symbol under two names forever — the exact category ADR-0076 Decision 6 spent eight steps deleting.
+// symbol under two names forever, and every rename after it would have to land twice.
 export * as runtime from './facade';
 
 // Beside `runtime`, the domain's names — the shapes the repositories return and the pure helpers over

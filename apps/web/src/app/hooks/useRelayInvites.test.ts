@@ -4,7 +4,7 @@
  * The seam under test is the gateway boundary: these hooks own the packet BODY they hand the
  * relay-pinned invite gateway, the `invite.list` envelope they unwrap, and which cache entries a
  * mutation invalidates. Where those packets are SENT is fixed one layer down and covered there
- * (`libs/app-runtime/.../socketFactory.test.ts`), so it is not re-asserted here.
+ * (`libs/runtime-core/src/data/factories/socketFactory.test.ts`), so it is not re-asserted here.
  *
  * Every downstream suite mocks these hooks, which is why they need direct coverage: nothing else
  * would notice if the envelope key, the state filter, or an invalidation key drifted.

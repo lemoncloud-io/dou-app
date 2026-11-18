@@ -17,6 +17,6 @@ export const assertSecureRandom = (scope: RandomSource = globalThis as RandomSou
     if (typeof scope.crypto?.getRandomValues === 'function') return;
     throw new Error(
         '[runtime-mobile] crypto.getRandomValues is missing — the app entry has to ' +
-            "`import '@chatic/runtime-mobile/polyfills'` before anything else, then call createNativeRuntime()."
+            "`import '@chatic/runtime-mobile/polyfills'` before anything else, then start the runtime."
     );
 };

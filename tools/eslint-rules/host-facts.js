@@ -16,7 +16,7 @@ const path = require('node:path');
  * So this reports, outside the allowed files:
  * - any use of `isNative` imported from `@chatic/bridges` — called, or handed on as a value — under
  *   any local name or through a namespace import;
- * - any use of `isNativeApp`, app-runtime's second answer to the same question
+ * - any use of `isNativeApp`, the runtime's second answer to the same question
  *   (`runtime.boot.isNativeApp()`), called or handed on;
  * - a read of a `CHATIC_APP_*` global off `window`, `globalThis` or `self` — a member read
  *   (`window.CHATIC_APP_PLATFORM`, through a cast or `?.` too, or `window['CHATIC_APP_…']`), a

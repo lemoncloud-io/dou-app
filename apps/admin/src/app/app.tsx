@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Session + token lifecycle is owned by `runtime.connection.RuntimeAuthHost` (app-runtime): it runs the single web-core
+ * Session + token lifecycle is owned by `runtime.connection.RuntimeAuthHost` (`@chatic/runtime`): it runs the single web-core
  * init (its session controller → `initializeRelaySession`, incl. transport bootstrap) and mounts the
  * SDK-backed socket auth loop so tokens (and the HTTP signing credentials derived from them) stay
  * fresh. It deliberately excludes guest keep-alive and chat data sync — admin requires an explicit

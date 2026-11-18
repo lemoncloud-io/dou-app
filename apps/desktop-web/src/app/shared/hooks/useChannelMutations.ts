@@ -20,7 +20,7 @@ import { liveSelection, switchesSettled } from './switchesSettled';
  * Desktop channel-write hook. Wraps the engine's channel repository for every
  * write the desktop UI needs (create / rename / delete / leave-kick / invite).
  *
- * WHY HERE (not libs/app-runtime): the engine already exposes the channel
+ * WHY HERE (not libs/runtime): the engine already exposes the channel
  * repository via runtime.data.useRuntimeRepositories(); apps/web wraps it in its own feature-level
  * useChannelMutations. We mirror that app-side convention rather than widen the
  * shared engine surface.

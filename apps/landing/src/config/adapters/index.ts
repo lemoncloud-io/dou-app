@@ -26,7 +26,7 @@ export const storageLandingTab = defineAdapter<'storage', WebHostFacts>({
 
 /**
  * `cache.landing-web-storage` — IndexedDB, and a plain tab's invited clouds in the site's `tabStore`:
- * the page's cache routing (`webLocalCachePorts`), as `createWebRuntime` built it. The tab store is the
+ * the page's cache routing, `@chatic/runtime-web`'s `webLocalCachePorts` handed this site's store. The tab store is the
  * raw one, never the tolerant `deviceStore`, because a cache must hear a failed write.
  */
 export const cacheLandingWebStorage = defineAdapter<'cache', WebHostFacts>({

@@ -34,8 +34,11 @@ export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?:
     const sandboxWindow = options.sandbox ? createSandboxWindow() : undefined;
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
-    // A failed load is forgotten, so the next call tries again instead of failing until a reload —
-    // the chunk can be missing for a moment after a deploy.
+    // A failed chunk load is forgotten, so the next call tries again instead of failing until a
+    // reload — the chunk can be missing for a moment after a deploy. A failed port is forgotten too,
+    // but that only retries the chunk: a runtime start that failed stays failed for the page
+    // (`startLandingRuntime` answers every later call with the first start), so a port whose start
+    // failed fails again until a reload.
     const load = () =>
         (live ??= import('./live').catch(error => {
             live = undefined;

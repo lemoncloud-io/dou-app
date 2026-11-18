@@ -24,7 +24,7 @@ const mockRuntimeHook = runtime.push.useDeviceTokenRegistration as jest.Mock;
 const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
 // The adapter's job is delegate construction only; registration policy is
-// covered by app-runtime's own tests.
+// covered by the runtime's own tests.
 const lastDelegate = () => mockRuntimeHook.mock.calls[mockRuntimeHook.mock.calls.length - 1][0];
 
 describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', () => {

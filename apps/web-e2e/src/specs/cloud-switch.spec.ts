@@ -19,7 +19,7 @@ import type { FakeShell } from '../support/fake-shell/fakeShell';
 import { expect, test } from '../support/test';
 
 /**
- * Moving between the relay and a cloud, and between a cloud's places (libs/app-runtime/README.md
+ * Moving between the relay and a cloud, and between a cloud's places (libs/runtime/README.md
  * § 3. Switching cloud, apps/web/docs/feature/home/README.md § Switching). The guest owns one cloud with two places,
  * each with one room. Entering the cloud trades a relay delegation for the cloud's own token
  * (`delegate-cloud`, `exchange-token`) and opens the cloud's socket; the page lands on the cloud's

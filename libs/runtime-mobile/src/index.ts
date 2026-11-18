@@ -1,10 +1,6 @@
-// @chatic/runtime-mobile — the runtime for React Native's JS process: the native ports, and the
-// assembly built from them. The globals it needs are a separate entry, `@chatic/runtime-mobile/polyfills`,
-// imported first.
-
-// the runtime, built from the native ports
-export { createNativeRuntime } from './createNativeRuntime';
-export type { NativeRuntimeOptions } from './createNativeRuntime';
+// @chatic/runtime-mobile — the runtime for React Native's JS process: the native ports, as the adapters an
+// app's runtime declaration plugs in. The globals it needs are a separate entry,
+// `@chatic/runtime-mobile/polyfills`, imported first.
 
 // the ports, one factory each, every one buildable on its own from what it is handed
 export { nativeTransportPorts } from './transport';
@@ -33,16 +29,15 @@ export type {
 export { readNativeHostFacts } from './hostFacts';
 export type { NativeHostFacts, NativeHostFactsOptions, PlatformSource } from './hostFacts';
 
-// the boot: build values, the vault, the secret-storage step, then the runtime
+// what a start checks first: the build values, then the vault and the secret-storage step
 export {
     NATIVE_RUNTIME_ENV_KEYS,
     NativeRuntimeEnvError,
     NativeRuntimeNoSessionError,
-    bootNativeRuntime,
     loadNativeSession,
     missingNativeRuntimeEnv,
 } from './boot';
-export type { NativeRuntimeBoot, NativeRuntimeBootOptions, NativeSessionLoad } from './boot';
+export type { NativeRuntimeBoot, NativeSessionLoad } from './boot';
 export { NATIVE_RELAY_GUARD_POLICY, runNativeRuntime } from './run';
 export type { NativeRuntimeRunOptions } from './run';
 

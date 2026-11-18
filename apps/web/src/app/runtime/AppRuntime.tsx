@@ -33,7 +33,7 @@ import { useSocketWakeRecovery } from './useSocketWakeRecovery';
  * Runtime layer — assembles the declarative `runtime.connection.RuntimeConnectionHost` (transport bootstrap,
  * socket lifecycle and SDK-driven re-auth from the session's own socket slots). Re-authentication on
  * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
- * socket session delegate is now owned by app-runtime (no delegate prop).
+ * socket session delegate is now owned by the runtime (no delegate prop).
  *
  * Session readiness: `runtime.connection.RuntimeConnectionHost` is the SINGLE web-core init driver (its session controller →
  * `initializeRelaySession`) and gates its subtree until ready, and its session controller's guest

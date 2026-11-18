@@ -6,7 +6,7 @@
 // that OWNS each piece (runtime-client's engine holder for the wiring, `data/` for the data policies, `@chatic/transport`
 // for the transport, `@chatic/config` for env).
 //
-// The runtime itself is built by the platform's adapter — `createWebRuntime(...)` from
+// The runtime itself is built from the app's declaration — `startRuntime(declaration)` from
 // `@chatic/runtime-web` in a page — and handed here as an engine.
 
 export { initAppRuntime } from '@chatic/runtime-client';
@@ -22,7 +22,7 @@ export { initAppRuntime } from '@chatic/runtime-client';
 export { isNativeApp } from './utils/isNativeApp';
 
 // The session's storage. An entry point builds the stores for its environment (`resolveStorageStores`
-// in `@chatic/runtime-web`) and passes them to `createWebRuntime({ storage })`; one in an app or desktop
+// in `@chatic/runtime-web`) and hands them to its declaration's storage adapter; one in an app or desktop
 // shell that keeps a vault first awaits `prepareSecretStorage`, which loads the vault and moves secrets
 // left in web storage into it. There is no setter to swap the stores after boot: the session's stores
 // are wired once, when the runtime is built, and a second wiring anywhere else would silently replace

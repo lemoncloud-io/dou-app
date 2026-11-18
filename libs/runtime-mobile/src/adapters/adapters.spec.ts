@@ -95,9 +95,26 @@ describe('mobile adapters', () => {
     it('stops the start when the vault holds no session, as the boot does', async () => {
         const plain = memoryFile();
         plain.set(HOME_SEARCH_KEY, 'logout=1');
-        const adapter = storageMobileVault({ vault: fakeVault({}), files: { plain, device: memoryFile() } });
+        const onLoad = jest.fn();
+        const adapter = storageMobileVault({ vault: fakeVault({}), files: { plain, device: memoryFile() }, onLoad });
 
         await expect(adapter.create({ facts })).rejects.toBeInstanceOf(NativeRuntimeNoSessionError);
         expect(plain.getString(HOME_SEARCH_KEY)).toBeUndefined();
+        expect(onLoad).not.toHaveBeenCalled();
+    });
+
+    it('hands out how the vault was loaded, once it holds a session', async () => {
+        const onLoad = jest.fn();
+        await storageMobileVault({
+            vault: fakeVault({ 'chatic-relay-token': 'token' }),
+            files: { plain: memoryFile(), device: memoryFile() },
+            onLoad,
+        }).create({ facts });
+
+        expect(onLoad).toHaveBeenCalledTimes(1);
+        expect(onLoad).toHaveBeenCalledWith({
+            vault: { status: 'available', values: { 'chatic-relay-token': 'token' } },
+            secretStorage: 'vault',
+        });
     });
 });

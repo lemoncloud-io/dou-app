@@ -6,7 +6,7 @@
  * coming back while it was away, and timers in a suspended page fire late or not at all — so the
  * return to the foreground is the moment to ask again.
  *
- * A page reads `document.visibilityState` (filled by `createWebRuntime` in `@chatic/runtime-web`); a native
+ * A page reads `document.visibilityState` (`foreground.visibility` in `@chatic/runtime-web`); a native
  * runtime reads its app state.
  */
 export interface ForegroundSignal {
@@ -46,7 +46,7 @@ class ForegroundPlatform implements IForegroundPlatform {
 }
 
 /**
- * The foreground signal the runtime was built with (`createWebRuntime` fills it in a page). A default would be
+ * The foreground signal the runtime was built with (the declared foreground adapter fills it). A default would be
  * the page's visibility, which a native process does not have; an unwired runtime fails at the first
  * use instead.
  */

@@ -2,7 +2,7 @@ import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-web';
 import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
 
 /**
- * `cache.web-local` — the page's cache routing (`webLocalCachePorts`), as `createWebRuntime` built it:
+ * `cache.web-local` — the page's cache routing, `@chatic/runtime-web`'s `webLocalCachePorts` handed the entry's store:
  * each domain in IndexedDB or, in the phone app, the shell's SQLite for what the installed shell holds,
  * and a plain tab's invited clouds in the tab store.
  *

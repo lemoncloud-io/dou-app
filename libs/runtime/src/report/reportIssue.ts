@@ -5,7 +5,7 @@ import type { IssueReportExtras, IssueReportOrigin } from '@chatic/runtime-clien
 /**
  * The page as a report describes it. Whether a shell bridge was found at boot decides the `mobile`
  * app type — the desktop shell included, as it always has. This library is also rendered by apps that
- * publish no `@chatic/host` ports (admin), so it reads the host profile rather than a port.
+ * declare no host ports (admin), so it reads the host profile rather than `runtime.<port>`.
  */
 const pageOrigin: IssueReportOrigin = {
     hasShellBridge: () => hostProfile().bridge !== null,

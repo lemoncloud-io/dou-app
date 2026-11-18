@@ -9,7 +9,7 @@ const rule = require('./host-facts');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const at = file => path.join(REPO_ROOT, file);
 
-const options = [{ allowedFiles: ['libs/bridges/', 'apps/web/src/app/host/publishHostPorts.ts'] }];
+const options = [{ allowedFiles: ['libs/bridges/', 'apps/web/src/config/webRuntime.ts'] }];
 const FEATURE = at('apps/web/src/app/features/subscription/hooks/usePlanCatalog.ts');
 
 const global = name => ({ messageId: 'global', data: { name } });
@@ -19,10 +19,10 @@ new RuleTester({
     languageOptions: { parser: tsParser, ecmaVersion: 2022, sourceType: 'module' },
 }).run('host-facts', rule, {
     valid: [
-        // The entry point and the profile's own package may ask.
+        // A listed file and the profile's own package may ask.
         {
             code: "import { isNative } from '@chatic/bridges'; isNative(); window.CHATIC_APP_PLATFORM;",
-            filename: at('apps/web/src/app/host/publishHostPorts.ts'),
+            filename: at('apps/web/src/config/webRuntime.ts'),
             options,
         },
         {
@@ -120,7 +120,7 @@ new RuleTester({
             options,
             errors: [probe('isNative()')],
         },
-        // app-runtime's second probe, called through the facade or imported.
+        // The runtime's second probe, called through the facade or imported.
         {
             code: 'if (runtime.boot.isNativeApp()) {}',
             filename: FEATURE,

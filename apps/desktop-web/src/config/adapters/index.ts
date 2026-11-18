@@ -45,8 +45,8 @@ export const storageDesktop = defineAdapter<'storage', WebHostFacts>({
 
 /**
  * `cache.desktop-web-storage` — IndexedDB, and a plain tab's invited clouds in the window's raw
- * `webSession`: the page's cache routing (`webLocalCachePorts`), as `createWebRuntime` built it. The tab
- * store is the raw one, never the tolerant `tab` the features use, because a cache must hear a failed
+ * `webSession`: the page's cache routing, `@chatic/runtime-web`'s `webLocalCachePorts` handed this
+ * window's store. The tab store is the raw one, never the tolerant `tab` the features use, because a cache must hear a failed
  * write.
  */
 export const cacheDesktopWebStorage = defineAdapter<'cache', WebHostFacts>({

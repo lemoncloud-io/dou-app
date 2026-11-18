@@ -1,9 +1,5 @@
 // @chatic/runtime-web — the runtime for a web page: its ports, and the stores a page keeps state in.
 
-// the runtime, built from the page's ports
-export { createWebRuntime } from './createWebRuntime';
-export type { WebRuntimeOptions } from './createWebRuntime';
-
 // the engine of a page that mirrors its phone shell's runtime
 export { RUNTIME_CALL_TIMEOUT_MS, createBridgedRuntime, webMirrorPort } from './createBridgedRuntime';
 export type { BridgedRuntimeOptions } from './createBridgedRuntime';
@@ -75,7 +71,7 @@ export type {
 } from '@chatic/runtime-client';
 
 // each port's pieces, one factory each, every one buildable on its own from what it is handed —
-// `createWebRuntime` and `resolveStorageStores` are the same factories, chosen for the page
+// `resolveStorageStores` and `webLocalCachePorts` are these factories, chosen for the page
 export { webTransportPorts } from './transport';
 export type { WebTransportOptions } from './transport';
 export { webAuthPorts } from './auth';

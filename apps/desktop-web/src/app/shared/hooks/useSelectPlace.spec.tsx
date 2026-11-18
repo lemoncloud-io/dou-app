@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 /**
- * There used to be TWO hooks called `useSiteSwitch` — app-runtime's moved the SOCKET session
+ * There used to be TWO hooks called `useSiteSwitch` — the runtime's moved the SOCKET session
  * (SDK `auth.switch`), web-core's only re-issued the HTTP token. Importing the wrong one made every
  * switch show the previous place's channels, filtered out by sid, hence an empty sidebar until a
  * reload.

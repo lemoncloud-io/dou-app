@@ -12,7 +12,7 @@ import { readSelectedCloudId } from '../../../hooks/useCloudScope';
  * push + reconnect catch-up — so pushes missed while the WebView was suspended leave the cache
  * stale with no path to recover.
  *
- * This hook is the deliberate complement of usePrimeChat (app-runtime): prime fetches only when
+ * This hook is the deliberate complement of usePrimeChat (the runtime's): prime fetches only when
  * the cache is COLD, so this hook fetches only when the cache is WARM. Together every room entry
  * fetches exactly once. Keep the two conditions mirrored if either policy changes.
  *

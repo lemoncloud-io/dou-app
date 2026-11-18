@@ -20,6 +20,9 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import { DataManager } from '@chatic/runtime-core/data/DataManager';
 import { localCachePlatform } from '@chatic/runtime-core/data/localCachePlatform';
 import { runtimeStores } from '@chatic/runtime-core/storage/runtimeStores';
+// The React surface never builds a cache engine; this end-to-end test plays the adapter that would, so
+// the real local data sources have rows to land in.
+// eslint-disable-next-line @nx/enforce-module-boundaries
 import { IndexedDBAdapter, IndexedDBDatabase } from '@chatic/db';
 import { MemoryStore } from '@chatic/storage';
 import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';

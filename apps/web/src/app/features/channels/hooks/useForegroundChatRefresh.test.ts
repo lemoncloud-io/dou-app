@@ -188,7 +188,7 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
         return trace;
     };
 
-    // The fetch phases and the trace's failure ending are fetchRoomFeed's (app-runtime), tested there.
+    // The fetch phases and the trace's failure ending are fetchRoomFeed's (the runtime's), tested there.
     it('marks verified when the entry effect runs', async () => {
         setCachedChats([3, 7]);
         const trace = beginSync();
