@@ -2,6 +2,12 @@
 
 ## [2026-11-18] - No version updates
 
+### Features
+
+- (desktop-web,desktop) go back with Mod+[, mouse, swipe and menu
+
+## [2026-11-18] - No version updates
+
 ### Refactor
 
 - (host,web,desktop-web,mobile) name capability values shell and browser, not app and page
