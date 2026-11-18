@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/mini-app-runtime-chat-send`
 > · Scope: `libs/runtime-core/src/bridge/subWebViewWhitelist.ts` (`cloud.getCloud`, the `false` argument
 > guard); `libs/chatic-apps-sdk/src/runtime.ts` (`connect` without a timeout)
-> · The behaviour is documented in [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md#runtime-reads-2260),
+> · The behaviour is documented in [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md#runtime-reads),
 > [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md#a-sub-webview-page-a-whitelist-of-reads)
 > and [libs/chatic-apps-sdk README](../../libs/chatic-apps-sdk/README.md)
 > · Amends: [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
