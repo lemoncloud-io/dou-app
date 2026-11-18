@@ -22,7 +22,7 @@ export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
 
         const kick = () => {
             // Ignore blur/hide edges — only recover when the app is actually in front.

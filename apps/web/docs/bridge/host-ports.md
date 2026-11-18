@@ -12,7 +12,7 @@ legacy rule). A feature reads `host.ports.<port>` where it uses it.
 
 ## links, appShell, signIn, diagnostics, push
 
-Each is `{ kind: 'app' | 'page' }` (`appShell` and `signIn` add `os`), published from the declaration's
+Each is `{ kind: 'shell' | 'browser' }` (`appShell` and `signIn` add `os`), published from the declaration's
 version-4 keys or, before them, the legacy rule. Where each domain's files read it:
 
 - **links** — `openExternalUrl`, the clipboard copies, share intake (`bridge/shareIntake.ts`), sub web
@@ -38,7 +38,7 @@ ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveSh
 
 Who picks what a person attaches. `publishHostPorts` publishes `{ kind: resolveMediaMethod() }`; the
 picker (`bridge/attachmentPicker.ts`) and the photo library (`bridge/photoLibrary.ts`) are unsupported
-unless it is `'app'`, and the attach panel then opens the page's own input. The same answer decides the
+unless it is `'shell'`, and the attach panel then opens the page's own input. The same answer decides the
 three other places that used to ask `isNative()`: whether the camera input waits for the app's camera
 permission (`ChatImageAttach`), whether the recent-photos strip shows outside the grid, whether a send
 hands a video to the app to convert (`useSendImages`), and whether the permission banner can open the
@@ -47,7 +47,7 @@ app's settings (`PermissionDeniedBanner`).
 ## files
 
 Who moves a message's files. `publishHostPorts` publishes `{ kind: resolveFilesMethod() }`; where it is
-`'app'`:
+`'shell'`:
 
 - `shellUpload` hands uploads to the app's transfer module and catches up with the ones it finished.
 - `shellDownload` catches up with the app's downloads. Saving or sharing a photo or video uses the same
@@ -56,7 +56,7 @@ Who moves a message's files. `publishHostPorts` publishes `{ kind: resolveFilesM
 - `useFileDownloads` lets the app download, keep, open and share a document.
 - The video-frame maker (`useVideoFrames`) asks the app for a video's first frame.
 
-Where it is `'page'`, the page PUTs, fetches and saves the file itself and draws frames from the bucket.
+Where it is `'browser'`, the page PUTs, fetches and saves the file itself and draws frames from the bucket.
 
 ## checkout
 

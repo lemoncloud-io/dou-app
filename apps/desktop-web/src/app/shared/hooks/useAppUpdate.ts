@@ -16,7 +16,7 @@ export const useAppUpdate = () => {
     const set = useUpdateStore(s => s.set);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         return webClient.onEvent('OnUpdateStatus', message => {
             const data = message.data;
             if (!data) return;

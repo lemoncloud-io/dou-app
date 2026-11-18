@@ -27,7 +27,7 @@ jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { media: { kind: mockNative ? 'app' : 'page' } };
+            return { media: { kind: mockNative ? 'shell' : 'browser' } };
         },
     },
 }));

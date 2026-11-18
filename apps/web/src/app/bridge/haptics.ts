@@ -19,7 +19,7 @@ export interface Haptics {
  */
 class ShellHaptics implements Haptics {
     play(kind: HapticKind): void {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         appBridge.postHaptic(kind);
     }
 }

@@ -16,46 +16,50 @@ describe('resolveFilesMethod', () => {
 
     // The answer the page gave before the port: `isNative()` meant the app moves files.
     it.each([
-        ['a phone app', phone(), 'app'],
-        ['a desktop shell, which has a bridge too', buildHostProfile({ ChaticMessageHandler: post }), 'app'],
-        ['a browser tab', browser(), 'page'],
+        ['a phone app', phone(), 'shell'],
+        ['a desktop shell, which has a bridge too', buildHostProfile({ ChaticMessageHandler: post }), 'shell'],
+        ['a browser tab', browser(), 'browser'],
     ])('answers %s that declares nothing with %s', (_name, profile, method) => {
         expect(resolveFilesMethod(profile)).toBe(method);
     });
 
     it('leaves version-1 and version-2 declarations, which predate the key, to the legacy rule', () => {
-        expect(resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 1, checkout: ['apple'] } }))).toBe('app');
+        expect(resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 1, checkout: ['apple'] } }))).toBe(
+            'shell'
+        );
         expect(
-            resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 2, checkout: ['apple'], media: 'app' } }))
-        ).toBe('app');
+            resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 2, checkout: ['apple'], media: 'shell' } }))
+        ).toBe('shell');
         expect(
-            resolveFilesMethod(browser({ CHATIC_APP_CAPABILITIES: { version: 2, checkout: ['web'], media: 'page' } }))
-        ).toBe('page');
+            resolveFilesMethod(
+                browser({ CHATIC_APP_CAPABILITIES: { version: 2, checkout: ['web'], media: 'browser' } })
+            )
+        ).toBe('browser');
         expect(warn).not.toHaveBeenCalled();
     });
 
     it('reads what a version-3 declaration says, even against the bridge', () => {
         expect(
             resolveFilesMethod(
-                phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'app', files: 'page' } })
+                phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'shell', files: 'browser' } })
             )
-        ).toBe('page');
+        ).toBe('browser');
         expect(
             resolveFilesMethod(
-                browser({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'page', files: 'app' } })
+                browser({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'browser', files: 'shell' } })
             )
-        ).toBe('app');
+        ).toBe('shell');
     });
 
-    it('falls back to the page, and says so, on a version-3 declaration that leaves files out or names something else', () => {
+    it('falls back to the browser, and says so, on a version-3 declaration that leaves files out or names something else', () => {
         expect(
-            resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: ['apple'], media: 'app' } }))
-        ).toBe('page');
+            resolveFilesMethod(phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: ['apple'], media: 'shell' } }))
+        ).toBe('browser');
         expect(
             resolveFilesMethod(
-                phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: ['apple'], media: 'app', files: 'cloud' } })
+                phone({ CHATIC_APP_CAPABILITIES: { version: 3, checkout: ['apple'], media: 'shell', files: 'cloud' } })
             )
-        ).toBe('page');
+        ).toBe('browser');
         expect(warn).toHaveBeenCalledTimes(2);
     });
 });

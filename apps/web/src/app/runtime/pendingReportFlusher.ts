@@ -55,7 +55,7 @@ const relayReport = (report: PendingReportInfo): void => {
  * has no such queue.
  */
 export const schedulePendingReportFlush = (): void => {
-    if (host.ports.diagnostics.kind !== 'app') return;
+    if (host.ports.diagnostics.kind !== 'shell') return;
 
     const flush = async (): Promise<void> => {
         try {

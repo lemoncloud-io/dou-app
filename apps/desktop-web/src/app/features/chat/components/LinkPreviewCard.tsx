@@ -82,7 +82,7 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
 
     useEffect(() => {
         // Only the app reads a link's preview, where it takes the page's links (`host.ports.links`).
-        if (host.ports.links.kind !== 'app') return;
+        if (host.ports.links.kind !== 'shell') return;
         let active = true;
         void requestMetadata(url).then(result => {
             if (active) setMeta(result);
@@ -92,7 +92,7 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
         };
     }, [url]);
 
-    if (host.ports.links.kind !== 'app') return null;
+    if (host.ports.links.kind !== 'shell') return null;
 
     // The chip used to pop in at full height the moment the shell answered, pushing
     // the text below it down under a reader who was mid-sentence. It now opens from

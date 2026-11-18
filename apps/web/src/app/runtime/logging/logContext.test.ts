@@ -4,7 +4,7 @@ jest.mock('@chatic/host', () => ({
     host: {
         isPublished: true,
         get ports() {
-            return { diagnostics: { kind: mockInsideTheApp ? 'app' : 'page' } };
+            return { diagnostics: { kind: mockInsideTheApp ? 'shell' : 'browser' } };
         },
     },
 }));

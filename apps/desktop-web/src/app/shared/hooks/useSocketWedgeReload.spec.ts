@@ -12,7 +12,7 @@ const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => true) }));
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { appShell: { kind: isNative() ? 'app' : 'page', os: null } };
+            return { appShell: { kind: isNative() ? 'shell' : 'browser', os: null } };
         },
     },
 }));

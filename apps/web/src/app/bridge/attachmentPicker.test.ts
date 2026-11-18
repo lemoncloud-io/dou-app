@@ -11,7 +11,7 @@ jest.mock('./appBridge', () => ({ appBridge: {} }));
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { media: { kind: mockNative ? 'app' : 'page' } };
+            return { media: { kind: mockNative ? 'shell' : 'browser' } };
         },
     },
 }));

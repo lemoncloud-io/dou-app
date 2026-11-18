@@ -1,13 +1,13 @@
 import { hostProfile, type HostProfile } from '@chatic/bridges';
 
-import { resolveAppOrPage, type AppOrPage } from './appOrPage';
+import { resolveShellOrBrowser, type ShellOrBrowser } from './shellOrBrowser';
 
 /**
  * Who moves a message's files: uploads, downloads, and the first frame of a video without a poster.
  *
- * - `app` — the app does: its transfer module puts and fetches the bytes in the background, keeps a
+ * - `shell` — the app does: its transfer module puts and fetches the bytes in the background, keeps a
  *   downloaded file to open, save or share, and reads a video's frame from the device.
- * - `page` — the page does, with its own requests: a PUT for an upload, a fetch saved under the file's
+ * - `browser` — the page does, with its own requests: a PUT for an upload, a fetch saved under the file's
  *   name for a download, and a frame drawn from the bucket's copy.
  *
  * Only the choice crosses this port, as for `media`: the transfer modules take their types from the
@@ -18,7 +18,7 @@ export interface FilesPort {
     readonly kind: FilesMethod;
 }
 
-export type FilesMethod = AppOrPage;
+export type FilesMethod = ShellOrBrowser;
 
 /**
  * The declaration version that introduced `files`. Version 2 shipped with `media` alone, so a build
@@ -27,9 +27,9 @@ export type FilesMethod = AppOrPage;
 export const FILES_INTRODUCED_IN = 3;
 
 /**
- * Who moves files on this host. A declaration names `'app'` or `'page'`; anything else is a bug in the
+ * Who moves files on this host. A declaration names `'shell'` or `'browser'`; anything else is a bug in the
  * shell, answered with the page's own requests — the ones every host can make — and logged. A
  * declaration older than version 3 never knew the key, so the legacy rule answers for it.
  */
 export const resolveFilesMethod = (profile: HostProfile = hostProfile()): FilesMethod =>
-    resolveAppOrPage(profile, 'files', FILES_INTRODUCED_IN);
+    resolveShellOrBrowser(profile, 'files', FILES_INTRODUCED_IN);

@@ -105,7 +105,7 @@ const isPhotoFormat = (name: string, type: string): boolean => chatAttachmentFor
 
 class ShellAttachmentPicker implements AttachmentPicker {
     isUnsupported(): boolean {
-        return host.ports.media.kind !== 'app';
+        return host.ports.media.kind !== 'shell';
     }
 
     async pick({

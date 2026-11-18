@@ -73,7 +73,7 @@ export const ContactInviteTab = ({
     const { toast } = useToast();
 
     // Contacts and SMS invites are the app's where it takes the page's links (`host.ports.links`).
-    const isOnMobileApp = host.ports.links.kind === 'app';
+    const isOnMobileApp = host.ports.links.kind === 'shell';
     const [search, setSearch] = useState('');
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);

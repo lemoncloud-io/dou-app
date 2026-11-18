@@ -30,7 +30,9 @@ const RELAY_SELECTION = 'default';
 export const PairingDevicesPage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
-    if (!enabled || (isGuest && host.ports.signIn.kind !== 'app')) return <Navigate to={ROUTES.mypage.root} replace />;
+    if (!enabled || (isGuest && host.ports.signIn.kind !== 'shell')) {
+        return <Navigate to={ROUTES.mypage.root} replace />;
+    }
     return <PairingDevicesScreen />;
 };
 
@@ -42,7 +44,7 @@ const PairingDevicesScreen = () => {
     const isPaired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
     // The approvals are an approving app's: an account's, not a secondary device's.
-    const showApprovals = host.ports.signIn.kind === 'app' && !isGuest && !isPaired;
+    const showApprovals = host.ports.signIn.kind === 'shell' && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
     const cloudName = useCloudName();

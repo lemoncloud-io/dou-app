@@ -102,7 +102,7 @@ const PairingCodeScreen = () => {
                       // and that is worth saying once, now. A browser tab's sign-in ends with the tab.
                       // Which of the two this is, `host.ports.signIn` says.
                       description:
-                          host.ports.signIn.kind === 'app'
+                          host.ports.signIn.kind === 'shell'
                               ? t('pairing.code.doneSecondaryBody')
                               : t('pairing.code.doneRelayBody'),
                   }

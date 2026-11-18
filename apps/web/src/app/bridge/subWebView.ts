@@ -36,7 +36,7 @@ export const openSubWebView = async ({
     params?: SubWebViewParams;
     appId?: string;
 }): Promise<SubWebViewOpening> => {
-    if (host.ports.links.kind !== 'app') {
+    if (host.ports.links.kind !== 'shell') {
         window.open(url, '_blank', 'noopener,noreferrer');
         return { via: 'browser' };
     }

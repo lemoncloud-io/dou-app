@@ -46,7 +46,7 @@ export const useAppUpdateStatus = (): AppUpdateStatus => {
     const latestVersion = useAppUpdateStore(state => state.latestVersion);
 
     const check = useCallback(async () => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         try {
             const response = await appBridge.checkAppUpdate();
             const next = {

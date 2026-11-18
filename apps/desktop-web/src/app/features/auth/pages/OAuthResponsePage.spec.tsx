@@ -11,7 +11,7 @@ const completeFromHandoff = vi.fn();
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { signIn: { kind: native ? 'app' : 'page', os: null } };
+            return { signIn: { kind: native ? 'shell' : 'browser', os: null } };
         },
     },
 }));

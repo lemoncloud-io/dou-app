@@ -29,7 +29,7 @@ export interface INativeBadgeReader {
 class NativeBadgeReader implements INativeBadgeReader {
     async read(): Promise<number | null> {
         const appShell = host.ports.appShell;
-        if (appShell.kind !== 'app') return null;
+        if (appShell.kind !== 'shell') return null;
 
         if (appShell.os === 'ios') {
             try {

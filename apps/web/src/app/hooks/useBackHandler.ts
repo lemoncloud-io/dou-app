@@ -18,7 +18,7 @@ const OPEN_DIALOG_SELECTOR =
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const isOnMobileApp = host.ports.appShell.kind === 'app';
+    const isOnMobileApp = host.ports.appShell.kind === 'shell';
     const consumeBack = useStackBack();
 
     // Notify native app about navigation state changes

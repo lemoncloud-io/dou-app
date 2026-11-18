@@ -8,7 +8,7 @@ let mockNative = true;
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { links: { kind: mockNative ? 'app' : 'page' } };
+            return { links: { kind: mockNative ? 'shell' : 'browser' } };
         },
     },
 }));

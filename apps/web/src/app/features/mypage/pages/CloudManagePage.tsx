@@ -32,7 +32,7 @@ export const CloudManagePage = () => {
     const navigate = useNavigateWithTransition();
     // Subscribing is offered where the app signs a person in (`host.ports.signIn`): a subscription
     // follows the social account, which only the app signs in with. Elsewhere the empty state says so.
-    const isOnMobileApp = host.ports.signIn.kind === 'app';
+    const isOnMobileApp = host.ports.signIn.kind === 'shell';
 
     const { clouds, isPendingClouds } = useOwnedClouds();
     const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();

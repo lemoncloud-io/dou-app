@@ -6,7 +6,7 @@ const mockIngestLogEntry = jest.fn();
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { diagnostics: { kind: mockIsNative() ? 'app' : 'page' } };
+            return { diagnostics: { kind: mockIsNative() ? 'shell' : 'browser' } };
         },
     },
 }));

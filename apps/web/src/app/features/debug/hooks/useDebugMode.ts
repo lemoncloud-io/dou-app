@@ -61,7 +61,7 @@ export const setDebugModeEnabled = (enabled: boolean) => {
     // Harmless before `config.init()` — the facade answers `notWired` instead of throwing.
     if (enabled) config.set(CONFIG_UNLOCK_KEY, true, { lane: 'local' });
     else config.clear(CONFIG_UNLOCK_KEY, { lane: 'local' });
-    if (host.ports.diagnostics.kind === 'app') {
+    if (host.ports.diagnostics.kind === 'shell') {
         // Where the app keeps the diagnostics, a single unlock/lock covers both layers (PROD included).
         appBridge.setDebugMode(enabled);
         (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = enabled;

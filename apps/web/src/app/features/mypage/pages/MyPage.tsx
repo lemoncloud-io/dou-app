@@ -36,7 +36,7 @@ export const MyPage = () => {
     // it would sign out with its own approver.
     // Whether this device is an app that signs in and approves pairings is `host.ports.signIn`'s answer.
     const isPairedSession = runtime.session.useIsPairedSession();
-    const appSignsIn = host.ports.signIn.kind === 'app';
+    const appSignsIn = host.ports.signIn.kind === 'shell';
     const canApprovePairing = pairingEnabled && appSignsIn && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
     const canListDevices = pairingEnabled && (!isGuest || appSignsIn);

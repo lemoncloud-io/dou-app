@@ -13,7 +13,7 @@ const desktop = (extra: Record<string, unknown> = {}) => buildHostProfile({ Chat
 const browser = (extra: Record<string, unknown> = {}) => buildHostProfile({ ...extra });
 
 const v4 = (keys: Record<string, unknown>) => ({
-    CHATIC_APP_CAPABILITIES: { version: 4, checkout: [], media: 'app', files: 'app', ...keys },
+    CHATIC_APP_CAPABILITIES: { version: 4, checkout: [], media: 'shell', files: 'shell', ...keys },
 });
 
 const kinds = {
@@ -33,26 +33,26 @@ describe.each(Object.entries(kinds))('the %s port', (key, kindOf) => {
 
     // The answer the page gave before the port: `isNative()` meant the app does it.
     it('answers a host that declares nothing as isNative() did', () => {
-        expect(kindOf(phone('ios'))).toBe('app');
-        expect(kindOf(desktop())).toBe('app');
-        expect(kindOf(browser())).toBe('page');
+        expect(kindOf(phone('ios'))).toBe('shell');
+        expect(kindOf(desktop())).toBe('shell');
+        expect(kindOf(browser())).toBe('browser');
     });
 
     it('leaves a declaration older than version 4, which never knew the key, to the legacy rule', () => {
-        const v3 = { CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'app', files: 'app' } };
-        expect(kindOf(phone('android', v3))).toBe('app');
-        expect(kindOf(desktop({ CHATIC_APP_CAPABILITIES: { version: 1, checkout: [] } }))).toBe('app');
+        const v3 = { CHATIC_APP_CAPABILITIES: { version: 3, checkout: [], media: 'shell', files: 'shell' } };
+        expect(kindOf(phone('android', v3))).toBe('shell');
+        expect(kindOf(desktop({ CHATIC_APP_CAPABILITIES: { version: 1, checkout: [] } }))).toBe('shell');
         expect(warn).not.toHaveBeenCalled();
     });
 
     it('reads what a version-4 declaration says, even against the bridge', () => {
-        expect(kindOf(phone('ios', v4({ [key]: 'page' })))).toBe('page');
-        expect(kindOf(browser(v4({ [key]: 'app' })))).toBe('app');
+        expect(kindOf(phone('ios', v4({ [key]: 'browser' })))).toBe('browser');
+        expect(kindOf(browser(v4({ [key]: 'shell' })))).toBe('shell');
     });
 
-    it('falls back to the page, and says so, when a version-4 declaration leaves the key out or names something else', () => {
-        expect(kindOf(phone('ios', v4({})))).toBe('page');
-        expect(kindOf(phone('ios', v4({ [key]: 'shell' })))).toBe('page');
+    it('falls back to the browser, and says so, when a version-4 declaration leaves the key out or names something else', () => {
+        expect(kindOf(phone('ios', v4({})))).toBe('browser');
+        expect(kindOf(phone('ios', v4({ [key]: 'app' })))).toBe('browser');
         // Both are logged: the missing key where the declaration is read, the unknown value here.
         expect(warn).toHaveBeenCalledTimes(2);
     });
@@ -75,6 +75,6 @@ describe('the phone platform on appShell and signIn', () => {
 
     it('names none where the page does it, whatever the platform global says', () => {
         expect(resolveAppShell(browser({ CHATIC_APP_PLATFORM: 'ios' })).os).toBeNull();
-        expect(resolveSignIn(phone('ios', v4({ signIn: 'page' }))).os).toBeNull();
+        expect(resolveSignIn(phone('ios', v4({ signIn: 'browser' }))).os).toBeNull();
     });
 });

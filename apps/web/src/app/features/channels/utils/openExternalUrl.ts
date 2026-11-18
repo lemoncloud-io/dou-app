@@ -19,7 +19,7 @@ import { openSubWebViewTarget, subWebViewTargetOfUrl } from '../../../bridge/sub
  * a tap the user asked for should open something, not nothing.
  */
 export const openExternalUrl = (url: string) => {
-    if (host.ports.links.kind === 'app') {
+    if (host.ports.links.kind === 'shell') {
         const subWebViewTarget = shellCapabilities.supports('OpenSubWebView') ? subWebViewTargetOfUrl(url) : null;
         if (subWebViewTarget) {
             void openSubWebViewTarget(subWebViewTarget).then(opening => {

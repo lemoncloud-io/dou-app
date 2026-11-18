@@ -6,7 +6,7 @@ const copyMessageToClipboardMock = jest.fn();
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { links: { kind: isNativeMock() ? 'app' : 'page' } };
+            return { links: { kind: isNativeMock() ? 'shell' : 'browser' } };
         },
     },
 }));

@@ -45,7 +45,7 @@ const openAuthorize = (provider: OAuthProvider, intent: OAuthStartIntent, accoun
 
 /** The system browser where the app signs a person in (`host.ports.signIn`); this tab where the page does. */
 const openBrowser = (url: string): void => {
-    if (host.ports.signIn.kind === 'app') window.open(url, '_blank');
+    if (host.ports.signIn.kind === 'shell') window.open(url, '_blank');
     else window.location.assign(url);
 };
 

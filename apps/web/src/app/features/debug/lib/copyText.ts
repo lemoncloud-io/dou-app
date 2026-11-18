@@ -18,7 +18,7 @@ export const copyTextWithResult = async (value: string | null | undefined): Prom
     if (!value) return false;
 
     // The app's clipboard where it takes the page's links (`host.ports.links`), else the page's.
-    const appCopies = host.ports.links.kind === 'app';
+    const appCopies = host.ports.links.kind === 'shell';
     try {
         if (appCopies) {
             await appBridge.copyClipBoard(value);

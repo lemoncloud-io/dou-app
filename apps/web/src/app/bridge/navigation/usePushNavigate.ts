@@ -280,7 +280,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically, behind the same `push` port check: only where the app
                     // receives notifications. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && host.ports.push.kind === 'app') {
+                    if (cid && !isRelayPush && host.ports.push.kind === 'shell') {
                         await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }

@@ -68,7 +68,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
      */
     // An app below the version floor boots only as far as the update screen, and may predate the app's
     // log store; its logs stay in the page's own queue.
-    const hybrid = diagnosticsKind() === 'app' && !isBelowAppVersionFloor(readShellVersion());
+    const hybrid = diagnosticsKind() === 'shell' && !isBelowAppVersionFloor(readShellVersion());
 
     // Tab-scoped and stable across reloads; a per-load id would leak a key
     // pair on every refresh and strand the previous load's queue.
@@ -154,7 +154,7 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
             queue.clear();
             persistNow();
         }
-        if (diagnosticsKind() === 'app') void clearNativeLogQueue();
+        if (diagnosticsKind() === 'shell') void clearNativeLogQueue();
         return true;
     };
 

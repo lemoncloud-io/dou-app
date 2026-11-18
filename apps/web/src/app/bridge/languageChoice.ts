@@ -19,7 +19,7 @@ import { appBridge } from './appBridge';
  * browser has no shell store to tell.
  */
 export const syncLanguageChoiceToShell = async (preference: LanguagePreference): Promise<void> => {
-    if (host.ports.appShell.kind !== 'app') return;
+    if (host.ports.appShell.kind !== 'shell') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'language', value: preference });
     try {
         await attempt();

@@ -76,7 +76,7 @@ export const SettingsPage = () => {
     // Part of the update check: where the app runs the frame around the page (the host's `appShell`
     // port) it opens its own store listing; anywhere else the page opens the store's web page.
     const handleOpenStore = () => {
-        if (host.ports.appShell.kind === 'app') {
+        if (host.ports.appShell.kind === 'shell') {
             appBridge.openStore();
             return;
         }
@@ -129,7 +129,7 @@ export const SettingsPage = () => {
                         }
                         onClick={() => setIsLanguageSheetOpen(true)}
                     />
-                    {host.ports.appShell.kind === 'app' && isIconChangeSupported && (
+                    {host.ports.appShell.kind === 'shell' && isIconChangeSupported && (
                         <ListRow
                             title={t('mypage.appIconSettings')}
                             trailing={

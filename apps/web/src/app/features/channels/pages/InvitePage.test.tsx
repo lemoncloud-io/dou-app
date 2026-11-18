@@ -24,7 +24,7 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { links: { kind: isNativeValue ? 'app' : 'page' } };
+            return { links: { kind: isNativeValue ? 'shell' : 'browser' } };
         },
     },
 }));

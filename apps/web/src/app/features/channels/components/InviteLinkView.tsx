@@ -47,7 +47,7 @@ export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteL
         }
         try {
             // The app's share sheet where it takes the page's links (`host.ports.links`); a copy otherwise.
-            if (host.ports.links.kind === 'app') {
+            if (host.ports.links.kind === 'shell') {
                 appBridge.openShareSheet(inviteLink);
             } else {
                 await copyMessageToClipboard(inviteLink);

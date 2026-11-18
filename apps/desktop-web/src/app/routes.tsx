@@ -45,7 +45,7 @@ const NotificationOpenListener = () => {
     useEffect(() => {
         // Notification taps, and the menu bar's links that ride the same event, arrive only where the
         // `push` port says the app delivers them.
-        if (host.ports.push.kind !== 'app') return;
+        if (host.ports.push.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;

@@ -19,23 +19,23 @@
 export interface HostCapabilities {
     version: 4;
     checkout: Array<'apple' | 'google' | 'web'>;
-    media: 'app' | 'page';
-    files: 'app' | 'page';
-    links: 'app' | 'page';
-    appShell: 'app' | 'page';
-    signIn: 'app' | 'page';
-    diagnostics: 'app' | 'page';
-    push: 'app' | 'page';
+    media: 'shell' | 'browser';
+    files: 'shell' | 'browser';
+    links: 'shell' | 'browser';
+    appShell: 'shell' | 'browser';
+    signIn: 'shell' | 'browser';
+    diagnostics: 'shell' | 'browser';
+    push: 'shell' | 'browser';
 }
 
 export const hostCapabilities = (os: string): HostCapabilities => ({
     version: 4,
     checkout: [os === 'ios' ? 'apple' : 'google'],
-    media: 'app',
-    files: 'app',
-    links: 'app',
-    appShell: 'app',
-    signIn: 'app',
-    diagnostics: 'app',
-    push: 'app',
+    media: 'shell',
+    files: 'shell',
+    links: 'shell',
+    appShell: 'shell',
+    signIn: 'shell',
+    diagnostics: 'shell',
+    push: 'shell',
 });

@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
 > `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
 > (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`), `feat/host-files-port` (step 3, `files`),
-> `feat/host-ports-rest` (steps 4–7, together)
+> `feat/host-ports-rest` (steps 4–7, together), `refactor/host-shell-browser-methods` (the values' names)
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports and the lint rule in [libs/host](../../libs/host/README.md)
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
@@ -89,9 +89,9 @@ profile from inside the page. Every profile therefore traces back to one stateme
 window.CHATIC_APP_CAPABILITIES = {
     version: 4,
     checkout: ['apple'],
-    media: 'app',
-    files: 'app',
-    links: 'app' /* … appShell, signIn, diagnostics, push */,
+    media: 'shell',
+    files: 'shell',
+    links: 'shell' /* … appShell, signIn, diagnostics, push */,
 };
 ```
 
@@ -115,26 +115,35 @@ its legacy rule answers "unavailable", so a new key never needs a guess written 
 first, of which the page takes the first it knows; `[]` sells nothing. Its legacy rule is the one the
 screens used: a bridge means a store, Apple's on `ios`, and no bridge means the website.
 
-`media` is version 2 and arrived with step 3: `'app'` or `'page'`. A version-1 declaration — the first
-builds that declared `checkout` — never knew it, so its legacy rule answers: a bridge means the app
-picks. The `media` port carries that choice and nothing more. The picker and photo library it chooses
+`media` is version 2 and arrived with step 3: `'shell'` or `'browser'`. A version-1 declaration — the
+first builds that declared `checkout` — never knew it, so its legacy rule answers: a bridge means the
+shell picks. The `media` port carries that choice and nothing more. The picker and photo library it chooses
 between take their types from the data layer and the runtime, which `layer:host` keeps out of reach, so
 they stay in `apps/web` and read the port — a narrower port than § 2 describes, for a domain only one app
 has.
 
-`files` is version 3, the rest of step 3: `'app'` or `'page'`, for uploads, downloads and a video's first
+`files` is version 3, the rest of step 3: `'shell'` or `'browser'`, for uploads, downloads and a video's first
 frame. It is not version 2 because version-2 declarations were already being built without it: had the
 key joined version 2, those builds would read as declaring it missing and move files through the page.
-Declarations of version 1 or 2 get the legacy rule — a bridge means the app — and the port is as narrow
+Declarations of version 1 or 2 get the legacy rule — a bridge means the shell — and the port is as narrow
 as `media`'s, for the same reason.
 
 `links`, `appShell`, `signIn`, `diagnostics` and `push` are version 4, all five together, and arrived
-with steps 4–7 in one change. Each is `'app'` or `'page'` like `media` and `files`; the ports for
+with steps 4–7 in one change. Each is `'shell'` or `'browser'` like `media` and `files`; the ports for
 `appShell` and `signIn` add `os`, the phone platform where the app does the work, because the badge and
 Apple's sign-in differ by platform. They share one version so that no build can declare some without
 the others: had the steps landed apart with a version each, a build cut between two merges would have
-declared a version whose earlier key was missing, and been answered "the page" for it. Declarations of
+declared a version whose earlier key was missing, and been answered `'browser'` for it. Declarations of
 version 1 to 3 get the legacy rule for all five.
+
+**The values name who does the work.** `'shell'` is the app around the page, through its bridge — the
+word the workspace already uses for the phone, desktop and virtual shells. `'browser'` is what any
+browser engine offers the page, the means every host has, which is why every fallback lands on it. The
+values were first written `'app' | 'page'` — for `media`, `files` and then the five version-4 keys — and
+renamed afterwards, because "app" already named every project under `apps/` and the mini apps, and
+"page" named screens, pages of a feed and a mini app's page. A shell that still
+declares an old value names something the web does not know, so that key is logged and answered
+`'browser'`, like any other value a shell gets wrong.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.

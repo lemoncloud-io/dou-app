@@ -14,7 +14,7 @@ export const copyMessageToClipboard = async (text: string) => {
     if (!text) return false;
 
     // The clipboard is the app's where it takes the page's links (`host.ports.links`).
-    if (host.ports.links.kind !== 'app') {
+    if (host.ports.links.kind !== 'shell') {
         await writeWithBrowserClipboard(text);
         return true;
     }

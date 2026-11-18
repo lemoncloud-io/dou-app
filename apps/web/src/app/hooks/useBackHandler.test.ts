@@ -13,7 +13,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { appShell: { kind: isNativeValue ? 'app' : 'page', os: null } };
+            return { appShell: { kind: isNativeValue ? 'shell' : 'browser', os: null } };
         },
     },
 }));

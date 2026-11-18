@@ -4,7 +4,7 @@ const mockRequest = jest.fn();
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { files: { kind: mockIsNative() ? 'app' : 'page' } };
+            return { files: { kind: mockIsNative() ? 'shell' : 'browser' } };
         },
     },
 }));

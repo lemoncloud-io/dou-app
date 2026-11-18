@@ -18,7 +18,7 @@ const getNativeTransfers = (): NativeTransfers => {
 };
 
 /** Whether the app moves files on this host, as the host's `files` port says. */
-const appMovesFiles = (): boolean => host.ports.files.kind === 'app';
+const appMovesFiles = (): boolean => host.ports.files.kind === 'shell';
 
 /** The PUT this host uses: the app's transfer module when the app moves files, the page's own PUT otherwise. */
 export const getShellPut = (): PutPort => (appMovesFiles() ? getNativeTransfers().put : xhrPut);

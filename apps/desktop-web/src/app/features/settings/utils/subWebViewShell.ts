@@ -17,7 +17,7 @@ import { host } from '@chatic/host';
  * answers it without side effects.
  */
 export const readSubWebViewOpenScope = async (): Promise<SubWebViewOpenScope | null> => {
-    if (host.ports.links.kind !== 'app') return null;
+    if (host.ports.links.kind !== 'shell') return null;
     try {
         const response = await webClient.request({ type: 'WebAppReady', data: {} });
         return (response?.data as OnWebAppReadyPayload | undefined)?.subWebViewOpenScope ?? null;

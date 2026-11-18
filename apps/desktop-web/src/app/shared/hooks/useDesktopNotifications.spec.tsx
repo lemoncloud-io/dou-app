@@ -15,7 +15,7 @@ vi.mock('@chatic/bridges', () => ({
 }));
 // Inside the desktop shell: the app delivers notifications, so banners are raised.
 vi.mock('@chatic/host', () => ({
-    host: { ports: { push: { kind: 'app' } } },
+    host: { ports: { push: { kind: 'shell' } } },
 }));
 
 vi.mock('@chatic/app-runtime', () => ({

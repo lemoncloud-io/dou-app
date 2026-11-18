@@ -11,7 +11,7 @@ route exists.
 | `/settings/pairing/approve` | `PairingApprovePage` | the desktop app — the approving side            |
 | `/account/devices`          | `DevicesPage`        | any signed-in account that is not a relay guest |
 
-Which side a client is follows from where it runs. A plain browser (the `signIn` port answering `'page'`) requests: the
+Which side a client is follows from where it runs. A plain browser (the `signIn` port answering `'browser'`) requests: the
 desktop app signs in on its own and has nothing to borrow. The desktop app approves when it is signed
 in to an account — approving hands on a sign-in, and a guest holds none of its own — and its session
 did not come from a pairing (`useIsPairedSession`): a session that was lent access does not lend it on.

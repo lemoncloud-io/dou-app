@@ -26,7 +26,7 @@ export const OAuthDeeplinkListener = () => {
 
     useEffect(() => {
         // Only the app receives the deeplink, where it signs a person in (`host.ports.signIn`).
-        if (host.ports.signIn.kind !== 'app') return;
+        if (host.ports.signIn.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;

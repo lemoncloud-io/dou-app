@@ -13,7 +13,7 @@ const nowLabel = (): string => new Date().toLocaleTimeString();
 export const DebugBadgeCountPage = () => {
     const [count, setCount] = useState('5');
     const [log, setLog] = useState<string[]>([]);
-    const native = host.ports.appShell.kind === 'app';
+    const native = host.ports.appShell.kind === 'shell';
 
     const push = (message: string) => setLog(prev => [`[${nowLabel()}] ${message}`, ...prev].slice(0, 30));
 

@@ -43,7 +43,7 @@ export const LoginPage = () => {
 
     // Social sign-in is offered where the app signs in (`host.ports.signIn`); Apple's where it does on iOS.
     const signIn = host.ports.signIn;
-    const isOnMobileApp = signIn.kind === 'app';
+    const isOnMobileApp = signIn.kind === 'shell';
     const isIOS = signIn.os === 'ios';
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
         runtime.session.useLoginRelaySocial();
