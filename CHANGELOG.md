@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-11-18] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) answer mini apps on home too, and read place profiles by member
+
+### Bug Fixes
+
+- (mobile) read home as the cloud default on the relay's place, as the session reports it
+- (mobile,runtime-core) close the runtime to old android webview frames and other clouds' cache
+
+### Documentation
+
+- (adr) renumber the frame gate adr to 0345, 0341 is taken by the sdk's typed runtime
+
 ## [2026-11-18] - root@0.168.3, @chatic/desktop-web@0.60.3
 
 ### Bug Fixes
