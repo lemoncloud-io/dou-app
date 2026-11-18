@@ -46,7 +46,7 @@ import {
     observeSocketRequests,
     observeStateOutbox,
 } from './app/runtime/perf';
-import { startTelemetry } from './app/runtime/telemetry';
+import { onUsageSessionStart, startAppIconUsage, startTelemetry } from './app/runtime/telemetry';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
@@ -346,6 +346,18 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
         // start. On every boot, so a web deploy is what moves production installs onto the app's runtime
         // and back; the owner of this launch is already settled and does not change.
         void sendSessionOwnerDefault(report, appBridge, sessionOwnerDefaultEnv);
+        // Which icon this install has, for the usage statistics. After the handshake, because a request
+        // posted before it can reach the app ahead of its router; and only where the app says it answers,
+        // which leaves out the desktop app and every phone build too old to switch icons.
+        if (report?.supportedWebMessages?.includes('FetchAppIcon')) {
+            startAppIconUsage({
+                fetchIcon: () =>
+                    webClient
+                        .request({ type: 'FetchAppIcon', data: {} })
+                        .then(res => (res.success ? res.data : undefined)),
+                onSessionStart: onUsageSessionStart,
+            });
+        }
     });
 
     // Force the native debug menu off on every web start — the OTA-controllable kill switch for the

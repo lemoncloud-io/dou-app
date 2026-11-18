@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { webClient } from '@chatic/bridges';
 
+import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
 import { isDefaultAppIcon, useAppIcon } from './useAppIcon';
 
 jest.mock('react-i18next', () => ({
@@ -11,6 +12,7 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/bridges', () => ({
     webClient: { request: jest.fn() },
 }));
+jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
 const mockIsNative = jest.fn((): boolean => false);
 // Whether the app runs the frame around the page, as the host's `appShell` port says.
 jest.mock('@chatic/host', () => ({
@@ -119,5 +121,46 @@ describe('useAppIcon — the primary icon reported by its stored name', () => {
 
         await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
         expect(result.current.currentIconLabel).toBe('mypage.appIcon.default');
+    });
+});
+
+describe('useAppIcon — the change statistic', () => {
+    it('records a successful change from the icon in use to the one the app applied', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) => {
+            if (type === 'FetchAppIcon') {
+                return Promise.resolve({ success: true, data: { supported: true, iconName: 'DefaultIcon' } });
+            }
+            if (type === 'ChangeAppIcon') {
+                return Promise.resolve({ success: true, data: { success: true, iconName: 'MidnightIcon' } });
+            }
+            return Promise.resolve({ success: true, data: { availableIcons: [] } });
+        });
+        const { result } = renderHook(() => useAppIcon());
+        await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
+
+        await act(async () => {
+            await result.current.selectIcon('MidnightIcon');
+        });
+
+        expect(recordAppIconChange).toHaveBeenCalledWith('DefaultIcon', 'MidnightIcon');
+    });
+
+    it('records nothing when the app did not apply the change', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) =>
+            Promise.resolve(
+                type === 'ChangeAppIcon'
+                    ? { success: true, data: { success: false } }
+                    : { success: true, data: { supported: true, iconName: 'DefaultIcon', availableIcons: [] } }
+            )
+        );
+        const { result } = renderHook(() => useAppIcon());
+
+        await act(async () => {
+            await result.current.selectIcon('MidnightIcon');
+        });
+
+        expect(recordAppIconChange).not.toHaveBeenCalled();
     });
 });

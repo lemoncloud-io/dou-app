@@ -5,6 +5,8 @@ import { logger, webClient } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/bridge-messages';
 import { host } from '@chatic/host';
 
+import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
+
 /**
  * Whether an icon id names the primary icon. The app reports it as `DefaultIcon` (its stored
  * name), lists it with a `null` id, and this hook starts from `'default'` before the app has
@@ -56,6 +58,8 @@ export const useAppIcon = () => {
         try {
             const res = await webClient.request({ type: 'ChangeAppIcon', data: { iconName: iconId } });
             if (res.success && res.data?.success) {
+                // The icon the app says it applied, not the one asked for: that is what the user now has.
+                recordAppIconChange(currentIcon, res.data.iconName ?? iconId);
                 setCurrentIcon(res.data.iconName ?? 'default');
                 return true;
             }

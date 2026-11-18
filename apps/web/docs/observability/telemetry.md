@@ -76,9 +76,29 @@ localStorage.setItem(
 | `usage.session_start`    | event          | the run starts (`start=cold`), or a return after 30+ minutes away (`resume`)                                                      |
 | `usage.session_end`      | event          | before that `resume`: the old session's `duration_ms` and `screens`                                                               |
 | `usage.screen_view`      | event          | the route template changes: `screen`, `prev_screen`, `prev_dwell_ms`                                                              |
+| `usage.app_icon_change`  | event          | the user switched the app icon in the picker and the app applied it: `from`, `to`                                                 |
+| `usage.app_icon_in_use`  | event          | once per usage session, in an app that can switch icons: `icon`, the one the app has on record                                    |
 
-The usage list stops at screens and sessions on purpose: the rest of the usage catalogue is still
-being settled, and an event cannot be renamed once it has data behind it.
+The usage list stops at screens, sessions and the app icon on purpose: the rest of the usage
+catalogue is still being settled, and an event cannot be renamed once it has data behind it.
+
+**The app icon events** (`src/app/runtime/telemetry/appIcon.ts`). The change event alone cannot say
+how many users have each icon — most users never open the picker, and it leaves them uncounted — so
+`app_icon_in_use` reports the icon every session starts with. It is sent after the `WebAppReady`
+handshake (a request posted before it can reach the app ahead of its router), only when the
+handshake lists `FetchAppIcon` (which leaves out the desktop app), and again on every later session
+of the run, since a run can sit in the background for days. An app that answers `supported: false`
+reports nothing. A re-pick of the icon already in use is not a change and is not recorded.
+
+Both events read the icon name the app has **stored**, not what the launcher shows: the app answers
+`FetchAppIcon` from its own storage, and that value can go stale until the next switch to a
+different icon (`apps/mobile/docs/native/app-icons.md` § Switching). `icon` and `from` are therefore
+"the icon on record", which matches the home screen in every case but that one.
+
+The icon values are the app's own ids, listed in `APP_ICON_IDS`, with the primary icon's three names
+(`null`, `'default'`, `DefaultIcon`) folded into one.
+An id this build does not know yet is sent as `other`, so an icon added to the app before this list
+is still counted — add its id to `APP_ICON_IDS` to have it named.
 
 **A screen is a route template.** `routeTemplateOf` derives the templates from the `ROUTES` table
 (`/channels/:id/room`) and matches a path with the router's own ranking. Every entry, logs included,
