@@ -1,7 +1,7 @@
-import type { ChaticAppsRuntime } from './runtime';
+import type { ChaticAppsData } from './runtime';
 import { LISTENER } from './runtime';
-import type { MockRuntime } from './mock';
-import type { RuntimeChannel, RuntimeChat, RuntimeList, RuntimeSession } from './runtimeTypes';
+import type { MockData } from './mock';
+import type { CloudChannel, CloudChat, CloudList, CloudSession } from './runtimeTypes';
 
 /**
  * The typed surface, checked by the compiler. The lib's typecheck (`tsc -b`, which covers this file)
@@ -12,18 +12,18 @@ import type { RuntimeChannel, RuntimeChat, RuntimeList, RuntimeSession } from '.
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 const expectType = <T extends true>(): T => true as T;
 
-export const typedCalls = async (runtime: ChaticAppsRuntime) => {
+export const typedCalls = async (runtime: ChaticAppsData) => {
     const rooms = await runtime.call('channel.cacheReadList', { sid: 's1' });
-    expectType<Equal<typeof rooms, RuntimeList<RuntimeChannel> | null>>();
+    expectType<Equal<typeof rooms, CloudList<CloudChannel> | null>>();
 
     const room = await runtime.call('channel.cacheRead', 'ch1');
-    expectType<Equal<typeof room, RuntimeChannel | null>>();
+    expectType<Equal<typeof room, CloudChannel | null>>();
 
     const sent = await runtime.sendMessage('ch1', 'hi');
-    expectType<Equal<typeof sent, RuntimeChat>>();
+    expectType<Equal<typeof sent, CloudChat>>();
 
     const session = runtime.session();
-    expectType<Equal<typeof session, RuntimeSession | null>>();
+    expectType<Equal<typeof session, CloudSession | null>>();
 
     // @ts-expect-error -- a known method with arguments of the wrong shape
     await runtime.call('channel.cacheRead', 42);
@@ -44,9 +44,9 @@ export const typedCalls = async (runtime: ChaticAppsRuntime) => {
     expectType<Equal<typeof untyped, { list: unknown[] }>>();
 };
 
-export const typedStreams = async (runtime: ChaticAppsRuntime) => {
+export const typedStreams = async (runtime: ChaticAppsData) => {
     await runtime.subscribe('channel.observeList', [{ sid: 's1' }], result => {
-        expectType<Equal<typeof result, RuntimeList<RuntimeChannel> | null>>();
+        expectType<Equal<typeof result, CloudList<CloudChannel> | null>>();
     });
     await runtime.subscribe('chat.observeFeedCoverage', ['ch1'], covered => {
         expectType<Equal<typeof covered, (readonly [low: number, high: number])[]>>();
@@ -62,7 +62,7 @@ export const typedStreams = async (runtime: ChaticAppsRuntime) => {
     await runtime.subscribe('channel.observeItem', ['ch1'], (item: string) => item);
 };
 
-export const typedMock: MockRuntime = {
+export const typedMock: MockData = {
     calls: {
         'channel.cacheRead': id => ({ id, cid: 'c1', sid: 's1', isNotificationEnabled: true }),
         // @ts-expect-error -- an answer of the wrong shape fails here, not in the app

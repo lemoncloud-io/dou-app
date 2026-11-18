@@ -204,7 +204,7 @@ Keep the top-right corner of every screen clear of your own controls: the close 
 ## A page that uses the cloud's data
 
 A page opened in a cloud can read that cloud — its places, rooms, messages and members — through
-`apps.runtime`, and post a text message. The package `README.md` lists every method, its arguments and
+`apps.data`, and post a text message. The package `README.md` lists every method, its arguments and
 the rows it answers; this is how to build a page around them.
 
 **Choose permissions by what the page shows.** Each of `session`, `cloud`, `place`, `channel`, `chat`
@@ -218,20 +218,20 @@ off the device without telling the user.
 { "manifestVersion": 1, "name": "Room stats", "permissions": ["session", "channel", "chat"] }
 ```
 
-**Wait for the user.** `apps.runtime.connect()` is where the app asks the user whether this page may
+**Wait for the user.** `apps.data.connect()` is where the app asks the user whether this page may
 read this cloud, and it waits as long as the user takes: show the page's own frame first, then connect.
 A refusal is `CONSENT_REFUSED`: say why the page needs the data and offer to close.
 
 ```ts
 const apps = await connect();
-if (!apps.supports('runtime')) return showNotAvailableHere(); // a browser, the desktop, Home, an older app
+if (!apps.supports('data')) return showNotAvailableHere(); // a browser, the desktop, Home, an older app
 try {
-    await apps.runtime.connect();
+    await apps.data.connect();
 } catch (error) {
     if (error instanceof ChaticAppsError && error.code === 'CONSENT_REFUSED') return showWhyWeAsk();
     throw error;
 }
-const session = apps.runtime.session(); // RuntimeSession | null — null without `session`
+const session = apps.data.session(); // CloudSession | null — null without `session`
 const placeId = session?.committedSiteId ?? undefined; // undefined without `session`
 ```
 
@@ -239,7 +239,7 @@ const placeId = session?.committedSiteId ?? undefined; // undefined without `ses
 wrong argument fails the build. Rows are mostly optional fields: read each with a fallback.
 
 ```ts
-const rooms = await apps.runtime.call('channel.cacheReadList', { sid: placeId });
+const rooms = await apps.data.call('channel.cacheReadList', { sid: placeId });
 for (const room of rooms?.list ?? []) console.log(room.name ?? '(no name)', room.unreadCount ?? 0);
 ```
 
@@ -251,10 +251,10 @@ when it leaves the screen, and hold only the rows you show — an event can carr
 notice; do not retry.
 
 ```ts
-apps.runtime.onCloudChanged(() => apps.finish());
+apps.data.onCloudChanged(() => apps.finish());
 ```
 
-**Send only what the user chose to send.** `apps.runtime.sendMessage(roomId, text)` posts in the
+**Send only what the user chose to send.** `apps.data.sendMessage(roomId, text)` posts in the
 user's name, to a room of the place the page was opened in. Send on a tap the user made, with text they
 saw.
 
@@ -266,7 +266,7 @@ import { installChaticAppsMock } from '@lemoncloud/chatic-apps-sdk/mock';
 
 const app = installChaticAppsMock({
     permissions: ['session', 'channel', 'chatSend'],
-    runtime: {
+    data: {
         session: {
             context: {
                 cloud: { cloudId: 'cloud-1', siteId: 'place-1', isActive: true },
@@ -305,7 +305,7 @@ assistant at `node_modules/@lemoncloud/chatic-apps-sdk/AGENTS.md`.
 - [ ] State is saved as the user goes, not only at a button.
 - [ ] No `window.opener`, popup login, file download or server-side rendering.
 - [ ] No user data in errors, in `reportError` or in the page's own logs.
-- [ ] A page that reads the cloud: it asks for only the runtime permissions it uses, handles
+- [ ] A page that reads the cloud: it asks for only the cloud data permissions it uses, handles
       `CONSENT_REFUSED` and `CLOUD_CHANGED`, and stops every stream it no longer shows.
 
 ## Deploying

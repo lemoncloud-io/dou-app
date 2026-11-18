@@ -1,5 +1,5 @@
 /**
- * What `apps.runtime` reads, typed: every method the app's runtime opens to a page, under the name the
+ * What `apps.data` reads, typed: every method the app opens to a page, under the name the
  * app gives it, with its arguments and what it answers. The rows are the app's own rows, field for
  * field — this library does not rename, reshape or filter them.
  *
@@ -19,25 +19,25 @@
  */
 
 /** A server record's owner ids, as the server stamps them. */
-export interface RuntimeCores {
+export interface CloudCores {
     sid?: string;
     uid?: string;
     gid?: string;
 }
 
 /** When the device cache last filled a row and when it stops trusting it, in epoch ms. */
-export interface RuntimeCacheMeta {
+export interface CloudCacheMeta {
     lastSyncedAt: number;
     expiresAt: number;
 }
 
 /** A list read: its rows and the paging around them. */
-export interface RuntimeList<Row> {
+export interface CloudList<Row> {
     list: Row[];
-    meta: RuntimeListMeta;
+    meta: CloudListMeta;
 }
 
-export interface RuntimeListMeta {
+export interface CloudListMeta {
     total: number;
     limit?: number;
     page?: number;
@@ -53,13 +53,13 @@ export interface RuntimeListMeta {
 // ---------------------------------------------------------------------------------------------------
 
 /** A user as the server embeds one in another record. */
-export interface RuntimeUserView {
+export interface CloudUserView {
     id?: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'user' | 'admin' | 'dummy' | 'system';
     ns?: string;
     type?: 'profile' | 'user' | 'site';
@@ -78,17 +78,17 @@ export interface RuntimeUserView {
     /** Account detail: the user's identity id with the sign-in provider. */
     identityId?: string;
     channelIds?: string[];
-    $join?: RuntimeJoinView;
+    $join?: CloudJoinView;
 }
 
 /** A join (a user's membership of a room) as the server embeds one. */
-export interface RuntimeJoinView {
+export interface CloudJoinView {
     id?: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'admin' | 'owner' | 'member';
     chatNo?: number;
     metaNo?: number;
@@ -113,13 +113,13 @@ export interface RuntimeJoinView {
 }
 
 /** A room as the server embeds one. */
-export interface RuntimeChannelView {
+export interface CloudChannelView {
     id?: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'public' | 'private' | 'dm' | 'self';
     chatNo?: number;
     metaNo?: number;
@@ -142,20 +142,20 @@ export interface RuntimeChannelView {
     memberIds?: string[];
     openFeed?: boolean;
     unreadCount?: number;
-    owner$?: RuntimeUserView;
-    lastChat$?: RuntimeChatView;
-    $join?: RuntimeJoinView;
-    $joins?: RuntimeJoinView[];
+    owner$?: CloudUserView;
+    lastChat$?: CloudChatView;
+    $join?: CloudJoinView;
+    $joins?: CloudJoinView[];
 }
 
 /** A message as the server embeds one. */
-export interface RuntimeChatView {
+export interface CloudChatView {
     id?: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'user' | 'webhook' | 'system';
     subType?: '' | 'join' | 'leave' | 'reaction' | 'edit';
     contentType?: string;
@@ -180,40 +180,40 @@ export interface RuntimeChatView {
     _id?: string;
     cid?: string;
     hidden?: boolean;
-    mention$?: RuntimeChatMention;
-    owner$?: RuntimeUserView;
-    channel$?: RuntimeChannelView;
-    parent$?: RuntimeChatView;
-    upload$$?: RuntimeUpload[];
-    reaction$?: RuntimeChatReaction;
-    edit$?: RuntimeChatEdit;
-    attach$?: RuntimeChatAttachment;
-    blocks$?: RuntimeChatBlock[];
-    source$?: RuntimeChatSource;
+    mention$?: CloudChatMention;
+    owner$?: CloudUserView;
+    channel$?: CloudChannelView;
+    parent$?: CloudChatView;
+    upload$$?: CloudUpload[];
+    reaction$?: CloudChatReaction;
+    edit$?: CloudChatEdit;
+    attach$?: CloudChatAttachment;
+    blocks$?: CloudChatBlock[];
+    source$?: CloudChatSource;
 }
 
 /** Who a message mentions. */
-export interface RuntimeChatMention {
+export interface CloudChatMention {
     userIds?: string[];
     all?: boolean;
 }
 
 /** On a `reaction` message: the reaction it records. */
-export interface RuntimeChatReaction {
+export interface CloudChatReaction {
     action?: string;
     emoji?: string;
     chatId?: string;
 }
 
 /** On an `edit` message: the message it changed. */
-export interface RuntimeChatEdit {
+export interface CloudChatEdit {
     action: 'update' | 'delete';
     chatId: string;
     hash?: string;
 }
 
 /** An attachment card, as a webhook posts one. */
-export interface RuntimeChatAttachment {
+export interface CloudChatAttachment {
     pretext?: string;
     title?: string;
     text?: string;
@@ -226,27 +226,27 @@ export interface RuntimeChatAttachment {
     channel?: string;
 }
 
-export interface RuntimeChatBlockText {
+export interface CloudChatBlockText {
     type: 'mrkdwn' | 'plain_text';
     text: string;
 }
 
 /** One block of a message laid out in blocks, as a webhook posts one. */
-export type RuntimeChatBlock =
-    | { type: 'header'; text: RuntimeChatBlockText }
-    | { type: 'section'; text?: RuntimeChatBlockText; fields?: RuntimeChatBlockText[] }
+export type CloudChatBlock =
+    | { type: 'header'; text: CloudChatBlockText }
+    | { type: 'section'; text?: CloudChatBlockText; fields?: CloudChatBlockText[] }
     | { type: 'divider' }
-    | { type: 'context'; elements: RuntimeChatBlockText[] };
+    | { type: 'context'; elements: CloudChatBlockText[] };
 
 /** Where a webhook message came from. */
-export interface RuntimeChatSource {
+export interface CloudChatSource {
     key?: string;
     url?: string;
     color?: string;
 }
 
 /** A stored file's resource: its preview. */
-export interface RuntimeUploadResource {
+export interface CloudUploadResource {
     url: string;
     contentType?: string;
     contentSize?: number;
@@ -256,14 +256,14 @@ export interface RuntimeUploadResource {
 }
 
 /** A file a sent message carries. */
-export interface RuntimeUpload {
+export interface CloudUpload {
     status: 'pending' | 'stored' | 'failed';
     id?: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: 'image' | 'video' | 'audio' | 'file';
     contentType?: string;
     ns?: string;
@@ -281,13 +281,13 @@ export interface RuntimeUpload {
     hash?: string;
     name?: string;
     url?: string;
-    thumbnail?: RuntimeUploadResource;
+    thumbnail?: CloudUploadResource;
     orgUrl?: string;
     thumbUrl?: string;
 }
 
 /** A file of a message this device has not finished sending. */
-export interface RuntimePendingUpload {
+export interface CloudPendingUpload {
     localStatus: 'sending' | 'failed';
     /** An object URL of the app's own page: it does not open in another page. */
     localThumbUrl: string;
@@ -297,10 +297,10 @@ export interface RuntimePendingUpload {
 }
 
 /** What `chat.observeFeedCoverage` and others mean by a `[low, high]` range of message numbers. */
-export type RuntimeChatNumberRange = readonly [low: number, high: number];
+export type CloudChatNumberRange = readonly [low: number, high: number];
 
 /** One entry of a message's media index: an attachment or a link it carries. */
-export interface RuntimeChatMediaEntry {
+export interface CloudChatMediaEntry {
     kind: 'image' | 'video' | 'file' | 'audio' | 'link';
     idx: number;
     /** An attachment's upload id, or a link's URL. */
@@ -312,7 +312,7 @@ export interface RuntimeChatMediaEntry {
 // ---------------------------------------------------------------------------------------------------
 
 /** A room (`channel`), as the device cache holds it. */
-export interface RuntimeChannel {
+export interface CloudChannel {
     id: string;
     /** The cloud the row belongs to. */
     cid: string;
@@ -323,7 +323,7 @@ export interface RuntimeChannel {
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     /** `dm` a one-to-one room, `self` the user's own notes room. */
     stereo?: '' | 'public' | 'private' | 'dm' | 'self';
     name?: string;
@@ -347,18 +347,18 @@ export interface RuntimeChannel {
     _id?: string;
     openFeed?: boolean;
     unreadCount?: number;
-    owner$?: RuntimeUserView;
-    lastChat$?: RuntimeChatView;
+    owner$?: CloudUserView;
+    lastChat$?: CloudChatView;
     /** The user's own join of the room. */
-    $join?: RuntimeJoinView;
-    $joins?: RuntimeJoinView[];
+    $join?: CloudJoinView;
+    $joins?: CloudJoinView[];
     /** Not filled by anything today. */
     lastActivityAt?: number;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /** A user's membership of a room (`join`): their role, read position and notification setting. */
-export interface RuntimeJoin {
+export interface CloudJoin {
     id: string;
     cid: string;
     channelId: string;
@@ -370,7 +370,7 @@ export interface RuntimeJoin {
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'owner' | 'admin' | 'member';
     chatNo?: number;
     metaNo?: number;
@@ -388,11 +388,11 @@ export interface RuntimeJoin {
     role?: string;
     notify?: '' | 'all' | 'mention' | 'none';
     reason?: string;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /** A message (`chat`), as the device cache holds it. */
-export interface RuntimeChat {
+export interface CloudChat {
     id: string;
     cid: string;
     channelId: string;
@@ -408,7 +408,7 @@ export interface RuntimeChat {
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'user' | 'system' | 'webhook';
     subType?: '' | 'join' | 'leave' | 'reaction' | 'edit';
     contentType?: string;
@@ -430,38 +430,38 @@ export interface RuntimeChat {
     next?: number;
     meta?: unknown;
     _id?: string;
-    owner$?: RuntimeUserView;
-    channel$?: RuntimeChannelView;
-    parent$?: RuntimeChatView;
-    mention$?: RuntimeChatMention;
-    reaction$?: RuntimeChatReaction;
-    edit$?: RuntimeChatEdit;
-    attach$?: RuntimeChatAttachment;
-    blocks$?: RuntimeChatBlock[];
-    source$?: RuntimeChatSource;
+    owner$?: CloudUserView;
+    channel$?: CloudChannelView;
+    parent$?: CloudChatView;
+    mention$?: CloudChatMention;
+    reaction$?: CloudChatReaction;
+    edit$?: CloudChatEdit;
+    attach$?: CloudChatAttachment;
+    blocks$?: CloudChatBlock[];
+    source$?: CloudChatSource;
     /** The server's files once sent; this device's pending slots while it is still sending. */
-    upload$$?: (RuntimeUpload | RuntimePendingUpload)[];
+    upload$$?: (CloudUpload | CloudPendingUpload)[];
     tempId?: string;
     /** Hidden by this device because a page of the feed left it out, not by a delete. */
     hiddenByFeed?: boolean;
-    mediaEntries?: RuntimeChatMediaEntry[];
+    mediaEntries?: CloudChatMediaEntry[];
     mediaEntriesVersion?: number;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /** One room's latest message, as the room list shows it. */
-export interface RuntimeLastChat {
+export interface CloudLastChat {
     channelId: string;
     /** The highest message number cached for the room. */
     lastNo: number;
     /** The latest message a room list previews; `null` when none. */
-    chat: RuntimeChat | null;
+    chat: CloudChat | null;
     /** The latest message that counts as activity, thread replies included; `null` when none. */
-    activity: RuntimeChat | null;
+    activity: CloudChat | null;
 }
 
 /** A place (`site`) of the current cloud. */
-export interface RuntimePlace {
+export interface CloudPlace {
     id: string;
     cid: string;
     /** Its position in the user's list. */
@@ -471,16 +471,16 @@ export interface RuntimePlace {
     desc?: string;
     isOwner?: boolean;
     /** Service detail: the place's server endpoints. */
-    $envs?: RuntimeServiceEndpoints;
+    $envs?: CloudServiceEndpoints;
     legacy?: boolean;
     isPublic?: boolean;
     /** The place's owner, as the account server has them: much of it is contact and account detail. */
-    owner$?: RuntimeAccountUserView;
+    owner$?: CloudAccountUserView;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | '#alias' | 'mine' | 'place' | 'work' | 'domain' | 'session';
     name?: string;
     ns?: string;
@@ -493,7 +493,7 @@ export interface RuntimePlace {
     meta?: unknown;
     _id?: string;
     aliasId?: string;
-    alias$?: RuntimeAlias;
+    alias$?: CloudAlias;
     domain?: string;
     host?: string;
     alias?: string;
@@ -501,7 +501,7 @@ export interface RuntimePlace {
     code?: string;
     linked?: number;
     typeCode?: string;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /**
@@ -510,16 +510,16 @@ export interface RuntimePlace {
  * of them a given answer fills is the server's choice, and the app passes on what it got. Fields named
  * after a secret (`loginPw`, `otp$`, `key$`) are not something a page should ever read, keep or send.
  */
-export interface RuntimeAccountUserView {
+export interface CloudAccountUserView {
     id: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     role?: string;
     stereo?: '' | '#alias' | 'session' | 'user' | '#code' | 'admin' | 'dummy';
-    alias$?: RuntimeAlias;
+    alias$?: CloudAlias;
     name?: string;
     aliasId?: string;
     alias?: string;
@@ -543,7 +543,7 @@ export interface RuntimeAccountUserView {
     /** Personal detail. */
     birth?: string;
     /** Contact detail. */
-    address?: RuntimeAddress;
+    address?: CloudAddress;
     /** Contact detail. */
     email?: string;
     aliasType?: string;
@@ -566,26 +566,26 @@ export interface RuntimeAccountUserView {
     accountId?: string;
     roles?: string[];
     /** Account detail. */
-    $account?: RuntimeAccountView;
+    $account?: CloudAccountView;
     /** Account detail: the sign-in methods linked to the account. */
-    link$?: { phone?: RuntimeLinkedAccount; email?: RuntimeLinkedAccount; social?: RuntimeLinkedAccount };
+    link$?: { phone?: CloudLinkedAccount; email?: CloudLinkedAccount; social?: CloudLinkedAccount };
 }
 
-export interface RuntimeAddress {
+export interface CloudAddress {
     addrPost?: string;
     addrStreet?: string;
     addrDetail?: string;
     addrExtra?: string;
 }
 
-export interface RuntimeLinkedAccount {
+export interface CloudLinkedAccount {
     hint?: string;
     provider?: string;
     linkedAt?: number;
 }
 
 /** An account as the account server has it. Contact and account detail throughout. */
-export interface RuntimeAccountView {
+export interface CloudAccountView {
     id?: string;
     isPushNotice?: boolean;
     isPushCommunity?: boolean;
@@ -594,7 +594,7 @@ export interface RuntimeAccountView {
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     group?: string;
     stereo?:
         | ''
@@ -643,14 +643,14 @@ export interface RuntimeAccountView {
 }
 
 /** A user of the current cloud. */
-export interface RuntimeUser {
+export interface CloudUser {
     id: string;
     cid: string;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: '' | 'user' | 'system' | 'admin' | 'dummy';
     name?: string;
     thumbnail?: string;
@@ -669,12 +669,12 @@ export interface RuntimeUser {
     /** Account detail: the user's identity id with the sign-in provider. */
     identityId?: string;
     channelIds?: string[];
-    $join?: RuntimeJoinView;
-    __cacheMeta?: RuntimeCacheMeta;
+    $join?: CloudJoinView;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /** A user's profile in one place: the name and picture they show there. */
-export interface RuntimeProfile {
+export interface CloudProfile {
     /** `<place id>@<user id>`. */
     id: string;
     cid: string;
@@ -688,7 +688,7 @@ export interface RuntimeProfile {
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     stereo?: string;
     thumbnail?: string;
     nick?: string;
@@ -700,11 +700,11 @@ export interface RuntimeProfile {
     next?: number;
     meta?: unknown;
     _id?: string;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
 /** A member of one place, as `user.listPlaceMembers` lists them. */
-export interface RuntimePlaceMember {
+export interface CloudPlaceMember {
     id: string;
     cid: string;
     name?: string;
@@ -715,8 +715,8 @@ export interface RuntimePlaceMember {
 }
 
 /** What `user.listPlaceMembers` answers. */
-export interface RuntimePlaceMembers {
-    members: RuntimePlaceMember[];
+export interface CloudPlaceMembers {
+    members: CloudPlaceMember[];
     /** The cloud and place the list is of. */
     context: { cid: string; sid: string };
     /** Whether the members' place profiles were loaded into the device cache along the way. */
@@ -724,7 +724,7 @@ export interface RuntimePlaceMembers {
 }
 
 /** The current cloud's row. Much of it is account and billing detail: read only what the page needs. */
-export interface RuntimeCloud {
+export interface CloudInfo {
     id: string;
     cid: string;
     name?: string;
@@ -737,12 +737,12 @@ export interface RuntimeCloud {
     /** Account detail: the device user ids that accepted an invite into this cloud. */
     acceptedBy?: string[];
     /** Service detail: the cloud's server endpoints. */
-    $envs?: RuntimeServiceEndpoints;
+    $envs?: CloudServiceEndpoints;
     createdAt?: number;
     updatedAt?: number;
     deletedAt?: number;
     error?: string;
-    $?: RuntimeCores;
+    $?: CloudCores;
     owner$?: { id?: string; name?: string };
     stereo?: '' | '#alias' | '#root';
     ownerId?: string;
@@ -760,9 +760,9 @@ export interface RuntimeCloud {
     /** Account detail. */
     accountId?: string;
     /** Account detail. */
-    account$?: RuntimeAccountHead;
+    account$?: CloudAccountHead;
     aliasId?: string;
-    alias$?: RuntimeAlias;
+    alias$?: CloudAlias;
     /** Billing detail. */
     subscriptionId?: string;
     status?: 'error' | 'init' | 'reserved' | 'active' | 'suspended' | 'expired';
@@ -774,7 +774,7 @@ export interface RuntimeCloud {
     region?: string;
     stage?: string;
     cloudNo?: number;
-    state$?: RuntimeCloudState;
+    state$?: CloudState;
     suspendedAt?: number;
     plannedAt?: number;
     suspendReason?: 'expired' | 'downgrade' | 'cancel' | 'release';
@@ -783,16 +783,16 @@ export interface RuntimeCloud {
     enqueueId?: string;
     workspaceId?: string;
     slotId?: string;
-    __cacheMeta?: RuntimeCacheMeta;
+    __cacheMeta?: CloudCacheMeta;
 }
 
-export interface RuntimeServiceEndpoints {
+export interface CloudServiceEndpoints {
     accountNo?: string;
     backend?: string;
     wss?: string;
 }
 
-export interface RuntimeAccountHead {
+export interface CloudAccountHead {
     id?: string;
     name?: string;
     stereo?:
@@ -811,12 +811,12 @@ export interface RuntimeAccountHead {
     openId?: string;
 }
 
-export interface RuntimeAlias {
+export interface CloudAlias {
     type?: string;
     alias?: string;
 }
 
-export interface RuntimeCloudState {
+export interface CloudState {
     provision?: 'init' | 'reserved' | 'active';
     hold?: '' | 'downgrade' | 'expired';
     life?: '' | 'released';
@@ -827,7 +827,7 @@ export interface RuntimeCloudState {
  * The session as a page with the `session` permission gets it: the current cloud's half and who the
  * user is in it. Nothing of the user's other clouds, and no server address or token.
  */
-export interface RuntimeSession {
+export interface CloudSession {
     context: {
         cloud: {
             cloudId: string | null;
@@ -850,7 +850,7 @@ export interface RuntimeSession {
 // ---------------------------------------------------------------------------------------------------
 
 /** Which rooms: the place's (`sid`), one page of them. */
-export interface RuntimeChannelListQuery {
+export interface CloudChannelListQuery {
     sid?: string;
     page?: number;
     limit?: number;
@@ -859,25 +859,25 @@ export interface RuntimeChannelListQuery {
 }
 
 /** Which joins: one room's, or only active ones. */
-export interface RuntimeJoinListQuery {
+export interface CloudJoinListQuery {
     channelId?: string;
     activeOnly?: boolean;
 }
 
 /** One room's messages, `limit` of them below `cursorNo` (from the newest when absent). */
-export interface RuntimeChatFeedQuery {
+export interface CloudChatFeedQuery {
     channelId: string;
     cursorNo?: number;
     limit?: number;
 }
 
-/** `RuntimeChatFeedQuery`, and whether messages still being sent are listed too. */
-export interface RuntimeChatObserveQuery extends RuntimeChatFeedQuery {
+/** `CloudChatFeedQuery`, and whether messages still being sent are listed too. */
+export interface CloudChatObserveQuery extends CloudChatFeedQuery {
     includeUnsent?: boolean;
 }
 
 /** One room's members. */
-export interface RuntimeUserListQuery {
+export interface CloudUserListQuery {
     channelId: string;
     limit?: number;
     page?: number;
@@ -885,7 +885,7 @@ export interface RuntimeUserListQuery {
 }
 
 /** Whose profiles: a place's, a user's, or one user's in one place. `siteId`/`userId` are older names. */
-export interface RuntimeProfileListQuery {
+export interface CloudProfileListQuery {
     sid?: string;
     uid?: string;
     siteId?: string;
@@ -896,16 +896,16 @@ export interface RuntimeProfileListQuery {
  * The places list takes no filter: pass `{}`. Always pass it — the app takes the stream's listener from
  * the argument after it.
  */
-export type RuntimePlaceListQuery = Record<string, never>;
+export type CloudPlaceListQuery = Record<string, never>;
 
 /** The current place's members. Both ids must be the place the session is on. */
-export interface RuntimePlaceMembersQuery {
+export interface CloudPlaceMembersQuery {
     placeId: string;
     sessionPlaceId: string;
 }
 
 /** A plain text message to a room of the place the view opened on. */
-export interface RuntimeSendChatInput {
+export interface CloudSendChatInput {
     channelId: string;
     /** Something besides white space, at most 1000 UTF-16 code units. */
     content: string;
@@ -915,134 +915,134 @@ export interface RuntimeSendChatInput {
 // The map.
 // ---------------------------------------------------------------------------------------------------
 
-/** The manifest permissions that open runtime methods. */
-export type RuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
+/** The manifest permissions that open cloud data methods. */
+export type DataPermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
 
 /**
- * Every method `apps.runtime.call` reaches, by the app's own `<repository>.<method>` name: the
+ * Every method `apps.data.call` reaches, by the app's own `<repository>.<method>` name: the
  * permission that opens it, its arguments and what it resolves with. `can(method)` still says whether it
  * is open now — this says only what it would be.
  */
-export interface RuntimeCalls {
-    'channel.cacheRead': { permission: 'channel'; args: [id: string]; result: RuntimeChannel | null };
+export interface DataCalls {
+    'channel.cacheRead': { permission: 'channel'; args: [id: string]; result: CloudChannel | null };
     'channel.cacheReadList': {
         permission: 'channel';
-        args: [query: RuntimeChannelListQuery];
-        result: RuntimeList<RuntimeChannel> | null;
+        args: [query: CloudChannelListQuery];
+        result: CloudList<CloudChannel> | null;
     };
     /** Asks the server; counts against the view's server reads. */
     'channel.fetchList': {
         permission: 'channel';
-        args: [query: RuntimeChannelListQuery];
-        result: RuntimeList<RuntimeChannel>;
+        args: [query: CloudChannelListQuery];
+        result: CloudList<CloudChannel>;
     };
     'join.cacheReadList': {
         permission: 'channel';
-        args: [query: RuntimeJoinListQuery];
-        result: RuntimeList<RuntimeJoin> | null;
+        args: [query: CloudJoinListQuery];
+        result: CloudList<CloudJoin> | null;
     };
-    'chat.cacheRead': { permission: 'chat'; args: [id: string]; result: RuntimeChat | null };
+    'chat.cacheRead': { permission: 'chat'; args: [id: string]; result: CloudChat | null };
     'chat.cacheReadList': {
         permission: 'chat';
-        args: [query: RuntimeChatFeedQuery];
-        result: RuntimeList<RuntimeChat> | null;
+        args: [query: CloudChatFeedQuery];
+        result: CloudList<CloudChat> | null;
     };
-    'chat.listPendingImageChats': { permission: 'chat'; args: [channelId: string]; result: RuntimeChat[] };
-    /** The one write. `apps.runtime.sendMessage` calls it; prefer that. */
-    'chat.sendChat': { permission: 'chatSend'; args: [input: RuntimeSendChatInput]; result: RuntimeChat };
+    'chat.listPendingImageChats': { permission: 'chat'; args: [channelId: string]; result: CloudChat[] };
+    /** The one write. `apps.data.sendMessage` calls it; prefer that. */
+    'chat.sendChat': { permission: 'chatSend'; args: [input: CloudSendChatInput]; result: CloudChat };
     /** `id` must be the current cloud's. */
-    'cloud.cacheRead': { permission: 'cloud'; args: [id: string]; result: RuntimeCloud | null };
+    'cloud.cacheRead': { permission: 'cloud'; args: [id: string]; result: CloudInfo | null };
     /** Asks the server. `id` must be the current cloud's, and `cache: false` is required. */
     'cloud.getCloud': {
         permission: 'cloud';
         args: [input: { id: string }, options: { cache: false }];
-        result: RuntimeCloud;
+        result: CloudInfo;
     };
     'place.cacheReadList': {
         permission: 'place';
-        args: [query?: RuntimePlaceListQuery];
-        result: RuntimeList<RuntimePlace> | null;
+        args: [query?: CloudPlaceListQuery];
+        result: CloudList<CloudPlace> | null;
     };
     /** Asks the server. */
     'place.isPlaceDeleted': { permission: 'place'; args: [id: string]; result: boolean };
-    'user.cacheRead': { permission: 'user'; args: [id: string]; result: RuntimeUser | null };
+    'user.cacheRead': { permission: 'user'; args: [id: string]; result: CloudUser | null };
     'user.cacheReadList': {
         permission: 'user';
-        args: [query: RuntimeUserListQuery];
-        result: RuntimeList<RuntimeUser> | null;
+        args: [query: CloudUserListQuery];
+        result: CloudList<CloudUser> | null;
     };
     /** Asks the server, for the place the session is on only. */
     'user.listPlaceMembers': {
         permission: 'user';
-        args: [query: RuntimePlaceMembersQuery];
-        result: RuntimePlaceMembers;
+        args: [query: CloudPlaceMembersQuery];
+        result: CloudPlaceMembers;
     };
-    'profile.cacheRead': { permission: 'user'; args: [id: string]; result: RuntimeProfile | null };
+    'profile.cacheRead': { permission: 'user'; args: [id: string]; result: CloudProfile | null };
     'profile.cacheReadList': {
         permission: 'user';
-        args: [query?: RuntimeProfileListQuery];
-        result: RuntimeList<RuntimeProfile> | null;
+        args: [query?: CloudProfileListQuery];
+        result: CloudList<CloudProfile> | null;
     };
 }
 
 /**
- * Every stream `apps.runtime.subscribe` reaches: the permission that opens it, the arguments the page
+ * Every stream `apps.data.subscribe` reaches: the permission that opens it, the arguments the page
  * passes, and what each event carries. The app's method takes its listener right after these arguments,
  * which is where `subscribe` puts it — so a typed call needs no `LISTENER`.
  */
-export interface RuntimeStreams {
+export interface DataStreams {
     'channel.observeList': {
         permission: 'channel';
-        args: [query: RuntimeChannelListQuery];
-        event: [result: RuntimeList<RuntimeChannel> | null];
+        args: [query: CloudChannelListQuery];
+        event: [result: CloudList<CloudChannel> | null];
     };
-    'channel.observeItem': { permission: 'channel'; args: [id: string]; event: [item: RuntimeChannel | null] };
+    'channel.observeItem': { permission: 'channel'; args: [id: string]; event: [item: CloudChannel | null] };
     'join.observeList': {
         permission: 'channel';
-        args: [query: RuntimeJoinListQuery];
-        event: [result: RuntimeList<RuntimeJoin> | null];
+        args: [query: CloudJoinListQuery];
+        event: [result: CloudList<CloudJoin> | null];
     };
     'chat.observeList': {
         permission: 'chat';
-        args: [query: RuntimeChatObserveQuery];
-        event: [result: RuntimeList<RuntimeChat> | null];
+        args: [query: CloudChatObserveQuery];
+        event: [result: CloudList<CloudChat> | null];
     };
     'chat.observeLastList': {
         permission: 'chat';
         args: [channelIds: string[]];
-        event: [result: RuntimeLastChat[]];
+        event: [result: CloudLastChat[]];
     };
     /** The message-number ranges a feed read has answered for; a gap inside one is a deleted message. */
     'chat.observeFeedCoverage': {
         permission: 'chat';
         args: [channelId: string];
-        event: [covered: RuntimeChatNumberRange[]];
+        event: [covered: CloudChatNumberRange[]];
     };
     /** `id` must be the current cloud's. */
-    'cloud.observeItem': { permission: 'cloud'; args: [id: string]; event: [item: RuntimeCloud | null] };
+    'cloud.observeItem': { permission: 'cloud'; args: [id: string]; event: [item: CloudInfo | null] };
     'place.observeList': {
         permission: 'place';
-        args: [query: RuntimePlaceListQuery];
-        event: [result: RuntimeList<RuntimePlace> | null];
+        args: [query: CloudPlaceListQuery];
+        event: [result: CloudList<CloudPlace> | null];
     };
-    'place.observeItem': { permission: 'place'; args: [id: string]; event: [item: RuntimePlace | null] };
+    'place.observeItem': { permission: 'place'; args: [id: string]; event: [item: CloudPlace | null] };
     'user.observeList': {
         permission: 'user';
-        args: [query: RuntimeUserListQuery];
-        event: [result: RuntimeList<RuntimeUser> | null];
+        args: [query: CloudUserListQuery];
+        event: [result: CloudList<CloudUser> | null];
     };
-    'user.observeItem': { permission: 'user'; args: [id: string]; event: [item: RuntimeUser | null] };
+    'user.observeItem': { permission: 'user'; args: [id: string]; event: [item: CloudUser | null] };
     'profile.observeList': {
         permission: 'user';
-        args: [query: RuntimeProfileListQuery];
-        event: [result: RuntimeList<RuntimeProfile> | null];
+        args: [query: CloudProfileListQuery];
+        event: [result: CloudList<CloudProfile> | null];
     };
-    'profile.observeItem': { permission: 'user'; args: [id: string]; event: [item: RuntimeProfile | null] };
+    'profile.observeItem': { permission: 'user'; args: [id: string]; event: [item: CloudProfile | null] };
 }
 
-export type RuntimeCallName = keyof RuntimeCalls;
-export type RuntimeStreamName = keyof RuntimeStreams;
-export type RuntimeCallArgs<M extends RuntimeCallName> = RuntimeCalls[M]['args'];
-export type RuntimeCallResult<M extends RuntimeCallName> = RuntimeCalls[M]['result'];
-export type RuntimeStreamArgs<M extends RuntimeStreamName> = RuntimeStreams[M]['args'];
-export type RuntimeStreamEvent<M extends RuntimeStreamName> = RuntimeStreams[M]['event'];
+export type DataCallName = keyof DataCalls;
+export type DataStreamName = keyof DataStreams;
+export type DataCallArgs<M extends DataCallName> = DataCalls[M]['args'];
+export type DataCallResult<M extends DataCallName> = DataCalls[M]['result'];
+export type DataStreamArgs<M extends DataStreamName> = DataStreams[M]['args'];
+export type DataStreamEvent<M extends DataStreamName> = DataStreams[M]['event'];

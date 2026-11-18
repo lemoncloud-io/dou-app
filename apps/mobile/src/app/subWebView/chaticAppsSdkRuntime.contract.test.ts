@@ -17,23 +17,23 @@ import type {
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
 import {
-    SDK_RUNTIME_CONTRACTS,
+    SDK_DATA_CONTRACTS,
     type ChaticAppsError,
-    type RuntimeCallName,
-    type RuntimeCalls,
-    type RuntimeChannel,
-    type RuntimeChat,
-    type RuntimeChatBlock,
-    type RuntimeCloud,
-    type RuntimeJoin,
-    type RuntimePendingUpload,
-    type RuntimePlace,
-    type RuntimeProfile,
-    type RuntimeSession,
-    type RuntimeStreamName,
-    type RuntimeStreams,
-    type RuntimeUpload,
-    type RuntimeUser,
+    type DataCallName,
+    type DataCalls,
+    type CloudChannel,
+    type CloudChat,
+    type CloudChatBlock,
+    type CloudInfo,
+    type CloudJoin,
+    type CloudPendingUpload,
+    type CloudPlace,
+    type CloudProfile,
+    type CloudSession,
+    type DataStreamName,
+    type DataStreams,
+    type CloudUpload,
+    type CloudUser,
 } from '@chatic/chatic-apps-sdk';
 import { connectOver, type Transport } from '@chatic/chatic-apps-sdk/internal';
 import {
@@ -166,19 +166,19 @@ const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('chatic-apps-sdk reading the runtime through the page host', () => {
     it('speaks the runtime contracts this app does', () => {
-        expect(SDK_RUNTIME_CONTRACTS).toEqual(RUNTIME_CONTRACTS);
+        expect(SDK_DATA_CONTRACTS).toEqual(RUNTIME_CONTRACTS);
     });
 
     it('connects and reads what the whitelist opens for its permissions', async () => {
         const { transport } = setup();
         const apps = await connectOver(transport, { reportErrors: false });
 
-        expect(apps.supports('runtime')).toBe(true);
-        const connection = await apps.runtime.connect();
+        expect(apps.supports('data')).toBe(true);
+        const connection = await apps.data.connect();
         expect(connection.allowed.calls).toContain('channel.cacheReadList');
         expect(connection.allowed.calls).not.toContain('chat.getChat');
 
-        await expect(apps.runtime.call('channel.cacheReadList', { sid: 's1' })).resolves.toEqual({
+        await expect(apps.data.call('channel.cacheReadList', { sid: 's1' })).resolves.toEqual({
             list: [{ id: 'ch1', name: 'General' }],
             query: { sid: 's1' },
         });
@@ -191,9 +191,9 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         const listener = jest.fn();
         const onEnd = jest.fn();
         const onCloudChanged = jest.fn();
-        apps.runtime.onCloudChanged(onCloudChanged);
+        apps.data.onCloudChanged(onCloudChanged);
 
-        await apps.runtime.subscribe('channel.observeList', [{ sid: 's1' }], listener, onEnd);
+        await apps.data.subscribe('channel.observeList', [{ sid: 's1' }], listener, onEnd);
         emitRooms({ list: [{ id: 'ch2' }] });
         await settle();
         expect(listener).toHaveBeenCalledWith({ list: [{ id: 'ch2' }] });
@@ -209,7 +209,7 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         const { transport } = setup({ budget: { take: () => ({ ok: false, retryAfterMs: 90 }) } });
         const apps = await connectOver(transport, { reportErrors: false });
 
-        await expect(apps.runtime.call('channel.fetchList', {})).rejects.toEqual(
+        await expect(apps.data.call('channel.fetchList', {})).rejects.toEqual(
             expect.objectContaining({ code: 'RATE_LIMITED', details: { retryAfterMs: 90 } })
         );
         apps.disconnect();
@@ -219,12 +219,12 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         const { transport, sendChat } = setup({ granted: ['chatSend'] });
         const apps = await connectOver(transport, { reportErrors: false });
 
-        await expect(apps.runtime.sendMessage('ch1', 'hello')).resolves.toEqual(
+        await expect(apps.data.sendMessage('ch1', 'hello')).resolves.toEqual(
             expect.objectContaining({ id: 'm1', channelId: 'ch1', content: 'hello' })
         );
         expect(sendChat).toHaveBeenCalledWith({ channelId: 'ch1', content: 'hello' });
 
-        await expect(apps.runtime.sendMessage('elsewhere', 'hello')).rejects.toEqual(
+        await expect(apps.data.sendMessage('elsewhere', 'hello')).rejects.toEqual(
             expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
         );
         expect(sendChat).toHaveBeenCalledTimes(1);
@@ -235,7 +235,7 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         const { transport, sendChat } = setup({ granted: ['chat'] });
         const apps = await connectOver(transport, { reportErrors: false });
 
-        await expect(apps.runtime.sendMessage('ch1', 'hello')).rejects.toEqual(
+        await expect(apps.data.sendMessage('ch1', 'hello')).rejects.toEqual(
             expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
         );
         expect(sendChat).not.toHaveBeenCalled();
@@ -245,14 +245,14 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
     it('gives the session only with `session`', async () => {
         const without = setup({ granted: ['channel'] });
         const apps = await connectOver(without.transport, { reportErrors: false });
-        await apps.runtime.connect();
-        expect(apps.runtime.session()).toBeNull();
+        await apps.data.connect();
+        expect(apps.data.session()).toBeNull();
         apps.disconnect();
 
         const withIt = setup({ granted: ['session'] });
         const other = await connectOver(withIt.transport, { reportErrors: false });
-        await other.runtime.connect();
-        expect(other.runtime.session()).toEqual(expect.objectContaining({ context: expect.anything() }));
+        await other.data.connect();
+        expect(other.data.session()).toEqual(expect.objectContaining({ context: expect.anything() }));
         other.disconnect();
     });
 });
@@ -330,26 +330,26 @@ type AppMethod<N extends string> = N extends `${infer R}.${infer M}`
     : never;
 
 /** A call: the library's arguments are ones the app's method takes, and its answer is the app's. */
-type CallMatches<N extends RuntimeCallName> =
-    RuntimeCalls[N]['args'] extends Parameters<AppMethod<N>>
-        ? Same<RuntimeCalls[N]['result'], Awaited<ReturnType<AppMethod<N>>>>
+type CallMatches<N extends DataCallName> =
+    DataCalls[N]['args'] extends Parameters<AppMethod<N>>
+        ? Same<DataCalls[N]['result'], Awaited<ReturnType<AppMethod<N>>>>
         : false;
 
 /**
  * A stream: the app's method takes its callback right after the library's arguments (where `subscribe`
  * puts the listener), and the callback hears what the library says each event carries.
  */
-type StreamMatches<N extends RuntimeStreamName> = Parameters<
-    AppMethod<N>
->[RuntimeStreams[N]['args']['length']] extends (...event: infer AppEvent) => void
-    ? [...RuntimeStreams[N]['args'], Parameters<AppMethod<N>>[RuntimeStreams[N]['args']['length']]] extends Parameters<
+type StreamMatches<N extends DataStreamName> = Parameters<AppMethod<N>>[DataStreams[N]['args']['length']] extends (
+    ...event: infer AppEvent
+) => void
+    ? [...DataStreams[N]['args'], Parameters<AppMethod<N>>[DataStreams[N]['args']['length']]] extends Parameters<
           AppMethod<N>
       >
-        ? Same<RuntimeStreams[N]['event'], AppEvent>
+        ? Same<DataStreams[N]['event'], AppEvent>
         : false
     : false;
 
-const callsMatch: { [N in RuntimeCallName]: CallMatches<N> } = {
+const callsMatch: { [N in DataCallName]: CallMatches<N> } = {
     'channel.cacheRead': true,
     'channel.cacheReadList': true,
     'channel.fetchList': true,
@@ -369,7 +369,7 @@ const callsMatch: { [N in RuntimeCallName]: CallMatches<N> } = {
     'profile.cacheReadList': true,
 };
 
-const streamsMatch: { [N in RuntimeStreamName]: StreamMatches<N> } = {
+const streamsMatch: { [N in DataStreamName]: StreamMatches<N> } = {
     'channel.observeList': true,
     'channel.observeItem': true,
     'join.observeList': true,
@@ -387,29 +387,29 @@ const streamsMatch: { [N in RuntimeStreamName]: StreamMatches<N> } = {
 
 type UploadOf<T> = Exclude<NonNullable<T>[number & keyof NonNullable<T>], { localStatus: unknown }>;
 type PendingOf<T> = Extract<NonNullable<T>[number & keyof NonNullable<T>], { localStatus: unknown }>;
-type BlockOf<K extends RuntimeChatBlock['type']> = Extract<NonNullable<CacheChatView['blocks$']>[number], { type: K }>;
+type BlockOf<K extends CloudChatBlock['type']> = Extract<NonNullable<CacheChatView['blocks$']>[number], { type: K }>;
 
 // The rows, named one by one (the methods above reach them too), the message's union members, and the session.
 const rowsMatch: true[] = [
-    true satisfies Same<RuntimeChannel, CacheChannelView>,
-    true satisfies Same<RuntimeJoin, CacheJoinView>,
-    true satisfies Same<RuntimeChat, CacheChatView>,
-    true satisfies Same<RuntimePlace, CacheSiteView>,
-    true satisfies Same<RuntimeUser, CacheUserView>,
-    true satisfies Same<RuntimeProfile, CacheProfileView>,
-    true satisfies Same<RuntimeCloud, CacheCloudView>,
-    true satisfies Same<RuntimeUpload, UploadOf<CacheChatView['upload$$']>>,
-    true satisfies Same<RuntimePendingUpload, PendingOf<CacheChatView['upload$$']>>,
-    true satisfies Same<Extract<RuntimeChatBlock, { type: 'header' }>, BlockOf<'header'>>,
-    true satisfies Same<Extract<RuntimeChatBlock, { type: 'section' }>, BlockOf<'section'>>,
-    true satisfies Same<Extract<RuntimeChatBlock, { type: 'divider' }>, BlockOf<'divider'>>,
-    true satisfies Same<Extract<RuntimeChatBlock, { type: 'context' }>, BlockOf<'context'>>,
-    true satisfies Same<RuntimeSession, ReturnType<typeof sessionForPage>>,
+    true satisfies Same<CloudChannel, CacheChannelView>,
+    true satisfies Same<CloudJoin, CacheJoinView>,
+    true satisfies Same<CloudChat, CacheChatView>,
+    true satisfies Same<CloudPlace, CacheSiteView>,
+    true satisfies Same<CloudUser, CacheUserView>,
+    true satisfies Same<CloudProfile, CacheProfileView>,
+    true satisfies Same<CloudInfo, CacheCloudView>,
+    true satisfies Same<CloudUpload, UploadOf<CacheChatView['upload$$']>>,
+    true satisfies Same<CloudPendingUpload, PendingOf<CacheChatView['upload$$']>>,
+    true satisfies Same<Extract<CloudChatBlock, { type: 'header' }>, BlockOf<'header'>>,
+    true satisfies Same<Extract<CloudChatBlock, { type: 'section' }>, BlockOf<'section'>>,
+    true satisfies Same<Extract<CloudChatBlock, { type: 'divider' }>, BlockOf<'divider'>>,
+    true satisfies Same<Extract<CloudChatBlock, { type: 'context' }>, BlockOf<'context'>>,
+    true satisfies Same<CloudSession, ReturnType<typeof sessionForPage>>,
 ];
 
 // Keyed by every method the library types, with the permission it says opens it: compared below with
 // what the whitelist opens, permission by permission.
-const LIBRARY_CALLS: { [N in RuntimeCallName]: RuntimeCalls[N]['permission'] } = {
+const LIBRARY_CALLS: { [N in DataCallName]: DataCalls[N]['permission'] } = {
     'channel.cacheRead': 'channel',
     'channel.cacheReadList': 'channel',
     'channel.fetchList': 'channel',
@@ -428,7 +428,7 @@ const LIBRARY_CALLS: { [N in RuntimeCallName]: RuntimeCalls[N]['permission'] } =
     'profile.cacheRead': 'user',
     'profile.cacheReadList': 'user',
 };
-const LIBRARY_STREAMS: { [N in RuntimeStreamName]: RuntimeStreams[N]['permission'] } = {
+const LIBRARY_STREAMS: { [N in DataStreamName]: DataStreams[N]['permission'] } = {
     'channel.observeList': 'channel',
     'channel.observeItem': 'channel',
     'join.observeList': 'channel',

@@ -1,71 +1,71 @@
 import type { BridgeClient } from './client';
 import { ChaticAppsError } from './errors';
 import type {
-    RuntimeCallArgs,
-    RuntimeCallName,
-    RuntimeCallResult,
-    RuntimeChat,
-    RuntimeSession,
-    RuntimeStreamArgs,
-    RuntimeStreamEvent,
-    RuntimeStreamName,
+    DataCallArgs,
+    DataCallName,
+    DataCallResult,
+    CloudChat,
+    CloudSession,
+    DataStreamArgs,
+    DataStreamEvent,
+    DataStreamName,
 } from './runtimeTypes';
 
-/** The runtime contract versions this library speaks, lowest first. */
-export const SDK_RUNTIME_CONTRACTS: readonly number[] = [1];
+/** The versions of the app's cloud data contract this library speaks, lowest first. */
+export const SDK_DATA_CONTRACTS: readonly number[] = [1];
 
 /**
  * Where a stream's listener goes among its arguments. Left out, it goes last — which, for every method
- * `RuntimeStreams` names, is where the app's method takes it, so a typed `subscribe` never needs it. For
+ * `DataStreams` names, is where the app's method takes it, so a typed `subscribe` never needs it. For
  * a method this library does not know yet, put it where that method takes its callback.
  */
 export const LISTENER = Object.freeze({ $listener: true as const });
 
 /** The read methods this page may use: `<repository>.<method>` names, as the app reported them. */
-export interface RuntimeAllowed {
+export interface DataAllowed {
     calls: string[];
     streams: string[];
 }
 
 /** What the app answered `connect()` with. */
-export interface RuntimeConnection {
-    /** The runtime contract version this page and the app speak. */
+export interface DataConnection {
+    /** The cloud data contract version this page and the app speak. */
     contract: number;
-    allowed: RuntimeAllowed;
+    allowed: DataAllowed;
 }
 
 /** An open stream. */
-export interface RuntimeStream {
+export interface DataStream {
     /** Stops it. Stopping one that already ended is no error. */
     stop(): Promise<void>;
 }
 
 /**
- * The app's own data, read through its runtime: the current cloud's places, rooms, messages and
+ * The current cloud's data, read as DoU's own screens read it: its places, rooms, messages and
  * members, exactly as DoU's screens read them — and one write, a text message. Only what the page's
  * manifest asks for (`session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`): the app
  * refuses every other method with `RUNTIME_NOT_ALLOWED`. The app asks the user once, at `connect`,
  * whether this page may read this cloud.
  *
- * Only in the app, and only where the app's own runtime holds the session: `apps.supports('runtime')`
+ * Only in the app, and only where the app holds the session itself: `apps.supports('data')`
  * says whether this one does.
  *
- * A method `RuntimeCalls` / `RuntimeStreams` names is typed: its arguments and its answer. Any other
+ * A method `DataCalls` / `DataStreams` names is typed: its arguments and its answer. Any other
  * name still goes through, answered as `unknown` — an app newer than this library may open more.
  */
-export interface ChaticAppsRuntime {
+export interface ChaticAppsData {
     /** Opens the conversation; later calls answer the same. `CONSENT_REFUSED` if the user said no. */
-    connect(): Promise<RuntimeConnection>;
+    connect(): Promise<DataConnection>;
     /** Whether `method` is one this page may call or subscribe to; `false` before `connect`. */
-    can(method: RuntimeCallName | RuntimeStreamName | (string & {})): boolean;
+    can(method: DataCallName | DataStreamName | (string & {})): boolean;
     /** Calls a read method and resolves with what it returned. */
-    call<M extends RuntimeCallName>(method: M, ...args: RuntimeCallArgs<M>): Promise<RuntimeCallResult<M>>;
+    call<M extends DataCallName>(method: M, ...args: DataCallArgs<M>): Promise<DataCallResult<M>>;
     /**
      * A method this library does not know, answered as `T` (`unknown` unless given). Passing `T`
      * explicitly also reaches a known method untyped, as before types existed.
      */
     call<T = unknown, N extends string = string>(
-        method: N extends RuntimeCallName | RuntimeStreamName ? never : N,
+        method: N extends DataCallName | DataStreamName ? never : N,
         ...args: unknown[]
     ): Promise<T>;
     /**
@@ -73,19 +73,19 @@ export interface ChaticAppsRuntime {
      * the app ended — the cloud changed (`CLOUD_CHANGED`), the event was too large, or the page was
      * restored from the back-forward cache (`DISCONNECTED`; subscribe again).
      */
-    subscribe<M extends RuntimeStreamName>(
+    subscribe<M extends DataStreamName>(
         method: M,
-        args: RuntimeStreamArgs<M> | [...RuntimeStreamArgs<M>, typeof LISTENER],
-        listener: (...event: RuntimeStreamEvent<M>) => void,
+        args: DataStreamArgs<M> | [...DataStreamArgs<M>, typeof LISTENER],
+        listener: (...event: DataStreamEvent<M>) => void,
         onEnd?: (error: ChaticAppsError) => void
-    ): Promise<RuntimeStream>;
+    ): Promise<DataStream>;
     /** A stream this library does not know: its events arrive as `unknown`. */
     subscribe<N extends string>(
-        method: N extends RuntimeCallName | RuntimeStreamName ? never : N,
+        method: N extends DataCallName | DataStreamName ? never : N,
         args: unknown[],
         listener: (...event: unknown[]) => void,
         onEnd?: (error: ChaticAppsError) => void
-    ): Promise<RuntimeStream>;
+    ): Promise<DataStream>;
     /**
      * Sends a plain text message, in the user's name, to a room of the place the view opened on — the
      * one write, with the `chatSend` permission. Resolves with the message as sent. Text only: nothing
@@ -93,11 +93,11 @@ export interface ChaticAppsRuntime {
      * over 1000 characters; `RATE_LIMITED` past the view's send budget. The same as
      * `call('chat.sendChat', { channelId, content: text })`.
      */
-    sendMessage(channelId: string, text: string): Promise<RuntimeChat>;
+    sendMessage(channelId: string, text: string): Promise<CloudChat>;
     /** The session snapshot, with the `session` permission; `null` without it or before `connect`. */
-    session(): RuntimeSession | null;
+    session(): CloudSession | null;
     /** Hears each session change, with the `session` permission. */
-    onSessionChange(listener: (session: RuntimeSession | null) => void): () => void;
+    onSessionChange(listener: (session: CloudSession | null) => void): () => void;
     /**
      * Hears, once, that the cloud this view opened on is no longer the selected one. Nothing answers
      * after it: the page has nothing more to read here.
@@ -108,8 +108,8 @@ export interface ChaticAppsRuntime {
 interface Hello {
     contract: number;
     seq: number;
-    session: RuntimeSession | null;
-    allowed: RuntimeAllowed;
+    session: CloudSession | null;
+    allowed: DataAllowed;
 }
 
 interface Stream {
@@ -129,24 +129,24 @@ const endedOf = (event: unknown): { code?: unknown; message?: unknown } | null =
 };
 
 /**
- * `apps.runtime` over the bridge. `supported` reads the handshake each time, so a page restored from the
+ * `apps.data` over the bridge. `supported` reads the handshake each time, so a page restored from the
  * back-forward cache answers from the handshake it made again.
  */
 export const runtimeOver = (
     client: BridgeClient,
     supported: () => boolean,
     report: (error: unknown) => void
-): ChaticAppsRuntime & { reset(): void; dispose(): void } => {
+): ChaticAppsData & { reset(): void; dispose(): void } => {
     let hello: Promise<Hello> | null = null;
     // Ends the hello in flight. With no timeout, a hello whose reply goes to a host that is gone — a
     // page restored from the back-forward cache meets a new one — would otherwise never settle.
     let abandonHello: ((error: ChaticAppsError) => void) | null = null;
     let answered: Hello | null = null;
-    let session: RuntimeSession | null = null;
+    let session: CloudSession | null = null;
     let cloudChanged = false;
     let sequence = 0;
     const streams = new Map<string, Stream>();
-    const sessionListeners = new Set<(session: RuntimeSession | null) => void>();
+    const sessionListeners = new Set<(session: CloudSession | null) => void>();
     const cloudListeners = new Set<() => void>();
 
     const safely = (run: () => void) => {
@@ -195,14 +195,14 @@ export const runtimeOver = (
         const { seq, session: next } = (data ?? {}) as { seq?: unknown; session?: unknown };
         if (!answered || typeof seq !== 'number' || seq <= answered.seq) return;
         answered = { ...answered, seq };
-        session = (next as RuntimeSession | null | undefined) ?? null;
+        session = (next as CloudSession | null | undefined) ?? null;
         sessionListeners.forEach(listener => safely(() => listener(session)));
     });
 
     const connect = (): Promise<Hello> => {
         if (!supported()) {
             return Promise.reject(
-                new ChaticAppsError('NOT_SUPPORTED', "This app does not answer this page's runtime requests.")
+                new ChaticAppsError('NOT_SUPPORTED', "This app does not answer this page's cloud data requests.")
             );
         }
         if (!hello) {
@@ -212,7 +212,7 @@ export const runtimeOver = (
             // No timeout: the app answers once the user has been asked whether this page may read the
             // cloud, and a person reading that question takes as long as they take — as with `share`.
             const attempt: Promise<Hello> = Promise.race([
-                client.request<Hello>('RuntimeHello', { contracts: [...SDK_RUNTIME_CONTRACTS] }, { timeoutMs: null }),
+                client.request<Hello>('RuntimeHello', { contracts: [...SDK_DATA_CONTRACTS] }, { timeoutMs: null }),
                 abandoned,
             ])
                 .then(reply => {
@@ -313,7 +313,7 @@ export const runtimeOver = (
 };
 
 /** The same interface in a browser tab: nothing to read, nothing to send. */
-export const browserRuntime = (): ChaticAppsRuntime => {
+export const browserRuntime = (): ChaticAppsData => {
     const notInApp = () => Promise.reject(new ChaticAppsError('NOT_IN_APP', "The app's data is read only in the app."));
     return {
         connect: notInApp,

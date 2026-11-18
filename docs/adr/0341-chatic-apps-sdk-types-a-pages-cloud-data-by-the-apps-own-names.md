@@ -1,4 +1,4 @@
-# ADR-0341: chatic-apps-sdk types the runtime by the app's own names
+# ADR-0341: chatic-apps-sdk types a page's cloud data by the app's own names
 
 > Status: Accepted · Decided: 2026-11-18 · Implemented: `feat/chatic-apps-sdk-typed-runtime`
 > · Scope: `libs/chatic-apps-sdk/src/runtimeTypes.ts`, `runtime.ts`, `mock.ts`,
@@ -7,7 +7,7 @@
 
 ## Context
 
-`apps.runtime` (ADR-0320, ADR-0325) lets a mini app read its cloud and send a text message, but the
+`apps.runtime` (ADR-0320, ADR-0325) let a mini app read its cloud and send a text message, but the
 library typed none of it: a page named a method as a string, passed `unknown[]`, and got `unknown`
 back. A misspelt name surfaced only at run time as `RUNTIME_NOT_ALLOWED`; the shape of a room, a message
 or a member was written down nowhere a page author could read; a stream's listener had to be placed by
@@ -19,13 +19,14 @@ The app's types for all of this exist, but in private workspace packages (`@chat
 
 ## Decision
 
-1. **The library types the methods by the app's own names and shapes.** `RuntimeCalls` and
-   `RuntimeStreams` list every method the sub WebView whitelist opens, under its
+1. **The library types the methods by the app's own names and shapes.** `DataCalls` and
+   `DataStreams` list every method the sub WebView whitelist opens, under its
    `<repository>.<method>` name, with the permission that opens it, its arguments and its answer. The
-   rows (`RuntimeChannel`, `RuntimeJoin`, `RuntimeChat`, `RuntimePlace`, `RuntimeUser`, `RuntimeProfile`,
-   `RuntimeCloud`) and the session (`RuntimeSession`) are the app's, field for field, contact and
-   account details included and marked as such. No mini-app vocabulary is invented on top: a second set
-   of names would be a second contract to keep in step with the first.
+   rows (`CloudChannel`, `CloudJoin`, `CloudChat`, `CloudPlace`, `CloudUser`, `CloudProfile`,
+   `CloudInfo`) and the session (`CloudSession`) are the app's, field for field, contact and
+   account details included and marked as such. The method names and the row fields get no mini-app
+   vocabulary on top: a second set of names would be a second contract to keep in step with the
+   first.
 2. **The types are declared by hand in the library and held to the app's by the app's contract test.**
    The test checks, permission by permission, that the typed methods are exactly what the whitelist
    opens, and at the type level that each method's arguments are ones the app's repository method takes
@@ -40,7 +41,7 @@ The app's types for all of this exist, but in private workspace packages (`@chat
    page's arguments, which is where `subscribe` already put a missing listener, so the types give each
    stream exactly its pre-callback arguments and nothing after. No run-time table of listener
    positions is shipped. `LISTENER` stays for methods the library does not know.
-5. **The write is a method of its own.** `apps.runtime.sendMessage(channelId, text)` sends the text
+5. **The write is a method of its own.** `apps.data.sendMessage(channelId, text)` sends the text
    message `chatSend` allows; `call('chat.sendChat', …)` still works. It is named for what it does, as
    the library's other calls are (`finish`, `copy`, `share`), and its parameter keeps the row's own
    `channelId`.
@@ -50,6 +51,18 @@ The app's types for all of this exist, but in private workspace packages (`@chat
    through.
 7. **Versioning while `0.x`**: a release that adds raises the minor version, one that only fixes raises
    the patch. The package README keeps a table of each release's bridge version and runtime contracts.
+
+8. **The names a page author sees say "cloud data", not "runtime".** `apps.runtime` becomes
+   `apps.data` and its capability `supports('data')` — the same name as the app's request target — the
+   API's types are `Data…` (`DataCalls`, `ChaticAppsData`, `SDK_DATA_CONTRACTS`), the shapes it answers
+   are `Cloud…` (`CloudChat`, `CloudList`; the cloud's own row is `CloudInfo`), and the mock's option is
+   `data`. "Runtime" is the app's internal word for its data layer and means nothing to a page author.
+   What crosses the wire keeps its names — the `Runtime…` request messages, the `SubWebView…` messages
+   and the app's error codes (`RUNTIME_NOT_ALLOWED`) — because apps already installed answer only those,
+   and renaming them would need both names in the app for as long as old apps are supported, for no
+   gain a page author can see: the library hides them. A prefix was kept on the shapes because bare
+   `User`, `Chat` or `Session` collide with names in an author's own code. Nothing had shipped under the
+   `runtime` names, so no alias is kept.
 
 ## Consequences
 
@@ -67,7 +80,10 @@ The app's types for all of this exist, but in private workspace packages (`@chat
   mock answer with a looser shape, now fail to compile. That is the point of the types; the explicit
   `call<T>` form remains for anyone who needs the old behaviour. The same goes for a call whose answer
   was typed only by annotating the variable it lands in: the typed answer now has to fit it.
-- `apps.runtime` was never in a published release (0.2.0 predates it), so no published page breaks.
+- `apps.runtime` was never in a published release (0.2.0 predates it), so no published page breaks,
+  neither from the types nor from the rename to `apps.data`.
+- An error code a page branches on can still say `RUNTIME_…`: it is the app's, and the package README
+  says which API it belongs to.
 - Embedded views are checked four levels deep; a change deeper than that is not caught.
 
 ## Alternatives considered

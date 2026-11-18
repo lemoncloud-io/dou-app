@@ -8,7 +8,7 @@ import type { AppErrorCode } from './types';
  * - `UNSUPPORTED_PROTOCOL` — the app speaks a protocol major this library does not know;
  * - `NOT_IN_APP` — the call needs the app and the page is in a browser tab;
  * - `DISCONNECTED` — the connection was closed with `disconnect()` before the app answered; or a
- *   runtime stream ended because the page came back from the back-forward cache.
+ *   cloud data stream ended because the page came back from the back-forward cache.
  * A code this list does not name is still a failure of that call and nothing more.
  */
 export type ChaticAppsErrorCode =

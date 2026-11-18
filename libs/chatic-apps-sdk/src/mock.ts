@@ -1,13 +1,13 @@
 import { ruledStore, type StoreFile } from './storage';
 import type {
-    RuntimeCallArgs,
-    RuntimeCallName,
-    RuntimeCallResult,
-    RuntimeChat,
-    RuntimeSession,
-    RuntimeStreamArgs,
-    RuntimeStreamEvent,
-    RuntimeStreamName,
+    DataCallArgs,
+    DataCallName,
+    DataCallResult,
+    CloudChat,
+    CloudSession,
+    DataStreamArgs,
+    DataStreamEvent,
+    DataStreamName,
 } from './runtimeTypes';
 import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
 
@@ -29,41 +29,41 @@ export type MockPermission =
  * What a known method answers in the mock: the same shape the app answers with, so an answer of the
  * wrong shape fails the type check here rather than the page in the app.
  */
-export type MockRuntimeCalls = {
-    [M in RuntimeCallName]?: (...args: RuntimeCallArgs<M>) => RuntimeCallResult<M> | Promise<RuntimeCallResult<M>>;
+export type MockDataCalls = {
+    [M in DataCallName]?: (...args: DataCallArgs<M>) => DataCallResult<M> | Promise<DataCallResult<M>>;
 } & {
     /** A method this library does not know: answered with whatever it returns. */
     [method: string]: ((...args: never[]) => unknown) | undefined;
 };
 
 /** A known stream in the mock: `emit` sends one event of the app's shape. */
-export type MockRuntimeStreams = {
-    [M in RuntimeStreamName]?: (
-        emit: (...event: RuntimeStreamEvent<M>) => void,
-        ...args: RuntimeStreamArgs<M>
+export type MockDataStreams = {
+    [M in DataStreamName]?: (
+        emit: (...event: DataStreamEvent<M>) => void,
+        ...args: DataStreamArgs<M>
     ) => (() => void) | void;
 } & {
     [method: string]: ((emit: (...event: unknown[]) => void, ...args: never[]) => (() => void) | void) | undefined;
 };
 
 /**
- * The app's data, as the mock answers `apps.runtime`: each method the page may call, and each stream it
+ * The app's data, as the mock answers `apps.data`: each method the page may call, and each stream it
  * may subscribe to, by its `<repository>.<method>` name. The mock does not know the app's whitelist —
  * it answers what is given here and refuses the rest — so read the real `allowed` in the app. The one
  * exception is the text send: with `chatSend` the mock opens `chat.sendChat` itself and records each
  * message (`MockController.sentMessages`).
  */
-export interface MockRuntime {
+export interface MockData {
     /** The session snapshot, given to a page with the `session` permission. */
-    session?: RuntimeSession | null;
-    calls?: MockRuntimeCalls;
+    session?: CloudSession | null;
+    calls?: MockDataCalls;
     /** Each gets `emit`, which sends one event, and the page's arguments; it returns how to stop. */
-    streams?: MockRuntimeStreams;
+    streams?: MockDataStreams;
     /** How the user answers the app's question about this cloud; `allow` by default. */
     consent?: 'allow' | 'refuse';
 }
 
-/** A message the page sent through `apps.runtime.sendMessage` (or `chat.sendChat`) in the mock. */
+/** A message the page sent through `apps.data.sendMessage` (or `chat.sendChat`) in the mock. */
 export interface MockSentMessage {
     channelId: string;
     text: string;
@@ -91,8 +91,8 @@ export interface MockOptions {
     storage?: { [key: string]: unknown };
     /** Log each request and reply to the console. On by default. */
     log?: boolean;
-    /** The app's data, for a page with a runtime permission. */
-    runtime?: MockRuntime;
+    /** The cloud's data, for a page with a cloud data permission (`apps.data`). */
+    data?: MockData;
 }
 
 export interface MockController {
@@ -219,7 +219,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         ...permissions.flatMap(permission => GATED[permission] ?? []),
         ...(reads ? RUNTIME_REQUESTS : []),
     ]);
-    const runtime = options.runtime ?? {};
+    const runtime = options.data ?? {};
     const runtimeStreams = new Map<string, { seq: number; stop: () => void }>();
     const sentMessages: MockSentMessage[] = [];
     // Numbers each send as it is asked for, so sends in flight together get their own ids.
@@ -229,7 +229,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     const sends = permissions.includes('chatSend');
     const calls: { [method: string]: ((...args: never[]) => unknown) | undefined } = { ...runtime.calls };
     const ownSendAnswer = calls[SEND_METHOD];
-    const madeUpSend = (input: { channelId: string; content: string }, no: number): RuntimeChat => {
+    const madeUpSend = (input: { channelId: string; content: string }, no: number): CloudChat => {
         const now = Date.now();
         return {
             id: `mock-chat-${no}`,

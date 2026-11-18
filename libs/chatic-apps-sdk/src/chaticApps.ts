@@ -1,6 +1,6 @@
 import { createBridgeClient, type BridgeClient } from './client';
 import { ChaticAppsError } from './errors';
-import { browserRuntime, runtimeOver, type ChaticAppsRuntime } from './runtime';
+import { browserRuntime, runtimeOver, type ChaticAppsData } from './runtime';
 import { browserStorage, storageOver, type ChaticAppsStorage } from './storage';
 import { isInApp, nativeTransport, type Transport } from './transport';
 import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
@@ -19,7 +19,7 @@ export type Capability =
     | 'errorReport'
     | 'storage'
     | 'permissions'
-    | 'runtime';
+    | 'data';
 
 /** The request behind each capability. */
 const REQUESTS: Record<Capability, string> = {
@@ -35,7 +35,7 @@ const REQUESTS: Record<Capability, string> = {
     errorReport: 'ReportSubWebViewError',
     storage: 'GetSubWebViewStorage',
     permissions: 'RequestSubWebViewPermission',
-    runtime: 'RuntimeHello',
+    data: 'RuntimeHello',
 };
 
 /** The protocol major this library speaks. */
@@ -132,10 +132,11 @@ export interface ChaticApps {
     /** The camera and the microphone. */
     readonly permissions: ChaticAppsPermissions;
     /**
-     * The app's own data — the current cloud's places, rooms, messages and members — read through its
-     * runtime, as the page's manifest allows. `supports('runtime')` says whether this app answers it here.
+     * The current cloud's data — its places, rooms, messages and members, read as DoU's own screens
+     * read them — as the page's manifest allows, and one text message. `supports('data')` says whether
+     * this app answers it here.
      */
-    readonly runtime: ChaticAppsRuntime;
+    readonly data: ChaticAppsData;
     /** Opens the app's page in the OS settings, where a `blocked` permission can be turned back on. */
     openSettings(): Promise<void>;
     /** Hears a theme or language change while the page shows; returns the function that stops it. */
@@ -295,7 +296,7 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
     // `apps` is assigned below; the runtime only reports through it once the page is running.
     const runtime = runtimeOver(
         client,
-        () => supports('runtime'),
+        () => supports('data'),
         error => void apps.reportError(error)
     );
     cleanups.push(() => runtime.dispose());
@@ -408,7 +409,7 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                       .then(reply => !!reply?.recorded)
                       .catch(() => false)
                 : Promise.resolve(false),
-        runtime,
+        data: runtime,
         storage: storageOver({
             get: keys => stored('GetSubWebViewStorage', { keys }),
             set: entries => stored('SetSubWebViewStorage', { entries }),
@@ -543,7 +544,7 @@ const browserApps = (): ChaticApps => {
         },
         getUserKey: () => notInApp('A user key'),
         permissions: browserPermissions(),
-        runtime: browserRuntime(),
+        data: browserRuntime(),
         openSettings: () => notInApp('Opening the settings'),
         reportError: async error => {
             console.error(error);

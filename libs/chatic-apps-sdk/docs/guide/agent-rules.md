@@ -38,15 +38,15 @@ code. Read the part you need before you write code that depends on it.
     request out, and send `'blocked'` to `apps.openSettings()`. Treat the request's answer, not
     `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
 
-13. Read the app's data only through `apps.runtime`, and only after `apps.supports('runtime')`: call
-    `apps.runtime.connect()` first and handle `CONSENT_REFUSED` (show why the page needs it) and
+13. Read the app's data only through `apps.data`, and only after `apps.supports('data')`: call
+    `apps.data.connect()` first and handle `CONSENT_REFUSED` (show why the page needs it) and
     `CLOUD_CHANGED` (finish or show a notice; do not retry). Call methods by the names typed in
-    `RuntimeCalls` and `RuntimeStreams` and let the types check the arguments: do not cast an answer to
+    `DataCalls` and `DataStreams` and let the types check the arguments: do not cast an answer to
     `any` or pass `call<T>` a type of your own for a typed method, and do not invent a method name —
     one the app does not open fails with `RUNTIME_NOT_ALLOWED`. For a typed stream pass only its
     arguments, with no `LISTENER` and nothing after it, and `stop()` it when it leaves the screen.
     Read every row field with a fallback: most are optional. Send a message only with
-    `apps.runtime.sendMessage(channelId, text)`, with `chatSend`, of text the user chose to send — it
+    `apps.data.sendMessage(channelId, text)`, with `chatSend`, of text the user chose to send — it
     goes out in their name. Read the cloud the page is in with
     `call('cloud.getCloud', { id }, { cache: false })`, not `cloud.cacheRead`, which is often `null` for a
     cloud the user owns; take `id` from the session's `context.cloud.cloudId` (needs `session`) or
@@ -60,8 +60,8 @@ code. Read the part you need before you write code that depends on it.
 15. Never put the user's data in errors or in `reportError`.
 16. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`, and for the app's
     data `session`, `cloud`, `place`, `channel`, `chat`, `user`, and `chatSend` to send) in
-    `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with `NOT_SUPPORTED` without it; a runtime method
-    outside what the runtime permissions open fails with `RUNTIME_NOT_ALLOWED`.
+    `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with `NOT_SUPPORTED` without it; a cloud data method
+    outside what the cloud data permissions open fails with `RUNTIME_NOT_ALLOWED`.
 17. Do not draw for the safe area: the page already lies inside it on every edge. The exception is a
     manifest with `"display": "immersive"`, for a page whose scenery must reach the screen's edges: then
     add `viewport-fit=cover` to the viewport meta and pad every header, control and tappable element with
