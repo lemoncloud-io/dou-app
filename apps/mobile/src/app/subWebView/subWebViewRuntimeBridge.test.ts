@@ -8,7 +8,7 @@ import { RUNTIME_CONTRACTS, createRuntimeBridgeHost } from '@chatic/runtime-mobi
 import type { RuntimeEngine } from '@chatic/runtime-mobile';
 
 import { pushedEventErrors, pushedEvents } from '../webview/hooks/appEventContract';
-import { createSubWebViewRuntimeBridge, SUB_WEBVIEW_STREAMS_PER_LOAD } from './subWebViewRuntimeBridge';
+import { createSubWebViewRuntimeBridge, sessionForPage, SUB_WEBVIEW_STREAMS_PER_LOAD } from './subWebViewRuntimeBridge';
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 
@@ -509,5 +509,44 @@ describe('createSubWebViewRuntimeBridge', () => {
 
         expect(channelListenerCount()).toBe(0);
         expect(sessionListeners.size).toBe(0);
+    });
+});
+
+describe('sessionForPage', () => {
+    const identity = { userId: 'u1', isAuthenticated: true, isInitialized: true, error: null, delegatorId: null };
+
+    it("hands a page Home as the cloud `default` on the relay's place", () => {
+        const home = {
+            context: {
+                cloud: { cloudId: null, siteId: null, backend: null, wss: null, isActive: false },
+                relay: { backend: 'b', wss: 'w', siteId: '0000', isAuthenticated: true },
+                activeServer: { kind: 'relay' as const, backend: 'b', wss: 'w', siteId: '0000' },
+                identity,
+            },
+            committedSiteId: null,
+        } as unknown as Parameters<typeof sessionForPage>[0];
+
+        expect(sessionForPage(home)).toEqual({
+            context: {
+                cloud: { cloudId: 'default', siteId: '0000', isActive: false },
+                identity: { userId: 'u1', isAuthenticated: true },
+            },
+            committedSiteId: '0000',
+        });
+    });
+
+    it("hands a page a cloud's own ids, as before", () => {
+        const cloud = {
+            context: {
+                cloud: { cloudId: 'c1', siteId: 's1', backend: 'b', wss: 'w', isActive: true },
+                relay: { backend: 'b', wss: 'w', siteId: '0000', isAuthenticated: true },
+                activeServer: { kind: 'cloud' as const, cloudId: 'c1', backend: 'b', wss: 'w', siteId: 's1' },
+                identity,
+            },
+            committedSiteId: 's1',
+        } as unknown as Parameters<typeof sessionForPage>[0];
+
+        expect(sessionForPage(cloud).context.cloud).toEqual({ cloudId: 'c1', siteId: 's1', isActive: true });
+        expect(sessionForPage(cloud).committedSiteId).toBe('s1');
     });
 });

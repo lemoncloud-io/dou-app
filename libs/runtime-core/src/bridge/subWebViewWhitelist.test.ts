@@ -314,6 +314,22 @@ describe('checkSubWebViewRuntimeRequest', () => {
         });
     });
 
+    it.each([
+        ['channel.observeList', 'channel'],
+        ['join.observeList', 'channel'],
+        ['place.observeList', 'place'],
+    ] as const)('refuses a %s that names a cache partition of its own', (method, permission) => {
+        const LISTENER = { $listener: true };
+        expect(checkSubWebViewRuntimeRequest(stream(method, [{}, LISTENER]), grant(permission), HERE).ok).toBe(true);
+        expect(
+            checkSubWebViewRuntimeRequest(
+                stream(method, [{}, LISTENER, { cid: 'c2', uid: 'u2' }]),
+                grant(permission),
+                HERE
+            )
+        ).toEqual({ ok: false, reason: 'guard' });
+    });
+
     it('holds a cloud read to the current cloud', () => {
         expect(checkSubWebViewRuntimeRequest(call('cloud.cacheRead', ['c1']), ALL, HERE).ok).toBe(true);
         expect(

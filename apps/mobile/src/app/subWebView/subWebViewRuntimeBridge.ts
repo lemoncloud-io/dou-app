@@ -19,7 +19,7 @@ import type { SubWebViewRuntimeAccess } from './subWebViewRuntimeAccess';
 
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
-import { cloudOfSession } from './subWebViewRuntimeGate';
+import { cloudOfSession, placeOfSession } from './subWebViewRuntimeGate';
 
 /** How many streams one page load may hold open; the next subscribe fails `INVALID`. */
 export const SUB_WEBVIEW_STREAMS_PER_LOAD = 16;
@@ -47,11 +47,13 @@ export interface SubWebViewRuntimeSession {
  * clouds (`uidByCloud`, the paired clouds), the relay account and the device's guest id — and a page
  * reads the current cloud only. Nor the cloud's server addresses, which a page has no use for.
  */
+// Home is shown to the page as the cloud `default` on the relay's place, as the gate reads it, so a
+// page reads the same cloud and place on Home as anywhere else.
 export const sessionForPage = (snapshot: ReturnType<SubWebViewRuntimeSession['snapshot']>) => ({
     context: {
         cloud: {
-            cloudId: snapshot.context.cloud.cloudId,
-            siteId: snapshot.context.cloud.siteId,
+            cloudId: cloudOfSession(snapshot),
+            siteId: snapshot.context.cloud.cloudId ? snapshot.context.cloud.siteId : placeOfSession(snapshot),
             isActive: snapshot.context.cloud.isActive,
         },
         identity: {
@@ -59,7 +61,7 @@ export const sessionForPage = (snapshot: ReturnType<SubWebViewRuntimeSession['sn
             isAuthenticated: snapshot.context.identity.isAuthenticated,
         },
     },
-    committedSiteId: snapshot.committedSiteId,
+    committedSiteId: placeOfSession(snapshot),
 });
 
 export interface SubWebViewRuntimeBridgeDeps {
@@ -241,7 +243,7 @@ export const createSubWebViewRuntimeBridge = ({
         if (!cloudStillOpen()) return CLOUD_CHANGED;
         const check = checkSubWebViewRuntimeRequest({ kind, target, method, args }, granted, {
             cloudId: currentCloud(),
-            placeId: session.snapshot().committedSiteId,
+            placeId: placeOfSession(session.snapshot()),
         });
         const notAllowed = (reason: SubWebViewRuntimeRefusalReason) => {
             onRefused?.({ target, method, code: 'RUNTIME_NOT_ALLOWED', reason });
@@ -278,7 +280,7 @@ export const createSubWebViewRuntimeBridge = ({
      * A read that fails answers its own failure, so the page learns the runtime's reason, not a guard.
      */
     const roomOfPlace = async (target: string, roomId: unknown): Promise<'here' | 'notHere' | AppMessageError> => {
-        const onOpenedPlace = () => openedPlaceId !== null && session.snapshot().committedSiteId === openedPlaceId;
+        const onOpenedPlace = () => openedPlaceId !== null && placeOfSession(session.snapshot()) === openedPlaceId;
         if (!isString(roomId) || !onOpenedPlace()) return 'notHere';
         const answer = await host.call({ target, method: 'channel.cacheRead', args: [roomId] });
         if ('failure' in answer) return answer.failure;

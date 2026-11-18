@@ -92,11 +92,18 @@ type RepositoryDecision<R extends RepositoryName> =
 const local = (allow: SubWebViewRuntimePermission) => ({ allow, cost: 'local' }) as const;
 const server = (allow: SubWebViewRuntimePermission) => ({ allow, cost: 'server' }) as const;
 const deny = (reason: SubWebViewDenyReason) => ({ deny: reason }) as const;
+/**
+ * A list stream whose repository method takes a third parameter after its callback, `contextOverride`
+ * (`{ cid, uid }`): the cache partition it observes. The page's arguments would decide it — another
+ * cloud's rows, held on this device — so the stream answers only its query and its listener.
+ */
+const localListStream = (allow: SubWebViewRuntimePermission) =>
+    ({ allow, cost: 'local', guards: [{ is: 'argCount', max: 2 }] }) as const;
 
 export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     channel: {
         methods: {
-            observeList: local('channel'),
+            observeList: localListStream('channel'),
             observeItem: local('channel'),
             cacheRead: local('channel'),
             cacheReadList: local('channel'),
@@ -124,7 +131,7 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     join: {
         methods: {
-            observeList: local('channel'),
+            observeList: localListStream('channel'),
             cacheReadList: local('channel'),
             readChat: deny('cursor'),
             sendRead: deny('cursor'),
@@ -216,7 +223,7 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     place: {
         methods: {
-            observeList: local('place'),
+            observeList: localListStream('place'),
             observeItem: local('place'),
             cacheReadList: local('place'),
             // Writes the list it fetched.

@@ -3,7 +3,7 @@ import { ChaticAppsError } from './errors';
 import { installChaticAppsMock, type MockController, type MockOptions } from './mock';
 import { createBridgeClient } from './client';
 import { LISTENER, browserRuntime, runtimeOver } from './runtime';
-import type { CloudChannel, CloudList, CloudSession } from './runtimeTypes';
+import type { CloudChannel, CloudList, CloudProfile, CloudSession } from './runtimeTypes';
 import type { Transport } from './transport';
 
 /** Lets the mock's asynchronous replies and pushes land. */
@@ -285,6 +285,156 @@ describe('apps.data.sendMessage, against the mock app', () => {
     });
 });
 
+describe('apps.data place profiles, against the mock app', () => {
+    let mock: MockController | undefined;
+    let apps: ChaticApps | undefined;
+
+    const onPlace = (committedSiteId: string | null): CloudSession => ({
+        context: {
+            cloud: { cloudId: 'c1', siteId: committedSiteId, isActive: true },
+            identity: { userId: 'u1', isAuthenticated: true },
+        },
+        committedSiteId,
+    });
+    const mine: CloudProfile = {
+        id: 's1@u1',
+        cid: 'c1',
+        sid: 's1',
+        uid: 'u1',
+        userId: 'u1',
+        updatedAtMs: 1,
+        nick: 'Me',
+    };
+    const theirs: CloudProfile = { ...mine, id: 's1@u2', uid: 'u2', userId: 'u2', nick: 'Them' };
+    const elsewhere: CloudProfile = { ...mine, id: 's3@u2', sid: 's3', uid: 'u2', userId: 'u2', nick: 'Them in s3' };
+    const profiles = new Map([mine, theirs, elsewhere].map(profile => [profile.id, profile]));
+
+    const start = async (options: MockOptions = {}) => {
+        mock = installChaticAppsMock({ log: false, ...options });
+        apps = await connect({ reportErrors: false });
+        return apps;
+    };
+
+    afterEach(() => {
+        apps?.disconnect();
+        mock?.uninstall();
+        apps = undefined;
+        mock = undefined;
+    });
+
+    it("reads the user's own place profile, by the session's place and user id", async () => {
+        const read = jest.fn((id: string) => profiles.get(id) ?? null);
+        const apps = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace('s1'), calls: { 'profile.cacheRead': read } },
+        });
+
+        await expect(apps.data.myProfile()).resolves.toEqual(expect.objectContaining({ id: 's1@u1', nick: 'Me' }));
+        expect(read).toHaveBeenCalledWith('s1@u1');
+    });
+
+    it('answers null when the device holds no profile for the place', async () => {
+        const apps = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace('s2'), calls: { 'profile.cacheRead': (id: string) => profiles.get(id) ?? null } },
+        });
+
+        await expect(apps.data.myProfile()).resolves.toBeNull();
+    });
+
+    it('hears the profile and its changes through profile.observeItem', async () => {
+        let push: ((item: CloudProfile | null) => void) | undefined;
+        const observed = jest.fn((emit: (item: CloudProfile | null) => void, id: string) => {
+            push = emit;
+            emit(profiles.get(id) ?? null);
+        });
+        const apps = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace('s1'), streams: { 'profile.observeItem': observed } },
+        });
+        const heard: (CloudProfile | null)[] = [];
+
+        await apps.data.observeMyProfile(profile => heard.push(profile));
+        await settle();
+        push?.({ ...mine, nick: 'Renamed' });
+        await settle();
+
+        expect(observed).toHaveBeenCalledWith(expect.any(Function), 's1@u1');
+        expect(heard.map(profile => profile?.nick)).toEqual(['Me', 'Renamed']);
+    });
+
+    it('refuses without the session permission, or before the session is on a place', async () => {
+        const withoutSession = await start({
+            permissions: ['user'],
+            data: { session: onPlace('s1'), calls: { 'profile.cacheRead': () => mine } },
+        });
+        await expect(withoutSession.data.myProfile()).rejects.toEqual(
+            expect.objectContaining({ code: 'NOT_SUPPORTED' })
+        );
+        withoutSession.disconnect();
+        mock?.uninstall();
+
+        const noPlace = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace(null), calls: { 'profile.cacheRead': () => mine } },
+        });
+        await expect(noPlace.data.observeMyProfile(() => undefined)).rejects.toEqual(
+            expect.objectContaining({ code: 'NOT_SUPPORTED' })
+        );
+    });
+
+    it("reads another member's profile in the session's place, or in a place the page names", async () => {
+        const read = jest.fn((id: string) => profiles.get(id) ?? null);
+        const apps = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace('s1'), calls: { 'profile.cacheRead': read } },
+        });
+
+        await expect(apps.data.placeProfile('u2')).resolves.toEqual(expect.objectContaining({ nick: 'Them' }));
+        await expect(apps.data.placeProfile('u2', { placeId: 's3' })).resolves.toEqual(
+            expect.objectContaining({ nick: 'Them in s3' })
+        );
+        expect(read.mock.calls).toEqual([['s1@u2'], ['s3@u2']]);
+    });
+
+    it('reads a named place without the session permission, but never the own profile', async () => {
+        const apps = await start({
+            permissions: ['user'],
+            data: { calls: { 'profile.cacheRead': (id: string) => profiles.get(id) ?? null } },
+        });
+
+        await expect(apps.data.placeProfile('u2', { placeId: 's3' })).resolves.toEqual(
+            expect.objectContaining({ id: 's3@u2' })
+        );
+        await expect(apps.data.placeProfile('u2')).rejects.toEqual(expect.objectContaining({ code: 'NOT_SUPPORTED' }));
+        await expect(apps.data.myProfile({ placeId: 's1' })).rejects.toEqual(
+            expect.objectContaining({ code: 'NOT_SUPPORTED' })
+        );
+    });
+
+    it("lists a place's profiles by the place's id", async () => {
+        const list = jest.fn((query?: { sid?: string }) => ({
+            list: [...profiles.values()].filter(profile => profile.sid === query?.sid),
+            meta: { total: 0 },
+        }));
+        const apps = await start({
+            permissions: ['session', 'user'],
+            data: { session: onPlace('s1'), calls: { 'profile.cacheReadList': list } },
+        });
+
+        const result = await apps.data.placeProfiles();
+
+        expect(list).toHaveBeenCalledWith({ sid: 's1' });
+        expect(result?.list.map(profile => profile.nick)).toEqual(['Me', 'Them']);
+    });
+
+    it('refuses when profile reads are not open to the page (the user permission, in the app)', async () => {
+        const apps = await start({ permissions: ['session'], data: { session: onPlace('s1') } });
+
+        await expect(apps.data.myProfile()).rejects.toEqual(expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' }));
+    });
+});
+
 describe('apps.data, called untyped as before the types', () => {
     let mock: MockController | undefined;
     let apps: ChaticApps | undefined;
@@ -348,6 +498,7 @@ describe('browserRuntime', () => {
         await expect(runtime.sendMessage('ch1', 'hello')).rejects.toEqual(
             expect.objectContaining({ code: 'NOT_IN_APP' })
         );
+        await expect(runtime.myProfile()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         expect(runtime.session()).toBeNull();
     });
 });

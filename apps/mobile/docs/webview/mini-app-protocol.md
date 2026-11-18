@@ -43,28 +43,28 @@ answers: _base_ is every page, a permission name is one the [manifest](#manifest
 desktop column is the [desktop shell](#the-desktop-shell); the last column is what
 `chatic-apps-sdk` calls it.
 
-| Feature                    | Means                                                                                                 | Opened by                                                   | Desktop shell                                   | `chatic-apps-sdk`             |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------- | ----------------------------- |
-| Connecting, starting state | [Handshake](#handshake) (`WebAppReady`, `Ping`); the [context](#context)                              | base                                                        | Answered                                        | `connect`, `context`          |
-| Theme and language changes | Push `OnSubWebViewContextChanged`                                                                     | base                                                        | Never pushed: the context stays the opening one | `onContextChange`             |
-| Closing, with a result     | `FinishSubWebView`                                                                                    | base                                                        | Answered                                        | `finish`                      |
-| Title                      | `SetSubWebViewTitle`                                                                                  | base; shown with `display: titled`                          | Answered                                        | `setTitle`                    |
-| Haptics                    | `TriggerHaptic`                                                                                       | base                                                        | `NOT_FOUND`                                     | `haptic`                      |
-| Back                       | `SetCanGoBack`, push `OnBackPressed`                                                                  | base; only Android has a back button                        | `NOT_FOUND`                                     | `onBack`                      |
-| Asking before a close      | `SetSubWebViewCloseGuard`, push `OnSubWebViewCloseRequested`                                          | base                                                        | `NOT_FOUND`                                     | `onCloseRequest`              |
-| Error reports              | `ReportSubWebViewError`                                                                               | base                                                        | Answered                                        | `reportError`                 |
-| Storage on the device      | The five [storage](#storage) requests                                                                 | base                                                        | `NOT_FOUND`; the page's own web storage works   | `storage`                     |
-| Camera and microphone      | The three [device](#device-permissions) requests                                                      | base                                                        | `NOT_FOUND`                                     | `permissions`, `openSettings` |
-| Clipboard                  | `CopyToClipboard`                                                                                     | `clipboard`                                                 | `NOT_FOUND`                                     | `copy`                        |
-| Share sheet                | `OpenShareSheet`                                                                                      | `share`                                                     | `NOT_FOUND`                                     | `share`                       |
-| Opening outside the app    | `OpenURL`                                                                                             | `openUrl`                                                   | `NOT_FOUND`                                     | `openUrl`                     |
-| User key                   | `GetSubWebViewUserKey`                                                                                | `userKey`                                                   | `NOT_FOUND`                                     | `getUserKey`                  |
-| Display                    | The manifest's `display`: `titled`, `clean`, `immersive` ([Layout](#layout))                          | The manifest                                                | Always with the bar                             | None: the page cannot ask     |
-| Safe area                  | The shell pads `titled` and `clean`; `immersive` gets the `--chatic-safe-area-inset-*` CSS properties | `display: immersive`                                        | No system bars, nothing to report               | None: CSS only                |
-| Orientation                | The manifest's `orientation`                                                                          | The manifest                                                | Not applied: a window                           | None                          |
-| Links to the page          | The context's `appLink` ([Links to a page](#links-to-a-page))                                         | base                                                        | Not in the context                              | `link`                        |
-| Reading the cloud's data   | The four [runtime](#runtime-reads) requests, pushes `OnRuntimeEvent`, `OnRuntimeSessionChanged`       | A runtime permission, and [five conditions](#runtime-reads) | `NOT_FOUND`                                     | `data`                        |
-| Sending a text message     | `RuntimeCall` of `chat.sendChat`                                                                      | `chatSend`, and the same five conditions                    | `NOT_FOUND`                                     | `data.sendMessage`            |
+| Feature                    | Means                                                                                                 | Opened by                                                  | Desktop shell                                   | `chatic-apps-sdk`             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------- | ----------------------------- |
+| Connecting, starting state | [Handshake](#handshake) (`WebAppReady`, `Ping`); the [context](#context)                              | base                                                       | Answered                                        | `connect`, `context`          |
+| Theme and language changes | Push `OnSubWebViewContextChanged`                                                                     | base                                                       | Never pushed: the context stays the opening one | `onContextChange`             |
+| Closing, with a result     | `FinishSubWebView`                                                                                    | base                                                       | Answered                                        | `finish`                      |
+| Title                      | `SetSubWebViewTitle`                                                                                  | base; shown with `display: titled`                         | Answered                                        | `setTitle`                    |
+| Haptics                    | `TriggerHaptic`                                                                                       | base                                                       | `NOT_FOUND`                                     | `haptic`                      |
+| Back                       | `SetCanGoBack`, push `OnBackPressed`                                                                  | base; only Android has a back button                       | `NOT_FOUND`                                     | `onBack`                      |
+| Asking before a close      | `SetSubWebViewCloseGuard`, push `OnSubWebViewCloseRequested`                                          | base                                                       | `NOT_FOUND`                                     | `onCloseRequest`              |
+| Error reports              | `ReportSubWebViewError`                                                                               | base                                                       | Answered                                        | `reportError`                 |
+| Storage on the device      | The five [storage](#storage) requests                                                                 | base                                                       | `NOT_FOUND`; the page's own web storage works   | `storage`                     |
+| Camera and microphone      | The three [device](#device-permissions) requests                                                      | base                                                       | `NOT_FOUND`                                     | `permissions`, `openSettings` |
+| Clipboard                  | `CopyToClipboard`                                                                                     | `clipboard`                                                | `NOT_FOUND`                                     | `copy`                        |
+| Share sheet                | `OpenShareSheet`                                                                                      | `share`                                                    | `NOT_FOUND`                                     | `share`                       |
+| Opening outside the app    | `OpenURL`                                                                                             | `openUrl`                                                  | `NOT_FOUND`                                     | `openUrl`                     |
+| User key                   | `GetSubWebViewUserKey`                                                                                | `userKey`                                                  | `NOT_FOUND`                                     | `getUserKey`                  |
+| Display                    | The manifest's `display`: `titled`, `clean`, `immersive` ([Layout](#layout))                          | The manifest                                               | Always with the bar                             | None: the page cannot ask     |
+| Safe area                  | The shell pads `titled` and `clean`; `immersive` gets the `--chatic-safe-area-inset-*` CSS properties | `display: immersive`                                       | No system bars, nothing to report               | None: CSS only                |
+| Orientation                | The manifest's `orientation`                                                                          | The manifest                                               | Not applied: a window                           | None                          |
+| Links to the page          | The context's `appLink` ([Links to a page](#links-to-a-page))                                         | base                                                       | Not in the context                              | `link`                        |
+| Reading the cloud's data   | The four [runtime](#runtime-reads) requests, pushes `OnRuntimeEvent`, `OnRuntimeSessionChanged`       | A runtime permission, and [six conditions](#runtime-reads) | `NOT_FOUND`                                     | `data`                        |
+| Sending a text message     | `RuntimeCall` of `chat.sendChat`                                                                      | `chatSend`, and the same six conditions                    | `NOT_FOUND`                                     | `data.sendMessage`            |
 
 **Every other write is closed** — editing or deleting a message, attachments, mentions, replies,
 reactions, making a room. Whatever a page reaches through the runtime is listed in
@@ -652,8 +652,12 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
 - the phone shell — the desktop shell answers the base set only;
 - the launch's session is held by the app's runtime, not by the main web;
 - the page is `reviewed` — an `external` site has no manifest, and the hub needs none of this;
-- a cloud other than Home was selected when the view opened;
-- the manifest declares at least one runtime permission.
+- a cloud was selected when the view opened — Home counts as one: a page opened there reads Home's
+  places and rooms, and its session names Home as the cloud `default` on Home's place;
+- the manifest declares at least one runtime permission;
+- the WebView reports a frame's message under the frame's own origin — always on iOS, and on Android
+  where the WebView supports web message listeners. An older Android WebView reports every frame as the
+  page, so a frame of another site could pass as it.
 
 | Request              | Data                                              | Reply                                                         | Errors (besides the runtime's own)                                                   |
 | -------------------- | ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -682,7 +686,9 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   `guard`, or `unknown` for a name it does not have or a method asked the wrong way. A message is
   checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send budget of
   its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the reads'.
-- **Argument guards.** `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
+- **Argument guards.** `channel.observeList`, `join.observeList` and `place.observeList` answer only
+  for their query and their listener: a third argument, which would name another cloud's cache
+  partition, is refused (`guard`). `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
   id. `cloud.getCloud` answers only as `({ id }, { cache: false })`, with `id` the current cloud's and
   no `cid`. The cache holds an owned cloud only after the app read it from the server, and then only
   its name, so `cloud.cacheRead` often answers `null` for the cloud the user owns; `getCloud` is the
@@ -874,7 +880,10 @@ These hold in every version; a change that breaks one is not a protocol change b
 feature, and needs its own decision — as the runtime reads did, which changed the one about the user.
 
 - **The host answers only the opened origin.** A message from another origin, a frame on one, or a
-  page the view navigated to gets no reply.
+  page the view navigated to gets no reply. One exception: an Android WebView without web message
+  listeners reports a frame's message as the page's, so there a frame of another site reaches the base
+  set and the manifest's capabilities. The runtime requests are not registered on such a WebView (see
+  [Runtime reads](#runtime-reads)).
 - **Nothing the page receives identifies the device or the install**: not the device id, not a value
   that maps to it one to one (a plain hash of it included). **Nor the DoU user, unless the user allowed
   it:** a page with a runtime permission, once the user said yes, gets the cloud's data as the app

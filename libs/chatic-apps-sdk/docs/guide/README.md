@@ -224,7 +224,7 @@ A refusal is `CONSENT_REFUSED`: say why the page needs the data and offer to clo
 
 ```ts
 const apps = await connect();
-if (!apps.supports('data')) return showNotAvailableHere(); // a browser, the desktop, Home, an older app
+if (!apps.supports('data')) return showNotAvailableHere(); // a browser, the desktop, an old Android WebView, an older app
 try {
     await apps.data.connect();
 } catch (error) {
