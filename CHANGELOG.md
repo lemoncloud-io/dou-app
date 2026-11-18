@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - root@0.168.1, @chatic/desktop-web@0.60.1
+
+### Bug Fixes
+
+- (desktop-web) show the shortcut hints after 300 ms
+
 ## [2026-11-18] - root@0.168.0, @chatic/desktop-web@0.60.0
 
 ### Features
