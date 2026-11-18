@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { buildThread, buildThreadIndex, threadRootId, unseenReplies } from './buildThread';
 

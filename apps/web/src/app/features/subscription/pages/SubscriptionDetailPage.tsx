@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 
 import { Lock, ShieldAlert } from 'lucide-react';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
     Button,
@@ -69,7 +69,7 @@ const SectionTitle = ({ children }: { children: string }) => (
 export const SubscriptionDetailPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const checkout = host.ports.checkout;
+    const checkout = runtime.checkout;
     const sellsInStore = checkout.kind === 'store';
     const isKo = i18n.language.startsWith('ko');
 

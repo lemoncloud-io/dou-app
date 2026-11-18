@@ -5,13 +5,13 @@ import { __resetUrlMetadataCache, requestUrlMetadata, useUrlMetadata } from './u
 
 const mockIsNative = jest.fn();
 // Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { links: { kind: mockIsNative() ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get links() {
+            return { kind: mockIsNative() ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 
 jest.mock('../../../bridge', () => ({
     appBridge: { fetchUrlMetadata: jest.fn() },

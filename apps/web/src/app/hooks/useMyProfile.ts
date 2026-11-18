@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime, type DomainProfile } from '@chatic/runtime';
 
 /**
  * In-flight `profile.get-mine` per profile id, shared across every mounted instance of this hook.

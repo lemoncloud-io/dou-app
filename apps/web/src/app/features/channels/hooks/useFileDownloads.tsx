@@ -1,10 +1,8 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, isPendingUploadSlot, type ChatFileSlot, type DomainChat } from '@chatic/runtime';
 import { logger, webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
-import { isPendingUploadSlot, type ChatFileSlot, type DomainChat } from '@chatic/data';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import type { MessageFileDownloadState } from '@chatic/web-ui-kit';
@@ -240,7 +238,7 @@ export interface BatchFile {
 }
 
 /** Whether the app downloads and keeps files on this host, as the host's `files` port says. */
-const appMovesFiles = (): boolean => host.ports.files.kind === 'shell';
+const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
 
 /** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
 const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {

@@ -8,7 +8,7 @@ import {
 import { runtime } from '@chatic/runtime';
 
 import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
-import { diagnosticsKind } from './diagnosticsKind';
+import { diagnosticsKind } from '../../../config/diagnosticsKind';
 import { clearNativeLogQueue, createNativeUploadSource } from './nativeUploadSource';
 import { noteStatisticsDropped, selectTelemetryForUpload } from '../telemetry/telemetryRuntime';
 import { registerLogQueueView } from './logQueueView';

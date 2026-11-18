@@ -66,8 +66,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'session-uid' }),
             // "Me" is the uid in the thread's cloud; the session uid above is another cloud's.
@@ -83,8 +83,8 @@ jest.mock('@chatic/runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 
 jest.mock('@chatic/web-ui-kit', () => ({

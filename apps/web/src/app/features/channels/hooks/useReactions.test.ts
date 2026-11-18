@@ -4,13 +4,13 @@ import { runtime } from '@chatic/runtime';
 
 import { useReactions } from './useReactions';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const setReaction = jest.fn();
 

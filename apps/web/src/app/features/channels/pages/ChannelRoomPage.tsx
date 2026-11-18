@@ -17,8 +17,7 @@ import { logger } from '@chatic/bridges';
 import { useStackNavigate } from '../../../navigation';
 import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, canModifyMessage, isMentioningViewer, type DomainChannel } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     AvatarGroup,
@@ -96,7 +95,6 @@ import { chatGapKey, type ChatGap } from '../hooks/useChats';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
-import { canModifyMessage, isMentioningViewer } from '@chatic/data';
 import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';

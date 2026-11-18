@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from 'react';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { drawVideoFrame, VIDEO_POSTER } from '@chatic/shared';
 
 import { appBridge } from '../../../bridge/appBridge';
@@ -38,7 +38,7 @@ let shared: VideoFrames | null = null;
 export const getVideoFrames = (): VideoFrames =>
     (shared ??= new VideoFrames({
         cache: getImageCache(),
-        fromApp: () => host.ports.files.kind === 'shell',
+        fromApp: () => runtime.files.kind === 'shell',
         readShellFrame,
         fetch: (url, init) => fetch(url, init),
         drawFrame: source => drawVideoFrame(source),

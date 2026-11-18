@@ -1,4 +1,4 @@
-import { dmPlaceOf, isCloudDm, placeOfDmId, type DomainChannel } from '@chatic/data';
+import { dmPlaceOf, isCloudDm, placeOfDmId, type DomainChannel } from '@chatic/runtime';
 
 /**
  * The place a push opens its room in.

@@ -6,8 +6,8 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSearchNavigate } from './useSearchNavigate';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             waitUntilVerified: jest.fn(),
         },
@@ -16,8 +16,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionSelection: jest.fn(),
             useSwitchCloudSession: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));

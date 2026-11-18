@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import { isInJoinWindow } from '@chatic/data';
-import type { DomainChannel, DomainChat, DomainJoin, DomainLastChat } from '@chatic/data';
+import {
+    runtime,
+    isInJoinWindow,
+    type DomainChannel,
+    type DomainChat,
+    type DomainJoin,
+    type DomainLastChat,
+} from '@chatic/runtime';
 
 /**
  * The "last message preview" for the whole home channel list — a list-level replacement for the

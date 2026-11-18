@@ -1,5 +1,4 @@
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { normalizeChannelSort } from '../stores/preferenceParsers';
 import type { ChannelSortMethod } from '../stores/preferenceKeys';
 
@@ -10,11 +9,11 @@ import type { ChannelSortMethod } from '../stores/preferenceKeys';
  * drops another's.
  */
 export const setChannelSort = (scope: string, method: ChannelSortMethod): void => {
-    const current = normalizeChannelSort(config.get('ui.channelSort'));
-    config.set('ui.channelSort', { ...current, [scope]: method }, { lane: 'local' });
+    const current = normalizeChannelSort(runtime.settings.get('ui.channelSort'));
+    runtime.settings.set('ui.channelSort', { ...current, [scope]: method }, { lane: 'local' });
 };
 
 export const useChannelSort = () => {
-    const raw = useConfigValue<Record<string, ChannelSortMethod>>('ui.channelSort');
+    const raw = runtime.settings.useConfigValue<Record<string, ChannelSortMethod>>('ui.channelSort');
     return { channelSort: normalizeChannelSort(raw ?? {}), setChannelSort };
 };

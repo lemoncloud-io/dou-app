@@ -1,12 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainJoin } from '@chatic/runtime';
 
 import { useMyJoins } from './useMyJoins';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: {
             registerSyncTarget: jest.fn(),
         },
@@ -20,8 +19,8 @@ jest.mock('@chatic/runtime', () => ({
             useUidInCloud: jest.fn(),
             useSessionSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const channel = (id: string): DomainChannel => ({ id }) as unknown as DomainChannel;
 const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;

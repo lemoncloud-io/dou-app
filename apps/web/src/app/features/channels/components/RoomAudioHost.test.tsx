@@ -13,9 +13,11 @@ const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => mockToast(arg) }));
 const mockGetChat = jest.fn();
 const mockGetCloudRepositories = jest.fn((_cid: string) => ({ chat: { getChat: mockGetChat } }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: { data: { getCloudRepositories: (cid: string) => mockGetCloudRepositories(cid) } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { getCloudRepositories: (cid: string) => mockGetCloudRepositories(cid) },
+    })
+);
 
 const track = (over: Partial<AudioTrack> = {}): AudioTrack => ({
     key: 'c1/up-7',

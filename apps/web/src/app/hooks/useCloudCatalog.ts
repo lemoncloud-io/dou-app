@@ -2,11 +2,10 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Query } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, type DomainCloud, type DomainListResult } from '@chatic/runtime';
 
 import { useIsAccountGuest } from './useMyUser';
 
-import type { DomainCloud, DomainListResult } from '@chatic/data';
 /** Query parameters for a relay request. */
 type Params = Record<string, unknown>;
 

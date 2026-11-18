@@ -1,5 +1,5 @@
 import { liveShellValue } from '@chatic/bridges';
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Whether the uploader is allowed to send.
@@ -18,7 +18,7 @@ import { config } from '@chatic/config';
  *   lever, not a privacy one — that distinction is the whole reason it is not
  *   folded into the opt-out.
  *
- * All are read live (a fresh `config.get()` each call) so flipping any of them takes effect
+ * All are read live (a fresh `runtime.settings.get()` each call) so flipping any of them takes effect
  * without a reload.
  *
  * The build flag arrives as an argument rather than being read here: touching
@@ -39,7 +39,7 @@ import { config } from '@chatic/config';
  * nothing is written to disk — the opt-out is a privacy control, not a send
  * pause.
  */
-export const isLogCollectionEnabled = (): boolean => config.get<boolean>('log.collection.enabled') !== false;
+export const isLogCollectionEnabled = (): boolean => runtime.settings.get<boolean>('log.collection.enabled') !== false;
 
 /**
  * Whether the app shell is holding uploads.
@@ -55,7 +55,8 @@ export const isLogCollectionEnabled = (): boolean => config.get<boolean>('log.co
 export const isLogUploadHeldByApp = (): boolean => liveShellValue('CHATIC_APP_LOG_UPLOAD_HOLD') === true;
 
 /** Whether batches stay in the queue instead of being sent. */
-export const isLogUploadHeld = (): boolean => config.get<boolean>('log.upload.hold') === true || isLogUploadHeldByApp();
+export const isLogUploadHeld = (): boolean =>
+    runtime.settings.get<boolean>('log.upload.hold') === true || isLogUploadHeldByApp();
 
 /**
  * Flips the web-owned hold. The app's injected flag is not writable from here —
@@ -63,7 +64,7 @@ export const isLogUploadHeld = (): boolean => config.get<boolean>('log.upload.ho
  * leave the UI claiming it turned off a hold that is still on.
  */
 export const setLogUploadHold = (hold: boolean): void => {
-    config.set('log.upload.hold', hold, { lane: 'local' });
+    runtime.settings.set('log.upload.hold', hold, { lane: 'local' });
 };
 
 /**
@@ -82,7 +83,7 @@ export const createLogUploadSwitch =
         // silently do nothing on exactly the devices being debugged.
         if (isLogUploadHeld()) return false;
 
-        const enabled = config.snapshot<boolean>('log.upload.enabled');
+        const enabled = runtime.settings.snapshot<boolean>('log.upload.enabled');
         if (enabled?.isOverridden) return enabled.value === true;
         return !disabledByBuild;
     };

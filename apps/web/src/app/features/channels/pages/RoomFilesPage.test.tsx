@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type { DomainChat, RoomMediaItem } from '@chatic/data';
+import type { DomainChat, RoomMediaItem } from '@chatic/runtime';
 import { MemoryStore } from '@chatic/storage';
 
 import { readHiddenMedia, setLocalMediaPrefsStorage } from '../lib/localMediaPrefs';
@@ -48,8 +48,8 @@ jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
 const mockListRoomMedia = jest.fn();
 const mockCountRoomMedia = jest.fn();
 const mockRefreshList = jest.fn();
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useUidInCloud: () => 'u1',
@@ -68,8 +68,8 @@ jest.mock('@chatic/runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 jest.mock('../hooks/useChannel', () => ({ useChannel: () => ({ channel: { id: 'ch-1', cid: 'c1' } }) }));
 // Saving and sharing have their own suites; here they only have to be reachable.
 const mockSaveAll = jest.fn();

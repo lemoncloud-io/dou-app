@@ -1,11 +1,11 @@
 const mockIsNative = jest.fn();
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { diagnostics: { kind: mockIsNative() ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get diagnostics() {
+            return { kind: mockIsNative() ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 jest.mock('../../../bridge', () => ({ appBridge: { sendBootMetrics: jest.fn() } }));
 
 import { appBridge } from '../../../bridge';

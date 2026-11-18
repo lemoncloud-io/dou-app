@@ -23,27 +23,26 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 jest.mock('react-router-dom', () => ({ Navigate: ({ to }: { to: string }) => <div data-testid="redirect">{to}</div> }));
-// Who signs a person in, as the host's `signIn` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: mockNative ? 'shell' : 'browser', os: null } };
-        },
-    },
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-ui-kit', () => ({
     MenuCard: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-card">{children}</div>,
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useIsPairedSession: () => mockPaired,
             useSessionSelection: () => ({ selectedCloudId: mockSelected }),
             deviceDisplayName: (d: { name?: string; platform?: string }) => (d.platform === 'ios' ? 'iPhone' : d.name),
         },
-    },
-}));
+        // Who signs a person in, as the host's `signIn` port says.
+        get signIn() {
+            return { kind: mockNative ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 jest.mock('../../../hooks', () => ({
     useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,

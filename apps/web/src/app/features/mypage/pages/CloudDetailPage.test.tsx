@@ -17,15 +17,18 @@ let hasCloudCatalog = true;
 let selectedCloudId = 'default';
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: { useSessionSelection: () => ({ selectedCloudId }) },
-    },
-}));
+    })
+);
 jest.mock('react-router-dom', () => ({ useParams: () => ({ cloudId: 'CL2' }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesData }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 // The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
 const mockHaptic = jest.fn();

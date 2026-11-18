@@ -1,4 +1,4 @@
-import { chatMediaItems, type ChatFileSlot } from '@chatic/data';
+import { chatMediaItems, type ChatFileSlot } from '@chatic/runtime';
 
 import type { ClientChatView } from '../types';
 

@@ -13,9 +13,14 @@ jest.mock('@chatic/runtime', () => {
             },
         },
     };
-    return { runtime: { data: { useRuntimeRepositories: () => repositories } } };
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repositories },
+    });
 });
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ placeId: 'site-1' }),
     useLocation: () => ({ state: routeState }),

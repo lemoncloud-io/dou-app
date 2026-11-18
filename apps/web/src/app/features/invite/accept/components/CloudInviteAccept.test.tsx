@@ -26,9 +26,9 @@ jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AlertDialog: ({ title }: { title: React.ReactNode }) => <div role="alertdialog">{title}</div>,
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: { session: { useInviteInfo: () => inviteInfo } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ session: { useInviteInfo: () => inviteInfo } })
+);
 jest.mock('../../../../runtime/useSessionLogout', () => ({ useSessionLogout: () => jest.fn() }));
 jest.mock('../../../../navigation', () => ({ useStackNavigate: () => jest.fn() }));
 jest.mock('../../hooks/useInviteCountdown', () => ({ useInviteCountdown: () => null }));

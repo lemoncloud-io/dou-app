@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { OnListPhotosPayload } from '@chatic/bridge-messages';
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 import type { PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { PhotoLibrary } from '../../../bridge/photoLibrary';
@@ -36,9 +36,12 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: jest.
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => false }));
 // The page picks, as the host's media port says in a browser — the same answer as `isNative` above —
 // and no app runs the frame around it (the `appShell` port).
-jest.mock('@chatic/host', () => ({
-    host: { ports: { media: { kind: 'browser' }, appShell: { kind: 'browser', os: null } } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        media: { kind: 'browser' },
+        appShell: { kind: 'browser', os: null },
+    })
+);
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),
     isAppleTouchWebKit: () => false,

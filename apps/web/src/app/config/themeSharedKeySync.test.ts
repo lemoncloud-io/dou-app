@@ -1,4 +1,4 @@
-import { storageKeyFor } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 import { WebStore } from '@chatic/storage';
 import { syncThemeFromSharedKey } from './themeSharedKeySync';
 
@@ -10,7 +10,7 @@ describe('syncThemeFromSharedKey', () => {
 
         syncThemeFromSharedKey(WebStore.local());
 
-        expect(localStorage.getItem(storageKeyFor('ui.theme'))).toBe('"dark"');
+        expect(localStorage.getItem(runtime.settings.storageKeyFor('ui.theme'))).toBe('"dark"');
     });
 
     it('leaves the shared key in place for the other apps that still read it', () => {
@@ -24,7 +24,7 @@ describe('syncThemeFromSharedKey', () => {
     it('does nothing when the shared key is absent', () => {
         syncThemeFromSharedKey(WebStore.local());
 
-        expect(localStorage.getItem(storageKeyFor('ui.theme'))).toBeNull();
+        expect(localStorage.getItem(runtime.settings.storageKeyFor('ui.theme'))).toBeNull();
     });
 
     it('re-syncs on every boot so a change made in another app shows up', () => {
@@ -34,6 +34,6 @@ describe('syncThemeFromSharedKey', () => {
 
         syncThemeFromSharedKey(WebStore.local());
 
-        expect(localStorage.getItem(storageKeyFor('ui.theme'))).toBe('"light"');
+        expect(localStorage.getItem(runtime.settings.storageKeyFor('ui.theme'))).toBe('"light"');
     });
 });

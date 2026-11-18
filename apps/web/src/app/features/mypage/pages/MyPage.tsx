@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { host } from '@chatic/host';
 import { runtime } from '@chatic/runtime';
 
 import { cn } from '@chatic/ui-kit';
@@ -34,9 +33,9 @@ export const MyPage = () => {
     // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
     // its own to give. A device that is itself signed in through an approval never approves another —
     // it would sign out with its own approver.
-    // Whether this device is an app that signs in and approves pairings is `host.ports.signIn`'s answer.
+    // Whether this device is an app that signs in and approves pairings is `runtime.signIn`'s answer.
     const isPairedSession = runtime.session.useIsPairedSession();
-    const appSignsIn = host.ports.signIn.kind === 'shell';
+    const appSignsIn = runtime.signIn.kind === 'shell';
     const canApprovePairing = pairingEnabled && appSignsIn && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
     const canListDevices = pairingEnabled && (!isGuest || appSignsIn);

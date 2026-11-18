@@ -1,4 +1,4 @@
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 import { getBootSnapshot } from './bootMarks';
@@ -15,7 +15,7 @@ let scheduled = false;
  * session) has no shell to persist the record.
  */
 export const scheduleBootMetricsReport = (): void => {
-    if (scheduled || host.ports.diagnostics.kind !== 'shell') return;
+    if (scheduled || runtime.diagnostics.kind !== 'shell') return;
     scheduled = true;
 
     setTimeout(() => {

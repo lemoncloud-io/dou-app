@@ -1,13 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { useRoomSenderName } from './useRoomSenderName';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: { session: { useSessionSelection: () => ({ selectedSiteId: 's1' }) } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        session: { useSessionSelection: () => ({ selectedSiteId: 's1' }) },
+    })
+);
 jest.mock('./useChannelJoins', () => ({ useChannelJoins: () => ({ joins: [], activeMemberIds: ['u1', 'u2'] }) }));
 jest.mock('./useChannelMembers', () => ({
     useChannelMembers: () => ({ members: [{ id: 'u2', name: 'Member Name' }] }),

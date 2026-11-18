@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import {
     Button,
     FloatingButton,
@@ -72,8 +72,8 @@ export const ContactInviteTab = ({
     const { t } = useTranslation();
     const { toast } = useToast();
 
-    // Contacts and SMS invites are the app's where it takes the page's links (`host.ports.links`).
-    const isOnMobileApp = host.ports.links.kind === 'shell';
+    // Contacts and SMS invites are the app's where it takes the page's links (`runtime.links`).
+    const isOnMobileApp = runtime.links.kind === 'shell';
     const [search, setSearch] = useState('');
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);

@@ -1,20 +1,19 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChat } from '@chatic/data';
+import { runtime, type DomainChat } from '@chatic/runtime';
 
 import { beginChatSendTrace } from '../../../runtime/perf';
 import { toResendPayload, useChatMutations } from './useChatMutations';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
             sendChatInCloud: jest.fn(),
             getCloudRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 jest.mock('../../../runtime/perf', () => ({ beginChatSendTrace: jest.fn() }));
 

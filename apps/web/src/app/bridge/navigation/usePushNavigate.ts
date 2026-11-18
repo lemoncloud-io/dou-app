@@ -2,10 +2,8 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, RELAY_ORIGIN_CID } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
-import { RELAY_ORIGIN_CID } from '@chatic/data';
-import { host } from '@chatic/host';
 import { readSubWebViewLinkPath, subWebViewPageUrlOfNavigatePath } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -280,7 +278,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
                     // points behave identically, behind the same `push` port check: only where the app
                     // receives notifications. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && host.ports.push.kind === 'shell') {
+                    if (cid && !isRelayPush && runtime.push.kind === 'shell') {
                         await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }

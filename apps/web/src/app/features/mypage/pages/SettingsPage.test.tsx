@@ -6,17 +6,21 @@ const mockHaptic = jest.fn();
 const setTheme = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ getStoreUrl: () => undefined, useNavigateWithTransition: () => jest.fn() }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    getStoreUrl: () => undefined,
+    useNavigateWithTransition: () => jest.fn(),
+}));
 // A browser tab: the page runs no app frame, as the `appShell` port says there.
-jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'browser', os: null } } } }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             usePairingAwareLogout: () => ({ start: jest.fn() }),
         },
-    },
-}));
+        appShell: { kind: 'browser', os: null },
+    })
+);
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => null,
     IconSpinner: () => null,

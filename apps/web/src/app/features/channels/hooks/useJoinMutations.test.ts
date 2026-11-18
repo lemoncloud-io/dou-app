@@ -8,13 +8,13 @@ import { useJoinMutations } from './useJoinMutations';
 
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const updateJoin = jest.fn();
 

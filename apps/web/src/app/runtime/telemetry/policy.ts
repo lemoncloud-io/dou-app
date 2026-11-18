@@ -79,7 +79,8 @@ const STORAGE_KEY = '@chatic/web.telemetry.policy';
 
 /**
  * The prefix of every key this module writes — the stored policy and the development override. A
- * sign-out takes them; the entry point declares it to the runtime (`createWebRuntime({ signedOutKeyPrefixes })`).
+ * sign-out takes them; the app's runtime declaration hands it over (`signedOutKeyPrefixes`, in
+ * `src/config/policies.ts`).
  */
 export const TELEMETRY_POLICY_KEY_PREFIX = STORAGE_KEY;
 

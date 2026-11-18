@@ -18,8 +18,8 @@ import { runtime } from '@chatic/runtime';
 
 import { relayInviteKeys, useRelayInviteMutations, useRelayInvites } from './useRelayInvites';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -28,8 +28,8 @@ jest.mock('@chatic/runtime', () => ({
             useSlotVerified: jest.fn(),
             waitUntilVerified: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const list = jest.fn();
 const create = jest.fn();

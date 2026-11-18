@@ -1,19 +1,19 @@
 const mockIsNative = jest.fn();
 const mockRequest = jest.fn();
 // Who moves files, as the host's `files` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { files: { kind: mockIsNative() ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get files() {
+            return { kind: mockIsNative() ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn() },
     webClient: { request: (...args: unknown[]) => mockRequest(...args), onEvent: jest.fn(() => () => undefined) },
 }));
 
-import { xhrPut } from '@chatic/runtime-web';
+import { pageUploadPut } from '../../config/upload';
 import { getShellPut, syncShellTransfers } from './shellUpload';
 
 describe('shellUpload', () => {
@@ -22,7 +22,7 @@ describe('shellUpload', () => {
     it('uses the page PUT in a browser and asks the shell nothing', async () => {
         mockIsNative.mockReturnValue(false);
 
-        expect(getShellPut()).toBe(xhrPut);
+        expect(getShellPut()).toBe(pageUploadPut);
         await syncShellTransfers();
         expect(mockRequest).not.toHaveBeenCalled();
     });
@@ -32,7 +32,7 @@ describe('shellUpload', () => {
         mockRequest.mockResolvedValue({ data: { transfers: [] } });
 
         const first = getShellPut();
-        expect(first).not.toBe(xhrPut);
+        expect(first).not.toBe(pageUploadPut);
         expect(getShellPut()).toBe(first);
         await syncShellTransfers();
         expect(mockRequest).toHaveBeenCalledWith({ type: 'ListFileTransfers', data: {} });

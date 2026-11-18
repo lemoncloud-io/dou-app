@@ -14,8 +14,8 @@ const joinListeners = new Set<(message: { data: unknown }) => void>();
 const unsubscribeJoin = jest.fn();
 const pushJoin = (data: unknown) => joinListeners.forEach(listener => listener({ data }));
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'default',
             onServerEvent: (_type: string, listener: (message: { data: unknown }) => void) => {
@@ -26,8 +26,8 @@ jest.mock('@chatic/runtime', () => ({
                 };
             },
         },
-    },
-}));
+    })
+);
 
 jest.mock('../../../../hooks', () => ({
     useAwaitInviteChannel: () => ({ awaitChannel }),

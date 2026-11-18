@@ -1,12 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, type DomainChannel } from '@chatic/runtime';
 
 import { useChannel } from './useChannel';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -18,8 +17,8 @@ jest.mock('@chatic/runtime', () => ({
         session: {
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeItem = jest.fn();
 const unsubscribe = jest.fn();

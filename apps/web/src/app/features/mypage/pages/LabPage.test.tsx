@@ -10,7 +10,9 @@ const setPlaceInvite = jest.fn();
 const setChatInputLock = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/config', () => ({ config: { get: () => 'code' } }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: () => 'code' } })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => null,

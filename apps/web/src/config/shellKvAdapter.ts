@@ -1,9 +1,9 @@
 import { liveShellValue } from '@chatic/bridges';
 import type { IShellKvAdapter } from '@chatic/config';
-import { appBridge } from '../bridge';
+import { appBridge } from '../app/bridge';
 
 /**
- * `IShellKvAdapter` backed by the native bridge — the web-side half of ADR-0079's shell lane.
+ * `IShellKvAdapter` backed by the native bridge — the web-side half of config's shell lane.
  *
  * `readBag()` reads the boot envelope the shell injects (`getConfigBagScript`,
  * `apps/mobile/src/app/webview/utils/injectionScripts.ts`) instead of round-tripping a bridge

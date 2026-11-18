@@ -26,20 +26,16 @@ jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 // The host sells through a store (in the app) or through the website (in a browser).
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { checkout: isNativeValue ? { kind: 'store', store: 'google' } : { kind: 'web' } };
-        },
-    },
-}));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: isGuestValue }),
         },
-    },
-}));
+        get checkout() {
+            return isNativeValue ? { kind: 'store', store: 'google' } : { kind: 'web' };
+        },
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 jest.mock('./useSubscriptionIap', () => ({
     useSubscriptionIap: () => ({ restorePurchases: restorePurchasesMock }),

@@ -29,14 +29,17 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 // Only the role gate is read here; the sheet itself is stubbed below.
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-    },
+    })
+);
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 // Only `useLocation` is read (the re-invite entry rides in route state); rendering without a Router
 // would otherwise throw its "may be used only in the context of a Router" invariant.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ state: mockRouteState }) }));

@@ -1,8 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { appBridge } from '../bridge';
 import { deviceStore } from '../storage';
 import type { Theme } from '../stores/preferenceKeys';
@@ -30,8 +28,8 @@ const subscribeSystemPrefersDark = (onChange: () => void): (() => void) => {
 /**
  * Pushes the theme to the native shell's OWN theme store, with confirmation and one retry.
  *
- * This is a SEPARATE channel from `config.set(..., { lane: 'shell' })` below, and both are needed:
- * `SaveConfigValue`/`ConfigKvService` is meaning-blind storage for `config.get('ui.theme')` to
+ * This is a SEPARATE channel from `runtime.settings.set(..., { lane: 'shell' })` below, and both are needed:
+ * `SaveConfigValue`/`ConfigKvService` is meaning-blind storage for `runtime.settings.get('ui.theme')` to
  * resolve from on the NEXT boot, but the native shell's own status bar, root background and resume
  * overlay — and the pre-paint injection (`window.CHATIC_APP_THEME`) — read a DIFFERENT, older store
  * (`usePreferenceCacheHandler`'s `'theme'` case, which updates the app's own `themeStore`) that
@@ -46,7 +44,7 @@ const subscribeSystemPrefersDark = (onChange: () => void): (() => void) => {
  * native store to push to.
  */
 const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
-    if (host.ports.appShell.kind !== 'shell') return;
+    if (runtime.appShell.kind !== 'shell') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'theme', value: theme });
     try {
         await attempt();
@@ -62,7 +60,7 @@ const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
 /**
  * `ui.theme` is `persist: 'shell'`, so the write lane has to be `shell` — writing via `local`
  * would land in a lower-precedence row than a native-hydrated shell value and be silently shadowed
- * (see `ConfigLanePolicy`'s row order). `config.set` itself confirms the bridge write, retries once,
+ * (see `ConfigLanePolicy`'s row order). `runtime.settings.set` itself confirms the bridge write, retries once,
  * and mirrors into this app's own namespaced local storage for a shell-less browser.
  *
  * The `vite-ui-theme` write is a SEPARATE mirror: this key is not private to this app — five apps'
@@ -71,7 +69,7 @@ const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
  * the read-back half). `@chatic/config`'s own mirror only ever touches its own namespaced key.
  */
 export const setTheme = (theme: Theme): void => {
-    config.set('ui.theme', theme, { lane: 'shell' });
+    runtime.settings.set('ui.theme', theme, { lane: 'shell' });
     void syncThemeToNativeStore(theme);
     // Best-effort: the device store swallows a failed write — the @chatic/config write above landed.
     deviceStore.set('vite-ui-theme', theme);
@@ -86,7 +84,7 @@ export const setTheme = (theme: Theme): void => {
  * render time.
  */
 export const useTheme = () => {
-    const theme = useConfigValue<Theme>('ui.theme') ?? 'light';
+    const theme = runtime.settings.useConfigValue<Theme>('ui.theme') ?? 'light';
     const systemPrefersDark = useSyncExternalStore(
         subscribeSystemPrefersDark,
         getSystemPrefersDark,

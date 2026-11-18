@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { appBridge, useOnBackPressed } from '../bridge';
 import { useStackBack } from '../navigation';
 
@@ -18,7 +18,7 @@ const OPEN_DIALOG_SELECTOR =
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const isOnMobileApp = host.ports.appShell.kind === 'shell';
+    const isOnMobileApp = runtime.appShell.kind === 'shell';
     const consumeBack = useStackBack();
 
     // Notify native app about navigation state changes

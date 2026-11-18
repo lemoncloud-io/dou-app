@@ -1,25 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { push: { kind: mockIsNative() ? 'shell' : 'browser' } };
-        },
-    },
-}));
 // The platform fallback, read only when the device store has none: no shell injected one here.
 jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useRegisterDeviceTokenMutation: jest.fn(),
+            get kind() {
+                return mockIsNative() ? 'shell' : 'browser';
+            },
         },
         session: {
             useDynamicDeviceId: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 

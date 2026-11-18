@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { create } from 'zustand';
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 import { useAppForeground } from '../../../bridge/useAppForeground';
@@ -46,7 +46,7 @@ export const useAppUpdateStatus = (): AppUpdateStatus => {
     const latestVersion = useAppUpdateStore(state => state.latestVersion);
 
     const check = useCallback(async () => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
         try {
             const response = await appBridge.checkAppUpdate();
             const next = {

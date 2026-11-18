@@ -1,7 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { config } from '@chatic/config';
-import type { StorageLike } from '@chatic/config';
+import { runtime, type StorageLike } from '@chatic/runtime';
+
+import { wireTestSettings } from '../../testing/settings';
 import { usePlaceInviteExperiment } from './usePlaceInviteExperiment';
 
 // The real registry and resolver, not a mock: what this hook must not get wrong is the key itself.
@@ -17,15 +18,12 @@ const memoryStorage = (): StorageLike => {
 };
 
 beforeEach(() => {
-    config.init({
-        env: { stage: () => 'PROD', buildStage: () => 'PROD', platform: () => 'web', raw: () => undefined },
-        storage: { local: memoryStorage(), session: memoryStorage() },
-    });
+    wireTestSettings({ local: memoryStorage(), session: memoryStorage() });
 });
 
 describe('usePlaceInviteExperiment', () => {
     it('reads a key the registry declares as a Lab experiment', () => {
-        expect(config.snapshot('feature.placeInvite')?.entry.surface).toBe('labs');
+        expect(runtime.settings.snapshot('feature.placeInvite')?.entry.surface).toBe('labs');
     });
 
     it('is off until this device turns it on, in a production build too', () => {
@@ -39,7 +37,7 @@ describe('usePlaceInviteExperiment', () => {
 
         act(() => result.current.setEnabled(true));
         expect(result.current.isEnabled).toBe(true);
-        expect(config.snapshot('feature.placeInvite')?.origin).toBe('local');
+        expect(runtime.settings.snapshot('feature.placeInvite')?.origin).toBe('local');
 
         act(() => result.current.setEnabled(false));
         expect(result.current.isEnabled).toBe(false);

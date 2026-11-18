@@ -3,13 +3,8 @@ import { logger } from '@chatic/bridges';
 import { attachConsoleListener } from './consoleListener';
 
 let mockIsNative = false;
-jest.mock('@chatic/host', () => ({
-    host: {
-        isPublished: true,
-        get ports() {
-            return { diagnostics: { kind: mockIsNative ? 'shell' : 'browser' } };
-        },
-    },
+jest.mock('../../../config/diagnosticsKind', () => ({
+    diagnosticsKind: () => (mockIsNative ? 'shell' : 'browser'),
 }));
 
 let detach: (() => void) | undefined;

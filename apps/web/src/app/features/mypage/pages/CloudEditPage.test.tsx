@@ -16,21 +16,24 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ cloudId: 'CL1' }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesData }) }));
 // The session hooks are here so that a screen which went back to switching into the cloud on entry
 // would reach `switchCloud` — the test below asserts it never does.
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'OTHER' }),
             useRuntimeProfile: () => ({ isCloudActive: false }),
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks', () => ({
     useUpdateCloudProfile: () => ({ mutateAsync: updateCloudName, isPending: false }),
 }));

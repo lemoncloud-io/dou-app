@@ -5,7 +5,11 @@ import {
     resolveLanguage,
 } from './languagePreference';
 
-jest.mock('@chatic/config', () => ({ storageKeyFor: (key: string) => `@chatic/config.${key}` }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        settings: { storageKeyFor: (key: string) => `@chatic/config.${key}` },
+    })
+);
 
 const storageWith = (value: string | null) => ({ getItem: jest.fn(() => value) });
 

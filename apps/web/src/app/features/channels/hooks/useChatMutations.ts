@@ -1,8 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { ChatMentionBody, DomainChat } from '@chatic/data';
-import { toMentionBody } from '@chatic/data';
+import { runtime, toMentionBody, type ChatMentionBody, type DomainChat } from '@chatic/runtime';
 
 import { beginChatSendTrace } from '../../../runtime/perf';
 

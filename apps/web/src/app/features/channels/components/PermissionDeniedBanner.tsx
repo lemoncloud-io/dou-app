@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { IconChevronRight, IconDangerCircle } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge';
@@ -18,7 +18,7 @@ export const PermissionDeniedBanner = () => {
 
     const handleOpenSettings = () => {
         // The permission was the app's to ask for, so its settings are where it is granted.
-        if (host.ports.media.kind === 'shell') {
+        if (runtime.media.kind === 'shell') {
             appBridge.openSettings();
         }
     };

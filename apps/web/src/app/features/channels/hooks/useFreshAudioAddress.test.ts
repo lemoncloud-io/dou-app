@@ -5,16 +5,16 @@ import { useFreshAudioAddress } from './useFreshAudioAddress';
 
 const mockGetChat = jest.fn();
 const mockReposFor = jest.fn();
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => {
                 mockReposFor(cid);
                 return { chat: { getChat: mockGetChat } };
             },
         },
-    },
-}));
+    })
+);
 
 const track: AudioTrack = {
     key: 'c1/up-1',

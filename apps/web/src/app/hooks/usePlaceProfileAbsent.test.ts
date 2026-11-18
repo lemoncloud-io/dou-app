@@ -7,8 +7,8 @@ let mockUid: string | null = 'user-1';
 // One shared object, like the real DataManager (`getRepositories` returns a stored field). A fresh
 // object per call would change the effect's dependency every render and reset the verdict forever.
 const repositories = { profile: { id: 'profile-repo' } };
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },
@@ -16,8 +16,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionSelection: () => ({ selectedSiteId: mockSid }),
             useSessionIdentity: () => ({ userId: mockUid }),
         },
-    },
-}));
+    })
+);
 
 // The judgement itself is covered by utils/placeProfile.test.ts; here it is a controllable promise.
 jest.mock('../utils/placeProfile', () => ({

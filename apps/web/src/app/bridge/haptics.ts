@@ -1,5 +1,5 @@
 import type { HapticKind } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from './appBridge';
 
@@ -19,7 +19,7 @@ export interface Haptics {
  */
 class ShellHaptics implements Haptics {
     play(kind: HapticKind): void {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
         appBridge.postHaptic(kind);
     }
 }

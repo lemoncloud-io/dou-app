@@ -1,5 +1,4 @@
-import type { DomainPlace } from '@chatic/data';
-import { runtime } from '@chatic/runtime';
+import { runtime, type DomainPlace } from '@chatic/runtime';
 
 export interface CreatePlaceInput {
     name: string;

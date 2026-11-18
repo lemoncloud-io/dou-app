@@ -1,20 +1,19 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainJoin } from '@chatic/data';
+import { runtime, type DomainJoin } from '@chatic/runtime';
 
 import { useChannelJoins } from './useChannelJoins';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
         session: {
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeList = jest.fn();
 

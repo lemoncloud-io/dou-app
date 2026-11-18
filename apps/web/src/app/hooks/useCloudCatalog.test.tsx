@@ -14,8 +14,8 @@ let mockIsAuthenticated = true;
 let mockIsAccountGuest = false;
 const mockFetchCloudCatalog = jest.fn();
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: { useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }) },
         connection: {
             RELAY_SLOT: 'default',
@@ -28,8 +28,8 @@ jest.mock('@chatic/runtime', () => ({
             },
             useRuntimeRepositories: () => ({ cloud: { fetchCloudCatalog: mockFetchCloudCatalog } }),
         },
-    },
-}));
+    })
+);
 
 jest.mock('./useMyUser', () => ({ useIsAccountGuest: () => mockIsAccountGuest }));
 

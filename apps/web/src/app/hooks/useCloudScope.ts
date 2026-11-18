@@ -1,5 +1,4 @@
-import { runtime } from '@chatic/runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime';
 
 /**
  * A cloud id named the way the runtime names it: an unset or empty selection is the relay. A cache

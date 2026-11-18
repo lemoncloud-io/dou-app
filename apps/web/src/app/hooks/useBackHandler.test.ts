@@ -8,15 +8,18 @@ import { useBackHandler } from './useBackHandler';
 jest.mock('react-router-dom', () => ({
     useLocation: () => ({ pathname: '/', key: 'default' }),
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { appShell: { kind: isNativeValue ? 'shell' : 'browser', os: null } };
-        },
-    },
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: isNativeValue ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 jest.mock('../bridge', () => ({
     appBridge: { setCanGoBack: jest.fn() },
     useOnBackPressed: jest.fn(),

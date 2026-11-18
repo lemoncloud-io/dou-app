@@ -7,13 +7,13 @@ import { runtime } from '@chatic/runtime';
 
 import { useUpdateCloudProfile } from './useUpdateCloudProfile';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const updateCloudMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>

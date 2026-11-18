@@ -62,8 +62,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             // The committed session's uid. The room must not use it to recognise me — see the tests.
             useSessionIdentity: () => ({ userId: 'uid-a' }),
@@ -79,8 +79,8 @@ jest.mock('@chatic/runtime', () => ({
                 join: { readChat: () => Promise.resolve({ delivered: Promise.resolve() }) },
             }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AvatarGroup: () => null,

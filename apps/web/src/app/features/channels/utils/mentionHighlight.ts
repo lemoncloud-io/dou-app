@@ -1,4 +1,4 @@
-import { isMentioningViewer, type DomainChat } from '@chatic/data';
+import { isMentioningViewer, type DomainChat } from '@chatic/runtime';
 
 import { escapeRegExp, EVERYONE_ALIASES } from './mentionInput';
 

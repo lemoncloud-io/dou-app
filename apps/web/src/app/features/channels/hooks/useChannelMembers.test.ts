@@ -1,20 +1,19 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainJoin } from '@chatic/data';
+import { runtime, type DomainJoin } from '@chatic/runtime';
 
 import { useChannelMembers } from './useChannelMembers';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
         connection: {
             useRuntimeSocketState: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const userObserveList = jest.fn();
 const syncChannelUsers = jest.fn();

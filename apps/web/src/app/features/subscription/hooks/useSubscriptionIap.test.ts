@@ -16,16 +16,19 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQ
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 
 let mockIsGuest = false;
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
         data: {
             cloudsKeys: { all: ['clouds'] },
         },
-    },
-}));
+        get checkout() {
+            return mockCheckoutKind === 'store' ? mockStore : { kind: 'web', open: jest.fn() };
+        },
+    })
+);
 
 jest.mock('../../../hooks/queryKeys', () => ({ subscriptionKeys: { all: ['subscription'] } }));
 jest.mock('../../../hooks/useMembership', () => ({
@@ -44,13 +47,6 @@ const mockStore = {
     openManagement: jest.fn(),
 };
 let mockCheckoutKind: 'store' | 'web' = 'store';
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { checkout: mockCheckoutKind === 'store' ? mockStore : { kind: 'web', open: jest.fn() } };
-        },
-    },
-}));
 jest.mock('../consts', () => ({ APP_ID: 'app', IS_DEV: false }));
 
 const setSocial = (social: 'linked' | 'absent' | 'unknown') =>

@@ -8,14 +8,14 @@ import { runtime } from '@chatic/runtime';
 import { subscriptionKeys } from './queryKeys';
 import { useMarkDrops, useMembershipInfo } from './useMembership';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
             cloudsKeys: { all: ['clouds'] },
         },
-    },
-}));
+    })
+);
 
 let mockIsAccountGuest = false;
 jest.mock('./useMyUser', () => ({ useIsAccountGuest: () => mockIsAccountGuest }));

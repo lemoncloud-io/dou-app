@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime';
 
 import { pickDmPeerId } from './dmPeer';
 

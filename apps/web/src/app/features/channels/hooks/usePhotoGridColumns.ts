@@ -1,5 +1,4 @@
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { clampColumns } from '@chatic/web-ui-kit';
 
 /**
@@ -9,10 +8,10 @@ import { clampColumns } from '@chatic/web-ui-kit';
  * value from a build with other steps still lands on one this build draws.
  */
 export const setPhotoGridColumns = (columns: number): void => {
-    config.set('ui.photoGridColumns', clampColumns(columns), { lane: 'local' });
+    runtime.settings.set('ui.photoGridColumns', clampColumns(columns), { lane: 'local' });
 };
 
 export const usePhotoGridColumns = () => {
-    const raw = useConfigValue<number>('ui.photoGridColumns');
+    const raw = runtime.settings.useConfigValue<number>('ui.photoGridColumns');
     return { columns: clampColumns(typeof raw === 'number' ? raw : Number.NaN), setColumns: setPhotoGridColumns };
 };

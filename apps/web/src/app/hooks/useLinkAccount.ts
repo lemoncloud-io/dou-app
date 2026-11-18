@@ -1,13 +1,13 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
-import type {
-    AccountLinkMode,
-    PhoneCodeConfirmResult,
-    PhoneCodeSendOptions,
-    PhoneCodeVerifyResult,
-    SocialAccountTokens,
-} from '@chatic/data';
+import {
+    runtime,
+    type AccountLinkMode,
+    type PhoneCodeConfirmResult,
+    type PhoneCodeSendOptions,
+    type PhoneCodeVerifyResult,
+    type SocialAccountTokens,
+} from '@chatic/runtime';
 import type { LinkSentView, LinkVerifiedView, LinkedView } from '@lemoncloud/chatic-backend-api';
 
 export type { AccountLinkMode, SocialAccountTokens };

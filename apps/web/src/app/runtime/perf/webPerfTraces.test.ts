@@ -9,13 +9,8 @@ import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
 /** Whether the `diagnostics` port sends through the app, which decides whether the session owner is stamped. */
 let mockInsideTheApp = false;
-jest.mock('@chatic/host', () => ({
-    host: {
-        isPublished: true,
-        get ports() {
-            return { diagnostics: { kind: mockInsideTheApp ? 'shell' : 'browser' } };
-        },
-    },
+jest.mock('../../../config/diagnosticsKind', () => ({
+    diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),
 }));
 
 jest.mock('../../bridge/appBridge', () => ({

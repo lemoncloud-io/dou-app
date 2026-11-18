@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { config } from '@chatic/config';
-import type { StorageLike } from '@chatic/config';
+import type { StorageLike } from '@chatic/runtime';
 
+import { wireTestSettings } from '../../../../testing/settings';
 import { setChatInputLockExperiment } from '../../../hooks/useChatInputLockExperiment';
 import { useInputLockStore } from '../stores/useInputLockStore';
 import { useChatInputLock } from './useChatInputLock';
@@ -19,10 +19,7 @@ const memoryStorage = (): StorageLike => {
 };
 
 beforeEach(() => {
-    config.init({
-        env: { stage: () => 'PROD', buildStage: () => 'PROD', platform: () => 'web', raw: () => undefined },
-        storage: { local: memoryStorage(), session: memoryStorage() },
-    });
+    wireTestSettings({ local: memoryStorage(), session: memoryStorage() });
     useInputLockStore.setState({ locked: {} });
     localStorage.clear();
 });

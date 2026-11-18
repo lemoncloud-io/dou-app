@@ -8,8 +8,7 @@ import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/runtime';
-import { canModifyMessage, isInJoinWindow } from '@chatic/data';
+import { runtime, canModifyMessage, isInJoinWindow } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     ChatRoomHeader,

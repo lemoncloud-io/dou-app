@@ -9,11 +9,15 @@ let stored: unknown;
 const setConfig = jest.fn((_key: string, value: unknown) => {
     stored = value;
 });
-jest.mock('@chatic/config', () => ({
-    config: { set: (key: string, value: unknown, options: unknown) => setConfig(key, value, options) },
-    storageKeyFor: (key: string) => `@chatic/config.${key}`,
-}));
-jest.mock('@chatic/config/react', () => ({ useConfigValue: () => stored }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        settings: {
+            set: (key: string, value: unknown, options: unknown) => setConfig(key, value, options),
+            storageKeyFor: (key: string) => `@chatic/config.${key}`,
+            useConfigValue: () => stored,
+        },
+    })
+);
 
 const syncLanguageChoiceToShell = jest.fn();
 jest.mock('../../../bridge', () => ({

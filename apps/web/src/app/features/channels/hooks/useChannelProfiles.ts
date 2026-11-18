@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime, type DomainProfile } from '@chatic/runtime';
 
 import { readSelectedCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';
 import { getSocketErrorCode } from '../../../utils/errors';

@@ -2,13 +2,13 @@ import { base64ToFile, photoLibrary, photoPreviewSrc } from './photoLibrary';
 
 let mockNative = true;
 // Who picks, as the host's media port says: the app when the case runs in the app.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { media: { kind: mockNative ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get media() {
+            return { kind: mockNative ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 
 const listPhotos = jest.fn();
 const listPhotoAlbums = jest.fn();

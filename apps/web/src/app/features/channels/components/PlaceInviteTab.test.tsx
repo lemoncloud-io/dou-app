@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 const navigate = jest.fn();
 const toast = jest.fn();
@@ -26,19 +26,22 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 // The real `useRuntimeRepositories` returns DataManager's same object every time. If the mock
 // returned a new object on every render, the user-cache effect's dependency would keep changing
 // and cause an infinite render loop — pin it to a stable reference.
 const repositories = { user: { cacheRead } };
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },
-    },
-}));
+    })
+);
 jest.mock('../hooks', () => ({
     LIST_PROFILE_SYNC_INTERVAL_MS: 60_000,
     useChannelMutations: () => ({ inviteChannel }),

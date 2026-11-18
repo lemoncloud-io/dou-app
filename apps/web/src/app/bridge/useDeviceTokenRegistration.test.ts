@@ -1,12 +1,12 @@
 import { renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useDeviceTokenRegistration: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 jest.mock('./appBridge', () => ({
     appBridge: {

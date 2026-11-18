@@ -7,14 +7,14 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
 import { useActiveCloudOwnership } from './useActiveCloudOwnership';
 
 jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: jest.fn(),
             useSessionSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const setup = (opts: {
     selectedCloudId?: string | null;

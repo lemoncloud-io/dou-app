@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, type MembershipDropsResult } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';
 import { useIsAccountGuest } from './useMyUser';
 
-import type { MembershipDropsResult } from '@chatic/data';
 import type { CreateMembershipBody, MembershipDropsBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 /** Query parameters for a relay request. */
 type Params = Record<string, unknown>;

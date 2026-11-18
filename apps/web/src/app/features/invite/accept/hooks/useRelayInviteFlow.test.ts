@@ -30,8 +30,8 @@ const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'default',
             waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args),
@@ -45,8 +45,8 @@ jest.mock('@chatic/runtime', () => ({
             // Read at call time by the flow; `logoutCloudSession` below moves both, as the real one does.
             getGlobalSessionContext: () => ({ activeServer: { kind: mockActiveKind, siteId: mockSid } }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: {
         error: (...a: unknown[]) => loggerError(...a),

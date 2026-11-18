@@ -16,12 +16,15 @@ let mockLinkedSocial: 'linked' | 'absent' | 'unknown' = 'unknown';
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => mockNavigate,
+}));
 // The banner's useNavigateToLogin reads the current location to remember where to come back to;
 // this screen renders outside a Router here, so stand it in rather than wrap every case.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),
             retryPhoneLogin: (...args: unknown[]) => mockRetryPhoneLogin(...args),
@@ -30,8 +33,8 @@ jest.mock('@chatic/runtime', () => ({
             PHONE_LOGIN_NO_TOKEN: 'PHONE_LOGIN_NO_TOKEN',
             PHONE_LOGIN_SWITCH_FAILED: 'PHONE_LOGIN_SWITCH_FAILED',
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).
 // `DialogContent` keeps `className` and `role` rather than dropping them: the real one merges the

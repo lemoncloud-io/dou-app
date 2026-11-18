@@ -1,7 +1,5 @@
-import { runtime } from '@chatic/runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
-
-import type { DomainCloud } from '@chatic/data';
 
 /**
  * Releases one cloud. Moved down from `@chatic/runtime`'s `data/hooks/subscription.ts` to sit

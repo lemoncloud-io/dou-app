@@ -1,4 +1,4 @@
-import type { DomainPlaceMember } from '@chatic/data';
+import type { DomainPlaceMember } from '@chatic/runtime';
 
 /**
  * The member screen's order: the owner first, then me, then everyone else in the order the server

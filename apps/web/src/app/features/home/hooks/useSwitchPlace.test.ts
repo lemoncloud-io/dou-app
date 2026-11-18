@@ -1,15 +1,14 @@
 import { renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainPlace } from '@chatic/data';
+import { runtime, type DomainPlace } from '@chatic/runtime';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             // The key constants the hook reads — mocking the module makes the real exports disappear.
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
@@ -17,8 +16,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionSelection: jest.fn(),
             clearSiteSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 jest.mock('@chatic/logger', () => ({ logger: { warn: jest.fn() } }));
 

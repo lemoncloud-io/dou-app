@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { normalizeHomeSectionsCollapsed } from '../../../stores/preferenceParsers';
 import type { HomeSectionId } from '../../../stores/preferenceKeys';
 
@@ -11,8 +10,10 @@ import type { HomeSectionId } from '../../../stores/preferenceKeys';
  * toggles in one tick cannot overwrite each other.
  */
 export const setHomeSectionOpen = (section: HomeSectionId, open: boolean): void => {
-    const { [section]: _previous, ...rest } = normalizeHomeSectionsCollapsed(config.get('ui.homeSectionsCollapsed'));
-    config.set('ui.homeSectionsCollapsed', open ? rest : { ...rest, [section]: true }, { lane: 'local' });
+    const { [section]: _previous, ...rest } = normalizeHomeSectionsCollapsed(
+        runtime.settings.get('ui.homeSectionsCollapsed')
+    );
+    runtime.settings.set('ui.homeSectionsCollapsed', open ? rest : { ...rest, [section]: true }, { lane: 'local' });
 };
 
 /**
@@ -24,7 +25,7 @@ export const setHomeSectionOpen = (section: HomeSectionId, open: boolean): void 
  * how a person uses home, not about one place's rooms.
  */
 export const useHomeSections = () => {
-    const raw = useConfigValue('ui.homeSectionsCollapsed');
+    const raw = runtime.settings.useConfigValue('ui.homeSectionsCollapsed');
     const collapsed = useMemo(() => normalizeHomeSectionsCollapsed(raw), [raw]);
     const isOpen = useCallback((section: HomeSectionId) => !collapsed[section], [collapsed]);
     return { isOpen, setOpen: setHomeSectionOpen };

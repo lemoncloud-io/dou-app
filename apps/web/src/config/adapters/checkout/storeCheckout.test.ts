@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 
-import { appBridge } from '../../bridge/appBridge';
+import { appBridge } from '../../../app/bridge/appBridge';
 import { PURCHASE_TIMEOUT_MS, storeCheckout } from './storeCheckout';
 
 // The shell's purchase events, captured so a test can play the store's answer back.
@@ -14,7 +14,7 @@ jest.mock('@chatic/bridges', () => ({
         },
     },
 }));
-jest.mock('../../bridge/appBridge', () => ({
+jest.mock('../../../app/bridge/appBridge', () => ({
     appBridge: {
         purchase: jest.fn(),
         finishPurchaseTransaction: jest.fn().mockResolvedValue({ data: {} }),

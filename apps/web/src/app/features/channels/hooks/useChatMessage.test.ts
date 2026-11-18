@@ -8,14 +8,12 @@ jest.mock('@chatic/runtime', () => {
     // One graph object, as the runtime hands out.
     let graph: unknown;
     const roomGraph = () => (graph ??= { chat: { cacheRead: mockCacheRead } });
-    return {
-        runtime: {
-            data: {
-                useRuntimeRepositories: roomGraph,
-                getCloudRepositories: () => ({ chat: { getChat: mockGetChat } }),
-            },
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        data: {
+            useRuntimeRepositories: roomGraph,
+            getCloudRepositories: () => ({ chat: { getChat: mockGetChat } }),
         },
-    };
+    });
 });
 
 describe('useChatMessage', () => {

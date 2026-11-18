@@ -5,13 +5,13 @@ const mockIsNative = jest.fn();
 // entry into a TypeError inside the effect.
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 // Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { appShell: { kind: mockIsNative() ? 'shell' : 'browser', os: null } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: mockLogger,
 }));

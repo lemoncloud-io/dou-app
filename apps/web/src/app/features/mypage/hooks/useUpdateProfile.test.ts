@@ -7,14 +7,14 @@ import { runtime } from '@chatic/runtime';
 
 import { useUpdateProfile } from './useUpdateProfile';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             patchRelaySessionUser: jest.fn(),
             updateAccountProfile: (...args: unknown[]) => updateMock(...args),
         },
-    },
-}));
+    })
+);
 
 const updateMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>

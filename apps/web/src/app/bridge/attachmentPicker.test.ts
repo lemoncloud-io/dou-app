@@ -8,13 +8,13 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('./appBridge', () => ({ appBridge: {} }));
 // Who picks, as the host's media port says: the app when the case runs in the app.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { media: { kind: mockNative ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get media() {
+            return { kind: mockNative ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 
 const timeout = Object.assign(new Error('slow'), { code: 'TIMEOUT' });
 

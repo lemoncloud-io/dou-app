@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 
 import { getDebugObservation, publishDebugObservation, type DebugRoomSurface } from '../overlay/sharedObservationStore';
 import { useDebugMode } from './useDebugMode';

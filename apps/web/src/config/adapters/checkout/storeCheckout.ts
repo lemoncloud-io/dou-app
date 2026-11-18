@@ -1,8 +1,8 @@
 import { logger, webClient } from '@chatic/bridges';
 
-import type { StoreCheckout, StoreName, StorePurchase, StorePurchaseError } from '@chatic/host';
+import type { StoreCheckout, StoreName, StorePurchase, StorePurchaseError } from '@chatic/runtime-web';
 
-import { appBridge } from '../../bridge/appBridge';
+import { appBridge } from '../../../app/bridge/appBridge';
 
 /** How long a purchase sheet may stay open before the purchase is given up as `timeout`. */
 export const PURCHASE_TIMEOUT_MS = 60_000;

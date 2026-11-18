@@ -1,7 +1,6 @@
 import { logger, webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime, type ShellFileRef } from '@chatic/runtime';
 import type { RefusedAttachment } from '@chatic/bridge-messages';
-import type { ShellFileRef } from '@chatic/data';
 
 import { toShellFile } from './attachmentPicker';
 
@@ -36,8 +35,8 @@ const NOTHING_TO_SHARE = new Set(['GONE', 'INVALID']);
  * failure — a timeout or the bridge dropping — which the page reports rather than reading as empty.
  */
 export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> => {
-    // Share intake is the app's, where it takes the page's links (`host.ports.links`).
-    if (host.ports.links.kind !== 'shell') return null;
+    // Share intake is the app's, where it takes the page's links (`runtime.links`).
+    if (runtime.links.kind !== 'shell') return null;
     try {
         const { data } = await webClient.request(
             { type: 'FetchShareIntake', data: { id } },
@@ -64,7 +63,7 @@ export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> 
  * leaves the copies to the app's own day-old sweep, which is no reason to stop the person.
  */
 export const releaseShareIntake = async (id: string, { discard }: { discard: boolean }): Promise<void> => {
-    if (host.ports.links.kind !== 'shell') return;
+    if (runtime.links.kind !== 'shell') return;
     try {
         await webClient.request({ type: 'ReleaseShareIntake', data: { id, discard } });
     } catch (error) {

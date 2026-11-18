@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel, DomainProfile } from '@chatic/data';
+import type { DomainChannel, DomainProfile } from '@chatic/runtime';
 
 import { LIST_PROFILE_SYNC_INTERVAL_MS, useDmPeers } from './useDmPeers';
 

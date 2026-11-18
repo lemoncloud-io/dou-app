@@ -4,17 +4,17 @@ import { nativeBadgeReader } from './nativeBadgeReader';
 const mockIsNative = jest.fn((): boolean => true);
 let mockPlatform: string | undefined;
 // The host's `appShell` port: the app runs the frame where `mockIsNative()`, and its `os` is the
-// platform the shell injected, lower-cased, as `@chatic/host` resolves it.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
+// platform the shell injected, lower-cased, as the host's `appShell` port resolves it.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
             const kind = mockIsNative() ? 'shell' : 'browser';
             const platform = mockPlatform?.toLowerCase();
             const os = kind === 'shell' && (platform === 'ios' || platform === 'android') ? platform : null;
-            return { appShell: { kind, os } };
+            return { kind, os };
         },
-    },
-}));
+    })
+);
 jest.mock('../../bridge/appBridge', () => ({
     appBridge: { fetchBadgeCount: jest.fn(), fetchBadgeBase: jest.fn() },
 }));

@@ -1,5 +1,5 @@
 import { liveShellGlobals, liveShellValue } from '@chatic/bridges';
-import { storageKeyFor } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 /** Languages with a complete bundle under `public/locales`. */
 export const SUPPORTED_LANGUAGES = ['ko', 'en'] as const;
@@ -49,7 +49,7 @@ export const readStoredLanguagePreference = ({ bag, storage }: StoredLanguageSou
     const fromShell = decodePreference(bag?.[LANGUAGE_PREFERENCE_KEY]);
     if (fromShell) return fromShell;
     try {
-        return decodePreference(storage?.getItem(storageKeyFor(LANGUAGE_PREFERENCE_KEY))) ?? 'system';
+        return decodePreference(storage?.getItem(runtime.settings.storageKeyFor(LANGUAGE_PREFERENCE_KEY))) ?? 'system';
     } catch {
         return 'system';
     }

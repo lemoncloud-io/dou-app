@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainJoin } from '@chatic/runtime';
 
 import type { CloudPartition } from './useAccessiblePlaceIds';
 import { useSelectedCloudId } from './useCloudScope';

@@ -4,13 +4,13 @@ import { runtime } from '@chatic/runtime';
 
 import { usePlaceOwnerProfile } from './usePlaceOwnerProfile';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
 

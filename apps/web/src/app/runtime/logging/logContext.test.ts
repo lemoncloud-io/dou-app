@@ -1,21 +1,16 @@
 /** Whether the `diagnostics` port sends the logs through the app — what `isNative()` used to answer. */
 let mockInsideTheApp = false;
-jest.mock('@chatic/host', () => ({
-    host: {
-        isPublished: true,
-        get ports() {
-            return { diagnostics: { kind: mockInsideTheApp ? 'shell' : 'browser' } };
-        },
-    },
+jest.mock('../../../config/diagnosticsKind', () => ({
+    diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),
 }));
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             getGlobalSessionContext: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 import { runtime } from '@chatic/runtime';
 import { logger, setLogContextProvider } from '@chatic/bridges';

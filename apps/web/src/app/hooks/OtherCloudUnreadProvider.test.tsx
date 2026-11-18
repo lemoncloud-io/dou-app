@@ -56,24 +56,22 @@ jest.mock('@chatic/runtime', () => {
         place: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('site')(...args) },
         join: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('join')(...args) },
     };
-    return {
-        runtime: {
-            session: {
-                useSessionSelection: () => ({ selectedCloudId: mockSelected }),
-                useUidInCloud: (cid: string) =>
-                    useSyncExternalStore(
-                        (listener: () => void) => {
-                            uidSubscribers.add(listener);
-                            return () => uidSubscribers.delete(listener);
-                        },
-                        () => mockUids[cid] ?? null
-                    ),
-            },
-            data: {
-                useRuntimeRepositories: () => repositories,
-            },
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: mockSelected }),
+            useUidInCloud: (cid: string) =>
+                useSyncExternalStore(
+                    (listener: () => void) => {
+                        uidSubscribers.add(listener);
+                        return () => uidSubscribers.delete(listener);
+                    },
+                    () => mockUids[cid] ?? null
+                ),
         },
-    };
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+    });
 });
 jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: mockOwned }) }));
 jest.mock('./useInvitedClouds', () => ({ useInvitedClouds: () => ({ invitedClouds: [] }) }));

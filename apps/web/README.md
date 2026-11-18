@@ -66,10 +66,10 @@ directly, and it should stay that way — the command above says whether it has.
    a route rename.
 6. **The bridge has one door.** Native messages enter and leave through `app/bridge/` only. A
    feature never posts to the shell itself.
-7. **`main.tsx` is ordered by contract.** Log listeners attach before anything can log,
-   `config.init()` precedes every lazy setting read, and building the runtime
-   (`runtime.boot.initAppRuntime(createWebRuntime(...))`) precedes every session read. Each boundary in that file carries a comment naming what breaks if a line
-   crosses it.
+7. **`main.tsx` is ordered by contract.** Log listeners attach before anything can log, the stores
+   are resolved before config reads them, and `startRuntime(declaration)` — config, then the host's
+   ports, then the runtime boot — precedes every setting and session read. Each boundary in that file
+   carries a comment naming what breaks if a line crosses it.
 8. **Source comments and documents are English.**
 
 ## Scope
@@ -153,10 +153,12 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: stores = resolveStorageStores() · configureAppStores(device, tab)
-    Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
+    Main->>Main: stores = resolveStorageStores() · configureAppStores(device, tab) · syncThemeFromSharedKey
+    Main->>RT: startRuntime(declareWebRuntime(stores)) — config.init · host ports published
+    Main->>Shell: RuntimeHello (web-hybrid, only when the shell offers its runtime)
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
-    Main->>RT: runtime.boot.initAppRuntime(createWebRuntime({ storage, cacheTab: webSession, signedOutKeyPrefixes, data: { repositories } }))
+    Main->>RT: initAppRuntime(core engine over the declared ports | mirror of the shell's runtime)
+    Main->>Main: migrateLegacyPhoneCountry
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
@@ -176,6 +178,7 @@ gate is why no screen ever sees a half-built session.
 ```text
 apps/web/src/
 ├── main.tsx            boot, ordered by contract (see principle 7)
+├── config/             the runtime declarations main.tsx starts from, and their app adapters
 ├── styles.css          Tailwind entry
 ├── i18n/               locale loading and boot language resolution
 ├── assets/             app-local static files
@@ -191,7 +194,7 @@ apps/web/src/
     ├── navigation/     14 files: the history stack — entry rules, depth, and the back judgement
     ├── bridge/         23 files: the single native ↔ web seam
     ├── stores/         8 files: global client state and preference keys
-    └── config/         7 files: the @chatic/config port adapters for this build
+    └── config/         the theme key's boot re-sync (themeSharedKeySync.ts)
 ```
 
 Files you cannot guess from the name:
@@ -204,8 +207,9 @@ Files you cannot guess from the name:
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
-- `app/config/adapters.ts` — `createWebConfigPorts(stores)`, the ports `config.init()` is called with
-  in `main.tsx`.
+- `config/` — the declaration part: the only code besides `main.tsx` that imports
+  `@chatic/runtime-web` or `@chatic/config` (everything under `app/` reads the runtime through
+  `@chatic/runtime`). See [The runtime declarations](#the-runtime-declarations).
 - `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
   the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
   with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
@@ -270,13 +274,14 @@ must return nothing.
 
 ```bash
 grep -rn "useRuntimeRepositories()" apps/web/src --include='*.tsx' --include='*.ts'
-grep -rn "from '@chatic/data'" apps/web/src --include='*.tsx' --include='*.ts' \
-  | grep -v 'import type' | grep -i repository
+grep -rn "from '@chatic/\(data\|runtime\)'" apps/web/src --include='*.tsx' --include='*.ts' \
+  | grep -v 'import type' | sed 's/type [A-Za-z]*Repository//g' | grep -i repository
 ```
 
-Importing from `@chatic/data` is not itself a violation — most of it is `import type`, and a handful
-of pure helpers such as `isInJoinWindow` come across as values. A **Repository** crossing that line
-is the violation, because it would bypass the context the runtime binds to each call.
+The app takes `@chatic/data`'s domain names from `@chatic/runtime`, which re-exports them; that is not
+itself a violation — most of it is `import type`, and a handful of pure helpers such as
+`isInJoinWindow` come across as values. A **Repository** crossing that line is the violation, because
+it would bypass the context the runtime binds to each call.
 
 Navigating — always through the builder, imported by relative path (this app has no `@/` alias):
 
@@ -295,15 +300,18 @@ main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
 ├── resolveStorageStores() → configureAppStores                     (every store, chosen once)
-├── syncThemeFromSharedKey(stores.webLocal)
-├── config.init(createWebConfigPorts(stores))                       (before any lazy setting read)
+├── syncThemeFromSharedKey(stores.webLocal)                          (before config reads the key)
+├── startRuntime(declareWebRuntime(stores))                          (config/ — web-browser | web-hybrid)
+│   ├── config.init(declaration.config)                              (before any lazy setting read)
+│   ├── host ports published                                         (docs/bridge/host-ports.md)
+│   ├── engine: web-browser → core; web-hybrid → engine.mirror settles who holds the session
+│   │   ├── web    → storage.resolved loads the vault (only when the stores hold one) → core engine
+│   │   ├── native → no port built, no vault: the mirror of the shell's runtime
+│   │   └── null   → no engine
+│   └── initAppRuntime(engine)                                       (before any session read)
 ├── migrateLegacyPhoneCountry(stores.webLocal)
-├── settleSessionOwner (@chatic/runtime-web)                         (docs/bridge — who holds the session)
-│   ├── web    → vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage
-│   │            (a late vault reloads; tokens this run wrote to localStorage go first)
-│   ├── native → no vault: the shell's runtime holds the session (a sign-out drops the web token copy)
-│   └── null   → sessionOwnerUnsettled screen, nothing below runs
-├── runtime.boot.initAppRuntime(createWebRuntime(...) | createBridgedRuntime(...))  (before any session read)
+├── owner null → sessionOwnerUnsettled screen, nothing below runs
+├── a late vault reloads (tokens this run wrote to localStorage go first); native → sign-out drops the web token copy
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-web)
@@ -317,6 +325,55 @@ main.tsx
         │       └── app/routes                             (Router → public | private + common)
         └── DebugOverlayHost
 ```
+
+### The runtime declarations
+
+`main.tsx` boots from a declaration (`defineRuntime` / `startRuntime` from `@chatic/runtime-web` — see
+[runtime-web § The adapters](../../libs/runtime-web/README.md#the-adapters)) instead of wiring the
+runtime by hand. There are two, in `src/config/`, and the entry picks one once:
+
+**The rule** (`chooseWebRuntime`, `config/webRuntime.ts`): `web-hybrid` when the host profile found a
+shell's bridge at boot — the phone app's WebView, or the virtual shell that plays it — and
+`web-browser` when it found none. It is the same fact the page already told the two apart by: the
+stores chose `localStorage` or the tab by it, and config wired the shell's lane by it.
+
+| Slot                          | `web-browser` (a plain tab)                                     | `web-hybrid` (inside a shell)                                    |
+| ----------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| storage                       | `storage.resolved`                                              | `storage.resolved`                                               |
+| transport · auth · foreground | `transport.browser` · `auth.location` · `foreground.visibility` | the same                                                         |
+| cache                         | `cache.web-local`                                               | `cache.web-local`                                                |
+| engine                        | `engine.core`                                                   | `engine.mirror` (`VITE_SESSION_MIRROR_DISABLED` stops it asking) |
+| checkout                      | `checkout.host`                                                 | `checkout.host`; may switch to `.store`, `.web`, `.none`         |
+| the other seven host ports    | `<port>.host`                                                   | `<port>.host`; may switch to `<port>.shell`, `<port>.browser`    |
+| config                        | no shell lane                                                   | the shell's lane (`shellKvAdapter.ts`)                           |
+
+Every runtime port has one adapter and no alternatives, so a `port.*` toggle cannot move it: each is
+fixed to what the entry built before declarations. Only the host ports of `web-hybrid` may be switched,
+and a `.shell` adapter only where the shell declared that it does the work.
+
+Two adapters are this app's own (`config/adapters/`), because the library's do not reproduce the boot:
+
+- **`storage.resolved`** hands out the stores `resolveStorageStores()` chose in `main.tsx` — the very
+  objects the features and config were handed. Where site data is blocked those stores are page
+  memory, and a second set would hide the session from config's session lane and the cache's tab rows.
+  It loads the device vault (`prepareSecretStorage`) on a launch the page owns, never on one the shell
+  owns, and watches a vault that could not be read at launch so the page starts over once it can be. The
+  library's `storage.vault` reads neither the late-vault mark nor what loading the vault answered.
+- **`cache.web-local`** is `webLocalCachePorts` over that same raw tab store, as `createWebRuntime` built
+  it.
+
+`engine.mirror` takes the app's own settle (`config/adapters/engine.ts`), which records who holds the
+session for the log context the moment it is settled, so the boot's own lines carry it. Checkout's two
+implementations — the store over `appBridge`, the website hand-off — live in `config/adapters/checkout/`.
+
+What stays in `main.tsx`, as app policy around the start: the unsettled screen and the session-owner
+default sent to the shell, the page's own signed-out keys on a launch the shell owns, the late-vault
+reload after the handshake, and everything from the logout callbacks to the render.
+
+`config/viteEnv.ts` is the only file under `config/` that reads `import.meta.env`; the declarations'
+specs replace it and load everything else as it is. `config/diagnosticsKind.ts` is here too: the log
+pipeline reads it before `startRuntime` has published the ports, and whether they are published yet is
+the declaration's to know.
 
 ## Scenarios
 
@@ -352,8 +409,9 @@ cold start is buffered by `pendingNavigationStore`, which `main.tsx` starts _bef
 
 ### 5. Read or change a setting
 
-Settings live in `@chatic/config`, initialised once in `main.tsx` with `createWebConfigPorts(stores)` from
-`app/config/adapters.ts`. Read through `config`; never through `import.meta.env` inside a feature.
+Settings live in `@chatic/config`, initialised once by `startRuntime` from the declaration's
+`config` (`createWebConfigPorts(stores)`, `config/configPorts.ts`). Read through `runtime.settings`;
+never through `import.meta.env` inside a feature.
 The theme is a setting (`ui.theme`) that `app/runtime/ThemeApplier.tsx` mirrors onto `<html>`.
 
 ### 6. Diagnose an error a user hit

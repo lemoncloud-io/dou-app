@@ -4,13 +4,13 @@ let mockNative = true;
 const mockRequest = jest.fn();
 const mockLogger = { warn: jest.fn() };
 // Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { links: { kind: mockNative ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get links() {
+            return { kind: mockNative ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     webClient: { request: (...args: unknown[]) => mockRequest(...args) },
     logger: { warn: (...args: unknown[]) => mockLogger.warn(...args), info: jest.fn(), error: jest.fn() },

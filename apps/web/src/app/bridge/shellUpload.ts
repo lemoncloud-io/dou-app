@@ -1,8 +1,7 @@
 import { logger, webClient } from '@chatic/bridges';
-import { type PutPort, type ShellFilePutPort } from '@chatic/data';
-import { host } from '@chatic/host';
-import { xhrPut } from '@chatic/runtime-web';
+import { runtime, type PutPort, type ShellFilePutPort } from '@chatic/runtime';
 
+import { pageUploadPut } from '../../config/upload';
 import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../runtime/upload';
 
 // One per page, on purpose: every waiting upload has to be reachable from the one event listener.
@@ -11,17 +10,17 @@ let nativeTransfers: NativeTransfers | null = null;
 const getNativeTransfers = (): NativeTransfers => {
     nativeTransfers ??= createNativeTransfers({
         bridge: webClient,
-        fallback: xhrPut,
+        fallback: pageUploadPut,
         log: (message, data) => logger.info('UPLOAD', message, data),
     });
     return nativeTransfers;
 };
 
 /** Whether the app moves files on this host, as the host's `files` port says. */
-const appMovesFiles = (): boolean => host.ports.files.kind === 'shell';
+const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
 
 /** The PUT this host uses: the app's transfer module when the app moves files, the page's own PUT otherwise. */
-export const getShellPut = (): PutPort => (appMovesFiles() ? getNativeTransfers().put : xhrPut);
+export const getShellPut = (): PutPort => (appMovesFiles() ? getNativeTransfers().put : pageUploadPut);
 
 /**
  * How this shell sends a file it keeps: through the transfer module, from the shell's own folder. Where

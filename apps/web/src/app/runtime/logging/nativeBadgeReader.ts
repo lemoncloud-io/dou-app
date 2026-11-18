@@ -1,4 +1,4 @@
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../bridge/appBridge';
 
@@ -28,7 +28,7 @@ export interface INativeBadgeReader {
 
 class NativeBadgeReader implements INativeBadgeReader {
     async read(): Promise<number | null> {
-        const appShell = host.ports.appShell;
+        const appShell = runtime.appShell;
         if (appShell.kind !== 'shell') return null;
 
         if (appShell.os === 'ios') {

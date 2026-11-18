@@ -38,16 +38,16 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </button>
     ),
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => mockSelection,
             useUidInCloud: (cloudId: string) => (cloudId ? `uid-${cloudId}` : null),
             useSessionIdentity: () => ({ userId: 'acct-1' }),
             useRuntimeProfile: () => ({ userName: 'Kim' }),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks', () => ({
     useInvitedClouds: () => ({ invitedClouds: mockInvited }),
     useActiveCloudPlaces: () => ({ places: [{ id: 'p1', name: 'Studio' }], isLoading: false }),

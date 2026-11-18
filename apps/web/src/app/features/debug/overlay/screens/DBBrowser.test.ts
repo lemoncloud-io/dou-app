@@ -1,12 +1,12 @@
 // Stub the runtime module so importing DBBrowser doesn't pull in the real socket lib
 // (which needs a TextEncoder polyfill under jsdom). The TEMPLATES we test are pure.
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 import { TEMPLATES } from './DBBrowser';
 

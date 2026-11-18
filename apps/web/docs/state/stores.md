@@ -75,8 +75,8 @@ this folder — because desktop-web needs to read the exact same record apps/web
 | `ui.cloudPromoDismissedAt`  | `cloudPromoDismissedAt`               | `useCloudPromo` (`features/home/hooks`)                      |
 | `ui.language`               | — (the legacy field was never used)   | `useLanguagePreference` (`features/mypage/hooks`)            |
 
-Every hook reads with `useConfigValue('ui.x')` (`@chatic/config/react`) and writes with
-`config.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
+Every hook reads with `runtime.settings.useConfigValue('ui.x')` and writes with
+`runtime.settings.set('ui.x', value, { lane })` — **the lane is fixed per key, not a caller's choice.** The
 four keys with `persist: 'shell'` (`theme`, `language`, `blurLastMessage`, `onboardingCompleted`) must write
 with `{ lane: 'shell' }`: a `local` write lands in a lower-priority row than a native-hydrated
 `shell` value and is silently shadowed (`ConfigLanePolicy`'s row order, in the
@@ -108,13 +108,14 @@ to how apps/web sits on top of it:
    in their pre-paint scripts, and `@chatic/theme`'s `ThemeProvider` does too. `syncThemeFromSharedKey()`
    in `app/config/themeSharedKeySync.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
    namespaced storage on every boot, and `useTheme.ts`'s `setTheme` writes `vite-ui-theme` directly
-   in addition to calling `config.set()`. Full detail in [theme.md](../shell/theme.md).
+   in addition to calling `runtime.settings.set()`. Full detail in [theme.md](../shell/theme.md).
 
 ## Theme mirror at boot — `themeSharedKeySync.ts`
 
-`main.tsx` calls `syncThemeFromSharedKey()` **before** `config.init()`, because `hydrateStorage()`
-(inside `init()`) is what reads the value it writes. It is the permanent, every-boot mirror
-described above — not a migration — so it never deletes `vite-ui-theme`.
+`main.tsx` calls `syncThemeFromSharedKey()` **before** `startRuntime`, whose first step is
+`config.init()`, because `hydrateStorage()` (inside `init()`) is what reads the value it writes. It is
+the permanent, every-boot mirror described above — not a migration — so it never deletes
+`vite-ui-theme`.
 
 There is no carry-over of values older builds wrote under the pre-registry `chatic-*` keys
 (`chatic-blur-last-message`, `chatic-pinned-channels`, …). That one-time step was retired: an
@@ -126,7 +127,7 @@ Only three keys (`ui.blurLastMessage`, `ui.onboardingCompleted`, `ui.theme`) hav
 to the legacy native bridge. Every app this page runs in injects the `CHATIC_APP_CONFIG_BAG` boot
 envelope and takes writes through `SaveConfigValue`, but a value set while an app from before the bag
 (below 0.24.1) was installed lives only in the app's legacy preference store, and the app never moves
-it into the bag. So when the bag and the local mirror leave `config.snapshot(key)?.isOverridden`
+it into the bag. So when the bag and the local mirror leave `runtime.settings.snapshot(key)?.isOverridden`
 false for one of these keys, `PreferenceLoader` calls the legacy `FetchPreference` bridge and writes
 the result with `{ lane: 'shell' }`, leaving the value in the local mirror so the next boot resolves
 synchronously without this fallback. Writes no longer go to the legacy store: `shellKvAdapter` only
@@ -141,7 +142,7 @@ mobile zustand-persist JSON envelope, which `parseThemeBridgeValue` normalizes.
 It is stored the way the theme is. Settings' language sheet goes through `useLanguagePreference`
 (`features/mypage/hooks/`), which makes three writes:
 
-1. `config.set('ui.language', choice, { lane: 'shell' })` — the shell's config store, read back as
+1. `runtime.settings.set('ui.language', choice, { lane: 'shell' })` — the shell's config store, read back as
    the boot envelope (`CHATIC_APP_CONFIG_BAG`) on the next launch, and mirrored into
    `@chatic/config.ui.language` for a browser with no shell;
 2. `SavePreference('language', choice)`, confirmed with one retry (`syncLanguageChoiceToShell`,
@@ -155,10 +156,10 @@ use the pinned language, else the device's — see
 also resends the stored choice once per native boot. The sheet only sends on change, and a choice
 made while an older shell was installed was kept there in a format the current shell discards.
 
-`src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx` has run
-`config.init()` — so it cannot ask `config.get`. `readStoredLanguagePreference` reads the same two
-places the resolver would, in the same order: the boot envelope, then the local mirror. The theme
-has a pre-paint read for the same reason.
+`src/i18n/index.ts` picks the boot language while it is being imported — before `main.tsx`'s
+`startRuntime` has run `config.init()` — so it cannot ask `runtime.settings.get`.
+`readStoredLanguagePreference` reads the same two places the resolver would, in the same order: the
+boot envelope, then the local mirror. The theme has a pre-paint read for the same reason.
 
 `PreferenceLoader`'s legacy `FetchPreference` fallback does **not** read `ui.language` back from the
 shell. An older shell's store holds a zustand envelope with the device default or the language in

@@ -4,8 +4,8 @@ import { runtime } from '@chatic/runtime';
 
 import { useMyProfile } from './useMyProfile';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -16,8 +16,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionSelection: jest.fn(),
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
 const useRuntimeSocketStateMock = runtime.connection.useRuntimeSocketState as jest.Mock;

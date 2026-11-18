@@ -117,7 +117,7 @@ routes all three through the same prop, so there is no "skipped" state distinct 
 ### What not to do
 
 - **Do not read the config key directly from a screen.** Go through `useOnboarding()`; it owns the
-  negation and the lane, and a direct `config.set('ui.onboardingCompleted', …)` without
+  negation and the lane, and a direct `runtime.settings.set('ui.onboardingCompleted', …)` without
   `{ lane: 'shell' }` is the bug that reads as "onboarding comes back after a restart".
 - **Do not reuse `StepIndicator` for the wizard, or `WizardProgress` for the carousel.** They encode
   different navigation models. The carousel's dots are unconnected and only the current one is

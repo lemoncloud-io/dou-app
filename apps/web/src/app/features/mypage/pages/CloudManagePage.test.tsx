@@ -14,17 +14,20 @@ let quota = { used: 0, limit: 2 as number | null };
 let onNative = true;
 
 // Who signs a person in, as the host's `signIn` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: onNative ? 'shell' : 'browser', os: null } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get signIn() {
+            return { kind: onNative ? 'shell' : 'browser', os: null };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 // The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

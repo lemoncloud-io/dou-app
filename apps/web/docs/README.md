@@ -92,8 +92,14 @@ Every one of those is a library's. The app calls hooks and it never holds the pr
   `runtime.boot`, `runtime.push`, `runtime.report`).
 - **The native shell** — `@chatic/bridges`, reached only through `app/bridge/` (see
   [bridge/](./bridge/README.md)).
-- **Reads and writes** — repositories from `@chatic/data`, obtained through `runtime.data`.
-- **Settings** — `config` from `@chatic/config`, initialised once in `main.tsx`.
+- **What the host can do** — `runtime.checkout`, `runtime.media`, `runtime.files`, `runtime.links`,
+  `runtime.appShell`, `runtime.signIn`, `runtime.diagnostics`, the ports `main.tsx` publishes.
+- **Reads and writes** — repositories obtained through `runtime.data`; their types and domain values
+  come from `@chatic/runtime` too.
+- **Settings** — `runtime.settings`, initialised once in `main.tsx`.
+
+Only `src/config/` and `main.tsx` — the declaration — import `@chatic/runtime-web` or `@chatic/config`;
+everything else takes the runtime from `@chatic/runtime` alone.
 
 Direct construction of a socket, a token or a cache adapter inside `apps/web` is a contract
 violation. There is no `@chatic/socket` to import and no session core object to reach for; the
@@ -114,10 +120,11 @@ Source comments in this app are English. So are these documents.
 ## Notes for implementers
 
 - **`main.tsx` is ordered by contract, not by taste.** The log listeners are attached before
-  anything can log, `config.init()` precedes every lazy setting read, `publishHostPorts()` (the one
-  file that chooses `@chatic/host`'s ports) follows it before anything renders, and building the runtime
-  (`createWebRuntime`, handed to `runtime.boot.initAppRuntime`) precedes every session read. Each boundary carries a comment saying what breaks
-  if a line moves across it. Read those before inserting anything.
+  anything can log, and `startRuntime(declareWebRuntime(stores))` — the runtime this page runs,
+  declared in `src/config/` — then initialises config before any lazy setting read, publishes the
+  host's ports before anything renders, and hands the engine to `initAppRuntime` before any session
+  read. Each boundary carries a comment saying what breaks if a line moves across it. Read those
+  before inserting anything.
 - **`app/utils/index.ts` deliberately excludes the modules that read `import.meta.env`.** Import
   those by concrete path (`app/utils/webVitals`), or the barrel becomes unloadable under the test
   transform.

@@ -2,7 +2,7 @@ import { ChevronDown, ExternalLink, Github, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { appBridge } from '../../../bridge';
 
 import { PageHeader } from '../../../ui/components';
@@ -21,8 +21,8 @@ const OpenSourceHero = () => {
     const { t } = useTranslation();
 
     const handleGithubClick = () => {
-        // The OS browser where the app takes the page's links (`host.ports.links`), else a new tab.
-        if (host.ports.links.kind === 'shell') {
+        // The OS browser where the app takes the page's links (`runtime.links`), else a new tab.
+        if (runtime.links.kind === 'shell') {
             appBridge.openURL(GITHUB_URL);
         } else {
             window.open(GITHUB_URL, '_blank');

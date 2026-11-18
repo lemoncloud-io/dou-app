@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import { isInJoinWindow, uncoveredIn } from '@chatic/data';
-import type { DomainChat, DomainUser, FeedRange } from '@chatic/data';
+import {
+    runtime,
+    isInJoinWindow,
+    uncoveredIn,
+    type DomainChat,
+    type DomainUser,
+    type FeedRange,
+} from '@chatic/runtime';
 
 import { useSelectedCloudId } from '../../../hooks/useCloudScope';
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';

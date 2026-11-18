@@ -1,4 +1,4 @@
-import type { WebCheckout } from '@chatic/host';
+import type { WebCheckout } from '@chatic/runtime-web';
 
 /**
  * Leaves the app for a page of the website. `replace` takes the current entry's place in history, so

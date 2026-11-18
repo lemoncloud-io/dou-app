@@ -10,13 +10,13 @@ import { roomOpenTrace } from '../runtime/perf';
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
 // The banner card translates its "now" label; echo keys so assertions target the key.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
     usePushNavigate: jest.fn(),

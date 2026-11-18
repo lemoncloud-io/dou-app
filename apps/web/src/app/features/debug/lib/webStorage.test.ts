@@ -16,7 +16,9 @@ jest.mock('@chatic/runtime', () => {
         'chatic-device-id',
         'chatic-paired-cloud-ids',
     ]);
-    return { runtime: { session: { isSessionKey: (key: string) => sessionKeys.has(key) } } };
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        session: { isSessionKey: (key: string) => sessionKeys.has(key) },
+    });
 });
 
 import {

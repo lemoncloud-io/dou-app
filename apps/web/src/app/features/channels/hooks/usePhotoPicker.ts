@@ -6,7 +6,7 @@ import type {
     PhotoLibraryItem,
     RefusedAttachment,
 } from '@chatic/bridge-messages';
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 import {
     gridMetrics,
     isIdentityPhotoEdit,

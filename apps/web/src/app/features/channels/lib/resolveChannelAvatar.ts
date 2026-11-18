@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 /** Placeholder glyph for a channel with no photo — a person for the rooms that stand for a person. */
 export type ChannelAvatarGlyph = 'user' | 'group';

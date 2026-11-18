@@ -4,14 +4,14 @@ import { runtime } from '@chatic/runtime';
 
 import { readSelectedCloudId, toCloudId, useSelectedCloudId } from './useCloudScope';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: jest.fn(),
             getGlobalSessionContext: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 beforeEach(() => {
     jest.clearAllMocks();

@@ -68,7 +68,7 @@ interface PurchaseTerms {
  * "current plan" row; the design draws no separate scene for it.
  *
  * The purchase answer is settled by the `checkout` port, which listens for the shell's purchase
- * events from boot on (`app/host/checkout/storeCheckout.ts`), so nothing here subscribes to them.
+ * events from boot on (`config/adapters/checkout/storeCheckout.ts`), so nothing here subscribes to them.
  */
 export const SubscriptionConfirmPage = () => {
     const { t, i18n } = useTranslation();

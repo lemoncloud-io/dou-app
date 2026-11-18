@@ -4,8 +4,8 @@ import { runtime } from '@chatic/runtime';
 
 import { useSeedMyUserCache } from './useSeedMyUserCache';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -13,8 +13,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionIdentity: jest.fn(),
             getActiveSessionUser: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const cacheReadMock = jest.fn();
 const cacheWriteMock = jest.fn();

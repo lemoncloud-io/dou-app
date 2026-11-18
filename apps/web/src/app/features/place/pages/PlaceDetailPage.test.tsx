@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 let mockPlace: Partial<MySiteView> | null = null;
@@ -20,8 +20,8 @@ const toast = jest.fn();
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem, leavePlace, deletePlace } }),
         },
@@ -30,8 +30,8 @@ jest.mock('@chatic/runtime', () => ({
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
             useSessionIdentity: () => ({ userId: 'me' }),
         },
-    },
-}));
+    })
+);
 // The page deliberately does NOT read the session — the URL's place decides everything. The mock
 // stays wired so that if it ever starts reading `selectedCloudId` again, the two regression tests at
 // the end of the cloud block fail instead of passing silently.
@@ -41,7 +41,10 @@ jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 // The owner lookup has its own gate (usePlaceOwnerProfile.test.ts); here only its RESULT matters.
 jest.mock('../hooks/usePlaceOwnerProfile', () => ({ usePlaceOwnerProfile: () => mockOwner }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../../../hooks', () => ({ useHomeChannels: () => ({ channels: mockChannels, isLoading: false }) }));

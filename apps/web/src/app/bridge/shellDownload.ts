@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { logger, webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { createNativeDownloads, type NativeDownloads } from '../runtime/transfer';
 import { shellCapabilities, useCanExportImages } from './shellCapabilities';
@@ -27,7 +27,7 @@ let syncing: Promise<void> | null = null;
  * registry: a document download where the app moves files (the host's `files` port), and saving or
  * sharing a photo or video wherever the handshake allows image export. Either is reason to catch up.
  */
-const shellMayHoldDownloads = (): boolean => host.ports.files.kind === 'shell' || shellCapabilities.canExportImages();
+const shellMayHoldDownloads = (): boolean => runtime.files.kind === 'shell' || shellCapabilities.canExportImages();
 
 /**
  * Catches up with downloads the shell finished while this page was away. Where the shell can hold none

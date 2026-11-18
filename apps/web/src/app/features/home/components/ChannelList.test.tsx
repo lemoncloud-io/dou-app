@@ -18,8 +18,8 @@ jest.mock('@chatic/shared', () => ({
 // `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: {
             useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),
             prefetchRoomFeed: (...args: unknown[]) => mockPrefetchRoomFeed(...args),
@@ -28,8 +28,8 @@ jest.mock('@chatic/runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             getGlobalSessionContext: () => ({ cloud: { cloudId: 'cloud-a' } }),
         },
-    },
-}));
+    })
+);
 
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 

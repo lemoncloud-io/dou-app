@@ -10,16 +10,16 @@ jest.mock('react-router-dom', () => ({
     useMatch: jest.fn(),
 }));
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
         connection: {
             useRuntimeSocketState: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 // The bridge hook is unit-tested on its own; here we only need to drive its handler.
 jest.mock('../bridge', () => ({

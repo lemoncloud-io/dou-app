@@ -212,8 +212,8 @@ another sweep.
 Tapping the app version ten times used to open the debug gate, which meant one row had to be both a
 store link and a hidden gesture — and a tap that navigates to the store can never complete a ten-tap
 count. The gesture now lives on `LabPage`, on the flask icon inside the intro card: `aria-hidden`,
-`tabIndex={-1}`, advertised nowhere. `useDebugUnlock(config.get('debug.entryCode'))` owns the
-counting and the code challenge; see [debug](../debug/README.md).
+`tabIndex={-1}`, advertised nowhere. `useDebugUnlock(runtime.settings.get('debug.entryCode'))` owns
+the counting and the code challenge; see [debug](../debug/README.md).
 
 Once unlocked, Lab shows a single destructive row that opens the panel at full size.
 

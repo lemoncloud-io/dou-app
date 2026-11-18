@@ -20,17 +20,17 @@ jest.mock('react-i18next', () => ({
 }));
 
 let mockNative = true;
-// The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-// in a browser.
 const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { checkout: mockNative ? mockStore : mockWeb };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
+        // in a browser.
+        get checkout() {
+            return mockNative ? mockStore : mockWeb;
         },
-    },
-}));
+    })
+);
 
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({

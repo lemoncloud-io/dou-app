@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { subscriptionKeys } from '../../../hooks/queryKeys';
@@ -10,7 +10,6 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 import { IS_DEV } from '../consts';
 
 import type { CloudBody } from '@lemoncloud/chatic-backend-api';
-import type { DomainCloud } from '@chatic/data';
 
 /**
  * Adds one cloud to a membership that already has room for it.

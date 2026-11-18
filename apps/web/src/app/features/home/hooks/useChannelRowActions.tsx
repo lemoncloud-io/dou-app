@@ -2,8 +2,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainJoin } from '@chatic/runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';

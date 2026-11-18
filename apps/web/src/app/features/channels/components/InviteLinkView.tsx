@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { Button, IconClose, InviteLinkCard } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -46,8 +46,8 @@ export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteL
             return;
         }
         try {
-            // The app's share sheet where it takes the page's links (`host.ports.links`); a copy otherwise.
-            if (host.ports.links.kind === 'shell') {
+            // The app's share sheet where it takes the page's links (`runtime.links`); a copy otherwise.
+            if (runtime.links.kind === 'shell') {
                 appBridge.openShareSheet(inviteLink);
             } else {
                 await copyMessageToClipboard(inviteLink);

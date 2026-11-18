@@ -267,9 +267,9 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
 
 ## Notes for implementers and tests
 
-- **`config.get('debug.entryCode')` answers `undefined` before `config.init()`.** That reads as
-  "no code configured", which is the fail-closed path — correct, but it means an unlock attempt
-  during a very early boot silently does nothing.
+- **`runtime.settings.get('debug.entryCode')` answers `undefined` before the entry point wires the
+  settings.** That reads as "no code configured", which is the fail-closed path — correct, but it
+  means an unlock attempt during a very early boot silently does nothing.
 - **Unlock state is a module-level signal; tap state is component-local.** Every mounted
   `useDebugMode()` must see the same enabled flag the moment the Lab page unlocks, which is why it
   is a `useSyncExternalStore` signal that also subscribes to the config row. The tap counter and the

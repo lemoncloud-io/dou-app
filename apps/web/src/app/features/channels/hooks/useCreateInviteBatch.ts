@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { UserInviteBatchPayload } from '@chatic/data';
+import type { UserInviteBatchPayload } from '@chatic/runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from './useUserMutations';
 // Direct path, not the `hooks` barrel: the barrel reaches web-core's transport, whose `import.meta`

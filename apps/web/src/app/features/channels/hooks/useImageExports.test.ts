@@ -34,9 +34,11 @@ jest.mock('../../../bridge/shellDownload', () => ({
     }),
 }));
 const getChat = jest.fn();
-jest.mock('@chatic/runtime', () => ({
-    runtime: { data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
+    })
+);
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
 const file = { uri: 'file:///cache/transfer-download/h/photo.jpg', size: 3, contentType: 'image/jpeg' };

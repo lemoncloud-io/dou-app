@@ -10,7 +10,6 @@ import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
 import type { OAuthCodeResult, OAuthLoginResult } from '@chatic/bridge-messages';
 
 import { PageHeader } from '../../../ui/components';
@@ -21,7 +20,6 @@ import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
-import { useConfigValue } from '@chatic/config/react';
 
 /** A relay code (the virtual shell's relay sign-in) rather than a native provider token. */
 const isRelayCode = (result: OAuthLoginResult): result is OAuthCodeResult =>
@@ -39,10 +37,10 @@ export const LoginPage = () => {
     const [isCodeExchangePending, setIsCodeExchangePending] = useState(false);
     const pairingEnabled = useDevicePairingEnabled();
     // Development stages only (see the registry) — a way to switch between seeded test accounts.
-    const emailLoginEnabled = useConfigValue<boolean>('feature.auth.emailLogin') === true;
+    const emailLoginEnabled = runtime.settings.useConfigValue<boolean>('feature.auth.emailLogin') === true;
 
-    // Social sign-in is offered where the app signs in (`host.ports.signIn`); Apple's where it does on iOS.
-    const signIn = host.ports.signIn;
+    // Social sign-in is offered where the app signs in (`runtime.signIn`); Apple's where it does on iOS.
+    const signIn = runtime.signIn;
     const isOnMobileApp = signIn.kind === 'shell';
     const isIOS = signIn.os === 'ios';
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
@@ -230,7 +228,7 @@ export const LoginPage = () => {
                  * ownership follows the social account). That is enforced where it costs money — the
                  * purchase refuses before opening the store — so it does not need to gate sign-in here.
                  *
-                 * It needs no `host.ports.signIn` gate either: the verification is a socket call, so in a
+                 * It needs no `runtime.signIn` gate either: the verification is a socket call, so in a
                  * browser it is the one way in. There the warning is also the only mention of social,
                  * which is why the browser drops the divider and folds "social is app-only" into it.
                  */}

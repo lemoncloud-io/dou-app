@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { DomainWebhook } from '@chatic/data';
+import type { DomainWebhook } from '@chatic/runtime';
 
 import { ChannelWebhooksSection } from './ChannelWebhooksSection';
 

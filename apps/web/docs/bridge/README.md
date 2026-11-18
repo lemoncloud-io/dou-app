@@ -14,13 +14,13 @@ grep -rln "from '@chatic/bridges'" apps/web/src/app/features --include='*.ts' --
 
 This document is also the index for the category. Three subjects are large enough to own their own
 file. Two are bridge code rather than feature code — there is no `features/notifications/` folder —
-and the third is `app/host/`, the ports this app reaches the host through:
+and the third is the host ports this app's declarations choose (`src/config/`):
 
 | Document                                   | Owns                                                                               |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- |
 | [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack       |
 | [device-token.md](./device-token.md)       | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
-| [host-ports.md](./host-ports.md)           | `app/host/`: the host's ports this app chooses at boot — `checkout` so far         |
+| [host-ports.md](./host-ports.md)           | The host's ports the declarations choose at boot, and checkout's implementations   |
 
 ## Outbound: `appBridge`
 
@@ -166,13 +166,15 @@ the runtime hook is a no-op.
 
 ## Who holds the session: the hello at boot
 
-On the phone the session can belong to the shell's own runtime instead of the page. `main.tsx`
-settles which before anything boots, with `settleSessionOwner` from `@chatic/runtime-web`:
+On the phone the session can belong to the shell's own runtime instead of the page. Inside a shell
+`main.tsx` starts the `web-hybrid` declaration, whose engine (`engine.mirror` from `@chatic/runtime-web`)
+settles which before any port is built (`settleSessionOwner`); a plain tab's `web-browser` settles
+nothing, as no shell can offer there:
 
 - **No offer** in `CHATIC_APP_RUNTIME`, as the host profile took it at boot (a browser, a shell that does not run its runtime) — the
   page holds the session, as it always has, and nothing is said to the shell.
 - **An offer** — the page says `RuntimeHello` and waits. On `native` it builds the mirror
-  (`createBridgedRuntime`) in place of `createWebRuntime` and never opens the device vault: no
+  (`createBridgedRuntime`) in place of the page's own runtime, builds none of the declared ports and never opens the device vault: no
   `prepareSecretStorage`, no late-vault reload, no watch for a vault that was locked at launch. The
   vault is the shell's for that launch. At a sign-out it deletes, besides its own signed-out keys, any
   copy of the session's tokens still in `localStorage` (`runtime.boot.discardWebSessionCopy`): such a
@@ -186,8 +188,8 @@ settles which before anything boots, with `settleSessionOwner` from `@chatic/run
 
 On a `native` launch the shell's runtime cannot reach the page's storage, so the page takes its own
 signed-out keys (`runtime/signedOutKeys.ts` — the log pipeline's and the telemetry policy's) at each
-sign-out and at the `?logout=1` boot that follows one, as `createWebRuntime({ signedOutKeyPrefixes })`
-does on the page's own launches. Every log entry made inside the app after the settle carries
+sign-out and at the `?logout=1` boot that follows one, as the page's own runtime does on its launches
+(the declarations' `signedOutKeyPrefixes`). Every log entry made inside the app after the settle carries
 `sessionOwner` (`web` or `native`).
 
 **The switch.** `VITE_SESSION_MIRROR_DISABLED=true` in a build makes the page never ask, so launches are
@@ -222,7 +224,7 @@ page names `web`. The deploy workflows fill it from the `WEB_DEV_APP_SESSION_OWN
 
 In a plain browser tab there is no bridge, and every `appBridge` request call rejects
 `NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid paying that wait
-asks its domain's `@chatic/host` port first ([host-ports.md](./host-ports.md)) — `'browser'` there means no
+asks its domain's host port first ([host-ports.md](./host-ports.md)) — `'browser'` there means no
 bridge to ask — rather than calling through and catching.
 
 ## Related

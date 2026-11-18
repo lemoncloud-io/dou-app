@@ -1,4 +1,4 @@
-import type { ChatAttachmentFilter } from '@chatic/data';
+import type { ChatAttachmentFilter } from '@chatic/runtime';
 
 /**
  * The formats this app sends: every one the server takes but an HTML page. The server accepts HTML, and

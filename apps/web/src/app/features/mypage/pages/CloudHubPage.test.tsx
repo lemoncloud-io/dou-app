@@ -11,7 +11,10 @@ let clouds: Partial<CloudView>[] = [];
 let hasCloudCatalog = true;
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ cloudId: 'CL1' }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: () => ({}) }));

@@ -4,8 +4,8 @@ import { runtime } from '@chatic/runtime';
 
 import { useIsAccountGuest, useMyUser } from './useMyUser';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'default',
             useSlotVerified: jest.fn(),
@@ -16,8 +16,8 @@ jest.mock('@chatic/runtime', () => ({
             patchRelaySessionUser: jest.fn(),
             fetchAccountProfile: (...args: unknown[]) => profileMock(...args),
         },
-    },
-}));
+    })
+);
 
 const profileMock = jest.fn();
 

@@ -10,12 +10,12 @@ import { CloudActivatedRunner } from './CloudActivatedRunner';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn() } }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mockInvalidate }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { cloudsKeys: { all: ['clouds'] } },
         connection: { RELAY_SLOT: 'default', onServerEvent: jest.fn() },
-    },
-}));
+    })
+);
 // Echo keys so assertions target the key. `t` is here for the CARD (it translates its own "now"
 // label); the runner itself reads copy through `i18n.t` to keep the effect off `t`'s identity.
 const echo = (key: string, opts?: Record<string, unknown>) => (opts?.name ? `${key}:${opts.name}` : key);

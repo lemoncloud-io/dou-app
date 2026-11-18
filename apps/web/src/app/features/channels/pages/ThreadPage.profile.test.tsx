@@ -28,15 +28,15 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useUidInCloud: () => 'me',
             useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 jest.mock('@chatic/web-ui-kit', () => ({
     ChatRoomHeader: () => null,

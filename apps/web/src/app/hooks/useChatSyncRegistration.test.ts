@@ -1,12 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel, DomainLastChat } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainLastChat } from '@chatic/runtime';
 
 import { readLastNos, useChatSyncRegistration } from './useChatSyncRegistration';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: {
             registerSyncTarget: jest.fn(),
             updateSyncSnapshot: jest.fn(),
@@ -24,8 +23,8 @@ jest.mock('@chatic/runtime', () => ({
             useRuntimeSocketState: jest.fn(),
             useCloudVerified: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 interface Subscription {
     ids: string[];

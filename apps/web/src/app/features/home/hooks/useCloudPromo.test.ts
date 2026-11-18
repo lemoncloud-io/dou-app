@@ -1,19 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { CLOUD_PROMO_DISMISS_TTL_MS } from '../../../stores/preferenceKeys';
 import { useCloudPromo } from './useCloudPromo';
 
-jest.mock('@chatic/config', () => ({
-    config: { set: jest.fn() },
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: jest.fn(),
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { set: jest.fn(), useConfigValue: jest.fn() } })
+);
 
-const mockUseConfigValue = useConfigValue as jest.MockedFunction<typeof useConfigValue>;
-const mockSet = config.set as jest.Mock;
+const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunction<
+    typeof runtime.settings.useConfigValue
+>;
+const mockSet = runtime.settings.set as jest.Mock;
 
 const NOW = 1_800_000_000_000;
 

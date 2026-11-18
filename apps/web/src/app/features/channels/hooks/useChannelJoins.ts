@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainJoin } from '@chatic/data';
+import { runtime, type DomainJoin } from '@chatic/runtime';
 
 export interface ChannelJoins {
     /** Every join row cached for this channel, departures included (`activeOnly: false`). */

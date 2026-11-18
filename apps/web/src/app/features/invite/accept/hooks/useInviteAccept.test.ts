@@ -29,11 +29,9 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 
-// The real module opens IndexedDB on import; the hook needs only its types.
-jest.mock('@chatic/data', () => ({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 cloud: { cacheWrite: mockCacheWrite, cacheRead: mockCacheRead },
@@ -47,8 +45,8 @@ jest.mock('@chatic/runtime', () => ({
             // Only the first block sets an identity; the others run without a guest.
             useSessionIdentity: () => mockUseSessionIdentity() ?? {},
         },
-    },
-}));
+    })
+);
 jest.mock('../../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: mockOwnedClouds() ?? [] }),
 }));

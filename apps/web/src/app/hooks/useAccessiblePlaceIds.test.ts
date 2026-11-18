@@ -5,8 +5,8 @@ import { runtime } from '@chatic/runtime';
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
 import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -14,8 +14,8 @@ jest.mock('@chatic/runtime', () => ({
             useGlobalSession: jest.fn(),
             useSessionSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeListMock = jest.fn();
 

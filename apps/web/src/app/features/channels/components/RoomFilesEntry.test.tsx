@@ -6,11 +6,14 @@ import { RoomFilesEntry } from './RoomFilesEntry';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 const mockNavigate = jest.fn();
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => mockNavigate,
+}));
 
 const mockCountRoomMedia = jest.fn();
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             // One graph object, as the runtime hands out: a new one per render would resubscribe forever.
             useRuntimeRepositories: (() => {
@@ -20,8 +23,8 @@ jest.mock('@chatic/runtime', () => ({
                     (graph ??= { chat: { countRoomMedia: mockCountRoomMedia, observeList: () => () => undefined } });
             })(),
         },
-    },
-}));
+    })
+);
 
 describe('RoomFilesEntry', () => {
     beforeEach(() => {

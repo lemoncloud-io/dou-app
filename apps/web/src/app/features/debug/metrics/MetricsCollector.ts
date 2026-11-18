@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 /**
  * Web-side runtime metrics. All aggregation happens here — components only push

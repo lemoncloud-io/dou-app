@@ -4,8 +4,8 @@ import { runtime } from '@chatic/runtime';
 
 import { useJoinPositions } from './useJoinPositions';
 
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             useCloudVerified: jest.fn(),
         },
@@ -15,8 +15,8 @@ jest.mock('@chatic/runtime', () => ({
         session: {
             useUidInCloud: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 

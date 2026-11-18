@@ -5,7 +5,7 @@ import { getRouteTrail } from '../../utils/routeTrail';
 import { readLaunchSessionOwner } from '../launchSessionOwner';
 import { currentTelemetrySessionId } from '../telemetry/telemetryRuntime';
 import { routeTemplateOf } from '../telemetry/routeTemplate';
-import { diagnosticsKind } from './diagnosticsKind';
+import { diagnosticsKind } from '../../../config/diagnosticsKind';
 
 import type { LogContext, ShellGlobals } from '@chatic/bridges';
 

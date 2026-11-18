@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainIssuedWebhook, DomainWebhook, WebhookIssueInput } from '@chatic/data';
+import { runtime, type DomainIssuedWebhook, type DomainWebhook, type WebhookIssueInput } from '@chatic/runtime';
 
 export type ChannelWebhooksStatus = 'loading' | 'ready' | 'error';
 

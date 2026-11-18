@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
-import { host } from '@chatic/host';
 import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -23,14 +22,14 @@ const RELAY_SELECTION = 'default';
  * My devices, and — on an approving app — the web sign-ins it approved.
  *
  * A browser guest has no account whose devices there are to list; anyone else sees the first section.
- * The second is the approver's: inside the app (where `host.ports.signIn` says the app signs in), on a
+ * The second is the approver's: inside the app (where `runtime.signIn` says the app signs in), on a
  * session that is not itself signed in through an approval (the relay answers 403 to anyone else
  * anyway).
  */
 export const PairingDevicesPage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
-    if (!enabled || (isGuest && host.ports.signIn.kind !== 'shell')) {
+    if (!enabled || (isGuest && runtime.signIn.kind !== 'shell')) {
         return <Navigate to={ROUTES.mypage.root} replace />;
     }
     return <PairingDevicesScreen />;
@@ -44,7 +43,7 @@ const PairingDevicesScreen = () => {
     const isPaired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
     // The approvals are an approving app's: an account's, not a secondary device's.
-    const showApprovals = host.ports.signIn.kind === 'shell' && !isGuest && !isPaired;
+    const showApprovals = runtime.signIn.kind === 'shell' && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
     const cloudName = useCloudName();

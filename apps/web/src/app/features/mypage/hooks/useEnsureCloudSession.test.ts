@@ -5,15 +5,15 @@ import { runtime } from '@chatic/runtime';
 import { useEnsureCloudSession } from './useEnsureCloudSession';
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@chatic/runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: jest.fn(),
             useRuntimeProfile: jest.fn(),
             useSwitchCloudSession: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const switchCloud = jest.fn();
 

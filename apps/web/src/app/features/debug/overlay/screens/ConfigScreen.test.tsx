@@ -4,18 +4,20 @@ import userEvent from '@testing-library/user-event';
 
 import { ConfigScreen } from './ConfigScreen';
 import { setDebugLanguageForTests } from '../../i18n';
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 const snapshotAll = jest.fn();
 const set = jest.fn();
 const clear = jest.fn();
-jest.mock('@chatic/config', () => ({
-    config: {
-        snapshotAll: () => snapshotAll(),
-        set: (key: string, value: unknown, options: unknown) => set(key, value, options),
-        clear: (key: string, options: unknown) => clear(key, options),
-    },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        settings: {
+            snapshotAll: () => snapshotAll(),
+            set: (key: string, value: unknown, options: unknown) => set(key, value, options),
+            clear: (key: string, options: unknown) => clear(key, options),
+        },
+    })
+);
 // The screen copies through `CopyButton`, which awaits the real outcome so its indicator cannot
 // lie — so the spy sits on `copyTextWithResult` rather than the fire-and-forget `copyText`.
 const copyTextWithResult = jest.fn().mockResolvedValue(true);
@@ -222,5 +224,5 @@ describe('ConfigScreen', () => {
 
 // Confirms the mock is actually used — references config directly so the import doesn't get dropped as dead.
 it('config 파사드를 통해 읽는다', () => {
-    expect(typeof config.snapshotAll).toBe('function');
+    expect(typeof runtime.settings.snapshotAll).toBe('function');
 });

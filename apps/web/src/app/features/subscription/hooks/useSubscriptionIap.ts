@@ -2,13 +2,12 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime, type StoreCheckout } from '@chatic/runtime';
 import { subscriptionKeys } from '../../../hooks/queryKeys';
 import { useValidateMembership } from '../../../hooks/useMembership';
 
 import type { IapProductSubscription } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
-import { host, type StoreCheckout } from '@chatic/host';
 import { useLinkedAccounts } from '../../../hooks';
 import { APP_ID } from '../consts';
 import { asWebSubscriptionActive, isWebSubscriptionActiveError } from '../lib/webSubscriptionActive';
@@ -20,7 +19,7 @@ import type { NativePurchase, PurchaseProduct } from '../types';
  * that is not there.
  */
 const storeCheckout = (): StoreCheckout => {
-    const checkout = host.ports.checkout;
+    const checkout = runtime.checkout;
     if (checkout.kind !== 'store') throw new Error(`no store sells on this host (checkout: ${checkout.kind})`);
     return checkout;
 };

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainChat } from '@chatic/runtime';
 
 import { CopyButton } from '../../components/CopyButton';
 import { Section } from '../../components/Section';

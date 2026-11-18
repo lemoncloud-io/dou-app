@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { FlaskConical } from 'lucide-react';
 
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
@@ -31,7 +31,7 @@ export const LabPage = () => {
     const experimentPages = IN_APP_PAGES.filter(page => page.surface === 'experiment');
     const debugPages = IN_APP_PAGES.filter(page => page.surface === 'debug');
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
-        config.get<string>('debug.entryCode')
+        runtime.settings.get<string>('debug.entryCode')
     );
 
     // In the app the page opens in the sub WebView; an older app or a browser opens it elsewhere. It
