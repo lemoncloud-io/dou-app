@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - No version updates
+
+### Refactor
+
+- (host,web,desktop-web,mobile) name capability values shell and browser, not app and page
+
 ## [2026-11-18] - root@0.167.0, @chatic/web@0.96.0
 
 ### Features
