@@ -2,13 +2,49 @@
  * @jest-environment node
  */
 // Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
-import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
-import { SDK_RUNTIME_CONTRACTS, type ChaticAppsError } from '@chatic/chatic-apps-sdk';
+import * as path from 'path';
+
+import * as ts from 'typescript';
+
+import type {
+    CacheChannelView,
+    CacheChatView,
+    CacheCloudView,
+    CacheJoinView,
+    CacheProfileView,
+    CacheSiteView,
+    CacheUserView,
+    SubWebViewRuntimePermission,
+} from '@chatic/bridge-messages';
+import {
+    SDK_RUNTIME_CONTRACTS,
+    type ChaticAppsError,
+    type RuntimeCallName,
+    type RuntimeCalls,
+    type RuntimeChannel,
+    type RuntimeChat,
+    type RuntimeChatBlock,
+    type RuntimeCloud,
+    type RuntimeJoin,
+    type RuntimePendingUpload,
+    type RuntimePlace,
+    type RuntimeProfile,
+    type RuntimeSession,
+    type RuntimeStreamName,
+    type RuntimeStreams,
+    type RuntimeUpload,
+    type RuntimeUser,
+} from '@chatic/chatic-apps-sdk';
 import { connectOver, type Transport } from '@chatic/chatic-apps-sdk/internal';
-import { RUNTIME_CONTRACTS, createRuntimeBridgeHost, type RuntimeEngine } from '@chatic/runtime-mobile';
+import {
+    RUNTIME_CONTRACTS,
+    createRuntimeBridgeHost,
+    subWebViewAllowedFor,
+    type RuntimeEngine,
+} from '@chatic/runtime-mobile';
 
 import { createSubBridgeHost } from './createSubBridgeHost';
-import { createSubWebViewRuntimeBridge } from './subWebViewRuntimeBridge';
+import { createSubWebViewRuntimeBridge, type sessionForPage } from './subWebViewRuntimeBridge';
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 
 // The runtime package reads these at import; nothing here reaches them.
@@ -32,6 +68,21 @@ const setup = ({
     let cloudId = 'c1';
     const sessionListeners = new Set<() => void>();
     const roomListeners = new Set<(result: unknown) => void>();
+    const rooms = [
+        { id: 'ch1', cid: 'c1', sid: 's1' },
+        { id: 'elsewhere', cid: 'c1', sid: 's2' },
+    ];
+    const sendChat = jest.fn(async (input: { channelId: string; content: string }) => ({
+        id: 'm1',
+        cid: 'c1',
+        channelId: input.channelId,
+        chatNo: 3,
+        isPending: false,
+        isFailed: false,
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        content: input.content,
+    }));
     const engine = {
         session: {
             snapshot: () => ({
@@ -49,7 +100,9 @@ const setup = ({
         },
         data: {
             repositories: () => ({
+                chat: { sendChat },
                 channel: {
+                    cacheRead: async (id: string) => rooms.find(room => room.id === id) ?? null,
                     cacheReadList: async (query: unknown) => ({ list: [{ id: 'ch1', name: 'General' }], query }),
                     fetchList: async () => ({ list: [] }),
                     observeList: (_query: unknown, listener: (result: unknown) => void) => {
@@ -68,6 +121,7 @@ const setup = ({
         createHost: send => createRuntimeBridgeHost({ engine: async () => engine, send }),
         session: engine.session,
         openedCloudId: 'c1',
+        openedPlaceId: 's1',
         granted: new Set(granted),
         origin: 'https://quiz.apps.chatic.io',
         pageHost,
@@ -99,6 +153,7 @@ const setup = ({
     return {
         transport,
         runtime,
+        sendChat,
         emitRooms: (result: unknown) => roomListeners.forEach(listener => listener(result)),
         moveTo: (next: string) => {
             cloudId = next;
@@ -160,6 +215,33 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         apps.disconnect();
     });
 
+    it('sends a text message with `chatSend`, to a room of the place the view opened on only', async () => {
+        const { transport, sendChat } = setup({ granted: ['chatSend'] });
+        const apps = await connectOver(transport, { reportErrors: false });
+
+        await expect(apps.runtime.sendMessage('ch1', 'hello')).resolves.toEqual(
+            expect.objectContaining({ id: 'm1', channelId: 'ch1', content: 'hello' })
+        );
+        expect(sendChat).toHaveBeenCalledWith({ channelId: 'ch1', content: 'hello' });
+
+        await expect(apps.runtime.sendMessage('elsewhere', 'hello')).rejects.toEqual(
+            expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
+        );
+        expect(sendChat).toHaveBeenCalledTimes(1);
+        apps.disconnect();
+    });
+
+    it('refuses a send without `chatSend`', async () => {
+        const { transport, sendChat } = setup({ granted: ['chat'] });
+        const apps = await connectOver(transport, { reportErrors: false });
+
+        await expect(apps.runtime.sendMessage('ch1', 'hello')).rejects.toEqual(
+            expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
+        );
+        expect(sendChat).not.toHaveBeenCalled();
+        apps.disconnect();
+    });
+
     it('gives the session only with `session`', async () => {
         const without = setup({ granted: ['channel'] });
         const apps = await connectOver(without.transport, { reportErrors: false });
@@ -173,4 +255,250 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         expect(other.runtime.session()).toEqual(expect.objectContaining({ context: expect.anything() }));
         other.disconnect();
     });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// The library's typed runtime against the app's own types.
+//
+// The library declares the rows, arguments and session by hand (it cannot import the app's private
+// types), so the checks below hold each declaration to the app's: the methods the whitelist opens, each
+// method's arguments and answer, and every row field by field — its name, whether it is optional, and its
+// type. They are compile-time checks, and this suite's transform does not type check, nor does CI run
+// this app's typecheck; so the last test compiles this file and fails on any error in it.
+// ---------------------------------------------------------------------------------------------------
+
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+type IsAny<T> = 0 extends 1 & T ? true : false;
+type Primitive = string | number | boolean | bigint | symbol | null | undefined;
+type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : never;
+type RequiredKeys<T> = { [K in keyof T]-?: object extends Pick<T, K> ? never : K }[keyof T];
+type AllTrue<T> = false extends T[keyof T] ? false : true;
+type Depth = [unknown, unknown, unknown, unknown];
+/** A tuple's length, or `number` for an array. */
+type SameLength<T> = T extends readonly unknown[] ? T['length'] : never;
+
+/**
+ * `S` (the library's) declares exactly what `A` (the app's) is: the same fields, the same optional ones,
+ * each of the same type, down to `Depth` levels of embedded views. A field typed `any` on the app's side
+ * (`meta`) is the server's own and only has to be there. A union of objects (a message's files, its
+ * blocks) is held to assignability both ways here and checked member by member below.
+ */
+type Same<S, A, D extends unknown[] = []> =
+    IsAny<A> extends true
+        ? unknown extends S
+            ? true
+            : false
+        : [S] extends [Primitive]
+          ? Equal<S, A>
+          : Equal<Extract<S, null | undefined>, Extract<A, null | undefined>> extends true
+            ? SameValue<NonNullable<S>, NonNullable<A>, D>
+            : false;
+type SameValue<S, A, D extends unknown[]> = [S] extends [Primitive]
+    ? Equal<S, A>
+    : D['length'] extends Depth['length']
+      ? true
+      : [S] extends [readonly (infer SE)[]]
+        ? [A] extends [readonly (infer AE)[]]
+            ? // A tuple (a number range, an event's arguments) is held to its length as well.
+              Equal<SameLength<S>, SameLength<A>> extends true
+                ? Same<SE, AE, [...D, unknown]>
+                : false
+            : false
+        : IsUnion<S> extends true
+          ? [S] extends [A]
+              ? [A] extends [S]
+                  ? true
+                  : false
+              : false
+          : SameObject<S, A, D>;
+type SameObject<S, A, D extends unknown[]> =
+    Equal<keyof S, keyof A> extends true
+        ? Equal<RequiredKeys<S>, RequiredKeys<A>> extends true
+            ? AllTrue<{ [K in keyof S & keyof A]-?: Same<S[K], A[K], [...D, unknown]> }>
+            : false
+        : false;
+
+type AppRepositories = ReturnType<RuntimeEngine['data']['repositories']>;
+type AppMethod<N extends string> = N extends `${infer R}.${infer M}`
+    ? R extends keyof AppRepositories
+        ? M extends keyof AppRepositories[R]
+            ? AppRepositories[R][M] extends (...args: never[]) => unknown
+                ? AppRepositories[R][M]
+                : never
+            : never
+        : never
+    : never;
+
+/** A call: the library's arguments are ones the app's method takes, and its answer is the app's. */
+type CallMatches<N extends RuntimeCallName> =
+    RuntimeCalls[N]['args'] extends Parameters<AppMethod<N>>
+        ? Same<RuntimeCalls[N]['result'], Awaited<ReturnType<AppMethod<N>>>>
+        : false;
+
+/**
+ * A stream: the app's method takes its callback right after the library's arguments (where `subscribe`
+ * puts the listener), and the callback hears what the library says each event carries.
+ */
+type StreamMatches<N extends RuntimeStreamName> = Parameters<
+    AppMethod<N>
+>[RuntimeStreams[N]['args']['length']] extends (...event: infer AppEvent) => void
+    ? [...RuntimeStreams[N]['args'], Parameters<AppMethod<N>>[RuntimeStreams[N]['args']['length']]] extends Parameters<
+          AppMethod<N>
+      >
+        ? Same<RuntimeStreams[N]['event'], AppEvent>
+        : false
+    : false;
+
+const callsMatch: { [N in RuntimeCallName]: CallMatches<N> } = {
+    'channel.cacheRead': true,
+    'channel.cacheReadList': true,
+    'channel.fetchList': true,
+    'join.cacheReadList': true,
+    'chat.cacheRead': true,
+    'chat.cacheReadList': true,
+    'chat.listPendingImageChats': true,
+    'chat.sendChat': true,
+    'cloud.cacheRead': true,
+    'cloud.getCloud': true,
+    'place.cacheReadList': true,
+    'place.isPlaceDeleted': true,
+    'user.cacheRead': true,
+    'user.cacheReadList': true,
+    'user.listPlaceMembers': true,
+    'profile.cacheRead': true,
+    'profile.cacheReadList': true,
+};
+
+const streamsMatch: { [N in RuntimeStreamName]: StreamMatches<N> } = {
+    'channel.observeList': true,
+    'channel.observeItem': true,
+    'join.observeList': true,
+    'chat.observeList': true,
+    'chat.observeLastList': true,
+    'chat.observeFeedCoverage': true,
+    'cloud.observeItem': true,
+    'place.observeList': true,
+    'place.observeItem': true,
+    'user.observeList': true,
+    'user.observeItem': true,
+    'profile.observeList': true,
+    'profile.observeItem': true,
+};
+
+type UploadOf<T> = Exclude<NonNullable<T>[number & keyof NonNullable<T>], { localStatus: unknown }>;
+type PendingOf<T> = Extract<NonNullable<T>[number & keyof NonNullable<T>], { localStatus: unknown }>;
+type BlockOf<K extends RuntimeChatBlock['type']> = Extract<NonNullable<CacheChatView['blocks$']>[number], { type: K }>;
+
+// The rows, named one by one (the methods above reach them too), the message's union members, and the session.
+const rowsMatch: true[] = [
+    true satisfies Same<RuntimeChannel, CacheChannelView>,
+    true satisfies Same<RuntimeJoin, CacheJoinView>,
+    true satisfies Same<RuntimeChat, CacheChatView>,
+    true satisfies Same<RuntimePlace, CacheSiteView>,
+    true satisfies Same<RuntimeUser, CacheUserView>,
+    true satisfies Same<RuntimeProfile, CacheProfileView>,
+    true satisfies Same<RuntimeCloud, CacheCloudView>,
+    true satisfies Same<RuntimeUpload, UploadOf<CacheChatView['upload$$']>>,
+    true satisfies Same<RuntimePendingUpload, PendingOf<CacheChatView['upload$$']>>,
+    true satisfies Same<Extract<RuntimeChatBlock, { type: 'header' }>, BlockOf<'header'>>,
+    true satisfies Same<Extract<RuntimeChatBlock, { type: 'section' }>, BlockOf<'section'>>,
+    true satisfies Same<Extract<RuntimeChatBlock, { type: 'divider' }>, BlockOf<'divider'>>,
+    true satisfies Same<Extract<RuntimeChatBlock, { type: 'context' }>, BlockOf<'context'>>,
+    true satisfies Same<RuntimeSession, ReturnType<typeof sessionForPage>>,
+];
+
+// Keyed by every method the library types, with the permission it says opens it: compared below with
+// what the whitelist opens, permission by permission.
+const LIBRARY_CALLS: { [N in RuntimeCallName]: RuntimeCalls[N]['permission'] } = {
+    'channel.cacheRead': 'channel',
+    'channel.cacheReadList': 'channel',
+    'channel.fetchList': 'channel',
+    'join.cacheReadList': 'channel',
+    'chat.cacheRead': 'chat',
+    'chat.cacheReadList': 'chat',
+    'chat.listPendingImageChats': 'chat',
+    'chat.sendChat': 'chatSend',
+    'cloud.cacheRead': 'cloud',
+    'cloud.getCloud': 'cloud',
+    'place.cacheReadList': 'place',
+    'place.isPlaceDeleted': 'place',
+    'user.cacheRead': 'user',
+    'user.cacheReadList': 'user',
+    'user.listPlaceMembers': 'user',
+    'profile.cacheRead': 'user',
+    'profile.cacheReadList': 'user',
+};
+const LIBRARY_STREAMS: { [N in RuntimeStreamName]: RuntimeStreams[N]['permission'] } = {
+    'channel.observeList': 'channel',
+    'channel.observeItem': 'channel',
+    'join.observeList': 'channel',
+    'chat.observeList': 'chat',
+    'chat.observeLastList': 'chat',
+    'chat.observeFeedCoverage': 'chat',
+    'cloud.observeItem': 'cloud',
+    'place.observeList': 'place',
+    'place.observeItem': 'place',
+    'user.observeList': 'user',
+    'user.observeItem': 'user',
+    'profile.observeList': 'user',
+    'profile.observeItem': 'user',
+};
+
+// Keyed by every runtime permission, so one the app adds fails to compile until it is listed here.
+const PERMISSIONS = Object.keys({
+    session: true,
+    cloud: true,
+    place: true,
+    channel: true,
+    chat: true,
+    user: true,
+    chatSend: true,
+} satisfies Record<SubWebViewRuntimePermission, true>) as SubWebViewRuntimePermission[];
+
+const byPermission = (table: Record<string, string>, permission: string) =>
+    Object.keys(table)
+        .filter(method => table[method] === permission)
+        .sort();
+
+describe("chatic-apps-sdk's typed runtime against the app's", () => {
+    it.each(PERMISSIONS)('types exactly what the whitelist opens with `%s`', permission => {
+        const opened = subWebViewAllowedFor(new Set([permission]));
+        expect({
+            calls: byPermission(LIBRARY_CALLS, permission),
+            streams: byPermission(LIBRARY_STREAMS, permission),
+        }).toEqual(opened);
+    });
+
+    it('declares the rows, arguments, answers and session as the app has them', () => {
+        expect([...Object.values(callsMatch), ...Object.values(streamsMatch), ...rowsMatch].every(Boolean)).toBe(true);
+    });
+
+    it('compiles: every check in this file holds', () => {
+        const configPath = path.resolve(__dirname, '../../../tsconfig.spec.json');
+        const config = ts.getParsedCommandLineOfConfigFile(
+            configPath,
+            {},
+            { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined }
+        );
+        if (!config) throw new Error(`cannot read ${configPath}`);
+        // Not as a project: only this file is checked, with whatever it imports.
+        const program = ts.createProgram([__filename], {
+            ...config.options,
+            composite: false,
+            noEmit: true,
+            skipLibCheck: true,
+        });
+        const file = program.getSourceFile(__filename);
+        const errors = [...program.getSyntacticDiagnostics(file), ...program.getSemanticDiagnostics(file)].map(
+            diagnostic => {
+                const at =
+                    diagnostic.start === undefined
+                        ? ''
+                        : `:${(file?.getLineAndCharacterOfPosition(diagnostic.start).line ?? 0) + 1}`;
+                return `${path.basename(__filename)}${at} ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`;
+            }
+        );
+
+        expect(errors).toEqual([]);
+    }, 120_000);
 });

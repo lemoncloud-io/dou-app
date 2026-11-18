@@ -1,12 +1,23 @@
 import type { BridgeClient } from './client';
 import { ChaticAppsError } from './errors';
+import type {
+    RuntimeCallArgs,
+    RuntimeCallName,
+    RuntimeCallResult,
+    RuntimeChat,
+    RuntimeSession,
+    RuntimeStreamArgs,
+    RuntimeStreamEvent,
+    RuntimeStreamName,
+} from './runtimeTypes';
 
 /** The runtime contract versions this library speaks, lowest first. */
 export const SDK_RUNTIME_CONTRACTS: readonly number[] = [1];
 
 /**
- * Where a stream's listener goes among its arguments. Put it where the app's method takes its callback
- * (`['channel.observeItem', [roomId, LISTENER]]`); left out, it goes last.
+ * Where a stream's listener goes among its arguments. Left out, it goes last — which, for every method
+ * `RuntimeStreams` names, is where the app's method takes it, so a typed `subscribe` never needs it. For
+ * a method this library does not know yet, put it where that method takes its callback.
  */
 export const LISTENER = Object.freeze({ $listener: true as const });
 
@@ -31,35 +42,62 @@ export interface RuntimeStream {
 
 /**
  * The app's own data, read through its runtime: the current cloud's places, rooms, messages and
- * members, exactly as DoU's screens read them. Read only, and only what the page's manifest asks for
- * (`session`, `cloud`, `place`, `channel`, `chat`, `user`) — the app refuses every other method with
- * `RUNTIME_NOT_ALLOWED`. The app asks the user once, at `connect`, whether this page may read this cloud.
+ * members, exactly as DoU's screens read them — and one write, a text message. Only what the page's
+ * manifest asks for (`session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`): the app
+ * refuses every other method with `RUNTIME_NOT_ALLOWED`. The app asks the user once, at `connect`,
+ * whether this page may read this cloud.
  *
  * Only in the app, and only where the app's own runtime holds the session: `apps.supports('runtime')`
  * says whether this one does.
+ *
+ * A method `RuntimeCalls` / `RuntimeStreams` names is typed: its arguments and its answer. Any other
+ * name still goes through, answered as `unknown` — an app newer than this library may open more.
  */
 export interface ChaticAppsRuntime {
     /** Opens the conversation; later calls answer the same. `CONSENT_REFUSED` if the user said no. */
     connect(): Promise<RuntimeConnection>;
     /** Whether `method` is one this page may call or subscribe to; `false` before `connect`. */
-    can(method: string): boolean;
+    can(method: RuntimeCallName | RuntimeStreamName | (string & {})): boolean;
     /** Calls a read method and resolves with what it returned. */
-    call<T = unknown>(method: string, ...args: unknown[]): Promise<T>;
+    call<M extends RuntimeCallName>(method: M, ...args: RuntimeCallArgs<M>): Promise<RuntimeCallResult<M>>;
+    /**
+     * A method this library does not know, answered as `T` (`unknown` unless given). Passing `T`
+     * explicitly also reaches a known method untyped, as before types existed.
+     */
+    call<T = unknown, N extends string = string>(
+        method: N extends RuntimeCallName | RuntimeStreamName ? never : N,
+        ...args: unknown[]
+    ): Promise<T>;
     /**
      * Subscribes to an `observe…` method: `listener` gets each event's arguments. `onEnd` hears a stream
      * the app ended — the cloud changed (`CLOUD_CHANGED`), the event was too large, or the page was
      * restored from the back-forward cache (`DISCONNECTED`; subscribe again).
      */
-    subscribe(
-        method: string,
+    subscribe<M extends RuntimeStreamName>(
+        method: M,
+        args: RuntimeStreamArgs<M> | [...RuntimeStreamArgs<M>, typeof LISTENER],
+        listener: (...event: RuntimeStreamEvent<M>) => void,
+        onEnd?: (error: ChaticAppsError) => void
+    ): Promise<RuntimeStream>;
+    /** A stream this library does not know: its events arrive as `unknown`. */
+    subscribe<N extends string>(
+        method: N extends RuntimeCallName | RuntimeStreamName ? never : N,
         args: unknown[],
         listener: (...event: unknown[]) => void,
         onEnd?: (error: ChaticAppsError) => void
     ): Promise<RuntimeStream>;
+    /**
+     * Sends a plain text message, in the user's name, to a room of the place the view opened on — the
+     * one write, with the `chatSend` permission. Resolves with the message as sent. Text only: nothing
+     * else a message can carry. `RUNTIME_NOT_ALLOWED` for a room of another place, blank text or text
+     * over 1000 characters; `RATE_LIMITED` past the view's send budget. The same as
+     * `call('chat.sendChat', { channelId, content: text })`.
+     */
+    sendMessage(channelId: string, text: string): Promise<RuntimeChat>;
     /** The session snapshot, with the `session` permission; `null` without it or before `connect`. */
-    session(): unknown;
+    session(): RuntimeSession | null;
     /** Hears each session change, with the `session` permission. */
-    onSessionChange(listener: (session: unknown) => void): () => void;
+    onSessionChange(listener: (session: RuntimeSession | null) => void): () => void;
     /**
      * Hears, once, that the cloud this view opened on is no longer the selected one. Nothing answers
      * after it: the page has nothing more to read here.
@@ -70,7 +108,7 @@ export interface ChaticAppsRuntime {
 interface Hello {
     contract: number;
     seq: number;
-    session: unknown;
+    session: RuntimeSession | null;
     allowed: RuntimeAllowed;
 }
 
@@ -104,11 +142,11 @@ export const runtimeOver = (
     // page restored from the back-forward cache meets a new one — would otherwise never settle.
     let abandonHello: ((error: ChaticAppsError) => void) | null = null;
     let answered: Hello | null = null;
-    let session: unknown = null;
+    let session: RuntimeSession | null = null;
     let cloudChanged = false;
     let sequence = 0;
     const streams = new Map<string, Stream>();
-    const sessionListeners = new Set<(session: unknown) => void>();
+    const sessionListeners = new Set<(session: RuntimeSession | null) => void>();
     const cloudListeners = new Set<() => void>();
 
     const safely = (run: () => void) => {
@@ -157,7 +195,7 @@ export const runtimeOver = (
         const { seq, session: next } = (data ?? {}) as { seq?: unknown; session?: unknown };
         if (!answered || typeof seq !== 'number' || seq <= answered.seq) return;
         answered = { ...answered, seq };
-        session = next ?? null;
+        session = (next as RuntimeSession | null | undefined) ?? null;
         sessionListeners.forEach(listener => safely(() => listener(session)));
     });
 
@@ -204,21 +242,29 @@ export const runtimeOver = (
         }
     };
 
+    // One untyped body behind both of the interface's `call` signatures.
+    const call = async (method: string, ...args: unknown[]): Promise<never> => {
+        await allowedFor('calls', method);
+        const reply = await client
+            .request<{ value: never }>('RuntimeCall', { target: DATA_TARGET, method, args })
+            .catch(failed);
+        return reply.value;
+    };
+
     return {
         connect: () => connect().then(({ contract, allowed }) => ({ contract, allowed })),
         can: method =>
             !!answered && (answered.allowed.calls.includes(method) || answered.allowed.streams.includes(method)),
-        call: async <T>(method: string, ...args: unknown[]): Promise<T> => {
-            await allowedFor('calls', method);
-            const reply = await client
-                .request<{ value: T }>('RuntimeCall', { target: DATA_TARGET, method, args })
-                .catch(failed);
-            return reply.value;
-        },
-        subscribe: async (method, args, listener, onEnd) => {
+        call,
+        subscribe: async (
+            method: string,
+            args: unknown[],
+            listener: (...event: never[]) => void,
+            onEnd?: (error: ChaticAppsError) => void
+        ) => {
             await allowedFor('streams', method);
             const subscriptionId = `cas-s${(++sequence).toString(36)}`;
-            streams.set(subscriptionId, { listener, onEnd });
+            streams.set(subscriptionId, { listener: listener as (...event: unknown[]) => void, onEnd });
             try {
                 await client.request('RuntimeSubscribe', {
                     subscriptionId,
@@ -237,6 +283,7 @@ export const runtimeOver = (
                 },
             };
         },
+        sendMessage: (channelId, text) => call('chat.sendChat', { channelId, content: text }),
         session: () => session,
         onSessionChange: listener => {
             sessionListeners.add(listener);
@@ -265,7 +312,7 @@ export const runtimeOver = (
     };
 };
 
-/** The same interface in a browser tab: nothing to read. */
+/** The same interface in a browser tab: nothing to read, nothing to send. */
 export const browserRuntime = (): ChaticAppsRuntime => {
     const notInApp = () => Promise.reject(new ChaticAppsError('NOT_IN_APP', "The app's data is read only in the app."));
     return {
@@ -273,6 +320,7 @@ export const browserRuntime = (): ChaticAppsRuntime => {
         can: () => false,
         call: notInApp,
         subscribe: notInApp,
+        sendMessage: notInApp,
         session: () => null,
         onSessionChange: () => () => undefined,
         onCloudChanged: () => () => undefined,
