@@ -10,12 +10,12 @@ import {
 
 const getChat = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: { getGlobalSessionContext: () => ({ cloud: { cloudId: 'cl-1' } }) },
         data: { getCloudRepositories: () => ({ chat: { getChat } }) },
-    },
-}));
+    })
+);
 
 const slot = (id: string, orgUrl: string, extra: Record<string, unknown> = {}) => ({
     id,
