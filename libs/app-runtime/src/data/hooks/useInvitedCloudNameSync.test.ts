@@ -1,3 +1,4 @@
+import { RELAY_SLOT } from '@chatic/transport';
 import { renderHook } from '@testing-library/react';
 
 import { useInvitedCloudNameSync } from './useInvitedCloudNameSync';
@@ -8,16 +9,15 @@ let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-b';
 let mockBridge: string | null = 'react-native-webview';
 
-jest.mock('../dataCommands', () => ({
+jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
 }));
 jest.mock('../../connection/hooks/useRuntimeSocketState', () => ({
     useRuntimeSocketState: () => ({ isVerified }),
 }));
 jest.mock('../../connection/hooks/useSlotVerified', () => ({
-    useSlotVerified: (slot: string) => (slot === 'relay-slot' ? isRelayVerified : false),
+    useSlotVerified: (slot: string) => (slot === RELAY_SLOT ? isRelayVerified : false),
 }));
-jest.mock('@chatic/transport/socket/utils/slotKey', () => ({ RELAY_SLOT: 'relay-slot' }));
 jest.mock('../../session', () => ({ useSessionSelection: () => ({ selectedCloudId }) }));
 jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),

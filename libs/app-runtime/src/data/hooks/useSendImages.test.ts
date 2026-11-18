@@ -6,13 +6,13 @@ import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
 
 import { getCloudRepositories } from '@chatic/runtime-core';
 import { beginMediaSendTiming } from '@chatic/runtime-core';
-import { holdCloud } from '../dataCommands';
+import { holdCloud } from '@chatic/runtime-client/data/dataCommands';
 import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
 // The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
-jest.mock('../dataCommands', () => ({
+jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
     holdCloud: jest.fn(),

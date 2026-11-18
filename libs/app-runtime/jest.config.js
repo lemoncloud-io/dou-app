@@ -21,6 +21,7 @@ module.exports = {
         '^@chatic/session/(.*)$': '<rootDir>/../session/src/$1',
         '^@chatic/transport/(.*)$': '<rootDir>/../transport/src/$1',
         '^@chatic/runtime-core/(.*)$': '<rootDir>/../runtime-core/src/$1',
+        '^@chatic/runtime-client/(.*)$': '<rootDir>/../runtime-client/src/$1',
         '^@chatic/sync/(.*)$': '<rootDir>/../sync/src/$1',
         '^@chatic/auth/(.*)$': '<rootDir>/../auth/src/$1',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',

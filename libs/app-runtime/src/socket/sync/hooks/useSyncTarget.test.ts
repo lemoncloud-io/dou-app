@@ -11,7 +11,7 @@ import {
 } from '@chatic/perf';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
-import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
 // The hooks start their work from the engine the entry point hands over: the core one, with a fake
 // session view that `emitSession` loads the uids below into.

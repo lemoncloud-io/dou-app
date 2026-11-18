@@ -2,8 +2,9 @@
 
 `connection/` is the React layer over the runtime's connections. It holds the host an app mounts
 once, which starts and stops runtime-core's connection controller, hooks that read the sockets' state,
-and the functions that drive the sockets outside React. Both go through the engine
-(`runtimeEngine().connection`, in `connectionCommands.ts`), never the socket manager: on the phone the
+and re-exports the functions that drive the sockets outside React. Both go through the engine
+(`runtimeEngine().connection`, in runtime-client's `connection/connectionCommands.ts`), never the socket
+manager: on the phone the
 sockets may live in another process. What keeps the sockets in line with the session — the slot derivation, the two
 binders, background slots and write holds — is not here: it is runtime-core's, with no React in it,
 so that the native process can run it too ([runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md)).
@@ -13,7 +14,6 @@ so that the native process can run it too ([runtime-core docs/connection/](../..
 ```text
 connection/
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
-├── connectionCommands.ts          the sockets outside React, through the engine
 └── hooks/                         useHostControllers · useRuntimeSocketState · useSlotVerified ·
                                    useCloudVerified · useVerifiedClouds · useConnectivity ·
                                    useBackgroundClouds · useReclaimOwnedClouds
@@ -113,7 +113,8 @@ runtime runs in the page's own process (desktop-web's frame log). The relay acco
 an app used to read and write on the relay slot directly, is the session commands
 `runtime.session.fetchAccountProfile` and `updateAccountProfile`.
 
-`useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
+`useConnectivity` is a display verdict, not an auth verdict — its truth table is runtime-client's
+`deriveConnectivity`, and the hook only feeds it the engine's online signal and the socket hooks — which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
 do". It reads the platform's online signal off the engine's connection snapshot (`online` — the
 transport's `readOnline`, `navigator.onLine` in a page, NetInfo in the app). Its truth table encodes one asymmetry — that flag is a **strong negative** and an

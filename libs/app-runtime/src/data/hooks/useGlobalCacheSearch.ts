@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
-import { globalCacheRefKey } from '@chatic/data';
-import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/data';
 
-import { runtimeData } from '../dataCommands';
+import { globalCacheRefKey, resolveCacheContext, searchCache } from '@chatic/runtime-client';
+import type { GlobalCacheContext, GlobalCacheRef, GlobalCacheSearchResult } from '@chatic/runtime-client';
 
 /**
  * Cross-cloud reads over the local cache (see docs/specs/cache/global-cache-search.md):
@@ -16,13 +15,12 @@ import { runtimeData } from '../dataCommands';
 export const useGlobalCacheSearch = () => {
     const search = useCallback((keyword: string, options?: { cid?: string }): Promise<GlobalCacheSearchResult> => {
         // The account is the engine's to read, at call time: a sign-in or out between renders counts.
-        return runtimeData().searchCache(keyword, options);
+        return searchCache(keyword, options);
     }, []);
 
     const resolveContext = useCallback(
-        (refs: { cids: string[]; channelRefs: GlobalCacheRef[] }): Promise<GlobalCacheContext> => {
-            return runtimeData().resolveCacheContext(refs);
-        },
+        (refs: { cids: string[]; channelRefs: GlobalCacheRef[] }): Promise<GlobalCacheContext> =>
+            resolveCacheContext(refs),
         []
     );
 

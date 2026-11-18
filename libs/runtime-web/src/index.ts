@@ -18,11 +18,80 @@ export type { SessionOwnerChoice, SessionOwnerOptions } from './settleSessionOwn
 
 // the stores an app keeps state in, chosen for its environment
 export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageStores } from './storage/resolveStorageStores';
-export type { StorageEnvironment, StorageStores } from './storage/resolveStorageStores';
+export type { StorageEnvironment } from './storage/resolveStorageStores';
 
 // the phone shell's cache capability, reported after the bridge handshake
 export { setNativeCacheSupport } from './localCache';
 export type { NativeCacheSupport } from './localCache';
+
+// what the page knows about its host at boot, as one value
+export { readWebHostFacts } from './hostFacts';
+export type { WebHostFacts, WebHostFactsSources } from './hostFacts';
+
+// each port's pieces, one factory each, every one buildable on its own from what it is handed —
+// `createWebRuntime` and `resolveStorageStores` are the same factories, chosen for the page
+export { webTransportPorts } from './transport';
+export type { WebTransportOptions } from './transport';
+export { webAuthPorts } from './auth';
+export type { PageLocation } from './auth';
+export { webForegroundPorts } from './foreground';
+export type { VisibilitySource } from './foreground';
+export {
+    createShellVault,
+    localStorageStores,
+    pageStorageAreas,
+    tabStorageStores,
+    vaultStorageStores,
+} from './storage/storeSets';
+export type { ShellVaultOptions, StorageStores, VaultStorageOptions, WebStorageAreas } from './storage/storeSets';
+export {
+    indexedDbCache,
+    readNativeCacheSupport,
+    routedCachePorts,
+    sharedIndexedDbDatabase,
+    shellSqliteCache,
+    webLocalCachePorts,
+    webStorageCache,
+} from './localCache';
+export type {
+    IndexedDbCacheOptions,
+    NativeCacheReport,
+    RoutedCachePortsOptions,
+    SearchableWebCacheStore,
+    ShellSqliteCacheOptions,
+    WebCacheStore,
+    WebStorageCacheOptions,
+} from './localCache';
+
+// the declaration: a web app names its adapters per port and starts the runtime from them
+export { conflicts, defineAdapter, defineRuntime, requires, startRuntime } from '@chatic/runtime-client';
+export type {
+    Adapter,
+    ChoiceLane,
+    ChoiceOrigin,
+    PortChoice,
+    PortChoices,
+    PortConstraint,
+    PortDeclaration,
+    PortName,
+    RuntimeDeclaration,
+    StartRuntimeOptions,
+    StartedRuntime,
+} from '@chatic/runtime-client';
+// the adapters a web declaration plugs in, each named after its id (`cache.indexeddb` → `cacheIndexedDb`)
+export {
+    authLocation,
+    cacheIndexedDb,
+    cacheShellSqlite,
+    cacheWebStorage,
+    foregroundVisibility,
+    storageLocal,
+    storageTab,
+    storageVault,
+    transportBrowser,
+    webHostFacts,
+} from './adapters';
+export type { WebAdapter } from './adapters';
 
 // a page's own upload sender
 export { createXhrPut, xhrPut } from './xhrPut';

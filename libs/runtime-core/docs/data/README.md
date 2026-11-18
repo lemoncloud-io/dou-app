@@ -40,7 +40,7 @@ surface's, in `libs/app-runtime/src/data/`.
 
 Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
 filled in a page by `createWebRuntime` in `@chatic/runtime-web` (its `webLocalCachePorts(cacheTab)`), which holds the routing
-(`resolveCacheBackend`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
+(`resolveCacheBackendFor`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
 bridge adapters and a tab's invited-cloud import; see [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
 The entry point builds the runtime with them (`createWebRuntime({ cacheTab })` in a page, which calls
 `createRuntime({ cache })`), and `localCachePlatform.ports()` throws until it has.
@@ -346,7 +346,7 @@ belongs to [`libs/data`](../../../data/README.md).
 - **Do not add a direct-gateway escape hatch.** Every read and write goes through a repository, and gateway instances stay inside `data/` and `http/`.
 - **Do not revive `ensure`/`destroy` on `DataManager`.** The scope is derived at read time; a setter that ignores its argument is worse than no setter.
 - **Do not capture `getSocketManager()` at construction.** Resolve it per call.
-- **Do not put a routing branch in a factory, an adapter or an app.** The platform's `route()` is the one decision point (`resolveCacheBackend` in a page), and a second one drifts from it invisibly.
+- **Do not put a routing branch in a factory, an adapter or an app.** The platform's `route()` is the one decision point (`resolveCacheBackendFor` in a page), and a second one drifts from it invisibly.
 - **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
 - **Do not send a chat through `useRuntimeRepositories().chat.sendChat`.** It follows the selection, and a switch in flight splits the write across two clouds. Use `sendChatInCloud` with the cloud of the row on screen.
 - **Do not give the chat outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm. The state outbox may have one because its writes are idempotent and collapsed to one per key ([libs/data outbox](../../../data/docs/outbox/README.md#the-machine)).

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { sessionCommands } from '../../../sessionCommands';
+import { sessionCommands } from '@chatic/runtime-client';
 
 /**
  * Leaves the active cloud through the engine's `logoutCloud` command: best-effort cloud-socket

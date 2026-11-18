@@ -2,9 +2,9 @@ import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
 import { startPerfTrace } from '@chatic/perf';
-import type { InviteLogin } from '@chatic/auth';
+import type { InviteLogin } from '@chatic/runtime-client';
 
-import { sessionCommands } from '../../../sessionCommands';
+import { sessionCommands } from '@chatic/runtime-client';
 import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
 
 interface SwitchCloudArgs {

@@ -1,80 +1,52 @@
 /**
- * What matters here is the boundary, not the payload: a user report is a data call, so it goes
- * through the `report` repository and builds no request of its own. The body it hands
- * over is asserted alongside, since the session facts inside it are this file's job.
+ * This page's binding of runtime-client's `submitIssueReport`: the two things only the page knows —
+ * whether it runs inside an app shell, and where it is — read when the report is filed. What the
+ * report carries is runtime-client's to test.
  */
 import { reportIssue } from './reportIssue';
 
-// The page's graph, as the engine hands it over.
-const getRepositories = jest.fn();
-jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
-jest.mock('@chatic/config', () => ({
-    config: { get: jest.fn((key: string) => ({ 'env.stage': 'test', 'env.project': 'chatic_web' })[key]) },
+const mockSubmitIssueReport = jest.fn(async () => undefined);
+jest.mock('@chatic/runtime-client/diagnostics/reportIssue', () => ({
+    submitIssueReport: (...args: unknown[]) => mockSubmitIssueReport(...(args as [])),
 }));
+let mockBridge: string | null = null;
 jest.mock('@chatic/bridges', () => ({
-    hostProfile: () => ({ bridge: null }),
-}));
-jest.mock('@chatic/logger', () => ({
-    logger: { info: jest.fn(), error: jest.fn() },
-}));
-jest.mock('../session', () => ({
-    getActiveSessionUser: () => ({ name: 'nick', userRole: 'user' }),
-    getGlobalSessionContext: () => ({
-        identity: { userId: 'u1', isAuthenticated: true },
-        cloud: { isActive: true, backend: 'https://relay.test', cloudId: 'c1', siteId: 's1' },
-    }),
+    ...jest.requireActual('@chatic/bridges'),
+    hostProfile: () => ({ bridge: mockBridge }),
 }));
 
-const submitIssue = jest.fn();
+type Origin = { hasShellBridge: () => boolean; pageUrl: () => string };
+const originOf = (call: number): Origin => (mockSubmitIssueReport.mock.calls[call] as unknown[])[0] as Origin;
 
 beforeEach(() => {
     jest.clearAllMocks();
-    submitIssue.mockResolvedValue({ id: 'r1' });
-    getRepositories.mockReturnValue({ report: { submitIssue } });
-    window.history.replaceState({}, '', '/settings/feedback');
+    mockBridge = null;
+    window.history.replaceState({}, '', '/settings/feedback?x=1');
 });
 
 describe('reportIssue', () => {
-    it('report repository로 부친다 — 자체 요청을 만들지 않는다', async () => {
-        await reportIssue('제목', '본문', {});
+    it('hands the title, message and extras on unchanged', async () => {
+        const extras = { online: true };
 
-        expect(submitIssue).toHaveBeenCalledTimes(1);
+        await reportIssue('title', 'body', extras);
+
+        expect(mockSubmitIssueReport).toHaveBeenCalledWith(expect.anything(), 'title', 'body', extras);
     });
 
-    it('타이틀은 앱을 앞에 달고, stereo는 issue다 — admin이 로그와 가르는 기준', async () => {
-        await reportIssue('제목', '본문', {});
+    it("reads the page's address when the report is filed", async () => {
+        await reportIssue('title', 'body', {});
+        const origin = originOf(0);
 
-        const body = submitIssue.mock.calls[0][0];
-        expect(body.title).toBe('[web] issue: 제목');
-        expect(body.stereo).toBe('issue');
-        expect(body.save).toBe(true);
+        window.history.replaceState({}, '', '/rooms/1');
+
+        expect(origin.pageUrl()).toBe(`${window.location.origin}/rooms/1`);
     });
 
-    it('첨부가 없으면 Slack으로 나간다 (silent: false)', async () => {
-        await reportIssue('제목', '본문', {});
+    it('says a shell bridge is there only when the host profile found one', async () => {
+        await reportIssue('title', 'body', {});
+        expect(originOf(0).hasShellBridge()).toBe(false);
 
-        expect(submitIssue.mock.calls[0][0].silent).toBe(false);
-    });
-
-    // A single attachment exceeds Slack's text cap — lose the notification, keep the photo.
-    it('첨부가 있으면 저장만 한다 (silent: true)', async () => {
-        await reportIssue('제목', '본문', { images: ['data:image/jpeg;base64,AAAA'] });
-
-        expect(submitIssue.mock.calls[0][0].silent).toBe(true);
-    });
-
-    it('message에 세션 사실을 실어 보낸다 — uid·role·cloud·url', async () => {
-        await reportIssue('제목', '본문', {});
-
-        const payload = JSON.parse(submitIssue.mock.calls[0][0].message);
-        expect(payload.user).toMatchObject({ uid: 'u1', name: 'nick', role: 'user', isAuthenticated: true });
-        expect(payload.cloud).toMatchObject({ connected: true, cloudId: 'c1', name: 'nick', placeId: 's1' });
-        expect(payload.url).toContain('/settings/feedback');
-    });
-
-    it('전송 실패는 호출부로 던진다 — 화면이 실패를 알려야 한다', async () => {
-        submitIssue.mockRejectedValue(new Error('boom'));
-
-        await expect(reportIssue('제목', '본문', {})).rejects.toThrow('boom');
+        mockBridge = 'react-native-webview';
+        expect(originOf(0).hasShellBridge()).toBe(true);
     });
 });

@@ -9,7 +9,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { uploadLogBatch } from './logBatch';
-import type { LogEntry } from '@chatic/bridges';
+import type { LogEntry } from '@chatic/logger';
 
 // The page's graph, as the engine hands it over.
 const getRepositories = jest.fn();

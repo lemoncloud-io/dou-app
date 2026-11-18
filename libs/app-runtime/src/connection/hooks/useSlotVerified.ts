@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-import type { SlotKey } from '@chatic/transport';
+import type { SlotKey } from '@chatic/runtime-client';
 
-import { readConnection, subscribeConnection } from '../connectionCommands';
+import { readConnection, subscribeConnection } from '@chatic/runtime-client';
 
 /**
  * Reactively tracks whether a SPECIFIC socket slot is auth-verified, independent of which slot is

@@ -22,18 +22,28 @@ const online: TransportPorts['online'] = {
     },
 };
 
-/**
- * The shell-injected platform, from the host profile taken at boot, and the user agent. Not from
- * `apps/web`'s device store: that store is filled by a React hook on mount, and the first socket can
- * be created before it runs.
- */
-const device: TransportPorts['device'] = () => {
-    if (typeof window === 'undefined') return {};
-    return {
-        appPlatform: hostProfile().globals.CHATIC_APP_PLATFORM,
-        userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+/** What the transport's ports are handed rather than read. */
+export interface WebTransportOptions {
+    /**
+     * The shell-injected platform, asked each time a socket is about to open. By default the host
+     * profile's `CHATIC_APP_PLATFORM` — not `apps/web`'s device store: that store is filled by a React
+     * hook on mount, and the first socket can be created before it runs.
+     */
+    appPlatform?: () => string | undefined;
+}
+
+const profilePlatform = (): string | undefined => hostProfile().globals.CHATIC_APP_PLATFORM;
+
+/** The shell-injected platform and the page's user agent. Outside a page there is nothing to read. */
+const deviceReader =
+    (appPlatform: () => string | undefined): TransportPorts['device'] =>
+    () => {
+        if (typeof window === 'undefined') return {};
+        return {
+            appPlatform: appPlatform(),
+            userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+        };
     };
-};
 
 /**
  * The page's own `WebSocket` — what the sockets SDK opens when it is given no factory. The browser
@@ -41,5 +51,12 @@ const device: TransportPorts['device'] = () => {
  */
 const createSocket: TransportPorts['createSocket'] = ({ url, protocols }) => new WebSocket(url, protocols);
 
-/** The transport's ports for a web page: the browser, the shell's globals and the page's `WebSocket`. */
-export const webTransportPorts = (): TransportPorts => ({ online, device, createSocket });
+/**
+ * The transport's ports for a web page (`transport.browser`): the browser's network state, the shell's
+ * platform and the page's `WebSocket`.
+ */
+export const webTransportPorts = ({ appPlatform = profilePlatform }: WebTransportOptions = {}): TransportPorts => ({
+    online,
+    device: deviceReader(appPlatform),
+    createSocket,
+});

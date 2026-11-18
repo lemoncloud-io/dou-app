@@ -1,4 +1,11 @@
-import type { CacheMetricsSnapshot, ChatSendPayload, DomainChat } from '@chatic/data';
+import type {
+    CacheMetricsSnapshot,
+    ChatSendPayload,
+    DomainChat,
+    GlobalCacheContext,
+    GlobalCacheRef,
+    GlobalCacheSearchResult,
+} from '@chatic/data';
 import { logger } from '@chatic/logger';
 import type { ClearLocalCachesResult, PageRepositories, RuntimeData, StateOutboxSample } from '@chatic/runtime-core';
 
@@ -43,6 +50,21 @@ export const syncInvitedCloudName = (cloudId: string | undefined): Promise<void>
 /** Reads a paired cloud's name and keeps it with the paired cloud. Best-effort. */
 export const syncPairedCloudName = (cloudId: string | undefined): Promise<void> =>
     runtimeData().syncPairedCloudName(cloudId);
+
+/**
+ * Cross-cloud reads over the local cache: `searchCache` finds matches in any cached cloud,
+ * `resolveCacheContext` reads the rows a result row needs around it (owning channel/place, my read
+ * cursor, newest message) — the only supported way to read outside the active cloud, since
+ * repositories are scoped to it. The engine reads the account at call time, so a sign-in or out
+ * between two calls counts. Signed out, both answer empty.
+ */
+export const searchCache = (keyword: string, options?: { cid?: string }): Promise<GlobalCacheSearchResult> =>
+    runtimeData().searchCache(keyword, options);
+
+export const resolveCacheContext = (refs: {
+    cids: string[];
+    channelRefs: GlobalCacheRef[];
+}): Promise<GlobalCacheContext> => runtimeData().resolveCacheContext(refs);
 
 /** Empties every cloud's local cache partition for the signed-in account. */
 export const clearLocalCaches = (): Promise<ClearLocalCachesResult> => runtimeData().clearLocalCaches();

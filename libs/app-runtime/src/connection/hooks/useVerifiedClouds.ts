@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { readConnection, subscribeConnection } from '../connectionCommands';
+import { readConnection, subscribeConnection } from '@chatic/runtime-client';
 
 const readVerified = (): readonly string[] => readConnection().verifiedSlots;
 

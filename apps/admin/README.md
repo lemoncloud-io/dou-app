@@ -32,6 +32,48 @@ native or desktop shell, so there is nothing for an entry point to choose. That 
 lanes' and the language's are built once in `src/app/storage/`; nothing else in the app names a web
 storage, and the root lint rule refuses it.
 
+## Runtime declaration
+
+The console boots its runtime from a declaration: `src/config/admin.ts` names one adapter per port,
+and `src/main.tsx` awaits `startRuntime(admin)` before it registers the session-failure banner and
+renders. The start also initialises `@chatic/config` from the declaration's `config` ports
+(`src/app/config/adapters.ts`), synchronously and before anything reads config, so there is no
+separate `config.init` call in the entry.
+
+Every port is fixed — no alternatives — to what the console ran before the declaration existed:
+
+| Port         | Adapter                   | What it is                                                                                        |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `storage`    | `storage.admin-tab`       | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
+| `transport`  | `transport.browser`       | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
+| `auth`       | `auth.location`           | `location.search`, and `location.replace('/?…')` at the end of a session                          |
+| `cache`      | `cache.admin-web-storage` | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
+| `foreground` | `foreground.visibility`   | the document's `visibilityState`                                                                  |
+
+`storage` and `cache` are the console's own adapters (`src/config/adapters/`), not runtime-web's
+`storage.tab` and `cache.web-storage`. Those keep the same rows in the same web storages, but over
+store objects of their own; the console's must be the objects `src/app/storage/` hands out, because
+where site data is blocked those stores are page memory, and one `tabStore` holds the session,
+config's session lane and the cache's tab rows together.
+
+A `port.*` toggle in config names no adapter the declaration allows, so the port stays on its default
+and the line says why. The start logs one line per port under `app.runtime_port`:
+
+```text
+[admin] storage → storage.admin-tab (default)
+[admin] transport → transport.browser (default)
+[admin] auth → auth.location (default)
+[admin] cache → cache.admin-web-storage (default)
+[admin] foreground → foreground.visibility (default)
+```
+
+A start that fails is logged under `app.runtime_start_failed` and thrown on, and the console does not
+render — as when the boot threw synchronously before.
+
+The console subscribes no listener to the log hub, so neither line reaches the browser console today;
+the rethrown error does, as an uncaught error. The lines show wherever a listener is attached before
+the start, as `apps/web` does with its console listener.
+
 ## Stage endpoints
 
 Every screen except sign-in switches between the dev (`d1`) and production (`v1`) stage at run time —

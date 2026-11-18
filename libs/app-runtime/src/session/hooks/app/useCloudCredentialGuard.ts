@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { CloudCredentialPolicy } from '@chatic/runtime-core';
+import type { CloudCredentialPolicy } from '@chatic/runtime-client';
 
-import { runtimeEngine } from '../../../init';
+import { runtimeEngine } from '@chatic/runtime-client';
 
-export type { CloudCredentialPolicy } from '@chatic/runtime-core';
+export type { CloudCredentialPolicy } from '@chatic/runtime-client';
 
 /**
  * Keeps every cloud socket session alive — the engine's cloud credential guard, started for as long

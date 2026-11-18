@@ -4,7 +4,7 @@ import { HOME_SEARCH_KEY, nativeAuthPorts } from './auth';
 
 describe('nativeAuthPorts', () => {
     it('has no address when the last lifetime left nothing', () => {
-        expect(nativeAuthPorts(new MemoryStore(), jest.fn()).currentSearch()).toBe('');
+        expect(nativeAuthPorts({ plain: new MemoryStore(), leaveToHome: jest.fn() }).currentSearch()).toBe('');
     });
 
     it("saves the end of a session's parameters, then hands over to the app's way home", () => {
@@ -12,7 +12,7 @@ describe('nativeAuthPorts', () => {
         const leaveToHome = jest.fn();
         const params = new URLSearchParams({ logout: '1' });
 
-        nativeAuthPorts(plain, leaveToHome).leaveToHome(params);
+        nativeAuthPorts({ plain, leaveToHome }).leaveToHome(params);
 
         expect(plain.get(HOME_SEARCH_KEY)).toBe('logout=1');
         expect(leaveToHome).toHaveBeenCalledWith(params);
@@ -20,9 +20,11 @@ describe('nativeAuthPorts', () => {
 
     it('reads them back as the address of the next lifetime, for its whole length', () => {
         const plain = new MemoryStore();
-        nativeAuthPorts(plain, jest.fn()).leaveToHome(new URLSearchParams({ logout: '1', provider: 'apple' }));
+        nativeAuthPorts({ plain, leaveToHome: jest.fn() }).leaveToHome(
+            new URLSearchParams({ logout: '1', provider: 'apple' })
+        );
 
-        const next = nativeAuthPorts(plain, jest.fn());
+        const next = nativeAuthPorts({ plain, leaveToHome: jest.fn() });
 
         expect(next.currentSearch()).toBe('?logout=1&provider=apple');
         expect(next.currentSearch()).toBe('?logout=1&provider=apple');
@@ -30,10 +32,10 @@ describe('nativeAuthPorts', () => {
 
     it('takes them once: the lifetime after that one opens with no address again', () => {
         const plain = new MemoryStore();
-        nativeAuthPorts(plain, jest.fn()).leaveToHome(new URLSearchParams({ logout: '1' }));
-        nativeAuthPorts(plain, jest.fn());
+        nativeAuthPorts({ plain, leaveToHome: jest.fn() }).leaveToHome(new URLSearchParams({ logout: '1' }));
+        nativeAuthPorts({ plain, leaveToHome: jest.fn() });
 
         expect(plain.get(HOME_SEARCH_KEY)).toBeNull();
-        expect(nativeAuthPorts(plain, jest.fn()).currentSearch()).toBe('');
+        expect(nativeAuthPorts({ plain, leaveToHome: jest.fn() }).currentSearch()).toBe('');
     });
 });

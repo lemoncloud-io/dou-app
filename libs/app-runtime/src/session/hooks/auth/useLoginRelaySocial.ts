@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import { sessionCommands } from '../../sessionCommands';
+import { sessionCommands } from '@chatic/runtime-client';
 
 /**
  * Promotes relay authentication with a verified native provider token.

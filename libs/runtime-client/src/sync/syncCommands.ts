@@ -2,10 +2,10 @@ import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
 
 import type { ChatRefreshResult } from '@chatic/data';
 import { logger } from '@chatic/logger';
-import type { RuntimeSync } from '@chatic/runtime-core';
+import type { ChatPrimeOutcome, PrimeChatRoomOptions, RuntimeSync } from '@chatic/runtime-core';
 import type { BackgroundDelta, SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 
-import { runtimeEngine } from '../../init';
+import { runtimeEngine } from '../init';
 
 // The sync engine as the app drives it, through the engine it was handed — never the sync manager,
 // which on the phone may live in another process.
@@ -58,3 +58,21 @@ export const fetchRoomFeed = (
 /** Starts a room's fetch at the tap that opens it. Never rejects. */
 export const prefetchRoomFeed = (cid: string, channelId: string): Promise<ChatRefreshResult | null> =>
     runtimeSync().prefetchRoomFeed(cid, channelId);
+
+/**
+ * Primes a room for its first render: aligns the chat plan's baseline to the cache and fetches a
+ * first page only when the cache is cold. When — once the room's slot is verified, and again after it
+ * re-authenticates — is the caller's.
+ */
+export const primeChatRoom = (
+    cid: string,
+    channelId: string,
+    options?: PrimeChatRoomOptions
+): Promise<ChatPrimeOutcome> => runtimeSync().primeChatRoom(cid, channelId, options);
+
+/**
+ * The identity of a sync target as a registration keys it: a target whose type, id and interval are
+ * unchanged is the same registration, whichever object describes it. `null` is no target.
+ */
+export const syncTargetKey = (target: SyncTargetDescriptor | null): string | null =>
+    target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;

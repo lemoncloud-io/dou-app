@@ -1,3 +1,4 @@
+import { RELAY_SLOT } from '@chatic/transport';
 import { renderHook } from '@testing-library/react';
 
 import { usePairedCloudNameSync } from './usePairedCloudNameSync';
@@ -8,16 +9,15 @@ let isRelayVerified = true;
 let selectedCloudId: string | null = 'cloud-p';
 let pairedCloudIds: string[] = ['cloud-p'];
 
-jest.mock('../dataCommands', () => ({
+jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     syncPairedCloudName: (...args: unknown[]) => syncPairedCloudName(...(args as [])),
 }));
 jest.mock('../../connection/hooks/useRuntimeSocketState', () => ({
     useRuntimeSocketState: () => ({ isVerified }),
 }));
 jest.mock('../../connection/hooks/useSlotVerified', () => ({
-    useSlotVerified: (slot: string) => (slot === 'relay-slot' ? isRelayVerified : false),
+    useSlotVerified: (slot: string) => (slot === RELAY_SLOT ? isRelayVerified : false),
 }));
-jest.mock('@chatic/transport', () => ({ RELAY_SLOT: 'relay-slot' }));
 jest.mock('../../session', () => ({ useSessionSelection: () => ({ selectedCloudId }) }));
 jest.mock('../../session/hooks/pairing/usePairedSession', () => ({ usePairedCloudIds: () => pairedCloudIds }));
 

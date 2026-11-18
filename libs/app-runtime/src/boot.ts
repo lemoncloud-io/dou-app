@@ -3,13 +3,13 @@
 // It has no module of its own on purpose: booting is not one of the runtime's parts (see
 // libs/app-runtime/README.md's table — session · socket · http · sync · data), it is the act of handing
 // them their configuration. So this file is a barrel and nothing else; the logic stays in the module
-// that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `@chatic/transport`
+// that OWNS each piece (runtime-client's engine holder for the wiring, `data/` for the data policies, `@chatic/transport`
 // for the transport, `@chatic/config` for env).
 //
 // The runtime itself is built by the platform's adapter — `createWebRuntime(...)` from
 // `@chatic/runtime-web` in a page — and handed here as an engine.
 
-export { initAppRuntime } from './init';
+export { initAppRuntime } from '@chatic/runtime-client';
 
 // `ENV`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT`/`LANGUAGE_KEY` used to re-export the sole `import.meta`
 // holder's constants (ADR-0070 Decision 6, `@chatic/web-config`). That holder is retired (ADR-0079) —
@@ -27,7 +27,7 @@ export { isNativeApp } from './utils/isNativeApp';
 // left in web storage into it. There is no setter to swap the stores after boot: the session's stores
 // are wired once, when the runtime is built, and a second wiring anywhere else would silently replace
 // that choice.
-export { discardWebSessionCopy, hasWebSessionCopy, prepareSecretStorage } from './sessionStorageBoot';
+export { discardWebSessionCopy, hasWebSessionCopy, prepareSecretStorage } from '@chatic/runtime-client';
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';
 

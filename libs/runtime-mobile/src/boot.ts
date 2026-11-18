@@ -4,14 +4,14 @@ import { config, createWebEnvAdapter } from '@chatic/config';
 import { prepareSecretStorage } from '@chatic/runtime-core';
 import type { RuntimeEngine, SecretStorageOutcome } from '@chatic/runtime-core';
 import { MemoryStore } from '@chatic/storage';
-import type { KeyValueStore, NativeReadResult, NativeStore } from '@chatic/storage';
+import type { NativeReadResult } from '@chatic/storage';
 
 import { HOME_SEARCH_KEY } from './auth';
 import { createNativeRuntime } from './createNativeRuntime';
 import type { NativeRuntimeOptions } from './createNativeRuntime';
 import type { AppStateSource } from './foreground';
 import { waitForUnlockedVault } from './storage';
-import type { DeviceVault } from './storage';
+import type { DeviceVault, NativeStoragePorts } from './storage';
 
 /**
  * The build values the runtime cannot start without: where the relay, the backend and the sign-in
@@ -35,7 +35,7 @@ export const missingNativeRuntimeEnv = (env: (name: string) => string | undefine
 
 /** What the app hands the boot: the runtime's options, its built (not yet loaded) stores, and its vault. */
 export interface NativeRuntimeBootOptions extends Omit<NativeRuntimeOptions, 'storage'> {
-    storage: { secret: NativeStore; plain: KeyValueStore; device: KeyValueStore };
+    storage: NativeStoragePorts;
     /** The vault behind `storage.secret`, asked directly while it is locked. */
     vault: Pick<DeviceVault, 'get'>;
     /** The app's build values by name (react-native-config's `Config`), for the runtime's config. */
@@ -88,6 +88,50 @@ export class NativeRuntimeNoSessionError extends Error {
  */
 const NO_SESSION_OUTCOMES: readonly SecretStorageOutcome[] = ['empty', 'logout-finished'];
 
+/** How the session's secrets were found: the vault as first read, and the secret-storage step's row. */
+export interface NativeSessionLoad {
+    vault: NativeReadResult;
+    secretStorage: SecretStorageOutcome;
+}
+
+/**
+ * Steps 2 and 3 of the boot, on their own: waits out a locked vault, then loads the secret store through
+ * the step a page's boot runs. Throws `NativeRuntimeNoSessionError` — having created nothing — when the
+ * vault is left with no session. The boot runs it, and so does the vault storage adapter a declaration
+ * plugs in, so the two load a launch's session the same way.
+ */
+export const loadNativeSession = async (
+    storage: NativeStoragePorts,
+    vault: Pick<DeviceVault, 'get'>,
+    appState?: AppStateSource
+): Promise<NativeSessionLoad> => {
+    const read = await waitForUnlockedVault(vault, appState);
+
+    const secretStorage = await prepareSecretStorage({
+        vault: storage.secret,
+        plain: storage.plain,
+        web: new MemoryStore(),
+        tab: new MemoryStore(),
+        // Never from the address the last session ended with. A page's `?logout=1` belongs to the
+        // document the logout opened and is gone on its next load; the app's saved address outlives
+        // the logout while the process runs on, and a guest signed in after it would have its tokens
+        // emptied at the next launch. The logout itself empties the vault before it ends, and leaves
+        // `SECRET_LOGOUT_PENDING_KEY` in `plain` when that clear was not confirmed — which this step
+        // reads on its own.
+        afterLogout: false,
+    });
+
+    if (NO_SESSION_OUTCOMES.includes(secretStorage)) {
+        // The address a session's end saved is read only by the runtime this boot no longer creates. The
+        // page that takes the launch hears the same end on its own address, so the saved one goes now
+        // rather than reaching a runtime launch days later.
+        storage.plain.remove(HOME_SEARCH_KEY);
+        throw new NativeRuntimeNoSessionError(secretStorage);
+    }
+
+    return { vault: read, secretStorage };
+};
+
 /**
  * Boots the runtime in React Native's process, in the order a page's entry boots it:
  *
@@ -115,29 +159,7 @@ export const bootNativeRuntime = async ({
         env: createWebEnvAdapter(name => (name === 'CHATIC_APP_PLATFORM' ? Platform.OS : env(name))),
     });
 
-    const read = await waitForUnlockedVault(vault, appState);
-
-    const secretStorage = await prepareSecretStorage({
-        vault: options.storage.secret,
-        plain: options.storage.plain,
-        web: new MemoryStore(),
-        tab: new MemoryStore(),
-        // Never from the address the last session ended with. A page's `?logout=1` belongs to the
-        // document the logout opened and is gone on its next load; the app's saved address outlives
-        // the logout while the process runs on, and a guest signed in after it would have its tokens
-        // emptied at the next launch. The logout itself empties the vault before it ends, and leaves
-        // `SECRET_LOGOUT_PENDING_KEY` in `plain` when that clear was not confirmed — which this step
-        // reads on its own.
-        afterLogout: false,
-    });
-
-    if (NO_SESSION_OUTCOMES.includes(secretStorage)) {
-        // The address a session's end saved is read only by the runtime this boot no longer creates. The
-        // page that takes the launch hears the same end on its own address, so the saved one goes now
-        // rather than reaching a runtime launch days later.
-        options.storage.plain.remove(HOME_SEARCH_KEY);
-        throw new NativeRuntimeNoSessionError(secretStorage);
-    }
+    const { vault: read, secretStorage } = await loadNativeSession(options.storage, vault, appState);
 
     return { engine: createNativeRuntime(options), vault: read, secretStorage };
 };

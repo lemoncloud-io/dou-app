@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtimeConnection } from '../connectionCommands';
+import { runtimeConnection } from '@chatic/runtime-client';
 
 /**
  * Hands the runtime the clouds this account OWNS, so any of them the device holds as an invitee is

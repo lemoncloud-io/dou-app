@@ -3,23 +3,14 @@ import { act, renderHook } from '@testing-library/react';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { emptySessionSnapshot, fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
 
-import { initAppRuntime, resetRuntimeEngine } from '../init';
-import { useIsPairedSession, usePairedCloudIds, usePairedCloudNames } from './hooks/pairing/usePairedSession';
-import { useGlobalSession } from './hooks/session/readers/useGlobalSession';
-import { useSessionAuth } from './hooks/session/readers/useSessionAuth';
-import { useSessionIdentity } from './hooks/session/readers/useSessionIdentity';
-import {
-    getActiveServerContext,
-    getActiveSessionUser,
-    getCommittedSessionSiteId,
-    getGlobalSessionContext,
-    getIdentityContext,
-    getRelaySessionUser,
-    getUidInCloud,
-    isInOwnCloudSession,
-    isPairedSession,
-} from './sessionReads';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
+import { useIsPairedSession, usePairedCloudIds, usePairedCloudNames } from './pairing/usePairedSession';
+import { useGlobalSession } from './session/readers/useGlobalSession';
+import { useSessionAuth } from './session/readers/useSessionAuth';
+import { useSessionIdentity } from './session/readers/useSessionIdentity';
 
+// The readers these hooks subscribe to are runtime-client's (`session/sessionReads`); this is the
+// React side — that a hook re-renders with what the engine reports next.
 // The session the engine hands over is the only thing these read: an engine with a fake session view,
 // and nothing of the stores.
 const session = fakeSessionView();
@@ -44,29 +35,6 @@ beforeEach(() => {
 });
 
 afterEach(() => resetRuntimeEngine());
-
-describe('the session readers', () => {
-    it('answer from the snapshot of the engine they were handed', () => {
-        session.set(signedIn);
-
-        expect(getGlobalSessionContext()).toBe(session.snapshot().context);
-        expect(getActiveServerContext()).toEqual(signedIn.context.activeServer);
-        expect(getIdentityContext().userId).toBe('uid-c1');
-        expect(getActiveSessionUser()).toEqual({ name: 'In cloud' });
-        expect(getRelaySessionUser()).toEqual({ name: 'Account' });
-        expect(getCommittedSessionSiteId()).toBe('p1');
-        expect(getUidInCloud('c1')).toBe('uid-c1');
-        expect(getUidInCloud('nowhere')).toBeNull();
-        expect(isPairedSession()).toBe(true);
-        expect(isInOwnCloudSession()).toBe(false);
-    });
-
-    it('throw before the entry point handed over an engine, instead of reading the stores', () => {
-        resetRuntimeEngine();
-
-        expect(() => getGlobalSessionContext()).toThrow(/initAppRuntime/);
-    });
-});
 
 describe('the session hooks', () => {
     it('re-render with the session the engine reports next', () => {

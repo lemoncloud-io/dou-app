@@ -7,6 +7,8 @@ import type { CacheAssemblyOptions, DataContextProvider } from '@chatic/data';
 import { MemoryStore } from '@chatic/storage';
 
 import type * as LocalCache from './index';
+import { readNativeCacheSupport } from './nativeCacheSupport';
+import { resolveCacheBackendFor } from './routing';
 
 /** The storage the web ports build for `type`, on the route they choose for it. */
 const storageFor = (
@@ -258,5 +260,28 @@ describe('webLocalCachePorts chat cap injection', () => {
         const storage = storageFor(ports, 'chat', contextProvider);
 
         expect((storage as any).options.maxChatsPerChannel).toBeUndefined();
+    });
+});
+
+// The decision itself, over a host handed in: the same table the page's ports route by above.
+describe('resolveCacheBackendFor', () => {
+    it('routes by the bridge and the report it is handed', () => {
+        expect(resolveCacheBackendFor('invitecloud', { bridge: null, support: null })).toBe('session');
+        expect(resolveCacheBackendFor('chat', { bridge: null, support: null })).toBe('web');
+        expect(resolveCacheBackendFor('invitecloud', { bridge: 'message-handler', support: null })).toBe('web');
+        expect(resolveCacheBackendFor('chat', { bridge: 'webkit-message-handler', support: null })).toBe('web');
+        expect(resolveCacheBackendFor('chat', { bridge: 'react-native-webview', support: null })).toBe('native');
+    });
+
+    it('sends a domain the reported shell cannot hold to IndexedDB, and one it reports to the shell', () => {
+        const bridge = 'react-native-webview';
+
+        expect(resolveCacheBackendFor('invite', { bridge, support: null })).toBe('web');
+        expect(
+            resolveCacheBackendFor('invite', {
+                bridge,
+                support: readNativeCacheSupport({ supportedCacheTypes: ['invite'] }),
+            })
+        ).toBe('native');
     });
 });

@@ -4,7 +4,7 @@ import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
 import { emptySessionSnapshot, fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { usePairedCloudCheck } from './usePairedCloudCheck';
 
 // The round itself — the guest rule, re-issuing each cloud — is the engine's `checkPairedClouds`;

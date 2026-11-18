@@ -84,6 +84,37 @@ export const nativeSecretStore = (
         timeoutMs,
     });
 
+/**
+ * The runtime's three stores in React Native's process. `secret` is not loaded yet: the boot loads it,
+ * through the secret-storage step, before the runtime is created.
+ */
+export interface NativeStoragePorts {
+    secret: NativeStore;
+    plain: KeyValueStore;
+    device: KeyValueStore;
+}
+
+/** Where the runtime's stores are kept on this device. */
+export interface NativeStorageOptions {
+    /** The device vault the WebView's pages keep their secrets in. */
+    vault: DeviceVault;
+    /** One key-value file per plain store, the runtime's alone (see `keyValueStoreOn`). */
+    files: { plain: KeyValueFile; device: KeyValueFile };
+    /** How the secret store treats a vault that fails or does not answer. */
+    secret?: NativeSecretStoreOptions;
+}
+
+/**
+ * The storage port for React Native: the secret store on the vault the pages use, and the plain and
+ * device stores on files of the runtime's own. The app opens the vault and the files — they sit on
+ * native modules it links — and this puts the stores on them the same way in any app.
+ */
+export const nativeStoragePorts = ({ vault, files, secret }: NativeStorageOptions): NativeStoragePorts => ({
+    secret: nativeSecretStore(vault, secret),
+    plain: keyValueStoreOn(files.plain),
+    device: keyValueStoreOn(files.device),
+});
+
 /** How long a read that answered locked while the app is in front waits before it asks once more. */
 const LOCKED_IN_FRONT_RETRY_MS = 1000;
 

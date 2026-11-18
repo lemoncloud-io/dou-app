@@ -8,7 +8,7 @@ import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chati
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import type { RuntimeEngine } from '@chatic/runtime-core';
-import { initAppRuntime, resetRuntimeEngine } from '../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
 // The hooks start their work from the engine the entry point hands over; these use the core one.
 beforeEach(() => initAppRuntime(coreEngine));
@@ -40,8 +40,7 @@ const setReady = (ready: boolean): void => {
 
 // The device id the host hands the controller: the page's own id, unless the shell injected one.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
-    lazySessionDeviceId: () => () => 'device-1',
-    resolveDeviceIds: (sessionDeviceId: () => string) => ({ deviceId: sessionDeviceId() }),
+    resolveDeviceIds: () => ({ deviceId: 'device-1' }),
 }));
 
 // What the controller drives, stubbed where it would reach a server. The controller itself is real:

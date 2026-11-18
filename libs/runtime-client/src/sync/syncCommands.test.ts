@@ -1,15 +1,17 @@
 import { coreEngine } from '@chatic/runtime-core/engine';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../init';
+import { initAppRuntime, resetRuntimeEngine } from '../init';
 import {
     fetchRoomFeed,
     isChannelRefused,
     listSyncTargets,
     prefetchRoomFeed,
+    primeChatRoom,
     refreshBackgroundClouds,
     registerSyncTarget,
     subscribeBackgroundDeltas,
     subscribeRefusedChannels,
+    syncTargetKey,
     updateSyncSnapshot,
 } from './syncCommands';
 
@@ -23,6 +25,7 @@ const sync = {
     subscribeRefusedChannels: jest.fn(() => jest.fn()),
     fetchRoomFeed: jest.fn(async () => ({ fetchedCount: 3 })),
     prefetchRoomFeed: jest.fn(async () => undefined),
+    primeChatRoom: jest.fn(async () => 'ready'),
 };
 
 beforeEach(() => {
@@ -75,5 +78,25 @@ describe("the room feed, refusals and background clouds, through the engine's sy
         expect(sync.isChannelRefused).toHaveBeenCalledWith('ch-1');
         expect(sync.subscribeRefusedChannels).toHaveBeenCalledWith(listener);
         expect(sync.onBackgroundDelta).toHaveBeenCalledWith(listener);
+    });
+});
+
+describe('primeChatRoom', () => {
+    it("primes the room through the engine's sync and answers its outcome", async () => {
+        const cancelled = () => false;
+
+        await expect(primeChatRoom('c-1', 'ch-1', { cancelled })).resolves.toBe('ready');
+        expect(sync.primeChatRoom).toHaveBeenCalledWith('c-1', 'ch-1', { cancelled });
+    });
+});
+
+describe('syncTargetKey', () => {
+    it('keys a target by its type, id and interval', () => {
+        expect(syncTargetKey({ type: 'chat', id: 'ch-1', intervalMs: 5000 })).toBe('chat:ch-1:5000');
+        expect(syncTargetKey({ type: 'place', id: 'p-1' })).toBe('place:p-1:');
+    });
+
+    it('is null for no target', () => {
+        expect(syncTargetKey(null)).toBeNull();
     });
 });

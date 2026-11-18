@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 
 import { useCloudCredentialGuard } from './useCloudCredentialGuard';
 import { coreEngine } from '@chatic/runtime-core/engine';
-import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
 // The hooks start their work from the engine the entry point hands over; these use the core one.
 beforeEach(() => initAppRuntime(coreEngine));

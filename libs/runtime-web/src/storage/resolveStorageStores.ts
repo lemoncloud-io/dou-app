@@ -1,7 +1,17 @@
-import { BridgeStorageChannel, hostProfile, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
-import { NativeSecureStore, TolerantStore, WebStore } from '@chatic/storage';
+import { hostProfile, shellKeepsStorageMedium } from '@chatic/bridges';
+import { WebStore } from '@chatic/storage';
+import type { NativeSecureStore } from '@chatic/storage';
 
-import type { KeyValueStore } from '@chatic/storage';
+import {
+    createShellVault,
+    localStorageStores,
+    pageStorageAreas,
+    tabStorageStores,
+    vaultStorageStores,
+} from './storeSets';
+import type { StorageStores } from './storeSets';
+
+export type { StorageStores } from './storeSets';
 
 /**
  * What the choice of stores depends on, read once at boot.
@@ -23,27 +33,6 @@ export interface StorageEnvironment {
 /** The tab mark a late vault leaves before the reload. Read here; written by the app that noticed. */
 export const LATE_VAULT_MARK = 'chatic-shell-vault-confirmed';
 
-/**
- * Every store an app keeps state in, by the role it plays — the only names an entry point hands out.
- *
- * - `secret` · `plain` — the session's two ports.
- * - `vault` — the device vault behind `secret`, when there is one; the entry point loads it before the
- *   runtime boots. `null` when `secret` is a web store.
- * - `device` · `tab` — everything else an app or the runtime keeps: values that outlive the tab, and
- *   values that do not. Tolerant, because none of it may break a screen.
- * - `webLocal` · `webSession` — the raw web stores, for the few boot steps that move data between them
- *   (the vault migration reads both).
- */
-export interface StorageStores {
-    secret: KeyValueStore;
-    plain: KeyValueStore;
-    vault: NativeSecureStore | null;
-    device: KeyValueStore;
-    tab: KeyValueStore;
-    webLocal: KeyValueStore;
-    webSession: KeyValueStore;
-}
-
 /** The environment as this page sees it. */
 export const readStorageEnvironment = (): StorageEnvironment => ({
     inShell: hostProfile().bridge !== null,
@@ -51,17 +40,11 @@ export const readStorageEnvironment = (): StorageEnvironment => ({
     lateVaultConfirmed: WebStore.session().get(LATE_VAULT_MARK) === '1',
 });
 
-const createVault = (): NativeSecureStore =>
-    new NativeSecureStore({
-        channel: new BridgeStorageChannel(webClient, 'nativeSecure'),
-        // Never localStorage: a run whose vault is unavailable keeps the session in the tab only.
-        fallback: WebStore.session(),
-    });
-
 /**
  * The one place an app's stores are chosen and built — the storage counterpart of the web cache's
- * `resolveCacheBackend`. An entry point that uses it calls it once and hands the result out instead of
- * constructing stores itself (apps/web and apps/desktop-web do).
+ * `resolveCacheBackendFor`. An entry point that uses it calls it once and hands the result out instead of
+ * constructing stores itself (apps/web and apps/desktop-web do). It reads the environment and picks
+ * one of the three store sets in `storeSets.ts`, each of which builds on its own from what it is handed.
  *
  * The rule, by environment:
  *
@@ -78,19 +61,17 @@ const createVault = (): NativeSecureStore =>
  */
 export const resolveStorageStores = (
     env: StorageEnvironment = readStorageEnvironment(),
-    vaultFactory: () => NativeSecureStore = createVault
+    vaultFactory: () => NativeSecureStore = createShellVault
 ): StorageStores => {
-    const webLocal = WebStore.local();
-    const webSession = WebStore.session();
-    const plain = env.inShell ? webLocal : webSession;
-    const vault = env.shellKeepsVault || env.lateVaultConfirmed ? vaultFactory() : null;
-    return {
-        secret: vault ?? plain,
-        plain,
-        vault,
-        device: new TolerantStore(webLocal),
-        tab: new TolerantStore(webSession),
-        webLocal,
-        webSession,
-    };
+    const areas = pageStorageAreas();
+    if (env.shellKeepsVault || env.lateVaultConfirmed) {
+        // The vault follows the flags alone, as it always has; plain state still follows the shell
+        // test, so a page that carries a vault flag outside a shell keeps its plain state in the tab.
+        return vaultStorageStores({
+            ...areas,
+            vault: vaultFactory(),
+            plain: env.inShell ? areas.webLocal : areas.webSession,
+        });
+    }
+    return env.inShell ? localStorageStores(areas) : tabStorageStores(areas);
 };

@@ -1,7 +1,7 @@
 # @chatic/config
 
 **One answer per setting, and one place that decides it.** This lib declares every runtime setting
-the apps have — 95 keys across 12 domain modules — folds four override lanes and three registry rows
+the apps have — 109 keys across 13 domain modules — folds four override lanes and three registry rows
 into a single value, and exports that as one `config` facade. It stores nothing itself and reaches
 nothing itself: storage, the native shell and the network all arrive as adapters the app plugs in.
 
@@ -24,7 +24,9 @@ This lib **does not fetch anything, log anything or store anything.** There is n
 two server lanes, no logger import behind `onDuplicateKey`, and no `localStorage` behind
 `persist: 'local'`. Each of those is a port the app fills — see [docs/ports/](./docs/ports/README.md).
 The one consequence people trip over: `config.get()` before `config.init()` answers `undefined`, and
-`config.set()` answers `{ ok: false, reason: 'notWired' }`. Neither throws.
+`config.set()` answers `{ ok: false, reason: 'notWired' }`. Neither throws. A caller that has to know
+whether `init` already ran — runtime-client's `startRuntime`, which must never initialise twice — asks
+`config.isInitialized()` rather than probing a key the facade may not hold.
 
 It also does not own **where a control appears**. `surface` says which screen would draw a key's
 control, but no screen is generated from it — `apps/web`'s debug `ConfigScreen` renders the `dev`
@@ -36,7 +38,7 @@ hand-built row on the Lab page.
 1. **This lib imports nothing.** Zero `@chatic` dependencies, zero `import.meta`, zero network, and React only inside `src/react/`. `tsconfig.lib.json` lists no project references at all, and `package.json` declares no dependencies — those two empty lists are the check. Breaking this is what would stop React Native from sharing the core and start import cycles in consumer libs.
 2. **Only the value is mutable at runtime.** Type, writers, persistence and surface are authored in the registry and frozen. No lane can change them, or an override could grant itself permission.
 3. **The kill switch is read alone and first.** `serverEnforced` looks at the cached payload, the key's own `writableBy` and the TTL — never at the store, the shell or a stage rule. A kill is used when everything else is broken, so it must not travel the road it is closing.
-4. **A developer's mistake must not stop a user's boot.** 69 of 95 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
+4. **A developer's mistake must not stop a user's boot.** 83 of 109 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
 5. **A refusal is a return value.** `set`/`clear` answer `{ ok: false, reason }`. A debug panel should say why a control did nothing, not crash.
 6. **Observers hear only when the resolved value moved.** `set`, `clear` and `applyRemotePayload` all snapshot before and after and notify on the difference. A change under a row that is already losing tells a watcher nothing true.
 7. **An absent port means "not wired", never "broken".** No `shell` leaves the shell lane empty; no `remote` leaves both server lanes empty. Only `env` is required, because a stage and a platform are what the registry's rules are judged against.
@@ -44,7 +46,7 @@ hand-built row on the Lab page.
 
 ## Scope
 
-**In** — the key registry and its 12 domain modules, the `ConfigEntry` declaration contract and its
+**In** — the key registry and its 13 domain modules, the `ConfigEntry` declaration contract and its
 policy invariants, the four-lane precedence table, value validation, the lane store and its
 subscribers, the last-known-good remote payload cache, JSON encoding at the storage boundary, the
 port interfaces, the shared Vite env adapter, and the two React hooks.
@@ -71,7 +73,7 @@ flowchart TD
     React["react/<br/><i>useConfigValue</i>"]:::resl
 
     Registry["ConfigRegistry<br/><i>merge · findPolicyViolations</i>"]:::decl
-    Modules["registry/ × 12<br/><i>95 ConfigEntry declarations</i>"]:::decl
+    Modules["registry/ × 13<br/><i>109 ConfigEntry declarations</i>"]:::decl
 
     Resolver["ConfigResolver<br/><i>folds 6 rows into one value</i>"]:::resl
     Policy["ConfigLanePolicy<br/><i>order · canSupply · writersFor</i>"]:::resl
@@ -145,7 +147,7 @@ libs/config/src/
 ├── index.ts            the ConfigFacade class, the `config` instance, the public barrel
 ├── types.ts            ConfigEntry · ConfigSnapshot · Lane · Surface · Persist · Stage · Platform
 ├── ports.ts            ConfigRuntimePorts and the four adapter interfaces
-├── registry/           index.ts (merge + findPolicyViolations), modules.ts, 12 domain files
+├── registry/           index.ts (merge + findPolicyViolations), modules.ts, 13 domain files
 ├── resolve/            ConfigResolver · ConfigLanePolicy · validate.ts
 ├── store/              ConfigStore — one map per lane, plus the subscriber set
 ├── lanes/              RemoteCache — the payload behind rows 1 and 4, and IRemoteConfigAdapter
@@ -214,7 +216,7 @@ next boot.
 
 ### 1. Boot
 
-`config.init(ports)` merges the 12 registry modules, builds the resolver, reads the shell's boot
+`config.init(ports)` merges the 13 registry modules, builds the resolver, reads the shell's boot
 envelope into the `shell` lane wholesale, then walks every key and reads its persisted override into
 the `local` lane. The envelope is a `window` global the shell injected, read synchronously — there is
 no bridge round trip to wait for, which is what lets `init` be a plain synchronous call.
@@ -262,7 +264,7 @@ the only thing keeping it from rotting.
 
 | Folder                                      | What it covers                                                                                                          |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| [docs/registry/](./docs/registry/README.md) | Declaring a key. The `ConfigEntry` contract, the 12 domains, the four surfaces, the enforced invariants, how to add one |
+| [docs/registry/](./docs/registry/README.md) | Declaring a key. The `ConfigEntry` contract, the 13 domains, the four surfaces, the enforced invariants, how to add one |
 | [docs/resolve/](./docs/resolve/README.md)   | Turning declarations into a value. The seven rows, the unlock gate, validation, stage vs build stage, the remote cache  |
 | [docs/ports/](./docs/ports/README.md)       | The outside world. The four adapters, what each app wires, the shell KV round trip and its legacy fallback              |
 
@@ -270,7 +272,7 @@ the only thing keeping it from rotting.
 
 ```bash
 npx tsc -b libs/config/tsconfig.lib.json     # the lib
-npx tsc -b libs/config/tsconfig.spec.json    # the 8 spec files
+npx tsc -b libs/config/tsconfig.spec.json    # the 9 spec files
 npx tsc -b libs/config/tsconfig.json         # both, through the references — what nx typecheck runs
 npx jest --config libs/config/jest.config.js
 ```

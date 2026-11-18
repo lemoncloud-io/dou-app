@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { RuntimeEngine } from '@chatic/runtime-core';
 
 import { useSessionStalenessGuard } from './useSessionStalenessGuard';
-import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
 const mockStop = jest.fn();
 const mockStart = jest.fn(() => mockStop);

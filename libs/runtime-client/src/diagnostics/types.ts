@@ -6,6 +6,17 @@
 export type AppType = 'web' | 'admin' | 'mobile';
 
 /**
+ * What only the page filing a report knows. Both are read when the report is filed, not when the
+ * page boots: the address is wherever the user is at that moment.
+ */
+export interface IssueReportOrigin {
+    /** Whether the page runs inside an app shell (the phone app or the desktop shell). */
+    hasShellBridge: () => boolean;
+    /** The page's full address — query secrets are redacted before it goes into the report. */
+    pageUrl: () => string;
+}
+
+/**
  * Optional context a user-facing issue report can attach on top of the base
  * `reportIssue` payload (user/cloud/env/url). Kept loosely typed so this lib
  * stays decoupled from the app's log/device modules — the caller (apps/web

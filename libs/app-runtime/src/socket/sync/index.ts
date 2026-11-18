@@ -5,21 +5,21 @@
 // one of the three named targets, and the generic is the runtime's own seam (ADR-0076 Decision 6 removed
 // exactly this category — a public symbol with zero app callers).
 export { useChatSync, useChannelSync, usePlaceSync } from './hooks/useSyncTarget';
-// Through the engine (`./syncCommands`), never the sync manager: a registration that is not a screen's
+// Through the engine (runtime-client's sync commands), never the sync manager: a registration that is not a screen's
 // own mount (a list of rooms, a set of joins), the cache's baseline, and the debug listing.
-export { listSyncTargets, registerSyncTarget, updateSyncSnapshot } from './syncCommands';
+export { listSyncTargets, registerSyncTarget, updateSyncSnapshot } from '@chatic/runtime-client';
 export type { SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 // The foreground kick for the clouds the user is not looking at — the receive loops themselves are
 // started by the connection host, not by an app.
-export { refreshBackgroundClouds } from './syncCommands';
+export { refreshBackgroundClouds } from '@chatic/runtime-client';
 // When a background cloud's delta came back — for an app holding a mark that only its cache can
 // retire, such as a push it heard about before the cache did.
-export { subscribeBackgroundDeltas } from './syncCommands';
+export { subscribeBackgroundDeltas } from '@chatic/runtime-client';
 export type { BackgroundDelta } from '@chatic/sync';
 // Refusal is a READ for screens — `isChannelRefused` plus its subscription, so a room can say "you
 // are not in this conversation" instead of waiting out a timeout it cannot interpret. The writers
 // (`recordRefusedChannel` / `clearRefusedChannel`) stay internal: only the sync plans decide what
 // the server refused, and an app that could write this could make the room lie.
-export { isChannelRefused, subscribeRefusedChannels } from './syncCommands';
+export { isChannelRefused, subscribeRefusedChannels } from '@chatic/runtime-client';
 // A room's latest page, fetched once per entry: the tap starts it, and the room's sync hooks join it.
-export { fetchRoomFeed, prefetchRoomFeed } from './syncCommands';
+export { fetchRoomFeed, prefetchRoomFeed } from '@chatic/runtime-client';

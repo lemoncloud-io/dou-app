@@ -1,10 +1,9 @@
 import { useState } from 'react';
 
-import type { ConnectionController, SessionController } from '@chatic/runtime-core';
+import { lazySessionDeviceId, runtimeEngine } from '@chatic/runtime-client';
+import type { ConnectionController, SessionController } from '@chatic/runtime-client';
 
-import { runtimeEngine } from '../../init';
-
-import { lazySessionDeviceId, resolveDeviceIds } from '../../session/hooks/app/useDynamicDeviceId';
+import { resolveDeviceIds } from '../../session/hooks/app/useDynamicDeviceId';
 
 export interface HostControllers {
     session: SessionController;

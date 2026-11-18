@@ -88,22 +88,31 @@ export const REQUIRED_DOMAIN_VERSION: Partial<Record<GateableCacheType, number>>
 
 let support: NativeCacheSupport | null = null;
 
-/**
- * Records the handshake reply. Call once per boot, before the data runtime is built — see the
- * ordering note on `isNativeCacheTypeUsable`.
- */
-export const setNativeCacheSupport = (reported: {
+/** The handshake reply's cache fields, as the shell sends them; any of them may be missing. */
+export interface NativeCacheReport {
     cacheSchemaVersion?: number;
     supportedCacheTypes?: string[];
     cacheDomainVersions?: CacheDomainVersions;
     supportedWebMessages?: string[];
-}): void => {
-    support = {
-        schemaVersion: reported.cacheSchemaVersion ?? null,
-        types: new Set((reported.supportedCacheTypes ?? []) as CacheType[]),
-        domainVersions: reported.cacheDomainVersions ?? {},
-        messages: new Set(reported.supportedWebMessages ?? []),
-    };
+}
+
+/**
+ * The capability a handshake reply describes, as a value. Pure: a reply from a build that predates a
+ * field reads as that field being empty, which the verdicts below answer the way a legacy shell needs.
+ */
+export const readNativeCacheSupport = (reported: NativeCacheReport): NativeCacheSupport => ({
+    schemaVersion: reported.cacheSchemaVersion ?? null,
+    types: new Set((reported.supportedCacheTypes ?? []) as CacheType[]),
+    domainVersions: reported.cacheDomainVersions ?? {},
+    messages: new Set(reported.supportedWebMessages ?? []),
+});
+
+/**
+ * Records the handshake reply. Call once per boot, before the data runtime is built — see the
+ * ordering note on `isCacheTypeUsableBy`.
+ */
+export const setNativeCacheSupport = (reported: NativeCacheReport): void => {
+    support = readNativeCacheSupport(reported);
     logger.debug('CACHE', '[nativeCacheSupport] native cache capability reported', {
         data: {
             schemaVersion: support.schemaVersion,
@@ -131,37 +140,43 @@ export const getNativeCacheSupport = (): NativeCacheSupport | null => support;
  * name-only report to edition 1 keeps every routing decision exactly where it was.
  */
 const legacyVersion = (type: CacheType): number => (LEGACY_NATIVE_CACHE_TYPES.has(type) ? 1 : 0);
-const reportedByName = (type: CacheType): number => (support?.types.has(type) ? 1 : 0);
-const appVersion = (type: CacheType): number =>
-    Math.max(support?.domainVersions[type] ?? 0, reportedByName(type), legacyVersion(type));
+const reportedByName = (reported: NativeCacheSupport | null, type: CacheType): number =>
+    reported?.types.has(type) ? 1 : 0;
+const appVersion = (reported: NativeCacheSupport | null, type: CacheType): number =>
+    Math.max(reported?.domainVersions[type] ?? 0, reportedByName(reported, type), legacyVersion(type));
 
 /** Absent = edition 1 suffices. Local-authority types cannot be keys, so they always land here. */
 const requiredVersion = (type: CacheType): number => REQUIRED_DOMAIN_VERSION[type as GateableCacheType] ?? 1;
 
 /**
- * Whether the running native shell can be trusted to store `type`.
+ * Whether a shell that reported `reported` (or nothing yet, `null`) can be trusted to store `type`.
+ * The routing table asks it of the report the page recorded (`getNativeCacheSupport`), read at each
+ * decision.
  *
- * False routes that domain to web storage instead (see `storage()` in `index.ts`): the app
- * would otherwise take the write into a `default:` arm that answers `null` with `success: true` —
- * a permanently empty cache rather than an error.
+ * False routes that domain to web storage instead: the app would otherwise take the write into a
+ * `default:` arm that answers `null` with `success: true` — a permanently empty cache rather than an
+ * error.
  *
- * ORDERING: this is read when a cache storage is created, which can happen before the handshake
+ * ORDERING: this is asked when a cache storage is created, which can happen before the handshake
  * reply lands. Unknown therefore resolves the same way a legacy app does — web storage for anything
  * outside the frozen set — so an early read is never WRONG, only conservative. Legacy types clear
  * the default requirement on the floor alone, so the common path has no ordering dependency.
  */
-export const isNativeCacheTypeUsable = (type: CacheType): boolean => appVersion(type) >= requiredVersion(type);
+export const isCacheTypeUsableBy = (reported: NativeCacheSupport | null, type: CacheType): boolean =>
+    appVersion(reported, type) >= requiredVersion(type);
 
 /**
- * Whether the installed shell answers this cache request — asked by the native chat storage each
- * time it is about to send one of the room media index reads.
+ * Whether a shell that reported `reported` answers this cache request; `null` (no reply yet) is no —
+ * asked by the native chat storage each time it is about to send one of the room media index reads.
  *
- * Read on every call, never captured: the handshake reply is asynchronous and the storage can be built
- * before it lands, so a verdict taken at construction would freeze "not known yet" for the session.
- * Until the reply lands — and on a shell that predates `supportedWebMessages` — the answer is no, and
- * the reader takes the plain-row path, which answers the same, only slower.
+ * The caller hands in the report it reads on every call, never one captured at construction: the
+ * handshake reply is asynchronous and the storage can be built before it lands, so a verdict taken
+ * then would freeze "not known yet" for the session. Until the reply lands — and on a shell that
+ * predates `supportedWebMessages` — the answer is no, and the reader takes the plain-row path, which
+ * answers the same, only slower.
  *
- * This is not a routing question. Routing is per domain (`isNativeCacheTypeUsable`); the media index
- * lives with the chat rows wherever they are, and a shell without these handlers still holds the chats.
+ * This is not a routing question. Routing is per domain (`isCacheTypeUsableBy`); the media index lives
+ * with the chat rows wherever they are, and a shell without these handlers still holds the chats.
  */
-export const isNativeCacheMessageHandled = (type: WebMessageType): boolean => support?.messages.has(type) ?? false;
+export const isCacheMessageHandledBy = (reported: NativeCacheSupport | null, type: WebMessageType): boolean =>
+    reported?.messages.has(type) ?? false;

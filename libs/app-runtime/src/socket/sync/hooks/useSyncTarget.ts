@@ -1,18 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { SyncTargetDescriptor } from '@lemoncloud/chatic-sockets-lib';
-
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { primeChatRoom, RELAY_CLOUD_ID, registerSyncTarget, slotKeyOf, syncTargetKey } from '@chatic/runtime-client';
+import type { SyncTargetDescriptor } from '@chatic/runtime-client';
 
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
-import { runtimeEngine } from '../../../init';
-import { registerSyncTarget } from '../syncCommands';
-import { slotKeyOf } from '@chatic/transport';
-
-const buildKey = (target: SyncTargetDescriptor | null): string | null =>
-    target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;
 
 /**
  * The selected cloud, named the way a slot key and the cache scope name it. An unset or empty
@@ -37,7 +30,7 @@ const useSelectedCid = (): string => useSessionSelection().selectedCloudId || RE
  * the one the manager compares.
  */
 export const useSyncTarget = (target: SyncTargetDescriptor | null, cid?: string): void => {
-    const key = buildKey(target);
+    const key = syncTargetKey(target);
     const selectedCid = useSelectedCid();
     const targetCid = cid ?? selectedCid;
     const uid = useUidInCloud(targetCid);
@@ -82,13 +75,11 @@ const usePrimeChat = (channelId: string | undefined, cid: string): ChatSyncState
     useEffect(() => {
         if (!isVerified || !channelId) return;
         let cancelled = false;
-        void runtimeEngine()
-            .sync.primeChatRoom(cid, channelId, { cancelled: () => cancelled })
-            .then(outcome => {
-                if (!cancelled && outcome !== 'cancelled') {
-                    setSettled({ scope: `${cid}:${channelId}`, status: outcome });
-                }
-            });
+        void primeChatRoom(cid, channelId, { cancelled: () => cancelled }).then(outcome => {
+            if (!cancelled && outcome !== 'cancelled') {
+                setSettled({ scope: `${cid}:${channelId}`, status: outcome });
+            }
+        });
         return () => {
             cancelled = true;
         };

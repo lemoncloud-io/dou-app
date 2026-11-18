@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { getUidInCloud, subscribeSession } from '../../../sessionReads';
+import { getUidInCloud, subscribeSession } from '@chatic/runtime-client';
 
 /**
  * The uid this account has in `cid`, re-read whenever it can have changed.

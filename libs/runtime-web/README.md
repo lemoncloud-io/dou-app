@@ -27,6 +27,7 @@ runtime.boot.initAppRuntime(
 | `readStorageEnvironment()`      | what that choice depends on: in a shell, the shell keeps a vault, a late vault already confirmed                                                                                        |
 | `LATE_VAULT_MARK`               | the tab mark apps/web writes when a shell turns out to keep a vault only after its handshake                                                                                            |
 | `setNativeCacheSupport(report)` | the phone shell's cache capability, which the cache routing reads; called by apps/web after the bridge handshake, before the data graph is built                                        |
+| `readWebHostFacts(sources?)`    | `WebHostFacts`: what the page knows about its host, as one frozen value — see [Each port on its own](#each-port-on-its-own)                                                             |
 | `xhrPut`, `createXhrPut()`      | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file            |
 
 The ports `createWebRuntime` fills, the same in every web app:
@@ -38,9 +39,77 @@ The ports `createWebRuntime` fills, the same in every web app:
 | `RuntimePorts.foreground` | `webForegroundPorts()`         | `document.visibilityState` and the document's `visibilitychange` event                                                                                                           |
 | `RuntimePorts.cache`      | `webLocalCachePorts(cacheTab)` | each cache domain in IndexedDB, in the phone shell's SQLite across the bridge, or in `cacheTab` (a plain tab's invited clouds); see [docs/cache](./docs/cache/README.md)         |
 
-They are not on the barrel: an app takes the whole set through `createWebRuntime`, so a forgotten port is
-not possible. The four apps that boot the runtime — web, desktop-web, admin and the landing site — call it
-from their entry point.
+An app that boots the runtime this way takes the whole set through `createWebRuntime`, so a forgotten
+port is not possible. web, desktop-web and the landing site call it from their entry point; admin starts
+from a declaration instead ([The adapters](#the-adapters)), where every port is declared, so a forgotten
+one is a compile error there.
+
+### Each port on its own
+
+Every piece `createWebRuntime` and `resolveStorageStores` choose between is also on the barrel as a
+factory that builds on its own from what it is handed — the pieces a runtime assembled from an app's own
+choices is made of. `createWebRuntime`, `resolveStorageStores` and `webLocalCachePorts` are these
+factories, chosen for the page, and answer exactly as before.
+
+| Port       | Factory (adapter id)                                                        | Handed                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| transport  | `webTransportPorts(options?)` (`transport.browser`)                         | `appPlatform` reader; the host profile's `CHATIC_APP_PLATFORM` by default                                                     |
+| auth       | `webAuthPorts(location?)` (`auth.location`)                                 | the page's `location`                                                                                                         |
+| foreground | `webForegroundPorts(source?)` (`foreground.visibility`)                     | a document; the page's own by default                                                                                         |
+| storage    | `tabStorageStores(areas)` (`storage.tab`)                                   | the raw `webLocal`/`webSession` stores (`pageStorageAreas()`)                                                                 |
+| storage    | `localStorageStores(areas)` (`storage.local`)                               | the same                                                                                                                      |
+| storage    | `vaultStorageStores({ ...areas, vault })` (`storage.vault`)                 | the vault (`createShellVault()`), and optionally where plain state goes                                                       |
+| cache      | `indexedDbCache(options?)` (`cache.indexeddb`)                              | an IndexedDB connection; the page's one shared connection by default                                                          |
+| cache      | `shellSqliteCache({ support, client? })` (`cache.shell-sqlite`)             | the shell's cache report as a reader, and the bridge                                                                          |
+| cache      | `webStorageCache({ tab, importFrom })` (`cache.web-storage`)                | the raw tab store, and the store a tab's invited clouds are imported from once                                                |
+| cache      | `routedCachePorts({ bridge, support, indexedDb, shellSqlite, webStorage })` | the three stores, the bridge channel, and the report as a reader; routes by the table in [docs/cache](./docs/cache/README.md) |
+
+`readWebHostFacts()` returns the inputs those choices are made from, as one frozen `WebHostFacts`: the
+bridge channel, the platform, the storage media, the runtime offer and the capability declaration from
+`@chatic/bridges`' host profile. The shell's cache report is not among them: it lands with the
+handshake, after the facts were read, so a cache reads it at each decision instead.
+
+`routedCachePorts` takes `shellSqlite` and `webStorage` as optional: a domain routed to a store that was
+not handed in stays on IndexedDB, and so does the global search. With all three it routes exactly as
+before.
+
+### The adapters
+
+The same factories as values a runtime declaration plugs in (see runtime-client's
+[The runtime declaration](../runtime-client/README.md#the-runtime-declaration)). The barrel hands on
+`defineRuntime`, `startRuntime`, `requires`, `conflicts`, `defineAdapter` and the declaration types, so a
+web app's declaration imports this package alone. Each export is named after its id. `supports` is asked
+of `webHostFacts()` (`readWebHostFacts()`, once per start).
+
+| Export                 | Id                      | `supports`                                                    | Builds                                                                                                                 |
+| ---------------------- | ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `transportBrowser`     | `transport.browser`     | any page                                                      | `webTransportPorts()`                                                                                                  |
+| `authLocation`         | `auth.location`         | any page                                                      | `webAuthPorts()`                                                                                                       |
+| `foregroundVisibility` | `foreground.visibility` | any page                                                      | `webForegroundPorts()`                                                                                                 |
+| `storageTab`           | `storage.tab`           | any page                                                      | `tabStorageStores(pageStorageAreas())`                                                                                 |
+| `storageLocal`         | `storage.local`         | any page                                                      | `localStorageStores(pageStorageAreas())`                                                                               |
+| `storageVault`         | `storage.vault`         | a shell that keeps a vault (`nativeSecure` in `storageMedia`) | `vaultStorageStores` over `createShellVault()`, loaded through `prepareSecretStorage` (`?logout=1` heard)              |
+| `cacheIndexedDb`       | `cache.indexeddb`       | any page                                                      | every domain in IndexedDB                                                                                              |
+| `cacheWebStorage`      | `cache.web-storage`     | any page                                                      | IndexedDB, plus a plain tab's invited clouds in the storage port's `webSession` — every web app's cache in a browser   |
+| `cacheShellSqlite`     | `cache.shell-sqlite`    | the phone app's bridge                                        | the whole `webLocalCachePorts` table: the shell's SQLite for what it holds, IndexedDB, the storage port's `webSession` |
+
+A cache adapter is one set of stores, routed by the one table; the shell's cache report is read at each
+decision rather than from the facts, because it lands with the handshake after the facts were read.
+Within one start the page's raw web stores are built once, by the storage adapter: the vault's fallback
+and the cache's tab rows take that adapter's `webSession` rather than opening their own. Where site data
+is blocked each opening is a fresh memory store, so a second one would split the session from the cache's
+tab rows — the reason `createWebRuntime`'s callers hand `stores.webSession` in as `cacheTab`.
+
+`storage.vault` loads the vault the way apps/web's entry does, but what that entry does around it — the
+late-vault reload and the watch on a vault unreadable at launch — stays the app's. Two cases are not
+covered yet and must be before apps/web declares this adapter: a launch whose session the shell owns,
+where apps/web never opens the vault (it skips `prepareSecretStorage`), and a vault the shell confirms
+only in its handshake, which apps/web's late-vault mark carries into the next load.
+admin starts from a declaration of these adapters. `createWebRuntime` and `resolveStorageStores`
+remain, unchanged, for the apps that have not moved to one yet (web, desktop-web, landing): they make
+for the page the choice a declaration makes for its app. The choice is moving out of this package
+because a choice made here is made for every app at once and changes only with a build; an app's
+declaration is read by that app alone, and a `port.*` toggle can switch it on one device (ADR-0343).
 
 ### A page that mirrors its shell
 
@@ -96,7 +165,8 @@ entry point boots either runtime:
 `resolveStorageStores()` is the one place an app's stores are chosen and built. An entry point that uses
 it (apps/web and apps/desktop-web) calls it once and hands the result out — to `prepareSecretStorage`, to
 `createWebRuntime({ storage })`, to its config ports and its own features — instead of constructing stores
-itself. admin and the landing site run in a browser tab and nowhere else, and hand over their own.
+itself. The landing site runs in a browser tab and nowhere else, and hands over its own; admin declares
+storage and cache adapters of its own, over the store objects the rest of the console uses.
 
 | environment                 | secret     | plain      | device   | tab        |
 | --------------------------- | ---------- | ---------- | -------- | ---------- |
@@ -125,3 +195,5 @@ What else still has a browser answer inside a package moves here as its wiring b
 - It holds the readers, not their meaning: what an `online` false means for the link, or which
   platform a user agent is, stays in the package that declared the port.
 - Its tests run in jsdom, because these are a page's readers (`src/transport.spec.ts`).
+  `src/createWebRuntime.ports.spec.ts` checks that the ports `createWebRuntime` hands on answer as the
+  factories built on their own do.

@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { PAIRED_CLOUD_CHECK_INTERVAL_MS } from '@chatic/auth';
+import { createPairedCloudCheck, PAIRED_CLOUD_CHECK_INTERVAL_MS } from '@chatic/runtime-client';
 
-import { sessionCommands } from '../../sessionCommands';
-import { readSession } from '../../sessionReads';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 /**
@@ -11,9 +9,8 @@ import { useSessionAuth } from '../session/readers/useSessionAuth';
  * app calls it on returning to the foreground, the trigger only it can see. `onEnded` hears each cloud
  * the relay stopped delegating, already torn down and off the list, so the app can say so.
  *
- * With no paired cloud it does nothing at all, so mounting it everywhere costs nothing. A device that has
- * since signed in to an account of its own drops its guest list instead (the engine's
- * `checkPairedClouds`).
+ * With no paired cloud it does nothing at all, so mounting it everywhere costs nothing. The check itself
+ * is runtime-client's `createPairedCloudCheck`; this hook decides when it runs.
  *
  * Nothing runs before the session has initialised. The check is a relay-signed request, and at boot
  * the relay transport is not up yet: a check then fails before it reaches the network, counts as
@@ -23,20 +20,16 @@ import { useSessionAuth } from '../session/readers/useSessionAuth';
 export const usePairedCloudCheck = (onEnded: (cloudId: string) => void): { check: () => Promise<void> } => {
     const latest = useRef(onEnded);
     latest.current = onEnded;
-    const running = useRef(false);
+    // One check per mount, so a call while the last one runs is dropped; it hears the latest `onEnded`.
+    const [runCheck] = useState(() => createPairedCloudCheck(cloudId => latest.current(cloudId)));
     const { isInitialized } = useSessionAuth();
     const ready = useRef(isInitialized);
     ready.current = isInitialized;
 
     const check = useCallback(async () => {
-        if (!ready.current || running.current || readSession().pairing.cloudIds.length === 0) return;
-        running.current = true;
-        try {
-            (await sessionCommands().checkPairedClouds()).forEach(cloudId => latest.current(cloudId));
-        } finally {
-            running.current = false;
-        }
-    }, []);
+        if (!ready.current) return;
+        await runCheck();
+    }, [runCheck]);
 
     useEffect(() => {
         if (!isInitialized) return;

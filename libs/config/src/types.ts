@@ -68,6 +68,13 @@ export interface ConfigEntry<T = unknown> {
     type: ValueType;
     /** Allowed values when `type` is 'enum'. */
     values?: readonly T[];
+    /**
+     * The shape a `string` value must have, for a key whose valid values are an open set this lib
+     * cannot list but can still describe — an adapter id another lib defines. Checked on every row
+     * like `values` is, so a malformed value is demoted to the next row instead of reaching its
+     * reader. Only meaningful on a `string` key, and the declared `defaultValue` must match it.
+     */
+    pattern?: RegExp;
     /** The answer when no lane supplies one and no stage rule matches. */
     defaultValue: T;
     /** Per-stage default. Security-relevant keys are judged against the build stage. */

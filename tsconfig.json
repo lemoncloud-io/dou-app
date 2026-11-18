@@ -100,6 +100,9 @@
             "path": "./libs/storage"
         },
         {
+            "path": "./libs/runtime-client"
+        },
+        {
             "path": "./libs/runtime-core"
         },
         {

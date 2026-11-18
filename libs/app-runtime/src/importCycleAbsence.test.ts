@@ -35,9 +35,16 @@ import { dirname, join, normalize, relative } from 'path';
  * app-runtime takes no exemption with it, so each one extracted is added to the list.
  */
 const LIBS = join(__dirname, '..', '..');
-const ROOTS = ['app-runtime', 'runtime-core', 'runtime-web', 'session', 'transport', 'sync', 'auth'].map(lib =>
-    join(LIBS, lib, 'src')
-);
+const ROOTS = [
+    'app-runtime',
+    'runtime-client',
+    'runtime-core',
+    'runtime-web',
+    'session',
+    'transport',
+    'sync',
+    'auth',
+].map(lib => join(LIBS, lib, 'src'));
 
 const sourceFiles = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {

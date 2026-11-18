@@ -1,9 +1,8 @@
-import { toWireLogBatch } from '@chatic/bridges';
+import { toWireLogBatch } from '@chatic/logger';
 
 import { runtimeData } from '../data/dataCommands';
 
-import type { UploadOutcome } from '@chatic/bridges';
-import type { LogEntry } from '@chatic/bridges';
+import type { LogEntry, UploadOutcome } from '@chatic/logger';
 
 /**
  * Ships a batch of log entries to the collector.
@@ -16,9 +15,9 @@ import type { LogEntry } from '@chatic/bridges';
  * growing the queue on exactly the runs where it cannot be emptied. The opt-out
  * used to be the choice of entry point here (`buildSignedRequest`, the one
  * helper `withNetworkLog` does not wrap); now that the call goes through
- * `report` repository → `ReportHttpGateway` like every other data call
- * (ADR-0036), it is the gateway's `bypass: ['networkLog']` — asserted in
- * `libs/http/src/gateways/report.spec.ts`.
+ * `report` repository → `ReportHttpGateway`, the same repository-to-gateway
+ * path every other data call takes, it is the gateway's
+ * `bypass: ['networkLog']` — asserted in `libs/http/src/gateways/report.spec.ts`.
  *
  * **And it never calls `logger`.** Its own failures go to `console` only — when
  * the log transport is what is broken, logging about it has nowhere to go. That

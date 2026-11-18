@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { isPairedSession, readSession, subscribeSession } from '../../sessionReads';
+import { isPairedSession, readSession, subscribeSession } from '@chatic/runtime-client';
 
 /** `isPairedSession`, re-read whenever the session or the paired-cloud list moves. */
 export const useIsPairedSession = (): boolean =>
