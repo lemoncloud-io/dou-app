@@ -155,12 +155,18 @@ well as the shells) reads it from the relay once per entry, after the cloud's so
 verified, and keeps it beside the paired-cloud list (`runtime.session.usePairedCloudNames`). Until that
 read succeeds — or if it fails, silently — the header names the cloud by the end of its id
 (`pairing.cloud.unnamed`). Below the header the place row (`PlaceChipRow`) holds one chip per place
-on a horizontally scrolling line — the current place filled navy, every place with its unread count —
-and, for an owner who may add one, a ＋ at its end. With no place selected, the no-place guidance (or
-the loading state) leads, and the account's notes-to-self room still lists below it.
+on a horizontally scrolling line — the current place filled navy and named, every other place folded
+to its initial disc, each with its unread count — and, for an owner who may add one, a ＋ at its end.
+Switching place hands the name over: the old chip folds while the new one unfolds and takes the
+fill. The row then scrolls itself so the current chip sits fully inside its padding — at once when
+the row first appears (a place far down the list is otherwise off-screen), and smoothly once the
+unfold has finished on a later switch, since only then does the chip have its final width. With no
+place selected, the no-place guidance (or the loading state) leads, and the account's notes-to-self
+room still lists below it.
 
 Switching a tab or a place plays the selection haptic (not on a tap of the one already open), as
-does opening the find-me sheet; the chips ease their colours and sink a little when pressed, and the
+does opening the find-me sheet; the chips ease their colours, fold and unfold their names, and sink
+a little when pressed (under reduced motion the fold and the row's scroll snap instead), and the
 tab's underline grows out from its centre.
 
 Under the tabs, "나를 찾는 알림 n ›" / "Looking for you n" counts the unread mentions of me, replies to my

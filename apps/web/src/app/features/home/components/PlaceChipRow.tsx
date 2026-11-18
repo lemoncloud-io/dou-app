@@ -1,3 +1,4 @@
+import { type TransitionEvent, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
@@ -44,6 +45,23 @@ const PlaceChipItem = ({ place, isSelected, isSwitching, unreadCount, onSelectPl
     );
 };
 
+/** The row's side padding (`px-4`) — a revealed chip keeps that margin from the edge. */
+const ROW_INSET = 16;
+
+type HorizontalRect = Pick<DOMRect, 'left' | 'right'>;
+
+/**
+ * How far the row has to scroll for `chip` to sit fully inside it, `inset` from either edge;
+ * negative scrolls back. Zero when it is already inside. A chip wider than the row aligns its start.
+ */
+export const chipRevealDelta = (row: HorizontalRect, chip: HorizontalRect, inset: number): number => {
+    if (chip.left < row.left + inset) return chip.left - (row.left + inset);
+    if (chip.right > row.right - inset) {
+        return Math.min(chip.right - (row.right - inset), chip.left - (row.left + inset));
+    }
+    return 0;
+};
+
 interface PlaceChipRowProps {
     places: DomainPlace[];
     selectedPlaceId: string | null;
@@ -60,7 +78,8 @@ interface PlaceChipRowProps {
 /**
  * The home's place row — CLOUD MODE ONLY, like the section it replaces: the relay has exactly one
  * place and draws the cloud promo in this slot. Every place is a chip on one horizontally scrolling
- * line, the current one filled, each with its unread count; the owner's ＋ closes the row.
+ * line, the current one filled and named, the rest folded to their disc and unread count; the
+ * owner's ＋ closes the row.
  */
 export const PlaceChipRow = ({
     places: rawPlaces,
@@ -75,16 +94,45 @@ export const PlaceChipRow = ({
     const { t } = useTranslation();
     // Relay subscription rows (`stereo === 'place'`) are not places a member switches between.
     const places = rawPlaces.filter(place => place.stereo !== 'place');
+    const rowRef = useRef<HTMLDivElement>(null);
+    const hasScrolledRef = useRef(false);
+
+    // Keep the current chip in view: a place far down the row is otherwise off-screen on entry,
+    // and a chip near the edge unfolds its name past it. The first placement jumps; later ones glide.
+    // Scrolls the row itself, not `scrollIntoView`, which would also move the page vertically.
+    const revealSelectedChip = useCallback(() => {
+        const row = rowRef.current;
+        const chip = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
+        if (!row || !chip) return;
+        const delta = chipRevealDelta(row.getBoundingClientRect(), chip.getBoundingClientRect(), ROW_INSET);
+        const glide = hasScrolledRef.current && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (delta !== 0) row.scrollBy?.({ left: delta, behavior: glide ? 'smooth' : 'auto' });
+        hasScrolledRef.current = true;
+    }, []);
+
+    useEffect(() => {
+        if (!isLoading) revealSelectedChip();
+    }, [isLoading, selectedPlaceId, revealSelectedChip]);
+
+    // The unfold widens the chip after the effect above ran, so look again once it has finished.
+    const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+        if (event.propertyName !== 'grid-template-columns') return;
+        if (!(event.target as HTMLElement).closest('[aria-pressed="true"]')) return;
+        revealSelectedChip();
+    };
 
     return (
         <div
+            ref={rowRef}
             role="group"
             aria-label={t('homePage.places')}
+            onTransitionEnd={handleTransitionEnd}
             className="scrollbar-hide flex shrink-0 items-center gap-2 overflow-x-auto px-4 py-2"
         >
             {isLoading ? (
                 <div role="status" aria-label={t('placeList.loading')} className="flex gap-2">
-                    {[96, 120, 88].map((width, index) => (
+                    {/* One unfolded chip, then folded ones — the shape the row settles into. */}
+                    {[96, 52, 32].map((width, index) => (
                         <div
                             key={width}
                             className="h-8 animate-pulse rounded-[20px] bg-muted"
