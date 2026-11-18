@@ -6,7 +6,7 @@ import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ConfirmDialog } from '../../../channels';
-import { useChatImages } from '../../hooks';
+import { useChatImages, useFreshAddress, useImageAddressRefresh, useRunWithFreshAddress } from '../../hooks';
 import { useChatImagesStore } from '../../stores';
 import { copyImageToClipboard, downloadImage, downloadImages, layoutImageGrid, type ChatImage } from '../../utils';
 import { useForwardFileStore } from './ForwardFileDialog';
@@ -53,6 +53,9 @@ const MessageImageGrid = ({
 }: MessageImagesProps & { images: ChatImage[] }) => {
     const { t } = useTranslation();
     const removeImage = useChatImagesStore(s => s.removeImage);
+    const refreshAddress = useImageAddressRefresh();
+    const freshAddress = useFreshAddress();
+    const runWithFreshAddress = useRunWithFreshAddress();
     const [viewerIndex, setViewerIndex] = useState<number | null>(null);
     const [pendingDelete, setPendingDelete] = useState<ChatImage | null>(null);
     const closeViewer = useCallback(() => setViewerIndex(null), []);
@@ -67,13 +70,19 @@ const MessageImageGrid = ({
         if (index !== -1) setViewerIndex(index);
     };
 
+    // A save or a copy on an address that has expired reads the message once more and goes again on the
+    // fresh one, so the reader is not sent to a toast for something the app can mend.
+    const withFreshAddress = <T,>(image: ChatImage, run: (url: string) => Promise<T>) =>
+        runWithFreshAddress({ chatId: message.id, id: image.id, url: image.url }, run);
+    const save = (image: ChatImage) => withFreshAddress(image, url => downloadImage({ name: image.name, url }));
+
     const copy = (image: ChatImage) =>
-        void copyImageToClipboard(image.url).then(
+        void withFreshAddress(image, copyImageToClipboard).then(
             () => toast({ description: t('chat.image.copied') }),
             () => toast({ variant: 'destructive', description: t('chat.image.copyFailed') })
         );
     const downloadFailed = () => toast({ variant: 'destructive', description: t('chat.image.downloadFailed') });
-    const download = (image: ChatImage) => void downloadImage(image).catch(downloadFailed);
+    const download = (image: ChatImage) => void save(image).catch(downloadFailed);
     // A sent upload is deleted with its message; only the debug samples are removed one by one.
     const deletesMessage = !!message.upload$$?.length;
     const canDeleteHere = canDelete && (!deletesMessage || !!onDeleteMessage);
@@ -82,7 +91,12 @@ const MessageImageGrid = ({
     const openForward = useForwardFileStore(s => s.open);
     // Only a sent upload is forwarded: a debug sample has no message of its own to have come with.
     const forward = deletesMessage
-        ? (image: ChatImage) => openForward({ url: image.url, name: image.name })
+        ? (image: ChatImage) =>
+              openForward({
+                  url: image.url,
+                  name: image.name,
+                  refreshUrl: () => freshAddress(message.id, image.id),
+              })
         : undefined;
 
     return (
@@ -90,7 +104,7 @@ const MessageImageGrid = ({
             {isSingle ? (
                 <span className="truncate text-caption font-medium text-muted-foreground">{images[0].name}</span>
             ) : (
-                <ImageSetMeta count={images.length} onDownloadAll={() => downloadImages(ready, downloadFailed)} />
+                <ImageSetMeta count={images.length} onDownloadAll={() => downloadImages(ready, downloadFailed, save)} />
             )}
             <div
                 className={cn(
@@ -113,6 +127,7 @@ const MessageImageGrid = ({
                             onReply={onReply}
                             onCopyLink={copyLink}
                             onForward={forward && (() => forward(image))}
+                            onLoadError={src => void refreshAddress(message.id, src)}
                         />
                     );
                 })}
@@ -123,10 +138,11 @@ const MessageImageGrid = ({
                 onClose={closeViewer}
                 author={author}
                 onDownload={download}
-                onDownloadAll={() => downloadImages(ready, downloadFailed)}
+                onDownloadAll={() => downloadImages(ready, downloadFailed, save)}
                 onCopy={copy}
                 onDelete={requestDelete}
                 onReply={onReply}
+                onLoadError={src => void refreshAddress(message.id, src)}
             />
             {pendingDelete && (
                 <ConfirmDialog

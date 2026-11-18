@@ -43,6 +43,9 @@ vi.mock('../hooks', async () => ({
     useImageAttachments: () => ({ attachments: [], addFiles: vi.fn(), remove: vi.fn(), clear: vi.fn() }),
     useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
     useChatImages: () => [],
+    useImageAddressRefresh: () => vi.fn(),
+    useFreshAddress: () => vi.fn(),
+    useRunWithFreshAddress: () => vi.fn(),
     useComposerSend: () => ({ send: vi.fn() }),
 }));
 vi.mock('./Composer', () => ({ Composer: () => null }));

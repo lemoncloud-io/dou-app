@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ImageOff } from 'lucide-react';
@@ -21,6 +22,11 @@ interface ImageTileProps {
     onCopyLink?: () => void;
     onForward?: () => void;
     className?: string;
+    /**
+     * The original failed to load (a failed thumbnail falls back to it first). A signed address has most
+     * likely expired: the parent re-reads the message for a fresh one.
+     */
+    onLoadError?: (src: string) => void;
 }
 
 /**
@@ -43,14 +49,26 @@ export const ImageTile = ({
     onCopyLink,
     onForward,
     className,
+    onLoadError,
 }: ImageTileProps) => {
     const { t } = useTranslation();
+    // Keyed by address, not a flag: a fresh address for the same image is a different string, so the
+    // tile tries it without being told to reset.
+    const [deadSrcs, setDeadSrcs] = useState<readonly string[]>([]);
     const hasOverflow = overflow > 0;
     const isUploading = !!image.isUploading;
-    // Nothing to open or save yet (uploading) or at all (failed).
-    const isInactive = isUploading || !!image.isFailed;
-    // The feed draws the thumbnail when the server made one; the viewer opens the original.
-    const src = image.thumbUrl ?? image.url;
+    // The feed draws the thumbnail when the server made one, and the original when that one is dead;
+    // the viewer opens the original.
+    const thumb = image.thumbUrl && !deadSrcs.includes(image.thumbUrl) ? image.thumbUrl : undefined;
+    const src = thumb ?? image.url;
+    const isDead = !!src && deadSrcs.includes(src);
+    // Nothing to open or save yet (uploading) or at all (failed, or its address no longer loads).
+    const isFailed = !!image.isFailed || isDead;
+    const isInactive = isUploading || isFailed;
+    const markDead = () => {
+        setDeadSrcs(previous => [...previous, src]);
+        if (src === image.url) onLoadError?.(src);
+    };
 
     return (
         <div
@@ -69,7 +87,7 @@ export const ImageTile = ({
                 aria-label={
                     isUploading
                         ? t('chat.image.uploading', { name: image.name })
-                        : image.isFailed
+                        : isFailed
                           ? t('chat.image.failed')
                           : hasOverflow
                             ? t('chat.image.more', { count: overflow })
@@ -77,17 +95,18 @@ export const ImageTile = ({
                 }
                 className={cn('focus-ring absolute inset-0 rounded-2xl', isInactive && 'cursor-default')}
             >
-                {src && !image.isFailed && (
+                {src && !isFailed && (
                     <img
                         src={src}
                         alt=""
                         loading="lazy"
                         decoding="async"
                         draggable={false}
+                        onError={markDead}
                         className={cn('h-full w-full object-cover', isUploading && 'scale-105 blur-[2px]')}
                     />
                 )}
-                {image.isFailed && (
+                {isFailed && (
                     <span className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                         <ImageOff size={24} aria-hidden />
                     </span>

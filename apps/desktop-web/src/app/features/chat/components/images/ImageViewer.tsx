@@ -48,6 +48,8 @@ interface ImageViewerProps {
     onDelete?: (image: ChatImage) => void;
     /** Continue in the thread panel. Absent inside the thread panel itself. */
     onReply?: () => void;
+    /** An address the viewer drew failed to load; the owner re-reads the message, and the fresh address comes back in `images`. */
+    onLoadError?: (src: string) => void;
 }
 
 /** Shared shape of the round prev/next controls over the image. */
@@ -102,6 +104,7 @@ export const ImageViewer = ({
     onCopy,
     onDelete,
     onReply,
+    onLoadError,
 }: ImageViewerProps) => {
     const { t } = useTranslation();
     const [index, setIndex] = useState(openIndex ?? 0);
@@ -365,6 +368,7 @@ export const ImageViewer = ({
                                             name: author.name,
                                         })}
                                         draggable={false}
+                                        onError={() => onLoadError?.(current.url)}
                                         onLoad={event =>
                                             setNatural({
                                                 width: event.currentTarget.naturalWidth,
@@ -493,6 +497,7 @@ export const ImageViewer = ({
                                                         loading="lazy"
                                                         decoding="async"
                                                         draggable={false}
+                                                        onError={() => onLoadError?.(image.thumbUrl ?? image.url)}
                                                         className="h-full w-full object-cover"
                                                     />
                                                 </button>

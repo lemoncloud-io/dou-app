@@ -80,9 +80,14 @@ export const downloadImage = async (image: Pick<ChatImage, 'url' | 'name'>): Pro
  * guard and saves each one into Downloads without asking. `onFailed` hears about each image that
  * could not be fetched.
  */
-export const downloadImages = (images: readonly Pick<ChatImage, 'url' | 'name'>[], onFailed: () => void): void => {
+export const downloadImages = <T extends Pick<ChatImage, 'url' | 'name'>>(
+    images: readonly T[],
+    onFailed: () => void,
+    // How one is saved: the caller's, when it can fall back to a fresh address the way a single save does.
+    save: (image: T) => Promise<void> = downloadImage
+): void => {
     images.forEach((image, index) => {
-        setTimeout(() => void downloadImage(image).catch(onFailed), index * 150);
+        setTimeout(() => void save(image).catch(onFailed), index * 150);
     });
 };
 
