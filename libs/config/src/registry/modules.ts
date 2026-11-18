@@ -7,6 +7,7 @@ import { featureModule } from './feature';
 import { limitModule } from './limit';
 import { logModule } from './log';
 import { netModule } from './net';
+import { portModule } from './port';
 import { syncModule } from './sync';
 import { systemModule } from './system';
 import { uiModule } from './ui';
@@ -19,7 +20,7 @@ import type { ConfigRegistryModule } from '../types';
  * A duplicate key across modules keeps the first declaration and reports the later one — the boot
  * does not fail (see `ConfigRegistry`).
  *
- * 88 keys across 12 domains. `allModules.spec.ts` asserts the count, so that test is the number
+ * 109 keys across 13 domains. `allModules.spec.ts` asserts the count, so that test is the number
  * that cannot drift — this line is a reader's convenience.
  */
 export const ALL_MODULES: readonly ConfigRegistryModule[] = [
@@ -35,4 +36,5 @@ export const ALL_MODULES: readonly ConfigRegistryModule[] = [
     authModule,
     syncModule,
     cacheModule,
+    portModule,
 ];

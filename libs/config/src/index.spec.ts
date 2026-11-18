@@ -453,3 +453,22 @@ describe('config.refreshRemote — 어댑터가 없으면 아무 일도 없다',
         await expect(config.refreshRemote()).resolves.toBe(false);
     });
 });
+
+describe('config.isInitialized', () => {
+    it('is false until init runs, then true', () => {
+        const config = createConfig(modules());
+        expect(config.isInitialized()).toBe(false);
+
+        config.init(ports());
+
+        expect(config.isInitialized()).toBe(true);
+    });
+
+    it('does not depend on which keys the facade holds', () => {
+        const config = createConfig([moduleOf({ 'only.key': entry({ writableBy: [], persist: 'none' }) })]);
+        config.init(ports());
+
+        expect(config.snapshot('port.storage')).toBeUndefined();
+        expect(config.isInitialized()).toBe(true);
+    });
+});

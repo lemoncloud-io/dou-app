@@ -68,6 +68,9 @@ person can write. A corrupted `localStorage` entry, a `json` key that decoded to
 payload carrying a value the enum no longer lists — each fails here and the lane is skipped, so
 resolution falls to the next row instead of handing broken data to a screen.
 
+A `string` key that declares a `pattern` also fails a value the pattern rejects — that is what
+demotes a malformed `port.*` adapter id to the empty floor.
+
 `null` and `undefined` always fail. `json` is currently accepted on `typeof value === 'object'` and
 nothing deeper; how far a map value should be checked is still open.
 

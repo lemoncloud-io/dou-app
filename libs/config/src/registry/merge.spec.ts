@@ -63,6 +63,21 @@ describe('findPolicyViolations — 성립하지 않는 조합', () => {
         expect(findPolicyViolations(registry)).toEqual([expect.stringContaining('title')]);
     });
 
+    it('flags a pattern on a non-string key, or one its own default fails', () => {
+        const registry = ConfigRegistry.merge([
+            moduleOf({
+                'a.bool': entry({ pattern: /^x$/ }),
+                'a.str': entry({ type: 'string', defaultValue: 'y', pattern: /^x$/ }),
+                'a.ok': entry({ type: 'string', defaultValue: 'x', pattern: /^x$/ }),
+            }),
+        ]);
+
+        expect(findPolicyViolations(registry)).toEqual([
+            expect.stringContaining('a.bool'),
+            expect.stringContaining('a.str'),
+        ]);
+    });
+
     it('성립하는 조합은 아무것도 잡지 않는다', () => {
         const registry = ConfigRegistry.merge([
             moduleOf({
