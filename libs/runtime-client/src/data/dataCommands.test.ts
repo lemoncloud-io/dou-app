@@ -10,6 +10,8 @@ import {
     holdCloud,
     recoverInvitedCloudIfMissing,
     requestSyncCursorReset,
+    resolveCacheContext,
+    searchCache,
     sendChatInCloud,
     setStateOutboxObserver,
     syncInvitedCloudName,
@@ -83,6 +85,18 @@ describe("the data the app reads and writes, through the engine's data", () => {
 
         expect(data.requestSyncCursorReset).toHaveBeenCalledTimes(1);
         expect(data.resetCacheMetrics).toHaveBeenCalledTimes(1);
+    });
+
+    it("searches the cache and resolves a result row's context through the engine", async () => {
+        data.searchCache.mockResolvedValue({ chats: [] });
+        data.resolveCacheContext.mockResolvedValue({ channels: {} });
+        const refs = { cids: ['c-1'], channelRefs: [] };
+
+        await expect(searchCache('hello', { cid: 'c-1' })).resolves.toEqual({ chats: [] });
+        await expect(resolveCacheContext(refs)).resolves.toEqual({ channels: {} });
+
+        expect(data.searchCache).toHaveBeenCalledWith('hello', { cid: 'c-1' });
+        expect(data.resolveCacheContext).toHaveBeenCalledWith(refs);
     });
 
     it('sets one state outbox observer at a time, stopping the last', () => {

@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 
-import type { LogoutOptions } from '@chatic/auth';
+import type { LogoutOptions } from '@chatic/runtime-client';
 
-import { logoutSession } from '../../../sessionCommands';
+import { logoutSession } from '@chatic/runtime-client';
 
 /**
  * Terminates the active relay session through the engine's `logout` command: best-effort socket

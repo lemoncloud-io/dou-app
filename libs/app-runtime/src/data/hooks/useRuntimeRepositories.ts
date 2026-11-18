@@ -1,6 +1,6 @@
-import type { PageRepositories } from '@chatic/runtime-core';
+import type { PageRepositories } from '@chatic/runtime-client';
 
-import { runtimeData } from '../dataCommands';
+import { runtimeData } from '@chatic/runtime-client';
 
 /**
  * The repositories of the session's live scope, through the engine: the same object on every render,

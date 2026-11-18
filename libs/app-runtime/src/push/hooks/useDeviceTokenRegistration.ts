@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { DeviceTokenDelegate } from '@chatic/runtime-core';
+import type { DeviceTokenDelegate } from '@chatic/runtime-client';
 
-import { runtimeEngine } from '../../init';
+import { runtimeEngine } from '@chatic/runtime-client';
 
 import { useDynamicDeviceId } from '../../session';
 
-export type { DeviceTokenDelegate } from '@chatic/runtime-core';
+export type { DeviceTokenDelegate } from '@chatic/runtime-client';
 
 /**
  * Cross-cloud push registration for native shells — the engine's push registration, started for as

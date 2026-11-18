@@ -39,6 +39,15 @@ import { REDACTED } from '@chatic/logger';
 const PRESERVED_PARAMS = new Set(['code']);
 
 /**
+ * The two reads this file makes of a `URLSearchParams`. This package compiles without the DOM's types,
+ * which is where the full declaration lives; the class itself is in every runtime it ships to.
+ */
+interface QueryParams {
+    keys(): IterableIterator<string>;
+    get(name: string): string | null;
+}
+
+/**
  * Masks the values in a query string, keeping the parameter names (and the
  * values of `PRESERVED_PARAMS`).
  *
@@ -46,7 +55,7 @@ const PRESERVED_PARAMS = new Set(['code']);
  * @returns `?code=abc&state=[REDACTED]`, or an empty string when there are no params
  */
 export const redactQueryString = (search: string): string => {
-    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search) as unknown as QueryParams;
     // Repeated keys collapse: `?a=…&a=…` masked twice says nothing the single
     // entry does not. A preserved key keeps its first value.
     const keys = [...new Set(params.keys())];

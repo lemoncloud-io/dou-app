@@ -7,7 +7,7 @@ import type { SessionAccountView } from '@chatic/auth';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useLogin } from './useLogin';
 import { useLoginRelayGuestByDevice } from './useLoginRelayGuestByDevice';
 import { useLoginRelaySocial } from './useLoginRelaySocial';

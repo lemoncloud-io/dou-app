@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { SessionStalenessPolicy } from '@chatic/runtime-core';
+import type { SessionStalenessPolicy } from '@chatic/runtime-client';
 
-import { runtimeEngine } from '../../../init';
+import { runtimeEngine } from '@chatic/runtime-client';
 
-export type { SessionStalenessPolicy } from '@chatic/runtime-core';
+export type { SessionStalenessPolicy } from '@chatic/runtime-client';
 
 /**
  * Keeps the relay HTTP signing credentials fresh — the engine's relay credential guard, started for

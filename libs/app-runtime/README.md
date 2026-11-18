@@ -43,7 +43,7 @@ the HMAC signer (in [`libs/auth`](../auth/docs/socket/signing.md#the-formula)) a
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
 8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
-9. **Boot is an explicit call.** The entry point builds the runtime (`createWebRuntime(...)` in a page, which runs runtime-core's `createRuntime`) and hands the engine to `initAppRuntime(engine)` — the wiring that used to happen as an import side effect, where it was invisible in the entry point and a tree-shake could move or drop it.
+9. **Boot is an explicit call.** The entry point either starts the runtime from its app's declaration (`await startRuntime(declaration)`, from `@chatic/runtime-web` or `@chatic/runtime-mobile`), or builds it (`createWebRuntime(...)` in a page, which runs runtime-core's `createRuntime`) and hands the engine to `initAppRuntime(engine)` itself. Either way the call is in the entry point — the wiring used to happen as an import side effect, where it was invisible there and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
 11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — the three here, and those of the packages below, whose barrels re-export theirs wholesale, so a value put there would leak onto them. Value constants go in `constants.ts`, pure helpers in `utils/`.
 12. **There are no value import cycles.** [`importCycleAbsence.test.ts`](./src/importCycleAbsence.test.ts) re-measures the tree on every run rather than trusting a lint path.
@@ -199,18 +199,27 @@ device is registered on that connection, and the SDK sends both on the same `con
 libs/app-runtime/src/
 ├── index.ts          public barrel — one export, `runtime`
 ├── facade.ts         the seven groups, assembled from group barrels
-├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── connection/       11 files — the host, 8 hooks and the sockets outside React (`connectionCommands.ts`), through the engine; the controller it starts is @chatic/runtime-core's
-├── session/          38 files — the React surface (32 under hooks/), the readers (`sessionReads.ts`), the commands (`sessionCommands.ts`), the account lookups (`authLookups.ts`) and the sign-out callbacks (`logoutCallbacks.ts`) through the engine, the page's own device (`pageDevice.ts`), and the `session` group; the use cases are @chatic/auth
-├── socket/           3 files — the `sync` group, its hooks and the sync engine outside React (`syncCommands.ts`), through the engine; the managers stay in their own packages
-├── data/             the `data` group, its hooks and the data outside React (`dataCommands.ts`), through the engine; the graph itself is @chatic/runtime-core's
-├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
-├── report/           5 files — user issue report + log-batch upload
+├── connection/       the host, 8 hooks and the `connection` group
+├── session/          the React surface (under hooks/), the page's own device (`pageDevice.ts`), and the `session` group; the use cases are @chatic/auth
+├── socket/           the `sync` group and its hooks; the managers stay in their own packages
+├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
+├── push/             the hook that starts runtime-core's `PushRegistration`, and the `push` group
+├── report/           this page's `reportIssue` and the `report` group
 └── utils/            1 file — isNativeApp
 ```
 
-73 source files, 44 test files, about 3,600 lines of non-test code — the assembly, the graph and the lifecycle work moved to `@chatic/runtime-core`.
+Everything here that needs no UI library lives in
+[`@chatic/runtime-client`](../runtime-client/README.md): the engine holder (`initAppRuntime`), the
+commands and reads that go through the engine (connection, data, session, sync), the user's issue
+report and the log-batch upload, and the plain functions the hooks wrap — the connectivity verdict,
+the once-per-cloud name syncs, the cloud hold of an image send, the paired-cloud check, the pairing
+request flow, a room's prime. This package keeps the hooks, the hosts, the query and mutation keys,
+and what only a page can answer (the host profile, the page's address and user agent, the shell's
+injected device ids), and re-exports from runtime-client what its groups sell. Its hooks take the
+core's types and constants through runtime-client too, so a hook imports one package for the core.
+
+The assembly, the graph and the lifecycle work are `@chatic/runtime-core`'s; the code that calls them is `@chatic/runtime-client`'s.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s
@@ -224,10 +233,18 @@ and in-package callers reach them by concrete path.
 
 ## Usage
 
-Two calls and one component. Everything else is a hook.
+One boot call and one component. Everything else is a hook.
 
 ```ts
-// apps/*/src/main.tsx — once, before render.
+// apps/admin/src/main.tsx — once, before render. `declaration` is the app's own (`defineRuntime`),
+// naming an adapter per port; see runtime-client's "The runtime declaration".
+import { startRuntime } from '@chatic/runtime-web';
+
+await startRuntime(declaration); // builds the ports and hands the engine to the hooks
+```
+
+```ts
+// apps/web, desktop-web, landing — the same, before they move to a declaration.
 import { runtime } from '@chatic/app-runtime';
 import { createWebRuntime } from '@chatic/runtime-web';
 
@@ -235,6 +252,11 @@ runtime.boot.initAppRuntime(
     createWebRuntime({ storage, cacheTab, data: { cache: { maxChatsPerChannel: 1000 } } }) // `data` is optional
 );
 ```
+
+Both end in the same engine holder, so nothing below the entry point can tell which one ran. Which
+adapter fills each port is the app's choice, not this package's or an adapter package's (ADR-0343):
+the declaration is the one file that names them, and the rest of the app reaches the runtime only
+through `runtime`.
 
 ```tsx
 import { runtime } from '@chatic/app-runtime';
@@ -268,7 +290,7 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; admin and landing build their own)
+  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; landing builds its own)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
@@ -337,7 +359,7 @@ storage adapter, the log context) and the reaction it registers through
 `runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
 **Choosing the stores.** `resolveStorageStores()` (`@chatic/runtime-web`) is the one place an app's storage
-stores are chosen and built — the storage counterpart of the web cache's `resolveCacheBackend`. It reads
+stores are chosen and built — the storage counterpart of the web cache's `resolveCacheBackendFor`. It reads
 three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
 and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
 everything else writes through. `plain` follows the session (localStorage in a shell, sessionStorage

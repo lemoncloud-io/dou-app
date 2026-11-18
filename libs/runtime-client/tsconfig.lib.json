@@ -1,0 +1,55 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        // No `dom` and no Node types, like runtime-core: this is the side of the React surface that
+        // calls the core, and nothing in it may assume a page. What only a page knows (its address,
+        // its host profile) is handed in by the caller in app-runtime.
+        "lib": ["es2022"],
+        "types": [],
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": [
+        "out-tsc",
+        "dist",
+        "jest.config.ts",
+        "jest.config.cts",
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/__mocks__/**",
+        "eslint.config.js",
+        "eslint.config.cjs",
+        "eslint.config.mjs"
+    ],
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        },
+        {
+            "path": "../auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../runtime-core/tsconfig.lib.json"
+        }
+    ]
+}

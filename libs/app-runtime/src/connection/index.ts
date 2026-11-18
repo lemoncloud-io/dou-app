@@ -35,7 +35,7 @@ export { useBackgroundClouds } from './hooks/useBackgroundClouds';
 // The clouds the account owns, so one held as an invitee on this device is re-issued as the owner.
 export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
 
-// The sockets outside React, through the engine (`./connectionCommands`) — never the socket manager,
+// The sockets outside React, through the engine (runtime-client's connection commands) — never the socket manager,
 // which on the phone may live in another process:
 // - `getRuntimeSocketState` reads the active socket at the moment of a click or a timer;
 // - `waitUntilVerified` gates work on a slot's handshake;
@@ -54,6 +54,6 @@ export {
     recoverSocketsOnResume,
     recoverUnverifiedSockets,
     waitUntilVerified,
-} from './connectionCommands';
+} from '@chatic/runtime-client';
 export type { SlotKey, SlotStatus, SocketRequestSample } from '@chatic/transport';
 export type { SocketCloseReason } from '@chatic/transport';

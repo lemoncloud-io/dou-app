@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useUidInCloud } from './useUidInCloud';
 
 const session = fakeSessionView();

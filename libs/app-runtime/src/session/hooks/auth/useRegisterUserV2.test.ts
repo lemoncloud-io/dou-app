@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 
 const mockRegisterUserV2 = jest.fn();
 
-jest.mock('../../authLookups', () => ({
+jest.mock('@chatic/runtime-client/session/authLookups', () => ({
     registerUserV2: (...args: unknown[]) => mockRegisterUserV2(...args),
 }));
 

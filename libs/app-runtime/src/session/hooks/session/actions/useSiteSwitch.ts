@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import { SWITCH_SITE_MUTATION_KEY } from '../../mutationKeys';
 
-import { sessionCommands } from '../../../sessionCommands';
+import { sessionCommands } from '@chatic/runtime-client';
 
 /**
  * Switches the active site through the engine's `switchSite` command (SDK `auth.switch`). Thin

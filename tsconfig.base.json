@@ -43,6 +43,8 @@
             "@chatic/logger": ["libs/logger/src/index.ts"],
             "@chatic/perf": ["libs/perf/src/index.ts"],
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
+            "@chatic/runtime-client": ["libs/runtime-client/src/index.ts"],
+            "@chatic/runtime-client/*": ["libs/runtime-client/src/*"],
             "@chatic/runtime-core": ["libs/runtime-core/src/index.ts"],
             "@chatic/runtime-core/*": ["libs/runtime-core/src/*"],
             "@chatic/runtime-mobile": ["libs/runtime-mobile/src/index.ts"],

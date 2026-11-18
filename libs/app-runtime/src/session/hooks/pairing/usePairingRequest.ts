@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { PairingRequestFlow } from '@chatic/auth';
+import { createPairingRequestFlow } from '@chatic/runtime-client';
+import type { PairingRequestFlow, PairingRequestState } from '@chatic/runtime-client';
 
+import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
 import { pairingClientOf } from '../../pageDevice';
-import type { PairingRequestState } from '@chatic/auth';
-import { sessionCommands } from '../../sessionCommands';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
 
@@ -21,8 +20,9 @@ export interface PairingRequestOptions {
  * The code screen's half of a pairing: asks for a code, polls the relay until the approving device
  * answers, and signs this device in — a relay approval through the same path as a phone login, a cloud
  * approval by entering that cloud as a guest and remembering it as a paired cloud. The claim and the
- * sign-in are the engine's commands: a relay approval carries the account's session token, which the
- * runtime keeps and this flow only names by a handle.
+ * sign-in are the engine's commands, wired by runtime-client's `createPairingRequestFlow`: a relay
+ * approval carries the account's session token, which the runtime keeps and this flow only names by a
+ * handle. What is left here is the page's request — its device and its client — and the screen's switch.
  *
  * The flow is built once per mount and survives strict mode's unmount/remount without sending a second
  * request or overlapping claims (see `PairingRequestFlow`).
@@ -39,7 +39,7 @@ export const usePairingRequest = (options: PairingRequestOptions = {}) => {
 
     const flowRef = useRef<PairingRequestFlow | null>(null);
     if (!flowRef.current) {
-        flowRef.current = new PairingRequestFlow({
+        flowRef.current = createPairingRequestFlow({
             request: async () => {
                 const { ensureGuestSession } = latest.current.options;
                 if (ensureGuestSession) await ensureGuestSession();
@@ -49,14 +49,8 @@ export const usePairingRequest = (options: PairingRequestOptions = {}) => {
                     client: pairingClientOf(),
                 });
             },
-            claim: pairingId => sessionCommands().claimPairing(pairingId),
-            applySession: sessionHandle => sessionCommands().applyPairingSession(sessionHandle),
-            // Prepared by the runtime, switched by this screen's own switch — which carries the switch's
-            // trace and its in-flight key.
-            enterCloud: async cloudId => {
-                await sessionCommands().preparePairedCloudEntry(cloudId);
-                await latest.current.switchCloud(cloudId);
-            },
+            // The screen's own switch, which carries the switch's trace and its in-flight key.
+            switchCloud: cloudId => latest.current.switchCloud(cloudId),
             onChange: setState,
         });
     }

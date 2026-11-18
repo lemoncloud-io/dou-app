@@ -1,138 +1,20 @@
-import { config } from '@chatic/config';
-
-import { runtimeData } from '../data/dataCommands';
-import { getActiveSessionUser, getGlobalSessionContext } from '../session';
-import { sanitizeReportUrl } from './reportUrl';
 import { hostProfile } from '@chatic/bridges';
-import { logger } from '@chatic/logger';
-
-import type { IssueReportWireBody } from '@chatic/http';
-import type { AppType, IssueReportExtras } from './types';
+import { submitIssueReport } from '@chatic/runtime-client';
+import type { IssueReportExtras, IssueReportOrigin } from '@chatic/runtime-client';
 
 /**
- * `stereo` is the kind of the stored report record, and the server-side filter admin queries on
- * (`MockListParam.type`).
- *
- * Now that automatic error reporting is retired (`reportError` deleted), this endpoint has only one
- * caller left — user-submitted reports — but the value stays: the store still holds `stereo: 'log'`
- * error reports accumulated before the retirement, alongside the log entries the batch uploader keeps
- * shipping, and admin uses this value to separate user reports from those.
- *
- * The wire shape (including the `stereo` union type) belongs to `@chatic/http`'s `ReportHttpGateway` —
- * that's where `IssueReportWireBody` lives; this file only assembles the body.
+ * The page as a report describes it. Whether a shell bridge was found at boot decides the `mobile`
+ * app type — the desktop shell included, as it always has. This library is also rendered by apps that
+ * publish no `@chatic/host` ports (admin), so it reads the host profile rather than a port.
  */
-const REPORT_STEREO_ISSUE = 'issue';
-
-/**
- * The app that sent the report. It's the app in the title `[app] issue: ...`, and the App filter
- * criterion in the admin list.
- *
- * Derived from `env.project` (= `VITE_PROJECT`) rather than a separate setting — admin is already
- * deployed as `CHATIC_ADMIN`, so it's distinguishable without the caller declaring its own identity.
- * `env.project` is already lowercase (`createWebEnvAdapter` lowercases it the same way `web-config`
- * did) — this just carries `WEB_PROJECT.toLowerCase()` forward unchanged.
- *
- * A page with a shell bridge at boot (the host profile's `bridge`) reports as `mobile`, as it always
- * has — including the desktop shell. This library is also rendered by apps that publish no
- * `@chatic/host` ports (admin), so it reads the profile rather than a port.
- */
-const resolveAppType = (): AppType => {
-    if (hostProfile().bridge !== null) return 'mobile';
-    return (config.get<string>('env.project') ?? '').includes('admin') ? 'admin' : 'web';
+const pageOrigin: IssueReportOrigin = {
+    hasShellBridge: () => hostProfile().bridge !== null,
+    pageUrl: () => window.location.href,
 };
 
 /**
- * The function through which a user directly reports an issue.
- *
- * `extras` is the context the issue report screen attaches (recent logs, a device/version
- * snapshot, etc.). Every field in it is optional, but the argument is not: both report screens pass
- * one.
- *
- * **When there's an attachment (`extras.images`), it's sent with `silent: true`.** The payload rides
- * as a JSON string inside `body.message`, which becomes the Slack message text verbatim — a single
- * base64 image alone blows well past Slack's text cap (~40k characters). Sending it separately via
- * `SlackReportBody.meta` was tried, but measurement confirmed (2026-08-11) that the backend doesn't
- * persist the client's `meta` — `message` is the only field that gets stored. So only reports with
- * attachments turn off the Slack send and save-only — trading the notification for the photo.
+ * The function through which a user directly reports an issue — runtime-client's `submitIssueReport`
+ * for this page. What the report carries and how it is sent is described there.
  */
-export const reportIssue = async (title: string, message: string, extras: IssueReportExtras): Promise<void> => {
-    try {
-        const app: AppType = resolveAppType();
-        const hasImages = !!extras.images?.length;
-
-        const state = getGlobalSessionContext();
-        // Issue reporting is synchronous (not a hook), so it can't observe the profile cache.
-        // Read the role/name straight off the active session token payload; the app UI uses the
-        // reactive useProfileFacts hook instead.
-        const sessionUser = getActiveSessionUser() as { userRole?: string; name?: string } | null;
-        const userRole = sessionUser?.userRole;
-
-        // The session as the app reads it carries no token, so "a cloud session" is the cloud half
-        // being active, and its user's name is the active token's user fields while it is.
-        const cloudState = state.cloud;
-        const hasCloud = cloudState.isActive;
-
-        const payload = {
-            title,
-            message,
-            app,
-            // `.toLowerCase()` preserves the exact wire value `WEB_ENV` always sent ('local' ·
-            // 'dev' · 'prod') — `env.stage` itself is uppercase now, but this
-            // payload is stored and may already be filtered on by the admin console, so the
-            // OUTGOING contract stays byte-identical rather than following the internal casing.
-            env: (config.get<string>('env.stage') ?? '').toLowerCase(),
-            // Query values are redacted before being carried here — this is exactly where OAuth
-            // callback / verification link tokens can end up, and this payload is both stored and,
-            // for an issue report with no attachment, also sent out to Slack. Only the invite `code`
-            // is exempted, for tracking purposes. @see ./reportUrl
-            url: sanitizeReportUrl(window.location.href),
-            timestamp: new Date().toISOString(),
-            user: {
-                uid: state.identity.userId ?? undefined,
-                name: sessionUser?.name,
-                role: userRole,
-                isAuthenticated: state.identity.isAuthenticated,
-            },
-            cloud: {
-                connected: hasCloud,
-                cloudId: hasCloud ? (cloudState.cloudId ?? undefined) : undefined,
-                name: hasCloud ? (sessionUser?.name ?? undefined) : undefined,
-                placeId: cloudState.siteId ?? undefined,
-            },
-            // User-facing screen context (recent logs, device/version snapshot, attachments, ...).
-            ...extras,
-        };
-
-        const serialized = JSON.stringify(payload, null, 2);
-
-        const body: IssueReportWireBody = {
-            title: `[${app}] issue: ${title}`,
-            message: serialized,
-            // Attachments make the payload far larger than Slack will take as message text, and
-            // `message` is the only field the backend persists, so a report carrying photos is
-            // saved without notifying. Reports without photos keep their Slack ping.
-            silent: hasImages,
-            save: true,
-            stereo: REPORT_STEREO_ISSUE,
-        };
-
-        if (hasImages) {
-            // How large an item the report store accepts is still unknown. Log what we actually
-            // sent so a failure has a number next to it instead of a guess.
-            logger.info('ISSUE_REPORT', '[reportIssue] sending attachments', {
-                images: extras.images?.length,
-                payloadKb: Math.round(serialized.length / 1024),
-                silent: true,
-            });
-        }
-
-        // repository → data source → gateway, like every other data call. Resolved per
-        // call, not captured at module load: this file must stay importable before the entry point
-        // hands the runtime its engine — same rule `session/auth` follows. Through the engine, like
-        // every data call.
-        await runtimeData().repositories().report.submitIssue(body);
-    } catch (reportingError) {
-        logger.error('ERROR_REPORT', 'Failed to report issue', { error: reportingError });
-        throw reportingError;
-    }
-};
+export const reportIssue = (title: string, message: string, extras: IssueReportExtras): Promise<void> =>
+    submitIssueReport(pageOrigin, title, message, extras);

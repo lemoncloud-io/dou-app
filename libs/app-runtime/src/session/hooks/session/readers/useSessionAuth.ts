@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { readSession, subscribeSession } from '../../../sessionReads';
+import { readSession, subscribeSession } from '@chatic/runtime-client';
 
 const readAuth = () => readSession().auth;
 

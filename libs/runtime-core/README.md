@@ -131,6 +131,7 @@ way:
 flowchart TD
     Apps["apps/* entry points"]
     Surface["@chatic/app-runtime<br/><i>layer:react-surface</i>"]
+    Client["@chatic/runtime-client<br/><i>layer:client</i>"]
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
     Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:native</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
@@ -140,8 +141,12 @@ flowchart TD
     Apps --> Surface
     Apps --> Web
     Apps --> Native
-    Surface --> Core
+    Surface --> Client
     Surface --> Libs
+    Web --> Client
+    Native --> Client
+    Client --> Core
+    Client --> Libs
     Web --> Core
     Native --> Core
     Core --> Libs
@@ -149,15 +154,21 @@ flowchart TD
     Libs --> Found
 ```
 
-| Tag                   | May not depend on                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `layer:core-lib`      | runtime-core, an adapter or the React surface, directly or through another package; React or React Native |
-| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`; React or React Native                         |
-| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                         |
-| `layer:adapter`       | the React surface; React                                                                                  |
-| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                   |
-| `platform:web`        | React Native                                                                                              |
-| `platform:native`     | a `platform:web` package                                                                                  |
+| Tag                   | May not depend on                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `layer:core-lib`      | runtime-core, an adapter or the React surface, directly or through another package; React or React Native                       |
+| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`; React or React Native                                               |
+| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                                               |
+| `layer:client`        | anything not tagged `layer:core-lib`, `layer:runtime-core` or `layer:foundation`; React, React Native, `@tanstack/*` or zustand |
+| `layer:adapter`       | the React surface; React                                                                                                        |
+| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                                         |
+| `platform:web`        | React Native                                                                                                                    |
+| `platform:native`     | a `platform:web` package                                                                                                        |
+
+`layer:client` is [`@chatic/runtime-client`](../runtime-client/README.md): the half of the React
+surface that calls this package, with no UI library, and the runtime declaration an app starts from
+(`defineRuntime`, `startRuntime`). An adapter reaches it to hand that declaration API on beside its own
+adapters; it never reaches an adapter.
 
 An adapter is not banned React Native by its layer: the native adapter, `@chatic/runtime-mobile`, is
 made of React Native modules, so that is its platform tag's decision.

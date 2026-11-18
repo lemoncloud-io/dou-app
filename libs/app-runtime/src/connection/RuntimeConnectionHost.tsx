@@ -1,7 +1,7 @@
 import React, { useEffect, useSyncExternalStore } from 'react';
 
 import { useHostControllers } from './hooks/useHostControllers';
-import type { ConnectionController } from '@chatic/runtime-core';
+import type { ConnectionController } from '@chatic/runtime-client';
 
 export interface RuntimeHostProps {
     children?: React.ReactNode;

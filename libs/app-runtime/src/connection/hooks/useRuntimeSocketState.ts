@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-import type { SocketState } from '@chatic/transport';
+import type { SocketState } from '@chatic/runtime-client';
 
-import { readConnection, subscribeConnection } from '../connectionCommands';
+import { readConnection, subscribeConnection } from '@chatic/runtime-client';
 
 const readActive = (): SocketState => readConnection().active;
 

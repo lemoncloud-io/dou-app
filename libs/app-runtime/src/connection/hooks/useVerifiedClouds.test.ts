@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeRuntimeConnection } from '@chatic/runtime-core/testing/connection';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useCloudVerified } from './useCloudVerified';
 import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useSlotVerified } from './useSlotVerified';

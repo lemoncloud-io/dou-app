@@ -1,9 +1,7 @@
 import { useState } from 'react';
 
-import { v4 as uuidv4 } from 'uuid';
-
 import { liveShellGlobals } from '@chatic/bridges';
-import { identityStore } from '@chatic/session';
+import { lazySessionDeviceId } from '@chatic/runtime-client';
 
 /**
  * Resolves the device identity from native runtime injection or persisted session state.
@@ -24,24 +22,9 @@ export const useDynamicDeviceId = () => {
 };
 
 /**
- * The page's own id, read (and made) on the first call only — so a page given the shell's id never
- * touches the session's store. That matters when the session runs in the app's process: the page then
- * has no session store of its own, and reading it would throw.
- */
-export const lazySessionDeviceId = (): (() => string) => {
-    let id: string | undefined;
-    return () => (id ??= readSessionDeviceId());
-};
-
-/**
- * The page's own id, in the session's plain port. Read-or-made and stored in one step, so a second
- * caller gets the same id rather than making its own.
- */
-export const readSessionDeviceId = (): string => identityStore.getOrMakeDeviceId(() => uuidv4());
-
-/**
  * The resolution `useDynamicDeviceId` describes, outside React — for the connection controller, which
- * reads it on every pass. The shell's injected ids win over the page's own; they are read live
+ * reads it on every pass. The page's own id is runtime-client's (`lazySessionDeviceId`), read from the
+ * session's store. The shell's injected ids win over the page's own; they are read live
  * (`liveShellGlobals()`, not the host profile's boot snapshot) on each call, as the hook reads them on
  * each render, because the phone's second boot pass can rewrite them. The page's own is asked for only
  * when there is no shell id.

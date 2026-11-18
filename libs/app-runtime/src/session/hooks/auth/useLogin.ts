@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCustomMutation } from '@chatic/shared';
-import type { SessionAccountView } from '@chatic/auth';
-import { sessionCommands } from '../../sessionCommands';
+import type { SessionAccountView } from '@chatic/runtime-client';
+import { sessionCommands } from '@chatic/runtime-client';
 import { cloudsKeys } from '../../../data/hooks/queryKeys';
 import type { LoginUserBody } from '@lemoncloud/chatic-backend-api';
 

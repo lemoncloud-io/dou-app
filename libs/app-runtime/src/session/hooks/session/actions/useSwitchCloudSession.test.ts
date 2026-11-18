@@ -7,7 +7,7 @@ import type { PerfTraceBackend } from '@chatic/perf';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useSwitchCloudSession } from './useSwitchCloudSession';
 
 const switchCloud = jest.fn(async (_cloudId: string, _options?: unknown) => undefined);

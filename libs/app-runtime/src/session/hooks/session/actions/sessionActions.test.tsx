@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionCommands } from '@chatic/runtime-core/testing/sessionCommands';
 
-import { initAppRuntime, resetRuntimeEngine } from '../../../../init';
+import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useLogoutCloudSession } from './useLogoutCloudSession';
 import { useSessionLogout } from './useSessionLogout';
 import { useSiteSwitch } from './useSiteSwitch';

@@ -4,6 +4,7 @@ const mockStoredDeviceId = { value: null as string | null };
 const mockSetDeviceId = jest.fn();
 
 jest.mock('@chatic/session', () => ({
+    ...jest.requireActual('@chatic/session'),
     identityStore: {
         getDeviceId: () => mockStoredDeviceId.value,
         getOrMakeDeviceId: (make: () => string) => (mockStoredDeviceId.value ??= make()),
@@ -11,7 +12,8 @@ jest.mock('@chatic/session', () => ({
     },
 }));
 
-const { useDynamicDeviceId, lazySessionDeviceId, resolveDeviceIds } = require('./useDynamicDeviceId');
+const { useDynamicDeviceId, resolveDeviceIds } = require('./useDynamicDeviceId');
+const { lazySessionDeviceId } = require('@chatic/runtime-client');
 
 describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해석', () => {
     beforeEach(() => {

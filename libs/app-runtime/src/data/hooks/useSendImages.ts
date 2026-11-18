@@ -2,14 +2,17 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { logger } from '@chatic/bridges';
 import {
+    beginMediaSendTiming,
     type ChatAttachmentSource,
     chatAttachmentSourceFormat,
     type ChatMentionBody,
+    getCloudRepositories,
     type ChatUploadKind,
     IMAGE_MESSAGE_SLOT_MAX,
     isPendingUploadSlot,
     isShellFileRef,
     judgeChatAttachments,
+    type MediaSendTiming,
     type PendingFileDetails,
     type PreparedImageMirror,
     type PutProgress,
@@ -21,11 +24,9 @@ import {
     type ShellFilePutPort,
     type ShellFileRef,
     type UploadPutTarget,
-} from '@chatic/data';
+    withCloudHold,
+} from '@chatic/runtime-client';
 import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
-
-import { getCloudRepositories, holdCloud } from '../dataCommands';
-import { beginMediaSendTiming, type MediaSendTiming } from '@chatic/runtime-core';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
 
@@ -373,25 +374,11 @@ const keepUnsent = async (sent: PendingImages, files: ChatAttachmentSource[], re
 
 /**
  * The chat repository of the room's own cloud, never the selection's: an upload takes seconds, and a
- * switch in that time would otherwise put the finished message on the next cloud's socket.
+ * switch in that time would otherwise put the finished message on the next cloud's socket. The send
+ * itself runs in `withCloudHold`, which holds that cloud's socket from the first upload request to the
+ * send; the uploads it makes in between are the page's own, and the bytes never leave the page.
  */
 const chatOf = (cid: string) => getCloudRepositories(cid).chat;
-
-/**
- * Runs `work` against the room's cloud while holding that cloud's socket, from the first upload request
- * to the send, released when `work` settles. The hold and every request go through the engine, while the
- * uploads `work` makes between them are the page's own: on the phone the session can run in the app's
- * own process, where a hold is something the page asks for and ends, and the bytes never leave the page.
- * Async throughout, so a cloud whose graph cannot be read rejects inside the hold, which is released.
- */
-const inCloudHold = async <T>(cid: string, work: (chat: ReturnType<typeof chatOf>) => Promise<T>): Promise<T> => {
-    const release = holdCloud(cid);
-    try {
-        return await work(chatOf(cid));
-    } finally {
-        release();
-    }
-};
 
 /**
  * Points a pending row's previews at the thumbnails the preparation just made.
@@ -619,7 +606,7 @@ export const useSendImages = ({
             const sending = entry.files.map((_, index) => index).filter(index => !refused.includes(index));
             let result: SendImageResult = { status: 'failed', reason: 'no-stored-upload', failedSlots: refused.length };
             if (sending.length > 0) {
-                result = await inCloudHold(entry.cid, async repository => {
+                result = await withCloudHold(entry.cid, async repository => {
                     // Inside the hold, so the slot it waits on is kept: a pick answered as the app comes back to
                     // the front starts the send while the socket is still reconnecting.
                     const wait = waitForConnectionRef.current;

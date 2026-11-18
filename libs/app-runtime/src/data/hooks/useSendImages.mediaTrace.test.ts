@@ -4,13 +4,13 @@ import type { ChatAttachmentSource, SendImagePorts, SendImageResult } from '@cha
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
 import { getCloudRepositories } from '@chatic/runtime-core';
-import { holdCloud } from '../dataCommands';
+import { holdCloud } from '@chatic/runtime-client/data/dataCommands';
 import { useSendImages } from './useSendImages';
 
 // Its own file, so the tracer's per-minute cap starts empty: the main suite's sends would use it up.
 jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
 // The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
-jest.mock('../dataCommands', () => ({
+jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
     holdCloud: jest.fn(),

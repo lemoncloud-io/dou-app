@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtimeConnection } from '../connectionCommands';
+import { runtimeConnection } from '@chatic/runtime-client';
 
 // A withdrawal waiting for the end of the current task, or null. Module-wide rather than per hook:
 // the hook is mounted once, and an instance mounting after another unmounted has to cancel the
