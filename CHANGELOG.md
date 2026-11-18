@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-11-18] - No version updates
+
+### Features
+
+- (config) add port choice keys and an isInitialized read
+
+### Documentation
+
+- (adr) each app declares its runtime and libraries never choose (ADR-0343)
+
+### Refactor
+
+- (admin) start the runtime from a declaration, not createWebRuntime
+- (runtime-web,runtime-mobile) build each port on its own and offer adapter values
+- (app-runtime,runtime-client) move the core side into runtime-client and add the declaration
+
 ## [2026-11-18] - root@0.168.1, @chatic/desktop-web@0.60.1
 
 ### Bug Fixes
