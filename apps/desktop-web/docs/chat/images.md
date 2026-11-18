@@ -112,13 +112,24 @@ fourth tile counts the rest ("+n"). `ImageTile` states:
 | failed    | an image-off glyph                                        | "This image couldn't be loaded" |
 | overflow  | dimmed, with "+n"                                         | "n more images"                 |
 
-A sent image can also fail on screen: its signed address expires a couple of hours after the message
-was read, and a cached message keeps the old one, so a message from yesterday has an address that no
-longer loads. The tile reacts to the `<img>` failing. A dead thumbnail falls back to the original. A dead
-original turns the tile into the failed one and asks `useImageAddressRefresh` to read the message again,
-once per dead address; the fresh address lands in the cache, the feed redraws, and the tile tries it,
-because a dead address is remembered by its string, not by the tile. If the fresh address fails as well, or
-the read fails offline, the tile stays failed. The viewer still opens the original from the same message.
+### Expired addresses
+
+Every sent file is loaded from a signed address that expires a couple of hours after the message was
+read, and a cached message keeps the old one: a message from yesterday holds addresses that no longer
+load. Two things mend it, and both start from `useImageAddressRefresh` / `useFreshAddress`, which read
+the message again from the cloud the reader is in.
+
+- **Something drawn from the address fails** (a tile, the viewer's stage and thumbnail strip, a video, a
+  voice card, a document the viewer fetches). It reports the dead address once. The message is read again
+  once per dead address, the fresh address lands in the cache and the feed redraws with it. A dead address
+  is remembered by its string, not by the thing that drew it, so the fresh one is tried without a reset.
+  A tile first falls back from a dead thumbnail to the original, and a dead original draws the failed tile.
+- **An action fails on an address it already holds** (save, copy, "Download all", forward). It reads the
+  message again, finds the file in it by id, and goes once more on the address it finds. When there is none,
+  or it is the same one, the first failure is shown as before, so an offline failure still reads as offline.
+
+If the fresh address fails as well, or the read fails offline, the file stays failed rather than asking in
+a loop. The voice detail dialog opened on an address keeps it until it is reopened.
 
 An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in the tab order and a
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no

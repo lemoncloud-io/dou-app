@@ -58,6 +58,9 @@ vi.mock('../hooks', async () => ({
     }),
     useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
     useChatImages: () => [],
+    useImageAddressRefresh: () => vi.fn(),
+    useFreshAddress: () => vi.fn(),
+    useRunWithFreshAddress: () => vi.fn(),
     useComposerSend: (target: unknown) => useComposerSend(target),
 }));
 // The composer is a rich-text editor with its own runtime needs; this file is about

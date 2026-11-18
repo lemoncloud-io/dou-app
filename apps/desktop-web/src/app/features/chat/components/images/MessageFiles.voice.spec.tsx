@@ -169,6 +169,7 @@ describe('a voice card', () => {
             url: 'https://s/a',
             name: 'song.mp3',
             contentType: 'audio/mpeg',
+            refreshUrl: expect.any(Function),
         });
         act(() => useForwardFileStore.getState().close());
     });

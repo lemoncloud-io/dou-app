@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
@@ -26,6 +26,7 @@ import type { ImageAuthor } from './ImageViewer';
 import { useCopyMessageLink } from './useCopyMessageLink';
 import { VoiceCard } from './VoiceCard';
 import { useVoiceDetailStore } from './VoiceDetailHost';
+import { useFreshAddress, useImageAddressRefresh, useRunWithFreshAddress } from '../../hooks';
 import { toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
@@ -75,12 +76,15 @@ export const MessageFiles = ({
     const [isFolded, setFolded] = useState(false);
     const requestDelete = canDelete && onDeleteMessage ? () => setConfirmingDelete(true) : undefined;
     const copyLink = useCopyMessageLink(message);
+    const runWithFreshAddress = useRunWithFreshAddress();
     if (files.length === 0) return null;
     const listId = `files-${id}`;
     const downloadAll = () =>
         downloadImages(
-            files.filter(file => file.url).map(file => ({ url: file.url, name: file.name ?? 'file' })),
-            () => toast({ variant: 'destructive', description: t('chat.file.saveFailed') })
+            files.filter(file => file.url).map(file => ({ id: file.id, url: file.url, name: file.name ?? 'file' })),
+            () => toast({ variant: 'destructive', description: t('chat.file.saveFailed') }),
+            file =>
+                runWithFreshAddress({ chatId: id, id: file.id, url: file.url }, url => downloadImage({ ...file, url }))
         );
     return (
         <>
@@ -180,18 +184,25 @@ const FileItem = ({
     const [isViewing, setIsViewing] = useState(false);
     const openDetail = useVoiceDetailStore(s => s.open);
     const openForward = useForwardFileStore(s => s.open);
+    const refreshAddress = useImageAddressRefresh();
+    const freshAddress = useFreshAddress();
+    const runWithFreshAddress = useRunWithFreshAddress();
+    // The address the file was drawn from no longer loads: the message is read again, and the file comes
+    // back from the cache with a fresh one (a different address, so the player and viewer start over).
+    const onLoadError = useCallback((src: string) => void refreshAddress(messageId, src), [messageId, refreshAddress]);
     const forward = file.url
         ? () =>
               openForward({
                   url: file.url,
                   name: saveName,
                   ...(file.contentType ? { contentType: file.contentType } : {}),
+                  refreshUrl: () => freshAddress(messageId, file.id),
               })
         : undefined;
     const save = () =>
-        void downloadImage({ url: file.url, name: saveName }).catch((error: unknown) =>
-            toastFailure(t('chat.file.saveFailed'), error)
-        );
+        void runWithFreshAddress({ chatId: messageId, id: file.id, url: file.url }, url =>
+            downloadImage({ url, name: saveName })
+        ).catch((error: unknown) => toastFailure(t('chat.file.saveFailed'), error));
 
     if (isVoiceFile(file)) {
         return (
@@ -205,6 +216,7 @@ const FileItem = ({
                 onCancelUpload={onCancelUpload}
                 onCopyLink={onCopyLink}
                 onForward={forward}
+                onLoadError={onLoadError}
                 onOpen={
                     file.url
                         ? () =>
@@ -234,6 +246,7 @@ const FileItem = ({
                     src={file.url}
                     controls
                     preload="metadata"
+                    onError={() => onLoadError(file.url)}
                     className="max-h-[240px] w-full rounded-2xl border border-hairline bg-black"
                 />
             )}
@@ -280,7 +293,15 @@ const FileItem = ({
                     />
                 )}
             </div>
-            {isViewing && <FileViewer file={file} author={author} onClose={() => setIsViewing(false)} onSave={save} />}
+            {isViewing && (
+                <FileViewer
+                    file={file}
+                    author={author}
+                    onClose={() => setIsViewing(false)}
+                    onSave={save}
+                    onLoadError={onLoadError}
+                />
+            )}
         </div>
     );
 };
