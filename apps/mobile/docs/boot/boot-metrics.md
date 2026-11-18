@@ -88,10 +88,10 @@ reached it, so the stretch between the two — the web rendering its first route
 
 ## Boot types
 
-| Type     | Meaning                                                                                                                                                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `cold`   | a boot from process start                                                                                                                                                                                                                  |
-| `reload` | the iOS WebView content process was killed by the OS and `reload()` restarted it — effectively a re-boot. `AppWebView.handleContentProcessDidTerminate` starts a fresh session, first finalizing whatever the aborted session had recorded |
+| Type     | Meaning                                                                                                                                                                                                                                |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cold`   | a boot from process start                                                                                                                                                                                                              |
+| `reload` | the WebView's content process (iOS) or render process (Android) died and `reload()` restarted it — effectively a re-boot. `useWebViewCrashRecovery` starts a fresh session, first finalizing whatever the aborted session had recorded |
 
 A foreground resume is a separate record: `useResumeOverlay` calls `recordForegroundResume()` with the
 time from `active` until the overlay clears — either `DismissResumeOverlay` from the web or, on iOS

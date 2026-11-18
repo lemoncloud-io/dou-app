@@ -30,6 +30,7 @@ export const ko = {
     webview: {
         loadTitle: 'DoU를 불러오지 못했어요',
         loadMessage: '네트워크 연결을 확인하고 다시 시도해 주세요.',
+        crashMessage: '화면을 표시하는 중 문제가 생겼어요. 다시 시도해 주세요.',
         retry: '다시 시도',
         subClose: '닫기',
         subRuntimeConsent: {
