@@ -28,7 +28,7 @@ vi.mock('@chatic/bridges', () => ({
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getGlobalSessionContext: () => ({

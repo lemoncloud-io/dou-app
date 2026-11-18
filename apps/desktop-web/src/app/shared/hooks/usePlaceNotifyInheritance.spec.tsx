@@ -14,7 +14,7 @@ const cache = vi.hoisted(() => ({
 }));
 const emit = (list: DomainChannel[]) => act(() => cache.listener?.({ list }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

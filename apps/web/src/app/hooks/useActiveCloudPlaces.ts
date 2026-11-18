@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useColdListWindowElapsed } from './useColdListWindow';

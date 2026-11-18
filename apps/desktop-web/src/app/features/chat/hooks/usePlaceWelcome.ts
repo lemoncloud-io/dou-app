@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { isChannelOwner } from '../../channels';
 import { isDmChannel, isSelfChannel, useSiteProfilesStore, useWelcomeStore, welcomeKey } from '../../../shared';

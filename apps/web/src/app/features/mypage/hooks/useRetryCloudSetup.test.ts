@@ -12,7 +12,7 @@ jest.mock('@tanstack/react-query', () => ({
 jest.mock('@chatic/shared', () => ({
     useCustomMutation: (mutationFn: (v: unknown) => Promise<unknown>) => ({ mutateAsync: mutationFn }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ cloud: { retryCloudSetup } }),

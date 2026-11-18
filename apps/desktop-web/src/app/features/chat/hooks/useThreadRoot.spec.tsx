@@ -16,7 +16,7 @@ vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn
 // the socket session (`auth.switch`) follows, so the selection alone says nothing about which place a read
 // will be answered from.
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => session.switching }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: {

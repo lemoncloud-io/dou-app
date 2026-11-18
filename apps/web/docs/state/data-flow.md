@@ -33,7 +33,7 @@ Further reading: [libs/runtime/docs/session/](../../../../libs/runtime/docs/sess
 
 ## 2. Reading connection and session state
 
-Both socket state and session/selection state come from one library, `@chatic/app-runtime`:
+Both socket state and session/selection state come from one library, `@chatic/runtime`:
 
 | Value                                | Source                                                  |
 | ------------------------------------ | ------------------------------------------------------- |

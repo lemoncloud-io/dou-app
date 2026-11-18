@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';

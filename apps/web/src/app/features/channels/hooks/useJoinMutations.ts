@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import type { WriteReceipt } from '@chatic/data';
 import type { ChannelUpdateJoinInput } from '@lemoncloud/chatic-sockets-api';

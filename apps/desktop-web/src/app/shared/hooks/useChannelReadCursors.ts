@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import type { ReadCursor } from '../utils';
 

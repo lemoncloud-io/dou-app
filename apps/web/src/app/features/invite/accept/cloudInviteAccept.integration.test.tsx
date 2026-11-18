@@ -138,7 +138,7 @@ let mockDevice = new FakeDevice();
 const mockInviteAnswers = new Map<string, ReturnType<FakeCloudServer['loginInvite']>>();
 const mockEnterStack = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ cloud: mockDevice.cloudRepository }),

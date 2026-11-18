@@ -5,7 +5,7 @@ import { useFreshAudioAddress } from './useFreshAudioAddress';
 
 const mockGetChat = jest.fn();
 const mockReposFor = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             getCloudRepositories: (cid: string) => {

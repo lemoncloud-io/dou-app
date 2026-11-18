@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useUserPermissions } from './useUserPermissions';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useRuntimeProfile: jest.fn(),

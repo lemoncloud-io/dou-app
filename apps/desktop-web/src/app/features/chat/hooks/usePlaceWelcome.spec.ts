@@ -6,11 +6,12 @@ import type { DomainChannel } from '@chatic/data';
 import { useSiteProfilesStore, useWelcomeStore, welcomeKey } from '../../../shared';
 import { usePlaceWelcome } from './usePlaceWelcome';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { session: { useSessionIdentity: () => ({ userId: 'me' }) } },
 }));
 
-const channel = (over: Partial<DomainChannel>) => ({ id: 'c', name: 'general', stereo: 'public', ...over }) as DomainChannel;
+const channel = (over: Partial<DomainChannel>) =>
+    ({ id: 'c', name: 'general', stereo: 'public', ...over }) as DomainChannel;
 const SELF = channel({ id: 's', stereo: 'self', name: '' });
 
 const render = (placeId: string, channels: DomainChannel[] = [SELF]) =>

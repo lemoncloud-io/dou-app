@@ -9,7 +9,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type * as SharedModule from '../../../shared';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

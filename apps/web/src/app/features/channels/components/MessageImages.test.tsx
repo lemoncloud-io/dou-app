@@ -27,8 +27,8 @@ jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 const mockSendProgress = new Map<string, (number | undefined)[]>();
-jest.mock('@chatic/app-runtime', () => {
-    const actual = jest.requireActual('@chatic/app-runtime');
+jest.mock('@chatic/runtime', () => {
+    const actual = jest.requireActual('@chatic/runtime');
     return {
         ...actual,
         runtime: {

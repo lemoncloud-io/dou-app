@@ -3,7 +3,7 @@
 **The internal operator console** — subscription overrides, failure tracing, redeploying the
 subscription clouds after a server update, relay user registration, and the multi-client WebSocket
 lab used to verify the socket stack directly, all behind one login gate. It depends on
-`@chatic/app-runtime` alone for session, socket and repository access; it does not import
+`@chatic/runtime` alone for session, socket and repository access; it does not import
 `@chatic/data` directly, so the runtime stays the one window this app looks through the stack with.
 
 The app was called `admin-v2` until 2026-11; older ADRs, changelog entries and commit scopes use

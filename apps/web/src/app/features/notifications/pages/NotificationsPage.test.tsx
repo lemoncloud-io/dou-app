@@ -44,7 +44,7 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
     selectedCloudId: 'c',
     selectedSiteId: 's',
 };
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { session: { useSessionSelection: () => mockSelection } },
 }));
 // How the page was reached: a back press is POP, the bottom nav REPLACE, opening a link PUSH.

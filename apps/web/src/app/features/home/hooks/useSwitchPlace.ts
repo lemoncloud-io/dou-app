@@ -1,7 +1,7 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainPlace } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 

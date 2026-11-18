@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
 
@@ -12,7 +12,7 @@ import { useCloudPushMarkStore } from './stores/useCloudPushMarkStore';
 import { resolvePushCloudId } from './utils/resolvePushCloudId';
 
 jest.mock('../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useGlobalCacheSearch: jest.fn(),

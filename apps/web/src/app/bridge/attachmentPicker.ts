@@ -1,7 +1,7 @@
 import { webClient } from '@chatic/bridges';
 import { host } from '@chatic/host';
 import type { AttachmentPickSource, PickedShellAttachment, RefusedAttachment } from '@chatic/bridge-messages';
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 import {
     CHAT_ATTACHMENT_MAX_BYTES,
     chatAttachmentFormat,

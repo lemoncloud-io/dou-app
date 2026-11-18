@@ -9,7 +9,7 @@ const relayVerified = vi.hoisted(() => ({ current: false }));
 const authenticated = vi.hoisted(() => ({ current: true }));
 const useSlotVerified = vi.hoisted(() => vi.fn((_slot: string) => relayVerified.current));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: { useSessionAuth: () => ({ isAuthenticated: authenticated.current }) },
         connection: { useSlotVerified, RELAY_SLOT: 'relay' },

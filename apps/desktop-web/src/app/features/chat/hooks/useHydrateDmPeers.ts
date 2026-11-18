@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 import { displayName } from '../../../shared';

@@ -1,7 +1,7 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainPlaceMember } from '@chatic/data';
 
 import { useSelectedCloudId } from '../../../hooks';

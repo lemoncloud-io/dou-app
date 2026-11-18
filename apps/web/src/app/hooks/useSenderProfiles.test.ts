@@ -1,11 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 import { useSenderProfiles } from './useSenderProfiles';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: jest.fn(),

@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { createWebRuntime, readStorageEnvironment, resolveStorageStores } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';

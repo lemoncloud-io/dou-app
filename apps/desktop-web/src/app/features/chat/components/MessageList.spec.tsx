@@ -12,7 +12,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // module scope; neither is available outside the app shell. Nothing here asserts on
 // them — this file is about whether the list renders at all.
 const updateChat = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

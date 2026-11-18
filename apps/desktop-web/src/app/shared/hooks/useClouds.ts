@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainCloud } from '@chatic/data';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';

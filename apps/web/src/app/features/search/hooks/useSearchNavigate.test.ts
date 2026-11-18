@@ -1,12 +1,12 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useSearchNavigate } from './useSearchNavigate';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         connection: {
             waitUntilVerified: jest.fn(),

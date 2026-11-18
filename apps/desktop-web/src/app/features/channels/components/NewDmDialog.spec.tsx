@@ -13,7 +13,7 @@ let me: { id: string; name: string } | null = { id: 'me-1', name: 'Louis' };
 const startDm = vi.fn();
 const openSelf = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useGlobalSession: () => ({ cloud: { cloudId: 'cloud-1' } }),

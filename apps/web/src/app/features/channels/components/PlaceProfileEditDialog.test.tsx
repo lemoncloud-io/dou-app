@@ -7,7 +7,7 @@ import { PlaceProfileEditDialog } from './PlaceProfileEditDialog';
 const setMyProfileMock = jest.fn();
 let mockProfile: { nick?: string; thumbnail?: string } | null = null;
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ profile: { setMyProfile: setMyProfileMock } }),

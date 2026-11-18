@@ -9,7 +9,7 @@ jest.mock('react-i18next', () => ({
         t: (key: string, options?: { count?: number }) => (options ? `${key}:${options.count}` : key),
     }),
 }));
-jest.mock('@chatic/app-runtime', () => ({ runtime: { sync: { usePlaceSync: () => undefined } } }));
+jest.mock('@chatic/runtime', () => ({ runtime: { sync: { usePlaceSync: () => undefined } } }));
 const mockHaptic = jest.fn();
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 

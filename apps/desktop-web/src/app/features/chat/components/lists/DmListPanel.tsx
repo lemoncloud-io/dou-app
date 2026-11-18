@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { MessageCircle } from 'lucide-react';
 
 import type { DomainChannel, DomainChat } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { placeScopeKey } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 

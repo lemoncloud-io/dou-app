@@ -5,7 +5,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { DomainChat } from '@chatic/data';
 
 const readInCloud = vi.hoisted(() => vi.fn((..._args: unknown[]) => Promise.resolve()));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     // The channel cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
     runtime: {
         data: {

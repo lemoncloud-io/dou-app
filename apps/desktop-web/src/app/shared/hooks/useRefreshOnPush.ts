@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { parsePushDeeplink } from '../utils/parsePushDeeplink';
 

@@ -4,7 +4,7 @@ const navigate = jest.fn();
 let routeState: unknown = { inviteLink: 'https://dou.link/abc' };
 let view: any = null;
 
-jest.mock('@chatic/app-runtime', () => {
+jest.mock('@chatic/runtime', () => {
     const repositories = {
         place: {
             observeItem: (_id: string, callback: (row: unknown) => void) => {

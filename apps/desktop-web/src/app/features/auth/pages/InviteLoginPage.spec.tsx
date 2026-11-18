@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => state.navigate }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { session: { useSessionAuth: () => ({ isAuthenticated: state.isAuthenticated }) } },
 }));
 vi.mock('../hooks/useInviteLogin', () => ({

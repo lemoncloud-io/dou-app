@@ -9,7 +9,7 @@ import type { NotificationItem } from '../../../utils/notifications';
 import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
-// Partial mock: the rest is left real. The `@chatic/app-runtime` barrel reaches all the way to
+// Partial mock: the rest is left real. The `@chatic/runtime` barrel reaches all the way to
 // `createQueryKeys` at import time, so swapping out the whole module would make that disappear.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
@@ -18,7 +18,7 @@ jest.mock('@chatic/shared', () => ({
 // `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         sync: {
             useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),

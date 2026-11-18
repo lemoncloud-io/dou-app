@@ -66,7 +66,7 @@ jest.mock('./nativeUploadSource', () => ({
 }));
 
 const mockUpload = jest.fn(async () => 'ok' as const);
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             registerSessionLogoutCallback: () => () => undefined,

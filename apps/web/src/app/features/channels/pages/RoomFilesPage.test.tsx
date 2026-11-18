@@ -15,7 +15,7 @@ import { RoomFilesPage } from './RoomFilesPage';
 // One graph object, as the runtime hands out: a new one per render would resubscribe forever.
 let mockGraphInstance: unknown;
 const mockRoomGraph = () => {
-    mockGraphInstance ??= jest.requireMock('@chatic/app-runtime').runtime.data.getCloudRepositories();
+    mockGraphInstance ??= jest.requireMock('@chatic/runtime').runtime.data.getCloudRepositories();
     return mockGraphInstance;
 };
 jest.mock('../hooks/useRoomSenderName', () => ({
@@ -48,7 +48,7 @@ jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
 const mockListRoomMedia = jest.fn();
 const mockCountRoomMedia = jest.fn();
 const mockRefreshList = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),

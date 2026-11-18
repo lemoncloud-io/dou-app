@@ -6,7 +6,7 @@ import type { DomainChannel } from '@chatic/data';
 import { useQuickSwitcherStore } from '../stores';
 import { QuickSwitcher } from './QuickSwitcher';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { session: { useSessionIdentity: () => ({ userId: 'me' }) } },
 }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({

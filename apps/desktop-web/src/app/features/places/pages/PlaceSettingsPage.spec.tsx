@@ -21,7 +21,7 @@ const places: DomainPlace[] = [
 
 const sessionSel = vi.hoisted(() => ({ siteId: 'p1' }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

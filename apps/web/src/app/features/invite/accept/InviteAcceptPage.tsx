@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import { useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { CloudInviteAccept, InviteAcceptLoading, RelayInviteAccept } from './components';
 import { isInviteEntry, isRelayInvite, parseInviteDeeplink } from './types';

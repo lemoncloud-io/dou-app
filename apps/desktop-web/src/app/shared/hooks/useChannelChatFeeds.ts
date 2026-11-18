@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { usePlaces } from './usePlaces';
 import { lastChatNoOf } from '../utils/channelMerge';

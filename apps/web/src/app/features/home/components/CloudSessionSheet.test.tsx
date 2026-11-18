@@ -42,7 +42,7 @@ let pairingEnabled = false;
 const forgetRefusedPairedCloud = jest.fn((_id: string, _e: unknown) => false);
 const isRefusedForEndedPairing = jest.fn((_e: unknown) => false);
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId }),

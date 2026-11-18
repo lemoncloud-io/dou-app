@@ -21,7 +21,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { warn: jest.fn(), info: jest.fn() },
 }));
 const requestSyncCursorReset = jest.fn(async () => undefined);
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { requestSyncCursorReset: () => requestSyncCursorReset() },
         session: { isSessionKey: (key: string) => key === 'chatic-cloud-token-cache' },

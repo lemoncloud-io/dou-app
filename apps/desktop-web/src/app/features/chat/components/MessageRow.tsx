@@ -27,7 +27,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { ConfirmDialog } from '../../channels';
 import {

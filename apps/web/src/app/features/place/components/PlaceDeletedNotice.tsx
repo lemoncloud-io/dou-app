@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useActiveCloudPlaces, useSelectedCloudId } from '../../../hooks';

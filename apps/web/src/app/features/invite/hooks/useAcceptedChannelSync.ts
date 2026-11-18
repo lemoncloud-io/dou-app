@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * How long the waiting screen waits for a locally-synced channel record before giving up and

@@ -13,7 +13,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionStalenessGuard: vi.fn(() => ({ check: vi.fn() })),
@@ -22,7 +22,7 @@ vi.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useRelaySessionGuard } from './useRelaySessionGuard';
 

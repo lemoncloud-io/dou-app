@@ -20,7 +20,7 @@ jest.mock('../../../hooks', () => ({
     usePickImage: () => ({ open: jest.fn(), inputProps: { type: 'file', hidden: true } }),
 }));
 jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: () => ({ switchSite }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'previous-site' }),

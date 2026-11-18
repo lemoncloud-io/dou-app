@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useOnReceiveNotification } from '../bridge';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
@@ -15,7 +15,7 @@ jest.mock('@chatic/host', () => ({
         },
     },
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: jest.fn(),

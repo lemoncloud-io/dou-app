@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { isInPlaceList, type DomainChannel } from '@chatic/data';
 
 /** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */

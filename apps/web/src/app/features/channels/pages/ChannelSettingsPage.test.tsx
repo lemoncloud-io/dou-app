@@ -74,7 +74,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 // One factory for the whole module: the page reads the session identity here, and the role gate too
 // (only a main user gets the re-invite CTA). Importing the real module would load the data layer,
 // whose IndexedDB open crashes outside a browser.
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
@@ -91,7 +91,7 @@ jest.mock('@chatic/app-runtime', () => ({
 // Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 
-// Shared hooks barrel + cross-feature dialog import both pull @chatic/app-runtime (socket lib
+// Shared hooks barrel + cross-feature dialog import both pull @chatic/runtime (socket lib
 // needs TextEncoder, unavailable in jsdom) — stub them to keep the suite runtime-free.
 jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => 'MyPlace',

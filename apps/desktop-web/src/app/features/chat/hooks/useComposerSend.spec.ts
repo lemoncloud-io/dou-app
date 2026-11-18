@@ -12,7 +12,7 @@ const useSendImages = vi.fn((_input: unknown) => ({
     canRetry: canRetryImages,
     discard: discardImages,
 }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { data: { useSendImages: (input: unknown) => useSendImages(input) } },
 }));
 

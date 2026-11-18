@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger, webClient } from '@chatic/bridges';
 import { host } from '@chatic/host';
 import { isPendingUploadSlot, type ChatFileSlot, type DomainChat } from '@chatic/data';

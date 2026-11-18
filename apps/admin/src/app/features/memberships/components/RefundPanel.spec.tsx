@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const refundSubscriptionByAdmin = vi.fn();
 const fetchAdminClouds = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ subscription: { refundSubscriptionByAdmin, fetchAdminClouds } }) },
     },

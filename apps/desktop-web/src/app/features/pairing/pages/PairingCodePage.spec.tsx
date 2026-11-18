@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { runtime as Runtime } from '@chatic/app-runtime';
+import type { runtime as Runtime } from '@chatic/runtime';
 
 type PairingState = ReturnType<typeof Runtime.session.usePairingRequest>['state'];
 
@@ -35,7 +35,7 @@ const env = vi.hoisted(() => {
     };
 });
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionAuth: () => ({

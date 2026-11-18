@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainChat } from '@chatic/data';
 
 import { THREAD_CARD_PAGE } from './useThreadCard';

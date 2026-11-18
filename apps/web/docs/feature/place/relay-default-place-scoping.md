@@ -215,5 +215,5 @@ What those cover, and what they cannot:
 - [mypage/README.md](../mypage/README.md) — the account screens that §6 is written for.
 - [`@chatic/data`](../../../../../libs/data/docs/local/README.md#scope-and-cache-slots) — the scope
   and cache-slot model this document depends on.
-- [`@chatic/app-runtime`](../../../../../libs/runtime/README.md) — the session store, the relay
+- [`@chatic/runtime`](../../../../../libs/runtime/README.md) — the session store, the relay
   token, and slot-pinned socket routing.

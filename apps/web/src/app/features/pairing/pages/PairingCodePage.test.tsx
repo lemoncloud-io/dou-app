@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 type PairingRequestState = runtime.session.PairingRequestState;
 
@@ -40,7 +40,7 @@ jest.mock('@chatic/host', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             usePairingRequest: () => ({ state: mockState, restart }),

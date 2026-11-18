@@ -7,7 +7,7 @@ import type { DomainChannel } from '@chatic/data';
 const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, verifiedSlots: new Set<string>() }));
 const registerSyncTarget = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ join: { observeList: () => () => undefined } }) },
         connection: {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AtSign } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { type DomainChannel, type DomainChat, type DomainJoin, isMentioningViewer, toPlainPreview } from '@chatic/data';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

@@ -20,7 +20,7 @@ vi.mock('../../../shared/hooks/useCloudSwitchFlow', () => ({
 }));
 
 const selectedCloud = vi.hoisted(() => ({ id: 'c9' }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: selectedCloud.id }),

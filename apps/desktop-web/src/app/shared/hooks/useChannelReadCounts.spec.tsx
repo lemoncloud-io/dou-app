@@ -7,7 +7,7 @@ const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, v
 const registerSyncTarget = vi.fn();
 const joinObservers = vi.hoisted(() => new Map<string, (result: { list: DomainJoin[] } | null) => void>());
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

@@ -24,7 +24,7 @@ const repositories = vi.hoisted(() => ({
     join: { updateJoin: (payload: unknown) => updateJoin(payload) },
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: {

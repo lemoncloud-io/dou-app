@@ -16,7 +16,7 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQ
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 
 let mockIsGuest = false;
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { ChatSendPayload, DomainChat } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { getChatOutbox, toSendPayload } from './useChatOutbox';
 

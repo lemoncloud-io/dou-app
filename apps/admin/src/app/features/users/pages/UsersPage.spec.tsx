@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const listRelayUsers = vi.fn();
 const registerUser = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ user: { listRelayUsers } }) },
         session: { useRegisterUserV2: () => ({ mutateAsync: registerUser, isPending: false }) },

@@ -1,6 +1,6 @@
 // The session's own key list, as the session declares it. Spelled out rather than imported: apps reach
 // the session only through the runtime, and this is the answer that runtime gives.
-jest.mock('@chatic/app-runtime', () => {
+jest.mock('@chatic/runtime', () => {
     const sessionKeys = new Set([
         'chatic-relay-token',
         'chatic-cloud-delegation-token',

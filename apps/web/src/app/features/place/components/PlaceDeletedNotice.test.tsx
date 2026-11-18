@@ -16,7 +16,7 @@ const repositories = { place: { isPlaceDeleted } };
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() } }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: { useSessionSelection: () => ({ selectedSiteId: mockSelected }) },

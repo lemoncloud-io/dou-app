@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { hostProfile } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { host } from '@chatic/host';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 

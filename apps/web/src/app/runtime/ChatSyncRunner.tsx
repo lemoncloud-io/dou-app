@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useCloudSelfChannels } from '../features/channels/hooks';
 import { isSomeoneElsesSelfChat } from '../features/channels/utils/membership';

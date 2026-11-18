@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { isInJoinWindow } from '@chatic/data';
 import type { DomainChannel, GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 import { logger } from '@chatic/bridges';

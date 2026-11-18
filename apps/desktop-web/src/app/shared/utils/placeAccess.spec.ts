@@ -4,7 +4,7 @@ const state = vi.hoisted(() => ({
     relayUser: null as Record<string, unknown> | null,
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getRelaySessionUser: () => state.relayUser,

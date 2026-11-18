@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { DomainChat } from '@chatic/data';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { pickPreviewChat } from '../utils';
 

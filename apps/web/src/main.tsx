@@ -10,7 +10,7 @@ import './pageTransitions.css';
 import { BridgeStorageChannel, hostProfile, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import {
     LATE_VAULT_MARK,
     createBridgedRuntime,

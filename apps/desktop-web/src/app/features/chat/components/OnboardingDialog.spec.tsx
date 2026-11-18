@@ -5,7 +5,7 @@ const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 
 const repositories = { channel: { syncChannels } };
 // Every cloud gives the account its own uid; the relay's is the one it keeps everywhere.
 const ids = { session: 'u1', relay: 'u1' as string | null };
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: ids.session }),

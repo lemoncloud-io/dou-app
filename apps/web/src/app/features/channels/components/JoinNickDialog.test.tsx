@@ -13,7 +13,7 @@ jest.mock('@chatic/shared', () => ({
 }));
 const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'session-me' }),

@@ -9,7 +9,7 @@ const patchRelaySessionUser = vi.hoisted(() => vi.fn());
 const gatewayProfile = vi.hoisted(() => vi.fn(async () => ({ $user: { name: 'Ada', photo: 'p' } })));
 const gatewayUpdate = vi.hoisted(() => vi.fn(async (data: unknown) => data));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'relay',

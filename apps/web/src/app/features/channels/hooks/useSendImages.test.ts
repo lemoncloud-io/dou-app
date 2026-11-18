@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -9,7 +9,7 @@ import { useAppForeground } from '../../../bridge/useAppForeground';
 import { getShellPut, syncShellTransfers } from '../../../bridge/shellUpload';
 import { useSendImages } from './useSendImages';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() } },
 }));
 const shellPut = jest.fn();

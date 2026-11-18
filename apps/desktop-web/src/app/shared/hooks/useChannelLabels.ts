@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainChannel } from '@chatic/data';
 
 import { channelLabel, dmCounterpartId, isDmChannel } from '../utils';

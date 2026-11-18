@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from '../hooks/useCloudCatalog';
 import { useInvitedClouds } from '../hooks/useInvitedClouds';

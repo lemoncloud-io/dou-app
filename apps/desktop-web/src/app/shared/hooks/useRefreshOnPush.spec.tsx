@@ -27,7 +27,7 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },

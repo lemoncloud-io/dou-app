@@ -13,7 +13,7 @@ const repos = Object.fromEntries(
 );
 // The account's role, from the relay token — what decides whether invited clouds stay.
 const relayUser = vi.hoisted(() => ({ current: null as { userRole: string } | null }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repos },
         session: { getRelaySessionUser: () => relayUser.current },

@@ -6,7 +6,7 @@ const unsubscribeMock = jest.fn();
 // object per call would make the effect's `[channel, channelId]` deps "change" every render.
 const repositories = { channel: { observeItem: observeItemMock } };
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => repositories,

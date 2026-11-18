@@ -4,7 +4,7 @@ const mockSwitchCloud = jest.fn();
 const mockForgetInviteLogin = jest.fn();
 let mockSelectedCloudId: string | null = null;
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSwitchCloudSession: () => ({ switchCloud: mockSwitchCloud, isPending: false }),

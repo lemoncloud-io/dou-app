@@ -12,7 +12,7 @@ const mockConfirmPhoneLogin = jest.fn();
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),

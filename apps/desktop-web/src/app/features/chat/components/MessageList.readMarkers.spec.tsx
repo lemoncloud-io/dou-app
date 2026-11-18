@@ -11,7 +11,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // every row would redraw for a reason that has nothing to do with read markers.
 const session = vi.hoisted(() => ({ activeServer: { siteId: 'S1' } }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

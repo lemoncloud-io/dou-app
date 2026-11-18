@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useNotificationPrefsStore, type ChannelNotifyMode } from '../stores';
 import { placeNotifyKey, placeNotifyTargets, placeNotifyWrites, summarizePlaceNotify, toastFailure } from '../utils';

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 // Inbound socket frame the server pushes when a reachable member edits their place profile
 // (nick / photo / active). It is a bare nudge: the payload is the changed profile, but the hook

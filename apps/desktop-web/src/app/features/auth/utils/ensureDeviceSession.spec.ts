@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runtimeMock = vi.hoisted(() => ({ isAuthenticated: false }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: { getIdentityContext: () => ({ isAuthenticated: runtimeMock.isAuthenticated }) },
     },

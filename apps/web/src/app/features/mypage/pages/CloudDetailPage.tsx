@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { AlertDialog, Divider, IconSpinner, InfoField, ListRow } from '@chatic/web-ui-kit';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';

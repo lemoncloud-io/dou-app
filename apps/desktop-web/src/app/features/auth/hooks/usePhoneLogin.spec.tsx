@@ -15,7 +15,7 @@ const rt = vi.hoisted(() => ({
 const ui = vi.hoisted(() => ({ language: 'en' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: ui.language } }) }));
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: rt.error, warn: vi.fn() } }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'relay',

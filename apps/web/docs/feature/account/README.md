@@ -2,7 +2,7 @@
 
 **Two multi-step email flows, and nothing else.** `apps/web/src/app/features/account` holds six
 screens that walk a user from an email address to a verification code to a password: sign-up, and
-password reset. Both legs run on one mutation from `@chatic/app-runtime`, and the feature itself
+password reset. Both legs run on one mutation from `@chatic/runtime`, and the feature itself
 owns no session state.
 
 Logging in, delegating a session and accepting an invite belong to [auth](../auth/README.md). The

@@ -14,7 +14,7 @@ let isRelayVerified = true;
 let selectedCloudId: string | null = '1000001';
 let ownedClouds: Array<{ id: string }> = [];
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),

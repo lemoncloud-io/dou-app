@@ -20,7 +20,7 @@ const mockObserveList = jest.fn((_input: unknown, callback: () => void) => {
         if (at >= 0) mockObservers.splice(at, 1);
     };
 });
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             // One graph object, as the runtime hands out: a new one per render would resubscribe forever.

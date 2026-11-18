@@ -19,7 +19,7 @@ const observeList = vi.fn((_query: { sid: string }, onChange: (result: { list: R
 // identity-stable too — a fresh object per render would resubscribe on every state change.
 const repositories = { channel: { observeList } };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: { useSessionIdentity: () => ({ userId: 'me' }) },

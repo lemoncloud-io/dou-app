@@ -3,7 +3,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 
 import { logger } from '@chatic/bridges';
 import { RouterErrorFallback } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { markBoot } from '../features/debug/metrics/bootMarks';
 import { scheduleBootMetricsReport } from '../features/debug/metrics/reportBootMetrics';

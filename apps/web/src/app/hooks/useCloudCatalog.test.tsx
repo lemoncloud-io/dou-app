@@ -14,7 +14,7 @@ let mockIsAuthenticated = true;
 let mockIsAccountGuest = false;
 const mockFetchCloudCatalog = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: { useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }) },
         connection: {

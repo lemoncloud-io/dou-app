@@ -12,7 +12,7 @@
  * @see chatic-archive-api (deployed service, `MockListParam`) — GET /arc-v1/mocks/0/list, query:
  *   `type` (stereo filter), `from`/`to` (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
 

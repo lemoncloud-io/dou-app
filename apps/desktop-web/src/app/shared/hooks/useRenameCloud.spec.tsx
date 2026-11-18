@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 const updateCloud = vi.fn();
 const listKey = ['clouds', 'list', { filters: { limit: -1 } }];
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ cloud: { updateCloud } }),

@@ -21,7 +21,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesData }) }));
 // The session hooks are here so that a screen which went back to switching into the cloud on entry
 // would reach `switchCloud` — the test below asserts it never does.
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: {

@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 import type { AppMessageData } from '@chatic/bridge-messages';
 import { host } from '@chatic/host';

@@ -19,7 +19,7 @@ const catalog = vi.hoisted(() => ({
     ownedClouds: [] as Array<{ id: string }>,
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSwitchCloudSession: () => ({ switchCloud: session.switchCloud, isPending: false }),

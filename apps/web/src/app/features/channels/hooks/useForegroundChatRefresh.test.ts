@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         sync: {
             updateSyncSnapshot: jest.fn(),
@@ -23,7 +23,7 @@ jest.mock('@chatic/bridges', () => ({
 // Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../../../bridge', () => ({ useAppForeground: jest.fn() }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useAppForeground } from '../../../bridge';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';

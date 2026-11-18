@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type * as AppRuntimeModule from '@chatic/app-runtime';
+import type * as AppRuntimeModule from '@chatic/runtime';
 
 import type * as SharedModule from '../../../shared';
 
 const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
 
-vi.mock('@chatic/app-runtime', async () => {
-    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/app-runtime');
+vi.mock('@chatic/runtime', async () => {
+    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/runtime');
     return {
         ...actual,
         runtime: {

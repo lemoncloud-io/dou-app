@@ -1,13 +1,13 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useSetMyPlaceProfile } from './useSetMyPlaceProfile';
 
 const isMutatingMock = jest.fn();
 
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ isMutating: isMutatingMock }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: jest.fn(),

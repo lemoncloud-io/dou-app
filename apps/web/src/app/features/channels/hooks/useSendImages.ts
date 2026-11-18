@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { host } from '@chatic/host';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 

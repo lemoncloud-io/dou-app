@@ -19,7 +19,7 @@ const listPlaceMembers = jest.fn(
 const cacheReadList = jest.fn((_query: { channelId: string }) => Promise.resolve({ list: mockTargetRoster }));
 const repositories = { user: { listPlaceMembers, cacheReadList } };
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: mockUserId }),

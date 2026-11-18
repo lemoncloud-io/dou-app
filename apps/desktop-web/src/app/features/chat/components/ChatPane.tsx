@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';

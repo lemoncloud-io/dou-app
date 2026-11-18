@@ -23,7 +23,7 @@ const canceledIds = new Set<string>();
 jest.mock('react-router-dom', () => ({ useParams: () => ({ inviteId: 'invite-1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/app-runtime', () => ({}));
+jest.mock('@chatic/runtime', () => ({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 // Same pattern as ChannelList.test.tsx: render the dropdown content unconditionally so the
 // menu item is queryable without simulating a Radix trigger click. Covers both this file's own
@@ -34,7 +34,7 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenuItem: ({ children, onClick }: any) => <div onClick={onClick}>{children}</div>,
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
-// The real barrel also exports AddFriendSheet, which pulls channels/hooks -> @chatic/app-runtime
+// The real barrel also exports AddFriendSheet, which pulls channels/hooks -> @chatic/runtime
 // -> chatic-sockets-lib -> lemon-model (needs a TextEncoder global this test env doesn't polyfill).
 // Same fix PlaceChannelManagePage.test.tsx uses: mock the barrel down to what this page needs.
 jest.mock('../../channels/components', () => ({

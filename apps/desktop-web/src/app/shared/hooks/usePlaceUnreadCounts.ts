@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { channelsByPlace, placeUnreadCounts, roomPlaces } from '../utils';
 import { useKnownChannelsStore, useMentionsStore, useNotificationPrefsStore, useReadCursorStore } from '../stores';

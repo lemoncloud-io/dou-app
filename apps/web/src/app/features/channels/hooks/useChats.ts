@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { isInJoinWindow, uncoveredIn } from '@chatic/data';
 import type { DomainChat, DomainUser, FeedRange } from '@chatic/data';
 

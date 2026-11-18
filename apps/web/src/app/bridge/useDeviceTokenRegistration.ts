@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';

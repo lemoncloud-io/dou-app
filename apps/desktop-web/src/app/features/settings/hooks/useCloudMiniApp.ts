@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /** The react-query key of a cloud's mini app link, under the cloud's own detail key. */
 export const miniAppUrlKey = (cloudId: string) => [...runtime.data.cloudsKeys.detail(cloudId), 'miniApp'] as const;

@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 import { usePeerCloudNames } from '../../channels/hooks/usePeerCloudNames';
@@ -8,7 +8,7 @@ import { useSenderProfiles } from '../../../hooks/useSenderProfiles';
 import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useGlobalCacheSearch: jest.fn(),

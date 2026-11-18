@@ -20,7 +20,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNaviga
 // The banner's useNavigateToLogin reads the current location to remember where to come back to;
 // this screen renders outside a Router here, so stand it in rather than wrap every case.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),

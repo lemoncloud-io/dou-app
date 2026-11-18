@@ -1,6 +1,6 @@
 import { hashRunId, isPageHidden, PERF_SAMPLE_PERCENT, recordPerfSample } from '@chatic/perf';
 
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 type SocketRequestSample = runtime.connection.SocketRequestSample;
 

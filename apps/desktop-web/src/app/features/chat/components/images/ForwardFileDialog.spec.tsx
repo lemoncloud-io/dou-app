@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
-import type * as AppRuntime from '@chatic/app-runtime';
+import type * as AppRuntime from '@chatic/runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -29,7 +29,7 @@ vi.mock('../../../../shared', async importOriginal => ({
 
 const sendImages = vi.hoisted(() => vi.fn());
 const sendTargets = vi.hoisted(() => [] as { cid: string; channelId: string; attach?: boolean }[]);
-vi.mock('@chatic/app-runtime', async importOriginal => {
+vi.mock('@chatic/runtime', async importOriginal => {
     const original = await importOriginal<typeof AppRuntime>();
     return {
         ...original,

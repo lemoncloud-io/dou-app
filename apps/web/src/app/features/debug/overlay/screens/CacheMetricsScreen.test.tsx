@@ -8,7 +8,7 @@ import { CacheMetricsScreen } from './CacheMetricsScreen';
 const read = jest.fn();
 const reset = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         boot: {
             isNativeApp: () => true,

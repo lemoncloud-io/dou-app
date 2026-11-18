@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useCloudSessionCatalog } from './useCloudCatalog';
 import { isAcceptedBy } from '../utils/invitedCloudAcceptance';
 import type { DomainCloud } from '@chatic/data';

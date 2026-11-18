@@ -7,7 +7,7 @@ import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
 import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }),

@@ -16,7 +16,7 @@ const env = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         connection: { RELAY_SLOT: 'relay', useSlotVerified: () => true },
         session: {

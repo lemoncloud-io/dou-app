@@ -8,7 +8,7 @@ const updateChat = vi.fn();
 const deleteChat = vi.fn();
 const cacheWrite = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat, cacheWrite } }),

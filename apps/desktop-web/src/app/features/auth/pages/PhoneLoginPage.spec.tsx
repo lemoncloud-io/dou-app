@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
     signOutGuest: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getIdentityContext: () => ({ isAuthenticated: state.isAuthenticated }),

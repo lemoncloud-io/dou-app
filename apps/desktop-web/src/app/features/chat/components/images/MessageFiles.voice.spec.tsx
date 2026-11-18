@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import type * as AppRuntime from '@chatic/app-runtime';
+import type * as AppRuntime from '@chatic/runtime';
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -23,7 +23,7 @@ const sessionCloud = vi.hoisted(() => ({
     value: { cloudId: 'cl-1' as string | null, siteId: 'site-1' as string | null },
 }));
 const sendProgress = vi.hoisted(() => ({ value: undefined as readonly (number | undefined)[] | undefined }));
-vi.mock('@chatic/app-runtime', async importOriginal => {
+vi.mock('@chatic/runtime', async importOriginal => {
     const original = await importOriginal<typeof AppRuntime>();
     return {
         ...original,

@@ -2,7 +2,7 @@
  * `api/userApi.ts`
  * - List of observed users (real data).
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
 

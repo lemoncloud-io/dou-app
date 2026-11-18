@@ -14,7 +14,7 @@ const { switchCalls, sessionState, socketState } = vi.hoisted(() => ({
     socketState: { isVerified: true },
 }));
 
-vi.mock('@chatic/app-runtime', () => {
+vi.mock('@chatic/runtime', () => {
     const useSiteSwitch = () => {
         const [pending, setPending] = useState(false);
         const switchSite = useCallback(async (siteId: string) => {

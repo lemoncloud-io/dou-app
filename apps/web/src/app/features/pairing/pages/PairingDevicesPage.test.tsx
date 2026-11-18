@@ -35,7 +35,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 jest.mock('@chatic/web-ui-kit', () => ({
     MenuCard: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-card">{children}</div>,
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useIsPairedSession: () => mockPaired,

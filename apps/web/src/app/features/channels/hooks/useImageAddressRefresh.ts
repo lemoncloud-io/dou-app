@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 // Page-level on purpose: the same message can be on screen twice (the room and its thread), and both
 // must not re-read it for the same dead address.

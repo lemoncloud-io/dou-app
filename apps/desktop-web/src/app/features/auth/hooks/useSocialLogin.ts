@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { host } from '@chatic/host';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { LinkedAccountsView, LinkVerifiedView } from '@lemoncloud/chatic-backend-api';

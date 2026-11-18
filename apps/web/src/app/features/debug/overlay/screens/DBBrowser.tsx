@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { CopyButton } from '../../components/CopyButton';
 import { useDBBrowserStrings } from '../../i18n/screens/DBBrowser';

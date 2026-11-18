@@ -749,7 +749,7 @@ reader walks away.
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
-four; the account surface's HTTP port adds two more, `@chatic/app-runtime` (which reaches the server
+four; the account surface's HTTP port adds two more, `@chatic/runtime` (which reaches the server
 through `libs/data` and `libs/http`) and `@chatic/config`, with
 `@portone/browser-sdk` and `@stripe/stripe-js` from the workspace root, inside a chunk of their own that loads on first use (see
 [The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
@@ -767,7 +767,7 @@ the workspace root, inside its own chunk. The table is about the public pages.
 | `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                                                  |
 | `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                                  |
 | `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                         |
-| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                          |
+| `@chatic/runtime`         | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                          |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain

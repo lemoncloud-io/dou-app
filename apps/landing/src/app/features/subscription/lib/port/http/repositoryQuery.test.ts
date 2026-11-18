@@ -1,5 +1,5 @@
 import type { SandboxQuery } from './createHttpPort';
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 /**
  * The HTTP port hands the sandbox query to the runtime's subscription repository. A repository method

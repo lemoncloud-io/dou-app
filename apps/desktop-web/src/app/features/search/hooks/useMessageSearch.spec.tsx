@@ -16,7 +16,7 @@ const repositories = {
     chat: { cacheReadList: vi.fn(async (): Promise<{ list: DomainChat[] }> => ({ list: cached })) },
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { data: { useRuntimeRepositories: () => repositories } },
 }));
 

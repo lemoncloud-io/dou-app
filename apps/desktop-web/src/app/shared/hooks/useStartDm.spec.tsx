@@ -14,7 +14,7 @@ const syncMeta = { getSyncedAt: vi.fn(), setSyncedAt: vi.fn() };
 const warn = vi.fn();
 const repositories = { channel: { startDm, getSelfChannel, syncChannels }, syncMeta };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: {

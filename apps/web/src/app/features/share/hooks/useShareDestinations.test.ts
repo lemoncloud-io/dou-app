@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 
 import { matchDestinations, useShareDestinations, type ShareDestination } from './useShareDestinations';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'place-1' }),

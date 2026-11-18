@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainProfile } from '@chatic/data';
 
 /**

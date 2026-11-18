@@ -12,7 +12,7 @@ const getSelfChannel = vi.fn();
 const warn = vi.fn();
 
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => state.switching }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ channel: { getSelfChannel } }) },
         session: {

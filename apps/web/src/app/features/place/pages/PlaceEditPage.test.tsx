@@ -19,7 +19,7 @@ jest.mock('@chatic/shared', () => ({
     prepareImage: jest.fn(),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem } }),

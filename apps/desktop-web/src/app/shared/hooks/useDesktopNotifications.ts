@@ -4,7 +4,7 @@ import i18next from 'i18next';
 
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { host } from '@chatic/host';
 
 import { usePlaces } from './usePlaces';

@@ -21,7 +21,7 @@ const currentPlace = vi.hoisted(() => ({ value: { placeName: 'Lemon', placeId: '
 const placeRead = vi.hoisted(() => ({
     load: vi.fn<() => Promise<{ nick?: string; thumbnail?: string } | null>>(),
 }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'u1' }),

@@ -18,7 +18,7 @@ vi.mock('@chatic/host', () => ({
     host: { ports: { push: { kind: 'shell' } } },
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

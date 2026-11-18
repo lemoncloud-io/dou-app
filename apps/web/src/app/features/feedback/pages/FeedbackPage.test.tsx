@@ -22,7 +22,7 @@ jest.mock('@chatic/shared', () => ({
     // contract (aspect-preserving downscale) and exercised in the browser.
     prepareImage: (file: File) => mockEncode(file),
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         report: {
             reportIssue: (...args: unknown[]) => mockReportIssue(...args),

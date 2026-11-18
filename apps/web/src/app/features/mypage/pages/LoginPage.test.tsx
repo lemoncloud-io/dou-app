@@ -29,7 +29,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 const loginRelaySocial = jest.fn();
 const createCredentialsByProvider = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),

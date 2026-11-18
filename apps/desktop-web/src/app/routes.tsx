@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { host } from '@chatic/host';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';

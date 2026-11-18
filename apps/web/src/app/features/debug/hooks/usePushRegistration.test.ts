@@ -10,7 +10,7 @@ jest.mock('@chatic/host', () => ({
 }));
 // The platform fallback, read only when the device store has none: no shell injected one here.
 jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         push: {
             useRegisterDeviceTokenMutation: jest.fn(),
@@ -23,7 +23,7 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
 jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { appBridge } from '../../../bridge';

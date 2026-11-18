@@ -9,7 +9,7 @@ const mockNavigate = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => mockNavigate }));
 
 const mockCountRoomMedia = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             // One graph object, as the runtime hands out: a new one per render would resubscribe forever.

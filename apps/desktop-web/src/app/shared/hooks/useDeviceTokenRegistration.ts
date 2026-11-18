@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { hostProfile, webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { host } from '@chatic/host';
 
 const APPLICATION = 'chatic';

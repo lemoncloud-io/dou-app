@@ -9,7 +9,7 @@ const mockRepositories = { profile: { setMyProfile: mockSetMyProfile, getMyProfi
 let mockSelectedSiteId: string | null = 'place-a';
 
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => mockRepositories,

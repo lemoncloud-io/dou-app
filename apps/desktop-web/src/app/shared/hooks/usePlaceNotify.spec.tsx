@@ -15,7 +15,7 @@ const renderHook = <T,>(hook: () => T) =>
 
 const updateJoin = vi.fn(async (_payload: unknown) => ({}));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

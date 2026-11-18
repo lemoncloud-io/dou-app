@@ -37,7 +37,7 @@ jest.mock('../../../runtime/backgroundRefresh', () => ({
 }));
 // One object, not a fresh one per render: the hook lists the repository in a dependency array.
 const repositories = { channel: { startDm: (...args: unknown[]) => startDmRequest(...args) } };
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => repositories },
         session: {

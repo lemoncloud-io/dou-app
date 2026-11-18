@@ -30,7 +30,7 @@ const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         connection: {
             RELAY_SLOT: 'default',

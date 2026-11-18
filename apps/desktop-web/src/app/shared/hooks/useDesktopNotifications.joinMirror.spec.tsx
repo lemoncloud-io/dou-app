@@ -23,7 +23,7 @@ vi.mock('@chatic/host', () => ({
     },
 }));
 
-vi.mock('@chatic/app-runtime', () => {
+vi.mock('@chatic/runtime', () => {
     // One object for every render: the hook's effect depends on the repositories' identity.
     const repositories = {
         channel: {

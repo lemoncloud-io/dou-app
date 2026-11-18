@@ -7,7 +7,7 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { serverErrorText, toError, toastFailure, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';

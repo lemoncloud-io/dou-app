@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { isInJoinWindow, RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { channelKind } from '../utils';
 

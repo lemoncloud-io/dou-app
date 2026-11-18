@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';

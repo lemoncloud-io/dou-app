@@ -47,7 +47,7 @@ let mockUids: Record<string, string | null> = {};
 let mockOwned: { id?: string }[] = [];
 const uidSubscribers = new Set<() => void>();
 
-jest.mock('@chatic/app-runtime', () => {
+jest.mock('@chatic/runtime', () => {
     const { useSyncExternalStore } = jest.requireActual('react');
     // One graph for the whole run, as the real one is: the observers' effects are keyed on it. The
     // calls go through lazily because this factory is hoisted above the fake cache it reads.

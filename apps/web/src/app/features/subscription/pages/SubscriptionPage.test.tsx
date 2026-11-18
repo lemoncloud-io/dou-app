@@ -25,7 +25,7 @@ jest.mock('@chatic/host', () => ({
         },
     },
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) } },
 }));
 

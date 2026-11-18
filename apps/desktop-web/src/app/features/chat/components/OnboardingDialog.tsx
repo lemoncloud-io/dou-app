@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Check } from 'lucide-react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';

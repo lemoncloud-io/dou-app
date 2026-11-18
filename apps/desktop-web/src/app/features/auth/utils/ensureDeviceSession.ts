@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Registers this device with the relay unless a session already exists. The backend's sign-in contract

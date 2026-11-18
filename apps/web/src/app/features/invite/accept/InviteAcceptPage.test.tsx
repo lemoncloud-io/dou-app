@@ -14,7 +14,7 @@ jest.mock('react-router-dom', () => ({
     useLocation: () => ({ search: mockSearch }),
     Navigate: ({ to }: { to: string }) => <div>navigated:{to}</div>,
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }),

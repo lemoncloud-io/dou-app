@@ -14,7 +14,7 @@ const mockSyncProfiles = vi.fn();
 const mockGetSyncedAt = vi.fn();
 const mockSetSyncedAt = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

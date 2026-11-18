@@ -12,7 +12,7 @@ import type {
 import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
 import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { liveSelection, switchesSettled } from './switchesSettled';
 

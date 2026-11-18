@@ -9,7 +9,7 @@ jest.mock('@chatic/host', () => ({
     },
 }));
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getGlobalSessionContext: jest.fn(),
@@ -17,7 +17,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger, setLogContextProvider } from '@chatic/bridges';
 
 import { attachLogContext, readLogContext, reportRunIdJoin, resetWebRunId } from './logContext';

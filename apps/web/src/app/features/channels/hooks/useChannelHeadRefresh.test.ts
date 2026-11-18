@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         sync: { fetchRoomFeed: jest.fn() },
         connection: { useRuntimeSocketState: jest.fn() },
@@ -11,7 +11,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useChannelHeadRefresh, type ChannelHeadRefreshParams } from './useChannelHeadRefresh';
 

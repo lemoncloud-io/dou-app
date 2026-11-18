@@ -10,7 +10,7 @@
  * more ($0.01 per 1,000 metrics). Caching them is the query layer's job (`costQuery.ts`); collecting
  * Cost Explorer is the cost service's nightly job, not this screen's.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import {
     buildTenants,

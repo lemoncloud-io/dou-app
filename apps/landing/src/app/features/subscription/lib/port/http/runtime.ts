@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { createWebRuntime } from '@chatic/runtime-web';
 import { config, createWebEnvAdapter } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';

@@ -33,7 +33,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/app-runtime', () => ({}));
+jest.mock('@chatic/runtime', () => ({}));
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
 jest.mock('../hooks', () => ({

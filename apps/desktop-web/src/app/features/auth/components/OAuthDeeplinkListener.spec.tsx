@@ -32,7 +32,7 @@ vi.mock('@chatic/bridges', () => ({
         },
     },
 }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {

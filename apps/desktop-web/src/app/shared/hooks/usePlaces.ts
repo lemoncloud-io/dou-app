@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { DomainPlace } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Places (sites) for the active cloud. List discovery (fetch / delta sync) is owned globally by

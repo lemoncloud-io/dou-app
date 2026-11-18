@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainCloud } from '@chatic/data';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 

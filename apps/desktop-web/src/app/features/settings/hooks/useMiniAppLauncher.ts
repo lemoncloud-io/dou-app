@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SubWebViewOpenScope } from '@chatic/bridge-messages';
 import type { MiniAppUrlProblem, SubWebViewTrust } from '@chatic/shared';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import { buildMiniAppLaunchParams, checkMiniAppUrl, subWebViewTrustOf } from '@chatic/shared';
 

@@ -7,7 +7,7 @@ let mockUid: string | null = 'user-1';
 // One shared object, like the real DataManager (`getRepositories` returns a stored field). A fresh
 // object per call would change the effect's dependency every render and reset the verdict forever.
 const repositories = { profile: { id: 'profile-repo' } };
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => repositories,

@@ -31,7 +31,7 @@ const menu = vi.hoisted(() => ({
 }));
 // The relay user decides the invite entry: the relay issues invites to signed-in accounts only.
 const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),

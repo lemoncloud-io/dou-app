@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const refundSubscriptionByAdmin = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { data: { useRuntimeRepositories: () => ({ subscription: { refundSubscriptionByAdmin } }) } },
 }));
 

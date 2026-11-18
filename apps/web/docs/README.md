@@ -48,7 +48,7 @@ flowchart TD
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
     Feat["features/ × 14<br/><i>pages · components · hooks</i>"]:::feat
     Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
-    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · bridge-messages"]:::ext
+    Libs["@chatic/runtime · bridges · data · config<br/>web-ui-kit · shared · bridge-messages"]:::ext
 
     Root --> Feat
     Root --> Shared
@@ -87,7 +87,7 @@ calling another.
 
 Every one of those is a library's. The app calls hooks and it never holds the primitive:
 
-- **Session, socket, repositories, sync** — `runtime.*` from `@chatic/app-runtime`, seven groups
+- **Session, socket, repositories, sync** — `runtime.*` from `@chatic/runtime`, seven groups
   under one identifier (`runtime.session`, `runtime.connection`, `runtime.data`, `runtime.sync`,
   `runtime.boot`, `runtime.push`, `runtime.report`).
 - **The native shell** — `@chatic/bridges`, reached only through `app/bridge/` (see
@@ -97,7 +97,7 @@ Every one of those is a library's. The app calls hooks and it never holds the pr
 
 Direct construction of a socket, a token or a cache adapter inside `apps/web` is a contract
 violation. There is no `@chatic/socket` to import and no session core object to reach for; the
-transport (`@lemoncloud/chatic-sockets-lib`) is assembled by `@chatic/app-runtime` and the app never
+transport (`@lemoncloud/chatic-sockets-lib`) is assembled by `@chatic/runtime` and the app never
 names it.
 
 ### Selection state changes through a switch hook
@@ -159,14 +159,14 @@ data, session or the bridge is `app/hooks` even if it also does UI work.
 features/<feature>/
 ├── pages/       route-entry screens
 ├── components/  UI used only inside this feature
-├── hooks/       logic hooks that wrap @chatic/data / @chatic/app-runtime for this feature
+├── hooks/       logic hooks that wrap @chatic/data / @chatic/runtime for this feature
 ├── types/       domain types and state — this feature's entities
 ├── consts/      this feature's constants
 ├── routes/      this feature's own route table (only where the feature owns one — see below)
 └── index.ts     the public barrel; everything outside imports through it
 ```
 
-There is no `api/` folder: server access goes through `@chatic/app-runtime` / `@chatic/data`, and a
+There is no `api/` folder: server access goes through `@chatic/runtime` / `@chatic/data`, and a
 feature's `hooks/` is where that gets wrapped. There is no separate `entities/` or `model/` layer
 either — `types/` is the entity layer, promoted to a cross-cutting `types` only on a second
 consumer.

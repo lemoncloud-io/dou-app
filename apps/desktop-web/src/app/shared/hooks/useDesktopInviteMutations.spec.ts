@@ -12,7 +12,7 @@ const userRepository = {
     requestInviteBatch: vi.fn(async () => []),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ invite: inviteRepository, user: userRepository }),

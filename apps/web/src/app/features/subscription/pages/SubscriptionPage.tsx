@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { host } from '@chatic/host';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, IconBack, IconButton, IconSpinner, KeyValueRows, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
 

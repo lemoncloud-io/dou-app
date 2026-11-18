@@ -13,7 +13,7 @@ import {
     usePlaceNotify,
     usePlaces,
 } from '../../../shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { EditPlaceDialog } from '../../chat/components/EditPlaceDialog';
 import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
 import { EditPlaceProfileDialog } from '../../profile/components/EditPlaceProfileDialog';

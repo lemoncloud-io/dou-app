@@ -6,7 +6,7 @@ import i18next from 'i18next';
 const reportIssue = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/app-runtime', () => ({ runtime: { report: { reportIssue } } }));
+vi.mock('@chatic/runtime', () => ({ runtime: { report: { reportIssue } } }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
 import '../../../../i18n';

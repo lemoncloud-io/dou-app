@@ -8,7 +8,7 @@ import { appBridge } from '../../../bridge';
 import { haptics } from '../../../bridge/haptics';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog, PairingLogoutDialog } from '../components';
 import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks';

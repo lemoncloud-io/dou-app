@@ -17,7 +17,7 @@ const env = vi.hoisted(() => ({
     revokePairing: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         connection: { RELAY_SLOT: 'relay', useSlotVerified: () => true },
         session: {

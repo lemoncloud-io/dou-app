@@ -17,7 +17,7 @@ import { logger } from '@chatic/bridges';
 import { useStackNavigate } from '../../../navigation';
 import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainChannel } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {

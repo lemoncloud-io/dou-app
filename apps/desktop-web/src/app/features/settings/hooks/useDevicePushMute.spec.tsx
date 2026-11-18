@@ -10,7 +10,7 @@ const updateRemotePushMute = vi.fn();
 
 // The hook's only collaborator is the device repository; faking the runtime lets the
 // test drive what the server "answered" without standing up a socket.
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ device: { updateRemotePushMute } }),

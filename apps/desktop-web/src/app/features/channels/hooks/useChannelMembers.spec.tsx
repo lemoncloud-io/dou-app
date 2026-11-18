@@ -14,7 +14,7 @@ const userMocks = {
     syncChannelUsers: vi.fn(async () => 123),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ user: userMocks }) },
         connection: { useRuntimeSocketState: () => ({ isVerified }) },

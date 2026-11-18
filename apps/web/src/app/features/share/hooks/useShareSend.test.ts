@@ -7,7 +7,7 @@ import type { ShareDestination } from './useShareDestinations';
 import { useShareSend, type SendFiles } from './useShareSend';
 
 const mockSendChatInCloud = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { data: { sendChatInCloud: (...args: unknown[]) => mockSendChatInCloud(...args) } },
 }));
 const mockWarn = jest.fn();

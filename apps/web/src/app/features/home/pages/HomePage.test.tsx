@@ -44,7 +44,7 @@ jest.mock('@chatic/shared', () => ({
     // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
     usePinnedChannels: () => ({ pinnedIds: [], toggle: jest.fn(), reorder: jest.fn() }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),

@@ -34,7 +34,7 @@ jest.mock('../../../bridge/shellDownload', () => ({
     }),
 }));
 const getChat = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) } },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));

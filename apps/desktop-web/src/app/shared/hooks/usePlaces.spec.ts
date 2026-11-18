@@ -5,7 +5,7 @@ import { renderHook } from '@testing-library/react';
 const mockObserveList = vi.fn();
 let mockCloudId = 'cloud-A';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => ({ place: { observeList: mockObserveList } }) },
         session: {

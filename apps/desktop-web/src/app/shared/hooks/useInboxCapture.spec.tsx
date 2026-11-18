@@ -14,7 +14,7 @@ const cache = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const cacheFails = vi.hoisted(() => ({ current: false }));
 const warn = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),

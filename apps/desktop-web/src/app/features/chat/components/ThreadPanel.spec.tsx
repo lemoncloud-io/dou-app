@@ -10,7 +10,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import type { useThreadRoot as UseThreadRoot } from '../hooks/useThreadRoot';
 
 const getChat = vi.fn();
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

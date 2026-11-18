@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Desktop invite-write hook. Wraps the engine's invite repository (number-bound

@@ -31,9 +31,6 @@ module.exports = {
         '^@chatic/runtime/testing$': '<rootDir>/../../libs/runtime/src/testing/index.ts',
         '^@chatic/runtime-client/host$': '<rootDir>/../../libs/runtime-client/src/host/index.ts',
         '^@chatic/runtime-web/host$': '<rootDir>/../../libs/runtime-web/src/hostCapabilities/index.ts',
-        // The package was renamed from `@chatic/app-runtime`; the old name resolves to the same file until
-        // every import is moved over.
-        '^@chatic/app-runtime$': '<rootDir>/../../libs/runtime/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         // web-ui-kit re-exports SVG/image assets from its barrel; stub them (and styles) so tests
         // importing @chatic/web-ui-kit don't choke on static asset imports.

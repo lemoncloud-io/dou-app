@@ -24,7 +24,6 @@
         "experimentalDecorators": true,
         "baseUrl": ".",
         "paths": {
-            "@chatic/app-runtime": ["libs/runtime/src/index.ts"],
             "@chatic/block-kit": ["libs/block-kit/src/index.ts"],
             "@chatic/bridge-messages": ["libs/bridge-messages/src/index.ts"],
             "@chatic/bridge-messages/testing": ["libs/bridge-messages/src/testing/index.ts"],

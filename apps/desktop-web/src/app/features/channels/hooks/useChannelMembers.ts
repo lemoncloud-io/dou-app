@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainUser } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 export interface ChannelMember extends DomainUser {
     /** True when this member is the channel owner (matched against ownerId). */

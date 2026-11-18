@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { type PlaceProfileEntry, toProfileMap, useSiteProfilesStore } from '../stores/useSiteProfilesStore';
 import { type ResolvedDisplay, resolveDisplay } from '../utils/displayProfile';

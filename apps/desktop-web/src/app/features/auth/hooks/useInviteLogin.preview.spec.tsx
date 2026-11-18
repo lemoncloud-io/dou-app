@@ -15,7 +15,7 @@ const { loginGuest, registerUserWithInviteCode, getIdentityContext, getActiveSes
 
 vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),

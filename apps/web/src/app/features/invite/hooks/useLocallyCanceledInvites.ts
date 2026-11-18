@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useRelayInvites } from '../../../hooks';
 

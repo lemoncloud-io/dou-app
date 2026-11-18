@@ -1,14 +1,14 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
 import { useSocketWakeRecovery } from '../hooks/useSocketWakeRecovery';
 
 /**
  * The user repository as the runtime hands it out. Derived from the hook rather than imported from
- * `@chatic/data`, so this console depends on `@chatic/app-runtime` alone — the runtime is the single
+ * `@chatic/data`, so this console depends on `@chatic/runtime` alone — the runtime is the single
  * window an app looks through, and a type import is enough to make the second package part of this
  * app's build surface.
  */
@@ -21,7 +21,7 @@ type UserRepository = ReturnType<typeof runtime.data.useRuntimeRepositories>['us
  * so (`UserHttpDataSource` — "errors bubble, matching the gateway (no swallow-and-null here
  * either)"), because null-vs-throw is a screen policy: this gate renders its retry state on null
  * and must never get an alert or a redirect out of the call. It used to be `tryFetchProfile` in
- * `@chatic/app-runtime`, which made one app's gate policy part of the shared runtime surface
+ * `@chatic/runtime`, which made one app's gate policy part of the shared runtime surface
  * (ADR-0070, decision 5, following option ②).
  */
 const tryFetchProfile = async (user: UserRepository) => {

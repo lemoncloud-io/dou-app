@@ -23,7 +23,7 @@ const session = (() => {
     };
 })();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionAuth: () => useSyncExternalStore(session.subscribe, session.get, session.get),

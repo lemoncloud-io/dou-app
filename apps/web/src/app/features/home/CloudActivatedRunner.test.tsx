@@ -4,13 +4,13 @@ import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { CloudActivatedRunner } from './CloudActivatedRunner';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn() } }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mockInvalidate }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { cloudsKeys: { all: ['clouds'] } },
         connection: { RELAY_SLOT: 'default', onServerEvent: jest.fn() },

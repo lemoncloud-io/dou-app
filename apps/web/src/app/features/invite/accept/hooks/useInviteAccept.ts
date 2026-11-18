@@ -12,7 +12,7 @@ import { beginInviteAcceptTrace } from '../../../../runtime/perf';
 import { useCloudSessionCatalog } from '../../../../hooks/useCloudCatalog';
 import { withAcceptor } from '../../../../utils/invitedCloudAcceptance';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));

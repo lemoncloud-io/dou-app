@@ -6,7 +6,7 @@ import { logger } from '@chatic/bridges';
 import { isInJoinWindow } from '@chatic/data';
 import type { DomainChat } from '@chatic/data';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { classifyWireError, extractErrorMessage } from '../../../shared';
 

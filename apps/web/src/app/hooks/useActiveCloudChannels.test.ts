@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react';
 
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
@@ -10,7 +10,7 @@ import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 import { ActiveCloudDataContext } from './activeCloudDataContext';
 import { useActiveCloudChannels, useActiveCloudChannelsSource } from './useActiveCloudChannels';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: jest.fn(),

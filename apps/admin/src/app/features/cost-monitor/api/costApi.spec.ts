@@ -13,7 +13,7 @@ const sent: SentRequest[] = [];
 /** Replies by URL suffix, so parallel calls do not depend on their order. */
 const replies = new Map<string, ({ data: unknown } | { error: unknown })[]>();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         boot: {
             webTransport: {

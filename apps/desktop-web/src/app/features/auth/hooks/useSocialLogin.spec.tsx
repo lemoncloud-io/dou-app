@@ -25,7 +25,7 @@ vi.mock('@chatic/host', () => ({
 vi.mock('@chatic/bridges', () => ({
     logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
 }));
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

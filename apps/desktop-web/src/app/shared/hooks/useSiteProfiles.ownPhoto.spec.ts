@@ -13,7 +13,7 @@ const cache = vi.hoisted(() => ({
     getMyProfile: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', () => {
+vi.mock('@chatic/runtime', () => {
     const emit = () => cache.listeners.forEach(listener => listener({ list: [...cache.rows] }));
     cache.getMyProfile.mockImplementation(async () => {
         const row = { uid: 'me', sid: 'S1', nick: 'Captain', thumbnail: 'place.png' };

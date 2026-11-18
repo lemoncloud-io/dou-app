@@ -23,7 +23,7 @@ const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainCha
 });
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheRead, getChat, observeList } }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 type Listener = (user: { id: string; name?: string } | null) => void;
 const listeners = vi.hoisted(() => new Map<string, Listener[]>());
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

@@ -12,7 +12,7 @@ alone are listed under [Documents](#documents).
 
 Home assembles screens out of runtime data; it owns no transport and no cache. Data is read through
 repository `observe*` streams, refreshed by registered sync targets, and written through repository
-commands — all of it reached through `runtime` from `@chatic/app-runtime`.
+commands — all of it reached through `runtime` from `@chatic/runtime`.
 
 ```bash
 grep -rn "features/home" --include='*.ts' --include='*.tsx' apps/web/src | grep -v node_modules

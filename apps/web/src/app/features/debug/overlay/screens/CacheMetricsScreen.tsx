@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Database, RotateCcw } from 'lucide-react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { CopyButton } from '../../components/CopyButton';
 import { useCacheMetricsStrings } from '../../i18n/screens/CacheMetricsScreen';

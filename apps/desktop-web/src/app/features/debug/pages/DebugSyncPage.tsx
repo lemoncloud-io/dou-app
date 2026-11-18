@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { useSelectedChannelStore, useSocketFrameLogStore, VersionInfo } from '../../../shared';

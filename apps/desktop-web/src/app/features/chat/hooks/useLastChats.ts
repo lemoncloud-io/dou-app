@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import { isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
 

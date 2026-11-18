@@ -38,7 +38,7 @@ const mockRepositories = {
         },
     },
 };
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { useRuntimeRepositories: () => mockRepositories },
         session: {

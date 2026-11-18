@@ -14,7 +14,7 @@ const mockChannelCacheRead = jest.fn();
 const mockRefreshOneInCloud = jest.fn();
 const mockGetCloudRepositories = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             getCloudRepositories: (cid: string) => {

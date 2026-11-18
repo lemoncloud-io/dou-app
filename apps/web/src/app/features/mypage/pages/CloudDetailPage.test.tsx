@@ -17,7 +17,7 @@ let hasCloudCatalog = true;
 let selectedCloudId = 'default';
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: { useSessionSelection: () => ({ selectedCloudId }) },

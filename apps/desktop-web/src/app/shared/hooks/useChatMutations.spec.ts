@@ -11,7 +11,7 @@ const cloudCacheDelete = vi.fn();
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheDelete: cloudCacheDelete } }));
 const outboxRemove = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             // The app graph, which follows the selection. Send, retry and discard must not go through it.

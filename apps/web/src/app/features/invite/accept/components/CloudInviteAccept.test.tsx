@@ -26,7 +26,7 @@ jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AlertDialog: ({ title }: { title: React.ReactNode }) => <div role="alertdialog">{title}</div>,
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { session: { useInviteInfo: () => inviteInfo } },
 }));
 jest.mock('../../../../runtime/useSessionLogout', () => ({ useSessionLogout: () => jest.fn() }));

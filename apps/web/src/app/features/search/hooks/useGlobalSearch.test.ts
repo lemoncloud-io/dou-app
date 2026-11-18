@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
@@ -9,7 +9,7 @@ import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 import { useGlobalSearch } from './useGlobalSearch';
 
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useGlobalCacheSearch: jest.fn(),

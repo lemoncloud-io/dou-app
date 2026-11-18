@@ -328,7 +328,7 @@ on whatever screen that lands on — see
   fixed across renders.
 - `useResolveInviteChannel` exposes `probeDelaysMs` so tests can shrink the cadence, the same idiom
   as `awaitChannel`'s `timeoutMs` / `pollMs`. Neither should be exercised against real time.
-- `PlaceProfileCreateDialog` pulls in `@chatic/app-runtime`, whose config barrel the jest transform
+- `PlaceProfileCreateDialog` pulls in `@chatic/runtime`, whose config barrel the jest transform
   cannot parse. Import it by file path rather than through a barrel, and stub it in consuming
   suites the way `PhoneVerifyScreen` is stubbed.
 - A number-derived account's server display name is `*<last 4 digits>` — it has no other name. That is

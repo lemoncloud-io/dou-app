@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'u1' }),

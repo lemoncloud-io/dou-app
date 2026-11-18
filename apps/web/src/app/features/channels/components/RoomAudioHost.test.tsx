@@ -13,7 +13,7 @@ const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => mockToast(arg) }));
 const mockGetChat = jest.fn();
 const mockGetCloudRepositories = jest.fn((_cid: string) => ({ chat: { getChat: mockGetChat } }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: { data: { getCloudRepositories: (cid: string) => mockGetCloudRepositories(cid) } },
 }));
 

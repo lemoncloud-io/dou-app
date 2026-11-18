@@ -5,7 +5,7 @@ import { render } from '@testing-library/react';
 const mockUseBackgroundClouds = vi.fn();
 const mockUseReclaimOwnedClouds = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         connection: {
             useBackgroundClouds: (cids: string[]) => mockUseBackgroundClouds(cids),

@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 /**

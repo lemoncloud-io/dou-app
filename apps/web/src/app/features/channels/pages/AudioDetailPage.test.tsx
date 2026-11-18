@@ -23,7 +23,7 @@ jest.mock('@chatic/shared', () => ({
 
 const mockCacheRead = jest.fn();
 const mockGetChat = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),

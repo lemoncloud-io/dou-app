@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { ACCOUNT_CHANNEL_SID, isRelayDm, type DomainChannel } from '@chatic/data';
 
 import { useHasChannelSync } from '../stores/useChannelSyncMarkStore';

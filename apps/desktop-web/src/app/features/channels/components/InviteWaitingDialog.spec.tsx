@@ -7,7 +7,7 @@ const listInvites = vi.fn(async (): Promise<MyInviteView[]> => []);
 const cancelInvite = vi.fn(async () => ({}));
 const createInvite = vi.fn(async () => ({ id: 'inv-2', deeplink: 'https://dou.example/i/def' }));
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

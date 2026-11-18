@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 interface UpdateCloudProfileData {
     /** Target cloud id — any owned cloud; it does not have to be the active one. */

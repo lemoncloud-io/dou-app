@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         push: {
             useDeviceTokenRegistration: jest.fn(),
@@ -14,7 +14,7 @@ jest.mock('./appBridge', () => ({
     },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';

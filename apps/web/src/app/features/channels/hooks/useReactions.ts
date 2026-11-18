@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Turn a reaction on or off. Ported from apps/desktop-web `features/chat/hooks/useReactions.ts`

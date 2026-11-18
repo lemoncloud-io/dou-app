@@ -12,7 +12,7 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: { connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) } },
 }));
 

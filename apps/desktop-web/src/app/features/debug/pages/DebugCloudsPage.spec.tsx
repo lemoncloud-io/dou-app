@@ -16,7 +16,7 @@ const rail = [
 const joined = { c4: { id: 'c4', name: 'Joined' } };
 const refetchClouds = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

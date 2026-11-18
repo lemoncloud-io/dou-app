@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { AppMessageData } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import {
     buildMiniAppLaunchParams,
     checkMiniAppLink,

@@ -39,7 +39,7 @@ const logout = vi.hoisted(() => vi.fn());
 // What the approving app has standing when it signs out; none by default, so the logout runs at once.
 const pairing = vi.hoisted(() => ({ enabled: false, standing: [] as unknown[], revoke: vi.fn() }));
 vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairing.enabled }));
-vi.mock('@chatic/app-runtime', async () => {
+vi.mock('@chatic/runtime', async () => {
     const { useState } = await import('react');
     return {
         runtime: {

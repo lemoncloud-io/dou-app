@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';

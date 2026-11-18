@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Re-mints the stale relay HTTP signing credential (the relay token's AWS credential).

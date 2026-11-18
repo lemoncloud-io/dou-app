@@ -32,7 +32,7 @@ jest.mock('@chatic/bridges', () => ({
 // The real module opens IndexedDB on import; the hook needs only its types.
 jest.mock('@chatic/data', () => ({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

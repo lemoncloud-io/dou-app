@@ -16,7 +16,7 @@ const otherCloudRepositories = {
     channel: { cacheReadList: vi.fn().mockResolvedValue({ list: [] }) },
 };
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),

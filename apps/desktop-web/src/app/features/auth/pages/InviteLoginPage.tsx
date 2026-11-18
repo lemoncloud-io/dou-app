@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/ui-kit';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { AuthCard } from '../components';
 import { useInviteLogin } from '../hooks/useInviteLogin';

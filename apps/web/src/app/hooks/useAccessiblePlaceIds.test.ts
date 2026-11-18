@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useAccessiblePlaceIds } from './useAccessiblePlaceIds';
 import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: jest.fn(),

@@ -1,14 +1,14 @@
 import { renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainPlace } from '@chatic/data';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             // The key constants the hook reads — mocking the module makes the real exports disappear.

@@ -12,7 +12,7 @@ import '../../../../i18n';
 import { useSavedItemsStore } from '../../../shared';
 import { ThreadCardMessages } from './ThreadCardMessages';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),

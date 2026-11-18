@@ -38,7 +38,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </button>
     ),
 }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => mockSelection,

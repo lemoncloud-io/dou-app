@@ -20,7 +20,7 @@ jest.mock('@chatic/host', () => ({
         },
     },
 }));
-jest.mock('@chatic/app-runtime', () => ({ runtime: { session: { useIsPairedSession: () => mockPaired } } }));
+jest.mock('@chatic/runtime', () => ({ runtime: { session: { useIsPairedSession: () => mockPaired } } }));
 jest.mock('@chatic/config/react', () => ({
     useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
 }));

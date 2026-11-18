@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import type { DomainCloud } from '@chatic/data';

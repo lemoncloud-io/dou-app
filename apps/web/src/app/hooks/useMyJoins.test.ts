@@ -1,11 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 
 import { useMyJoins } from './useMyJoins';
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         sync: {
             registerSyncTarget: jest.fn(),

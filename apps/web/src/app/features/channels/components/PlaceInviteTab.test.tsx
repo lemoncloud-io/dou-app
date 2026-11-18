@@ -32,7 +32,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 // returned a new object on every render, the user-cache effect's dependency would keep changing
 // and cause an infinite render loop — pin it to a stable reference.
 const repositories = { user: { cacheRead } };
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => repositories,

@@ -17,7 +17,7 @@ const state = vi.hoisted(() => ({
 }));
 
 // Answers the way the profile cache does: no `sid` in the query means every site's rows.
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

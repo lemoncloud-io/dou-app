@@ -12,7 +12,7 @@ const sent: SentRequest[] = [];
 /** One entry per `execute()`: a reply, or an error to throw. */
 const replies: ({ data: unknown } | { error: unknown })[] = [];
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         boot: {
             webTransport: {

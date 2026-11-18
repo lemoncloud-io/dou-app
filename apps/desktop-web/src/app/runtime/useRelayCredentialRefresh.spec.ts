@@ -16,7 +16,7 @@ const mockCheck = vi.fn();
 const mockGuard = vi.fn(() => ({ check: mockCheck }));
 const mockSlotVerified = vi.fn(() => true);
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),

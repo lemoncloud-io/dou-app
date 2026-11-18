@@ -8,7 +8,7 @@ import type { DomainChat } from '@chatic/data';
 import { MSG_MENTION_CLASS, MSG_MENTION_SELF_CLASS } from '@chatic/block-kit';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-vi.mock('@chatic/app-runtime', () => ({
+vi.mock('@chatic/runtime', () => ({
     runtime: {
         data: {
             useRuntimeRepositories: () => ({

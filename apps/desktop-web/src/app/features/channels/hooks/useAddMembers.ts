@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useDesktopChannelMutations } from '../../../shared';
 import type { InviteCandidate } from './useInviteCandidates';

@@ -22,7 +22,7 @@ vi.mock('@chatic/bridges', () => ({
 // v2: socket verification comes from app-runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
 // `runtime.connection.getRuntimeSocketState()` (imperative, re-checked inside the grace timer) —
 // back both with one zustand store so they stay consistent. Auth is `runtime.session.useSessionAuth()`.
-vi.mock('@chatic/app-runtime', async () => {
+vi.mock('@chatic/runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
     const socketStore = create(() => ({ isVerified: false }));
     return {
@@ -38,7 +38,7 @@ vi.mock('@chatic/app-runtime', async () => {
     };
 });
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 // The mocked exports ARE zustand stores (hook + setState); cast for the test driver.
 type MockStore<T> = { getState: () => T; setState: (partial: Partial<T>) => void };
