@@ -30,10 +30,25 @@ describe('openSubWebViewRuntime', () => {
         expect(access).toMatchObject({ openedCloudId: 'c1', openedPlaceId: 'p1', granted: permissions });
     });
 
-    it('opens the runtime on Home too, bound to Home', () => {
-        mockEngine.mockReturnValue(engineOn('default'));
+    it("opens the runtime on Home too, bound to Home and the relay's place", () => {
+        // Home as the session reports it: no cloud, the relay serving, no committed place.
+        mockEngine.mockReturnValue({
+            session: {
+                snapshot: () => ({
+                    context: {
+                        cloud: { cloudId: null },
+                        relay: { isAuthenticated: true, siteId: '0000' },
+                        activeServer: { kind: 'relay', siteId: '0000' },
+                    },
+                    committedSiteId: null,
+                }),
+            },
+        });
 
-        expect(openSubWebViewRuntime({ trust: 'reviewed', permissions })).toMatchObject({ openedCloudId: 'default' });
+        expect(openSubWebViewRuntime({ trust: 'reviewed', permissions })).toMatchObject({
+            openedCloudId: 'default',
+            openedPlaceId: '0000',
+        });
     });
 
     it('opens nothing, and never asks the runtime, where the WebView reports every frame as the page', () => {

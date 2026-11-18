@@ -77,6 +77,13 @@ host decides what it registers before the page's first message.
    unchanged. `cloud.getCloud` answers Home with the relay's minimal `{ id, name, status }`, since the
    user owns no Home.
 
+    The session does not report Home as a cloud: on Home no cloud is selected (`cloud.cloudId` is
+    `null`), the relay serves (`activeServer.kind` is `relay`), Home's place is the relay's selection,
+    and a cloud's `committedSiteId` is never set. The shell reads it as the cloud `default` on that
+    place (`cloudOfSession`, `placeOfSession`), binds the view to them, and hands the page the same
+    pair in its session, so a page reads one shape of session on Home and anywhere else. Checked on an
+    Android emulator: before this, a page opened on Home got no runtime requests at all.
+
 ## Alternatives
 
 - **Read the channel from the shape of the reported URL.** A bare origin means the listener, a full URL

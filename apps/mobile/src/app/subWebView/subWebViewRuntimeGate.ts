@@ -3,13 +3,45 @@ import type { SubWebViewTrust } from '@chatic/shared';
 
 import type { SessionOwner } from '../services/runtime/sessionOwner';
 
+/** Home's id: the relay's own cloud, which the session reports as no cloud selected. */
+export const HOME_CLOUD_ID = 'default';
+
+/** What these reads need of a session snapshot. */
+export interface SessionPlaceSource {
+    context: {
+        cloud: { cloudId: string | null };
+        relay?: { isAuthenticated: boolean; siteId: string | null };
+        activeServer?: { kind: 'relay' | 'cloud'; siteId: string | null };
+    };
+    committedSiteId?: string | null;
+}
+
 /**
- * The cloud a session snapshot is on, or `null` when none is selected. Home (the relay's `default`
- * cloud) counts as a cloud like any other: a page opened there reads Home's places and rooms, bound to
- * it as a page elsewhere is bound to its cloud.
+ * Whether the session is on Home. The session keeps Home apart from the clouds: no cloud is selected,
+ * the relay serves, and Home's place is the relay's selection — a cloud's `committedSiteId` is never
+ * set there.
  */
-export const cloudOfSession = (snapshot: { context: { cloud: { cloudId: string | null } } }): string | null =>
-    snapshot.context.cloud.cloudId || null;
+const onHome = (snapshot: SessionPlaceSource): boolean =>
+    !snapshot.context.cloud.cloudId &&
+    snapshot.context.activeServer?.kind === 'relay' &&
+    !!snapshot.context.relay?.isAuthenticated;
+
+/**
+ * The cloud a session snapshot is on, or `null` when none is. Home counts as a cloud like any other,
+ * as `default`: a page opened there reads Home's places and rooms, bound to it as a page elsewhere is
+ * bound to its cloud.
+ */
+export const cloudOfSession = (snapshot: SessionPlaceSource): string | null =>
+    snapshot.context.cloud.cloudId || (onHome(snapshot) ? HOME_CLOUD_ID : null);
+
+/**
+ * The place a session snapshot is really on: a cloud's committed place, or on Home the relay's selected
+ * place. `null` when there is none — a cloud still switching, or no session.
+ */
+export const placeOfSession = (snapshot: SessionPlaceSource): string | null => {
+    if (snapshot.context.cloud.cloudId) return snapshot.committedSiteId ?? null;
+    return onHome(snapshot) ? (snapshot.context.activeServer?.siteId ?? snapshot.context.relay?.siteId ?? null) : null;
+};
 
 export interface SubWebViewRuntimeGateInput {
     /** Who holds the session this launch, as the app answered the main web (`settledSessionOwner`). */

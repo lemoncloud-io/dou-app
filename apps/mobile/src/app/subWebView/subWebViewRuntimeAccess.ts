@@ -11,7 +11,7 @@ import {
 import { subWebViewReportsFrameOrigin } from './subWebViewFrameOrigin';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 import type * as ConsentPromptModule from './subWebViewRuntimeConsentPrompt';
-import { cloudOfSession, grantedSubWebViewRuntime } from './subWebViewRuntimeGate';
+import { cloudOfSession, grantedSubWebViewRuntime, placeOfSession } from './subWebViewRuntimeGate';
 
 type Engine = NonNullable<ReturnType<(typeof NativeRuntimeModule)['nativeRuntimeHost']['engine']>>;
 
@@ -57,7 +57,7 @@ export const openSubWebViewRuntime = ({
     return {
         engine,
         openedCloudId,
-        openedPlaceId: engine.session.snapshot().committedSiteId,
+        openedPlaceId: placeOfSession(engine.session.snapshot()),
         granted,
         budget: createSubWebViewReadBudget(),
         sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),
