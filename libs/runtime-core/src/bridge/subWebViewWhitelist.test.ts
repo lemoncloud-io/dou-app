@@ -156,10 +156,8 @@ describe('the sub WebView runtime whitelist', () => {
             'profile.cacheReadList',
             'profile.observeItem',
             'profile.observeList',
-            'user.cacheRead',
             'user.cacheReadList',
             'user.listPlaceMembers',
-            'user.observeItem',
             'user.observeList',
         ]);
     });
@@ -172,11 +170,15 @@ describe('the sub WebView runtime whitelist', () => {
 
 describe('checkSubWebViewRuntimeRequest', () => {
     it('lets a granted read through, with its cost', () => {
-        const local = checkSubWebViewRuntimeRequest(stream('channel.observeList', [{}]), grant('channel'), HERE);
+        const local = checkSubWebViewRuntimeRequest(
+            stream('channel.observeList', [{ sid: 's1' }]),
+            grant('channel'),
+            HERE
+        );
         expect(local).toEqual({ ok: true, entry: expect.objectContaining({ allow: 'channel', cost: 'local' }) });
 
         const server = checkSubWebViewRuntimeRequest(
-            call('channel.fetchList', [{ sid: 's2' }]),
+            call('channel.fetchList', [{ sid: 's1' }]),
             grant('channel'),
             HERE
         );
@@ -320,14 +322,76 @@ describe('checkSubWebViewRuntimeRequest', () => {
         ['place.observeList', 'place'],
     ] as const)('refuses a %s that names a cache partition of its own', (method, permission) => {
         const LISTENER = { $listener: true };
-        expect(checkSubWebViewRuntimeRequest(stream(method, [{}, LISTENER]), grant(permission), HERE).ok).toBe(true);
+        const query = { sid: 's1', channelId: 'r1' };
+        expect(checkSubWebViewRuntimeRequest(stream(method, [query, LISTENER]), grant(permission), HERE).ok).toBe(true);
         expect(
             checkSubWebViewRuntimeRequest(
-                stream(method, [{}, LISTENER, { cid: 'c2', uid: 'u2' }]),
+                stream(method, [query, LISTENER, { cid: 'c2', uid: 'u2' }]),
                 grant(permission),
                 HERE
             )
         ).toEqual({ ok: false, reason: 'guard' });
+    });
+
+    it.each([
+        ['channel.observeList', 'stream'],
+        ['channel.cacheReadList', 'call'],
+        ['channel.fetchList', 'call'],
+        ['profile.observeList', 'stream'],
+        ['profile.cacheReadList', 'call'],
+    ] as const)("holds %s to the place the view opened on, named by the query's sid", (method, kind) => {
+        const ask = (query: Record<string, string>, scope = HERE) =>
+            checkSubWebViewRuntimeRequest(
+                kind === 'stream' ? stream(method, [query]) : call(method, [query]),
+                ALL,
+                scope
+            );
+
+        expect(ask({ sid: 's1' }).ok).toBe(true);
+        expect(ask({ sid: 's2' })).toEqual({ ok: false, reason: 'guard' });
+        expect(ask({})).toEqual({ ok: false, reason: 'guard' });
+        // The session left the place the view opened on: the shell passes no place.
+        expect(ask({ sid: 's1' }, { cloudId: 'c1', placeId: null as never })).toEqual({ ok: false, reason: 'guard' });
+    });
+
+    it("holds a place profile to the place the view opened on, by its '<place>@<user>' key", () => {
+        expect(checkSubWebViewRuntimeRequest(call('profile.cacheRead', ['s1@u2']), ALL, HERE).ok).toBe(true);
+        expect(
+            checkSubWebViewRuntimeRequest(stream('profile.observeItem', ['s1@u2', { $listener: true }]), ALL, HERE).ok
+        ).toBe(true);
+        for (const key of ['s2@u2', 's1', 'u2', 's1x@u2']) {
+            expect(checkSubWebViewRuntimeRequest(call('profile.cacheRead', [key]), ALL, HERE)).toEqual({
+                ok: false,
+                reason: 'guard',
+            });
+        }
+    });
+
+    it("closes a user row by its id, which is the cloud's and not a place's", () => {
+        expect(checkSubWebViewRuntimeRequest(call('user.cacheRead', ['u2']), ALL, HERE)).toEqual({
+            ok: false,
+            reason: 'otherPlace',
+        });
+        expect(checkSubWebViewRuntimeRequest(stream('user.observeItem', ['u2']), ALL, HERE)).toEqual({
+            ok: false,
+            reason: 'otherPlace',
+        });
+    });
+
+    it("leaves a room's own check to the shell: which reads name a room, and where", () => {
+        const roomOf = (method: string) => SUB_WEB_VIEW_ALLOWED.get(method)?.roomInCurrentPlace;
+        expect(roomOf('channel.cacheRead')).toEqual({ arg: 0 });
+        expect(roomOf('channel.observeItem')).toEqual({ arg: 0 });
+        expect(roomOf('join.cacheReadList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(roomOf('join.observeList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(roomOf('chat.observeList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(roomOf('chat.cacheReadList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(roomOf('chat.observeLastList')).toEqual({ arg: 0, each: true });
+        expect(roomOf('chat.observeFeedCoverage')).toEqual({ arg: 0 });
+        expect(roomOf('chat.listPendingImageChats')).toEqual({ arg: 0 });
+        expect(roomOf('user.observeList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(roomOf('user.cacheReadList')).toEqual({ arg: 0, field: 'channelId' });
+        expect(SUB_WEB_VIEW_ALLOWED.get('chat.cacheRead')?.answerRoomInCurrentPlace).toEqual({ field: 'channelId' });
     });
 
     it('holds a cloud read to the current cloud', () => {

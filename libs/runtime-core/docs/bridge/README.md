@@ -406,6 +406,13 @@ that safe is which methods can be reached at all, and two rules decide every one
   `data@cloud`, and every method that reaches another cloud (`*InCloud`, the cloud list and catalog,
   `searchCache` and `resolveCacheContext` with their cloud ids).
 
+What belongs to a place is held to the place the page's view opened on — the scope's `placeId`, which
+the shell passes only while the session is still on that place. A list names it by its query's `sid`
+(`currentPlace`), a place profile by its key (`currentPlaceKey`, `<place>@…`), a room's reads by the room
+(`roomInCurrentPlace`, with `each` for an array of room ids), and a message by its id by the room it
+answers with (`answerRoomInCurrentPlace`): the last two only the shell can check, against the device
+cache. A user row by its id is closed (`otherPlace`): it is the cloud's, not a place's.
+
 Arguments pass through as the main web sends them, except where an entry guards one
 (`SubWebViewArgGuard`): `channel.observeList`, `join.observeList` and `place.observeList` pass only their
 query and listener (`argCount` 2), since their repository methods take a third parameter,

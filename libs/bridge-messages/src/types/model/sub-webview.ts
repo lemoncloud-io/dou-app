@@ -176,6 +176,8 @@ export type SubWebViewRuntimeErrorCode = 'RUNTIME_NOT_ALLOWED' | 'CLOUD_CHANGED'
  * for an open method whose permission the manifest does not hold, `guard` for arguments an entry holds
  * the page to and it did not meet — a cloud or place that is not the current one, a message that is not
  * plain text, a room outside the current place — and `unknown` for a name the whitelist does not have.
+ * `otherPlace` closes a read that would reach past the place the view opened on (a user row by its id,
+ * which is the cloud's, not a place's).
  */
 export type SubWebViewRuntimeRefusalReason =
     | 'write'
@@ -183,6 +185,7 @@ export type SubWebViewRuntimeRefusalReason =
     | 'cursor'
     | 'serverSideEffect'
     | 'otherCloud'
+    | 'otherPlace'
     | 'account'
     | 'device'
     | 'admin'

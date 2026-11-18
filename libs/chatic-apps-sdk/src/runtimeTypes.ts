@@ -971,7 +971,6 @@ export interface DataCalls {
     };
     /** Asks the server. */
     'place.isPlaceDeleted': { permission: 'place'; args: [id: string]; result: boolean };
-    'user.cacheRead': { permission: 'user'; args: [id: string]; result: CloudUser | null };
     'user.cacheReadList': {
         permission: 'user';
         args: [query: CloudUserListQuery];
@@ -1037,7 +1036,6 @@ export interface DataStreams {
         args: [query: CloudUserListQuery];
         event: [result: CloudList<CloudUser> | null];
     };
-    'user.observeItem': { permission: 'user'; args: [id: string]; event: [item: CloudUser | null] };
     'profile.observeList': {
         permission: 'user';
         args: [query: CloudProfileListQuery];

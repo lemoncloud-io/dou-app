@@ -79,5 +79,5 @@ export { setSecretLogoutPending } from '@chatic/runtime-core';
 export type { RuntimeBridgeHost, RuntimeHostAnswer, RuntimePayloadSample } from '@chatic/runtime-core';
 
 // what a sub WebView page may ask of the runtime, for the shell's page host
-export { checkSubWebViewRuntimeRequest, subWebViewAllowedFor } from '@chatic/runtime-core';
+export { SUB_WEB_VIEW_ALLOWED, checkSubWebViewRuntimeRequest, subWebViewAllowedFor } from '@chatic/runtime-core';
 export type { RuntimeEngine, SubWebViewRuntimeCheck, SubWebViewWhitelistEntry } from '@chatic/runtime-core';
