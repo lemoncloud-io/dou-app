@@ -20,6 +20,8 @@ export interface SubWebViewRuntimeGateInput {
     permissions: ReadonlySet<SubWebViewRuntimePermission>;
     /** The session's cloud when the view opened (`cloudOfSession`). */
     openedCloudId: string | null;
+    /** Whether the WebView reports a frame's message under the frame's own origin (`subWebViewReportsFrameOrigin`). */
+    reportsFrameOrigin: boolean;
 }
 
 const NONE: ReadonlySet<SubWebViewRuntimePermission> = new Set();
@@ -34,6 +36,10 @@ const NONE: ReadonlySet<SubWebViewRuntimePermission> = new Set();
  * - Only a `reviewed` page: an `external` site has no manifest to grant anything, and the hub needs
  *   none of this.
  * - Only when a cloud other than Home was selected as the view opened: the page reads that cloud.
+ * - Only where the WebView reports a frame's message under the frame's own origin. An older Android
+ *   WebView reports every frame as the top-level page, so a frame of another site inside a reviewed
+ *   page would pass the origin check and read the cloud, or send in the user's name. The base set and
+ *   the manifest's four capabilities stay: they reach nothing beyond the page's own.
  *
  * Kept apart from the bridge itself, which loads the whole runtime, so a launch the page owns never
  * pays for it.
@@ -43,5 +49,8 @@ export const grantedSubWebViewRuntime = ({
     trust,
     permissions,
     openedCloudId,
+    reportsFrameOrigin,
 }: SubWebViewRuntimeGateInput): ReadonlySet<SubWebViewRuntimePermission> =>
-    owner === 'native' && trust === 'reviewed' && openedCloudId !== null && permissions.size > 0 ? permissions : NONE;
+    owner === 'native' && trust === 'reviewed' && openedCloudId !== null && reportsFrameOrigin && permissions.size > 0
+        ? permissions
+        : NONE;

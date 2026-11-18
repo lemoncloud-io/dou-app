@@ -76,8 +76,9 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
  * Any one of them registers the four runtime requests (`RuntimeHello`, `RuntimeCall`,
  * `RuntimeSubscribe`, `RuntimeUnsubscribe`) on the page's host — on the phone only, on a launch whose
  * session the app's runtime holds, for a `reviewed` page, opened while a cloud other than Home was
- * selected. Apart from `chatSend`'s message, nothing they open writes, moves a cursor, switches the
- * cloud or the place, or reads another cloud.
+ * selected, where the WebView reports a frame's message under the frame's own origin (always on iOS;
+ * on Android, a WebView with web message listeners). Apart from `chatSend`'s message, nothing they
+ * open writes, moves a cursor, switches the cloud or the place, or reads another cloud.
  */
 export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
 

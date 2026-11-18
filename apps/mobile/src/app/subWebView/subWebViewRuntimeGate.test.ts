@@ -3,7 +3,13 @@ import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
 import { cloudOfSession, grantedSubWebViewRuntime, type SubWebViewRuntimeGateInput } from './subWebViewRuntimeGate';
 
 const permissions = new Set<SubWebViewRuntimePermission>(['channel', 'chat']);
-const open: SubWebViewRuntimeGateInput = { owner: 'native', trust: 'reviewed', permissions, openedCloudId: 'c1' };
+const open: SubWebViewRuntimeGateInput = {
+    owner: 'native',
+    trust: 'reviewed',
+    permissions,
+    openedCloudId: 'c1',
+    reportsFrameOrigin: true,
+};
 
 describe('grantedSubWebViewRuntime', () => {
     it("grants the manifest's runtime permissions when every condition holds", () => {
@@ -17,6 +23,7 @@ describe('grantedSubWebViewRuntime', () => {
         ['the hub', { trust: 'firstParty' }],
         ['no cloud, or Home, at open', { openedCloudId: null }],
         ['a manifest with none', { permissions: new Set() }],
+        ['the WebView reports every frame as the top-level page', { reportsFrameOrigin: false }],
     ])('grants nothing when %s', (_, change) => {
         expect(grantedSubWebViewRuntime({ ...open, ...change }).size).toBe(0);
     });

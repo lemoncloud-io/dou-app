@@ -614,7 +614,10 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
 - the launch's session is held by the app's runtime, not by the main web;
 - the page is `reviewed` — an `external` site has no manifest, and the hub needs none of this;
 - a cloud other than Home was selected when the view opened;
-- the manifest declares at least one runtime permission.
+- the manifest declares at least one runtime permission;
+- the WebView reports a frame's message under the frame's own origin — always on iOS, and on Android
+  where the WebView supports web message listeners. An older Android WebView reports every frame as the
+  page, so a frame of another site could pass as it.
 
 | Request              | Data                                              | Reply                                                         | Errors (besides the runtime's own)                                                   |
 | -------------------- | ------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -644,7 +647,9 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   message is checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send
   budget of its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the
   reads'.
-- **Argument guards.** `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
+- **Argument guards.** `channel.observeList`, `join.observeList` and `place.observeList` answer only
+  for their query and their listener: a third argument, which would name another cloud's cache
+  partition, is refused (`guard`). `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
   id. `cloud.getCloud` answers only as `({ id }, { cache: false })`, with `id` the current cloud's and
   no `cid`. The cache holds an owned cloud only after the app read it from the server, and then only
   its name, so `cloud.cacheRead` often answers `null` for the cloud the user owns; `getCloud` is the
@@ -824,7 +829,10 @@ feature, and needs its own decision — as the runtime reads did, which changed 
 (2.26.0).
 
 - **The host answers only the opened origin.** A message from another origin, a frame on one, or a
-  page the view navigated to gets no reply.
+  page the view navigated to gets no reply. One exception: an Android WebView without web message
+  listeners reports a frame's message as the page's, so there a frame of another site reaches the base
+  set and the manifest's capabilities. The runtime requests are not registered on such a WebView (see
+  [Runtime reads](#runtime-reads-2260)).
 - **Nothing the page receives identifies the device or the install**: not the device id, not a value
   that maps to it one to one (a plain hash of it included). **Nor the DoU user, unless the user allowed
   it (2.26.0):** a page with a runtime permission, once the user said yes, gets the cloud's data as the

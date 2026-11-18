@@ -85,8 +85,14 @@ also post plain text in the user's name to a room of the place the view opened o
 it:
 
 - **The gate, once as the view opens** (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`): the
-  session owner must be `native`, the page `reviewed`, a cloud other than Home selected, and the
-  manifest must declare one of the seven. Otherwise the four requests are not registered at all. The
+  session owner must be `native`, the page `reviewed`, a cloud other than Home selected, the
+  manifest must declare one of the seven, and the WebView must report a frame's message under the
+  frame's own origin (`subWebViewFrameOrigin.ts`). Otherwise the four requests are not registered at all.
+  That last one is the Android module `SubWebViewFrames`, which answers with the check
+  react-native-webview itself makes before it picks its messaging channel: without web message
+  listeners the library reports the top-level page's URL for a message from any frame, so a frame of
+  another site would pass the origin check. iOS reports the posting frame's own URL (`WKScriptMessage.frameInfo`) and needs no module; an
+  app without the module, or a WebView that cannot be asked, counts as no. The
   cloud selected then is the one the view is bound to, for every page load in it. The runtime module
   is required only past the cheap checks, so a launch the page owns never loads it.
 - **The whitelist** (`checkSubWebViewRuntimeRequest` in `@chatic/runtime-core`): methods that only
@@ -244,7 +250,9 @@ so nothing finer is needed.
 before the host sees it; a page the view navigated to, or a frame elsewhere, gets no answer at all.
 One caveat: on an Android System WebView too old for web message listeners, react-native-webview
 reports a frame's message under the top-level URL, so a cross-origin frame inside the opened page
-would pass. Current WebViews report the frame's own origin.
+passes. There the runtime requests are not registered (the gate below), so such a frame reaches only
+the base set and the manifest's four capabilities — the page's own storage, key, clipboard and share
+sheet — and none of the user's DoU data. Current WebViews report the frame's own origin.
 
 **Each page load gets a fresh host.** A host stays ready after its page's first message, so a
 reloaded
