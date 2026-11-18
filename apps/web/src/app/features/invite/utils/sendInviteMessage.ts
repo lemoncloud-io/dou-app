@@ -17,7 +17,7 @@ export type InviteMessageChannel = 'sms' | 'clipboard';
  * treat as the invite still being issued, just without an automatic hand-off.
  */
 export const sendInviteMessage = async (phone: string, body: string): Promise<InviteMessageChannel | false> => {
-    if (host.ports.links.kind === 'app') {
+    if (host.ports.links.kind === 'shell') {
         try {
             const response = await appBridge.sendSms(phone, body);
             // Only an explicit `false` means the composer did not open. Shells up to 0.28.4 send no

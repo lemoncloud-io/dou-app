@@ -63,7 +63,7 @@ const readNetwork = (): string | undefined =>
  * whatever it runs on, because what differs there is the browser, not the OS.
  */
 const deviceContext = (globals: ShellGlobals): Pick<LogContext, 'platform' | 'host' | 'network' | 'locale'> => {
-    const hybrid = diagnosticsKind() === 'app';
+    const hybrid = diagnosticsKind() === 'shell';
     const injected = globals.CHATIC_APP_PLATFORM;
     return {
         platform: hybrid && (injected === 'ios' || injected === 'android') ? injected : 'web',
@@ -136,7 +136,7 @@ export const attachLogContext = (): (() => void) => {
  * emitted at that point would be published to nobody. This runs after the queue is wired.
  */
 export const reportRunIdJoin = (): void => {
-    if (diagnosticsKind() !== 'app') return;
+    if (diagnosticsKind() !== 'shell') return;
     if (readInjectedRunId()) return;
 
     logger.warn('APP', 'no native runId injected — native and web entries cannot be joined this run', {

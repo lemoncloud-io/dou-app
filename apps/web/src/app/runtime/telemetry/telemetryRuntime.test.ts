@@ -14,7 +14,7 @@ import type { LogEntry } from '@chatic/bridges';
 jest.mock('../perf', () => ({ setPerfTelemetryRecorder: jest.fn() }));
 // A browser tab: the page sends its own diagnostics, so the session's entry point is `browser`.
 jest.mock('@chatic/host', () => ({
-    host: { ports: { diagnostics: { kind: 'page' } } },
+    host: { ports: { diagnostics: { kind: 'browser' } } },
 }));
 
 const collect = () => {

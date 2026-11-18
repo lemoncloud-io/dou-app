@@ -27,7 +27,7 @@ const DEFAULT_PLATFORM = 'desktop';
  */
 export const useDeviceTokenRegistration = (): void => {
     const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
-        if (host.ports.push.kind !== 'app') return null;
+        if (host.ports.push.kind !== 'shell') return null;
         const globals = hostProfile().globals;
         return {
             fetchDeviceToken: () =>

@@ -38,7 +38,7 @@ const renderBadgePng = (count: number): string | undefined => {
  */
 export const useDesktopBadge = (count: number): void => {
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         void webClient
             .request({ type: 'SetBadgeCount', data: { count, overlayIconDataUrl: renderBadgePng(count) } })
             .catch(() => undefined);

@@ -75,46 +75,57 @@ describe('fakeStore', () => {
 describe('mediaChoice', () => {
     it('makes no choice by default, and takes DOU_SHELL_MEDIA or the store, the store first', () => {
         expect(mediaChoice(new Map(), '')).toBeUndefined();
-        expect(mediaChoice(new Map(), 'Page')).toBe('page');
-        expect(mediaChoice(new Map([[MEDIA_STORE_KEY, 'app']]), 'page')).toBe('app');
+        expect(mediaChoice(new Map(), 'Browser')).toBe('browser');
+        expect(mediaChoice(new Map([[MEDIA_STORE_KEY, 'shell']]), 'browser')).toBe('shell');
         expect(mediaChoice(new Map(), 'camera')).toBeUndefined();
+    });
+
+    it('ignores the old spellings app and page, and says what they are called now', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        expect(mediaChoice(new Map(), 'page')).toBeUndefined();
+        expect(filesChoice(new Map([[FILES_STORE_KEY, 'app']]), undefined)).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith("[shell] 'page' is now 'browser'; this choice is ignored");
+        expect(warn).toHaveBeenCalledWith("[shell] 'app' is now 'shell'; this choice is ignored");
+        warn.mockRestore();
     });
 });
 
 describe('capabilitiesScript with media', () => {
     it('declares version 2 with the device store when only media is picked', () => {
-        expect(capabilitiesScript(undefined, 'page', 'ios')).toContain(
-            '{"version":2,"checkout":["apple"],"media":"page"}'
+        expect(capabilitiesScript(undefined, 'browser', 'ios')).toContain(
+            '{"version":2,"checkout":["apple"],"media":"browser"}'
         );
-        expect(capabilitiesScript(undefined, 'page', 'android')).toContain('"checkout":["google"]');
+        expect(capabilitiesScript(undefined, 'browser', 'android')).toContain('"checkout":["google"]');
     });
 
     it('keeps a picked checkout beside it', () => {
-        expect(capabilitiesScript('web', 'page', 'ios')).toContain('{"version":2,"checkout":["web"],"media":"page"}');
+        expect(capabilitiesScript('web', 'browser', 'ios')).toContain(
+            '{"version":2,"checkout":["web"],"media":"browser"}'
+        );
     });
 });
 
 describe('filesChoice', () => {
     it('makes no choice by default, and takes DOU_SHELL_FILES or the store, the store first', () => {
         expect(filesChoice(new Map(), '')).toBeUndefined();
-        expect(filesChoice(new Map(), 'Page')).toBe('page');
-        expect(filesChoice(new Map([[FILES_STORE_KEY, 'app']]), 'page')).toBe('app');
+        expect(filesChoice(new Map(), 'Browser')).toBe('browser');
+        expect(filesChoice(new Map([[FILES_STORE_KEY, 'shell']]), 'browser')).toBe('shell');
         expect(filesChoice(new Map(), 'cloud')).toBeUndefined();
     });
 });
 
 describe('capabilitiesScript with files', () => {
     it('declares version 3 with the device store, and media following files, when only files is picked', () => {
-        expect(capabilitiesScript(undefined, undefined, 'ios', 'page')).toContain(
-            '{"version":3,"checkout":["apple"],"media":"page","files":"page"}'
+        expect(capabilitiesScript(undefined, undefined, 'ios', 'browser')).toContain(
+            '{"version":3,"checkout":["apple"],"media":"browser","files":"browser"}'
         );
-        expect(capabilitiesScript(undefined, undefined, 'ios', 'app')).toContain('"media":"app","files":"app"');
-        expect(capabilitiesScript(undefined, undefined, 'android', 'page')).toContain('"checkout":["google"]');
+        expect(capabilitiesScript(undefined, undefined, 'ios', 'shell')).toContain('"media":"shell","files":"shell"');
+        expect(capabilitiesScript(undefined, undefined, 'android', 'browser')).toContain('"checkout":["google"]');
     });
 
     it('keeps a picked checkout and media beside it', () => {
-        expect(capabilitiesScript('web', 'page', 'ios', 'app')).toContain(
-            '{"version":3,"checkout":["web"],"media":"page","files":"app"}'
+        expect(capabilitiesScript('web', 'browser', 'ios', 'shell')).toContain(
+            '{"version":3,"checkout":["web"],"media":"browser","files":"shell"}'
         );
     });
 });

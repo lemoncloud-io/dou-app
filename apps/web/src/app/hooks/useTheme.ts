@@ -46,7 +46,7 @@ const subscribeSystemPrefersDark = (onChange: () => void): (() => void) => {
  * native store to push to.
  */
 const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
-    if (host.ports.appShell.kind !== 'app') return;
+    if (host.ports.appShell.kind !== 'shell') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'theme', value: theme });
     try {
         await attempt();

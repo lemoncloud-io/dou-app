@@ -99,18 +99,20 @@ can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-por
 A choice kept under `dou.checkout` in the shell's store wins over the variable and applies from the next
 launch; nothing writes it yet.
 
-`DOU_SHELL_MEDIA=page` (or `app`) declares who picks what a person attaches, in `media` — `page` gives
+`DOU_SHELL_MEDIA=browser` (or `shell`) declares who picks what a person attaches, in `media` — `browser` gives
 the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
 messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with no checkout
 picked, the shell declares the device preset's store, the answer the web would give anyway.
-`dou.media` in the store wins over the variable, as for checkout.
+`dou.media` in the store wins over the variable, as for checkout. The old spellings `page` and `app`
+are not read as `browser` and `shell`: the shell warns that the choice is ignored and declares nothing
+for it.
 
-`DOU_SHELL_FILES=page` (or `app`) declares who moves a message's files, in `files` — `page` has the page
+`DOU_SHELL_FILES=browser` (or `shell`) declares who moves a message's files, in `files` — `browser` has the page
 PUT uploads, fetch downloads and draw video frames from the bucket, as a browser does, rather than
 asking the shell's transfer messages. It takes declaration version 3, which has to carry `checkout` and
 `media` too: unpicked, `checkout` is declared as the device's store and `media` as the same as `files`.
-`dou.files` in the store wins over the variable. Picking `DOU_SHELL_MEDIA=app` with
-`DOU_SHELL_FILES=page` is a pair no real host declares: the app's picker hands back videos and documents
+`dou.files` in the store wins over the variable. Picking `DOU_SHELL_MEDIA=shell` with
+`DOU_SHELL_FILES=browser` is a pair no real host declares: the app's picker hands back videos and documents
 as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choice and the declaration; the wrapped
 preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
 

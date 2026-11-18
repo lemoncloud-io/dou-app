@@ -28,7 +28,7 @@ export const useAppIcon = () => {
     const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
 
         webClient
             .request({ type: 'FetchAppIcon', data: {} })

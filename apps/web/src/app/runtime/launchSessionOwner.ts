@@ -17,4 +17,4 @@ export const setLaunchSessionOwner = (next: 'web' | 'native' | undefined): void 
  * it on entries dispatched before the entry point publishes the ports.
  */
 export const readLaunchSessionOwner = (): 'web' | 'native' | undefined =>
-    diagnosticsKind() === 'app' ? owner : undefined;
+    diagnosticsKind() === 'shell' ? owner : undefined;

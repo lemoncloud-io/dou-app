@@ -88,7 +88,7 @@ export const useUrlMetadata = (url: string): UrlMetadata | null => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => cache.get(url) ?? null);
 
     useEffect(() => {
-        if (host.ports.links.kind !== 'app') return;
+        if (host.ports.links.kind !== 'shell') return;
 
         let active = true;
         void requestUrlMetadata(url).then(result => {

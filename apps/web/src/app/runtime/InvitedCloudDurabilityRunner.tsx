@@ -34,7 +34,7 @@ export const InvitedCloudDurabilityRunner = (): null => {
     const handleReceiveNotification = useCallback((message: AppMessageData<'OnReceiveNotification'>) => {
         // A delivery is the `push` port's: only where the app receives notifications, which is the
         // native WebView, the one place the native store exists too (the boot hook's guard).
-        if (host.ports.push.kind !== 'app') return;
+        if (host.ports.push.kind !== 'shell') return;
         const data = message.data?.notification?.data;
         if (!data) return;
         // cid usually lives inside the `payload` JSON string, with a top-level fallback —

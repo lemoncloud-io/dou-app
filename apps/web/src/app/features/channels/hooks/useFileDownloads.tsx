@@ -240,7 +240,7 @@ export interface BatchFile {
 }
 
 /** Whether the app downloads and keeps files on this host, as the host's `files` port says. */
-const appMovesFiles = (): boolean => host.ports.files.kind === 'app';
+const appMovesFiles = (): boolean => host.ports.files.kind === 'shell';
 
 /** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
 const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {
@@ -257,8 +257,8 @@ const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: 
 /**
  * A message's document cards: what each download button shows, and what pressing a card does.
  *
- * The host's `files` port says which of the two ways below applies: `page` is a browser's, `app` the
- * app's.
+ * The host's `files` port says which of the two ways below applies: `browser` is a browser's, `shell`
+ * the app's.
  *
  * In a browser the button and the card body both fetch the file and save it under its own name. A
  * signed address that has expired (403) has the message read again for fresh ones, and the user

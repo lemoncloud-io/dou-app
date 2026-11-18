@@ -86,7 +86,7 @@ export const useDesktopNotifications = (): void => {
         // No-op unless the `push` port says the app delivers notifications (the Desktop Shell) — the
         // renderer must never raise an OS banner in a plain browser (webClient would
         // NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
-        if (host.ports.push.kind !== 'app') return;
+        if (host.ports.push.kind !== 'shell') return;
 
         // The channel watermark gives us the latest message (chat content streams only for the
         // focused room in v2, so background notifications ride the channel record instead).

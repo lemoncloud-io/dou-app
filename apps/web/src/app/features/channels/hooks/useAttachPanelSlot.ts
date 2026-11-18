@@ -248,7 +248,7 @@ export const useAttachPanelSlot = ({
         // Read before the caller's blur drops the keyboard: a keyboard still up is the height to match.
         const focused = !!inputRef?.current && document.activeElement === inputRef.current;
         const keyboardUp =
-            injectedLength('--keyboard-height') >= KEYBOARD_MIN_PX || (focused && host.ports.appShell.kind === 'app');
+            injectedLength('--keyboard-height') >= KEYBOARD_MIN_PX || (focused && host.ports.appShell.kind === 'shell');
         const safe = injectedLength('--safe-bottom');
         update({
             phase: 'open',
@@ -266,7 +266,7 @@ export const useAttachPanelSlot = ({
 
     const handOver = useCallback(() => {
         if (current.current.phase !== 'open') return;
-        if (host.ports.appShell.kind !== 'app') {
+        if (host.ports.appShell.kind !== 'shell') {
             hide();
             return;
         }

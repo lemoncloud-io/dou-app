@@ -33,7 +33,7 @@ export const usePushInvitedCloudRecovery = (): void => {
     const owned = useOwnedCloudIds();
 
     useEffect(() => {
-        if (host.ports.push.kind !== 'app') return;
+        if (host.ports.push.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const data = (message?.data as { notification?: { data?: Record<string, string> } })?.notification?.data;
             const cid = pushCloudIdOf(data?.cid);

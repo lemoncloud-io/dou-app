@@ -54,7 +54,7 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
  */
 export const PreferenceLoader = (): null => {
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         MANAGED_KEYS.forEach(({ configKey, nativeKey, decode }) => {
             if (config.snapshot(configKey)?.isOverridden) return; // shell or local already answered
             appBridge.fetchPreference({ key: nativeKey }).then(response => {
@@ -71,7 +71,7 @@ export const PreferenceLoader = (): null => {
     // current shell discards — and the Settings sheet only sends on change, so without this the shell
     // would stay on the device language for good.
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
         const snapshot = config.snapshot('ui.language');
         if (!snapshot?.isOverridden) return; // nothing chosen — the shell already follows the device
         void syncLanguageChoiceToShell(toLanguagePreference(snapshot.value));

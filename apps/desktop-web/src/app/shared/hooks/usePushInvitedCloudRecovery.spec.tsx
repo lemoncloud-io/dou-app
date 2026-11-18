@@ -18,7 +18,7 @@ vi.mock('@chatic/bridges', () => ({
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { push: { kind: isNativeShell ? 'app' : 'page' } };
+            return { push: { kind: isNativeShell ? 'shell' : 'browser' } };
         },
     },
 }));

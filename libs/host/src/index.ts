@@ -3,7 +3,7 @@ export * from './host';
 export * from './checkout';
 export * from './media';
 export * from './files';
-export * from './appOrPage';
+export * from './shellOrBrowser';
 export * from './links';
 export * from './appShell';
 export * from './signIn';

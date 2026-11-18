@@ -61,7 +61,7 @@ const MEDIA_TYPES: PhotoLibraryMediaType[] = ['image', 'video'];
 
 class ShellPhotoLibrary implements PhotoLibrary {
     isUnsupported(): boolean {
-        return host.ports.media.kind !== 'app';
+        return host.ports.media.kind !== 'shell';
     }
 
     /** Runs a request in the app; `null` in a browser. Failures surface to the caller. */

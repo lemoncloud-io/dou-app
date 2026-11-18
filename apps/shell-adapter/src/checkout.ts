@@ -23,15 +23,15 @@ declare const __DOU_SHELL_CHECKOUT__: string | undefined;
 declare const __DOU_SHELL_MEDIA__: string | undefined;
 declare const __DOU_SHELL_FILES__: string | undefined;
 
-/** Who picks attachments, as a person picks it: the app's own picker, or the page's input. */
-export const SHELL_MEDIA_CHOICES = ['app', 'page'] as const;
+/** Who picks attachments, as a person picks it: the shell's own picker (`shell`), or the browser's input (`browser`). */
+export const SHELL_MEDIA_CHOICES = ['shell', 'browser'] as const;
 export type ShellMediaChoice = (typeof SHELL_MEDIA_CHOICES)[number];
 
 /** Where a handler or a scenario keeps a media choice; read at every launch, like `dou.checkout`. */
 export const MEDIA_STORE_KEY = 'dou.media';
 
-/** Who moves a message's files, as a person picks it: the app's transfer module, or the page's own requests. */
-export const SHELL_FILES_CHOICES = ['app', 'page'] as const;
+/** Who moves a message's files, as a person picks it: the shell's transfer module (`shell`), or the browser's requests (`browser`). */
+export const SHELL_FILES_CHOICES = ['shell', 'browser'] as const;
 export type ShellFilesChoice = (typeof SHELL_FILES_CHOICES)[number];
 
 /** Where a handler or a scenario keeps a files choice; read at every launch, like `dou.checkout`. */
@@ -58,7 +58,7 @@ export const checkoutChoice = (
 
 /**
  * The media choice for this launch: `dou.media` in the shell's store first, then `DOU_SHELL_MEDIA`. No
- * choice leaves media to the web's rule for a declaration without it — the app picks, as before.
+ * choice leaves media to the web's rule for a declaration without it — the shell picks, as before.
  */
 export const mediaChoice = (
     store?: ReadonlyMap<string, unknown>,
@@ -67,14 +67,23 @@ export const mediaChoice = (
 
 /**
  * The files choice for this launch: `dou.files` in the shell's store first, then `DOU_SHELL_FILES`. No
- * choice leaves files to the web's rule for a declaration without it — the app moves them, as before.
+ * choice leaves files to the web's rule for a declaration without it — the shell moves them, as before.
  */
 export const filesChoice = (
     store?: ReadonlyMap<string, unknown>,
     fromEnv: string | undefined = typeof __DOU_SHELL_FILES__ === 'string' ? __DOU_SHELL_FILES__ : undefined
 ): ShellFilesChoice | undefined => keptOrEnv(SHELL_FILES_CHOICES, store?.get(FILES_STORE_KEY), fromEnv);
 
-/** A choice kept in the store if it is one of `choices`, else the environment's, else none. */
+/** The names the media and files choices had before they were `shell` and `browser`. */
+const RENAMED_CHOICES: Readonly<Record<string, string>> = { app: 'shell', page: 'browser' };
+
+/**
+ * A choice kept in the store if it is one of `choices`, else the environment's, else none.
+ *
+ * An old spelling (`app`, `page`) is not taken as the new one: the shell declares one vocabulary. It
+ * still says so, because a person who started the shell the way they always did would otherwise get
+ * "no choice" with nothing to explain why.
+ */
 const keptOrEnv = <T extends string>(
     choices: readonly T[],
     kept: unknown,
@@ -82,7 +91,13 @@ const keptOrEnv = <T extends string>(
 ): T | undefined => {
     if ((choices as readonly unknown[]).includes(kept)) return kept as T;
     const env = fromEnv?.trim().toLowerCase();
-    return (choices as readonly unknown[]).includes(env) ? (env as T) : undefined;
+    if ((choices as readonly unknown[]).includes(env)) return env as T;
+    for (const old of [kept, env]) {
+        if (typeof old === 'string' && old in RENAMED_CHOICES) {
+            console.warn(`[shell] '${old}' is now '${RENAMED_CHOICES[old]}'; this choice is ignored`);
+        }
+    }
+    return undefined;
 };
 
 /**

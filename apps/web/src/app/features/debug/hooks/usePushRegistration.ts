@@ -63,7 +63,7 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
         setError(null);
         setSummary(null);
 
-        if (host.ports.push.kind !== 'app') {
+        if (host.ports.push.kind !== 'shell') {
             setState('no-native');
             setError(messages.noNative);
             return;

@@ -30,7 +30,7 @@ export interface ConsoleListenerOptions {
 }
 
 export const attachConsoleListener = ({ isDev }: ConsoleListenerOptions): (() => void) => {
-    if (diagnosticsKind() === 'app' && !isDev) return () => undefined;
+    if (diagnosticsKind() === 'shell' && !isDev) return () => undefined;
 
     return logHub.subscribe(createConsoleListener());
 };

@@ -22,7 +22,7 @@ const OpenSourceHero = () => {
 
     const handleGithubClick = () => {
         // The OS browser where the app takes the page's links (`host.ports.links`), else a new tab.
-        if (host.ports.links.kind === 'app') {
+        if (host.ports.links.kind === 'shell') {
             appBridge.openURL(GITHUB_URL);
         } else {
             window.open(GITHUB_URL, '_blank');

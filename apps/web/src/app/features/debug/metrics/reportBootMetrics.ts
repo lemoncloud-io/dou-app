@@ -15,7 +15,7 @@ let scheduled = false;
  * session) has no shell to persist the record.
  */
 export const scheduleBootMetricsReport = (): void => {
-    if (scheduled || host.ports.diagnostics.kind !== 'app') return;
+    if (scheduled || host.ports.diagnostics.kind !== 'shell') return;
     scheduled = true;
 
     setTimeout(() => {

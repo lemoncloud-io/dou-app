@@ -43,7 +43,7 @@ export const OAuthResponsePage = () => {
         ranRef.current = true;
         if (!isComplete) return;
 
-        if (host.ports.signIn.kind === 'app') {
+        if (host.ports.signIn.kind === 'shell') {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
             // In-app (already signed in): the exchange swaps the session and reloads.
             // A link leaves the session as it was, so nothing moves the page: go back to the account hub.
@@ -62,7 +62,7 @@ export const OAuthResponsePage = () => {
     }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
 
     const failed = !isComplete || isError;
-    const inApp = host.ports.signIn.kind === 'app';
+    const inApp = host.ports.signIn.kind === 'shell';
 
     return (
         <AuthCard

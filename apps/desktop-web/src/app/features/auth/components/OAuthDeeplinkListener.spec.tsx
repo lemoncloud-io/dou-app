@@ -17,7 +17,7 @@ vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { signIn: { kind: 'app', os: null } };
+            return { signIn: { kind: 'shell', os: null } };
         },
     },
 }));

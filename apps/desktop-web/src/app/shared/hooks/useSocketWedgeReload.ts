@@ -39,7 +39,7 @@ export const useSocketWedgeReload = (): void => {
     const hasVerifiedRef = useRef(false);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'app') return;
+        if (host.ports.appShell.kind !== 'shell') return;
 
         if (isVerified) {
             hasVerifiedRef.current = true;

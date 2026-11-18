@@ -42,7 +42,7 @@ export const PairingApprovePage = () => {
     const enabled = useDevicePairingEnabled();
     const paired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
-    const appSignsIn = host.ports.signIn.kind === 'app';
+    const appSignsIn = host.ports.signIn.kind === 'shell';
     if (!enabled || !appSignsIn || isGuest || paired) return <Navigate to={ROUTES.mypage.root} replace />;
     return <PairingApproveScreen />;
 };

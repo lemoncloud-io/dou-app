@@ -12,7 +12,7 @@ import { configurePerfTraces, getActivePerfTrace, resetPerfTraces } from '@chati
 import { roomOpenTrace } from '../../runtime/perf';
 
 // The invited-cloud recovery step added to usePushNavigate pulls more app-runtime exports, and asks the
-// `push` port whether the app receives notifications. The port must be mocked and answer `page` by
+// `push` port whether the app receives notifications. The port must be mocked and answer `browser` by
 // default: an unpublished host throws inside the switch block, which the best-effort catch swallows
 // into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery
 // itself runs only where the app receives notifications, so it never runs here unless a test says so.
@@ -20,7 +20,7 @@ const mockIsNativeApp = jest.fn(() => false);
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { push: { kind: mockIsNativeApp() ? 'app' : 'page' } };
+            return { push: { kind: mockIsNativeApp() ? 'shell' : 'browser' } };
         },
     },
 }));

@@ -37,7 +37,7 @@ const NOTHING_TO_SHARE = new Set(['GONE', 'INVALID']);
  */
 export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> => {
     // Share intake is the app's, where it takes the page's links (`host.ports.links`).
-    if (host.ports.links.kind !== 'app') return null;
+    if (host.ports.links.kind !== 'shell') return null;
     try {
         const { data } = await webClient.request(
             { type: 'FetchShareIntake', data: { id } },
@@ -64,7 +64,7 @@ export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> 
  * leaves the copies to the app's own day-old sweep, which is no reason to stop the person.
  */
 export const releaseShareIntake = async (id: string, { discard }: { discard: boolean }): Promise<void> => {
-    if (host.ports.links.kind !== 'app') return;
+    if (host.ports.links.kind !== 'shell') return;
     try {
         await webClient.request({ type: 'ReleaseShareIntake', data: { id, discard } });
     } catch (error) {

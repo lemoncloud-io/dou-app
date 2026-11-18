@@ -222,7 +222,7 @@ page names `web`. The deploy workflows fill it from the `WEB_DEV_APP_SESSION_OWN
 
 In a plain browser tab there is no bridge, and every `appBridge` request call rejects
 `NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid paying that wait
-asks its domain's `@chatic/host` port first ([host-ports.md](./host-ports.md)) — `'page'` there means no
+asks its domain's `@chatic/host` port first ([host-ports.md](./host-ports.md)) — `'browser'` there means no
 bridge to ask — rather than calling through and catching.
 
 ## Related

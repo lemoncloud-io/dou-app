@@ -7,7 +7,7 @@ vi.mock('@chatic/config', () => ({ config: { get: () => env.flag } }));
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { signIn: { kind: env.native ? 'app' : 'page', os: null } };
+            return { signIn: { kind: env.native ? 'shell' : 'browser', os: null } };
         },
     },
 }));

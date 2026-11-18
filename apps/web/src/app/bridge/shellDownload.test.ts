@@ -4,7 +4,7 @@ let native = true;
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { files: { kind: native ? 'app' : 'page' } };
+            return { files: { kind: native ? 'shell' : 'browser' } };
         },
     },
 }));

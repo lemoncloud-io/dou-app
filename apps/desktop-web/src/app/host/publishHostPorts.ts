@@ -17,14 +17,14 @@ import {
  */
 export const publishHostPorts = (): void => {
     // The desktop app sells nothing: no screen of it offers a subscription.
-    // No screen of the desktop app attaches through an app picker: its inputs are the page's own.
-    // Its files move through its own requests; no desktop screen hands a transfer to the shell.
+    // No screen of the desktop app attaches through a shell picker: its inputs are the browser's own.
+    // Its files move through the browser's requests; no desktop screen hands a transfer to the shell.
     // The rest read what the desktop shell declared: its window has a bridge, so a shell that declares
-    // none of these keys gets the app for each, as `isNative()` answered; a browser tab gets the page.
+    // none of these keys gets `shell` for each, as `isNative()` answered; a browser tab gets `browser`.
     host.publish({
         checkout: { kind: 'none' },
-        media: { kind: 'page' },
-        files: { kind: 'page' },
+        media: { kind: 'browser' },
+        files: { kind: 'browser' },
         links: { kind: resolveLinksMethod() },
         appShell: resolveAppShell(),
         signIn: resolveSignIn(),

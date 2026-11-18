@@ -3,7 +3,7 @@
 // CommonJS transform. Mock the bridge at the same boundary useDebugMode.test.ts does.
 jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
 // A browser tab: the page keeps its own diagnostics, so an unlock is not propagated to an app.
-jest.mock('@chatic/host', () => ({ host: { ports: { diagnostics: { kind: 'page' } } } }));
+jest.mock('@chatic/host', () => ({ host: { ports: { diagnostics: { kind: 'browser' } } } }));
 
 import { act, renderHook } from '@testing-library/react';
 

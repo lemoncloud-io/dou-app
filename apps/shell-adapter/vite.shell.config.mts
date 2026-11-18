@@ -76,7 +76,7 @@ const STORE_SKUS = {
 
 /**
  * How this shell sells (`DOU_SHELL_CHECKOUT=web yarn local`, for one), who picks attachments
- * (`DOU_SHELL_MEDIA=page`), who moves files (`DOU_SHELL_FILES=page`) and the store SKUs, written into
+ * (`DOU_SHELL_MEDIA=browser`), who moves files (`DOU_SHELL_FILES=browser`) and the store SKUs, written into
  * `src/checkout.ts` where it names them. Not Vite's `define`: in dev that sets globals through Vite's
  * client script, which the shell page never loads. The config also reads `checkout.ts` in Node, where
  * the names stay undefined and the module answers "no choice".

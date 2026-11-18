@@ -16,7 +16,7 @@ vi.mock('@chatic/bridges', () => ({
 
 // The desktop shell delivers notifications, as the `push` port says there.
 vi.mock('@chatic/host', () => ({
-    host: { ports: { push: { kind: 'app' } } },
+    host: { ports: { push: { kind: 'shell' } } },
 }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {

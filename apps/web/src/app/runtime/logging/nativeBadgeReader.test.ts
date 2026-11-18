@@ -8,9 +8,9 @@ let mockPlatform: string | undefined;
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            const kind = mockIsNative() ? 'app' : 'page';
+            const kind = mockIsNative() ? 'shell' : 'browser';
             const platform = mockPlatform?.toLowerCase();
-            const os = kind === 'app' && (platform === 'ios' || platform === 'android') ? platform : null;
+            const os = kind === 'shell' && (platform === 'ios' || platform === 'android') ? platform : null;
             return { appShell: { kind, os } };
         },
     },

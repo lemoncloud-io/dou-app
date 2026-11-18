@@ -2,13 +2,13 @@ import { hostCapabilities } from './hostCapabilities';
 
 // Every key past checkout: this app does each one itself.
 const APP_DOES_IT = {
-    media: 'app',
-    files: 'app',
-    links: 'app',
-    appShell: 'app',
-    signIn: 'app',
-    diagnostics: 'app',
-    push: 'app',
+    media: 'shell',
+    files: 'shell',
+    links: 'shell',
+    appShell: 'shell',
+    signIn: 'shell',
+    diagnostics: 'shell',
+    push: 'shell',
 };
 
 describe('hostCapabilities', () => {

@@ -19,7 +19,7 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 // Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
-jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'page', os: null } } } }));
+jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'browser', os: null } } } }));
 jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
     ToastAction: ({ children }: any) => <button>{children}</button>,
 }));

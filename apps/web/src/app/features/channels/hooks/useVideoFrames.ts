@@ -38,7 +38,7 @@ let shared: VideoFrames | null = null;
 export const getVideoFrames = (): VideoFrames =>
     (shared ??= new VideoFrames({
         cache: getImageCache(),
-        fromApp: () => host.ports.files.kind === 'app',
+        fromApp: () => host.ports.files.kind === 'shell',
         readShellFrame,
         fetch: (url, init) => fetch(url, init),
         drawFrame: source => drawVideoFrame(source),

@@ -6,9 +6,9 @@ import { storeCheckout } from './checkout/storeCheckout';
 jest.mock('@chatic/host', () => ({
     ...jest.requireActual('@chatic/host'),
     resolveCheckoutMethod: jest.fn(),
-    resolveMediaMethod: jest.fn(() => 'app'),
-    resolveFilesMethod: jest.fn(() => 'app'),
-    resolveSignIn: jest.fn(() => ({ kind: 'app', os: 'ios' })),
+    resolveMediaMethod: jest.fn(() => 'shell'),
+    resolveFilesMethod: jest.fn(() => 'shell'),
+    resolveSignIn: jest.fn(() => ({ kind: 'shell', os: 'ios' })),
 }));
 jest.mock('./checkout/storeCheckout', () => ({
     storeCheckout: jest.fn((store: string) => ({ kind: 'store', store })),
@@ -39,7 +39,7 @@ describe('publishHostPorts — checkout', () => {
 });
 
 describe('publishHostPorts — media', () => {
-    it.each(['app', 'page'] as const)('lets %s pick when the host says so', method => {
+    it.each(['shell', 'browser'] as const)('lets %s pick when the host says so', method => {
         (resolveMediaMethod as jest.Mock).mockReturnValue(method);
         publishing('none');
 
@@ -51,18 +51,18 @@ describe('publishHostPorts — the v4 domains', () => {
     it('publishes what each resolver answers', () => {
         publishing('none');
 
-        expect(host.ports.signIn).toEqual({ kind: 'app', os: 'ios' });
+        expect(host.ports.signIn).toEqual({ kind: 'shell', os: 'ios' });
         expect(resolveSignIn).toHaveBeenCalled();
         // The rest are read from the real profile, which under jsdom has no bridge: the page.
-        expect(host.ports.links).toEqual({ kind: 'page' });
-        expect(host.ports.appShell).toEqual({ kind: 'page', os: null });
-        expect(host.ports.diagnostics).toEqual({ kind: 'page' });
-        expect(host.ports.push).toEqual({ kind: 'page' });
+        expect(host.ports.links).toEqual({ kind: 'browser' });
+        expect(host.ports.appShell).toEqual({ kind: 'browser', os: null });
+        expect(host.ports.diagnostics).toEqual({ kind: 'browser' });
+        expect(host.ports.push).toEqual({ kind: 'browser' });
     });
 });
 
 describe('publishHostPorts — files', () => {
-    it.each(['app', 'page'] as const)('lets %s move files when the host says so', method => {
+    it.each(['shell', 'browser'] as const)('lets %s move files when the host says so', method => {
         (resolveFilesMethod as jest.Mock).mockReturnValue(method);
         publishing('none');
 

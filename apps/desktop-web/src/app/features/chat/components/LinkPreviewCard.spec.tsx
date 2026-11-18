@@ -9,7 +9,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { links: { kind: 'app' } };
+            return { links: { kind: 'shell' } };
         },
     },
 }));

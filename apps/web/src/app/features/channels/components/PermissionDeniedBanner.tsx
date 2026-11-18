@@ -18,7 +18,7 @@ export const PermissionDeniedBanner = () => {
 
     const handleOpenSettings = () => {
         // The permission was the app's to ask for, so its settings are where it is granted.
-        if (host.ports.media.kind === 'app') {
+        if (host.ports.media.kind === 'shell') {
             appBridge.openSettings();
         }
     };

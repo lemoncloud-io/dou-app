@@ -15,7 +15,7 @@ export const isDevicePairingEnabled = (): boolean => config.get<boolean>('featur
  * (`host.ports.signIn`). The desktop app signs in on its own, and a code shown inside it would ask a
  * phone to approve the app it is already beside.
  */
-export const canRequestPairing = (): boolean => isDevicePairingEnabled() && host.ports.signIn.kind !== 'app';
+export const canRequestPairing = (): boolean => isDevicePairingEnabled() && host.ports.signIn.kind !== 'shell';
 
 /**
  * Whether this client can be the approving side: the desktop app (where the app signs in,
@@ -25,4 +25,4 @@ export const canRequestPairing = (): boolean => isDevicePairingEnabled() && host
  * access that the account never granted from a device it trusts.
  */
 export const canApprovePairing = (isPairedSession: boolean): boolean =>
-    isDevicePairingEnabled() && host.ports.signIn.kind === 'app' && !isPairedSession && !isRelayGuest();
+    isDevicePairingEnabled() && host.ports.signIn.kind === 'shell' && !isPairedSession && !isRelayGuest();

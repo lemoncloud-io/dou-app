@@ -27,7 +27,7 @@ vi.mock('@chatic/app-runtime', () => ({
 vi.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { links: { kind: 'app' } };
+            return { links: { kind: 'shell' } };
         },
     },
 }));

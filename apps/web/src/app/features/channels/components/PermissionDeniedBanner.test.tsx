@@ -10,7 +10,7 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/host', () => ({
     host: {
         get ports() {
-            return { media: { kind: isNativeValue ? 'app' : 'page' } };
+            return { media: { kind: isNativeValue ? 'shell' : 'browser' } };
         },
     },
 }));

@@ -34,7 +34,7 @@ export const useSendImages = (room: Room) => {
         ...room,
         put: getShellPut(),
         putShellFile: getShellFilePut(),
-        ...(host.ports.media.kind === 'app' ? { prepareVideo: attachmentPicker.prepareVideo } : {}),
+        ...(host.ports.media.kind === 'shell' ? { prepareVideo: attachmentPicker.prepareVideo } : {}),
         onVideoRefused,
         beforeSweep: syncShellTransfers,
         // A send can start the moment the page comes back to the front — from an OS picker above all —
