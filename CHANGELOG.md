@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - root@0.167.0, @chatic/web@0.96.0
+
+### Features
+
+- (web) record app icon changes and the icon in use as usage events
+
 ## [2026-11-17] - root@0.166.3, @chatic/desktop-web@0.59.2
 
 ### Bug Fixes
