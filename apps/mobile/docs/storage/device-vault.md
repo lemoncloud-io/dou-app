@@ -11,7 +11,7 @@ fill that copy at boot and write it back. The contract — payloads, reasons, `r
 | `src/app/services/secureStorage/SecureStorageService.ts`         | The vault: start-up read, in-memory copy, serialized writes       |
 | `src/app/services/secureStorage/MmkvSecureStorageInstallFlag.ts` | The reinstall flag, in its own MMKV instance                      |
 | `src/app/webview/hooks/secureStorageHandlers.ts`                 | `StorageGet` / `StorageSave` / `StorageClear`, and the media list |
-| `src/app/services/runtime/runtimePorts.ts`                       | The app runtime's `secret` store on the same vault, in-process    |
+| `src/config/mobile.ts`                                           | The app runtime's `secret` store on the same vault, in-process    |
 | `android/app/src/main/res/xml/data_extraction_rules.xml`         | Keeps the vault and its flag off cloud backup and device transfer |
 
 ## Where it lives
@@ -93,7 +93,7 @@ runs: `CHATIC_APP_STORAGE_MEDIA = ['nativeSecure']` in the injected script
 
 **The page, or the app's runtime — never both.** The app can run the session itself, in its own JS
 process, through `@chatic/runtime-mobile`. That runtime keeps its `secret` store on this same vault,
-in-process (`services/runtime/runtimePorts.ts`): the same item and the same keys, so the session a page
+in-process (its declaration, `src/config/mobile.ts`): the same item and the same keys, so the session a page
 signed in is the one the runtime reads, with nothing to move. Everything in the vault is the session's
 four tokens and a copy of the device guest's id, which the page's boot copies in so the runtime can read
 it too (`libs/session` README, `identityStore`). So once the app holds the session, the handlers take an `ownsSession` flag and the page is

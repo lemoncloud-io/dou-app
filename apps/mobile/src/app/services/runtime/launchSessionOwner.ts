@@ -1,12 +1,11 @@
 import Config from 'react-native-config';
 
 import { openSessionOwnerFile } from './runtimeStorageFiles';
-import {
-    readDefaultSessionOwner,
-    readSessionOwner,
-    unswitchedSessionOwner as resolveUnswitchedSessionOwner,
-} from './sessionOwner';
-import type { SessionOwner, SessionOwnerFile } from './sessionOwner';
+import { readDefaultSessionOwner, readSessionOwnerChoice, unswitchedSessionOwnerChoice } from './sessionOwner';
+import type { SessionOwner, SessionOwnerChoice, SessionOwnerFile } from './sessionOwner';
+
+const unswitchedSessionOwnerChoiceOf = (file: SessionOwnerFile): SessionOwnerChoice =>
+    unswitchedSessionOwnerChoice(Config.VITE_ENV, Config.VITE_SESSION_OWNER_DEFAULT, readDefaultSessionOwner(file));
 
 /**
  * The owner of an install nobody switched: the build's pin, else the page's default when the web build
@@ -14,9 +13,9 @@ import type { SessionOwner, SessionOwnerFile } from './sessionOwner';
  * purpose: which side real installs run on is decided by a web deploy, not by an app release.
  */
 export const unswitchedSessionOwner = (file: SessionOwnerFile): SessionOwner =>
-    resolveUnswitchedSessionOwner(Config.VITE_ENV, Config.VITE_SESSION_OWNER_DEFAULT, readDefaultSessionOwner(file));
+    unswitchedSessionOwnerChoiceOf(file).owner;
 
-let owner: SessionOwner | null = null;
+let choice: SessionOwnerChoice | null = null;
 
 /**
  * The session owner of this launch, read once from its file and kept for the process: the owner is
@@ -28,16 +27,22 @@ let owner: SessionOwner | null = null;
  * Kept apart from the runtime host so reading it costs one MMKV read: the host's module loads the
  * whole runtime, which a launch the page owns never needs.
  */
-export const launchSessionOwner = (): SessionOwner => {
-    if (owner === null) {
+export const launchSessionOwner = (): SessionOwner => launchSessionOwnerChoice().owner;
+
+/**
+ * `launchSessionOwner`, with the row that settled it (`SessionOwnerSource`) — read once with it, so the
+ * owner and the reason the boot logs for it are the same answer.
+ */
+export const launchSessionOwnerChoice = (): SessionOwnerChoice => {
+    if (choice === null) {
         try {
             const file = openSessionOwnerFile();
-            owner = readSessionOwner(file, unswitchedSessionOwner(file));
+            choice = readSessionOwnerChoice(file, unswitchedSessionOwnerChoiceOf(file));
         } catch {
-            owner = 'web';
+            choice = { owner: 'web', source: 'unreadable' };
         }
     }
-    return owner;
+    return choice;
 };
 
 let answered: SessionOwner | null = null;

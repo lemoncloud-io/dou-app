@@ -40,6 +40,32 @@ const isRecognisedStage = (stage: string | undefined): boolean =>
     ['LOCAL', 'DEV', 'PROD'].includes((stage ?? '').toUpperCase());
 
 /**
+ * Which row settled a launch's owner, in the order they are asked: the switch's recorded choice
+ * (`switch`), the build's pin (`build`), the page's default (`page`), the stage's own (`stage`, which
+ * also answers for a stage the build cannot recognise). `unreadable` is a file that could not be
+ * opened, read as the page's. It is for the log, so a launch says why it ran where it did.
+ */
+export type SessionOwnerSource = 'switch' | 'build' | 'page' | 'stage' | 'unreadable';
+
+/** A launch's owner and the row it came from. */
+export interface SessionOwnerChoice {
+    owner: SessionOwner;
+    source: SessionOwnerSource;
+}
+
+/** `unswitchedSessionOwner`, with the row that answered. */
+export const unswitchedSessionOwnerChoice = (
+    stage: string | undefined,
+    override: string | undefined,
+    pageDefault: SessionOwner | undefined
+): SessionOwnerChoice => {
+    if (!isRecognisedStage(stage)) return { owner: 'web', source: 'stage' };
+    if (isSessionOwner(override)) return { owner: override, source: 'build' };
+    if (pageDefault) return { owner: pageDefault, source: 'page' };
+    return { owner: defaultSessionOwner(stage), source: 'stage' };
+};
+
+/**
  * The owner of an install nobody switched, in order: the build's pin (`override`), then the page's
  * default (`SetDefaultSessionOwner`), then the stage's own default. The pin outranks the page because it
  * is how a test build fixes where a fresh install starts — a web build that names an owner must not move
@@ -50,11 +76,7 @@ export const unswitchedSessionOwner = (
     stage: string | undefined,
     override: string | undefined,
     pageDefault: SessionOwner | undefined
-): SessionOwner => {
-    if (!isRecognisedStage(stage)) return 'web';
-    if (isSessionOwner(override)) return override;
-    return pageDefault ?? defaultSessionOwner(stage);
-};
+): SessionOwner => unswitchedSessionOwnerChoice(stage, override, pageDefault).owner;
 
 /**
  * The owner this launch runs with: the one recorded by the switch, or `fallback` when none is — no
@@ -63,6 +85,12 @@ export const unswitchedSessionOwner = (
 export const readSessionOwner = (file: SessionOwnerFile, fallback: SessionOwner = 'web'): SessionOwner => {
     const stored = file.getString(SESSION_OWNER_KEY);
     return isSessionOwner(stored) ? stored : fallback;
+};
+
+/** `readSessionOwner`, with the row that answered: `switch` when a choice is recorded, else `fallback`'s. */
+export const readSessionOwnerChoice = (file: SessionOwnerFile, fallback: SessionOwnerChoice): SessionOwnerChoice => {
+    const stored = file.getString(SESSION_OWNER_KEY);
+    return isSessionOwner(stored) ? { owner: stored, source: 'switch' } : fallback;
 };
 
 /**

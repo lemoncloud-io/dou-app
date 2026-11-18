@@ -327,7 +327,7 @@ instead of surfacing as an opaque "Script error.":
 - `CHATIC_APP_CAPABILITIES` — what this build declares it can do (`utils/hostCapabilities.ts`): version
   4, with `checkout: ['apple']` on iOS and `['google']` on Android — never the website, which a
   store-distributed app may not point a buyer at — and `'shell'` for every other key (`media`, `files`,
-  `links`, `appShell`, `signIn`, `diagnostics`, `push`), since this app does each of those itself. The web chooses its `@chatic/host` ports from it
+  `links`, `appShell`, `signIn`, `diagnostics`, `push`), since this app does each of those itself. The web chooses its host ports (`runtime.<port>`) from it
   before its first render; a build without it gets the web's rule for an app that declares nothing,
   which gives the same answer. Set early in the script, beside the storage media, so a later snippet
   that throws cannot skip it

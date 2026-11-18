@@ -4,7 +4,9 @@ import {
     defaultSessionOwner,
     readDefaultSessionOwner,
     readSessionOwner,
+    readSessionOwnerChoice,
     unswitchedSessionOwner,
+    unswitchedSessionOwnerChoice,
     writeDefaultSessionOwner,
     writeSessionOwner,
 } from './sessionOwner';
@@ -124,5 +126,31 @@ describe('unswitchedSessionOwner', () => {
         ['STAGING', 'native', 'native', 'web'],
     ] as const)('stage %p, pin %p, page default %p starts on %p', (stage, pin, pageDefault, owner) => {
         expect(unswitchedSessionOwner(stage, pin, pageDefault)).toBe(owner);
+    });
+});
+
+describe('unswitchedSessionOwnerChoice', () => {
+    it.each([
+        // stage, build pin, page default, owner, the row that answered
+        ['PROD', 'web', 'native', 'web', 'build'],
+        ['PROD', undefined, 'web', 'web', 'page'],
+        ['PROD', 'shell', undefined, 'native', 'stage'],
+        ['LOCAL', undefined, undefined, 'web', 'stage'],
+        ['STAGING', 'native', 'native', 'web', 'stage'],
+    ] as const)('stage %p, pin %p, page default %p is %p from %p', (stage, pin, pageDefault, owner, source) => {
+        expect(unswitchedSessionOwnerChoice(stage, pin, pageDefault)).toEqual({ owner, source });
+    });
+});
+
+describe('readSessionOwnerChoice', () => {
+    const fallback = { owner: 'native', source: 'page' } as const;
+
+    it("names the switch when a choice is recorded, over the fallback's row", () => {
+        expect(readSessionOwnerChoice(fakeFile('web'), fallback)).toEqual({ owner: 'web', source: 'switch' });
+    });
+
+    it('answers the fallback, row and all, with no choice or one this build does not know', () => {
+        expect(readSessionOwnerChoice(fakeFile(), fallback)).toBe(fallback);
+        expect(readSessionOwnerChoice(fakeFile('shell'), fallback)).toBe(fallback);
     });
 });
