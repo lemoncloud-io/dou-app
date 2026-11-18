@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-18] - root@0.168.3, @chatic/desktop-web@0.60.3
+
+### Bug Fixes
+
+- (desktop-web) refresh an expired image address, not a broken tile
+- (desktop-web) refresh expired addresses beyond the feed tile
+
 ## [2026-11-18] - No version updates
 
 ### Features
