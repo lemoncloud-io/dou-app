@@ -119,12 +119,14 @@ menu they do nothing. What a press does, and the other inputs that make one, are
 
 ## Holding a modifier
 
-Hold ⌘ (Ctrl off macOS) or ⌥ (Alt) on its own for half a second and `ShortcutHintBar` shows a line
+Hold ⌘ (Ctrl off macOS) or ⌥ (Alt) on its own for 300 ms and `ShortcutHintBar` shows a line
 at the top of the window with the chords that key starts: ⌘K, ⌘⇧F, ⌘0–9, ⌘[, ⌘] and ⌘/ for Mod, and
 ⌥⇧↑/↓ for Alt. ADR-0342 records the decision.
 
 - **The wait keeps it quiet.** Mod goes down on every ⌘C and ⌘K, so `useModifierHold` waits
-  `MODIFIER_HOLD_MS` (500 ms) before showing anything. A key's own repeat does not restart the wait.
+  `MODIFIER_HOLD_MS` (300 ms) before showing anything: usually longer than the gap between a
+  modifier and the key of a chord, which cancels it, and short enough not to feel like a wait. A
+  key's own repeat does not restart the wait.
 - **What ends it:** releasing the key, any other key, a click, the window losing focus (⌘Tab), or the
   page going hidden. Nothing shows while a dialog or menu is open, where the chords do nothing.
 - **Which keys count** (`soleModifier`, `features/chat/utils/modifierHold.ts`): the modifier the
