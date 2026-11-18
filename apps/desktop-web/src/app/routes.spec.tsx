@@ -54,6 +54,7 @@ vi.mock('@chatic/host', () => ({
 vi.mock('./features/chat', () => ({
     HomePage: () => <p>home page</p>,
     ShortcutsDialog: () => null,
+    ShortcutHintBar: () => null,
 }));
 vi.mock('./features/account', () => ({
     AccountHubPage: () => <p>account page</p>,

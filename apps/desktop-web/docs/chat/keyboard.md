@@ -117,6 +117,30 @@ They work from the composer too: the chords have no meaning in a text field. Ins
 menu they do nothing. What a press does, and the other inputs that make one, are in
 [jump-and-return.md](./jump-and-return.md#back-and-forward).
 
+## Holding a modifier
+
+Hold ⌘ (Ctrl off macOS) or ⌥ (Alt) on its own for half a second and `ShortcutHintBar` shows a line
+at the top of the window with the chords that key starts: ⌘K, ⌘⇧F, ⌘0–9, ⌘[, ⌘] and ⌘/ for Mod, and
+⌥⇧↑/↓ for Alt. ADR-0342 records the decision.
+
+- **The wait keeps it quiet.** Mod goes down on every ⌘C and ⌘K, so `useModifierHold` waits
+  `MODIFIER_HOLD_MS` (500 ms) before showing anything. A key's own repeat does not restart the wait.
+- **What ends it:** releasing the key, any other key, a click, the window losing focus (⌘Tab), or the
+  page going hidden. Nothing shows while a dialog or menu is open, where the chords do nothing.
+- **Which keys count** (`soleModifier`, `features/chat/utils/modifierHold.ts`): the modifier the
+  app's chords use on that OS, pressed with no other modifier down. Ctrl on macOS starts no chord;
+  the Windows key belongs to the OS, which opens the Start menu when it is released.
+- **A chord that would do nothing is faded.** On home, Back and Forward fade when there is nowhere to
+  step: no channel history that way, and for Back no jump origin either. Off home neither fades (Back
+  always has a page to go to, and the browser does not say whether a Forward page exists), but ⌘K,
+  ⌘⇧F, ⌘0–9 and the Alt chord do: home's own components bind them.
+- **Listening in the capture phase.** The hook has to see every key and click, including ones a
+  handler below stops from bubbling, or a chord would read as the modifier held alone. A key's repeat
+  never starts the wait, so a repeat after a chord cancelled it does not bring the line back.
+- **One line rather than badges**, because most of these chords have no control on screen to badge.
+  The line is hidden from screen readers; the shortcut sheet is the readable list. A new Mod or Alt
+  chord goes in both `ShortcutsDialog.tsx` and `ShortcutHintBar.tsx`.
+
 ## Cloud and place by number
 
 ⌘0 (Ctrl+0 off macOS) goes to Home and ⌘1…⌘9 to the clouds after it, Shift+1…Shift+9 to the place
