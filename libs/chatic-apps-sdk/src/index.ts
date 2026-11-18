@@ -26,7 +26,7 @@ export {
     type ChaticAppsData,
     type DataAllowed,
     type DataConnection,
-    type DataStream,
+    type DataSubscription,
 } from './runtime';
 export type {
     CloudAccountHead,

@@ -1,8 +1,12 @@
 # ADR-0341: chatic-apps-sdk types a page's cloud data by the app's own names
 
 > Status: Accepted · Decided: 2026-11-18 · Implemented: `feat/chatic-apps-sdk-typed-runtime`
-> · Scope: `libs/chatic-apps-sdk/src/runtimeTypes.ts`, `runtime.ts`, `mock.ts`,
+> · Scope: `libs/chatic-apps-sdk/src/runtimeTypes.ts`, `runtime.ts`, `chaticApps.ts`, `mock.ts`, the
+> package `README.md` and `docs/guide/`,
 > `apps/mobile/src/app/subWebView/chaticAppsSdkRuntime.contract.test.ts`
+> · Supersedes in part decision 11 of
+> [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
+> (the SDK's untyped `apps.runtime`)
 > · The module doc is the [chatic-apps-sdk README](../../libs/chatic-apps-sdk/README.md)
 
 ## Context
@@ -66,11 +70,14 @@ The app's types for all of this exist, but in private workspace packages (`@chat
 
 ## Consequences
 
-- A typo in a method name, a wrong argument, or reading a field a row does not have fails the page's
-  build instead of failing in the app.
+- A wrong argument, or reading a field a row does not have, fails the page's build instead of failing
+  in the app. A misspelt method name does not: it is taken for a method this library does not know
+  and answers `unknown`, so it fails the build only where the answer is used, and otherwise at run
+  time with `RUNTIME_NOT_ALLOWED` as before. That is the price of letting a page call what a newer app
+  opens.
 - A field the app adds, drops or retypes on a row the whitelist exposes fails the app's contract test
   until the library's declaration follows. So does a method opened or closed in the whitelist. The
-  app's runtime contract suite takes about five seconds longer for the compile.
+  app's runtime contract suite takes about 1.6 seconds longer for the compile.
 - The rows are large and mostly optional, because they are the app's cache rows unfiltered. The types
   now spell out in public what a page with each permission receives — including fields named after
   secrets on the place owner's embedded account view, which the app passes on as the server fills

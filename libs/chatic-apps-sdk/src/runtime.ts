@@ -35,14 +35,14 @@ export interface DataConnection {
 }
 
 /** An open stream. */
-export interface DataStream {
+export interface DataSubscription {
     /** Stops it. Stopping one that already ended is no error. */
     stop(): Promise<void>;
 }
 
 /**
- * The current cloud's data, read as DoU's own screens read it: its places, rooms, messages and
- * members, exactly as DoU's screens read them — and one write, a text message. Only what the page's
+ * The current cloud's data — its places, rooms, messages and members, exactly as DoU's own screens
+ * read them — and one write, a text message. Only what the page's
  * manifest asks for (`session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`): the app
  * refuses every other method with `RUNTIME_NOT_ALLOWED`. The app asks the user once, at `connect`,
  * whether this page may read this cloud.
@@ -78,14 +78,14 @@ export interface ChaticAppsData {
         args: DataStreamArgs<M> | [...DataStreamArgs<M>, typeof LISTENER],
         listener: (...event: DataStreamEvent<M>) => void,
         onEnd?: (error: ChaticAppsError) => void
-    ): Promise<DataStream>;
+    ): Promise<DataSubscription>;
     /** A stream this library does not know: its events arrive as `unknown`. */
     subscribe<N extends string>(
         method: N extends DataCallName | DataStreamName ? never : N,
         args: unknown[],
         listener: (...event: unknown[]) => void,
         onEnd?: (error: ChaticAppsError) => void
-    ): Promise<DataStream>;
+    ): Promise<DataSubscription>;
     /**
      * Sends a plain text message, in the user's name, to a room of the place the view opened on — the
      * one write, with the `chatSend` permission. Resolves with the message as sent. Text only: nothing

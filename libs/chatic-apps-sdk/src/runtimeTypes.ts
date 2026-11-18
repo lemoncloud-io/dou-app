@@ -16,6 +16,8 @@
  *   them on the device, and say so to the user if they leave it: what a page does with what it read is
  *   its author's responsibility.
  * - `meta` is whatever the server keeps beside a record, in no fixed shape.
+ * - A type ending in `View` (`CloudUserView`, `CloudChatView`, …) is a record as the server embeds it
+ *   inside another row — every field optional — not the row a read answers (`CloudUser`, `CloudChat`).
  */
 
 /** A server record's owner ids, as the server stamps them. */
@@ -786,12 +788,14 @@ export interface CloudInfo {
     __cacheMeta?: CloudCacheMeta;
 }
 
+/** Service detail: the addresses of a cloud's or a place's own servers. */
 export interface CloudServiceEndpoints {
     accountNo?: string;
     backend?: string;
     wss?: string;
 }
 
+/** Account detail: the account a cloud is linked to, as the account server names it. */
 export interface CloudAccountHead {
     id?: string;
     name?: string;
@@ -811,11 +815,13 @@ export interface CloudAccountHead {
     openId?: string;
 }
 
+/** An alias a record is also known by. */
 export interface CloudAlias {
     type?: string;
     alias?: string;
 }
 
+/** The cloud's lifecycle (`CloudInfo.state$`): set-up, holds, release and plan changes. */
 export interface CloudState {
     provision?: 'init' | 'reserved' | 'active';
     hold?: '' | 'downgrade' | 'expired';
