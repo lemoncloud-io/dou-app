@@ -112,6 +112,14 @@ fourth tile counts the rest ("+n"). `ImageTile` states:
 | failed    | an image-off glyph                                        | "This image couldn't be loaded" |
 | overflow  | dimmed, with "+n"                                         | "n more images"                 |
 
+A sent image can also fail on screen: its signed address expires a couple of hours after the message
+was read, and a cached message keeps the old one, so a message from yesterday has an address that no
+longer loads. The tile reacts to the `<img>` failing. A dead thumbnail falls back to the original. A dead
+original turns the tile into the failed one and asks `useImageAddressRefresh` to read the message again,
+once per dead address; the fresh address lands in the cache, the feed redraws, and the tile tries it,
+because a dead address is remembered by its string, not by the tile. If the fresh address fails as well, or
+the read fails offline, the tile stays failed. The viewer still opens the original from the same message.
+
 An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in the tab order and a
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no
 presence at all.

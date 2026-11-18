@@ -6,7 +6,7 @@ import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ConfirmDialog } from '../../../channels';
-import { useChatImages } from '../../hooks';
+import { useChatImages, useImageAddressRefresh } from '../../hooks';
 import { useChatImagesStore } from '../../stores';
 import { copyImageToClipboard, downloadImage, downloadImages, layoutImageGrid, type ChatImage } from '../../utils';
 import { useForwardFileStore } from './ForwardFileDialog';
@@ -53,6 +53,7 @@ const MessageImageGrid = ({
 }: MessageImagesProps & { images: ChatImage[] }) => {
     const { t } = useTranslation();
     const removeImage = useChatImagesStore(s => s.removeImage);
+    const refreshAddress = useImageAddressRefresh();
     const [viewerIndex, setViewerIndex] = useState<number | null>(null);
     const [pendingDelete, setPendingDelete] = useState<ChatImage | null>(null);
     const closeViewer = useCallback(() => setViewerIndex(null), []);
@@ -113,6 +114,7 @@ const MessageImageGrid = ({
                             onReply={onReply}
                             onCopyLink={copyLink}
                             onForward={forward && (() => forward(image))}
+                            onLoadError={src => void refreshAddress(message.id, src)}
                         />
                     );
                 })}
