@@ -1,6 +1,6 @@
 # ADR-0130: A jump returns the reader to where they were reading, not to the channel
 
-> Status: Accepted · Decided: 2026-09-29 · Implemented: PR #508 (`fix/desktop-chat-critique`)
+> Status: Accepted; decision 3 superseded by [ADR-0340](./0340-back-and-forward-step-through-the-rooms-the-reader-moved-between.md) · Decided: 2026-09-29 · Implemented: PR #508 (`fix/desktop-chat-critique`)
 > · Scope: `apps/desktop-web/src/app/shared/stores/useMessageJumpStore.ts` ·
 > `apps/desktop-web/src/app/features/chat/utils/jumpReturn.ts` ·
 > `apps/desktop-web/src/app/features/chat/pages/HomePage.tsx` ·
@@ -28,7 +28,7 @@ usually a detour ("check the evidence, then come back"). The return half did not
 2. **Every jump records it before it moves the reader**, same-channel jumps included. Moves that are
    destinations rather than detours retire it: a rail click, a channel-list pick, a Quick Switcher
    pick.
-3. **One level deep.** A second jump replaces the first return point, as a single Back button would.
+3. **One level deep** (superseded by ADR-0340). A second jump replaces the first return point, as a single Back button would.
    There is no history stack.
 4. **A return is a `restore`, which is not a jump.** The anchor goes back to the top of the view with
    no flash. A missing anchor, or "the latest", lands at the bottom with no "not found" toast and no
@@ -46,9 +46,9 @@ usually a detour ("check the evidence, then come back"). The return half did not
 
 ## Consequences
 
-- Back inputs (Mod+[, the mouse's back button, a trackpad swipe, Go → Back) reach this same single
-  return point on home; there is still no stack. Back on any other page is the router's own page
-  history, which is not this return point.
+- Back inputs (Mod+[, the mouse's back button, a trackpad swipe, Go → Back) first reached this same
+  single return point. ADR-0340 replaced that with a history of every room the reader moved between;
+  the return point and its bar stay, as that history's last step.
 - An origin in another cloud or place is offered without checking that its channel still exists.
   Going back to a removed channel lands in the place without it.
 - The position is written on every scroll frame. The store drops unchanged values, so it only notifies

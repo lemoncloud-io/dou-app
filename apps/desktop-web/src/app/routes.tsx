@@ -13,7 +13,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
-import { pressBack, useBackNavigation } from './features/chat/hooks/useBackNavigation';
+import { pressHistory, useHistoryNavigation } from './features/chat/hooks/useHistoryNavigation';
 import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenStore } from './shared';
 
 /**
@@ -27,9 +27,9 @@ import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenSto
  * Whenever a target is set it routes home; HomePage applies the cloud/place/
  * channel target once each loads.
  */
-/** Back from any page: Mod+[, the mouse's back button, and the shell's swipe and menu item. */
-const BackNavigation = () => {
-    useBackNavigation();
+/** Back and Forward from any page: the bracket chords, the mouse's side buttons, the shell's swipes and menu items. */
+const HistoryNavigation = () => {
+    useHistoryNavigation();
     return null;
 };
 
@@ -62,9 +62,9 @@ const NotificationOpenListener = () => {
                 navigate('/settings');
                 return;
             }
-            // Go → Back and the trackpad's swipe, the same press as Mod+[.
-            if (deeplink === 'chatic-ui:back') {
-                pressBack();
+            // Go → Back / Forward and the trackpad's swipes, the same presses as Mod+[ and Mod+].
+            if (deeplink === 'chatic-ui:back' || deeplink === 'chatic-ui:forward') {
+                pressHistory(deeplink === 'chatic-ui:back' ? 'back' : 'forward');
                 return;
             }
             if (deeplink === 'chatic-ui:shortcuts') {
@@ -134,7 +134,7 @@ export const AppRouter = () => {
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
             {isAuthenticated && <DownloadNotices />}
-            {isAuthenticated && <BackNavigation />}
+            {isAuthenticated && <HistoryNavigation />}
             {/* Route-independent, so "?" and the menu entry work on every page. */}
             {isAuthenticated && (
                 // Its own boundary: the chat chunk loading must not blank the page.

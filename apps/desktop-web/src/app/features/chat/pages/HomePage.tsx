@@ -88,7 +88,8 @@ import {
     useHydrateDmPeers,
     useHeldChannel,
     useNextUnreadShortcut,
-    useBackPress,
+    useChannelHistory,
+    useHistoryPress,
     usePendingLanding,
     useRailShortcuts,
     usePlaceWelcome,
@@ -103,13 +104,20 @@ import {
     pendingOpenRoute,
     pendingRedirectPlace,
 } from '../utils';
-import { useCreatePlaceDialogStore, useEditPlaceDialogStore, useThreadStore } from '../stores';
+import {
+    type HistoryDirection,
+    useChannelHistoryStore,
+    useCreatePlaceDialogStore,
+    useEditPlaceDialogStore,
+    useThreadStore,
+} from '../stores';
 import {
     openLandingOf,
     opensIntoKnownCloud,
     originFor,
     placeToEnter,
     returnRoute,
+    sameRoom,
     shouldOfferReturn,
     type ReaderLocation,
 } from '../utils';
@@ -341,6 +349,17 @@ export const HomePage = () => {
         channelId: selectedChannelId,
     };
     const labelOf = useChannelLabels(channels);
+    const openChannel = channels.find(channel => channel.id === selectedChannelId);
+    const channelHistory = useChannelHistory({
+        here,
+        label: openChannel ? channelRef(channelKind(openChannel), labelOf(openChannel)) : null,
+        threadRootId: openThreadRootId ?? null,
+        isLanding: () => pendingChannelRef.current !== null,
+    });
+    // A room in the open place has to still be listed to be stepped to: one the reader was removed
+    // from is not somewhere to send them. A room elsewhere is not checked until it opens.
+    const isReachable = (entry: MessageJumpOrigin) =>
+        entry.cloudId !== here.cloudId || entry.placeId !== here.placeId || listedChannelIds.has(entry.channelId);
     // Record where the reader stands BEFORE anything moves: the message they were
     // reading and the thread beside it, not only the channel. A jump inside the
     // open channel records too, because it moves them just as far.
@@ -784,11 +803,8 @@ export const HomePage = () => {
     // alone, at its latest message with the thread shut, which is not where anyone was.
     const jumpOrigin = useMessageJumpStore(s => s.origin);
     const clearJumpOrigin = useMessageJumpStore(s => s.clearOrigin);
-    const returnToOrigin = (origin: MessageJumpOrigin) => {
-        // Locked while a switch runs, for the reason jumpToSaved gives.
-        if (isSwitching) return;
-        // Going back ends the detour; it is not the start of a new one.
-        clearJumpOrigin();
+    // Open a recorded reading position: a jump's origin, or a step through the channel history.
+    const restorePosition = (origin: MessageJumpOrigin) => {
         const { channelId, anchorChatNo, threadRootId } = origin;
         const route = returnRoute(origin, here);
         if (route !== 'select') {
@@ -821,17 +837,41 @@ export const HomePage = () => {
         // A jump inside the channel may have opened a thread the reader did not have.
         else if (channelId === selectedChannelId) closeThread();
     };
+    const returnToOrigin = (origin: MessageJumpOrigin) => {
+        // Locked while a switch runs, for the reason jumpToSaved gives.
+        if (isSwitching) return;
+        // Going back ends the detour; it is not the start of a new one.
+        clearJumpOrigin();
+        restorePosition(origin);
+    };
+    // Back and Forward through the rooms the reader moved between. While the return bar shows,
+    // Back is the bar: the step it names when history's last entry is that room, and the jump's
+    // own way back otherwise (a jump inside this room, or one whose leaving history did not record).
+    const goThroughHistory = (direction: HistoryDirection) => {
+        if (isSwitching) return;
+        if (direction === 'back' && jumpReturn && jumpOrigin) {
+            const last = useChannelHistoryStore.getState().back.at(-1);
+            const barIsLastStep = !jumpOrigin.sameChannel && !!last && sameRoom(last, jumpOrigin);
+            if (!barIsLastStep) {
+                returnToOrigin(jumpOrigin);
+                return;
+            }
+        }
+        const target = channelHistory.step(direction, isReachable);
+        if (!target) return;
+        clearJumpOrigin();
+        restorePosition(target);
+    };
     const jumpReturn = shouldOfferReturn(jumpOrigin, here, listedChannelIds)
         ? {
               // Back in the channel after a jump inside it: its name would say "you are here".
               originName: jumpOrigin.channelId === selectedChannelId ? undefined : jumpOrigin.label,
-              onReturn: () => returnToOrigin(jumpOrigin),
+              // The bar is Back made visible: the room the jump left is the last one history recorded.
+              onReturn: () => goThroughHistory('back'),
               onDismiss: clearJumpOrigin,
           }
         : undefined;
-    // Mod+[, the mouse's back button, a swipe or Go → Back on home: the bar's own action, and
-    // nothing while the bar is not offered.
-    useBackPress(() => jumpReturn?.onReturn());
+    useHistoryPress(goThroughHistory);
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);

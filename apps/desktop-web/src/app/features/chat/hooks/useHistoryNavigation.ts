@@ -3,17 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 // Direct file imports, not the barrels: the router mounts this outside the lazily loaded chat
 // chunk, and the barrels would pull that chunk into the first load.
-import { useBackRequestStore } from '../stores/useBackRequestStore';
-import { BACK_MOUSE_BUTTON, isBackChord } from '../utils/backNavigation';
+import { type HistoryDirection, useHistoryRequestStore } from '../stores/useHistoryRequestStore';
+import { historyChord, historyMouseButton } from '../utils/historyNavigation';
 import { isOverlayOpen } from '../utils/keyboard';
 
 /**
- * Press Back, unless a dialog or menu is over the page: there it would move the page out from
- * under something the reader is still looking at. Escape is the way out of those.
+ * Press Back or Forward, unless a dialog or menu is over the page: there it would move the page
+ * out from under something the reader is still looking at. Escape is the way out of those.
  */
-export const pressBack = (): void => {
+export const pressHistory = (direction: HistoryDirection): void => {
     if (isOverlayOpen()) return;
-    useBackRequestStore.getState().press();
+    useHistoryRequestStore.getState().press(direction);
 };
 
 /**
@@ -28,42 +28,46 @@ const hasAppHistory = (): boolean => {
 };
 
 /**
- * Calls `onPress` for each Back press made after this mounted. A press made before it (the one
- * that brought the reader to this route, say) is not counted.
+ * Calls `onPress` for each press made after this mounted. A press made before it (the one that
+ * brought the reader to this route, say) is not counted.
  */
-export const useBackPress = (onPress: () => void): void => {
-    const nonce = useBackRequestStore(s => s.nonce);
+export const useHistoryPress = (onPress: (direction: HistoryDirection) => void): void => {
+    const nonce = useHistoryRequestStore(s => s.nonce);
     const seen = useRef(nonce);
     const latest = useRef(onPress);
     latest.current = onPress;
     useEffect(() => {
         if (nonce === seen.current) return;
         seen.current = nonce;
-        latest.current();
+        latest.current(useHistoryRequestStore.getState().direction);
     }, [nonce]);
 };
 
 /**
- * Router-level Back: binds Mod+[ and the mouse's back button, and on any page other than home
- * answers a press by stepping back a page. On home the press is HomePage's to answer, with the
- * jump's way back. The shell's swipe and menu item arrive as a `chatic-ui:back` deeplink, which
- * the router's notification listener turns into the same press.
+ * Router-level Back and Forward: binds Mod+[ / Mod+] and the mouse's side buttons, and on any page
+ * other than home answers a press by stepping through pages. On home the press is HomePage's to
+ * answer, through the channels the reader moved between. The shell's swipes and menu items arrive
+ * as `chatic-ui:back` / `chatic-ui:forward` deeplinks, which the router's notification listener
+ * turns into the same press.
  */
-export const useBackNavigation = (): void => {
+export const useHistoryNavigation = (): void => {
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.defaultPrevented || event.isComposing || !isBackChord(event)) return;
+            if (event.defaultPrevented || event.isComposing) return;
+            const direction = historyChord(event);
+            if (!direction) return;
             event.preventDefault();
-            pressBack();
+            pressHistory(direction);
         };
         // On mouseup, where Chromium would act on the button itself in a plain browser tab.
         const onMouseUp = (event: MouseEvent) => {
-            if (event.button !== BACK_MOUSE_BUTTON) return;
+            const direction = historyMouseButton(event.button);
+            if (!direction) return;
             event.preventDefault();
-            pressBack();
+            pressHistory(direction);
         };
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('mouseup', onMouseUp);
@@ -73,10 +77,12 @@ export const useBackNavigation = (): void => {
         };
     }, []);
 
-    useBackPress(() => {
+    useHistoryPress(direction => {
         if (location.pathname === '/') return;
+        // With no page ahead, navigate(1) does nothing, which is the right answer.
+        if (direction === 'forward') navigate(1);
         // On the first page the app showed, stepping back would leave the app's own history.
-        if (hasAppHistory()) navigate(-1);
+        else if (hasAppHistory()) navigate(-1);
         else navigate('/');
     });
 };

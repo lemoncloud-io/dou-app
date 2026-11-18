@@ -43,14 +43,14 @@ write is ignored: the log can never fail an update.
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
 `DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `index.ts` and the contract suite both use.
 
-## Back
+## Back and Forward
 
-The Go menu's Back item (shown as ⌘[ / Ctrl+[, not registered, because the page binds that key
-itself) and the three-finger trackpad swipe Electron reports as `left` both send `chatic-ui:back` to
-the page, which decides where Back goes. The menu item does nothing while the window is hidden: it
-would otherwise raise the window and move a page the reader never saw.
-The mouse's side back button is not handled here: Chromium delivers it to the page, which answers it
-along with the key, and handling it here too would go back twice.
+The Go menu's Back and Forward items (shown as ⌘[ / ⌘] and Ctrl+[ / Ctrl+], not registered, because
+the page binds those keys itself) and the three-finger trackpad swipes Electron reports as `left` and
+`right` send `chatic-ui:back` and `chatic-ui:forward` to the page, which decides where a step goes.
+The menu items do nothing while the window is hidden: they would otherwise raise the window and move a
+page the reader never saw. The mouse's side buttons are not handled here: Chromium delivers them to
+the page, which answers them along with the keys, and handling them here too would step twice.
 
 ## Downloads
 

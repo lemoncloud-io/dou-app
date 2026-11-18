@@ -1146,7 +1146,7 @@ export const ko: EnTranslation = {
     'shortcuts.navigate': '채널 사이로 포커스 이동 · Enter로 열기',
     'shortcuts.moveChannel': '사이드바에서: 선택한 채널을 위아래로 이동',
     'shortcuts.nextUnread': '사이드바 밖에서: 이전·다음 안 읽은 채널로 이동',
-    'shortcuts.back': '뒤로: 이동하기 전 위치나 이전 페이지로',
+    'shortcuts.history': '뒤로 · 앞으로: 오간 채널이나 페이지를 되짚어 가기',
     'shortcuts.send': '전송 · 줄 바꿈',
     'shortcuts.closePanel': '패널 / 대화상자 닫기',
     'shortcuts.help': '이 도움말 보기',

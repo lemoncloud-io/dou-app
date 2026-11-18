@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useBackRequestStore } from '../stores/useBackRequestStore';
-import { useBackNavigation, useBackPress } from './useBackNavigation';
+import { useHistoryRequestStore } from '../stores/useHistoryRequestStore';
+import { useHistoryNavigation, useHistoryPress } from './useHistoryNavigation';
 
 const routerAt =
     (entries: string[]) =>
@@ -20,7 +20,7 @@ const renderAt = (entries: string[]) => {
     window.history.replaceState({ idx: entries.length - 1 }, '');
     return renderHook(
         () => {
-            useBackNavigation();
+            useHistoryNavigation();
             return useLocation().pathname;
         },
         { wrapper: routerAt(entries) }
@@ -39,7 +39,19 @@ const pressMouseBack = () =>
         window.dispatchEvent(new MouseEvent('mouseup', { button: 3, cancelable: true }));
     });
 
-describe('useBackNavigation', () => {
+const pressModCloseBracket = () =>
+    act(() => {
+        window.dispatchEvent(
+            new KeyboardEvent('keydown', { key: ']', code: 'BracketRight', metaKey: true, cancelable: true })
+        );
+    });
+
+const pressMouseForward = () =>
+    act(() => {
+        window.dispatchEvent(new MouseEvent('mouseup', { button: 4, cancelable: true }));
+    });
+
+describe('useHistoryNavigation', () => {
     afterEach(() => {
         document.body.innerHTML = '';
         window.history.replaceState(null, '');
@@ -55,6 +67,17 @@ describe('useBackNavigation', () => {
         const { result } = renderAt(['/settings', '/profile']);
         pressMouseBack();
         expect(result.current).toBe('/settings');
+    });
+
+    it('steps forward a page on Mod+] and the mouse forward button, after Back', () => {
+        const { result } = renderAt(['/settings', '/profile']);
+        pressModBracket();
+        expect(result.current).toBe('/settings');
+        pressModCloseBracket();
+        expect(result.current).toBe('/profile');
+        pressMouseBack();
+        pressMouseForward();
+        expect(result.current).toBe('/profile');
     });
 
     it('goes home from a page with nothing before it', () => {
@@ -93,47 +116,47 @@ describe('useBackNavigation', () => {
         expect(result.current).toBe('/');
     });
 
-    it("leaves a press on home to HomePage's jump return", () => {
-        const before = useBackRequestStore.getState().nonce;
+    it("leaves a press on home to HomePage's channel history", () => {
+        const before = useHistoryRequestStore.getState().nonce;
         const { result } = renderAt(['/settings', '/']);
         pressModBracket();
         expect(result.current).toBe('/');
-        expect(useBackRequestStore.getState().nonce).toBe(before + 1);
+        expect(useHistoryRequestStore.getState().nonce).toBe(before + 1);
     });
 
     it('does nothing while a dialog is open over the page', () => {
         document.body.innerHTML = '<div role="dialog" data-state="open"></div>';
-        const before = useBackRequestStore.getState().nonce;
+        const before = useHistoryRequestStore.getState().nonce;
         const { result } = renderAt(['/', '/settings']);
         pressModBracket();
         expect(result.current).toBe('/settings');
-        expect(useBackRequestStore.getState().nonce).toBe(before);
+        expect(useHistoryRequestStore.getState().nonce).toBe(before);
     });
 
     it('lets a bare [ through to typing', () => {
-        const before = useBackRequestStore.getState().nonce;
+        const before = useHistoryRequestStore.getState().nonce;
         renderAt(['/', '/settings']);
         act(() => {
             window.dispatchEvent(new KeyboardEvent('keydown', { key: '[', code: 'BracketLeft' }));
         });
-        expect(useBackRequestStore.getState().nonce).toBe(before);
+        expect(useHistoryRequestStore.getState().nonce).toBe(before);
     });
 });
 
-describe('useBackPress', () => {
-    // The press that brought the reader home must not also spend the jump return.
+describe('useHistoryPress', () => {
+    // The press that brought the reader home must not also spend a channel step.
     it('does not count a press made before it mounted', () => {
-        act(() => useBackRequestStore.getState().press());
+        act(() => useHistoryRequestStore.getState().press('back'));
         const onPress = vi.fn();
-        renderHook(() => useBackPress(onPress));
+        renderHook(() => useHistoryPress(onPress));
         expect(onPress).not.toHaveBeenCalled();
     });
 
-    it('answers each press after it mounted', () => {
+    it('answers each press after it mounted, with its direction', () => {
         const onPress = vi.fn();
-        renderHook(() => useBackPress(onPress));
-        act(() => useBackRequestStore.getState().press());
-        act(() => useBackRequestStore.getState().press());
-        expect(onPress).toHaveBeenCalledTimes(2);
+        renderHook(() => useHistoryPress(onPress));
+        act(() => useHistoryRequestStore.getState().press('back'));
+        act(() => useHistoryRequestStore.getState().press('forward'));
+        expect(onPress.mock.calls).toEqual([['back'], ['forward']]);
     });
 });
