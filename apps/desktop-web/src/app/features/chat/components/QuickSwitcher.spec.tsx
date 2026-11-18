@@ -1,14 +1,16 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { useQuickSwitcherStore } from '../stores';
 import { QuickSwitcher } from './QuickSwitcher';
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: { session: { useSessionIdentity: () => ({ userId: 'me' }) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        session: { useSessionIdentity: () => ({ userId: 'me' }) },
+    })
+);
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({
     useAuthorNames: () => new Map([['u-lemon', '레몽']]),
 }));

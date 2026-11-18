@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
-import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
-import { host } from '@chatic/host';
+import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
 
 import { useOwnedCloudIds } from './useCloudCatalog';
 
@@ -33,7 +31,7 @@ export const usePushInvitedCloudRecovery = (): void => {
     const owned = useOwnedCloudIds();
 
     useEffect(() => {
-        if (host.ports.push.kind !== 'shell') return;
+        if (runtime.push.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const data = (message?.data as { notification?: { data?: Record<string, string> } })?.notification?.data;
             const cid = pushCloudIdOf(data?.cid);

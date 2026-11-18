@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runtimeMock = vi.hoisted(() => ({ isAuthenticated: false }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: { getIdentityContext: () => ({ isAuthenticated: runtimeMock.isAuthenticated }) },
-    },
-}));
+    })
+);
 
 import { ensureDeviceSession } from './ensureDeviceSession';
 

@@ -1,4 +1,4 @@
-import { placeOfDmId } from '@chatic/data';
+import { placeOfDmId } from '@chatic/runtime';
 
 /**
  * The place to open a channel in, given the place an open request named (a notification's `sid`, a

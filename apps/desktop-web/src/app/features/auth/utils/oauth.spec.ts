@@ -4,7 +4,11 @@ const configValues: Record<string, unknown> = {
     'net.socialOauth.endpoint': 'https://relay.example',
     'net.deeplink.desktopProtocol': 'chatic-dev',
 };
-vi.mock('@chatic/config', () => ({ config: { get: (key: string) => configValues[key] } }));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        settings: { get: (key: string) => configValues[key] },
+    })
+);
 
 import { buildAuthorizeUrl, buildOAuthDeeplink, oauthProviderName, parseOAuthDeeplink } from './oauth';
 

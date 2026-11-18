@@ -1,14 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime';
 
 const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, verifiedSlots: new Set<string>() }));
 const registerSyncTarget = vi.fn();
 const joinObservers = vi.hoisted(() => new Map<string, (result: { list: DomainJoin[] } | null) => void>());
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 join: {
@@ -25,8 +25,8 @@ vi.mock('@chatic/runtime', () => ({
         connection: { useCloudVerified: (cid: string) => session.verifiedSlots.has(cid) },
         session: { useUidInCloud: (cid: string) => session.uids[cid] ?? null },
         sync: { registerSyncTarget: (...args: unknown[]) => registerSyncTarget(...args) },
-    },
-}));
+    })
+);
 
 import { useChannelReadCounts } from './useChannelReadCounts';
 

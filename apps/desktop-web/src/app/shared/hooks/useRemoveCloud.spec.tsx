@@ -6,9 +6,11 @@ const releaseCloud = vi.hoisted(() => vi.fn());
 const cacheDelete = vi.hoisted(() => vi.fn());
 const refetchClouds = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => ({ cloud: { releaseCloud, cacheDelete } }) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => ({ cloud: { releaseCloud, cacheDelete } }) },
+    })
+);
 vi.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ refetchClouds }) }));
 vi.mock('../stores', () => ({
     useJoinedCloudsStore: (selector: (state: { removeJoinedCloud: () => void }) => unknown) =>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { useHeldChannel } from './useHeldChannel';
 

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
@@ -12,8 +12,8 @@ import '../../../../i18n';
 import { useSavedItemsStore } from '../../../shared';
 import { ThreadCardMessages } from './ThreadCardMessages';
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),
         },
@@ -21,8 +21,8 @@ vi.mock('@chatic/runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ userName: 'Me', photo: '' }),
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { warn: vi.fn() } }));
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
     useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),

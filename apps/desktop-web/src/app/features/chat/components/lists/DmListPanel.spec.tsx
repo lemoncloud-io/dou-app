@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type * as AppRuntime from '@chatic/runtime';
-import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/runtime';
 
 import '../../../../../i18n';
 

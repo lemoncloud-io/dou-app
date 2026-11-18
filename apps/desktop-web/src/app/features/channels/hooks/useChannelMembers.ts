@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { DomainUser } from '@chatic/data';
+import type { DomainUser } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 
 export interface ChannelMember extends DomainUser {

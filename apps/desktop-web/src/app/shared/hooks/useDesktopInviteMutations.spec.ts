@@ -12,14 +12,14 @@ const userRepository = {
     requestInviteBatch: vi.fn(async () => []),
 };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ invite: inviteRepository, user: userRepository }),
         },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
-    },
-}));
+    })
+);
 
 import { useDesktopInviteMutations } from './useDesktopInviteMutations';
 

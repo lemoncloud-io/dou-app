@@ -12,8 +12,8 @@ const getSelfChannel = vi.fn();
 const warn = vi.fn();
 
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => state.switching }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: { getSelfChannel } }) },
         session: {
             useGlobalSession: () => ({ activeServer: state.server }),
@@ -22,8 +22,8 @@ vi.mock('@chatic/runtime', () => ({
             SWITCH_CLOUD_MUTATION_KEY: ['cloud'],
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.verified }) },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 
 import { useEnsureSelfChannel } from './useEnsureSelfChannel';

@@ -1,4 +1,4 @@
-import { chatAttachmentExtension, chatAttachmentFormat } from '@chatic/data';
+import { chatAttachmentExtension, chatAttachmentFormat } from '@chatic/runtime';
 
 import type { ChatFile } from './chatImages';
 

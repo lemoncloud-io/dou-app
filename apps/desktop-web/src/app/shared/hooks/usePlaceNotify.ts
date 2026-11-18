@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 
 import { useNotificationPrefsStore, type ChannelNotifyMode } from '../stores';

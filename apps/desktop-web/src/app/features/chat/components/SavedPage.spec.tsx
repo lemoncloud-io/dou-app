@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat, DomainPlace } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainPlace } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
@@ -23,8 +23,8 @@ const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainCha
 });
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheRead, getChat, observeList } }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),
@@ -33,8 +33,8 @@ vi.mock('@chatic/runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ userName: 'Me', photo: '' }),
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { warn: vi.fn() } }));
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
     useChatMutations: () => ({ sendMessage: vi.fn(), retryMessage: vi.fn(), discardMessage: vi.fn() }),

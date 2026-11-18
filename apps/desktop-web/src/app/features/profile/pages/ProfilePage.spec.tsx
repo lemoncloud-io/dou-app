@@ -21,16 +21,16 @@ const currentPlace = vi.hoisted(() => ({ value: { placeName: 'Lemon', placeId: '
 const placeRead = vi.hoisted(() => ({
     load: vi.fn<() => Promise<{ nick?: string; thumbnail?: string } | null>>(),
 }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'u1' }),
             useRuntimeProfile: () => session.profile,
             getActiveSessionUser: () => session.activeUser,
             getRelaySessionUser: () => session.relayUser,
         },
-    },
-}));
+    })
+);
 const socialStart = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
     AppleIcon: () => null,

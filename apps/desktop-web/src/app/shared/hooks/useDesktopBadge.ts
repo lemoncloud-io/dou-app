@@ -1,7 +1,7 @@
+import { runtime } from '@chatic/runtime';
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
 
 /**
  * Render a small unread-count badge to a PNG data URL. Windows has no dock badge,
@@ -38,7 +38,7 @@ const renderBadgePng = (count: number): string | undefined => {
  */
 export const useDesktopBadge = (count: number): void => {
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
         void webClient
             .request({ type: 'SetBadgeCount', data: { count, overlayIconDataUrl: renderBadgePng(count) } })
             .catch(() => undefined);

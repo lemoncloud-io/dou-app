@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 /**
  * Order two chats oldest→newest by chatNo. chatNo is a 1-based sequence; an

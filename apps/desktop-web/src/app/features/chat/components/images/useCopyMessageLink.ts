@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/runtime';
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { buildMessageLink } from '../../utils/messageLink';

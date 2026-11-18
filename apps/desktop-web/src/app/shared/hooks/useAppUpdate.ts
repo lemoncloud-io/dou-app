@@ -1,7 +1,7 @@
+import { runtime } from '@chatic/runtime';
 import { useCallback, useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
 
 import { useUpdateStore } from '../stores';
 
@@ -16,7 +16,7 @@ export const useAppUpdate = () => {
     const set = useUpdateStore(s => s.set);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
         return webClient.onEvent('OnUpdateStatus', message => {
             const data = message.data;
             if (!data) return;

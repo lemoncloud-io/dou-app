@@ -24,8 +24,8 @@ const {
 
 vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: loginGuest }),
@@ -42,17 +42,15 @@ vi.mock('@chatic/runtime', () => ({
             getAcceptorId: () => 'account-1',
             withAcceptor: (_: unknown, id: string) => [id],
         },
-    },
-}));
-vi.mock('@chatic/config', () => ({
-    config: {
-        get: (key: string) =>
-            ({
-                'net.relay.backend': 'https://api.eureka.codes/dou-d1',
-                'net.admin.backend': 'https://api.eureka.codes/d1',
-            })[key],
-    },
-}));
+        settings: {
+            get: (key: string) =>
+                ({
+                    'net.relay.backend': 'https://api.eureka.codes/dou-d1',
+                    'net.admin.backend': 'https://api.eureka.codes/d1',
+                })[key],
+        },
+    })
+);
 
 import { useJoinedCloudsStore } from '../../../shared/stores';
 

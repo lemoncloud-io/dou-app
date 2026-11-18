@@ -1,4 +1,4 @@
-import { isEventChat, type DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/runtime';
 
 import { messagePreview } from './messagePreview';
 import { chatSenderName } from './senderName';

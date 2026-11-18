@@ -8,15 +8,15 @@ let canOpenSelf = true;
 const startDm = vi.fn();
 const openSelf = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me-account' }),
             useGlobalSession: () => ({ cloud: { cloudId: 'cloud-1' } }),
             useUidInCloud: () => 'me-cloud',
         },
-    },
-}));
+    })
+);
 vi.mock('../hooks', () => ({
     useUser: () => user,
     useDisplayProfile: (_id: string, name: string, thumbnail?: string) => ({ name, thumbnail }),

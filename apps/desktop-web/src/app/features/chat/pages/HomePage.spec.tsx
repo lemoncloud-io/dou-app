@@ -14,7 +14,7 @@ const { switchCalls, sessionState, socketState } = vi.hoisted(() => ({
     socketState: { isVerified: true },
 }));
 
-vi.mock('@chatic/runtime', () => {
+vi.mock('@chatic/runtime', async () => {
     const useSiteSwitch = () => {
         const [pending, setPending] = useState(false);
         const switchSite = useCallback(async (siteId: string) => {
@@ -31,20 +31,18 @@ vi.mock('@chatic/runtime', () => {
         }, []);
         return { switchSite, isSwitching: pending };
     };
-    return {
-        runtime: {
-            session: {
-                useSiteSwitch,
-                useSessionSelection: () => ({ selectedSiteId: sessionState.selectedSiteId }),
-                useRuntimeProfile: () => ({ isGuest: false, isCloudActive: true }),
-                useSessionIdentity: () => ({ userId: 'u1' }),
-            },
-            connection: {
-                useRuntimeSocketState: () => ({ isVerified: socketState.isVerified }),
-                waitUntilVerified: async () => true,
-            },
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        session: {
+            useSiteSwitch,
+            useSessionSelection: () => ({ selectedSiteId: sessionState.selectedSiteId }),
+            useRuntimeProfile: () => ({ isGuest: false, isCloudActive: true }),
+            useSessionIdentity: () => ({ userId: 'u1' }),
         },
-    };
+        connection: {
+            useRuntimeSocketState: () => ({ isVerified: socketState.isVerified }),
+            waitUntilVerified: async () => true,
+        },
+    });
 });
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: vi.fn(), useToast: () => ({ toast: vi.fn() }) }));

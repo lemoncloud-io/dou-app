@@ -3,7 +3,6 @@ import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavig
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
-import { host } from '@chatic/host';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
@@ -52,7 +51,7 @@ const NotificationOpenListener = () => {
     useEffect(() => {
         // Notification taps, and the menu bar's links that ride the same event, arrive only where the
         // `push` port says the app delivers them.
-        if (host.ports.push.kind !== 'shell') return;
+        if (runtime.push.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;

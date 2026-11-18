@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 import { useSendInviteStore } from '../../channels';
 import type * as Shared from '@chatic/shared';
 import type * as Channels from '../../channels';
@@ -31,8 +31,8 @@ const menu = vi.hoisted(() => ({
 }));
 // The relay user decides the invite entry: the relay issues invites to signed-in accounts only.
 const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
@@ -45,8 +45,8 @@ vi.mock('@chatic/runtime', () => ({
                 join: { readChat: (input: unknown) => Promise.resolve({ delivered: menu.readInCloud(cid, input) }) },
             }),
         },
-    },
-}));
+    })
+);
 vi.mock('../../channels', async () => {
     const actual = await vi.importActual<typeof Channels>('../../channels');
     return {

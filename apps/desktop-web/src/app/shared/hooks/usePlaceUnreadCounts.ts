@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
+import type { DomainChannel, DomainChannelListPayload } from '@chatic/runtime';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 

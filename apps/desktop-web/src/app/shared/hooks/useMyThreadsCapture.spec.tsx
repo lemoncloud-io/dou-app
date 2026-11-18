@@ -16,8 +16,8 @@ const otherCloudRepositories = {
     channel: { cacheReadList: vi.fn().mockResolvedValue({ list: [] }) },
 };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),
             // The inbox reads my names to tell a reply that is also a mention.
@@ -35,8 +35,8 @@ vi.mock('@chatic/runtime', () => ({
                       }
                     : otherCloudRepositories,
         },
-    },
-}));
+    })
+);
 
 const warn = vi.fn();
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));

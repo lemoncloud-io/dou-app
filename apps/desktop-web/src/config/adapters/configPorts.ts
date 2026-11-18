@@ -22,7 +22,7 @@ const read = (name: string): string | undefined => {
 
 /**
  * The ports `config.init()` is called with. The two storage ports are the app's web stores, built by
- * `resolveStorageStores()` in `main.tsx` like every other store; the config lib takes them in the DOM
+ * `resolveStorageStores()` (`./stores.ts`) like every other store; the config lib takes them in the DOM
  * `Storage` shape because it imports nothing.
  */
 export const createWebConfigPorts = (stores: {

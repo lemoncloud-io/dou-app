@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 /**
  * Which channel the home screen selects when its channel list changes.

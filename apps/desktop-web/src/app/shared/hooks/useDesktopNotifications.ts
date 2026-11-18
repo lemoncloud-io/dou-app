@@ -2,10 +2,9 @@ import { useEffect, useRef } from 'react';
 
 import i18next from 'i18next';
 
-import type { DomainChannel, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
-import { host } from '@chatic/host';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
@@ -86,7 +85,7 @@ export const useDesktopNotifications = (): void => {
         // No-op unless the `push` port says the app delivers notifications (the Desktop Shell) — the
         // renderer must never raise an OS banner in a plain browser (webClient would
         // NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
-        if (host.ports.push.kind !== 'shell') return;
+        if (runtime.push.kind !== 'shell') return;
 
         // The channel watermark gives us the latest message (chat content streams only for the
         // focused room in v2, so background notifications ride the channel record instead).

@@ -8,14 +8,14 @@ const completeFromHandoff = vi.fn();
 
 // Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs.
 // Who signs a person in, as the host's `signIn` port says.
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: native ? 'shell' : 'browser', os: null } };
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        settings: { get: () => 'chatic-dev' },
+        get signIn() {
+            return { kind: native ? 'shell' : 'browser', os: null };
         },
-    },
-}));
-vi.mock('@chatic/config', () => ({ config: { get: () => 'chatic-dev' } }));
+    })
+);
 vi.mock('../hooks', () => ({
     useSocialLogin: () => ({ completeFromHandoff, isError }),
 }));

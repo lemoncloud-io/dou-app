@@ -15,8 +15,8 @@ const env = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionLogout: () => env.logout,
             usePairedCloudCheck: (onEnded: (cloudId: string) => void) => {
@@ -24,8 +24,8 @@ vi.mock('@chatic/runtime', () => ({
                 return { check: env.check };
             },
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (...args: unknown[]) => env.toast(...args) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../shared', () => ({ useAccountResetOnLogout: () => ({ resetAccount: env.resetAccount }) }));

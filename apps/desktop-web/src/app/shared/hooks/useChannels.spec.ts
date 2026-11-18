@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { ACCOUNT_CHANNEL_SID } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID } from '@chatic/runtime';
 
 type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string; memberIds?: string[] };
 
@@ -19,13 +19,13 @@ const observeList = vi.fn((_query: { sid: string }, onChange: (result: { list: R
 // identity-stable too — a fresh object per render would resubscribe on every state change.
 const repositories = { channel: { observeList } };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: { useSessionIdentity: () => ({ userId: 'me' }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
-    },
-}));
+    })
+);
 vi.mock('./useChannelReadCursors', () => ({ useChannelReadCursors: () => ({}) }));
 
 let placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };

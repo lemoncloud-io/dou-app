@@ -1,10 +1,10 @@
+import { runtime } from '@chatic/runtime';
 import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
 
 import { webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
 
 /**
  * What the chip renders — a view model, not the wire contract. The shell sends
@@ -81,8 +81,8 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);
 
     useEffect(() => {
-        // Only the app reads a link's preview, where it takes the page's links (`host.ports.links`).
-        if (host.ports.links.kind !== 'shell') return;
+        // Only the app reads a link's preview, where it takes the page's links (`runtime.links`).
+        if (runtime.links.kind !== 'shell') return;
         let active = true;
         void requestMetadata(url).then(result => {
             if (active) setMeta(result);
@@ -92,7 +92,7 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
         };
     }, [url]);
 
-    if (host.ports.links.kind !== 'shell') return null;
+    if (runtime.links.kind !== 'shell') return null;
 
     // The chip used to pop in at full height the moment the shell answered, pushing
     // the text below it down under a reader who was mid-sentence. It now opens from

@@ -9,16 +9,16 @@ const mockRepositories = { profile: { setMyProfile: mockSetMyProfile, getMyProfi
 let mockSelectedSiteId: string | null = 'place-a';
 
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => mockRepositories,
         },
         session: {
             useSessionSelection: () => ({ selectedSiteId: mockSelectedSiteId }),
         },
-    },
-}));
+    })
+);
 
 import { useMyProfile } from './useMyProfile';
 

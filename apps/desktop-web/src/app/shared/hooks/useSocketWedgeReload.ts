@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
-import { host } from '@chatic/host';
 import { tabStore } from '../../storage';
 
 // After a long sleep the cloud token refresh 400s and the socket sticks at
@@ -39,7 +38,7 @@ export const useSocketWedgeReload = (): void => {
     const hasVerifiedRef = useRef(false);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
 
         if (isVerified) {
             hasVerifiedRef.current = true;

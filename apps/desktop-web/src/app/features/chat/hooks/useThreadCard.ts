@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
-import { isEventChat, isInJoinWindow, type DomainChat } from '@chatic/data';
+import { runtime, isEventChat, isInJoinWindow, type DomainChat } from '@chatic/runtime';
 
 import { classifyWireError, extractErrorMessage, isNotifiableChat, threadRootNo } from '../../../shared';
 

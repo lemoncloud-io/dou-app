@@ -14,19 +14,11 @@ const session = vi.hoisted(() => ({
     signOutGuest: vi.fn(),
 }));
 
-// Who signs a person in, as the host's `signIn` port says.
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: 'shell', os: null } };
-        },
-    },
-}));
 vi.mock('@chatic/bridges', () => ({
     logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
 }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 auth: {
@@ -43,13 +35,15 @@ vi.mock('@chatic/runtime', () => ({
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: session.loginGuest }),
         },
-    },
-}));
+        settings: {
+            get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined),
+        },
+        // Who signs a person in, as the host's `signIn` port says.
+        signIn: { kind: 'shell', os: null },
+    })
+);
 vi.mock('./useSignOutGuest', () => ({ useSignOutGuest: () => session.signOutGuest }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: session.toast }));
-vi.mock('@chatic/config', () => ({
-    config: { get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined) },
-}));
 
 import i18n from '../../../../i18n';
 import { WebStore } from '@chatic/storage';

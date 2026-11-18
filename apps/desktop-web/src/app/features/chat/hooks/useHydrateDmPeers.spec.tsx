@@ -7,12 +7,12 @@ const cacheRead = vi.fn((id: string) => Promise.resolve(state.cached[id] ?? null
 const syncChannelUsers = vi.fn((_query: unknown) => Promise.resolve());
 const warn = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ user: { cacheRead, syncChannelUsers } }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.verified }) },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 vi.mock('../../../shared', async () => await vi.importActual<object>('../../../shared/utils/displayName'));
 

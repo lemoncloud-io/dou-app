@@ -13,7 +13,7 @@ const cache = vi.hoisted(() => ({
     getMyProfile: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', () => {
+vi.mock('@chatic/runtime', async () => {
     const emit = () => cache.listeners.forEach(listener => listener({ list: [...cache.rows] }));
     cache.getMyProfile.mockImplementation(async () => {
         const row = { uid: 'me', sid: 'S1', nick: 'Captain', thumbnail: 'place.png' };
@@ -32,13 +32,11 @@ vi.mock('@chatic/runtime', () => {
             getMyProfile: cache.getMyProfile,
         },
     };
-    return {
-        runtime: {
-            data: { useRuntimeRepositories: () => repositories },
-            connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
-            session: { useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }) },
-        },
-    };
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repositories },
+        connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
+        session: { useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }) },
+    });
 });
 
 import { useDisplayProfile, useSiteProfiles } from './useSiteProfiles';

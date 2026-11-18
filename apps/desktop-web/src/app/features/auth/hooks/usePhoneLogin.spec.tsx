@@ -15,8 +15,8 @@ const rt = vi.hoisted(() => ({
 const ui = vi.hoisted(() => ({ language: 'en' }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: ui.language } }) }));
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: rt.error, warn: vi.fn() } }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'relay',
             waitUntilVerified: rt.waitUntilVerified,
@@ -37,8 +37,8 @@ vi.mock('@chatic/runtime', () => ({
             PHONE_LOGIN_NO_TOKEN: 'PHONE_LOGIN_NO_TOKEN',
             PHONE_LOGIN_SWITCH_FAILED: 'PHONE_LOGIN_SWITCH_FAILED',
         },
-    },
-}));
+    })
+);
 
 import { PHONE_CODE_LENGTH, PHONE_RESEND_COOLDOWN_MS, usePhoneLogin } from './usePhoneLogin';
 

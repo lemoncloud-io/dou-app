@@ -35,8 +35,8 @@ const env = vi.hoisted(() => {
     };
 });
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionAuth: () => ({
                 isAuthenticated: useSyncExternalStore(env.auth.subscribe, env.auth.get, env.auth.get),
@@ -49,8 +49,8 @@ vi.mock('@chatic/runtime', () => ({
             },
             pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'macos' }),
         },
-    },
-}));
+    })
+);
 vi.mock('qrcode.react', () => ({
     QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="pairing-qr" data-value={value} />,
 }));

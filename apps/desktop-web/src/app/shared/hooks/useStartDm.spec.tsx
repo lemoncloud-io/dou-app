@@ -14,8 +14,8 @@ const syncMeta = { getSyncedAt: vi.fn(), setSyncedAt: vi.fn() };
 const warn = vi.fn();
 const repositories = { channel: { startDm, getSelfChannel, syncChannels }, syncMeta };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
@@ -24,8 +24,8 @@ vi.mock('@chatic/runtime', () => ({
             SWITCH_SITE_MUTATION_KEY: ['switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: (...args: unknown[]) => warn(...args) } }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));

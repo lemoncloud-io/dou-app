@@ -106,7 +106,7 @@ snapshot names nobody, and a nameless 1:1 falls back to "New message".
 
 A push names its source cloud in `cid`. A message on the relay — the Home tile — carries `#` there
 instead of a cloud id, and every reader of the push turns it into the relay's own id, `default`, before
-using it: `pushCloudIdOf` from `@chatic/data`, the same function apps/web reads its pushes through.
+using it: `pushCloudIdOf` from `@chatic/runtime`, the same function apps/web reads its pushes through.
 Read raw, `#` matched no cloud, so a click on the toast or banner switched to a cloud named `#` and
 failed with "cloud not found", even on the relay.
 

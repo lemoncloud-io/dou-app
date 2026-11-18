@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainUser } from '@chatic/data';
+import type { DomainUser } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 
 /**

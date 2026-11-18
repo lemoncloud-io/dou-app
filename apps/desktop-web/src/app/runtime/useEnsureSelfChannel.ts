@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { RELAY_CLOUD_ID } from '@chatic/data';
-import { runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 /**

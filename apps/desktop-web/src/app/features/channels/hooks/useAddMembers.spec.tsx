@@ -10,13 +10,13 @@ const inviteChannel = vi.fn(() => Promise.resolve({}));
 // The runtime returns a singleton repository bundle — keep the mock identity-stable.
 const repositories = { user: { cacheWriteMany } };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },
-    },
-}));
+    })
+);
 vi.mock('../../../shared', () => ({
     useDesktopChannelMutations: () => ({ inviteChannel, isMutating: false }),
 }));

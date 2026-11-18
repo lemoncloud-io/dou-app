@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { RELAY_CLOUD_ID, type ChatMentionBody, type DomainChannel, type DomainChat } from '@chatic/data';
+import { RELAY_CLOUD_ID, type ChatMentionBody, type DomainChannel, type DomainChat } from '@chatic/runtime';
 
 import {
     chatSenderName,

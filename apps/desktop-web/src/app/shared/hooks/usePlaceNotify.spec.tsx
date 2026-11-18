@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook as renderBareHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 // The channel-write hook it uses reads the app's switch mutations, so it needs the query client.
 const renderHook = <T,>(hook: () => T) =>
@@ -15,8 +15,8 @@ const renderHook = <T,>(hook: () => T) =>
 
 const updateJoin = vi.fn(async (_payload: unknown) => ({}));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: {},
@@ -27,8 +27,8 @@ vi.mock('@chatic/runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId: 'c1', selectedSiteId: 'p1' }),
             useSessionIdentity: () => ({ userId: 'me' }),
         },
-    },
-}));
+    })
+);
 
 const listed = vi.hoisted(() => ({ channels: [] as DomainChannel[] }));
 vi.mock('./useChannels', () => ({ useChannels: () => ({ channels: listed.channels, isLoading: false }) }));

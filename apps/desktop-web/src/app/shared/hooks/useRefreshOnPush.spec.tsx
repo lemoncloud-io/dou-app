@@ -27,13 +27,13 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
         connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) },
-    },
-}));
+    })
+);
 
 import { webClient } from '@chatic/bridges';
 

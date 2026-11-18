@@ -2,8 +2,6 @@ import { useMutation } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
 
 /**
  * Whether this device accepts push notifications, and the writer that changes it.
@@ -30,8 +28,8 @@ import { useConfigValue } from '@chatic/config/react';
  */
 export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();
-    const pushMuted = useConfigValue<boolean>('ui.pushMuted') ?? false;
-    const setPushMuted = (value: boolean) => config.set('ui.pushMuted', value, { lane: 'local' });
+    const pushMuted = runtime.settings.useConfigValue<boolean>('ui.pushMuted') ?? false;
+    const setPushMuted = (value: boolean) => runtime.settings.set('ui.pushMuted', value, { lane: 'local' });
 
     // Shell globals are injected before the app boots, so the profile's boot value is stable.
     const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;

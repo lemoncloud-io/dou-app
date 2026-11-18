@@ -10,14 +10,14 @@ const state = vi.hoisted(() => ({
     signOutGuest: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getIdentityContext: () => ({ isAuthenticated: state.isAuthenticated }),
             getRelaySessionUser: () => state.user,
         },
-    },
-}));
+    })
+);
 vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => state.signOutGuest }));
 vi.mock('../hooks/usePhoneLogin', () => ({
     PHONE_CODE_LENGTH: 6,

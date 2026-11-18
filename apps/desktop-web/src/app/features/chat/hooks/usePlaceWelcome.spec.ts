@@ -1,14 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { useSiteProfilesStore, useWelcomeStore, welcomeKey } from '../../../shared';
 import { usePlaceWelcome } from './usePlaceWelcome';
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: { session: { useSessionIdentity: () => ({ userId: 'me' }) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        session: { useSessionIdentity: () => ({ userId: 'me' }) },
+    })
+);
 
 const channel = (over: Partial<DomainChannel>) =>
     ({ id: 'c', name: 'general', stereo: 'public', ...over }) as DomainChannel;

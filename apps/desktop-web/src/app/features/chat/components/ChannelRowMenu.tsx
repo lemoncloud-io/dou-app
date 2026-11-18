@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, CheckCheck, LogOut, MailPlus, Pencil, SlidersHorizontal, Star, Trash2, UserPlus } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
-import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 import {
     ContextMenu,
     ContextMenuContent,

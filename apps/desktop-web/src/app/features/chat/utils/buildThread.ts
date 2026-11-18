@@ -1,4 +1,4 @@
-import { isEventChat, type DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/runtime';
 
 import { compareByChatNo } from '../../../shared/utils/chatSort';
 

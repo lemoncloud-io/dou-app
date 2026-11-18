@@ -17,8 +17,8 @@ const env = vi.hoisted(() => ({
     revokePairing: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         connection: { RELAY_SLOT: 'relay', useSlotVerified: () => true },
         session: {
             useSessionAuth: () => ({ isAuthenticated: true }),
@@ -33,8 +33,8 @@ vi.mock('@chatic/runtime', () => ({
                 pairing: { listPairings: env.listPairings, revokePairing: env.revokePairing },
             }),
         },
-    },
-}));
+    })
+);
 vi.mock('../utils/devicePairing', () => ({
     isDevicePairingEnabled: () => env.enabled,
     canApprovePairing: () => env.canApprove,

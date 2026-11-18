@@ -1,4 +1,4 @@
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 
 /**
  * The place to move the session into when the one it has selected is not in the list: it was

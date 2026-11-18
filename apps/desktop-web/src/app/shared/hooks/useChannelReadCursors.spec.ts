@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 const session = vi.hoisted(() => ({ uids: {} as Record<string, string | null>, verifiedSlots: new Set<string>() }));
 const registerSyncTarget = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ join: { observeList: () => () => undefined } }) },
         connection: {
             useCloudVerified: (cid: string) => session.verifiedSlots.has(cid),
@@ -18,8 +18,8 @@ vi.mock('@chatic/runtime', () => ({
             useUidInCloud: (cid: string) => session.uids[cid] ?? null,
         },
         sync: { registerSyncTarget: (...args: unknown[]) => registerSyncTarget(...args) },
-    },
-}));
+    })
+);
 
 import { useChannelReadCursors } from './useChannelReadCursors';
 

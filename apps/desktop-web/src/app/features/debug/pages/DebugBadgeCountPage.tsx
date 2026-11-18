@@ -1,7 +1,7 @@
+import { runtime } from '@chatic/runtime';
 import { useState } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const nowLabel = (): string => new Date().toLocaleTimeString();
@@ -13,7 +13,7 @@ const nowLabel = (): string => new Date().toLocaleTimeString();
 export const DebugBadgeCountPage = () => {
     const [count, setCount] = useState('5');
     const [log, setLog] = useState<string[]>([]);
-    const native = host.ports.appShell.kind === 'shell';
+    const native = runtime.appShell.kind === 'shell';
 
     const push = (message: string) => setLog(prev => [`[${nowLabel()}] ${message}`, ...prev].slice(0, 30));
 

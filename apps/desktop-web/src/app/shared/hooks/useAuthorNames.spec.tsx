@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 type Listener = (user: { id: string; name?: string } | null) => void;
 const listeners = vi.hoisted(() => new Map<string, Listener[]>());
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 user: {
@@ -16,8 +16,8 @@ vi.mock('@chatic/runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 
 import { useAuthorNames } from './useAuthorNames';
 

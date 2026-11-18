@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-import type { DomainCloud } from '@chatic/data';
+import type { DomainCloud } from '@chatic/runtime';
 
 const catalog = vi.hoisted(() => ({
     clouds: [] as DomainCloud[],
@@ -41,29 +41,27 @@ const pairing = vi.hoisted(() => ({ enabled: false, standing: [] as unknown[], r
 vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairing.enabled }));
 vi.mock('@chatic/runtime', async () => {
     const { useState } = await import('react');
-    return {
-        runtime: {
-            session: {
-                useSessionSelection: () => ({ selectedCloudId: 'c1' }),
-                useSessionLogout: () => logout,
-                // The pairing-aware logout, reduced to its contract: a confirm while approvals stand.
-                usePairingAwareLogout: (onLogout: () => void) => {
-                    const [pending, setPending] = useState<unknown[] | null>(null);
-                    return {
-                        start: async () => (pairing.standing.length ? setPending(pairing.standing) : onLogout()),
-                        pending,
-                        confirm: async () => {
-                            pairing.revoke();
-                            setPending(null);
-                            onLogout();
-                        },
-                        cancel: () => setPending(null),
-                        busy: false,
-                    };
-                },
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: 'c1' }),
+            useSessionLogout: () => logout,
+            // The pairing-aware logout, reduced to its contract: a confirm while approvals stand.
+            usePairingAwareLogout: (onLogout: () => void) => {
+                const [pending, setPending] = useState<unknown[] | null>(null);
+                return {
+                    start: async () => (pairing.standing.length ? setPending(pairing.standing) : onLogout()),
+                    pending,
+                    confirm: async () => {
+                        pairing.revoke();
+                        setPending(null);
+                        onLogout();
+                    },
+                    cancel: () => setPending(null),
+                    busy: false,
+                };
             },
         },
-    };
+    });
 });
 
 const toast = vi.hoisted(() => vi.fn());

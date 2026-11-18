@@ -1,6 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
-import { RELAY_CLOUD_ID, type DomainChat } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID, type DomainChat } from '@chatic/runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import {

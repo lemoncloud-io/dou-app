@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Hash, Search, User } from 'lucide-react';
 import { create } from 'zustand';
 
-import { runtime } from '@chatic/runtime';
-import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
-import { xhrPut } from '@chatic/runtime-web';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { pageUploadPut } from '../../../../../config/upload';
 import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';
 import { channelKind, toastFailure, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../../shared';
@@ -177,7 +176,7 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
     const { sendImages } = runtime.data.useSendImages({
         cid: job.cid,
         channelId: job.channelId,
-        put: xhrPut,
+        put: pageUploadPut,
         attach: false,
     });
     useEffect(() => {

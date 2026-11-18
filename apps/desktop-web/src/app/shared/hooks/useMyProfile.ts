@@ -4,7 +4,7 @@ import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 /**
  * My Place Profile (current place) — load the editable setting and save it.

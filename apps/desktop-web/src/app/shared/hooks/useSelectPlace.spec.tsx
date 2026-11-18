@@ -14,14 +14,14 @@ import { act, renderHook } from '@testing-library/react';
  */
 const switchSite = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSiteSwitch: () => ({ switchSite, isSwitching: false }),
             useSessionSelection: () => ({ selectedSiteId: 'site-1' }),
         },
-    },
-}));
+    })
+);
 
 import { useSelectPlace } from './useSelectPlace';
 

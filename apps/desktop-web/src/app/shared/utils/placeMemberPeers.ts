@@ -1,4 +1,4 @@
-import { isCloudDm, type DomainChannel } from '@chatic/data';
+import { isCloudDm, type DomainChannel } from '@chatic/runtime';
 
 import { dmCounterpartId } from './dmDisplay';
 

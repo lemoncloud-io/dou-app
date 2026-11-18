@@ -43,8 +43,8 @@ const repositories = {
     },
 };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },
@@ -59,8 +59,8 @@ vi.mock('@chatic/runtime', () => ({
             SWITCH_SITE_MUTATION_KEY: ['switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
-    },
-}));
+    })
+);
 vi.mock('@tanstack/react-query', () => ({
     useIsMutating: ({ mutationKey }: { mutationKey: string[] }) => (mutationKey[0] === 'switch-site' ? switching : 0),
 }));

@@ -16,8 +16,8 @@ const mockCheck = vi.fn();
 const mockGuard = vi.fn(() => ({ check: mockCheck }));
 const mockSlotVerified = vi.fn(() => true);
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
         },
@@ -25,8 +25,8 @@ vi.mock('@chatic/runtime', () => ({
             RELAY_SLOT: 'default',
             useSlotVerified: (...args: unknown[]) => mockSlotVerified(...(args as [])),
         },
-    },
-}));
+    })
+);
 
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 

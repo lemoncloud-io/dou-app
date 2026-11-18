@@ -15,22 +15,17 @@ vi.mock('@chatic/bridges', () => ({
     webClient: { onEvent: vi.fn(() => () => undefined) },
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { push: { kind: isNativeShell ? 'shell' : 'browser' } };
-        },
-    },
-}));
-
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),
             useRuntimeRepositories: () => ({ cloud: cloudRepository }),
         },
-    },
-}));
+        get push() {
+            return { kind: isNativeShell ? 'shell' : 'browser' };
+        },
+    })
+);
 
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: ownedClouds }),

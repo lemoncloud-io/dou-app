@@ -5,15 +5,15 @@ const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 
 const repositories = { channel: { syncChannels } };
 // Every cloud gives the account its own uid; the relay's is the one it keeps everywhere.
 const ids = { session: 'u1', relay: 'u1' as string | null };
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: ids.session }),
             useUidInCloud: (cid: string) => (cid === 'default' ? ids.relay : null),
         },
         data: { useRuntimeRepositories: () => repositories },
-    },
-}));
+    })
+);
 
 import { useOnboardingStore } from '../stores';
 import { OnboardingDialog, SELF_CHANNEL_WAIT_MS } from './OnboardingDialog';

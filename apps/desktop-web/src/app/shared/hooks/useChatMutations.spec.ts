@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import type * as ChatOutboxModule from './useChatOutbox';
 
@@ -11,16 +11,16 @@ const cloudCacheDelete = vi.fn();
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheDelete: cloudCacheDelete } }));
 const outboxRemove = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             // The app graph, which follows the selection. Send, retry and discard must not go through it.
             useRuntimeRepositories: () => ({ chat: { sendChat: vi.fn(), cacheDelete: vi.fn() } }),
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),
             sendChatInCloud: (cid: string, payload: unknown) => sendChatInCloud(cid, payload),
         },
-    },
-}));
+    })
+);
 vi.mock('./useChatOutbox', async () => ({
     ...(await vi.importActual<typeof ChatOutboxModule>('./useChatOutbox')),
     getChatOutbox: () => ({ remove: outboxRemove }),

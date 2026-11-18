@@ -4,7 +4,7 @@ import type { TFunction } from 'i18next';
 
 import { Plus, Search } from 'lucide-react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { formatListTime, Skeleton } from '../../../../shared';
 import { threadRootId } from '../../utils';

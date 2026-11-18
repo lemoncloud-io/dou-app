@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 
 import { isChannelOwner } from '../../channels';

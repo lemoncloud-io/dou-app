@@ -18,15 +18,15 @@ vi.mock('@chatic/bridges', () => ({
     },
 }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useGlobalSession: () => ({ activeServer }),
             getGlobalSessionContext: () => ({ activeServer }),
         },
         connection: { useRuntimeSocketState: () => ({ isVerified }) },
-    },
-}));
+    })
+);
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),

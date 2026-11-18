@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { classifyWireError, extractErrorMessage } from '../../../shared';
 

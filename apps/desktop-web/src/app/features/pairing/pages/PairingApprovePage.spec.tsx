@@ -16,8 +16,8 @@ const env = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         connection: { RELAY_SLOT: 'relay', useSlotVerified: () => true },
         session: {
             useSessionAuth: () => ({ isAuthenticated: true }),
@@ -35,8 +35,8 @@ vi.mock('@chatic/runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 vi.mock('../utils/devicePairing', () => ({ canApprovePairing: () => env.canApprove }));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),

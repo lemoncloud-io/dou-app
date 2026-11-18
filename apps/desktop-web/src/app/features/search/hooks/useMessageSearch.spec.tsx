@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 
 import { useMessageSearch } from './useMessageSearch';
 
@@ -16,9 +16,11 @@ const repositories = {
     chat: { cacheReadList: vi.fn(async (): Promise<{ list: DomainChat[] }> => ({ list: cached })) },
 };
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => repositories } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repositories },
+    })
+);
 
 const channels = [{ id: 'C1', name: 'general' } as DomainChannel];
 

@@ -1,4 +1,4 @@
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 import { applyChannelOrder } from '@chatic/shared';
 
 import type { RailCloud } from '../../../shared';

@@ -12,9 +12,11 @@ const useSendImages = vi.fn((_input: unknown) => ({
     canRetry: canRetryImages,
     discard: discardImages,
 }));
-vi.mock('@chatic/runtime', () => ({
-    runtime: { data: { useSendImages: (input: unknown) => useSendImages(input) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useSendImages: (input: unknown) => useSendImages(input) },
+    })
+);
 
 const sendMessage = vi.fn();
 const retryMessage = vi.fn();
@@ -27,9 +29,9 @@ const toast = vi.fn();
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
-import { type DomainChat } from '@chatic/data';
-import { xhrPut } from '@chatic/runtime-web';
+import { type DomainChat } from '@chatic/runtime';
 
+import { pageUploadPut } from '../../../../config/upload';
 import { useComposerSend } from './useComposerSend';
 
 const picked = () => [new File(['a'], 'a.png', { type: 'image/png' })];
@@ -48,7 +50,7 @@ describe('useComposerSend', () => {
             cid: 'cloud-a',
             channelId: 'ch-1',
             parentId: 'root-1',
-            put: xhrPut,
+            put: pageUploadPut,
         });
     });
 

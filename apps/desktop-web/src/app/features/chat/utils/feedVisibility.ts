@@ -1,4 +1,4 @@
-import { isEventChat, type DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/runtime';
 
 /**
  * Whether a chat belongs in the main channel feed.
