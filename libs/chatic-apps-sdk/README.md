@@ -505,7 +505,7 @@ the typed methods must be exactly what the whitelist opens, permission by permis
 (and its embedded views, four levels deep)
 field must match the app's in name, optionality and type. That test compiles itself, because neither
 its transform nor CI type checks the app; dropping or retyping a field of an app row fails it. The protocol it speaks is specified in
-[sub-webview-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/sub-webview-protocol.md).
+[mini-app-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/mini-app-protocol.md).
 
 ```bash
 npx jest --config libs/chatic-apps-sdk/jest.config.js

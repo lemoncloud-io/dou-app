@@ -7,7 +7,7 @@
 > `libs/bridge-messages` (`model/sub-webview.ts` — `SubWebViewOpenScope`, `MiniAppLaunchParams`,
 > `platform: 'desktop'`; `model/system.ts` — `subWebViewOpenScope`) · `libs/bridges` (`BRIDGE_VERSION`
 > 2.22.0) · `libs/chatic-apps-sdk` · `apps/desktop/src/main/subWebView/`, `src/preload/subWebView.ts`
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md);
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md);
 > the desktop behaviour is in [apps/desktop](../../apps/desktop/README.md)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > whose "only `*.apps.chatic.io`" and "nothing that identifies the user" this amends;

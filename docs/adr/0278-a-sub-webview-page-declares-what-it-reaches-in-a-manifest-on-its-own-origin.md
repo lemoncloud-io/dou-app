@@ -4,7 +4,7 @@
 > · Scope: `libs/bridge-messages` (`model/sub-webview.ts`, `model/haptic.ts`, `SubWebViewRequestType`) ·
 > `libs/bridges` (`BRIDGE_VERSION` 2.16.0) · `apps/mobile/src/app/services/subWebView/subWebViewManifest.ts`,
 > `subWebView/`, `features/subWebView/`, `bridge/hapticKinds.ts`, the native `Haptic` modules
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > which made content review the safeguard; [ADR-0277](./0277-the-sub-webview-page-protocol-is-specified-and-versioned-apart-from-the-bridge.md),
 > the protocol this extends

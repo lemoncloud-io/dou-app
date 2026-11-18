@@ -5,7 +5,7 @@
 > (`subWebViewStorage.ts`, `subWebViewStorageFile.ts`, `subBridgeHandlers.ts`) · `libs/chatic-apps-sdk`
 > (`apps.storage`)
 > · The rules are in [apps/mobile docs/webview/sub-webview.md](../../apps/mobile/docs/webview/sub-webview.md)
-> and the requests in [sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> and the requests in [mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0271](./0271-a-sub-webview-page-gets-a-key-per-origin-derived-from-the-device-id.md),
 > the user key, on the same terms; [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md),
 > the base set and the manifest

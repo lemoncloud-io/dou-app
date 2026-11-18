@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-05 · Implemented: `feat/sub-webview-no-title-bar`
 > · Scope: `apps/mobile/src/app/services/subWebView/subWebViewManifest.ts`, `features/subWebView/`
 > · `libs/bridge-messages` (`SubWebViewDisplay`) · `libs/chatic-apps-sdk` (guide and README)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md),
 > which made `standard` the default display and added `fullscreen`
 

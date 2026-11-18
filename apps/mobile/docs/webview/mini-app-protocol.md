@@ -1,18 +1,21 @@
-# The sub WebView protocol
+# The mini app protocol
 
 > `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.
 
-What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
+What a mini app — a page shown in the app's mini app view — and the shell say to each other, stated as
+rules. The shell
 side is this app; the page side is whatever runs on an allowlisted origin, normally through
 [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md), the library page authors use
 instead of speaking this protocol by hand. Both sides
 are held to this document: the SDK may hide it from authors, but it may not disagree with it.
 
-What the sub WebView is, where it may go and how it closes are in [sub-webview.md](./sub-webview.md).
-This document covers only the conversation.
+How the app builds that view, where it may go and how it closes are in [the view's own doc](./sub-webview.md).
+The app calls the view the sub WebView, and the message names below keep that name (`FinishSubWebView`,
+`window.ChaticSubWebView`); `chatic-apps-sdk` wraps them under mini app names, so a page built with it
+never meets them. This document covers only the conversation.
 
 The words **MUST**, **MUST NOT**, **SHOULD** and **MAY** are used in their usual sense: a page or a
 shell that breaks a MUST is wrong, one that ignores a SHOULD needs a reason.
