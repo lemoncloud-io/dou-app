@@ -2,7 +2,7 @@
 export type HeldModifier = 'mod' | 'alt';
 
 /** How long a modifier must stay down on its own before its hints show. */
-export const MODIFIER_HOLD_MS = 500;
+export const MODIFIER_HOLD_MS = 300;
 
 interface ModifierKeyEvent {
     key: string;

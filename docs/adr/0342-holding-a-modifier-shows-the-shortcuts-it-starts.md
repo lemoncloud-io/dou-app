@@ -15,11 +15,13 @@ with, is the natural moment to say so.
 
 ## Decision
 
-1. **Holding ⌘ (Ctrl off macOS) or ⌥ (Alt) on its own for half a second shows a line at the top of
-   the window** listing what that key starts. Letting go, pressing any other key, clicking, or the
-   window losing focus takes it away.
+1. **Holding ⌘ (Ctrl off macOS) or ⌥ (Alt) on its own for 300 ms shows a line at the top of the
+   window** listing what that key starts. Letting go, pressing any other key, clicking, or the window
+   losing focus takes it away.
 2. **The wait is the point.** ⌘ goes down on every ⌘C and ⌘K; a hint on each press would flash all
-   day. A reader who holds the key and waits is asking what it does.
+   day. A reader who holds the key and waits is asking what it does. The wait shipped at half a
+   second and was cut to 300 ms after first use: half a second read as the app being slow, and the
+   chord's second key, which cancels the line, usually comes sooner.
 3. **One line, not a badge on each control.** Most of the chords have nothing to badge: the clouds a
    digit picks are inside a closed menu, and Back and Forward have no button. ⌘/ on the line leads to
    the full sheet.
