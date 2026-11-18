@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-18] - No version updates
+
+### Documentation
+
+- (mobile) name the sdk's cloud data calls as the sdk now does, data and data.sendMessage
+- (mobile) name the protocol document for the mini app, mini-app-protocol.md
+- (mobile) restate the sub webview protocol as it stands, not in the order it grew
+
 ## [2026-11-18] - root@0.168.3, @chatic/desktop-web@0.60.3
 
 ### Bug Fixes
