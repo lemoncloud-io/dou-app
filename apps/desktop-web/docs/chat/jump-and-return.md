@@ -70,6 +70,31 @@ The feed sets its "at the bottom" state from the real scroll metrics after a jum
 fix, a page that arrived just after a landing tailed the reader down to the latest, away from the
 target.
 
+## The Back press
+
+The bar is not the only way back. A Back press takes the same route: Mod+[ (⌘[ on macOS, Ctrl+[
+elsewhere), the mouse's side back button, the three-finger trackpad swipe Electron reports as `left`,
+and Go → Back in the menu bar. It is still one level deep. A press with no bar showing does nothing on
+home, and there is no Forward.
+
+- **One press, two listeners.** Every input calls `pressBack`, which counts a press in
+  `useBackRequestStore` (`features/chat/stores/`). The router's `useBackNavigation`
+  (`features/chat/hooks/`) answers it on every page other than home by stepping back a page, or by
+  going home when the page was the first one shown. On home, `HomePage` answers it with the bar's own
+  action. "The first one shown" is read from the entry number React Router keeps in `history.state`
+  (`idx`), not from the location's key, which a reload keeps and a replace renews. Each listener
+  counts only the presses made after it mounted, so the press that brought the
+  reader home from Settings is not spent again on the jump return.
+- **The keyboard and the mouse are bound in the page.** Chromium hands the side button to the page on
+  every desktop OS, so the shell does nothing with it; answering it in both places would go back
+  twice. The swipe and the menu item exist only in the shell, which sends them as a `chatic-ui:back`
+  deeplink on the same event as its other menu links.
+- **Nothing happens while a dialog or menu is open.** Going back would move the page out from under
+  it; Escape closes it first.
+- **The swipe needs a macOS setting.** Electron reports it only when System Settings → Trackpad →
+  More Gestures → "Swipe between pages" is set to "Swipe with two or three fingers". The default
+  two-finger swipe scrolls, and no press arrives.
+
 ## Labels
 
 The bar, the Quick Switcher and search name rooms the way the sidebar does. See

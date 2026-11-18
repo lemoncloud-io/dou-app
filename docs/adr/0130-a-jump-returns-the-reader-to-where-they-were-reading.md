@@ -46,6 +46,9 @@ usually a detour ("check the evidence, then come back"). The return half did not
 
 ## Consequences
 
+- Back inputs (Mod+[, the mouse's back button, a trackpad swipe, Go → Back) reach this same single
+  return point on home; there is still no stack. Back on any other page is the router's own page
+  history, which is not this return point.
 - An origin in another cloud or place is offered without checking that its channel still exists.
   Going back to a removed channel lands in the place without it.
 - The position is written on every scroll frame. The store drops unchanged values, so it only notifies

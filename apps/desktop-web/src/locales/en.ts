@@ -1152,6 +1152,7 @@ export const en = {
     'shortcuts.navigate': 'Move focus between channels · Enter opens',
     'shortcuts.moveChannel': 'In the sidebar: move the focused channel up or down',
     'shortcuts.nextUnread': 'Outside the sidebar: go to the previous or next unread channel',
+    'shortcuts.back': 'Go back: to where a jump left from, or to the previous page',
     'shortcuts.send': 'Send · new line',
     'shortcuts.closePanel': 'Close panel / dialog',
     'shortcuts.help': 'Show this help',

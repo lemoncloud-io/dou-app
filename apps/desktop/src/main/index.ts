@@ -689,6 +689,17 @@ const buildAppMenu = (): Menu => {
             label: labels.go,
             submenu: [
                 {
+                    label: labels.back,
+                    accelerator: 'CommandOrControl+[',
+                    registerAccelerator: false,
+                    // Not through openInWeb: Back from a hidden window would raise it and move a page
+                    // the reader never saw, so it only acts on what is on screen.
+                    click: () => {
+                        if (mainHost && trayWindow?.isVisible()) pushDeeplink(mainHost, 'chatic-ui:back');
+                    },
+                },
+                { type: 'separator' },
+                {
                     label: labels.switcher,
                     accelerator: 'CommandOrControl+K',
                     registerAccelerator: false,
@@ -860,6 +871,14 @@ const createWindow = (): BrowserWindow => {
 
     // Stop the taskbar flash once the user looks at the window.
     win.on('focus', () => win.flashFrame(false));
+
+    // macOS three-finger swipe to the left is Back, the same press as Mod+[ (the page binds that
+    // key itself); there is no Forward for the other directions. Electron reports it only when
+    // "Swipe between pages" is set to "Swipe with two or three fingers": the default two-finger
+    // swipe scrolls and never arrives.
+    win.on('swipe', (_event, direction) => {
+        if (direction === 'left' && mainHost) pushDeeplink(mainHost, 'chatic-ui:back');
+    });
 
     // Close-to-tray: hide instead of destroy unless actually quitting.
     win.on('close', event => {
