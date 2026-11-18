@@ -13,10 +13,7 @@ const DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 
 const setup = () => {
     const storage = new SubWebViewStorage(memoryStorageFile());
-    const service = new SubWebViewService(
-        { warn: jest.fn(), error: jest.fn() } as any,
-        () => 'view-1'
-    );
+    const service = new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
     service.open({ url: 'https://foo.apps.chatic.io/' });
     const events: SubWebViewEvent[] = [];
     service.subscribe(event => events.push(event));
@@ -44,13 +41,13 @@ const setup = () => {
 };
 
 describe('createSubBridgeHandlers', () => {
-    describe('FinishSubWebView', () => {
+    describe('FinishMiniApp', () => {
         it('closes its own view as page, handing the result on', async () => {
             const { handlers, events } = setup();
 
-            const reply = await handlers.FinishSubWebView(message({ result: { ok: true } }));
+            const reply = await handlers.FinishMiniApp(message({ result: { ok: true } }));
 
-            expect(reply).toEqual({ type: 'OnFinishSubWebView', success: true, data: {} });
+            expect(reply).toEqual({ type: 'OnFinishMiniApp', success: true, data: {} });
             expect(events).toEqual([
                 { type: 'closed', viewId: 'view-1', reason: 'page', notifyHost: true, result: { ok: true } },
             ]);
@@ -59,7 +56,7 @@ describe('createSubBridgeHandlers', () => {
         it('closes with no result when the page gives none', async () => {
             const { handlers, events } = setup();
 
-            await handlers.FinishSubWebView(message({}));
+            await handlers.FinishMiniApp(message({}));
 
             expect(events).toEqual([{ type: 'closed', viewId: 'view-1', reason: 'page', notifyHost: true }]);
         });
@@ -70,7 +67,7 @@ describe('createSubBridgeHandlers', () => {
         ])('refuses a result %s, and keeps the view', async (_label, result) => {
             const { handlers, service } = setup();
 
-            const reply = await handlers.FinishSubWebView(message({ result }));
+            const reply = await handlers.FinishMiniApp(message({ result }));
 
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
@@ -83,7 +80,7 @@ describe('createSubBridgeHandlers', () => {
             const { handlers, service } = setup();
             service.close('view-1', 'user');
 
-            const reply = await handlers.FinishSubWebView(message({}));
+            const reply = await handlers.FinishMiniApp(message({}));
 
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'NOT_OPEN' }) })
@@ -91,13 +88,13 @@ describe('createSubBridgeHandlers', () => {
         });
     });
 
-    describe('SetSubWebViewTitle', () => {
+    describe('SetMiniAppTitle', () => {
         it('puts the trimmed title in the bar', async () => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.SetSubWebViewTitle(message({ title: '  Orders  ' }));
+            const reply = await handlers.SetMiniAppTitle(message({ title: '  Orders  ' }));
 
-            expect(reply).toEqual({ type: 'OnSetSubWebViewTitle', success: true, data: {} });
+            expect(reply).toEqual({ type: 'OnSetMiniAppTitle', success: true, data: {} });
             expect(deps.setTitle).toHaveBeenCalledWith('Orders');
         });
 
@@ -108,7 +105,7 @@ describe('createSubBridgeHandlers', () => {
         ])('refuses a title %s', async (_label, title) => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.SetSubWebViewTitle(message({ title }));
+            const reply = await handlers.SetMiniAppTitle(message({ title }));
 
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
@@ -366,20 +363,20 @@ describe('createSubBridgeHandlers', () => {
         });
     });
 
-    describe('SetSubWebViewCloseGuard', () => {
+    describe('SetMiniAppCloseGuard', () => {
         it.each([true, false])('sets the guard to %s', async enabled => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.SetSubWebViewCloseGuard(message({ enabled }));
+            const reply = await handlers.SetMiniAppCloseGuard(message({ enabled }));
 
-            expect(reply).toEqual({ type: 'OnSetSubWebViewCloseGuard', success: true, data: {} });
+            expect(reply).toEqual({ type: 'OnSetMiniAppCloseGuard', success: true, data: {} });
             expect(deps.setCloseGuard).toHaveBeenCalledWith(enabled);
         });
 
         it('refuses an enabled that is not a boolean', async () => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.SetSubWebViewCloseGuard(message({ enabled: 1 }));
+            const reply = await handlers.SetMiniAppCloseGuard(message({ enabled: 1 }));
 
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
@@ -388,15 +385,15 @@ describe('createSubBridgeHandlers', () => {
         });
     });
 
-    describe('GetSubWebViewUserKey', () => {
+    describe('GetMiniAppUserKey', () => {
         const keyOf = (overrides: Partial<ReturnType<typeof setup>['deps']>, data: unknown = {}) =>
-            createSubBridgeHandlers({ ...setup().deps, ...overrides }).GetSubWebViewUserKey(message(data));
+            createSubBridgeHandlers({ ...setup().deps, ...overrides }).GetMiniAppUserKey(message(data));
 
         it("answers this device's key for the opened origin", async () => {
             const reply = await keyOf({});
 
             expect(reply).toEqual({
-                type: 'OnGetSubWebViewUserKey',
+                type: 'OnGetMiniAppUserKey',
                 success: true,
                 data: { key: deriveSubWebViewUserKey(DEVICE_ID, 'https://foo.apps.chatic.io') },
             });
@@ -449,13 +446,13 @@ describe('createSubBridgeHandlers', () => {
         });
     });
 
-    describe('ReportSubWebViewError', () => {
+    describe('ReportMiniAppError', () => {
         it('records the report under the opened origin', async () => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.ReportSubWebViewError(message({ message: 'boom', stack: 'at x' }));
+            const reply = await handlers.ReportMiniAppError(message({ message: 'boom', stack: 'at x' }));
 
-            expect(reply).toEqual({ type: 'OnReportSubWebViewError', success: true, data: { recorded: true } });
+            expect(reply).toEqual({ type: 'OnReportMiniAppError', success: true, data: { recorded: true } });
             expect(deps.logPageError).toHaveBeenCalledWith({
                 origin: 'https://foo.apps.chatic.io',
                 message: 'boom',
@@ -466,7 +463,7 @@ describe('createSubBridgeHandlers', () => {
         it('cuts a long message and stack to their limits rather than refusing them', async () => {
             const { handlers, deps } = setup();
 
-            await handlers.ReportSubWebViewError(message({ message: 'm'.repeat(1500), stack: 's'.repeat(5000) }));
+            await handlers.ReportMiniAppError(message({ message: 'm'.repeat(1500), stack: 's'.repeat(5000) }));
 
             const [report] = deps.logPageError.mock.calls[0];
             expect(report.message).toHaveLength(1000);
@@ -476,7 +473,7 @@ describe('createSubBridgeHandlers', () => {
         it('leaves out a stack that is not a string', async () => {
             const { handlers, deps } = setup();
 
-            await handlers.ReportSubWebViewError(message({ message: 'boom', stack: 42 }));
+            await handlers.ReportMiniAppError(message({ message: 'boom', stack: 42 }));
 
             expect(deps.logPageError).toHaveBeenCalledWith({ origin: 'https://foo.apps.chatic.io', message: 'boom' });
         });
@@ -484,7 +481,7 @@ describe('createSubBridgeHandlers', () => {
         it.each([[{}], [{ message: '  ' }], [{ message: 7 }]])('refuses %j as INVALID', async data => {
             const { handlers, deps } = setup();
 
-            const reply = await handlers.ReportSubWebViewError(message(data));
+            const reply = await handlers.ReportMiniAppError(message(data));
 
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
@@ -495,11 +492,11 @@ describe('createSubBridgeHandlers', () => {
         it('records 20 reports per page load, then answers recorded: false', async () => {
             const { handlers, deps } = setup();
 
-            for (let i = 0; i < 20; i += 1) await handlers.ReportSubWebViewError(message({ message: `e${i}` }));
-            const reply = await handlers.ReportSubWebViewError(message({ message: 'one more' }));
+            for (let i = 0; i < 20; i += 1) await handlers.ReportMiniAppError(message({ message: `e${i}` }));
+            const reply = await handlers.ReportMiniAppError(message({ message: 'one more' }));
 
             expect(deps.logPageError).toHaveBeenCalledTimes(20);
-            expect(reply).toEqual({ type: 'OnReportSubWebViewError', success: true, data: { recorded: false } });
+            expect(reply).toEqual({ type: 'OnReportMiniAppError', success: true, data: { recorded: false } });
         });
     });
 });
@@ -508,24 +505,24 @@ describe('the storage handlers', () => {
     it('stores, reads back, reports usage, removes and clears', async () => {
         const { handlers } = setup();
 
-        const set = await handlers.SetSubWebViewStorage(message({ entries: { level: 3 } }));
-        const got = await handlers.GetSubWebViewStorage(message({ keys: ['level', 'missing'] }));
-        const info = await handlers.GetSubWebViewStorageInfo(message({}));
-        const removed = await handlers.RemoveSubWebViewStorage(message({ keys: ['level'] }));
-        const cleared = await handlers.ClearSubWebViewStorage(message({}));
+        const set = await handlers.SetMiniAppStorage(message({ entries: { level: 3 } }));
+        const got = await handlers.GetMiniAppStorage(message({ keys: ['level', 'missing'] }));
+        const info = await handlers.GetMiniAppStorageInfo(message({}));
+        const removed = await handlers.RemoveMiniAppStorage(message({ keys: ['level'] }));
+        const cleared = await handlers.ClearMiniAppStorage(message({}));
 
-        expect(set).toEqual({ type: 'OnSetSubWebViewStorage', success: true, data: { used: 6, limit: 1048576 } });
-        expect(got).toEqual({ type: 'OnGetSubWebViewStorage', success: true, data: { entries: { level: 3 } } });
+        expect(set).toEqual({ type: 'OnSetMiniAppStorage', success: true, data: { used: 6, limit: 1048576 } });
+        expect(got).toEqual({ type: 'OnGetMiniAppStorage', success: true, data: { entries: { level: 3 } } });
         expect(info).toEqual(expect.objectContaining({ data: { keys: ['level'], used: 6, limit: 1048576 } }));
         expect(removed).toEqual(expect.objectContaining({ data: { used: 0, limit: 1048576 } }));
-        expect(cleared).toEqual({ type: 'OnClearSubWebViewStorage', success: true, data: {} });
+        expect(cleared).toEqual({ type: 'OnClearMiniAppStorage', success: true, data: {} });
     });
 
     it('answers QUOTA_EXCEEDED and INVALID with their codes', async () => {
         const { handlers } = setup();
 
-        const tooMuch = await handlers.SetSubWebViewStorage(message({ entries: { a: 'x'.repeat(1048576) } }));
-        const badKey = await handlers.GetSubWebViewStorage(message({ keys: [''] }));
+        const tooMuch = await handlers.SetMiniAppStorage(message({ entries: { a: 'x'.repeat(1048576) } }));
+        const badKey = await handlers.GetMiniAppStorage(message({ keys: [''] }));
 
         expect(tooMuch).toEqual(
             expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'QUOTA_EXCEEDED' }) })
@@ -539,7 +536,7 @@ describe('the storage handlers', () => {
         const { deps } = setup();
         const handlers = createSubBridgeHandlers({ ...deps, openStorage: () => null });
 
-        const reply = await handlers.GetSubWebViewStorageInfo(message({}));
+        const reply = await handlers.GetMiniAppStorageInfo(message({}));
 
         expect(reply).toEqual(
             expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
@@ -555,19 +552,19 @@ describe('permittedSubBridgeHandlers', () => {
 
         expect(kept.sort()).toEqual(
             [
-                'FinishSubWebView',
-                'SetSubWebViewTitle',
+                'FinishMiniApp',
+                'SetMiniAppTitle',
                 'TriggerHaptic',
                 'SetCanGoBack',
-                'SetSubWebViewCloseGuard',
-                'ReportSubWebViewError',
-                'GetSubWebViewStorage',
-                'SetSubWebViewStorage',
-                'RemoveSubWebViewStorage',
-                'ClearSubWebViewStorage',
-                'GetSubWebViewStorageInfo',
-                'GetSubWebViewPermission',
-                'RequestSubWebViewPermission',
+                'SetMiniAppCloseGuard',
+                'ReportMiniAppError',
+                'GetMiniAppStorage',
+                'SetMiniAppStorage',
+                'RemoveMiniAppStorage',
+                'ClearMiniAppStorage',
+                'GetMiniAppStorageInfo',
+                'GetMiniAppPermission',
+                'RequestMiniAppPermission',
                 'OpenSettings',
             ].sort()
         );
@@ -590,17 +587,17 @@ describe('the device permission handlers', () => {
         const { handlers, deps } = setup();
         deps.permissions.status.mockResolvedValueOnce(status);
 
-        const reply = await handlers.GetSubWebViewPermission(message({ kind: 'camera' }));
+        const reply = await handlers.GetMiniAppPermission(message({ kind: 'camera' }));
 
         expect(deps.permissions.status).toHaveBeenCalledWith('CAMERA');
         expect(deps.permissions.request).not.toHaveBeenCalled();
-        expect(reply).toEqual({ type: 'OnGetSubWebViewPermission', success: true, data: { state } });
+        expect(reply).toEqual({ type: 'OnGetMiniAppPermission', success: true, data: { state } });
     });
 
     it('maps the microphone to its own OS permission', async () => {
         const { handlers, deps } = setup();
 
-        await handlers.GetSubWebViewPermission(message({ kind: 'microphone' }));
+        await handlers.GetMiniAppPermission(message({ kind: 'microphone' }));
 
         expect(deps.permissions.status).toHaveBeenCalledWith('MICROPHONE');
     });
@@ -609,7 +606,7 @@ describe('the device permission handlers', () => {
         const { handlers, deps } = setup();
         deps.permissions.status.mockResolvedValueOnce('UNAVAILABLE');
 
-        const reply = await handlers.GetSubWebViewPermission(message({ kind: 'camera' }));
+        const reply = await handlers.GetMiniAppPermission(message({ kind: 'camera' }));
 
         expect(reply).toEqual(
             expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
@@ -624,10 +621,10 @@ describe('the device permission handlers', () => {
         const { handlers, deps } = setup();
         deps.permissions.request.mockResolvedValueOnce(answer);
 
-        const reply = await handlers.RequestSubWebViewPermission(message({ kind: 'microphone' }));
+        const reply = await handlers.RequestMiniAppPermission(message({ kind: 'microphone' }));
 
         expect(deps.permissions.request).toHaveBeenCalledWith('MICROPHONE');
-        expect(reply).toEqual({ type: 'OnRequestSubWebViewPermission', success: true, data: { state } });
+        expect(reply).toEqual({ type: 'OnRequestMiniAppPermission', success: true, data: { state } });
     });
 
     it('puts the OS prompt up once for a page that asks twice at the same time', async () => {
@@ -635,8 +632,8 @@ describe('the device permission handlers', () => {
         let answer: (value: string) => void = () => undefined;
         deps.permissions.request.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
 
-        const first = handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
-        const second = handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        const first = handlers.RequestMiniAppPermission(message({ kind: 'camera' }));
+        const second = handlers.RequestMiniAppPermission(message({ kind: 'camera' }));
         await new Promise(resolve => setTimeout(resolve, 0));
         answer('GRANTED');
 
@@ -650,8 +647,8 @@ describe('the device permission handlers', () => {
     it('asks again once the first request has been answered', async () => {
         const { handlers, deps } = setup();
 
-        await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
-        await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        await handlers.RequestMiniAppPermission(message({ kind: 'camera' }));
+        await handlers.RequestMiniAppPermission(message({ kind: 'camera' }));
 
         expect(deps.permissions.request).toHaveBeenCalledTimes(2);
     });
@@ -660,7 +657,7 @@ describe('the device permission handlers', () => {
         const { handlers, deps } = setup();
         deps.permissions.status.mockResolvedValueOnce('UNAVAILABLE');
 
-        const reply = await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        const reply = await handlers.RequestMiniAppPermission(message({ kind: 'camera' }));
 
         expect(deps.permissions.request).not.toHaveBeenCalled();
         expect(reply).toEqual(
@@ -672,8 +669,8 @@ describe('the device permission handlers', () => {
         const { handlers, deps } = setup();
 
         for (const reply of [
-            await handlers.GetSubWebViewPermission(message({ kind })),
-            await handlers.RequestSubWebViewPermission(message({ kind })),
+            await handlers.GetMiniAppPermission(message({ kind })),
+            await handlers.RequestMiniAppPermission(message({ kind })),
         ]) {
             expect(reply).toEqual(
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })

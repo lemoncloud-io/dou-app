@@ -23,18 +23,18 @@ export type Capability =
 
 /** The request behind each capability. */
 const REQUESTS: Record<Capability, string> = {
-    finish: 'FinishSubWebView',
-    title: 'SetSubWebViewTitle',
+    finish: 'FinishMiniApp',
+    title: 'SetMiniAppTitle',
     haptic: 'TriggerHaptic',
     clipboard: 'CopyToClipboard',
     share: 'OpenShareSheet',
     openUrl: 'OpenURL',
-    userKey: 'GetSubWebViewUserKey',
+    userKey: 'GetMiniAppUserKey',
     back: 'SetCanGoBack',
-    closeGuard: 'SetSubWebViewCloseGuard',
-    errorReport: 'ReportSubWebViewError',
-    storage: 'GetSubWebViewStorage',
-    permissions: 'RequestSubWebViewPermission',
+    closeGuard: 'SetMiniAppCloseGuard',
+    errorReport: 'ReportMiniAppError',
+    storage: 'GetMiniAppStorage',
+    permissions: 'RequestMiniAppPermission',
     runtime: 'RuntimeHello',
 };
 
@@ -153,12 +153,11 @@ export interface ChaticApps {
 
 type HandshakeReply = {
     supportedWebMessages?: unknown;
-    subWebView?: ChaticAppsContext;
+    miniApp?: ChaticAppsContext;
 };
 
 const readGlobalContext = (): ChaticAppsContext | null =>
-    (typeof window !== 'undefined' &&
-        (window as unknown as { ChaticSubWebView?: ChaticAppsContext }).ChaticSubWebView) ||
+    (typeof window !== 'undefined' && (window as unknown as { ChaticMiniApp?: ChaticAppsContext }).ChaticMiniApp) ||
     null;
 
 /** An app before the handshake carried the context defines it as a global, at the latest by `load`. */
@@ -263,7 +262,7 @@ interface AppState {
 
 const handshake = async (client: BridgeClient, readGlobal: boolean): Promise<AppState> => {
     const reply = await client.request<HandshakeReply>('WebAppReady', {});
-    const context = reply.subWebView ?? (readGlobal ? await loadedContext() : null);
+    const context = reply.miniApp ?? (readGlobal ? await loadedContext() : null);
     if (context && context.protocolVersion !== PROTOCOL_VERSION) {
         throw new ChaticAppsError(
             'UNSUPPORTED_PROTOCOL',
@@ -356,7 +355,7 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
         })
     );
     cleanups.push(
-        client.onPush('OnSubWebViewCloseRequested', data => {
+        client.onPush('OnMiniAppCloseRequested', data => {
             const handler = closeHandler;
             if (!handler) return;
             const trigger = (data as { trigger?: CloseTrigger })?.trigger ?? 'control';
@@ -367,7 +366,7 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
         })
     );
     cleanups.push(
-        client.onPush('OnSubWebViewContextChanged', data => {
+        client.onPush('OnMiniAppContextChanged', data => {
             if (!state.context) return;
             state.context = { ...state.context, ...(data as Partial<ChaticAppsContext>) };
             announce(state.context);
@@ -394,7 +393,7 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
         getUserKey: () => call<{ key: string }>('userKey').then(reply => reply.key),
         permissions: {
             query: kind =>
-                call<{ state: PermissionState }>('permissions', { kind }, undefined, 'GetSubWebViewPermission').then(
+                call<{ state: PermissionState }>('permissions', { kind }, undefined, 'GetMiniAppPermission').then(
                     reply => reply.state
                 ),
             // Waits for the user, however long they take.
@@ -410,11 +409,11 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                 : Promise.resolve(false),
         runtime,
         storage: storageOver({
-            get: keys => stored('GetSubWebViewStorage', { keys }),
-            set: entries => stored('SetSubWebViewStorage', { entries }),
-            remove: keys => stored('RemoveSubWebViewStorage', { keys }),
-            clear: () => stored('ClearSubWebViewStorage', {}),
-            info: () => stored('GetSubWebViewStorageInfo', {}),
+            get: keys => stored('GetMiniAppStorage', { keys }),
+            set: entries => stored('SetMiniAppStorage', { entries }),
+            remove: keys => stored('RemoveMiniAppStorage', { keys }),
+            clear: () => stored('ClearMiniAppStorage', {}),
+            info: () => stored('GetMiniAppStorageInfo', {}),
         }),
         onBack: handler => {
             backHandler = handler;

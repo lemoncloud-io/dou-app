@@ -78,7 +78,7 @@ export const PERMISSION_REQUESTS: Readonly<Record<SubWebViewPermission, SubBridg
     clipboard: 'CopyToClipboard',
     share: 'OpenShareSheet',
     openUrl: 'OpenURL',
-    userKey: 'GetSubWebViewUserKey',
+    userKey: 'GetMiniAppUserKey',
 };
 
 /**
@@ -159,25 +159,25 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
     // putting the OS prompt up twice.
     const asking = new Map<SubWebViewDeviceKind, Promise<'GRANTED' | 'DENIED' | 'BLOCKED'>>();
     return {
-        FinishSubWebView: async message => {
+        FinishMiniApp: async message => {
             const closed = deps.service.close(deps.viewId, 'page', message.data?.result);
             if (!closed.ok) {
                 const text =
                     closed.code === 'INVALID'
                         ? 'result must be JSON of at most 16 KiB.'
                         : 'This view is no longer showing.';
-                return fail('OnFinishSubWebView', closed.code, text);
+                return fail('OnFinishMiniApp', closed.code, text);
             }
-            return { type: 'OnFinishSubWebView', success: true, data: {} };
+            return { type: 'OnFinishMiniApp', success: true, data: {} };
         },
 
-        SetSubWebViewTitle: async message => {
+        SetMiniAppTitle: async message => {
             const title = typeof message.data?.title === 'string' ? message.data.title.trim() : '';
             if (!title || title.length > SUB_WEBVIEW_TITLE_LIMIT) {
-                return fail('OnSetSubWebViewTitle', 'INVALID', 'title must be 1 to 100 characters.');
+                return fail('OnSetMiniAppTitle', 'INVALID', 'title must be 1 to 100 characters.');
             }
             deps.setTitle(title);
-            return { type: 'OnSetSubWebViewTitle', success: true, data: {} };
+            return { type: 'OnSetMiniAppTitle', success: true, data: {} };
         },
 
         CopyToClipboard: async message => {
@@ -268,37 +268,37 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             return { type: 'OnSetCanGoBack', success: true, data: {} };
         },
 
-        SetSubWebViewCloseGuard: async message => {
+        SetMiniAppCloseGuard: async message => {
             const enabled = message.data?.enabled;
             if (typeof enabled !== 'boolean') {
-                return fail('OnSetSubWebViewCloseGuard', 'INVALID', 'enabled must be a boolean.');
+                return fail('OnSetMiniAppCloseGuard', 'INVALID', 'enabled must be a boolean.');
             }
             deps.setCloseGuard(enabled);
-            return { type: 'OnSetSubWebViewCloseGuard', success: true, data: {} };
+            return { type: 'OnSetMiniAppCloseGuard', success: true, data: {} };
         },
 
         // Keyed on the shell's record of the origin, never on anything in the message, so a page can only
         // ever get its own origin's key. With no id, an error rather than a key every such device shares.
-        GetSubWebViewUserKey: async () => {
+        GetMiniAppUserKey: async () => {
             const deviceId = deps.getDeviceId();
             if (!deps.origin || !deviceId || deviceId === NO_DEVICE_ID) {
-                return fail('OnGetSubWebViewUserKey', 'UNAVAILABLE', 'This device has no id to derive a key from.');
+                return fail('OnGetMiniAppUserKey', 'UNAVAILABLE', 'This device has no id to derive a key from.');
             }
             return {
-                type: 'OnGetSubWebViewUserKey',
+                type: 'OnGetMiniAppUserKey',
                 success: true,
                 data: { key: deriveSubWebViewUserKey(deviceId, deps.origin) },
             };
         },
 
         // Cut to size rather than refused: a report is most wanted when the page is least able to fix it.
-        ReportSubWebViewError: async message => {
+        ReportMiniAppError: async message => {
             const text = message.data?.message;
             if (typeof text !== 'string' || !text.trim()) {
-                return fail('OnReportSubWebViewError', 'INVALID', 'message must be a non-empty string.');
+                return fail('OnReportMiniAppError', 'INVALID', 'message must be a non-empty string.');
             }
             if (errorReports >= ERROR_REPORTS_PER_LOAD) {
-                return { type: 'OnReportSubWebViewError', success: true, data: { recorded: false } };
+                return { type: 'OnReportMiniAppError', success: true, data: { recorded: false } };
             }
             errorReports += 1;
             const stack = message.data?.stack;
@@ -307,30 +307,28 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
                 message: text.slice(0, ERROR_MESSAGE_LIMIT),
                 ...(typeof stack === 'string' ? { stack: stack.slice(0, ERROR_STACK_LIMIT) } : {}),
             });
-            return { type: 'OnReportSubWebViewError', success: true, data: { recorded: true } };
+            return { type: 'OnReportMiniAppError', success: true, data: { recorded: true } };
         },
 
         // Always the opened origin's storage, chosen by the view: nothing in a request names it.
-        GetSubWebViewStorage: async message =>
-            storageReply('OnGetSubWebViewStorage', deps.openStorage()?.get(message.data?.keys) ?? null),
-        SetSubWebViewStorage: async message =>
-            storageReply('OnSetSubWebViewStorage', deps.openStorage()?.set(message.data?.entries) ?? null),
-        RemoveSubWebViewStorage: async message =>
-            storageReply('OnRemoveSubWebViewStorage', deps.openStorage()?.remove(message.data?.keys) ?? null),
-        ClearSubWebViewStorage: async () =>
-            storageReply('OnClearSubWebViewStorage', deps.openStorage()?.clear() ?? null),
-        GetSubWebViewStorageInfo: async () =>
-            storageReply('OnGetSubWebViewStorageInfo', deps.openStorage()?.info() ?? null),
+        GetMiniAppStorage: async message =>
+            storageReply('OnGetMiniAppStorage', deps.openStorage()?.get(message.data?.keys) ?? null),
+        SetMiniAppStorage: async message =>
+            storageReply('OnSetMiniAppStorage', deps.openStorage()?.set(message.data?.entries) ?? null),
+        RemoveMiniAppStorage: async message =>
+            storageReply('OnRemoveMiniAppStorage', deps.openStorage()?.remove(message.data?.keys) ?? null),
+        ClearMiniAppStorage: async () => storageReply('OnClearMiniAppStorage', deps.openStorage()?.clear() ?? null),
+        GetMiniAppStorageInfo: async () => storageReply('OnGetMiniAppStorageInfo', deps.openStorage()?.info() ?? null),
 
         // Where DoU stands with the OS, read without asking. A denied permission that may still be asked
         // for reads `prompt`: to a page, "asking would show the OS prompt" is what matters.
-        GetSubWebViewPermission: async message => {
+        GetMiniAppPermission: async message => {
             const kind = message.data?.kind;
-            if (!isDeviceKind(kind)) return fail('OnGetSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
+            if (!isDeviceKind(kind)) return fail('OnGetMiniAppPermission', 'INVALID', DEVICE_KIND_TEXT);
             const status = await deps.permissions.status(OS_PERMISSION[kind]);
-            if (status === 'UNAVAILABLE') return fail('OnGetSubWebViewPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
+            if (status === 'UNAVAILABLE') return fail('OnGetMiniAppPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
             return {
-                type: 'OnGetSubWebViewPermission',
+                type: 'OnGetMiniAppPermission',
                 success: true,
                 data: { state: status === 'GRANTED' ? 'granted' : status === 'BLOCKED' ? 'blocked' : 'prompt' },
             };
@@ -338,11 +336,11 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
 
         // The OS prompt, under DoU's name: the page asks when the user reaches for the feature, so the
         // prompt does not arrive in the middle of a capture.
-        RequestSubWebViewPermission: async message => {
+        RequestMiniAppPermission: async message => {
             const kind = message.data?.kind;
-            if (!isDeviceKind(kind)) return fail('OnRequestSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
+            if (!isDeviceKind(kind)) return fail('OnRequestMiniAppPermission', 'INVALID', DEVICE_KIND_TEXT);
             if ((await deps.permissions.status(OS_PERMISSION[kind])) === 'UNAVAILABLE') {
-                return fail('OnRequestSubWebViewPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
+                return fail('OnRequestMiniAppPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
             }
             let pending = asking.get(kind);
             if (!pending) {
@@ -351,7 +349,7 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             }
             const result = await pending;
             return {
-                type: 'OnRequestSubWebViewPermission',
+                type: 'OnRequestMiniAppPermission',
                 success: true,
                 data: { state: result === 'GRANTED' ? 'granted' : result === 'BLOCKED' ? 'blocked' : 'prompt' },
             };

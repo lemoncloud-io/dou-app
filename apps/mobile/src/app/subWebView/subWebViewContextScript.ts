@@ -3,7 +3,7 @@ import type { SubWebViewContext } from '@chatic/bridge-messages';
 import { originOf } from '../utils/url';
 
 /**
- * The script run before the page's own: defines `window.ChaticSubWebView` for the origin the view was
+ * The script run before the page's own: defines `window.ChaticMiniApp` for the origin the view was
  * opened on and no other. The script runs on every top-level load in the view, so a page that
  * navigates to another allowlisted origin finds nothing there — `params` were meant for the first one.
  *
@@ -21,7 +21,7 @@ export const buildSubWebViewContextScript = (context: SubWebViewContext, openedU
             .replace(/\u2029/g, '\\u2029');
     return `(function () {
     if (window.location.origin !== ${literal(originOf(openedUrl))}) return;
-    if (Object.prototype.hasOwnProperty.call(window, 'ChaticSubWebView')) return;
+    if (Object.prototype.hasOwnProperty.call(window, 'ChaticMiniApp')) return;
     var freeze = function (value) {
         if (value && typeof value === 'object') {
             Object.keys(value).forEach(function (key) { freeze(value[key]); });
@@ -29,7 +29,7 @@ export const buildSubWebViewContextScript = (context: SubWebViewContext, openedU
         }
         return value;
     };
-    Object.defineProperty(window, 'ChaticSubWebView', {
+    Object.defineProperty(window, 'ChaticMiniApp', {
         value: freeze(JSON.parse(${literal(JSON.stringify(context))})),
         enumerable: true,
         writable: false,

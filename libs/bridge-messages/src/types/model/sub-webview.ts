@@ -51,7 +51,7 @@ export type SubWebViewOpenScope = 'reviewed' | 'anyHttps';
 /**
  * What a page may use beyond the base set, by capability rather than by message name, declared in
  * its manifest. `clipboard` → `CopyToClipboard`, `share` → `OpenShareSheet`, `openUrl` → `OpenURL`,
- * `userKey` → `GetSubWebViewUserKey`. A request whose capability the page did not declare is not
+ * `userKey` → `GetMiniAppUserKey`. A request whose capability the page did not declare is not
  * registered, so its handshake does not list it and the host answers it `NOT_FOUND`.
  */
 export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
@@ -217,7 +217,7 @@ export type OnSubWebViewRuntimeHelloPayload = {
  * - `user` — its close control, or Android back with no page to go back to;
  * - `host` — the web asked with `CloseSubWebView`;
  * - `system` — the shell closed it to take the user elsewhere (a deep link, a tapped push);
- * - `page` — the page closed itself with `FinishSubWebView`, and may hand back a `result`.
+ * - `page` — the page closed itself with `FinishMiniApp`, and may hand back a `result`.
  */
 export type SubWebViewCloseReason = 'user' | 'host' | 'system' | 'page';
 
@@ -228,9 +228,9 @@ export type SubWebViewParams = { [key: string]: unknown };
 export type SubWebViewTheme = 'light' | 'dark';
 
 /**
- * What the shell defines as `window.ChaticSubWebView` before the page's own scripts run, on the
+ * What the shell defines as `window.ChaticMiniApp` before the page's own scripts run, on the
  * origin the view was opened on only. Nothing that identifies the device, the install or the user.
- * It is a snapshot: a later theme or language change arrives as `OnSubWebViewContextChanged`.
+ * It is a snapshot: a later theme or language change arrives as `OnMiniAppContextChanged`.
  */
 export type SubWebViewContext = {
     /** This page-facing contract's own version. */
@@ -260,7 +260,7 @@ export type OpenSubWebViewPayload = {
     url: string;
     /** What the shell's bar shows until the page has a title of its own. */
     title?: string;
-    /** Handed to the page as `window.ChaticSubWebView.params`, not in the URL. */
+    /** Handed to the page as `window.ChaticMiniApp.params`, not in the URL. */
     params?: SubWebViewParams;
     /**
      * The app the web resolved `url` from: a page's `appLink` is built from it, so a link the page
@@ -310,34 +310,34 @@ export type OnCloseSubWebViewPayload = {
 export type OnSubWebViewClosedPayload = {
     viewId: string;
     reason: SubWebViewCloseReason;
-    /** What the page handed back with `FinishSubWebView`; only with `reason: 'page'`. */
+    /** What the page handed back with `FinishMiniApp`; only with `reason: 'page'`. */
     result?: unknown;
 };
 
 /** [Request, from a sub WebView page] Close this view, handing `result` to the web that opened it. */
-export type FinishSubWebViewPayload = {
+export type FinishMiniAppPayload = {
     /** JSON, at most 16 KiB. */
     result?: unknown;
 };
 
 /** [Response] The view is closing. The page will not run much longer. */
-export type OnFinishSubWebViewPayload = {
+export type OnFinishMiniAppPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Request, from a sub WebView page] Show `title` in the shell's bar, over the document's own. */
-export type SetSubWebViewTitlePayload = {
+export type SetMiniAppTitlePayload = {
     /** 1–100 characters. */
     title: string;
 };
 
 /** [Response] The bar shows the title. */
-export type OnSetSubWebViewTitlePayload = {
+export type OnSetMiniAppTitlePayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Event, to a sub WebView page] The app's theme or language changed while the view showed. */
-export type OnSubWebViewContextChangedPayload = Pick<SubWebViewContext, 'theme' | 'locale'>;
+export type OnMiniAppContextChangedPayload = Pick<SubWebViewContext, 'theme' | 'locale'>;
 
 /**
  * [Request, from a sub WebView page] This device's key for this page's origin, for the page's own
@@ -350,29 +350,29 @@ export type OnSubWebViewContextChangedPayload = Pick<SubWebViewContext, 'theme' 
  *
  * Fails with `UNAVAILABLE` when the shell has no device id to derive it from.
  */
-export type GetSubWebViewUserKeyPayload = {
+export type GetMiniAppUserKeyPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Response] The key: 64 lower-case hex characters. */
-export type OnGetSubWebViewUserKeyPayload = {
+export type OnGetMiniAppUserKeyPayload = {
     key: string;
 };
 
 /**
  * [Request, from a sub WebView page] Ask the page before the user closes the view. While enabled, the
  * view's close control and an Android back press that would close it push
- * `OnSubWebViewCloseRequested` instead of closing; the page closes with `FinishSubWebView` or stays.
+ * `OnMiniAppCloseRequested` instead of closing; the page closes with `FinishMiniApp` or stays.
  * A second close by the user within a few seconds closes anyway, so a page cannot keep the user in.
  * Only the user's close is guarded: the web's `CloseSubWebView` and the shell's own close are not.
  * Lasts until the next page load in the view.
  */
-export type SetSubWebViewCloseGuardPayload = {
+export type SetMiniAppCloseGuardPayload = {
     enabled: boolean;
 };
 
 /** [Response] The guard is set. */
-export type OnSetSubWebViewCloseGuardPayload = {
+export type OnSetMiniAppCloseGuardPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
@@ -380,7 +380,7 @@ export type OnSetSubWebViewCloseGuardPayload = {
 export type SubWebViewCloseTrigger = 'control' | 'back';
 
 /** [Event, to a sub WebView page] The user asked to close the view while its close guard is on. */
-export type OnSubWebViewCloseRequestedPayload = {
+export type OnMiniAppCloseRequestedPayload = {
     trigger: SubWebViewCloseTrigger;
 };
 
@@ -389,7 +389,7 @@ export type OnSubWebViewCloseRequestedPayload = {
  * page's origin, so a page that breaks on users' devices can be found and withdrawn. Text only, cut
  * to its limit rather than refused; at most 20 per page load, after which nothing is recorded.
  */
-export type ReportSubWebViewErrorPayload = {
+export type ReportMiniAppErrorPayload = {
     /** At most 1,000 characters are kept. */
     message: string;
     /** At most 4,000 characters are kept. */
@@ -397,7 +397,7 @@ export type ReportSubWebViewErrorPayload = {
 };
 
 /** [Response] Whether the error was recorded; `false` once the page load has used its 20. */
-export type OnReportSubWebViewErrorPayload = {
+export type OnReportMiniAppErrorPayload = {
     recorded: boolean;
 };
 
@@ -413,17 +413,17 @@ export type OnReportSubWebViewErrorPayload = {
  */
 
 /** [Request, from a sub WebView page] Read `keys`. */
-export type GetSubWebViewStoragePayload = {
+export type GetMiniAppStoragePayload = {
     keys: string[];
 };
 
 /** [Response] The stored values; a key with nothing stored is left out. */
-export type OnGetSubWebViewStoragePayload = {
+export type OnGetMiniAppStoragePayload = {
     entries: { [key: string]: unknown };
 };
 
 /** [Request, from a sub WebView page] Store each entry, all or none. */
-export type SetSubWebViewStoragePayload = {
+export type SetMiniAppStoragePayload = {
     entries: { [key: string]: unknown };
 };
 
@@ -434,33 +434,33 @@ export type SubWebViewStorageUsage = {
 };
 
 /** [Response] Stored; how much is used now. */
-export type OnSetSubWebViewStoragePayload = SubWebViewStorageUsage;
+export type OnSetMiniAppStoragePayload = SubWebViewStorageUsage;
 
 /** [Request, from a sub WebView page] Remove `keys`; a key with nothing stored is no error. */
-export type RemoveSubWebViewStoragePayload = {
+export type RemoveMiniAppStoragePayload = {
     keys: string[];
 };
 
 /** [Response] Removed; how much is used now. */
-export type OnRemoveSubWebViewStoragePayload = SubWebViewStorageUsage;
+export type OnRemoveMiniAppStoragePayload = SubWebViewStorageUsage;
 
 /** [Request, from a sub WebView page] Remove everything this page stored. */
-export type ClearSubWebViewStoragePayload = {
+export type ClearMiniAppStoragePayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Response] The page's storage is empty. */
-export type OnClearSubWebViewStoragePayload = {
+export type OnClearMiniAppStoragePayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Request, from a sub WebView page] What the page has stored: its keys and how much they use. */
-export type GetSubWebViewStorageInfoPayload = {
+export type GetMiniAppStorageInfoPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 
 /** [Response] The page's keys, and its usage. */
-export type OnGetSubWebViewStorageInfoPayload = SubWebViewStorageUsage & {
+export type OnGetMiniAppStorageInfoPayload = SubWebViewStorageUsage & {
     keys: string[];
 };
 
@@ -475,12 +475,12 @@ export type OnGetSubWebViewStorageInfoPayload = SubWebViewStorageUsage & {
  */
 
 /** [Request, from a sub WebView page] Where DoU stands with the OS for `kind`, showing nothing. */
-export type GetSubWebViewPermissionPayload = {
+export type GetMiniAppPermissionPayload = {
     kind: SubWebViewDeviceKind;
 };
 
 /** [Response] The state for that kind. */
-export type OnGetSubWebViewPermissionPayload = {
+export type OnGetMiniAppPermissionPayload = {
     state: SubWebViewDevicePermissionState;
 };
 
@@ -488,11 +488,11 @@ export type OnGetSubWebViewPermissionPayload = {
  * [Request, from a sub WebView page] Ask the OS for `kind`, showing its prompt if it has not been
  * answered. Answers once the user has decided.
  */
-export type RequestSubWebViewPermissionPayload = {
+export type RequestMiniAppPermissionPayload = {
     kind: SubWebViewDeviceKind;
 };
 
 /** [Response] The state once the user decided; `prompt` means refused this time and may be asked again. */
-export type OnRequestSubWebViewPermissionPayload = {
+export type OnRequestMiniAppPermissionPayload = {
     state: SubWebViewDevicePermissionState;
 };

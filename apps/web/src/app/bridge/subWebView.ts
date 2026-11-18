@@ -19,7 +19,7 @@ export type SubWebViewOpening = { via: 'subWebView'; viewId: string } | { via: '
  * always has. A refusal from a shell that has it (`NOT_ALLOWED`, `ALREADY_OPEN`) is not turned into
  * that fallback — it rejects, because it means this page asked for something the app will not show.
  *
- * `params` reach the page only in the sub WebView, as `window.ChaticSubWebView.params`. The two
+ * `params` reach the page only in the sub WebView, as `window.ChaticMiniApp.params`. The two
  * fallbacks cannot carry them, so a page must also work without them — or the caller should not fall
  * back, which `via` lets it decide after the fact.
  *

@@ -32,15 +32,15 @@ describe('createBridgeClient', () => {
         const { transport, sent, deliver } = fakeTransport();
         const client = createBridgeClient(transport);
 
-        const pending = client.request('SetSubWebViewTitle', { title: 'Quiz' });
+        const pending = client.request('SetMiniAppTitle', { title: 'Quiz' });
         expect(sent[0]).toEqual(
             expect.objectContaining({
-                type: 'SetSubWebViewTitle',
+                type: 'SetMiniAppTitle',
                 data: { title: 'Quiz' },
                 version: SDK_BRIDGE_VERSION,
             })
         );
-        deliver({ type: 'OnSetSubWebViewTitle', success: true, data: { ok: 1 }, refId: sent[0].refId });
+        deliver({ type: 'OnSetMiniAppTitle', success: true, data: { ok: 1 }, refId: sent[0].refId });
 
         await expect(pending).resolves.toEqual({ ok: 1 });
     });
@@ -49,7 +49,7 @@ describe('createBridgeClient', () => {
     it.each([
         [
             'from a handler',
-            { type: 'OnGetSubWebViewUserKey', success: false, error: { code: 'UNAVAILABLE', message: 'm' } },
+            { type: 'OnGetMiniAppUserKey', success: false, error: { code: 'UNAVAILABLE', message: 'm' } },
         ],
         ['from the host', { type: 'ERROR', success: false, error: { code: 'NOT_FOUND', message: 'm', traceId: 't' } }],
     ])('rejects a refusal %s with its code', async (_label, reply) => {
@@ -71,7 +71,7 @@ describe('createBridgeClient', () => {
 
         deliver({ type: 'OnBackPressed', success: true, data: {}, refId: 'push-1' });
         // A late reply to a request this client never made is a push nobody listens for.
-        deliver({ type: 'OnSetSubWebViewTitle', success: true, data: {}, refId: 'old-load' });
+        deliver({ type: 'OnSetMiniAppTitle', success: true, data: {}, refId: 'old-load' });
 
         expect(onBack).toHaveBeenCalledTimes(1);
     });

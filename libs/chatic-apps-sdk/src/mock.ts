@@ -80,26 +80,26 @@ export interface MockController {
 const BASE = [
     'WebAppReady',
     'Ping',
-    'FinishSubWebView',
-    'SetSubWebViewTitle',
+    'FinishMiniApp',
+    'SetMiniAppTitle',
     'TriggerHaptic',
     'SetCanGoBack',
-    'SetSubWebViewCloseGuard',
-    'ReportSubWebViewError',
-    'GetSubWebViewStorage',
-    'SetSubWebViewStorage',
-    'RemoveSubWebViewStorage',
-    'ClearSubWebViewStorage',
-    'GetSubWebViewStorageInfo',
-    'GetSubWebViewPermission',
-    'RequestSubWebViewPermission',
+    'SetMiniAppCloseGuard',
+    'ReportMiniAppError',
+    'GetMiniAppStorage',
+    'SetMiniAppStorage',
+    'RemoveMiniAppStorage',
+    'ClearMiniAppStorage',
+    'GetMiniAppStorageInfo',
+    'GetMiniAppPermission',
+    'RequestMiniAppPermission',
     'OpenSettings',
 ];
 const GATED: Partial<Record<MockPermission, string>> = {
     clipboard: 'CopyToClipboard',
     share: 'OpenShareSheet',
     openUrl: 'OpenURL',
-    userKey: 'GetSubWebViewUserKey',
+    userKey: 'GetMiniAppUserKey',
 };
 const RUNTIME_PERMISSIONS: readonly MockPermission[] = [
     'session',
@@ -249,8 +249,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         log('←', type, data);
         // The view is gone: the app answers `NOT_OPEN` to a second finish, and nothing else at all.
         if (closed) {
-            if (type === 'FinishSubWebView') {
-                return fail('OnFinishSubWebView', refId, 'NOT_OPEN', 'The view has closed.');
+            if (type === 'FinishMiniApp') {
+                return fail('OnFinishMiniApp', refId, 'NOT_OPEN', 'The view has closed.');
             }
             return log('view closed; no answer to', type);
         }
@@ -262,29 +262,29 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.29.0',
-                    protocolVersion: '2.29.0',
+                    appVersion: '2.30.0',
+                    protocolVersion: '2.30.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
-                    subWebView: { ...context, ...current },
+                    miniApp: { ...context, ...current },
                 });
             case 'Ping':
                 return ok('Pong', refId, { payload: data.payload ?? '' });
-            case 'FinishSubWebView':
+            case 'FinishMiniApp':
                 if (!fitsJson(data.result, RESULT_LIMIT)) {
-                    return fail('OnFinishSubWebView', refId, 'INVALID', 'result must be JSON of at most 16 KiB.');
+                    return fail('OnFinishMiniApp', refId, 'INVALID', 'result must be JSON of at most 16 KiB.');
                 }
                 closed = { by: 'page', result: data.result };
                 options.onClose?.(closed);
                 log('view finished', data.result);
-                return ok('OnFinishSubWebView', refId);
-            case 'SetSubWebViewTitle': {
+                return ok('OnFinishMiniApp', refId);
+            case 'SetMiniAppTitle': {
                 const next = typeof data.title === 'string' ? data.title.trim() : '';
                 if (!next || next.length > 100) {
-                    return fail('OnSetSubWebViewTitle', refId, 'INVALID', 'title must be 1 to 100 characters.');
+                    return fail('OnSetMiniAppTitle', refId, 'INVALID', 'title must be 1 to 100 characters.');
                 }
                 title = next;
-                return ok('OnSetSubWebViewTitle', refId);
+                return ok('OnSetMiniAppTitle', refId);
             }
             case 'TriggerHaptic':
                 if (!KINDS.includes(data.kind as HapticKind)) {
@@ -297,20 +297,20 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 }
                 backClaimed = data.canGoBack;
                 return ok('OnSetCanGoBack', refId);
-            case 'SetSubWebViewCloseGuard':
+            case 'SetMiniAppCloseGuard':
                 if (typeof data.enabled !== 'boolean') {
-                    return fail('OnSetSubWebViewCloseGuard', refId, 'INVALID', 'enabled must be a boolean.');
+                    return fail('OnSetMiniAppCloseGuard', refId, 'INVALID', 'enabled must be a boolean.');
                 }
                 guard = data.enabled;
-                return ok('OnSetSubWebViewCloseGuard', refId);
-            case 'ReportSubWebViewError':
+                return ok('OnSetMiniAppCloseGuard', refId);
+            case 'ReportMiniAppError':
                 if (typeof data.message !== 'string' || !data.message.trim()) {
-                    return fail('OnReportSubWebViewError', refId, 'INVALID', 'message must be a non-empty string.');
+                    return fail('OnReportMiniAppError', refId, 'INVALID', 'message must be a non-empty string.');
                 }
-                if (reports >= 20) return ok('OnReportSubWebViewError', refId, { recorded: false });
+                if (reports >= 20) return ok('OnReportMiniAppError', refId, { recorded: false });
                 reports += 1;
                 console.warn('[chatic-apps mock] page error', data.message, data.stack ?? '');
-                return ok('OnReportSubWebViewError', refId, { recorded: true });
+                return ok('OnReportMiniAppError', refId, { recorded: true });
             case 'CopyToClipboard':
                 if (typeof data.text !== 'string') {
                     return fail('OnCopyToClipboard', refId, 'INVALID', 'text must be a string.');
@@ -346,17 +346,17 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 log('share sheet', data);
                 return ok('OnOpenShareSheet', refId, { action: 'sharedAction', activityType: null });
             }
-            case 'GetSubWebViewStorage':
-            case 'SetSubWebViewStorage':
-            case 'RemoveSubWebViewStorage':
-            case 'ClearSubWebViewStorage':
-            case 'GetSubWebViewStorageInfo': {
+            case 'GetMiniAppStorage':
+            case 'SetMiniAppStorage':
+            case 'RemoveMiniAppStorage':
+            case 'ClearMiniAppStorage':
+            case 'GetMiniAppStorageInfo': {
                 const calls = {
-                    GetSubWebViewStorage: () => store.get(data.keys),
-                    SetSubWebViewStorage: () => store.set(data.entries),
-                    RemoveSubWebViewStorage: () => store.remove(data.keys),
-                    ClearSubWebViewStorage: () => store.clear(),
-                    GetSubWebViewStorageInfo: () => store.info(),
+                    GetMiniAppStorage: () => store.get(data.keys),
+                    SetMiniAppStorage: () => store.set(data.entries),
+                    RemoveMiniAppStorage: () => store.remove(data.keys),
+                    ClearMiniAppStorage: () => store.clear(),
+                    GetMiniAppStorageInfo: () => store.info(),
                 };
                 const outcome = calls[type]();
                 if (outcome.ok) return ok(`On${type}`, refId, outcome.value);
@@ -369,8 +369,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                         : 'Keys are 1 to 200 characters; values must be JSON.'
                 );
             }
-            case 'GetSubWebViewPermission':
-            case 'RequestSubWebViewPermission': {
+            case 'GetMiniAppPermission':
+            case 'RequestMiniAppPermission': {
                 const kind = data.kind as DeviceKind;
                 if (!DEVICE_KINDS.includes(kind)) {
                     return fail(`On${type}`, refId, 'INVALID', 'kind must be camera or microphone.');
@@ -378,7 +378,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 if (options.deviceAnswers?.[kind] === 'unavailable') {
                     return fail(`On${type}`, refId, 'UNAVAILABLE', 'This device has no such hardware.');
                 }
-                if (type === 'RequestSubWebViewPermission' && devices[kind] === 'prompt') {
+                if (type === 'RequestMiniAppPermission' && devices[kind] === 'prompt') {
                     const answer = options.deviceAnswers?.[kind] ?? 'allow';
                     // A refusal leaves the OS willing to ask again, as the app's `prompt` says.
                     devices[kind] = answer === 'allow' ? 'granted' : answer === 'deny' ? 'prompt' : 'blocked';
@@ -389,8 +389,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
             case 'OpenSettings':
                 log('settings opened');
                 return ok('OnOpenSettings', refId);
-            case 'GetSubWebViewUserKey':
-                return ok('OnGetSubWebViewUserKey', refId, { key: options.userKey ?? mockKey(origin) });
+            case 'GetMiniAppUserKey':
+                return ok('OnGetMiniAppUserKey', refId, { key: options.userKey ?? mockKey(origin) });
             case 'RuntimeHello':
             case 'RuntimeCall':
             case 'RuntimeSubscribe':
@@ -467,10 +467,10 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
 
     const target = window as unknown as {
         ReactNativeWebView?: { postMessage(message: string): void };
-        ChaticSubWebView?: ChaticAppsContext;
+        ChaticMiniApp?: ChaticAppsContext;
     };
     target.ReactNativeWebView = { postMessage: handle };
-    target.ChaticSubWebView = context;
+    target.ChaticMiniApp = context;
 
     const controller: MockController = {
         get title() {
@@ -496,7 +496,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
             const now = Date.now();
             if (guard && (askedAt === null || now - askedAt > FORCE_WINDOW_MS)) {
                 askedAt = now;
-                push('OnSubWebViewCloseRequested', { trigger });
+                push('OnMiniAppCloseRequested', { trigger });
                 return;
             }
             closed = { by: 'user' };
@@ -505,7 +505,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         changeContext: change => {
             Object.assign(current, change);
-            push('OnSubWebViewContextChanged', { ...current });
+            push('OnMiniAppContextChanged', { ...current });
         },
         changeCloud: () => {
             if (cloudChanged) return;
@@ -522,7 +522,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         uninstall: () => {
             delete target.ReactNativeWebView;
-            delete target.ChaticSubWebView;
+            delete target.ChaticMiniApp;
         },
     };
     return controller;

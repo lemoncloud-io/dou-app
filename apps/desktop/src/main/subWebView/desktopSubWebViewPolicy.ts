@@ -135,7 +135,7 @@ export const subWebViewBootOf = (context: SubWebViewContext, origin: string): { 
 });
 
 /**
- * The script the preload runs before the page's own: defines `window.ChaticSubWebView` on the opened
+ * The script the preload runs before the page's own: defines `window.ChaticMiniApp` on the opened
  * origin only, frozen all the way down, neither reassignable nor redefinable. The context is parsed
  * from a JSON string rather than written as an object literal, so a `"__proto__"` key in `params`
  * stays a key; the two line separators older parsers reject in a string are escaped.
@@ -147,7 +147,7 @@ export const buildDesktopSubWebViewContextScript = (context: SubWebViewContext, 
             .replace(/\u2029/g, '\\u2029');
     return `(function () {
     if (window.location.origin !== ${literal(openedOrigin)}) return;
-    if (Object.prototype.hasOwnProperty.call(window, 'ChaticSubWebView')) return;
+    if (Object.prototype.hasOwnProperty.call(window, 'ChaticMiniApp')) return;
     var freeze = function (value) {
         if (value && typeof value === 'object') {
             Object.keys(value).forEach(function (key) { freeze(value[key]); });
@@ -155,7 +155,7 @@ export const buildDesktopSubWebViewContextScript = (context: SubWebViewContext, 
         }
         return value;
     };
-    Object.defineProperty(window, 'ChaticSubWebView', {
+    Object.defineProperty(window, 'ChaticMiniApp', {
         value: freeze(JSON.parse(${literal(JSON.stringify(context))})),
         enumerable: true,
         writable: false,

@@ -48,35 +48,35 @@ export const createDesktopSubBridgeHost = (
     });
     let errorReports = 0;
 
-    host.registerHandler('FinishSubWebView', async message => {
+    host.registerHandler('FinishMiniApp', async message => {
         const closed = deps.service.close(deps.viewId, 'page', message.data?.result);
         if (!closed.ok) {
             const text =
                 closed.code === 'INVALID'
                     ? 'result must be JSON of at most 16 KiB.'
                     : 'This view is no longer showing.';
-            return fail('OnFinishSubWebView', closed.code, text);
+            return fail('OnFinishMiniApp', closed.code, text);
         }
-        return { type: 'OnFinishSubWebView', success: true, data: {} };
+        return { type: 'OnFinishMiniApp', success: true, data: {} };
     });
 
-    host.registerHandler('SetSubWebViewTitle', async message => {
+    host.registerHandler('SetMiniAppTitle', async message => {
         const title = typeof message.data?.title === 'string' ? message.data.title.trim() : '';
         if (!title || title.length > SUB_WEBVIEW_TITLE_LIMIT) {
-            return fail('OnSetSubWebViewTitle', 'INVALID', 'title must be 1 to 100 characters.');
+            return fail('OnSetMiniAppTitle', 'INVALID', 'title must be 1 to 100 characters.');
         }
         deps.setTitle(title);
-        return { type: 'OnSetSubWebViewTitle', success: true, data: {} };
+        return { type: 'OnSetMiniAppTitle', success: true, data: {} };
     });
 
     // Cut to size rather than refused: a report is most wanted when the page is least able to fix it.
-    host.registerHandler('ReportSubWebViewError', async message => {
+    host.registerHandler('ReportMiniAppError', async message => {
         const text = message.data?.message;
         if (typeof text !== 'string' || !text.trim()) {
-            return fail('OnReportSubWebViewError', 'INVALID', 'message must be a non-empty string.');
+            return fail('OnReportMiniAppError', 'INVALID', 'message must be a non-empty string.');
         }
         if (errorReports >= ERROR_REPORTS_PER_LOAD) {
-            return { type: 'OnReportSubWebViewError', success: true, data: { recorded: false } };
+            return { type: 'OnReportMiniAppError', success: true, data: { recorded: false } };
         }
         errorReports += 1;
         const stack = message.data?.stack;
@@ -85,7 +85,7 @@ export const createDesktopSubBridgeHost = (
             message: text.slice(0, ERROR_MESSAGE_LIMIT),
             ...(typeof stack === 'string' ? { stack: stack.slice(0, ERROR_STACK_LIMIT) } : {}),
         });
-        return { type: 'OnReportSubWebViewError', success: true, data: { recorded: true } };
+        return { type: 'OnReportMiniAppError', success: true, data: { recorded: true } };
     });
 
     return host;

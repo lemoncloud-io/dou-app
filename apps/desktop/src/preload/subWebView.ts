@@ -2,7 +2,7 @@
  * The sub view's preload — never the main window's. It gives a page on the opened origin the two
  * things the page SDK looks for, and nothing else of the shell:
  *
- * - `window.ChaticSubWebView`, the page's context, frozen;
+ * - `window.ChaticMiniApp`, the page's context, frozen;
  * - `window.ReactNativeWebView.postMessage`, the channel the SDK already speaks to the phone shell,
  *   so a page built for the phone runs here unchanged. Replies arrive as `message` events on `window`.
  *

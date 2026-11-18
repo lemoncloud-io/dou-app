@@ -205,7 +205,7 @@ describe('SubWebView', () => {
         renderView();
 
         const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
-        expect(script).toContain("'ChaticSubWebView'");
+        expect(script).toContain("'ChaticMiniApp'");
         expect(script).toContain('\\"orderId\\":7');
         expect(script).toContain('\\"locale\\":\\"ko\\"');
         expect(script).not.toMatch(/CHATIC_APP_|ChaticMessageHandler/);
@@ -230,7 +230,7 @@ describe('SubWebView', () => {
             renderView({ insets: INSETS });
 
             const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
-            expect(script).toContain("'ChaticSubWebView'");
+            expect(script).toContain("'ChaticMiniApp'");
             expect(script).toContain('"--chatic-safe-area-inset-top", "47px"');
             expect(script).toContain('"--chatic-safe-area-inset-bottom", "34px"');
             expect(mockWebViewProps.injectedJavaScript).toBe(script);
@@ -310,7 +310,7 @@ describe('SubWebView', () => {
         const onTitleRequest = jest.fn();
         renderView({ onTitleRequest });
 
-        mockWebViewProps.onMessage(pageMessage(URL_, 'SetSubWebViewTitle', { title: 'Orders' }));
+        mockWebViewProps.onMessage(pageMessage(URL_, 'SetMiniAppTitle', { title: 'Orders' }));
         await settle();
 
         expect(onTitleRequest).toHaveBeenCalledWith('Orders');
@@ -324,7 +324,7 @@ describe('SubWebView', () => {
 
         act(() => mockWebViewProps.onLoadStart({ nativeEvent: { url: URL_ } }));
         onTitleRequest.mockClear();
-        previousLoadOnMessage(pageMessage(URL_, 'SetSubWebViewTitle', { title: 'Stale' }));
+        previousLoadOnMessage(pageMessage(URL_, 'SetMiniAppTitle', { title: 'Stale' }));
         await settle();
 
         expect(onTitleRequest).not.toHaveBeenCalled();
@@ -351,13 +351,13 @@ describe('SubWebView', () => {
     it('answers the page a key for its opened origin, never the device id', async () => {
         renderView();
 
-        mockWebViewProps.onMessage(pageMessage('https://foo.apps.chatic.io/save', 'GetSubWebViewUserKey', {}));
+        mockWebViewProps.onMessage(pageMessage('https://foo.apps.chatic.io/save', 'GetMiniAppUserKey', {}));
         await settle();
 
         const [raw] = mockPostMessage.mock.calls[0];
         expect(JSON.parse(raw)).toEqual(
             expect.objectContaining({
-                type: 'OnGetSubWebViewUserKey',
+                type: 'OnGetMiniAppUserKey',
                 success: true,
                 data: { key: deriveSubWebViewUserKey(MOCK_DEVICE_ID, 'https://foo.apps.chatic.io') },
             })
@@ -370,14 +370,14 @@ describe('SubWebView', () => {
         renderView({ permissions: new Set(['share']) });
 
         mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
-        mockWebViewProps.onMessage(pageMessage(URL_, 'GetSubWebViewUserKey', {}));
+        mockWebViewProps.onMessage(pageMessage(URL_, 'GetMiniAppUserKey', {}));
         await settle();
 
         const replies = mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw));
         const ready = replies.find(reply => reply.type === 'OnWebAppReady');
-        const key = replies.find(reply => reply.refId === 'r-GetSubWebViewUserKey');
+        const key = replies.find(reply => reply.refId === 'r-GetMiniAppUserKey');
         expect(ready.data.supportedWebMessages).toEqual(expect.arrayContaining(['OpenShareSheet', 'TriggerHaptic']));
-        expect(ready.data.supportedWebMessages).not.toContain('GetSubWebViewUserKey');
+        expect(ready.data.supportedWebMessages).not.toContain('GetMiniAppUserKey');
         expect(key).toEqual(
             expect.objectContaining({ type: 'ERROR', error: expect.objectContaining({ code: 'NOT_FOUND' }) })
         );
@@ -394,20 +394,20 @@ describe('SubWebView', () => {
         expect(openSubWebViewStorage).not.toHaveBeenCalled();
 
         mockWebViewProps.onMessage(
-            pageMessage('https://foo.apps.chatic.io/other', 'SetSubWebViewStorage', { entries: { level: 3 } })
+            pageMessage('https://foo.apps.chatic.io/other', 'SetMiniAppStorage', { entries: { level: 3 } })
         );
         await settle();
 
         expect(openSubWebViewStorage).toHaveBeenCalledWith('https://foo.apps.chatic.io');
         const reply = mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw)).pop();
-        expect(reply).toEqual(expect.objectContaining({ type: 'OnSetSubWebViewStorage', success: true }));
+        expect(reply).toEqual(expect.objectContaining({ type: 'OnSetMiniAppStorage', success: true }));
     });
 
     it("writes the page's error report to the app's logs under its origin", async () => {
         const { logger } = jest.requireMock('../services');
         renderView({ permissions: new Set() });
 
-        mockWebViewProps.onMessage(pageMessage(URL_, 'ReportSubWebViewError', { message: 'boom', stack: 'at x' }));
+        mockWebViewProps.onMessage(pageMessage(URL_, 'ReportMiniAppError', { message: 'boom', stack: 'at x' }));
         await settle();
 
         expect(logger.warn).toHaveBeenCalledWith('WEBVIEW', '[sub] page error', {
@@ -415,7 +415,7 @@ describe('SubWebView', () => {
             message: 'boom',
             stack: 'at x',
         });
-        expect(sentTypes()).toEqual(['OnReportSubWebViewError']);
+        expect(sentTypes()).toEqual(['OnReportMiniAppError']);
     });
 
     // A reloaded page gets a fresh host: nothing is pushed to it before its own handshake.
@@ -441,7 +441,7 @@ describe('SubWebView', () => {
 
         mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
         await settle();
-        expect(sentTypes()).toEqual(['OnSubWebViewContextChanged', 'OnWebAppReady']);
+        expect(sentTypes()).toEqual(['OnMiniAppContextChanged', 'OnWebAppReady']);
     });
 
     it("drops the last page's requested title when a new page starts loading", () => {
@@ -472,10 +472,10 @@ describe('SubWebView', () => {
 
         const pushed = mockPostMessage.mock.calls
             .map(([raw]) => JSON.parse(raw))
-            .filter(message => message.type === 'OnSubWebViewContextChanged')
+            .filter(message => message.type === 'OnMiniAppContextChanged')
             .map(({ type, success, data }) => ({ type, success, data }));
         expect(pushed).toEqual([
-            { type: 'OnSubWebViewContextChanged', success: true, data: { locale: 'ko', theme: 'dark' } },
+            { type: 'OnMiniAppContextChanged', success: true, data: { locale: 'ko', theme: 'dark' } },
         ]);
         expect(pushedEventErrors(pushed)).toEqual([]);
     });
@@ -499,7 +499,7 @@ describe('SubWebView', () => {
         await settle();
 
         const reply = JSON.parse(mockPostMessage.mock.calls[0][0]);
-        expect(reply.data.subWebView).toEqual({
+        expect(reply.data.miniApp).toEqual({
             protocolVersion: 1,
             viewId: 'view-1',
             platform: 'android',
@@ -519,7 +519,7 @@ describe('SubWebView', () => {
         await settle();
 
         const reply = JSON.parse(mockPostMessage.mock.calls[0][0]);
-        expect(reply.data.subWebView.appLink).toBe('https://app.chatic.io/apps/quiz');
+        expect(reply.data.miniApp.appLink).toBe('https://app.chatic.io/apps/quiz');
     });
 
     it('answers a message over 65,536 characters with TOO_LARGE', async () => {
@@ -599,7 +599,7 @@ describe('SubWebView', () => {
     describe('close guard', () => {
         const guard = async () => {
             mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
-            mockWebViewProps.onMessage(pageMessage(URL_, 'SetSubWebViewCloseGuard', { enabled: true }));
+            mockWebViewProps.onMessage(pageMessage(URL_, 'SetMiniAppCloseGuard', { enabled: true }));
             await settle();
             mockPostMessage.mockClear();
         };
@@ -625,7 +625,7 @@ describe('SubWebView', () => {
 
             const pushed = mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw));
             expect(pushed.map(({ type, data }) => ({ type, data }))).toEqual([
-                { type: 'OnSubWebViewCloseRequested', data: { trigger: 'control' } },
+                { type: 'OnMiniAppCloseRequested', data: { trigger: 'control' } },
             ]);
             expect(pushedEventErrors(pushed.map(({ type, success, data }) => ({ type, success, data })))).toEqual([]);
             expect(onRequestClose).not.toHaveBeenCalled();
@@ -690,13 +690,13 @@ describe('SubWebView device features', () => {
         await settle();
 
         await act(async () => {
-            await mockWebViewProps.onMessage(pageMessage(URL_, 'GetSubWebViewPermission', { kind: 'camera' }));
+            await mockWebViewProps.onMessage(pageMessage(URL_, 'GetMiniAppPermission', { kind: 'camera' }));
         });
         await settle();
 
         const reply = mockPostMessage.mock.calls
             .map(([raw]) => JSON.parse(raw))
-            .find(r => r.type === 'OnGetSubWebViewPermission');
+            .find(r => r.type === 'OnGetMiniAppPermission');
         expect(reply).toEqual(expect.objectContaining({ success: true, data: { state: 'prompt' } }));
     });
 });

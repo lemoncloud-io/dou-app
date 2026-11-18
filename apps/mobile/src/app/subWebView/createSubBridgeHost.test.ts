@@ -12,23 +12,23 @@ import { createSubBridgeHandlers } from './subBridgeHandlers';
 const SUBSET: SubWebViewRequestType[] = [
     'WebAppReady',
     'Ping',
-    'FinishSubWebView',
-    'SetSubWebViewTitle',
+    'FinishMiniApp',
+    'SetMiniAppTitle',
     'CopyToClipboard',
     'TriggerHaptic',
     'OpenURL',
     'OpenShareSheet',
-    'GetSubWebViewUserKey',
+    'GetMiniAppUserKey',
     'SetCanGoBack',
-    'SetSubWebViewCloseGuard',
-    'ReportSubWebViewError',
-    'GetSubWebViewStorage',
-    'SetSubWebViewStorage',
-    'RemoveSubWebViewStorage',
-    'ClearSubWebViewStorage',
-    'GetSubWebViewStorageInfo',
-    'GetSubWebViewPermission',
-    'RequestSubWebViewPermission',
+    'SetMiniAppCloseGuard',
+    'ReportMiniAppError',
+    'GetMiniAppStorage',
+    'SetMiniAppStorage',
+    'RemoveMiniAppStorage',
+    'ClearMiniAppStorage',
+    'GetMiniAppStorageInfo',
+    'GetMiniAppPermission',
+    'RequestMiniAppPermission',
     'OpenSettings',
 ];
 
@@ -82,20 +82,20 @@ describe('createSubBridgeHost', () => {
         expect([...reply.data.supportedWebMessages].sort()).toEqual([...SUBSET].sort());
         // A host with no local cache reports none, so a page never routes storage here.
         expect(reply.data.supportedCacheTypes ?? []).toEqual([]);
-        expect(reply.data.subWebView).toEqual(CONTEXT);
+        expect(reply.data.miniApp).toEqual(CONTEXT);
     });
 
     it('refuses a message over 65,536 characters, and handles one under it', async () => {
         const { host, sent } = createHost();
 
-        await host.handleMessage(request('SetSubWebViewTitle', { title: 'x'.repeat(64 * 1024) }));
-        await host.handleMessage(request('SetSubWebViewTitle', { title: 'Quiz' }));
+        await host.handleMessage(request('SetMiniAppTitle', { title: 'x'.repeat(64 * 1024) }));
+        await host.handleMessage(request('SetMiniAppTitle', { title: 'Quiz' }));
 
         const [tooLarge, handled] = sent.map(raw => JSON.parse(raw));
         expect(tooLarge).toEqual(
             expect.objectContaining({ type: 'ERROR', error: expect.objectContaining({ code: 'TOO_LARGE' }) })
         );
-        expect(handled).toEqual(expect.objectContaining({ type: 'OnSetSubWebViewTitle', success: true }));
+        expect(handled).toEqual(expect.objectContaining({ type: 'OnSetMiniAppTitle', success: true }));
     });
 
     // The main WebView's requests are not merely unlisted: the host answers them NOT_FOUND.

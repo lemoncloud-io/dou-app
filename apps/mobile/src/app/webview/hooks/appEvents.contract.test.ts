@@ -56,12 +56,12 @@ const MOBILE_APP_EVENTS = {
         test: 'app/webview/hooks/subWebViewHandlers.test.ts',
     },
     // Pushed to a sub WebView page by that view's own host, never to the main web.
-    OnSubWebViewContextChanged: {
+    OnMiniAppContextChanged: {
         emittedBy: ['app/subWebView/SubWebView.tsx'],
         test: 'app/subWebView/SubWebView.test.tsx',
     },
     // Pushed to a sub WebView page with its close guard on, when the user asks to close the view.
-    OnSubWebViewCloseRequested: {
+    OnMiniAppCloseRequested: {
         emittedBy: ['app/subWebView/SubWebView.tsx'],
         test: 'app/subWebView/SubWebView.test.tsx',
     },

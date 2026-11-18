@@ -59,7 +59,7 @@ itself saved. An image whose name matches its type still saves into Downloads wi
 it as a modal over the main window and tells the web `OnSubWebViewClosed` (with the page's `result`)
 when it goes. One at a time; a second open is `ALREADY_OPEN`. It is the desktop counterpart of the
 phone shell's sub WebView, and pages talk to it the same way: what a page and the shell say to each
-other is the protocol in `apps/mobile/docs/webview/sub-webview-protocol.md`, whose desktop section
+other is the protocol in `apps/mobile/docs/webview/mini-app-protocol.md`, whose desktop section
 lists what differs.
 
 **What opens** is the shared rule `libs/shared/src/utils/subWebViewTrust.ts` — the one file of
@@ -96,10 +96,10 @@ itself when a chooser has no listener, so the choosers are answered rather than 
 
 **The page's bridge** is a host of its own per page load (`desktopSubBridgeHost.ts`), never the main
 window's, on an IPC pair of its own (`chatic-sub-webview:*`). It answers `WebAppReady`, `Ping`,
-`FinishSubWebView`, `SetSubWebViewTitle` and `ReportSubWebViewError`; everything else is `NOT_FOUND`,
+`FinishMiniApp`, `SetMiniAppTitle` and `ReportMiniAppError`; everything else is `NOT_FOUND`,
 whatever a manifest declares. Main hears a message only from the page view's main frame while it
 shows the opened origin. Its preload (`src/preload/subWebView.ts`) defines, on the opened origin
-only, the frozen `window.ChaticSubWebView` (`platform: 'desktop'`) and
+only, the frozen `window.ChaticMiniApp` (`platform: 'desktop'`) and
 `window.ReactNativeWebView.postMessage` — the phone's channel, so a page built with
 `chatic-apps-sdk` runs unchanged. It asks main for that context synchronously over IPC
 (`chatic-sub-webview:boot`), answered for the page view's main frame on the opened origin only —

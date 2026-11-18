@@ -529,7 +529,7 @@ describe('AppBridgeHost sub WebView options', () => {
 
         await host.handleMessage(ready);
 
-        expect(replies()[0].data.subWebView).toEqual(
+        expect(replies()[0].data.miniApp).toEqual(
             expect.objectContaining({ protocolVersion: 1, viewId: 'v1', theme: 'dark', params: { level: 2 } })
         );
     });
@@ -537,7 +537,7 @@ describe('AppBridgeHost sub WebView options', () => {
     it('leaves the context out of a host that has none', async () => {
         await new AppBridgeHost({ sendToWeb: mockSendToWeb }).handleMessage(ready);
 
-        expect(replies()[0].data).not.toHaveProperty('subWebView');
+        expect(replies()[0].data).not.toHaveProperty('miniApp');
     });
 
     it('answers a message over the limit with TOO_LARGE and keeps it from its handler', async () => {

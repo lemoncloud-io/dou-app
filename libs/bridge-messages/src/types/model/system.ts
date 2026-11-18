@@ -464,10 +464,10 @@ export type OnWebAppReadyPayload = {
     capabilities?: Record<string, boolean | string | number>;
     /**
      * The sub WebView's context, sent only by a sub WebView's own host: the same object as
-     * `window.ChaticSubWebView`, at a moment the page knows, since on Android the global can be
+     * `window.ChaticMiniApp`, at a moment the page knows, since on Android the global can be
      * defined after the page's first script. Absent from the main shell and from apps before 2.15.0.
      */
-    subWebView?: SubWebViewContext;
+    miniApp?: SubWebViewContext;
     /**
      * How far this shell's `OpenSubWebView` opens. Sent by the main window's host only; absent from
      * shells that predate it, which open the reviewed pages only. The web offers a control that opens

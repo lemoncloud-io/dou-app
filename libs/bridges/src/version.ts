@@ -81,7 +81,13 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
-export const BRIDGE_VERSION = '2.29.0' as const;
+// 2.30.0: every name a mini app page sends or reads says `MiniApp`, not `SubWebView`: FinishMiniApp,
+//         SetMiniAppTitle, GetMiniAppUserKey, SetMiniAppCloseGuard, ReportMiniAppError, the five
+//         `…MiniAppStorage…` requests, GetMiniAppPermission and RequestMiniAppPermission; the pushes
+//         OnMiniAppContextChanged and OnMiniAppCloseRequested; the global `window.ChaticMiniApp` and the
+//         handshake reply's `miniApp`. The old names are not answered: no page outside DoU had shipped.
+//         The opener's own messages (OpenSubWebView, CloseSubWebView, OnSubWebViewClosed) keep theirs.
+export const BRIDGE_VERSION = '2.30.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

@@ -26,9 +26,9 @@ describe('buildSubWebViewContextScript', () => {
 
         const window = runOn('https://foo.apps.chatic.io', script);
 
-        expect(window.ChaticSubWebView).toEqual(CONTEXT);
-        expect(Object.isFrozen(window.ChaticSubWebView)).toBe(true);
-        expect(Object.isFrozen(window.ChaticSubWebView.params)).toBe(true);
+        expect(window.ChaticMiniApp).toEqual(CONTEXT);
+        expect(Object.isFrozen(window.ChaticMiniApp)).toBe(true);
+        expect(Object.isFrozen(window.ChaticMiniApp.params)).toBe(true);
     });
 
     it('freezes nested params and keeps the property from being reassigned', () => {
@@ -38,9 +38,9 @@ describe('buildSubWebViewContextScript', () => {
         );
         const window = runOn('https://foo.apps.chatic.io', script);
 
-        expect(Object.isFrozen(window.ChaticSubWebView.params.order)).toBe(true);
-        expect(Object.isFrozen(window.ChaticSubWebView.params.order.lines)).toBe(true);
-        expect(Object.getOwnPropertyDescriptor(window, 'ChaticSubWebView')).toEqual(
+        expect(Object.isFrozen(window.ChaticMiniApp.params.order)).toBe(true);
+        expect(Object.isFrozen(window.ChaticMiniApp.params.order.lines)).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(window, 'ChaticMiniApp')).toEqual(
             expect.objectContaining({ writable: false, configurable: false })
         );
     });
@@ -50,7 +50,7 @@ describe('buildSubWebViewContextScript', () => {
         const params = JSON.parse('{"__proto__": {"polluted": true}, "a": 1}');
         const script = buildSubWebViewContextScript({ ...CONTEXT, params }, 'https://foo.apps.chatic.io/');
 
-        const context = runOn('https://foo.apps.chatic.io', script).ChaticSubWebView;
+        const context = runOn('https://foo.apps.chatic.io', script).ChaticMiniApp;
 
         expect(Object.prototype.hasOwnProperty.call(context.params, '__proto__')).toBe(true);
         expect((context.params as { polluted?: boolean }).polluted).toBeUndefined();
@@ -60,19 +60,19 @@ describe('buildSubWebViewContextScript', () => {
     it('runs a second time without throwing or replacing the context', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
         const window = runOn('https://foo.apps.chatic.io', script);
-        const first = window.ChaticSubWebView;
+        const first = window.ChaticMiniApp;
 
         // eslint-disable-next-line no-new-func -- running the injected script is what is under test
         expect(() => new Function('window', script)(window)).not.toThrow();
-        expect(window.ChaticSubWebView).toBe(first);
+        expect(window.ChaticMiniApp).toBe(first);
     });
 
     // `params` were meant for the page the web opened, not one it navigated to.
     it('defines nothing on any other origin, another allowlisted one included', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
 
-        expect(runOn('https://bar.apps.chatic.io', script).ChaticSubWebView).toBeUndefined();
-        expect(runOn('https://evil.example', script).ChaticSubWebView).toBeUndefined();
+        expect(runOn('https://bar.apps.chatic.io', script).ChaticMiniApp).toBeUndefined();
+        expect(runOn('https://evil.example', script).ChaticMiniApp).toBeUndefined();
     });
 
     it('keeps a value that would end a script string intact', () => {
@@ -81,14 +81,14 @@ describe('buildSubWebViewContextScript', () => {
             'https://foo.apps.chatic.io/'
         );
 
-        expect(runOn('https://foo.apps.chatic.io', script).ChaticSubWebView.params).toEqual({ quote: '"\'`</script>' });
+        expect(runOn('https://foo.apps.chatic.io', script).ChaticMiniApp.params).toEqual({ quote: '"\'`</script>' });
     });
 
     // Nothing that identifies the device, the install or the user is in the contract.
     it('carries only the declared fields', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
 
-        expect(Object.keys(runOn('https://foo.apps.chatic.io', script).ChaticSubWebView).sort()).toEqual(
+        expect(Object.keys(runOn('https://foo.apps.chatic.io', script).ChaticMiniApp).sort()).toEqual(
             ['appVersion', 'locale', 'params', 'platform', 'protocolVersion', 'theme', 'viewId'].sort()
         );
         expect(script).not.toMatch(/CHATIC_APP_|deviceId|installationId|ChaticMessageHandler/);

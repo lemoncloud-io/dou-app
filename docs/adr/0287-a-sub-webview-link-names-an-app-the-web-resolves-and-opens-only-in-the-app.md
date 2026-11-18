@@ -5,7 +5,7 @@
 > · `libs/bridges` (`BRIDGE_VERSION` 2.19.0) · `apps/web` (`bridge/subWebViewApps.ts`, `usePushNavigate.ts`)
 > · `apps/mobile` (`deeplinkUtils.ts`, `SubWebViewService.ts`, `SubWebView.tsx`) · `apps/landing`
 > (`/apps/*`) · `libs/chatic-apps-sdk` (`apps.link`)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Supersedes, in [ADR-0279](./0279-a-sub-webview-page-is-linked-through-the-app-link-host-and-opened-by-the-web.md),
 > the link's shape, the shell mapping it to a page, and the landing site sending a browser to the page
 >

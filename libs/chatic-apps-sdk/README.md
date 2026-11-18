@@ -390,7 +390,7 @@ prompt along with what the page should do. `GUIDE.md` says how to set the projec
 This library lives in the DoU app's repository so it cannot drift from the app: its public types are
 pinned to the app's message definitions by a type-level test, and a contract test in the app runs this
 client against the app's real page host. The protocol it speaks is specified in
-[sub-webview-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/sub-webview-protocol.md).
+[mini-app-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/mini-app-protocol.md).
 
 ```bash
 npx jest --config libs/chatic-apps-sdk/jest.config.js

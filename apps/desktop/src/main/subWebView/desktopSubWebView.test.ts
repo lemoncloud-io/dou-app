@@ -300,13 +300,13 @@ describe('the sub view policy', () => {
         runInNewContext(script, { window: there, Object, JSON });
         runInNewContext(script, { window: elsewhere, Object, JSON });
 
-        expect(there.ChaticSubWebView.params.nested).toEqual({ a: 1 });
-        expect(Object.isFrozen(there.ChaticSubWebView.params.nested)).toBe(true);
+        expect(there.ChaticMiniApp.params.nested).toEqual({ a: 1 });
+        expect(Object.isFrozen(there.ChaticMiniApp.params.nested)).toBe(true);
         expect(() => {
             'use strict';
-            there.ChaticSubWebView = {};
+            there.ChaticMiniApp = {};
         }).toThrow();
-        expect(elsewhere.ChaticSubWebView).toBeUndefined();
+        expect(elsewhere.ChaticMiniApp).toBeUndefined();
     });
 
     it('puts the page under the bar, inside a card for titled and over the whole window for clean', () => {
@@ -355,17 +355,17 @@ describe('the sub view host', () => {
         const reply = await createHost().send('WebAppReady', {});
 
         expect([...reply.data.supportedWebMessages].sort()).toEqual([
-            'FinishSubWebView',
+            'FinishMiniApp',
             'Ping',
-            'ReportSubWebViewError',
-            'SetSubWebViewTitle',
+            'ReportMiniAppError',
+            'SetMiniAppTitle',
             'WebAppReady',
         ]);
-        expect(reply.data.subWebView).toEqual(context());
+        expect(reply.data.miniApp).toEqual(context());
         expect(reply.data.subWebViewOpenScope).toBeUndefined();
     });
 
-    it.each(['CopyToClipboard', 'OpenURL', 'GetSubWebViewUserKey', 'OpenSubWebView', 'StorageGet'])(
+    it.each(['CopyToClipboard', 'OpenURL', 'GetMiniAppUserKey', 'OpenSubWebView', 'StorageGet'])(
         'answers %s NOT_FOUND',
         async type => {
             const reply = await createHost().send(type, {});
@@ -377,28 +377,28 @@ describe('the sub view host', () => {
     it('closes its own view with the page’s result', async () => {
         const { service, send } = createHost();
 
-        expect((await send('FinishSubWebView', { result: { a: 'x'.repeat(17 * 1024) } })).error.code).toBe('INVALID');
-        expect(await send('FinishSubWebView', { result: { action: 'openMiniAppLinkSettings' } })).toEqual(
-            expect.objectContaining({ type: 'OnFinishSubWebView', success: true })
+        expect((await send('FinishMiniApp', { result: { a: 'x'.repeat(17 * 1024) } })).error.code).toBe('INVALID');
+        expect(await send('FinishMiniApp', { result: { action: 'openMiniAppLinkSettings' } })).toEqual(
+            expect.objectContaining({ type: 'OnFinishMiniApp', success: true })
         );
         expect(service.current()).toBeNull();
-        expect((await send('FinishSubWebView', {})).error.code).toBe('NOT_OPEN');
+        expect((await send('FinishMiniApp', {})).error.code).toBe('NOT_OPEN');
     });
 
     it('hands a title of 1 to 100 characters to the bar', async () => {
         const { deps, send } = createHost();
 
-        expect((await send('SetSubWebViewTitle', { title: '   ' })).error.code).toBe('INVALID');
-        expect((await send('SetSubWebViewTitle', { title: 'x'.repeat(101) })).error.code).toBe('INVALID');
-        await send('SetSubWebViewTitle', { title: ' Level 2 ' });
+        expect((await send('SetMiniAppTitle', { title: '   ' })).error.code).toBe('INVALID');
+        expect((await send('SetMiniAppTitle', { title: 'x'.repeat(101) })).error.code).toBe('INVALID');
+        await send('SetMiniAppTitle', { title: ' Level 2 ' });
         expect(deps.setTitle).toHaveBeenCalledWith('Level 2');
     });
 
     it('records 20 error reports a load, cut to size', async () => {
         const { deps, send } = createHost();
-        for (let i = 0; i < 20; i++) await send('ReportSubWebViewError', { message: 'm'.repeat(2000) });
+        for (let i = 0; i < 20; i++) await send('ReportMiniAppError', { message: 'm'.repeat(2000) });
 
-        expect((await send('ReportSubWebViewError', { message: 'late' })).data).toEqual({ recorded: false });
+        expect((await send('ReportMiniAppError', { message: 'late' })).data).toEqual({ recorded: false });
         expect(deps.logPageError).toHaveBeenCalledTimes(20);
         expect(deps.logPageError.mock.calls[0][0].message).toHaveLength(1000);
         expect(deps.logPageError.mock.calls[0][0].origin).toBe('https://quiz.apps.chatic.io');
@@ -594,7 +594,7 @@ describe('the sub view window', () => {
         await flush();
         const contents = page().webContents;
         const finish = JsonProtocol.encode({
-            type: 'FinishSubWebView',
+            type: 'FinishMiniApp',
             data: { result: { action: 'openMiniAppLinkSettings' } },
             refId: 'r1',
             version: '1',
@@ -639,7 +639,7 @@ describe('the sub view window', () => {
 
         const boot = ask(ipcEvent(contents, contents.mainFrame, 'https://apps.chatic.io/'));
         expect(boot.origin).toBe('https://apps.chatic.io');
-        expect(boot.script).toContain('ChaticSubWebView');
+        expect(boot.script).toContain('ChaticMiniApp');
         expect(ask(ipcEvent(contents, { parent: contents.mainFrame }, 'https://apps.chatic.io/'))).toBeNull();
         expect(ask(ipcEvent(contents, contents.mainFrame, 'https://example.com/'))).toBeNull();
         expect(

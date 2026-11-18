@@ -83,18 +83,18 @@ import type {
     OpenStorePayload,
     OpenSubWebViewPayload,
     CloseSubWebViewPayload,
-    FinishSubWebViewPayload,
-    SetSubWebViewTitlePayload,
-    GetSubWebViewUserKeyPayload,
-    SetSubWebViewCloseGuardPayload,
-    ReportSubWebViewErrorPayload,
-    GetSubWebViewStoragePayload,
-    SetSubWebViewStoragePayload,
-    RemoveSubWebViewStoragePayload,
-    ClearSubWebViewStoragePayload,
-    GetSubWebViewStorageInfoPayload,
-    GetSubWebViewPermissionPayload,
-    RequestSubWebViewPermissionPayload,
+    FinishMiniAppPayload,
+    SetMiniAppTitlePayload,
+    GetMiniAppUserKeyPayload,
+    SetMiniAppCloseGuardPayload,
+    ReportMiniAppErrorPayload,
+    GetMiniAppStoragePayload,
+    SetMiniAppStoragePayload,
+    RemoveMiniAppStoragePayload,
+    ClearMiniAppStoragePayload,
+    GetMiniAppStorageInfoPayload,
+    GetMiniAppPermissionPayload,
+    RequestMiniAppPermissionPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -280,18 +280,18 @@ export type WebMessagePayloadMap = {
     OpenSubWebView: OpenSubWebViewPayload;
     CloseSubWebView: CloseSubWebViewPayload;
     // Sent by a sub WebView page to the sub WebView's own host, never by the main web.
-    FinishSubWebView: FinishSubWebViewPayload;
-    SetSubWebViewTitle: SetSubWebViewTitlePayload;
-    GetSubWebViewUserKey: GetSubWebViewUserKeyPayload;
-    SetSubWebViewCloseGuard: SetSubWebViewCloseGuardPayload;
-    ReportSubWebViewError: ReportSubWebViewErrorPayload;
-    GetSubWebViewStorage: GetSubWebViewStoragePayload;
-    SetSubWebViewStorage: SetSubWebViewStoragePayload;
-    RemoveSubWebViewStorage: RemoveSubWebViewStoragePayload;
-    ClearSubWebViewStorage: ClearSubWebViewStoragePayload;
-    GetSubWebViewStorageInfo: GetSubWebViewStorageInfoPayload;
-    GetSubWebViewPermission: GetSubWebViewPermissionPayload;
-    RequestSubWebViewPermission: RequestSubWebViewPermissionPayload;
+    FinishMiniApp: FinishMiniAppPayload;
+    SetMiniAppTitle: SetMiniAppTitlePayload;
+    GetMiniAppUserKey: GetMiniAppUserKeyPayload;
+    SetMiniAppCloseGuard: SetMiniAppCloseGuardPayload;
+    ReportMiniAppError: ReportMiniAppErrorPayload;
+    GetMiniAppStorage: GetMiniAppStoragePayload;
+    SetMiniAppStorage: SetMiniAppStoragePayload;
+    RemoveMiniAppStorage: RemoveMiniAppStoragePayload;
+    ClearMiniAppStorage: ClearMiniAppStoragePayload;
+    GetMiniAppStorageInfo: GetMiniAppStorageInfoPayload;
+    GetMiniAppPermission: GetMiniAppPermissionPayload;
+    RequestMiniAppPermission: RequestMiniAppPermissionPayload;
     // 12. Runtime. The main web's conversation with a shell that owns the session; asked only of a
     // shell that offered it in `window.CHATIC_APP_RUNTIME`.
     RuntimeHello: RuntimeHelloPayload;
@@ -317,7 +317,7 @@ type RequestsIn<T extends WebMessageType> = T;
  * (`OpenURL` there opens only what the sub WebView would hand to the OS; `OpenShareSheet` shares only
  * text and a web link; `SetCanGoBack` claims Android back for the page alone). Nothing here reaches
  * the app's own storage, purchases or files: the storage requests reach only the page's own store,
- * and the one identifier, `GetSubWebViewUserKey`, is a one-way key per origin, never the device id.
+ * and the one identifier, `GetMiniAppUserKey`, is a one-way key per origin, never the device id.
  * `OpenSettings` opens DoU's own page in the OS settings, for a device permission the OS has blocked.
  * The runtime requests read the app's data, and only through the read methods a page's manifest opens
  * — with `chatSend` (2.27.0), plus one plain text message to a room of its place.
@@ -325,23 +325,23 @@ type RequestsIn<T extends WebMessageType> = T;
 export type SubWebViewRequestType = RequestsIn<
     | 'WebAppReady'
     | 'Ping'
-    | 'FinishSubWebView'
-    | 'SetSubWebViewTitle'
+    | 'FinishMiniApp'
+    | 'SetMiniAppTitle'
     | 'CopyToClipboard'
     | 'TriggerHaptic'
     | 'OpenURL'
     | 'OpenShareSheet'
-    | 'GetSubWebViewUserKey'
+    | 'GetMiniAppUserKey'
     | 'SetCanGoBack'
-    | 'SetSubWebViewCloseGuard'
-    | 'ReportSubWebViewError'
-    | 'GetSubWebViewStorage'
-    | 'SetSubWebViewStorage'
-    | 'RemoveSubWebViewStorage'
-    | 'ClearSubWebViewStorage'
-    | 'GetSubWebViewStorageInfo'
-    | 'GetSubWebViewPermission'
-    | 'RequestSubWebViewPermission'
+    | 'SetMiniAppCloseGuard'
+    | 'ReportMiniAppError'
+    | 'GetMiniAppStorage'
+    | 'SetMiniAppStorage'
+    | 'RemoveMiniAppStorage'
+    | 'ClearMiniAppStorage'
+    | 'GetMiniAppStorageInfo'
+    | 'GetMiniAppPermission'
+    | 'RequestMiniAppPermission'
     | 'OpenSettings'
     | SubWebViewRuntimeRequestType
 >;

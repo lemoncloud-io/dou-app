@@ -45,8 +45,8 @@ describe("the main window's handshake", () => {
     it('lists none of the page-facing requests, which only the sub view’s own host answers', async () => {
         const report = await handshake();
 
-        expect(report.supportedWebMessages).not.toContain('FinishSubWebView');
-        expect(report.supportedWebMessages).not.toContain('SetSubWebViewTitle');
-        expect(report.supportedWebMessages).not.toContain('ReportSubWebViewError');
+        expect(report.supportedWebMessages).not.toContain('FinishMiniApp');
+        expect(report.supportedWebMessages).not.toContain('SetMiniAppTitle');
+        expect(report.supportedWebMessages).not.toContain('ReportMiniAppError');
     });
 });

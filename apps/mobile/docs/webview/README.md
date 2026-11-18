@@ -9,7 +9,7 @@ typed message, and a handler hook answers it through a service.
 > The second WebView the shell shows over this one, for a page on another origin, is in
 > [sub-webview.md](./sub-webview.md). It shares none of what follows: its own host, a subset of the
 > vocabulary, none of this injection. What a page in it and the shell say to each other is
-> [sub-webview-protocol.md](./sub-webview-protocol.md).
+> [mini-app-protocol.md](./mini-app-protocol.md).
 
 ## Key files
 
@@ -232,7 +232,7 @@ direction has its own contract tests.
 | `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                     |
 | `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
 | `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
-| `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
+| `OnMiniAppContextChanged`               | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
 | `OnRuntimeEvent`                        | `runtimeBridge`             | Only on a launch the app's runtime owns: each event of a stream the page subscribed to after its hello                                                    |
 | `OnRuntimeSessionChanged`               | `runtimeBridge`             | Only on a launch the app's runtime owns: each change of the session, once per JS turn, after a page's hello was answered `native`                         |
 

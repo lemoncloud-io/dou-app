@@ -46,7 +46,7 @@ interface SubWebViewProps {
     onRequestClose: () => void;
     /** The document's own title, each time it changes. */
     onTitleChange?: (title: string) => void;
-    /** A title the page asked for with `SetSubWebViewTitle`; `undefined` when a new page starts loading. */
+    /** A title the page asked for with `SetMiniAppTitle`; `undefined` when a new page starts loading. */
     onTitleRequest?: (title: string | undefined) => void;
     /**
      * The safe-area insets of an `immersive` view, drawn under the system bars, which the page is told as custom properties,
@@ -210,7 +210,7 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
                 onRequestClose();
                 return;
             }
-            host.pushEvent({ type: 'OnSubWebViewCloseRequested', success: true, data: { trigger } });
+            host.pushEvent({ type: 'OnMiniAppCloseRequested', success: true, data: { trigger } });
         },
         [host, onRequestClose]
     );
@@ -241,7 +241,7 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         const previous = announcedContext.current;
         if (previous.locale === locale && previous.theme === resolvedTheme) return;
         announcedContext.current = { locale, theme: resolvedTheme };
-        host.pushEvent({ type: 'OnSubWebViewContextChanged', success: true, data: { locale, theme: resolvedTheme } });
+        host.pushEvent({ type: 'OnMiniAppContextChanged', success: true, data: { locale, theme: resolvedTheme } });
     }, [host, locale, resolvedTheme]);
 
     // Only the origin the view was opened on may talk to the app. A page it navigated to — another

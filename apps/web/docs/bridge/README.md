@@ -120,7 +120,7 @@ that. `useOnSubWebViewClosed` hears the view close, with its `viewId` and a `rea
 link or a tapped push sends this page an `OnNavigate`), or `page` (the page finished, and `result`
 carries what it handed back). Handle an unknown reason too: an app released later may add one.
 `params` (JSON, at most 16 KiB) reach the page only in the sub WebView, as
-`window.ChaticSubWebView.params`; the two fallbacks cannot carry them.
+`window.ChaticMiniApp.params`; the two fallbacks cannot carry them.
 
 What an app opens depends on its handshake's `subWebViewOpenScope`, read through
 `useSubWebViewOpenScope()`. An app that says nothing opens only the pages under `*.apps.chatic.io`

@@ -57,7 +57,7 @@ export interface AppBridgeHostConfig {
      */
     resolveCacheDomainVersions?: () => Promise<CacheDomainVersions | undefined>;
     /**
-     * A sub WebView's context, reported in the handshake as `subWebView`. Only a sub WebView's own
+     * A sub WebView's context, reported in the handshake as `miniApp`. Only a sub WebView's own
      * host passes it. A thunk so the reply carries the theme and language as they are when the page
      * asks, not as they were when the host was built.
      */
@@ -159,7 +159,7 @@ export class AppBridgeHost implements IAppBridgeHost {
                         : {}),
                     ...(supportedCacheTypes ? { supportedCacheTypes } : {}),
                     ...(cacheDomainVersions ? { cacheDomainVersions } : {}),
-                    ...(config.subWebViewContext ? { subWebView: config.subWebViewContext() } : {}),
+                    ...(config.subWebViewContext ? { miniApp: config.subWebViewContext() } : {}),
                     ...(config.subWebViewOpenScope ? { subWebViewOpenScope: config.subWebViewOpenScope } : {}),
                 },
             };

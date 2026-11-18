@@ -37,11 +37,11 @@ const DESKTOP_APP_EVENTS = {
         emittedBy: ['main/subWebView/DesktopSubWebViewService.ts'],
         test: 'main/subWebView/desktopSubWebView.test.ts',
     },
-    OnSubWebViewContextChanged: {
+    OnMiniAppContextChanged: {
         notEmitted: 'The desktop sub view keeps the theme and language it opened with; the page reads its context once',
     },
-    OnSubWebViewCloseRequested: {
-        notEmitted: 'The desktop page host has no close guard; SetSubWebViewCloseGuard answers NOT_FOUND there',
+    OnMiniAppCloseRequested: {
+        notEmitted: 'The desktop page host has no close guard; SetMiniAppCloseGuard answers NOT_FOUND there',
     },
     OnRuntimeEvent: { notEmitted: 'The desktop shell never owns the session, so it has no runtime to push from' },
     OnRuntimeSessionChanged: {

@@ -45,20 +45,20 @@ import type {
     OnOpenSubWebViewPayload,
     OnCloseSubWebViewPayload,
     OnSubWebViewClosedPayload,
-    OnFinishSubWebViewPayload,
-    OnSetSubWebViewTitlePayload,
-    OnGetSubWebViewUserKeyPayload,
-    OnSetSubWebViewCloseGuardPayload,
-    OnReportSubWebViewErrorPayload,
-    OnGetSubWebViewStoragePayload,
-    OnSetSubWebViewStoragePayload,
-    OnRemoveSubWebViewStoragePayload,
-    OnClearSubWebViewStoragePayload,
-    OnGetSubWebViewStorageInfoPayload,
-    OnGetSubWebViewPermissionPayload,
-    OnRequestSubWebViewPermissionPayload,
-    OnSubWebViewCloseRequestedPayload,
-    OnSubWebViewContextChangedPayload,
+    OnFinishMiniAppPayload,
+    OnSetMiniAppTitlePayload,
+    OnGetMiniAppUserKeyPayload,
+    OnSetMiniAppCloseGuardPayload,
+    OnReportMiniAppErrorPayload,
+    OnGetMiniAppStoragePayload,
+    OnSetMiniAppStoragePayload,
+    OnRemoveMiniAppStoragePayload,
+    OnClearMiniAppStoragePayload,
+    OnGetMiniAppStorageInfoPayload,
+    OnGetMiniAppPermissionPayload,
+    OnRequestMiniAppPermissionPayload,
+    OnMiniAppCloseRequestedPayload,
+    OnMiniAppContextChangedPayload,
     OnOpenSubscriptionManagementPayload,
     OnOpenURLPayload,
     OnNavigatePayload,
@@ -291,21 +291,21 @@ export type AppMessageDataMap = {
     OnOpenSubWebView: OnOpenSubWebViewPayload;
     OnCloseSubWebView: OnCloseSubWebViewPayload;
     OnSubWebViewClosed: OnSubWebViewClosedPayload;
-    OnFinishSubWebView: OnFinishSubWebViewPayload;
-    OnSetSubWebViewTitle: OnSetSubWebViewTitlePayload;
-    OnGetSubWebViewUserKey: OnGetSubWebViewUserKeyPayload;
-    OnSetSubWebViewCloseGuard: OnSetSubWebViewCloseGuardPayload;
-    OnReportSubWebViewError: OnReportSubWebViewErrorPayload;
-    OnGetSubWebViewStorage: OnGetSubWebViewStoragePayload;
-    OnSetSubWebViewStorage: OnSetSubWebViewStoragePayload;
-    OnRemoveSubWebViewStorage: OnRemoveSubWebViewStoragePayload;
-    OnClearSubWebViewStorage: OnClearSubWebViewStoragePayload;
-    OnGetSubWebViewStorageInfo: OnGetSubWebViewStorageInfoPayload;
-    OnGetSubWebViewPermission: OnGetSubWebViewPermissionPayload;
-    OnRequestSubWebViewPermission: OnRequestSubWebViewPermissionPayload;
+    OnFinishMiniApp: OnFinishMiniAppPayload;
+    OnSetMiniAppTitle: OnSetMiniAppTitlePayload;
+    OnGetMiniAppUserKey: OnGetMiniAppUserKeyPayload;
+    OnSetMiniAppCloseGuard: OnSetMiniAppCloseGuardPayload;
+    OnReportMiniAppError: OnReportMiniAppErrorPayload;
+    OnGetMiniAppStorage: OnGetMiniAppStoragePayload;
+    OnSetMiniAppStorage: OnSetMiniAppStoragePayload;
+    OnRemoveMiniAppStorage: OnRemoveMiniAppStoragePayload;
+    OnClearMiniAppStorage: OnClearMiniAppStoragePayload;
+    OnGetMiniAppStorageInfo: OnGetMiniAppStorageInfoPayload;
+    OnGetMiniAppPermission: OnGetMiniAppPermissionPayload;
+    OnRequestMiniAppPermission: OnRequestMiniAppPermissionPayload;
     // Pushed to a sub WebView page only, by its own host.
-    OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
-    OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;
+    OnMiniAppContextChanged: OnMiniAppContextChangedPayload;
+    OnMiniAppCloseRequested: OnMiniAppCloseRequestedPayload;
     // 12. Runtime — replies to the main web's runtime requests, and the two pushes of a shell that owns
     // the session.
     OnRuntimeHello: OnRuntimeHelloPayload;

@@ -186,7 +186,7 @@ describe('chatic-apps-sdk against the page host', () => {
         apps.onCloseRequest(onClose);
         await settle();
         host.pushEvent({ type: 'OnBackPressed', success: true, data: {} });
-        host.pushEvent({ type: 'OnSubWebViewCloseRequested', success: true, data: { trigger: 'control' } });
+        host.pushEvent({ type: 'OnMiniAppCloseRequested', success: true, data: { trigger: 'control' } });
         await settle();
 
         expect(deps.setBackClaim).toHaveBeenLastCalledWith(true);

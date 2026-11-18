@@ -5,7 +5,7 @@ it with `OpenSubWebView`; the shell shows the page full screen under a small flo
 control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
 in `@chatic/bridge-messages` (`model/sub-webview.ts`). What a page and the shell say to each other —
 the envelope, versions, errors, timing, every request and push — is specified in
-[sub-webview-protocol.md](./sub-webview-protocol.md); this document is how the shell behaves.
+[mini-app-protocol.md](./mini-app-protocol.md); this document is how the shell behaves.
 
 It exists so the app can host pages it does not own the code of — a service of its own, a notice —
 without
@@ -25,7 +25,7 @@ not `AppWebView` with another URL:
   so a server cannot mistake it for the app;
 - none of the main WebView's handlers: its messages go to a host of its own (below).
 
-**A context, defined before the page's scripts run.** `window.ChaticSubWebView` is a frozen
+**A context, defined before the page's scripts run.** `window.ChaticMiniApp` is a frozen
 `SubWebViewContext`: `protocolVersion` (1), `viewId`, `platform`, `appVersion`, `locale` (the
 language the user chose in the app), `theme` (the app's resolved theme, which can differ from the
 OS's), `params` — what the web passed in `OpenSubWebView`, never put in the URL — and `appLink`,
@@ -34,32 +34,32 @@ identifies the device, the install or the user. The script defines it only when 
 the one the view was opened on, so a page the view navigates to — another allowlisted one too —
 finds
 nothing (`subWebViewContextScript.ts`). A later theme or language change arrives as the push
-`OnSubWebViewContextChanged`.
+`OnMiniAppContextChanged`.
 
 **A bridge of its own, with a subset of the vocabulary.** The page speaks the same message
 vocabulary as the main web, through `window.ReactNativeWebView`, to a second `AppBridgeHost`
 (`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType` — and of that, the base set
 and what the page's manifest permits (below):
 
-| Request                       | What the sub WebView's host does                                                                          |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `WebAppReady`                 | The handshake; lists the base set and the permitted rows of this table. No cache schema: nothing to store |
-| `Ping`                        | Answered by the host itself                                                                               |
-| `FinishSubWebView`            | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web                            |
-| `SetSubWebViewTitle`          | Puts a title (1–100 characters) in the bar, over the document's own                                       |
-| `CopyToClipboard`             | Writes text to the clipboard (permission `clipboard`)                                                     |
-| `TriggerHaptic`               | Plays one short haptic, a tick, a tap or an outcome                                                       |
-| `OpenURL`                     | Opens only what the view would hand to the OS — never the app's own links (`openUrl`)                     |
-| `OpenShareSheet`              | Opens the OS share sheet with a message and an http(s) link — never a file (`share`)                      |
-| `GetSubWebViewUserKey`        | This device's key for the page's origin — never the device id (`userKey`)                                 |
-| `SetCanGoBack`                | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
-| `SetSubWebViewCloseGuard`     | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first                              |
-| `ReportSubWebViewError`       | Writes the page's error to the app's log under its origin, 20 per page load                               |
-| `GetSubWebViewStorage` …      | The page's own storage: get, set, remove, clear, and what it holds (the five storage requests)            |
-| `GetSubWebViewPermission`     | Where DoU stands with the OS for the camera or the microphone, asking nothing                             |
-| `RequestSubWebViewPermission` | Asks the OS for the camera or the microphone, so its prompt does not arrive mid-capture                   |
-| `OpenSettings`                | DoU's page in the OS settings, for a permission the OS will not ask for again                             |
-| `RuntimeHello` …              | The app's own data, read through its runtime — only where the runtime gate opens them (below)             |
+| Request                    | What the sub WebView's host does                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`              | The handshake; lists the base set and the permitted rows of this table. No cache schema: nothing to store |
+| `Ping`                     | Answered by the host itself                                                                               |
+| `FinishMiniApp`            | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web                            |
+| `SetMiniAppTitle`          | Puts a title (1–100 characters) in the bar, over the document's own                                       |
+| `CopyToClipboard`          | Writes text to the clipboard (permission `clipboard`)                                                     |
+| `TriggerHaptic`            | Plays one short haptic, a tick, a tap or an outcome                                                       |
+| `OpenURL`                  | Opens only what the view would hand to the OS — never the app's own links (`openUrl`)                     |
+| `OpenShareSheet`           | Opens the OS share sheet with a message and an http(s) link — never a file (`share`)                      |
+| `GetMiniAppUserKey`        | This device's key for the page's origin — never the device id (`userKey`)                                 |
+| `SetCanGoBack`             | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
+| `SetMiniAppCloseGuard`     | The user's close is pushed to the page as `OnMiniAppCloseRequested` first                                 |
+| `ReportMiniAppError`       | Writes the page's error to the app's log under its origin, 20 per page load                               |
+| `GetMiniAppStorage` …      | The page's own storage: get, set, remove, clear, and what it holds (the five storage requests)            |
+| `GetMiniAppPermission`     | Where DoU stands with the OS for the camera or the microphone, asking nothing                             |
+| `RequestMiniAppPermission` | Asks the OS for the camera or the microphone, so its prompt does not arrive mid-capture                   |
+| `OpenSettings`             | DoU's page in the OS settings, for a permission the OS will not ask for again                             |
+| `RuntimeHello` …           | The app's own data, read through its runtime — only where the runtime gate opens them (below)             |
 
 **The page's manifest decides the gated four** (and the runtime reads, below). Before it loads a hub or reviewed page, the screen
 reads `/.well-known/chatic-app.json` from the opened origin — never from an `external` site, which
@@ -150,7 +150,7 @@ does, and never an `activityType`; only iOS reports `dismissedAction` and the ac
 page that would rather copy than fail checks the handshake for `OpenShareSheet` first: apps built
 before it answer `NOT_FOUND`.
 
-**A key for the page's own server, not an identity.** `GetSubWebViewUserKey` answers `{ key }`, 64
+**A key for the page's own server, not an identity.** `GetMiniAppUserKey` answers `{ key }`, 64
 lower-case hex characters, so a page's server can keep a user's data — a save game, progress — under
 something stable, without an account and without the app telling it who the user is. The key is
 HMAC-SHA-256 keyed by the device id over a fixed label and the page's origin
@@ -200,7 +200,7 @@ restored from a backup keeps its key.
 - **Not secret from the page.** The page may keep it and send it where it likes; it means something
   only to that origin.
 
-A page asks once its handshake lists `GetSubWebViewUserKey`; an app built before it answers
+A page asks once its handshake lists `GetMiniAppUserKey`; an app built before it answers
 `NOT_FOUND`, and the page falls back to a sign-in of its own (an anonymous one keeps working until the
 WebView's storage is cleared or the app reinstalled).
 
@@ -276,8 +276,8 @@ grant setting answers the camera and the microphone with one value, and its Andr
 audio request into the app's `RECORD_AUDIO`. Adding location still needs a purpose string or
 permission in the app, so an app release, and is done when a reviewed page needs it.
 
-**Asking first, and the two WebView settings.** `GetSubWebViewPermission` and
-`RequestSubWebViewPermission` (`subBridgeHandlers.ts`) are in the base set: they go through the
+**Asking first, and the two WebView settings.** `GetMiniAppPermission` and
+`RequestMiniAppPermission` (`subBridgeHandlers.ts`) are in the base set: they go through the
 `PermissionService` the main web already uses, so a page can learn where DoU stands with the OS and ask
 when the user reaches for the feature, instead of meeting the prompt in the middle of a capture. A kind
 the OS refused and may still ask for reads `prompt`; one it will not ask for again reads `blocked`, and
@@ -295,11 +295,11 @@ limit per page would need patching the library (see [ADR-0289](../../../../docs/
 
 Pages talk to the shell through [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md)
 (`libs/chatic-apps-sdk`, published as `@lemoncloud/chatic-apps-sdk`), or by hand following
-[sub-webview-protocol.md](./sub-webview-protocol.md), which is the contract either way: the envelope,
+[mini-app-protocol.md](./mini-app-protocol.md), which is the contract either way: the envelope,
 the handshake, every request and push, errors, timeouts and limits. Three things from it that a page
 most often gets wrong:
 
-- Take the context from the handshake reply's `subWebView`, not from `window.ChaticSubWebView` while
+- Take the context from the handshake reply's `subWebView`, not from `window.ChaticMiniApp` while
   the first script runs: on Android the global can be defined after it.
 - Hold request timeouts while the page is hidden: on Android nothing reaches the page while the app
   is in the background.
@@ -339,7 +339,7 @@ reviewed page", and a new page needs a deploy rather than an app release.
 
 An `external` site was never reviewed, so it gets no manifest permission. No request goes to its
 `/.well-known` — a manifest there would be the author's word alone — so it claims no permission, and
-`GetSubWebViewUserKey`, `CopyToClipboard`, `OpenShareSheet` and `OpenURL` answer `NOT_FOUND`. Device
+`GetMiniAppUserKey`, `CopyToClipboard`, `OpenShareSheet` and `OpenURL` answer `NOT_FOUND`. Device
 features are a different matter: they are left open on every tier, an external site's included (see
 [Device features are left open](#what-the-page-gets-and-what-it-does-not) — on both platforms the camera and microphone are
 granted to the page without a prompt of its own once DoU holds the permission; the only question the
@@ -354,7 +354,7 @@ The main WebView's handshake says `subWebViewOpenScope: 'anyHttps'`. The web shi
 shell, so it offers an owner's own link only where the handshake says so; an app that predates this
 says nothing and opens the reviewed pages alone. A push or a deep link still reaches only the
 reviewed pages — the wider scope is for a link the owner saved, opened by the web. How the desktop
-shows the same tiers is [the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell).
+shows the same tiers is [the protocol's desktop section](./mini-app-protocol.md#the-desktop-shell).
 
 It is a subtree on purpose, not `*.chatic.io`. That would take in the web app itself
 (`dou.chatic.io` boots a second copy of the app in the view, and the storage the two WebViews share
@@ -423,7 +423,7 @@ sequenceDiagram
 | `user`   | The close control (the bar's, or the floating one), or Android back with no page to go back to |
 | `host`   | The web, with `CloseSubWebView`                                                                |
 | `system` | The shell, before a deep link or a tapped push navigates the web                               |
-| `page`   | The page, with `FinishSubWebView` — the only reason that carries a `result`                    |
+| `page`   | The page, with `FinishMiniApp` — the only reason that carries a `result`                       |
 
 **A deep link or a tapped push closes the view first.** `useDeepLinkNavigation` closes a showing
 view
@@ -435,8 +435,8 @@ hears why the view went before it hears where to go, and what it opens is not hi
 the page that opened the view is gone. The view is dismissed and no `OnSubWebViewClosed` is sent.
 
 **The user's close can be asked of the page first.** A page with something to lose turns on its close
-guard (`SetSubWebViewCloseGuard`); the close control and an Android back press that would close then
-push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWebView` or stays. A
+guard (`SetMiniAppCloseGuard`); the close control and an Android back press that would close then
+push `OnMiniAppCloseRequested` instead, and the page closes with `FinishMiniApp` or stays. A
 second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
 that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
 
@@ -518,7 +518,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/subWebViewCloseGuard.ts`           | Whether the user's close asks the page first, and the forced second one |
 | `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
 | `src/app/subWebView/chaticAppsSdk.contract.test.ts`    | `chatic-apps-sdk` run against this host and its handlers                |
-| `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
+| `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticMiniApp`, for the opened origin only                      |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
 | `src/app/services/deeplinks/deeplinkUtils.ts`          | Checks a page's app link and hands it to the web as `/apps/<appId>?…`   |
@@ -535,12 +535,12 @@ page (Settings → Lab) lists it under Experiments for everyone, and a tap opens
 URL field starts at its development host, `https://dou-raise.apps-dev.chatic.io/`, and takes any other
 page. The allowlist takes `apps-dev.chatic.io` in every build, so an unlocked store build opens a
 development page too. A page reaches
-`CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetSubWebViewUserKey` only when its deployed
+`CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetMiniAppUserKey` only when its deployed
 manifest grants them; without one, those four answer `NOT_FOUND`.
 
 The camera and microphone requests (2.20.0) need no manifest. To try them, open a page that captures
 and have it call `apps.permissions.request('camera')` (`chatic-apps-sdk`), or send
-`RequestSubWebViewPermission` with `{ kind: 'camera' }` from its own script. Expect the OS prompt once,
+`RequestMiniAppPermission` with `{ kind: 'camera' }` from its own script. Expect the OS prompt once,
 under DoU's name; then `getUserMedia` should show a preview inside the page on iOS. Refuse it and ask
 again to see `prompt`; choose "don't ask again" on Android and ask once more to see `blocked`, then
 `OpenSettings`.
