@@ -4,6 +4,17 @@ import type { HostOs, ShellOrBrowser } from '@chatic/runtime-client';
 const METHODS: readonly ShellOrBrowser[] = ['shell', 'browser'];
 
 /**
+ * What the readers ask of a host: its bridge, its capability declaration and the platform it injected.
+ * The host profile has all three, and so do a page's host facts (`readWebHostFacts`), which is how the
+ * host port adapters read the same declaration from the facts a start was resolved against.
+ */
+export interface DeclaredHost {
+    readonly bridge: HostProfile['bridge'];
+    readonly capabilities: HostProfile['capabilities'];
+    readonly globals: Pick<HostProfile['globals'], 'CHATIC_APP_PLATFORM'>;
+}
+
+/**
  * Reads one `'shell' | 'browser'` key of the declaration.
  *
  * - No declaration, or one older than the key — the shell never knew it — answers what the page did
@@ -11,7 +22,7 @@ const METHODS: readonly ShellOrBrowser[] = ['shell', 'browser'];
  * - A declaration that should hold the key and does not, or names anything else, is a bug in the
  *   shell: the browser does the work, since every host can do what a browser does, and it is logged.
  */
-export const resolveShellOrBrowser = (profile: HostProfile, key: string, introducedIn: number): ShellOrBrowser => {
+export const resolveShellOrBrowser = (profile: DeclaredHost, key: string, introducedIn: number): ShellOrBrowser => {
     const source = resolveCapability(profile.capabilities, key, introducedIn);
     if (source.from === 'legacy') return profile.bridge === null ? 'browser' : 'shell';
     if (source.from === 'unavailable') return 'browser';
@@ -26,7 +37,7 @@ export const resolveShellOrBrowser = (profile: HostProfile, key: string, introdu
  * The phone platform behind a `'shell'` answer, from the platform global as the shell injected it,
  * matched without regard to case as the screens did. A desktop shell or a browser has none.
  */
-export const hostOsOf = (profile: HostProfile, kind: ShellOrBrowser): HostOs => {
+export const hostOsOf = (profile: DeclaredHost, kind: ShellOrBrowser): HostOs => {
     if (kind !== 'shell') return null;
     const injected: unknown = profile.globals.CHATIC_APP_PLATFORM;
     const platform = typeof injected === 'string' ? injected.toLowerCase() : undefined;

@@ -26,10 +26,10 @@ libs/config/src/registry/
 ├── limit.ts    4  operational guardrails
 ├── cache.ts    3  cache TTLs
 ├── bridge.ts   2  bridge request and handshake timeouts
-└── port.ts    14  which adapter fills each runtime port
+└── port.ts    15  which adapter fills each port, and which engine runs
 ```
 
-109 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
+110 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
 what proves it:
 
 ```bash
@@ -46,7 +46,7 @@ refuses to stop the boot.
 
 **A duplicate key does not throw.** `merge` keeps the **first** declaration, drops the later one, and
 calls `onDuplicateKey`. The reason to reject one is real — two domains reading the same key
-differently is a genuine bug — but 83 of 109 keys are developer-facing, and one mistake among those
+differently is a genuine bug — but 84 of 110 keys are developer-facing, and one mistake among those
 must not keep every user's app from starting. The check moved to a test instead. Merge order is fixed
 in `modules.ts`, so two devices never disagree about which declaration survived.
 
@@ -86,7 +86,7 @@ Measured from the source, and asserted in `allModules.spec.ts`.
 | ---------- | ---: | ------------------------------------------------------------------------------------------------------------------------- |
 | `user`     |    4 | Settings and its notification sub-page. A hand-built row per key, not a generated one                                     |
 | `labs`     |    2 | The Lab page's Experiments card. A hand-built row per key, like `user`; `feature.placeInvite` and `feature.chatInputLock` |
-| `dev`      |   83 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
+| `dev`      |   84 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
 | `internal` |   20 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                                 |
 
 **Declaring a surface does not create a screen.** There is no renderer that walks the registry and
@@ -119,7 +119,7 @@ lists keys is copyable.
 | `writableBy`    | `['local','server']` 35 · `[]` 22 · `['local']` 22 · `['shell','local','server']` 15 · `['shell','local']` 9 · `['shell']` 6 |
 | `persist`       | `session` 43 · `local` 31 · `none` 26 · `shell` 9                                                                            |
 | `appliesAt`     | absent 61 · `live` 26 · `restart` 19 · `reconnect` 3                                                                         |
-| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 31 · `pattern` 14                                                        |
+| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 32 · `pattern` 15                                                        |
 | Server-writable | 50 of 109                                                                                                                    |
 
 Two readings worth carrying.
@@ -198,7 +198,7 @@ package depends on and imports nothing, so it must not learn a port's meaning, a
 rejects an id that cannot be anybody's — a wrong shape, or another port's id — so it is demoted to the
 next row before it reaches that check.
 
-All fourteen are declared alike, as developer levers:
+All fifteen — one per port, plus `port.engine` — are declared alike, as developer levers:
 
 | Field           | Value                        | Why                                                                                   |
 | --------------- | ---------------------------- | ------------------------------------------------------------------------------------- |

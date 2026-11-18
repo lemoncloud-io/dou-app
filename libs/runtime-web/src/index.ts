@@ -36,6 +36,8 @@ export {
     MEDIA_INTRODUCED_IN,
     SHELL_DOMAINS_INTRODUCED_IN,
     hostOsOf,
+    offeredCheckoutMethods,
+    offeredStore,
     resolveAppShell,
     resolveCheckoutMethod,
     resolveDiagnosticsMethod,
@@ -46,6 +48,7 @@ export {
     resolveShellOrBrowser,
     resolveSignIn,
 } from './hostCapabilities';
+export type { DeclaredHost, OfferedCheckoutMethod } from './hostCapabilities';
 export { host } from '@chatic/runtime-client';
 export type {
     AppShellPort,
@@ -106,18 +109,37 @@ export type {
     WebStorageCacheOptions,
 } from './localCache';
 
-// the declaration: a web app names its adapters per port and starts the runtime from them
-export { conflicts, defineAdapter, defineRuntime, requires, startRuntime } from '@chatic/runtime-client';
+// the declaration: a web app names its adapters per port — runtime ports, host ports and the engine —
+// and starts the runtime from them
+export {
+    conflicts,
+    defineAdapter,
+    defineEngineAdapter,
+    defineHostAdapter,
+    defineRuntime,
+    engineCore,
+    requires,
+    startRuntime,
+} from '@chatic/runtime-client';
 export type {
     Adapter,
     ChoiceLane,
     ChoiceOrigin,
+    EngineAdapter,
+    EngineDeclaration,
+    EngineOutcome,
+    HostAdapter,
+    HostPortChoices,
+    HostPortDeclaration,
+    HostPortDeclarations,
+    HostPortName,
     PortChoice,
     PortChoices,
     PortConstraint,
     PortDeclaration,
     PortName,
     RuntimeDeclaration,
+    SessionOwnerSide,
     StartRuntimeOptions,
     StartedRuntime,
 } from '@chatic/runtime-client';
@@ -135,6 +157,39 @@ export {
     webHostFacts,
 } from './adapters';
 export type { WebAdapter } from './adapters';
+// the engine of a page that mirrors its shell when the shell takes the session (`engine.mirror`)
+export { engineMirror } from './adapters';
+export type { EngineMirrorOptions } from './adapters';
+// the host port adapters: `<port>.host` follows what the host declared, `.shell` and `.browser` force a
+// method the host allows; checkout's are built from the app's own implementations
+export {
+    appShellBrowser,
+    appShellHost,
+    appShellShell,
+    checkoutFromHost,
+    checkoutNone,
+    checkoutStore,
+    checkoutWeb,
+    diagnosticsBrowser,
+    diagnosticsHost,
+    diagnosticsShell,
+    filesBrowser,
+    filesHost,
+    filesShell,
+    linksBrowser,
+    linksHost,
+    linksShell,
+    mediaBrowser,
+    mediaHost,
+    mediaShell,
+    pushBrowser,
+    pushHost,
+    pushShell,
+    signInBrowser,
+    signInHost,
+    signInShell,
+} from './adapters';
+export type { CheckoutImplementations, WebHostAdapter } from './adapters';
 
 // a page's own upload sender
 export { createXhrPut, xhrPut } from './xhrPut';

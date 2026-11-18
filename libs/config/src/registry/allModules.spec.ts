@@ -18,7 +18,7 @@ describe('ALL_MODULES — the full registry', () => {
     it('declares the expected number of keys', () => {
         const registry = ConfigRegistry.merge(ALL_MODULES);
 
-        expect(registry.keys()).toHaveLength(109);
+        expect(registry.keys()).toHaveLength(110);
     });
 
     it('도메인 사이에 중복 키가 없다', () => {
@@ -54,7 +54,7 @@ describe('ALL_MODULES — the full registry', () => {
             if (surface) counts[surface] = (counts[surface] ?? 0) + 1;
         }
 
-        expect(counts).toEqual({ user: 4, labs: 2, dev: 83, internal: 20 });
+        expect(counts).toEqual({ user: 4, labs: 2, dev: 84, internal: 20 });
     });
 
     it.each<[Stage, boolean]>([

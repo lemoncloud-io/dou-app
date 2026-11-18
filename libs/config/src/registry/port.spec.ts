@@ -21,6 +21,7 @@ const PORT_KEYS = [
     'port.diagnostics',
     'port.push',
     'port.logSink',
+    'port.engine',
 ];
 
 const withBuildValues = (stage: Stage, values: Record<string, string>): IConfigEnvAdapter => ({

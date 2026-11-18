@@ -1,7 +1,8 @@
 import type { RuntimePorts } from '@chatic/runtime-core';
 
-import { conflicts, defineAdapter, defineRuntime, requires } from './define';
-import { RuntimeDeclarationError, resolvePorts } from './resolvePorts';
+import { conflicts, defineAdapter, defineEngineAdapter, defineHostAdapter, defineRuntime, requires } from './define';
+import { engineCore } from './engine';
+import { RuntimeDeclarationError, resolveEngine, resolveHostPorts, resolvePorts } from './resolvePorts';
 import type { PortChoiceReader, PortChoiceKey, PortName } from './types';
 
 interface Facts {
@@ -184,5 +185,94 @@ describe('resolvePorts', () => {
         expect(() => resolvePorts(declaration, shell, toggles({}))).toThrow(
             "the default adapters break a constraint — 'cache.indexeddb' requires 'storage.vault'"
         );
+    });
+});
+
+describe('resolveHostPorts', () => {
+    const mediaHost = defineHostAdapter<'media', Facts>({
+        id: 'media.host',
+        port: 'media',
+        create: ({ facts }) => ({ kind: facts.shell ? 'shell' : 'browser' }),
+    });
+    const mediaShell = defineHostAdapter<'media', Facts>({
+        id: 'media.shell',
+        port: 'media',
+        supports: facts => facts.shell,
+        create: () => ({ kind: 'shell' }),
+    });
+    const mediaBrowser = defineHostAdapter<'media', Facts>({
+        id: 'media.browser',
+        port: 'media',
+        create: () => ({ kind: 'browser' }),
+    });
+    const fixed = <P extends 'checkout' | 'files' | 'links' | 'appShell' | 'signIn' | 'diagnostics' | 'push'>(
+        port: P
+    ) => ({ default: defineHostAdapter<P, Facts>({ id: `${port}.none`, port, create: () => ({}) as never }) });
+    const withHost = () =>
+        declare({
+            host: {
+                checkout: fixed('checkout'),
+                media: { default: mediaHost, alternatives: [mediaShell, mediaBrowser] },
+                files: fixed('files'),
+                links: fixed('links'),
+                appShell: fixed('appShell'),
+                signIn: fixed('signIn'),
+                diagnostics: fixed('diagnostics'),
+                push: fixed('push'),
+            },
+        });
+
+    it('answers nothing for a declaration that names no host port', () => {
+        expect(resolveHostPorts(declare(), browserTab, toggles({}))).toBeUndefined();
+    });
+
+    it('follows the host default when no toggle is set', () => {
+        const choices = resolveHostPorts(withHost(), shell, toggles({}));
+        expect(choices?.media).toMatchObject({ id: 'media.host', origin: 'default' });
+        expect(choices?.media.adapter).toBe(mediaHost);
+        expect(choices?.push.id).toBe('push.none');
+    });
+
+    it('takes the browser method a toggle forces, even where the host declared the shell', () => {
+        const choices = resolveHostPorts(withHost(), shell, toggles({ 'port.media': ['media.browser', 'shell'] }));
+        expect(choices?.media).toMatchObject({ id: 'media.browser', origin: 'shell' });
+    });
+
+    it('falls back to the host default when a toggle forces a method the host lacks', () => {
+        const choices = resolveHostPorts(withHost(), browserTab, toggles({ 'port.media': ['media.shell', 'local'] }));
+        expect(choices?.media).toMatchObject({
+            id: 'media.host',
+            fellBack: { requested: 'media.shell', from: 'local', because: 'not supported on this host' },
+        });
+    });
+});
+
+describe('resolveEngine', () => {
+    const mirror = defineEngineAdapter<Facts, string>({
+        id: 'engine.mirror',
+        port: 'engine',
+        supports: facts => facts.shell,
+        create: () => ({ engine: null }),
+    });
+
+    it('takes engine.core when the declaration names no engine', () => {
+        const choice = resolveEngine(declare(), browserTab, toggles({}));
+        expect(choice).toMatchObject({ id: 'engine.core', origin: 'default' });
+        expect(choice.adapter).toBe(engineCore);
+    });
+
+    it('takes the declared engine, and an alternative a toggle chose', () => {
+        const declared = defineRuntime<Facts, string>({
+            ...declare(),
+            engine: { default: engineCore, alternatives: [mirror] },
+        });
+        expect(resolveEngine(declared, shell, toggles({}))).toMatchObject({ id: 'engine.core' });
+        expect(resolveEngine(declared, shell, toggles({ 'port.engine': ['engine.mirror', 'local'] }))).toMatchObject({
+            id: 'engine.mirror',
+            origin: 'local',
+        });
+        expect(
+            resolveEngine(declared, browserTab, toggles({ 'port.engine': ['engine.mirror', 'local'] }))
+        ).toMatchObject({ id: 'engine.core', fellBack: { because: 'not supported on this host' } });
     });
 });

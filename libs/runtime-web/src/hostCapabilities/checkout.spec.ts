@@ -1,6 +1,6 @@
 import { buildHostProfile, logger } from '@chatic/bridges';
 
-import { resolveCheckoutMethod } from './checkout';
+import { offeredCheckoutMethods, offeredStore, resolveCheckoutMethod } from './checkout';
 
 const post = { postMessage: jest.fn() };
 
@@ -67,5 +67,40 @@ describe('resolveCheckoutMethod', () => {
 
     it('sells nothing when the declaration is unreadable', () => {
         expect(resolveCheckoutMethod(phone('ios', { CHATIC_APP_CAPABILITIES: 'apple' }))).toBe('none');
+    });
+});
+
+describe('offeredCheckoutMethods', () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+        warn = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    });
+    afterEach(() => warn.mockRestore());
+
+    it("keeps every declared method the page knows, in the shell's order", () => {
+        expect(
+            offeredCheckoutMethods(
+                phone('ios', { CHATIC_APP_CAPABILITIES: { version: 1, checkout: ['web', 'paypal', 'apple'] } })
+            )
+        ).toEqual(['web', 'apple']);
+    });
+
+    it('offers the one legacy method for a host that declares nothing', () => {
+        expect(offeredCheckoutMethods(phone('ios'))).toEqual(['apple']);
+        expect(offeredCheckoutMethods(browser())).toEqual(['web']);
+    });
+
+    it('offers nothing for a declaration that is not a list, and says so', () => {
+        expect(
+            offeredCheckoutMethods(phone('ios', { CHATIC_APP_CAPABILITIES: { version: 1, checkout: 'apple' } }))
+        ).toEqual([]);
+        expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the first store offered, or none where only the website is', () => {
+        expect(
+            offeredStore(phone('android', { CHATIC_APP_CAPABILITIES: { version: 1, checkout: ['web', 'google'] } }))
+        ).toBe('google');
+        expect(offeredStore(browser())).toBeUndefined();
     });
 });

@@ -74,4 +74,10 @@ export const portModule: ConfigRegistryModule = {
     ),
     'port.push': choice('push', 'PUSH', 'Push adapter', 'Who registers the device for push and receives taps.'),
     'port.logSink': choice('logSink', 'LOG_SINK', 'Log sink adapter', 'Where log entries are written.'),
+    'port.engine': choice(
+        'engine',
+        'ENGINE',
+        'Engine adapter',
+        'Which engine runs the session: this page, or a mirror of the one the shell owns.'
+    ),
 };

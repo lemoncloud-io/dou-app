@@ -79,7 +79,9 @@ throw, so it is `undefined` until the publish; it joins the push hooks as `runti
 re-exports from it while that package lasts, so a module that only asks the host what it can do does
 not load the runtime to find out — and since the barrel reaches the same files, both see one holder.
 Reading the shell's declaration into these ports is a page's job and lives in
-[`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes).
+[`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes). An app names the
+adapters that do it in its runtime declaration (below), and `startRuntime` publishes their values into
+`host`, once, before the engine boots.
 
 ## Settings
 
@@ -131,6 +133,21 @@ await startRuntime(consoleRuntime);
   `serverDefault`, `stageRule`, `build`; all of them when left out, none when empty).
 - **Constraints** are `requires(a, b)` — choosing `a` needs `b` chosen for its port — and
   `conflicts(a, b)`.
+- **Host ports** (`host`, optional as a group) are declared the same way, one slot per port of
+  `HostPorts` — `checkout`, `media`, `files`, `links`, `appShell`, `signIn`, `diagnostics`, `push` — each
+  with a `default`, `alternatives` and `override`. A host adapter (`HostAdapter<P, Impl, Facts>`,
+  `defineHostAdapter`) has the same `id`, `port` and `supports`, and a synchronous `create({ facts })`
+  that returns the port's value. All eight are declared or none is: a feature reading a port must find
+  an answer, and an app that asks the host nothing (admin, landing) leaves the group out and publishes
+  nothing, as before.
+- **The engine** (`engine`, optional) is the slot that decides which engine the start builds:
+  `{ default, alternatives? }` of engine adapters (`EngineAdapter<Facts, Owner>`, `defineEngineAdapter`).
+  Its `create({ facts, core })` may be async and answers `{ engine, owner? }`. `core(options?)` builds the
+  declared runtime ports — `storage` first, told `sessionOwner` when the adapter settled who holds the
+  session — and the core engine over them, once however often it is called; an engine that mirrors a
+  runtime elsewhere never calls it, so none of the page's ports is built. `engine: null` is a launch that
+  must boot no runtime at all. Left out, the slot is `engine.core` (`engineCore`): `core()` and nothing
+  else, which is every runtime before this slot existed. Web pages add `engine.mirror` (runtime-web).
 - **`signedOutKeyPrefixes`, `data`** ride along to `createRuntime`. **`config`** (optional) is the
   ports `@chatic/config` is initialised with when the entry leaves that to the start.
 
@@ -162,19 +179,30 @@ A toggle is applied at the next launch: a port is built once, at the start. Sett
 adapter's behaviour are ordinary config keys and apply live, and what the host can do is changed only by
 the host's own declaration — a toggle chooses among the adapters the host supports, never adds one.
 
-config declares a `port.*` key for all fourteen ports; the start resolves the five runtime ports
-(`storage`, `transport`, `auth`, `cache`, `foreground`). The host's capability ports are still chosen
-the way `@chatic/host` describes, in a file of each app's own, and their keys take effect when those
-ports join the declaration.
+The same rules settle every slot: the five runtime ports (`resolvePorts`), the host ports a declaration
+names (`resolveHostPorts`, `undefined` when it names none) and the engine (`resolveEngine`). The
+constraints span the runtime ports only. config declares a `port.*` key for the five runtime ports, the
+eight host ports and `logSink`; it has no `port.engine` yet, so the engine runs its declared default
+until config declares one (a reader handed in through `options.read` can switch it in a test).
 
 ### Starting
 
 `startRuntime(declaration, options?)` reads the facts, makes sure config is initialised (it calls
 `config.init(declaration.config)` when the declaration carries ports and nothing has initialised config
-yet; it never initialises twice; with neither it throws), resolves the ports, logs one line per port,
-builds `storage` and then the rest, calls runtime-core's `createRuntime`, hands the engine to
-`initAppRuntime`, and returns `{ engine, choices, facts }`. Every collaborator is swappable through
-`options` for tests (`config`, `read`, `createRuntime`, `initEngine`, `log`).
+yet; it never initialises twice; with neither it throws), resolves every slot, and logs one line per
+slot. Then, in this order:
+
+1. builds the host ports and publishes them through `host` — before anything else runs, the order entry
+   points kept by publishing before they booted the runtime;
+2. runs the engine adapter, which builds `storage` and then the rest and calls runtime-core's
+   `createRuntime` through `core()` — or builds none of them;
+3. hands the engine, if there is one, to `initAppRuntime`.
+
+It returns `{ engine, choices, hostChoices?, engineChoice, facts, owner? }`: `engine` is `null` when the
+engine adapter booted none, `choices` are the runtime ports', `hostChoices` the host ports' when declared,
+and `owner` whatever the engine adapter settled (who holds the session, for `engine.mirror`), so the entry
+point can do what is the app's around it. Every collaborator is swappable through `options` for tests
+(`config`, `read`, `createRuntime`, `initEngine`, `publishHost`, `log`).
 
 The lines are logged under `app.runtime_port`, before anything is built, so a port that fails to build
 is reported against the adapter it was meant to be:
@@ -183,4 +211,5 @@ is reported against the adapter it was meant to be:
 [console] storage → storage.tab (default)
 [console] cache → cache.indexeddb (local)
 [console] cache → cache.web-storage (default, fell back: local asked for 'cache.memory', not one of this runtime's cache adapters (cache.web-storage, cache.indexeddb))
+[console] engine → engine.core (default)
 ```

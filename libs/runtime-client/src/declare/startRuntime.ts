@@ -4,16 +4,23 @@ import { logger } from '@chatic/logger';
 import { createRuntime as createCoreRuntime } from '@chatic/runtime-core';
 import type { RuntimeConfig, RuntimeEngine, RuntimePorts } from '@chatic/runtime-core';
 
+import { host } from '../host/hostPorts';
+import { HOST_PORT_NAMES } from '../host/ports';
+import type { HostPorts } from '../host/ports';
 import { initAppRuntime } from '../init';
-import { RuntimeDeclarationError, resolvePorts } from './resolvePorts';
+import { RuntimeDeclarationError, resolveEngine, resolveHostPorts, resolvePorts } from './resolvePorts';
 import { PORT_NAMES } from './types';
 import type {
     AdapterContext,
+    EngineContext,
+    HostAdapter,
+    HostPortName,
     PortChoiceReader,
     PortChoiceSummary,
     PortChoices,
     PortName,
     RuntimeDeclaration,
+    SessionOwnerSide,
     StartedRuntime,
 } from './types';
 
@@ -30,6 +37,8 @@ export interface StartRuntimeOptions {
     createRuntime?: (config: RuntimeConfig) => RuntimeEngine;
     /** Hands the engine to the React surface; `initAppRuntime` by default. */
     initEngine?: (engine: RuntimeEngine) => void;
+    /** Publishes the host ports the declaration names; the process's `host.publish` by default. */
+    publishHost?: (ports: HostPorts) => void;
     /** Where each port's line goes; `logger.info` by default. */
     log?: (line: string, choice: PortChoiceSummary) => void;
 }
@@ -63,7 +72,10 @@ const logToLogger =
  * done here; one that does not expects the entry point to have done it. Either way it is never done
  * twice — a second `init` would drop the lanes already read.
  */
-const ensureConfig = <Facts>(declaration: RuntimeDeclaration<Facts>, config: RuntimeConfigAccess): void => {
+const ensureConfig = <Facts, Owner>(
+    declaration: RuntimeDeclaration<Facts, Owner>,
+    config: RuntimeConfigAccess
+): void => {
     const initialised = config.isInitialized();
     if (declaration.config) {
         if (initialised) {
@@ -88,42 +100,81 @@ const ensureConfig = <Facts>(declaration: RuntimeDeclaration<Facts>, config: Run
  *
  * 1. reads the host facts;
  * 2. makes sure config is initialised (the toggles live there);
- * 3. settles every port (`resolvePorts`) and logs one line per port;
- * 4. builds the ports, `storage` first, waiting for any adapter that loads;
- * 5. assembles the runtime (`createRuntime`) and hands its engine to the React surface.
+ * 3. settles every runtime port (`resolvePorts`), every host port the declaration names
+ *    (`resolveHostPorts`) and the engine (`resolveEngine`), and logs one line for each;
+ * 4. builds the host ports and publishes them through the host holder, so they are readable before
+ *    anything below runs — the order the entry points kept by publishing before the boot;
+ * 5. runs the engine adapter, which builds the runtime ports (`storage` first, waiting for any adapter
+ *    that loads) and the core engine over them — or, for an engine that mirrors one elsewhere, none of
+ *    them;
+ * 6. hands the engine, if one was built, to the React surface.
  *
  * The lines are logged before anything is built, so a port that fails to build is reported against the
  * adapter it was meant to be.
  */
-export const startRuntime = async <Facts>(
-    declaration: RuntimeDeclaration<Facts>,
+export const startRuntime = async <Facts, Owner = never>(
+    declaration: RuntimeDeclaration<Facts, Owner>,
     options: StartRuntimeOptions = {}
-): Promise<StartedRuntime<Facts>> => {
+): Promise<StartedRuntime<Facts, Owner>> => {
     const facts = declaration.facts();
     const config = options.config ?? sharedConfig;
     ensureConfig(declaration, config);
 
     const read: PortChoiceReader = options.read ?? (key => config.snapshot(key));
     const choices: PortChoices<Facts> = resolvePorts(declaration, facts, read);
+    const hostChoices = resolveHostPorts(declaration, facts, read);
+    const engineChoice = resolveEngine(declaration, facts, read);
 
     const log = options.log ?? logToLogger(declaration.name);
     for (const port of PORT_NAMES) log(formatPortChoice(choices[port]), choices[port]);
+    log(formatPortChoice(engineChoice), engineChoice);
+    if (hostChoices) for (const port of HOST_PORT_NAMES) log(formatPortChoice(hostChoices[port]), hostChoices[port]);
 
-    const storage = await choices.storage.adapter.create({ facts });
-    const built = { storage } as RuntimePorts;
-    for (const port of PORT_NAMES) {
-        if (port === 'storage') continue;
-        const create = choices[port].adapter.create as (
-            context: AdapterContext<Exclude<PortName, 'storage'>, Facts>
-        ) => RuntimePorts[typeof port] | Promise<RuntimePorts[typeof port]>;
-        (built as Record<PortName, unknown>)[port] = await create({ facts, storage });
+    if (hostChoices) {
+        const ports = {} as Record<HostPortName, HostPorts[HostPortName]>;
+        for (const port of HOST_PORT_NAMES) {
+            const create = hostChoices[port].adapter.create as HostAdapter<
+                HostPortName,
+                HostPorts[HostPortName],
+                Facts
+            >['create'];
+            ports[port] = create({ facts });
+        }
+        (options.publishHost ?? (value => host.publish(value)))(ports as HostPorts);
     }
 
-    const engine = (options.createRuntime ?? createCoreRuntime)({
-        ...built,
-        signedOutKeyPrefixes: declaration.signedOutKeyPrefixes,
-        data: declaration.data,
-    });
-    (options.initEngine ?? initAppRuntime)(engine);
-    return { engine, choices, facts };
+    const buildCore = async (sessionOwner?: SessionOwnerSide): Promise<RuntimeEngine> => {
+        const storage = await choices.storage.adapter.create(sessionOwner ? { facts, sessionOwner } : { facts });
+        const built = { storage } as RuntimePorts;
+        for (const port of PORT_NAMES) {
+            if (port === 'storage') continue;
+            const create = choices[port].adapter.create as (
+                context: AdapterContext<Exclude<PortName, 'storage'>, Facts>
+            ) => RuntimePorts[typeof port] | Promise<RuntimePorts[typeof port]>;
+            (built as Record<PortName, unknown>)[port] = await create({ facts, storage });
+        }
+        return (options.createRuntime ?? createCoreRuntime)({
+            ...built,
+            signedOutKeyPrefixes: declaration.signedOutKeyPrefixes,
+            data: declaration.data,
+        });
+    };
+    // One set of ports per start, however often the engine asks: a second set would open a second
+    // session over the same stores.
+    let coreEngine: Promise<RuntimeEngine> | null = null;
+    const context: EngineContext<Facts> = {
+        facts,
+        core: ({ sessionOwner } = {}) => (coreEngine ??= buildCore(sessionOwner)),
+    };
+
+    const outcome = await engineChoice.adapter.create(context);
+    if (outcome.engine) (options.initEngine ?? initAppRuntime)(outcome.engine);
+    return {
+        engine: outcome.engine,
+        choices,
+        ...(hostChoices ? { hostChoices } : {}),
+        engineChoice,
+        facts,
+        ...(outcome.owner !== undefined ? { owner: outcome.owner as Owner } : {}),
+    };
 };

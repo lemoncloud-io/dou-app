@@ -1,7 +1,7 @@
-import { hostProfile, type HostProfile } from '@chatic/bridges';
+import { hostProfile } from '@chatic/bridges';
 import type { FilesMethod } from '@chatic/runtime-client';
 
-import { resolveShellOrBrowser } from './shellOrBrowser';
+import { resolveShellOrBrowser, type DeclaredHost } from './shellOrBrowser';
 
 /**
  * The declaration version that introduced `files`. Version 2 shipped with `media` alone, so a build
@@ -14,5 +14,5 @@ export const FILES_INTRODUCED_IN = 3;
  * shell, answered with the page's own requests — the ones every host can make — and logged. A
  * declaration older than version 3 never knew the key, so the legacy rule answers for it.
  */
-export const resolveFilesMethod = (profile: HostProfile = hostProfile()): FilesMethod =>
+export const resolveFilesMethod = (profile: DeclaredHost = hostProfile()): FilesMethod =>
     resolveShellOrBrowser(profile, 'files', FILES_INTRODUCED_IN);
