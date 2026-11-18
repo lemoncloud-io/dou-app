@@ -30,7 +30,7 @@ vi.mock('../api/costApi', async importActual => ({
     fetchActuals: (...args: Parameters<typeof CostApi.fetchActuals>) => fetchActuals(...args),
 }));
 
-vi.mock('../../../config/adapters', () => ({
+vi.mock('../../../../config/adapters/config', () => ({
     webConfigPorts: {
         env: {
             raw: (name: string) =>

@@ -112,8 +112,9 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
    client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
    does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
-   as every other app's server calls do: the session runtime and the payment SDKs are imported there
-   and nowhere else (ADR-0248, ADR-0262).
+   as every other app's server calls do: the session runtime is started from there and the payment
+   SDKs are imported there, and nowhere else (ADR-0248, ADR-0262). The runtime itself is declared in
+   `src/config/` — see [The session runtime](#the-session-runtime).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountOpen` is
     false (every host but `localhost`, `127.0.0.1`, `-dev` ones and `app.chatic.io` served by a
     production build, and any build without the server's addresses) its routes are not registered,
@@ -222,6 +223,8 @@ apps/landing/
 ├── public/                     sitemap.xml, robots.txt, two OG images
 └── src/
     ├── main.tsx                initialises i18n and renders <App /> — nothing else
+    ├── config/                 the session runtime's declaration and its start (landing.ts), and the
+    │                           site's own adapters (adapters/) — see The session runtime
     ├── i18n/                   i18next, ko + en, detector key `@landing.language`
     └── app/
         ├── app.tsx             the provider assembly: ThemeProvider around the Router
@@ -508,6 +511,43 @@ either opens with comes from that answer. The HTTP port, the session runtime and
 on first use, as a chunk of their own; the dollar provider's script is fetched only when its field is
 first opened.
 
+#### The session runtime
+
+The runtime is declared in `src/config/landing.ts` (`landingRuntime`), one adapter per port and no
+alternatives, so every port is fixed to what the account surface ran before the declaration existed:
+
+| Port         | Adapter                     | What it is                                                                                        |
+| ------------ | --------------------------- | ------------------------------------------------------------------------------------------------- |
+| `storage`    | `storage.landing-tab`       | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
+| `transport`  | `transport.browser`         | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
+| `auth`       | `auth.location`             | `location.search`, and `location.replace('/?…')` at the end of a session                          |
+| `cache`      | `cache.landing-web-storage` | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
+| `foreground` | `foreground.visibility`     | the document's `visibilityState`                                                                  |
+
+`storage` and `cache` are the site's own adapters (`src/config/adapters/`), not runtime-web's
+`storage.tab` and `cache.web-storage`: those keep the same rows, but over store objects of their own,
+and the site's must be the objects `src/app/storage/` hands out — where site data is blocked those
+stores are page memory, and one `tabStore` holds the session, config's session lane, the cache's tab
+rows and what the subscription pages carry across a provider's page together. The declaration also
+carries config's ports (`src/config/adapters/config.ts`), built from the env reader the server answer
+holds (`config/subscriptionServer.ts` stays the one place `import.meta` is read), so the start
+initialises config before it reads a toggle.
+
+**The start is lazy on purpose, so it is not in `main.tsx`.** The public pages need no session, and on
+the production host only the plans page is registered; starting the runtime from the entry would put
+the runtime, and much of `libs/` it reaches, in front of every visitor. So `src/config/landing.ts`
+also exports `startLandingRuntime(env)`, and the HTTP port awaits it as it is made, inside the chunk
+that loads on first use (`lib/port/http/live.ts`, through `runtime.ts`). The session host waits for the
+port, so it never renders on a runtime that has not started. A second call answers with the first
+start; a second start would open a second session over the same stores. Once started, the runtime's
+answer to a session the server confirms is over — an alert and a jump to a logout page this site does
+not have — is switched off: the port reports the refusal as `unauthenticated`, and the route root
+turns that into the sign-in page.
+
+Outside `src/config/`, the site reaches the runtime through `@chatic/runtime` alone. The one thing the
+facade does not sell is the device guest's sign-in (`loginGuestByDevice`), which the signed code exchange
+needs as a plain call rather than a hook; `startLandingRuntime` hands it on from the started engine.
+
 #### Billing outside Korea
 
 W-08 asks for the billing country first, with none chosen. The country decides the currency and, inside
@@ -749,8 +789,9 @@ reader walks away.
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
-four; the account surface's HTTP port adds two more, `@chatic/runtime` (which reaches the server
-through `libs/data` and `libs/http`) and `@chatic/config`, with
+four; the account surface adds three more, `@chatic/runtime` (which reaches the server through
+`libs/data` and `libs/http`), and `@chatic/runtime-web` and `@chatic/config` for the session runtime's
+declaration in `src/config/`, with
 `@portone/browser-sdk` and `@stripe/stripe-js` from the workspace root, inside a chunk of their own that loads on first use (see
 [The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
@@ -766,8 +807,9 @@ the workspace root, inside its own chunk. The table is about the public pages.
 | `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                                                  |
 | `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                                                  |
 | `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                                  |
-| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                         |
-| `@chatic/runtime`         | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                          |
+| `@chatic/config`          | direct, 1 file            | `src/config/`: the session runtime's config ports                                      |
+| `@chatic/runtime-web`     | direct, 2 files           | `src/config/`: the session runtime's declaration, its adapters and its start           |
+| `@chatic/runtime`         | direct, 3 files           | the account surface's HTTP port (sign-in, session, repository); the start's one write  |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain

@@ -3,7 +3,7 @@ import { asDomStorage } from '@chatic/storage';
 import { tabStore } from '../../../../../storage';
 import { createHttpPort } from './createHttpPort';
 import { portOneWindow } from './portOneWindow';
-import { bootSessionRuntime, relaySession, subscriptionApi } from './runtime';
+import { relaySession, startSessionRuntime, subscriptionApi } from './runtime';
 import { createStripeWindow } from './stripeWindow';
 
 import type { HttpSandbox, PaymentWindow } from './createHttpPort';
@@ -19,13 +19,16 @@ export { SessionHost } from './SessionHost';
  * when the account surface runs against the server. The card entry is the provider's that the server's
  * `issue` answer names: the won provider's own window, or the dollar provider's card field in the dialog
  * `cardEntry` reaches. In sandbox payments it is neither: the stand-in window `sandbox` brings.
+ *
+ * The port is made once the session runtime has started, so it reads the runtime's repositories on a
+ * runtime that is up.
  */
-export const createLiveHttpPort = (
+export const createLiveHttpPort = async (
     server: SubscriptionServer,
     cardEntry: CardEntryChannel,
     sandbox?: HttpSandbox & { paymentWindow: PaymentWindow }
-): HttpPort => {
-    bootSessionRuntime(server.env);
+): Promise<HttpPort> => {
+    await startSessionRuntime(server.env);
     const stripeWindow = createStripeWindow(cardEntry);
     return createHttpPort({
         socialOauth: server.socialOauth,

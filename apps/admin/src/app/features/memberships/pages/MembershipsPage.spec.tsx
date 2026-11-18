@@ -12,8 +12,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchAdminMemberships = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 subscription: {
@@ -23,8 +23,8 @@ vi.mock('@chatic/runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
 

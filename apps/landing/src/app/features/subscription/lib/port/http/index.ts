@@ -65,7 +65,7 @@ export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?:
         ])
     ) as unknown as HttpPort;
 
-    // The port is made before the host renders, so the runtime is booted before the host reads it.
+    // The port is made before the host renders, so the runtime has started before the host reads it.
     const LazyHost = lazy(() => loadPort().then(() => load().then(module => ({ default: module.SessionHost }))));
     const Host = ({ children }: { children: ReactNode }) =>
         createElement(Suspense, { fallback: null }, createElement(LazyHost, null, children));

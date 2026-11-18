@@ -12,12 +12,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const listRelayUsers = vi.fn();
 const registerUser = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ user: { listRelayUsers } }) },
         session: { useRegisterUserV2: () => ({ mutateAsync: registerUser, isPending: false }) },
-    },
-}));
+    })
+);
 
 // No shell: an empty host profile, so the config adapter reads the stage from the build.
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() }, hostProfile: () => ({ globals: {} }) }));

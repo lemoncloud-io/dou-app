@@ -2,7 +2,7 @@ import { hostProfile } from '@chatic/bridges';
 import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';
 
-import { localStore, tabStore } from '../storage';
+import { localStore, tabStore } from '../../app/storage';
 
 /**
  * Wires `@chatic/config` to this app's own `import.meta.env` and the shell's injected `CHATIC_APP_*`

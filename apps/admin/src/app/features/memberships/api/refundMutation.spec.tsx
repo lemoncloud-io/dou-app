@@ -11,9 +11,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const refundSubscriptionByAdmin = vi.fn();
 
-vi.mock('@chatic/runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => ({ subscription: { refundSubscriptionByAdmin } }) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => ({ subscription: { refundSubscriptionByAdmin } }) },
+    })
+);
 
 import { adminCloudsKeys, membershipsKeys, useRefundSubscriptionByAdmin } from './membershipsQuery';
 
