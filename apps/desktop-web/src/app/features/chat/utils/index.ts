@@ -28,4 +28,5 @@ export * from './placeToEnter';
 export * from './fences';
 export * from './sortByRecency';
 export * from './welcome';
-export * from './backNavigation';
+export * from './historyNavigation';
+export * from './channelHistory';

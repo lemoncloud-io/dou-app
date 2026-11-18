@@ -31,8 +31,9 @@ notification. A jump inside the open channel records one too (`sameChannel`), be
 check, then come back down" is the same round trip.
 
 Moves that are not detours retire the origin instead: a click on the cloud or place rail, a pick from
-the channel list, and a pick from the Quick Switcher. The return is one level deep. A second jump
-replaces the first return point, as a single Back button would.
+the channel list, and a pick from the Quick Switcher. The bar's return point is one level deep: a
+second jump replaces the first. Back itself goes further, through every room the reader moved
+between; see [Back and Forward](#back-and-forward).
 
 ## When the bar shows
 
@@ -70,28 +71,52 @@ The feed sets its "at the bottom" state from the real scroll metrics after a jum
 fix, a page that arrived just after a landing tailed the reader down to the latest, away from the
 target.
 
-## The Back press
+## Back and Forward
 
-The bar is not the only way back. A Back press takes the same route: Mod+[ (⌘[ on macOS, Ctrl+[
-elsewhere), the mouse's side back button, the three-finger trackpad swipe Electron reports as `left`,
-and Go → Back in the menu bar. It is still one level deep. A press with no bar showing does nothing on
-home, and there is no Forward.
+Back and Forward step through the rooms the reader moved between on home, the way a browser steps
+through pages. Back is Mod+[ (⌘[ on macOS, Ctrl+[ elsewhere), the mouse's side back button, the
+three-finger trackpad swipe Electron reports as `left`, and Go → Back in the menu bar. Forward is
+Mod+], the side forward button, the swipe reported as `right`, and Go → Forward. ADR-0340 records the
+decision; it replaced the "one level, no stack" rule this bar started with.
 
-- **One press, two listeners.** Every input calls `pressBack`, which counts a press in
-  `useBackRequestStore` (`features/chat/stores/`). The router's `useBackNavigation`
-  (`features/chat/hooks/`) answers it on every page other than home by stepping back a page, or by
-  going home when the page was the first one shown. On home, `HomePage` answers it with the bar's own
-  action. "The first one shown" is read from the entry number React Router keeps in `history.state`
-  (`idx`), not from the location's key, which a reload keeps and a replace renews. Each listener
-  counts only the presses made after it mounted, so the press that brought the
-  reader home from Settings is not spent again on the jump return.
-- **The keyboard and the mouse are bound in the page.** Chromium hands the side button to the page on
-  every desktop OS, so the shell does nothing with it; answering it in both places would go back
-  twice. The swipe and the menu item exist only in the shell, which sends them as a `chatic-ui:back`
-  deeplink on the same event as its other menu links.
-- **Nothing happens while a dialog or menu is open.** Going back would move the page out from under
-  it; Escape closes it first.
-- **The swipe needs a macOS setting.** Electron reports it only when System Settings → Trackpad →
+- **What is recorded.** `useChannelHistory` (`features/chat/hooks/`) watches the open room rather than
+  each way of opening one. The sidebar, the Quick Switcher, the rails, the unread chord, a jump and a
+  notification all end in the selection changing, and when it changes the room left goes on Back as a
+  whole reading position: cloud, place, channel, the first message in view, the open thread. A new
+  move clears Forward. Opening or closing a thread is not a step; the thread is part of the position.
+- **What is not recorded.** A step's own landing, and the rooms an open passes through on its way: a
+  pending open after a place or cloud switch can select another room first, and that room is a stop
+  on the way, not somewhere the reader went. Once an open has landed, any room other than the step's
+  means the reader moved on their own before it arrived, and that records like any move.
+- **Which place a room is in.** While a switch lands, the open place's list no longer has the room
+  being left, so that room keeps the place it was in; it is not moved to the place being entered. The
+  self room is the exception that goes the other way: every place lists it under one id, so moving
+  between places on it is a move.
+- **What a step does.** `stepHistory` (`features/chat/utils/channelHistory.ts`) takes the next entry
+  and puts the room the reader is in on the other stack, so the opposite press returns. A room in the
+  open place that is no longer listed (the reader was removed) is passed over and dropped, as is the
+  room the reader is already in, so one press always moves. The entry opens through the same routes
+  as the bar (switch cloud, switch place, or select) as a `restore`.
+- **The bar is Back made visible.** A jump to another room changes the selection, so the room it left
+  is the last entry on Back, and the bar's "Back to …" is that step. While the bar shows, Back always
+  does what the bar says: when the last entry is not the bar's room (a jump inside one room, or one
+  whose leaving history did not record), Back takes the jump's own way back instead, so the key and
+  the bar never disagree.
+- **It lasts for the session.** `useChannelHistoryStore` outlives a trip to Settings and back, which
+  unmounts home. A reload starts it empty, and signing out reloads. Fifty entries are kept each way.
+- **One press, two listeners.** Every input calls `pressHistory`, which counts a press and its
+  direction in `useHistoryRequestStore`. The router's `useHistoryNavigation` answers it on every page
+  other than home by stepping through pages (going home when the page was the first one shown, read
+  from React Router's `history.state.idx`, which a reload keeps). On home, `HomePage` answers it
+  with the channel history. Each listener counts only the presses made after it mounted, so the press
+  that brought the reader home from Settings is not spent again on a channel step.
+- **The keyboard and the mouse are bound in the page.** Chromium hands the side buttons to the page on
+  every desktop OS, so the shell does nothing with them; answering them in both places would step
+  twice. The swipes and menu items exist only in the shell, which sends them as `chatic-ui:back` and
+  `chatic-ui:forward` deeplinks on the same event as its other menu links.
+- **Nothing happens while a dialog or menu is open.** A step would move the page out from under it;
+  Escape closes it first.
+- **The swipes need a macOS setting.** Electron reports them only when System Settings → Trackpad →
   More Gestures → "Swipe between pages" is set to "Swipe with two or three fingers". The default
   two-finger swipe scrolls, and no press arrives.
 

@@ -109,12 +109,13 @@ Alt+Shift+↓ and Alt+Shift+↑ open the next or previous channel with unread, w
 
 The shortcut sheet (`ShortcutsDialog`) lists both uses of the chord and where each applies.
 
-## Back
+## Back and Forward
 
-⌘[ (Ctrl+[ off macOS) is Back. On home it takes the "Back to …" bar's route, and on any other page
-it steps back a page. It works from the composer too: the chord has no meaning in a text field. Inside
-an open dialog or menu it does nothing. What a press does, and the other inputs that make one, are in
-[jump-and-return.md](./jump-and-return.md#the-back-press).
+⌘[ and ⌘] (Ctrl+[ and Ctrl+] off macOS) are Back and Forward. On home they step through the rooms the
+reader moved between, landing where they were reading; on any other page they step through pages.
+They work from the composer too: the chords have no meaning in a text field. Inside an open dialog or
+menu they do nothing. What a press does, and the other inputs that make one, are in
+[jump-and-return.md](./jump-and-return.md#back-and-forward).
 
 ## Cloud and place by number
 

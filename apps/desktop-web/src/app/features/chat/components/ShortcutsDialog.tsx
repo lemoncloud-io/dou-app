@@ -92,7 +92,14 @@ export const ShortcutsDialog = () => {
             label: t('shortcuts.format'),
         },
         { keys: <Kbd>Esc</Kbd>, label: t('shortcuts.closePanel') },
-        { keys: <Kbd>{MOD} [</Kbd>, label: t('shortcuts.back') },
+        {
+            keys: (
+                <>
+                    <Kbd>{MOD} [</Kbd> <Kbd>{MOD} ]</Kbd>
+                </>
+            ),
+            label: t('shortcuts.history'),
+        },
         {
             keys: (
                 <>
