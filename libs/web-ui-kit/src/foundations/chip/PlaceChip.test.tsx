@@ -30,6 +30,28 @@ describe('PlaceChip', () => {
         expect(chip).toHaveClass('bg-chip-ink');
     });
 
+    it('unfolds the name only on the current place, keeping it mounted on the others', () => {
+        const { rerender } = render(<PlaceChip name="Sunny" unread={3} />);
+        const name = screen.getByTestId('place-chip-name');
+        expect(name).toHaveTextContent('Sunny');
+        expect(name).toHaveAttribute('aria-hidden', 'true');
+        expect(name).toHaveClass('grid-cols-[0fr]', 'opacity-0');
+
+        rerender(<PlaceChip name="Sunny" unread={3} selected />);
+        // Same node, so the change animates instead of mounting a new label.
+        expect(screen.getByTestId('place-chip-name')).toBe(name);
+        expect(name).toHaveAttribute('aria-hidden', 'false');
+        expect(name).toHaveClass('grid-cols-[1fr]', 'opacity-100');
+    });
+
+    it('folds a place with no unread down to its disc alone', () => {
+        const { rerender } = render(<PlaceChip name="Sunny" />);
+        expect(screen.getByRole('button')).toHaveClass('p-1');
+
+        rerender(<PlaceChip name="Sunny" unread={1} />);
+        expect(screen.getByRole('button')).toHaveClass('pl-1.5', 'pr-2');
+    });
+
     it('uses a supplied avatar instead of the initial disc', () => {
         render(<PlaceChip name="Sunny" avatar={<img alt="Sunny cover" />} />);
 
