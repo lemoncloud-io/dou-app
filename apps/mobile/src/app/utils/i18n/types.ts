@@ -14,6 +14,7 @@ export type TranslationKey =
     | 'deepLink.goHome'
     | 'webview.loadTitle'
     | 'webview.loadMessage'
+    | 'webview.crashMessage'
     | 'webview.retry'
     | 'webview.subClose'
     | 'webview.subRuntimeConsent.title'

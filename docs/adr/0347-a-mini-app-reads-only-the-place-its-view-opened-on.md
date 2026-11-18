@@ -5,7 +5,7 @@
 > `roomInCurrentPlace`, `answerRoomInCurrentPlace`) · `libs/bridge-messages` (refusal reason
 > `otherPlace`) · `apps/mobile/src/app/subWebView/subWebViewRuntimeBridge.ts` · `libs/chatic-apps-sdk`
 > (typed methods, place profile helpers)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md#runtime-reads-2260)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads)
 > · Related: [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
 > (the reads), [ADR-0325](./0325-a-sub-webview-page-may-send-a-text-message-to-a-room-of-its-place.md)
 > (the send held to its place), [ADR-0345](./0345-a-sub-webview-page-gets-no-runtime-requests-where-the-webview-cannot-tell-its-frames-apart.md)

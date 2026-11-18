@@ -68,7 +68,7 @@ itself saved. An image whose name matches its type still saves into Downloads wi
 it as a modal over the main window and tells the web `OnSubWebViewClosed` (with the page's `result`)
 when it goes. One at a time; a second open is `ALREADY_OPEN`. It is the desktop counterpart of the
 phone shell's sub WebView, and pages talk to it the same way: what a page and the shell say to each
-other is the protocol in `apps/mobile/docs/webview/sub-webview-protocol.md`, whose desktop section
+other is the protocol in `apps/mobile/docs/webview/mini-app-protocol.md`, whose desktop section
 lists what differs.
 
 **What opens** is the shared rule `libs/shared/src/utils/subWebViewTrust.ts` — the one file of

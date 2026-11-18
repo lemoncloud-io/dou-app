@@ -14,10 +14,11 @@ import { toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
+import { type CrashRecoveryGiveUpReason, useWebViewCrashRecovery } from './hooks/useWebViewCrashRecovery';
 import { STORAGE_MEDIA } from './utils/storageRequest.util';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
-import { bootMetricsService, configKvService, logger, pendingReportQueueService } from '../services';
+import { configKvService } from '../services';
 import { useDebugSettingsStore, useThemeStore } from '../stores';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { RuntimeOffer } from '@chatic/bridge-messages';
@@ -28,6 +29,11 @@ import type * as RuntimeOfferModule from '../services/runtime/runtimeOffer';
 interface AppWebViewProps extends WebViewProps {
     /** Mobile bridge host instance (handles native feature routing and event dispatch) */
     bridge: IAppBridgeHost;
+    /**
+     * The content process keeps dying, or a reload after a crash never came up. The host replaces
+     * the WebView with a retry view; a retry remounts it.
+     */
+    onCrashRecoveryFailed: (reason: CrashRecoveryGiveUpReason) => void;
 }
 
 const appName = Config.VIEW_APP_NAME ?? '';
@@ -69,7 +75,7 @@ const readRuntimeOffer = (): RuntimeOffer | null => {
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
-    const { bridge, onMessage, ...restProps } = props;
+    const { bridge, onMessage, onCrashRecoveryFailed, ...restProps } = props;
 
     const { isDark, backgroundColor } = useResolvedTheme();
     const insets = useSafeAreaInsets();
@@ -86,42 +92,28 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     useVersionCheckHandler(bridge);
 
-    // WebView process crash detection (ADR-0097): the web side dies outright and can't report on
-    // itself, so native only records the fact into the pending-report queue — the reloaded web app
-    // pulls it once its session is ready and relays it on the web's behalf. It doesn't attach a
-    // buffer snapshot: the uploader already ships those entries individually from the unified
-    // buffer, so copying them here would just get the same log saved into the report a second time.
-    const captureWebViewCrash = useCallback((reason: string) => {
-        logger.error('WEBVIEW', `[webview-crash] ${reason}`);
-        pendingReportQueueService.enqueue({
-            category: 'webview-crash',
-            message: reason,
-            detectedAt: Date.now(),
-        });
-    }, []);
+    // WebView process crash: record it, reload under the crash-reload cover, and stop reloading once
+    // that is not working — see `useWebViewCrashRecovery`.
+    const reloadWebView = useCallback(() => webViewRef.current?.reload(), []);
+    const handleTermination = useWebViewCrashRecovery({
+        reload: reloadWebView,
+        coverReload,
+        onGiveUp: onCrashRecoveryFailed,
+    });
 
-    // iOS: reload when the content process is terminated by the OS
-    const handleContentProcessDidTerminate = useCallback(() => {
-        captureWebViewCrash('iOS WebView content process terminated');
-        // The forced reload is effectively a full re-boot of the web app —
-        // record it as its own boot session so it shows up in the perf history.
-        bootMetricsService.startReloadSession();
-        // The reload is a full web boot with no launch splash over it; cover it the same way.
-        coverReload();
-        webViewRef.current?.reload();
-    }, [captureWebViewCrash, coverReload]);
+    // iOS: the content process was terminated by the OS (or crashed)
+    const handleContentProcessDidTerminate = useCallback(
+        () => handleTermination('iOS WebView content process terminated'),
+        [handleTermination]
+    );
 
-    // Android: render process crashed/killed — capture and reload the same way as the iOS path
+    // Android: render process crashed/killed — handled the same way as the iOS path
     const handleRenderProcessGone = useCallback(
-        (event: { nativeEvent: { didCrash?: boolean } }) => {
-            captureWebViewCrash(
+        (event: { nativeEvent: { didCrash?: boolean } }) =>
+            handleTermination(
                 `Android WebView render process gone (didCrash: ${event.nativeEvent?.didCrash ?? 'unknown'})`
-            );
-            bootMetricsService.startReloadSession();
-            coverReload();
-            webViewRef.current?.reload();
-        },
-        [captureWebViewCrash, coverReload]
+            ),
+        [handleTermination]
     );
 
     const firebaseInstallId = useFirebaseInstallId();

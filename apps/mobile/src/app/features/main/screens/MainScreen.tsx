@@ -6,7 +6,8 @@ import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';
 import { AppWebView } from '../../../webview';
-import { DeepLinkErrorView, WebViewErrorView } from '../../core/components';
+import { DeepLinkErrorView, WebViewErrorView, type WebViewErrorKind } from '../../core/components';
+import type { CrashRecoveryGiveUpReason } from '../../../webview/hooks/useWebViewCrashRecovery';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
 import { bootMetricsService, bootSplashService, logger, subWebViewService } from '../../../services';
@@ -39,12 +40,20 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     const webViewReloadToken = useDebugRuntimeStore(state => state.webViewReloadToken);
     const requestWebViewReload = useDebugRuntimeStore(state => state.requestWebViewReload);
     // A failed page load used to leave the mounted WebView blank: the splash lifted,
-    // the debug store recorded the error, and the reader stared at nothing with no retry.
-    const [webViewError, setWebViewError] = useState<string | null>(null);
+    // the debug store recorded the error, and the reader stared at nothing with no retry. A WebView
+    // whose content process will not stay up ends here too, as a `crash`.
+    const [webViewError, setWebViewError] = useState<{ kind: WebViewErrorKind; reason: string } | null>(null);
     // The reload remounts the WebView by key, so the error clears with the retry itself.
     useEffect(() => {
         setWebViewError(null);
     }, [webViewReloadToken]);
+
+    // The error view replaces the WebView; the splash may still be up if the page never got as far as
+    // a first screen, so lift it with the same signal as a failed load.
+    const handleCrashRecoveryFailed = useCallback((reason: CrashRecoveryGiveUpReason) => {
+        setWebViewError({ kind: 'crash', reason });
+        bootSplashService.onLoadFailed();
+    }, []);
 
     // Custom zip restore gate: if a persisted localRoot exists, hold off mounting the WebView until
     // the local server comes up (loading localhost before the server starts means a blank screen —
@@ -98,7 +107,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     }
 
     if (webViewError) {
-        return <WebViewErrorView reason={webViewError} onRetry={requestWebViewReload} />;
+        return (
+            <WebViewErrorView kind={webViewError.kind} reason={webViewError.reason} onRetry={requestWebViewReload} />
+        );
     }
 
     return (
@@ -155,9 +166,10 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                         isLoading: false,
                         lastError: event.nativeEvent.description,
                     });
-                    setWebViewError(event.nativeEvent.description);
+                    setWebViewError({ kind: 'load', reason: event.nativeEvent.description });
                     bootSplashService.onLoadFailed();
                 }}
+                onCrashRecoveryFailed={handleCrashRecoveryFailed}
             />
         </View>
     );

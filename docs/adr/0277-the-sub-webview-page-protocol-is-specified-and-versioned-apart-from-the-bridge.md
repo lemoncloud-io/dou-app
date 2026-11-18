@@ -4,7 +4,7 @@
 > · Scope: `libs/bridge-messages` (`model/sub-webview.ts`, `model/system.ts`, `SubWebViewRequestType`)
 > · `libs/bridges` (`AppBridgeHost`, `BRIDGE_VERSION` 2.15.0) · `apps/mobile/src/app/subWebView/`,
 > `features/subWebView/`, `services/subWebView/subWebViewData.ts`
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > which gave the page its bridge; [ADR-0271](./0271-a-sub-webview-page-gets-a-key-per-origin-derived-from-the-device-id.md),
 > its key
@@ -37,7 +37,7 @@ The conversation itself had gaps a page author could not see from the doc:
 
 **The page side of the sub WebView is a protocol with its own specification, its own major
 version, and rules for changing it.** The specification lives beside the shell that implements it
-(`sub-webview-protocol.md`), in MUST/SHOULD terms; pages are expected to reach it through a
+(`mini-app-protocol.md`), in MUST/SHOULD terms; pages are expected to reach it through a
 library, `chatic-apps-sdk`, which may hide it from authors but not disagree with it.
 
 - **Capability comes from the handshake alone.** A page decides what to send from
