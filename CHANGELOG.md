@@ -4,6 +4,16 @@
 
 ### Features
 
+- (mobile,runtime-core,chatic-apps-sdk) hold a mini app's reads to the place its view opened on
+
+### Bug Fixes
+
+- (mobile) read home as the cloud default on the relay's place, as the session reports it
+
+## [2026-11-18] - No version updates
+
+### Features
+
 - (mobile,chatic-apps-sdk) answer mini apps on home too, and read place profiles by member
 
 ### Bug Fixes
