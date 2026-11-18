@@ -57,7 +57,7 @@ export const createNativeRuntime = (options: NativeRuntimeOptions): RuntimeEngin
     return createRuntime({
         storage: options.storage,
         transport: nativeTransportPorts({ userAgent: options.userAgent }),
-        auth: nativeAuthPorts(options.storage.plain, options.leaveToHome),
+        auth: nativeAuthPorts({ plain: options.storage.plain, leaveToHome: options.leaveToHome }),
         foreground: nativeForegroundPorts(),
         cache: options.cache,
         signedOutKeyPrefixes: options.signedOutKeyPrefixes,

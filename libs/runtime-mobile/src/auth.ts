@@ -3,6 +3,14 @@ import type { RuntimeConfig, RuntimePorts } from '@chatic/runtime-core';
 type AuthPorts = RuntimePorts['auth'];
 type KeyValueStore = RuntimeConfig['storage']['plain'];
 
+/** What the auth's ports are built from. */
+export interface NativeAuthOptions {
+    /** The runtime's plain store, where the parameters of a session's end wait for the next boot. */
+    plain: KeyValueStore;
+    /** The app's own way home once those parameters are saved. */
+    leaveToHome: AuthPorts['leaveToHome'];
+}
+
 /**
  * Where the parameters of the last session's end wait for the next boot. In the plain store, outside
  * the session's own keys, so the sign-out that writes it does not also sweep it.
@@ -29,7 +37,7 @@ export const HOME_SEARCH_KEY = 'chatic-runtime-mobile-home-search';
  * If the app does not restart, the saved flag waits for the next launch; the sweep it triggers there
  * only removes keys a sign-out already removed, so arriving late costs nothing.
  */
-export const nativeAuthPorts = (plain: KeyValueStore, leaveToHome: AuthPorts['leaveToHome']): AuthPorts => {
+export const nativeAuthPorts = ({ plain, leaveToHome }: NativeAuthOptions): AuthPorts => {
     const saved = plain.get(HOME_SEARCH_KEY);
     if (saved !== null) plain.remove(HOME_SEARCH_KEY);
     const search = saved ? `?${saved}` : '';

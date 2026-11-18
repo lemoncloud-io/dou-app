@@ -3,7 +3,9 @@ module.exports = {
     testEnvironment: 'jsdom',
     // `@chatic/data` pulls the socket lib in, which touches TextEncoder at import time.
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
+    // `uuid` ships ESM-only; the declaration API this package hands on comes from runtime-client, whose
+    // session device id makes one, so it must be transformed rather than passed through as CommonJS.
+    transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',

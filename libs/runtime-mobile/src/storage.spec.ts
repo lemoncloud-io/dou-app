@@ -1,7 +1,7 @@
 import type { NativeReadResult } from '@chatic/storage';
 
 import type { AppStateSource } from './foreground';
-import { keyValueStoreOn, nativeSecretStore, waitForUnlockedVault } from './storage';
+import { keyValueStoreOn, nativeSecretStore, nativeStoragePorts, waitForUnlockedVault } from './storage';
 import type { DeviceVault, KeyValueFile } from './storage';
 
 jest.mock('react-native', () => ({ AppState: {} }));
@@ -137,6 +137,42 @@ describe('nativeSecretStore', () => {
         await expect(store.hydrate()).resolves.toMatchObject({ reset: true });
         expect(store.status).toBe('available');
         expect(store.keys()).toEqual([]);
+    });
+});
+
+describe('nativeStoragePorts', () => {
+    it('puts the secret store on the vault and the plain and device stores each on its own file', async () => {
+        const vault = fakeVault({ status: 'available', values: { 'chatic-relay-token': 't' } });
+        const files = { plain: fakeFile(), device: fakeFile() };
+        const storage = nativeStoragePorts({ vault, files });
+
+        storage.plain.set('chatic-selected-cloud-id', 'c1');
+        storage.device.set('sync-watermark', '42');
+        await storage.secret.hydrate();
+
+        expect(files.plain.entries).toEqual(new Map([['chatic-selected-cloud-id', 'c1']]));
+        expect(files.device.entries).toEqual(new Map([['sync-watermark', '42']]));
+        expect(storage.secret.get('chatic-relay-token')).toBe('t');
+    });
+
+    it('leaves the secret store unloaded, for the boot to load', () => {
+        const vault = fakeVault({ status: 'available', values: {} });
+
+        nativeStoragePorts({ vault, files: { plain: fakeFile(), device: fakeFile() } });
+
+        expect(vault.get).not.toHaveBeenCalled();
+    });
+
+    it("hands the secret store's options on", async () => {
+        const vault = fakeVault({ status: 'available', values: {} });
+        (vault.get as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+        const storage = nativeStoragePorts({
+            vault,
+            files: { plain: fakeFile(), device: fakeFile() },
+            secret: { timeoutMs: 10 },
+        });
+
+        await expect(storage.secret.hydrate()).resolves.toMatchObject({ status: 'unavailable', reason: 'error' });
     });
 });
 

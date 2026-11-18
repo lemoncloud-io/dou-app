@@ -28,7 +28,7 @@ answer to `@chatic/data`'s `LocalCachePorts` — and the native ones in `libs/ru
 `CacheBridgeClient`, to build the client the native ones are given.) Screens, repositories and data
 sources see a `CacheStorage` and never learn which engine answered.
 
-This lib **does not decide which engine a domain gets.** In a page that is `resolveCacheBackend` in
+This lib **does not decide which engine a domain gets.** In a page that is `resolveCacheBackendFor` in
 `libs/runtime-web/src/localCache/routing.ts` — a page's policy about the installed shell, not a
 storage concern; inside the phone app it is `nativeLocalCachePorts` in `libs/runtime-mobile`, which
 routes every domain to the app's database (`NATIVE_CACHE_ROUTE`). An engine that knew the conditions of its own selection would be the wrong shape.
@@ -80,7 +80,7 @@ instrumentation (`nativeCacheMetrics`); two `IGlobalCacheSearchSource` implement
 
 **Out** — the port interfaces and the TTL/scope policy (`@chatic/data`, `local/ports/`); stream
 emission, observer keys and merge semantics on top of a storage (`@chatic/data`, `local/data-sources/`);
-which backend a type is routed to (`@chatic/runtime-web`'s `resolveCacheBackend` in a page,
+which backend a type is routed to (`@chatic/runtime-web`'s `resolveCacheBackendFor` in a page,
 `@chatic/runtime-mobile`'s `nativeLocalCachePorts` in the phone app); the SQLite
 implementation on the far side of the bridge (`apps/mobile`); the bridge transport itself
 (`@chatic/bridges`).
@@ -302,7 +302,7 @@ handlers for them, and the web ships ahead of the app. So the adapter takes a `h
 (`NativeDBAdapterOptions`) — the shell must handle all three — and asks it on every
 `canQueryChatMedia`, `loadChatMedia`, `countChatMedia` and `saveChatMediaEntries` — never once at construction, because a page's check answers from the handshake
 reply, which can land after the adapter exists. A page passes runtime-web's
-`isNativeCacheMessageHandled` (the shell's `supportedWebMessages`); a runtime inside the phone app
+`isCacheMessageHandledBy` over the report it recorded (the shell's `supportedWebMessages`); a runtime inside the phone app
 passes `() => true`, being the shell that answers. Without the check, or while it says no, nothing is
 sent and the reads answer `null`; so does an `items: null` / `counts: null` reply or a bridge failure.
 `@chatic/data` answers `null` from plain rows. A fill that was not written throws instead (never sent,
@@ -350,7 +350,7 @@ the classes here are constructor arguments for one set of ports, not an API.
 import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter, WebStorageAdapter } from '@chatic/db';
 
 export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => ({
-    route: type => resolveCacheBackend(type),
+    route: type => resolveCacheBackendFor(type, { bridge: hostProfile().bridge, support: getNativeCacheSupport() }),
     storage: (type, route, contextProvider, options) => {
         switch (route) {
             case 'native':

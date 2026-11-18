@@ -10,8 +10,9 @@ import {
     LOCAL_AUTHORITY_CACHE_TYPES,
     REQUIRED_DOMAIN_VERSION,
     getNativeCacheSupport,
-    isNativeCacheMessageHandled,
-    isNativeCacheTypeUsable,
+    isCacheMessageHandledBy,
+    isCacheTypeUsableBy,
+    readNativeCacheSupport,
     resetNativeCacheSupport,
     setNativeCacheSupport,
 } from './nativeCacheSupport';
@@ -29,7 +30,13 @@ beforeEach(() => {
     resetNativeCacheSupport();
 });
 
-describe('isNativeCacheTypeUsable', () => {
+// The verdicts as the routing and the chat storage ask them: of the report this page recorded, read
+// at the moment of asking.
+const isNativeCacheTypeUsable = (type: CacheType): boolean => isCacheTypeUsableBy(getNativeCacheSupport(), type);
+const isNativeCacheMessageHandled = (type: Parameters<typeof isCacheMessageHandledBy>[1]): boolean =>
+    isCacheMessageHandledBy(getNativeCacheSupport(), type);
+
+describe('isCacheTypeUsableBy, of the recorded report', () => {
     it('보고가 없으면(구버전 앱·응답 대기) legacy 타입만 네이티브로 인정한다', () => {
         expect(getNativeCacheSupport()).toBeNull();
         expect(isNativeCacheTypeUsable('chat')).toBe(true);
@@ -81,7 +88,7 @@ describe('isNativeCacheTypeUsable', () => {
     });
 });
 
-describe('isNativeCacheMessageHandled', () => {
+describe('isCacheMessageHandledBy, of the recorded report', () => {
     it('says no before the handshake reply lands, so an early read takes the plain-row path', () => {
         expect(isNativeCacheMessageHandled('FetchChatMediaCacheData')).toBe(false);
     });
@@ -191,5 +198,43 @@ describe('로컬 권위 도메인 (invitecloud)', () => {
         for (const type of LOCAL_AUTHORITY_CACHE_TYPES as readonly CacheType[]) {
             expect(isNativeCacheTypeUsable(type)).toBe(true);
         }
+    });
+});
+
+// The verdicts as functions of a report handed in, which a cache assembled from its own host facts
+// asks directly; the recorded-report functions above are these, asked of what this page recorded.
+describe('the verdicts over a report handed in', () => {
+    it('reads a reply into a report, with each missing field empty', () => {
+        expect(readNativeCacheSupport({})).toEqual({
+            schemaVersion: null,
+            types: new Set(),
+            domainVersions: {},
+            messages: new Set(),
+        });
+        expect(readNativeCacheSupport({ cacheSchemaVersion: 4, supportedCacheTypes: ['invite'] })).toEqual({
+            schemaVersion: 4,
+            types: new Set(['invite']),
+            domainVersions: {},
+            messages: new Set(),
+        });
+    });
+
+    it('answers for the report it is handed, not the recorded one', () => {
+        setNativeCacheSupport({});
+        const report = readNativeCacheSupport({
+            supportedCacheTypes: [FUTURE_TYPE],
+            supportedWebMessages: ['FetchChatMediaCacheData'],
+        });
+
+        expect(isCacheTypeUsableBy(report, FUTURE_TYPE)).toBe(true);
+        expect(isNativeCacheTypeUsable(FUTURE_TYPE)).toBe(false);
+        expect(isCacheMessageHandledBy(report, 'FetchChatMediaCacheData')).toBe(true);
+        expect(isNativeCacheMessageHandled('FetchChatMediaCacheData')).toBe(false);
+    });
+
+    it('answers no report as a shell that reported nothing: the legacy floor, and no requests', () => {
+        expect(isCacheTypeUsableBy(null, 'chat')).toBe(true);
+        expect(isCacheTypeUsableBy(null, FUTURE_TYPE)).toBe(false);
+        expect(isCacheMessageHandledBy(null, 'FetchChatMediaCacheData')).toBe(false);
     });
 });

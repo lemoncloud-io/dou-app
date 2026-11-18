@@ -6,10 +6,32 @@
 export { createNativeRuntime } from './createNativeRuntime';
 export type { NativeRuntimeOptions } from './createNativeRuntime';
 
-// the ports the app builds on its own native storage
+// the ports, one factory each, every one buildable on its own from what it is handed
+export { nativeTransportPorts } from './transport';
+export type { NativeDeviceOptions } from './transport';
+export { nativeForegroundPorts } from './foreground';
+export type { AppStateSource } from './foreground';
+export { nativeAuthPorts } from './auth';
+export type { NativeAuthOptions } from './auth';
 export { NATIVE_CACHE_ROUTE, nativeLocalCachePorts } from './localCache';
-export { NATIVE_VAULT_TIMEOUT_MS, keyValueStoreOn, nativeSecretStore, waitForUnlockedVault } from './storage';
-export type { DeviceVault, KeyValueFile, NativeSecretStoreOptions } from './storage';
+export {
+    NATIVE_VAULT_TIMEOUT_MS,
+    keyValueStoreOn,
+    nativeSecretStore,
+    nativeStoragePorts,
+    waitForUnlockedVault,
+} from './storage';
+export type {
+    DeviceVault,
+    KeyValueFile,
+    NativeSecretStoreOptions,
+    NativeStorageOptions,
+    NativeStoragePorts,
+} from './storage';
+
+// what the process knows about its host, read once at boot
+export { readNativeHostFacts } from './hostFacts';
+export type { NativeHostFacts, NativeHostFactsOptions, PlatformSource } from './hostFacts';
 
 // the boot: build values, the vault, the secret-storage step, then the runtime
 export {
@@ -17,11 +39,38 @@ export {
     NativeRuntimeEnvError,
     NativeRuntimeNoSessionError,
     bootNativeRuntime,
+    loadNativeSession,
     missingNativeRuntimeEnv,
 } from './boot';
-export type { NativeRuntimeBoot, NativeRuntimeBootOptions } from './boot';
+export type { NativeRuntimeBoot, NativeRuntimeBootOptions, NativeSessionLoad } from './boot';
 export { NATIVE_RELAY_GUARD_POLICY, runNativeRuntime } from './run';
 export type { NativeRuntimeRunOptions } from './run';
+
+// the declaration: the app names its adapters per port and starts the runtime from them
+export { conflicts, defineAdapter, defineRuntime, requires, startRuntime } from '@chatic/runtime-client';
+export type {
+    Adapter,
+    ChoiceLane,
+    ChoiceOrigin,
+    PortChoice,
+    PortChoices,
+    PortConstraint,
+    PortDeclaration,
+    PortName,
+    RuntimeDeclaration,
+    StartRuntimeOptions,
+    StartedRuntime,
+} from '@chatic/runtime-client';
+// the adapters a mobile declaration plugs in, each named after its id (`cache.mobile-sqlite` → `cacheMobileSqlite`)
+export {
+    authMobile,
+    cacheMobileSqlite,
+    foregroundAppState,
+    mobileHostFacts,
+    storageMobileVault,
+    transportMobile,
+} from './adapters';
+export type { MobileAdapter, MobileAuthOptions, MobileVaultStorageOptions } from './adapters';
 
 // the shell's half of the runtime across the bridge
 export { RUNTIME_CONTRACTS, RUNTIME_LISTENER_MARKER, createRuntimeBridgeHost } from '@chatic/runtime-core';

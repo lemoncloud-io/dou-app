@@ -44,6 +44,15 @@ describe('webTransportPorts — device', () => {
         expect(webTransportPorts().device()).toEqual({ appPlatform: 'android', userAgent: navigator.userAgent });
     });
 
+    it('asks the platform reader it is handed, at each read', () => {
+        let platform: string | undefined = 'ios';
+        const { device } = webTransportPorts({ appPlatform: () => platform });
+
+        expect(device().appPlatform).toBe('ios');
+        platform = undefined;
+        expect(device()).toEqual({ appPlatform: undefined, userAgent: navigator.userAgent });
+    });
+
     it('reads no platform in a plain browser', () => {
         expect(webTransportPorts().device().appPlatform).toBeUndefined();
     });
