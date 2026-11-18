@@ -75,9 +75,24 @@ so printing one does not throw over the failure being printed). `pushKind` is a 
 throw, so it is `undefined` until the publish; it joins the push hooks as `runtime.push.kind` because
 `runtime.push` was already their group. A `HostFacade` a test makes for itself binds nothing.
 
-`@chatic/runtime-client/host` is the same files without the engine behind the barrel. `@chatic/host`
-re-exports from it while that package lasts, so a module that only asks the host what it can do does
-not load the runtime to find out — and since the barrel reaches the same files, both see one holder.
+The rules the ports keep:
+
+- **Every port field is required.** A host that cannot do something gets an implementation that says so
+  (`checkout.kind === 'none'`, a picker that answers `unavailable`), never a missing field a feature then
+  fills with a browser's answer.
+- **Published once, read at the point of use.** A module that read a port at module scope would throw
+  before the publish, or keep what it read first after it.
+- **Product rules stay out.** What a membership allows, which tier sits next to which, who bills a
+  membership — those stay in the feature, and take a port's facts as input.
+- **Libraries do not read the ports.** `@chatic/runtime` and `@chatic/theme` are also rendered by apps
+  that declare no host ports (`apps/admin`, `apps/landing`), where a read would throw. They read
+  `@chatic/bridges`' host profile instead.
+
+Asking the host what it is — `isNative()`, `isNativeApp()`, a `CHATIC_APP_*` global off `window` — is
+reported outside an allow-list by `@nx/workspace-host-facts`
+([`tools/eslint-rules/host-facts.js`](../../tools/eslint-rules/host-facts.js)); a feature reads the
+port instead.
+
 Reading the shell's declaration into these ports is a page's job and lives in
 [`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes). An app names the
 adapters that do it in its runtime declaration (below), and `startRuntime` publishes their values into

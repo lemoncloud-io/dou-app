@@ -166,14 +166,14 @@ data, session or the bridge is `app/hooks` even if it also does UI work.
 features/<feature>/
 ├── pages/       route-entry screens
 ├── components/  UI used only inside this feature
-├── hooks/       logic hooks that wrap @chatic/data / @chatic/runtime for this feature
+├── hooks/       logic hooks that wrap @chatic/runtime for this feature
 ├── types/       domain types and state — this feature's entities
 ├── consts/      this feature's constants
 ├── routes/      this feature's own route table (only where the feature owns one — see below)
 └── index.ts     the public barrel; everything outside imports through it
 ```
 
-There is no `api/` folder: server access goes through `@chatic/runtime` / `@chatic/data`, and a
+There is no `api/` folder: server access goes through `@chatic/runtime`, and a
 feature's `hooks/` is where that gets wrapped. There is no separate `entities/` or `model/` layer
 either — `types/` is the entity layer, promoted to a cross-cutting `types` only on a second
 consumer.
@@ -218,7 +218,7 @@ what each part depends on, not by where it currently sits:
 | The repository call                | e.g. a `setMyProfile` write                     | `app/hooks` (once 2+ features call it) |
 | Per-screen copy and open condition | That screen's own concern                       | Stays in `features/<feature>/`         |
 
-The test: delete every `@chatic/data` / `useRuntimeRepositories()` / domain-type import from the
+The test: delete every `useRuntimeRepositories()` call and domain-type import from the
 component. What is left is the presentational part that belongs in `ui/components`; if that is
 nearly the whole component, it was already decomposed and only needed to move.
 

@@ -36,7 +36,7 @@ The same runtime also answers a mini app in the sub WebView on such a launch —
 | `sessionOwnerSwitch.ts`                     | The owner switch: records the owner and restarts to apply it; offered outside production or in debug mode |
 
 The runtime itself is declared outside that folder, in `src/config/`: `mobile.ts` names one adapter per
-port and boots it (`startMobileRuntime`), and `adapters/` holds the one adapter of the app's own.
+port, all of them runtime-mobile's, and boots it (`startMobileRuntime`).
 
 ## Who owns the session
 
@@ -176,9 +176,9 @@ env file, say — changes nothing and is logged as a fall-back to the default.
 | `foreground` | `foreground.app-state` | React Native's `AppState`                                                                 |
 
 `plain` and `device` are files of their own because the app's other MMKV files hold its own values,
-JSON-encoded, and a store's `clear` empties its whole file. The storage adapter is the app's
-(`config/adapters/`), not runtime-mobile's `storageMobileVault`: it builds and loads the stores the same
-way, and also hands on how the load went, which the host logs once the runtime runs.
+JSON-encoded, and a store's `clear` empties its whole file. The storage adapter is runtime-mobile's
+`storageMobileVault`, given an `onLoad` that hands on how the load went, which the host logs once the
+runtime runs.
 
 Who owns the session is not one of those ports. It is settled before anything loads the runtime
 ([Who owns the session](#who-owns-the-session)); only a launch it gives to the app boots this.

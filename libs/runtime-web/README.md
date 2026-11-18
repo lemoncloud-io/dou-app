@@ -2,8 +2,8 @@
 
 **The web adapter: the runtime for a web page.** The browser and the desktop shell run the session,
 the sockets, sync and the data layer in the page. This package holds the pieces that are true of a page
-and of nothing else — the page's stores, its `navigator.onLine`, a socket opened by the page — and builds
-the runtime from them.
+and of nothing else — the page's stores, its `navigator.onLine`, a socket opened by the page — as the
+adapters an app's runtime declaration plugs in.
 
 Every web app starts it from its own declaration of these pieces, in its `src/config/` — see
 [The adapters](#the-adapters) and the example under it:
@@ -12,23 +12,11 @@ Every web app starts it from its own declaration of these pieces, in its `src/co
 const started = await startRuntime(declaration); // config, host ports, then the engine
 ```
 
-`createWebRuntime`, the same set chosen once for every page, is still exported, though no app calls it:
-
-```ts
-const stores = resolveStorageStores(); // or a browser-only app's own stores
-runtime.boot.initAppRuntime(
-    createWebRuntime({
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
-        cacheTab: stores.webSession,
-        signedOutKeyPrefixes, // optional: the keys this app's domains say a sign-out takes
-        data, // optional: the app's repository and cache policies
-    })
-);
-```
+No library chooses a page's ports for an app: a choice made here would be made for every app at once and
+change only with a build, while a declaration is read by its own app alone (ADR-0343).
 
 | Export                                                    | Does                                                                                                                                                                                    |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createWebRuntime(options)`                               | fills the page's ports (below), calls runtime-core's `createRuntime`, and returns the engine for `initAppRuntime(engine)`                                                               |
 | `createBridgedRuntime(options)`                           | the engine of a page whose phone shell owns the session — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                                                           |
 | `webMirrorPort(client?)`                                  | the mirror's port over the page's bridge: `RuntimeCall` and `RuntimeSubscribe` (with `RUNTIME_CALL_TIMEOUT_MS`), `RuntimeUnsubscribe` and the two runtime pushes; made before the hello |
 | `settleSessionOwner(options)`                             | who holds the session this launch, settled before the entry point boots either runtime — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                            |
@@ -40,7 +28,7 @@ runtime.boot.initAppRuntime(
 | `resolveCheckoutMethod()` and the other host-port readers | what the shell declared it does, read into the host ports the entry point publishes — see [The host ports a page publishes](#the-host-ports-a-page-publishes)                           |
 | `xhrPut`, `createXhrPut()`                                | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file            |
 
-The ports `createWebRuntime` fills, the same in every web app:
+The ports a page fills, whichever adapters its declaration names:
 
 | Port                      | Filled by (`src/`)             | With                                                                                                                                                                             |
 | ------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,17 +37,15 @@ The ports `createWebRuntime` fills, the same in every web app:
 | `RuntimePorts.foreground` | `webForegroundPorts()`         | `document.visibilityState` and the document's `visibilitychange` event                                                                                                           |
 | `RuntimePorts.cache`      | `webLocalCachePorts(cacheTab)` | each cache domain in IndexedDB, in the phone shell's SQLite across the bridge, or in `cacheTab` (a plain tab's invited clouds); see [docs/cache](./docs/cache/README.md)         |
 
-A caller of `createWebRuntime` takes the whole set at once, so a forgotten port is not possible. No app
-calls it now: web, desktop-web, admin and the landing site each start from a declaration
-([The adapters](#the-adapters)), where every port is declared, so a forgotten one is a compile error
-there.
+Web, desktop-web, admin and the landing site each start from a declaration
+([The adapters](#the-adapters)), where every port is declared, so a forgotten one is a compile error.
 
 ### Each port on its own
 
-Every piece `createWebRuntime` and `resolveStorageStores` choose between is also on the barrel as a
-factory that builds on its own from what it is handed — the pieces a runtime assembled from an app's own
-choices is made of. `createWebRuntime`, `resolveStorageStores` and `webLocalCachePorts` are these
-factories, chosen for the page, and answer exactly as before.
+Every piece an adapter builds is also on the barrel as a factory that builds on its own from what it is
+handed — the pieces a runtime assembled from an app's own choices is made of. `resolveStorageStores` and
+`webLocalCachePorts` are these factories, chosen for the page; web and desktop-web build their stores
+with the first, and the apps' own cache adapters route with the second.
 
 | Port       | Factory (adapter id)                                                        | Handed                                                                                                                        |
 | ---------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -108,7 +94,7 @@ decision rather than from the facts, because it lands with the handshake after t
 Within one start the page's raw web stores are built once, by the storage adapter: the vault's fallback
 and the cache's tab rows take that adapter's `webSession` rather than opening their own. Where site data
 is blocked each opening is a fresh memory store, so a second one would split the session from the cache's
-tab rows — the reason `createWebRuntime`'s callers hand `stores.webSession` in as `cacheTab`.
+tab rows — the reason the cache adapters take the storage port's `webSession`.
 
 `storage.vault` loads the vault the way apps/web's entry does, but what that entry does around it — the
 late-vault reload and the watch on a vault unreadable at launch — stays the app's. On a launch whose
@@ -192,12 +178,10 @@ export const web = defineRuntime({
 const { owner } = await startRuntime(web); // owner: SessionOwnerChoice
 ```
 
-Every web app starts from a declaration of these adapters. `createWebRuntime` and `resolveStorageStores`
-remain, unchanged: they make for the page the choice a declaration makes for its app. web and
-desktop-web still build their stores with `resolveStorageStores` and declare over them; nothing calls
-`createWebRuntime`. The choice is moving out of this package
-because a choice made here is made for every app at once and changes only with a build; an app's
-declaration is read by that app alone, and a `port.*` toggle can switch it on one device (ADR-0343).
+Every web app starts from a declaration of these adapters. `resolveStorageStores` remains: it makes for
+the page the choice of stores, and web and desktop-web build their stores with it and declare over them.
+An app's declaration is read by that app alone, and a `port.*` toggle can switch it on one device
+(ADR-0343).
 
 ### A page that mirrors its shell
 
@@ -206,8 +190,8 @@ On a phone launch whose shell runs the session, the page builds no runtime of it
 the page's bridge, built from the session the shell's `native` answer to the page's hello carried.
 Nothing is wired in the page — no stores, sockets or cache — and every member reaches the shell's
 runtime as runtime-core's [docs/bridge](../runtime-core/docs/bridge/README.md#the-pages-half-the-mirror-engine)
-describes. It is the counterpart of `createWebRuntime`, never called alongside it: one launch has one
-owner. The web app builds it through its declaration's `engine.mirror` once `settleSessionOwner` has
+describes. It is the counterpart of the core engine (`engine.core`), never built alongside it: one
+launch has one owner. The web app builds it through its declaration's `engine.mirror` once `settleSessionOwner` has
 settled on the shell (below).
 
 **The port is made before the hello** (`webMirrorPort()`). The shell pushes the session from the moment
@@ -303,21 +287,16 @@ Every `'shell' | 'browser'` key goes through `resolveShellOrBrowser`, which hold
   `android` regardless of case; a desktop shell and a browser have none.
 
 A declaration names the adapters built from these answers ([The host port adapters](#the-host-port-adapters))
-and `startRuntime` publishes them; an entry point that has not moved to one still builds each port from
-these answers and publishes them with `host.publish` (`host` is handed on from runtime-client, with the
-port types, so the declaration part imports this package alone). `offeredCheckoutMethods` and
-`offeredStore` answer every way the host sells, in its order, for the checkout adapters a toggle may
-switch to. The same readers are re-exported from `@chatic/host` while that package lasts, from this
-package's `@chatic/runtime-web/host` entry, which carries none of the runtime.
+and `startRuntime` publishes them (`host` is handed on from runtime-client, with the port types, so the
+declaration part imports this package alone). `offeredCheckoutMethods` and `offeredStore` answer every
+way the host sells, in its order, for the checkout adapters a toggle may switch to.
 
 ## Rules
 
 - Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/runtime` (the React
   surface), React, or React Native. See [the layers](../runtime-core/README.md#layers).
-- Nothing in the runtime imports it. An app's entry point does, and passes what it builds into the
-  assembly.
+- Nothing in the runtime imports it. An app's declaration and entry point do, and `startRuntime` passes
+  what the declared adapters build into the assembly.
 - It holds the readers, not their meaning: what an `online` false means for the link, or which
   platform a user agent is, stays in the package that declared the port.
 - Its tests run in jsdom, because these are a page's readers (`src/transport.spec.ts`).
-  `src/createWebRuntime.ports.spec.ts` checks that the ports `createWebRuntime` hands on answer as the
-  factories built on their own do.

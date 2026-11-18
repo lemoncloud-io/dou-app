@@ -292,15 +292,20 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 
 # the public surface reaching into the account surface, or into a session or data module
 # (the route table's lazy import of the barrel is the one allowed crossing; a public feature's
-# relative import of ../../subscription is the feature-to-feature command's to catch)
-git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth)" \
-    -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
+# relative import of ../../subscription is the feature-to-feature command's to catch; the quote or
+# slash after the name keeps `@chatic/runtime` from matching some other package that starts with it,
+# while `runtime(-web)?` names runtime-web on purpose)
+git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|runtime(-web)?|auth)['/]" \
+    -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes' \
+    ':!apps/landing/src/config'
 
-# the account surface reaching the network, a session or a payment SDK outside the HTTP port
+# the account surface reaching the network, a session or a payment SDK outside the HTTP port: the
+# runtime packages are imported by src/config/ (the declaration and its start) and by the port, and
+# the start (`config/landing`) is called by the port alone, so the runtime loads with the port's chunk
 # (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
 # hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
-git grep -n -E "@chatic/(http|data|app-runtime|auth)|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
-    -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
+git grep -n -E "@chatic/(http|data|runtime(-web)?|auth)['/]|config/landing'|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
+    -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http' ':!apps/landing/src/config'
 
 # a payment provider named on screen: the copy says the billing country and the currency, never who
 # processes the card (ADR-0262)

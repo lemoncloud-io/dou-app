@@ -24,8 +24,8 @@ Commit messages are in English — `AGENTS.md` § Language names them explicitly
 - **type** — one of `feat` `fix` `refactor` `docs` `test` `style` `build` `ci` `chore`
   `perf` `revert`, whichever matches what actually happened. When a commit mixes
   several, pick the dominant one.
-- **scope** — the `lib`/`app` directory touched (`data`, `app-runtime`, `web`,
-  `desktop-web`, `ui-kit`, `config`, `mobile`, …). Comma-join several
+- **scope** — the `lib`/`app` directory touched (`data`, `runtime`, `runtime-client`,
+  `web`, `desktop-web`, `ui-kit`, `config`, `mobile`, …). Comma-join several
   (`feat(web,mobile,data): …`). For a repo-wide change, use the subject instead — this
   repo's `AGENTS.md` is `agents`. Omit it only when nothing fits.
 - **description** — lower case, no trailing period, stating what changed rather than
@@ -35,9 +35,9 @@ Commit messages are in English — `AGENTS.md` § Language names them explicitly
 
 ```
 docs(agents): add the stale-dist and nx-sync verification traps
-fix(app-runtime): end a server-revoked relay session on auth.switch
+fix(runtime): end a server-revoked relay session on auth.switch
 refactor(config): remove dead wiring left by web-config
-feat(app-runtime): register the push device once per install, not on every launch
+feat(runtime): register the push device once per install, not on every launch
 feat(web,mobile,data): hide what happened before I rejoined (ADR-0067)
 refactor(web/home): make the last-chat preview a pure cache read
 docs(cache): sync the cache docs with the post-ADR-0051 code

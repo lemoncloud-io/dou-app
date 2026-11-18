@@ -359,8 +359,8 @@ Two adapters are this app's own (`config/adapters/`), because the library's do n
   It loads the device vault (`prepareSecretStorage`) on a launch the page owns, never on one the shell
   owns, and watches a vault that could not be read at launch so the page starts over once it can be. The
   library's `storage.vault` reads neither the late-vault mark nor what loading the vault answered.
-- **`cache.web-local`** is `webLocalCachePorts` over that same raw tab store, as `createWebRuntime` built
-  it.
+- **`cache.web-local`** is `webLocalCachePorts` over that same raw tab store, as the page built it before
+  declarations.
 
 `engine.mirror` takes the app's own settle (`config/adapters/engine.ts`), which records who holds the
 session for the log context the moment it is settled, so the boot's own lines carry it. Checkout's two

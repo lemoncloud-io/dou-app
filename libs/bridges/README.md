@@ -280,7 +280,8 @@ WebView (`react-native-webview`, the one shell with SQLite behind its bridge) fr
 ignored. Every capability has a legacy rule, and where nothing the page did before declarations
 existed can be reproduced its legacy rule answers "unavailable", so a new key never needs a guess
 written for it. The keys and their versions — `checkout` 1, `media` 2, `files` 3, and `links`,
-`appShell`, `signIn`, `diagnostics`, `push` 4 — are read by the ports in `@chatic/host`.
+`appShell`, `signIn`, `diagnostics`, `push` 4 — are read into the host ports by
+[`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes).
 
 ### Directories
 
@@ -512,8 +513,8 @@ that its handshake advertises exactly the registered ones — the vocabulary min
 `isNative()` is false, nothing is ever injected, and after 10 seconds every request rejects
 `NATIVE_NOT_SUPPORTED`. Callers are expected to branch on `isNative()` first rather than pay the
 deadline; `useDesktopNotifications` in `apps/desktop-web` does exactly that, and skips the round trip
-entirely. That branch is now the entry point's to make: a feature asks a port of
-[`@chatic/host`](../host/README.md), and `@nx/workspace-host-facts` reports `isNative()` outside the
+entirely. That branch is now the entry point's to make: a feature asks a host port
+([`@chatic/runtime-client`](../runtime-client/README.md#the-host-ports), read as `runtime.<port>`), and `@nx/workspace-host-facts` reports `isNative()` outside the
 entry point and the files on its allow-list.
 
 ### 6. A web log crossing to the native console

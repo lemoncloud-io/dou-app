@@ -136,8 +136,8 @@ every cloud-signed request 403'd.
 
 `ForegroundSignal { read(), subscribe(listener) }` says whether the app is in front of the user. It is
 a port because only the platform knows: a page reads `document.visibilityState`
-(`createWebRuntime` in `@chatic/runtime-web` fills it), a native runtime its app state
-(`createNativeRuntime` in `@chatic/runtime-mobile`: in front unless `background` — iOS's `inactive`,
+(`foreground.visibility` in `@chatic/runtime-web` fills it), a native runtime its app state
+(`foreground.app-state` in `@chatic/runtime-mobile`: in front unless `background` — iOS's `inactive`,
 the app under a system sheet, counts as in front — and a subscriber hears only a change of that
 answer). It reaches
 `createRuntime({ foreground })` like every port; it is required, and reading it before

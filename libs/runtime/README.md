@@ -84,12 +84,6 @@ The fake imports the facade's own files, never the package entry: the entry is w
 a factory that loaded it would load itself. A jest config whose catch-all maps `@chatic/<name>` to
 `libs/<name>/src/index.ts` needs a line for the subpath before the catch-all, as `apps/web`'s has.
 
-### The old name
-
-The package was `@chatic/app-runtime`. While the apps' imports move over, `tsconfig.base.json` keeps a
-path alias from the old name to this package's entry, and `apps/web`'s jest config a mapper line for it;
-both go once no import names it.
-
 ## Design principles
 
 1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
@@ -100,7 +94,7 @@ both go once no import names it.
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
 8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
-9. **Boot is an explicit call.** The entry point either starts the runtime from its app's declaration (`await startRuntime(declaration)`, from `@chatic/runtime-web` or `@chatic/runtime-mobile`), or builds it (`createWebRuntime(...)` in a page, which runs runtime-core's `createRuntime`) and hands the engine to `initAppRuntime(engine)` itself. Either way the call is in the entry point — the wiring used to happen as an import side effect, where it was invisible there and a tree-shake could move or drop it.
+9. **Boot is an explicit call.** The entry point starts the runtime from its app's declaration (`await startRuntime(declaration)`, from `@chatic/runtime-web` or `@chatic/runtime-mobile`), which runs runtime-core's `createRuntime` and hands the engine to `initAppRuntime(engine)`. The call is in the entry point — the wiring used to happen as an import side effect, where it was invisible there and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
 11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — the three here, and those of the packages below, whose barrels re-export theirs wholesale, so a value put there would leak onto them. Value constants go in `constants.ts`, pure helpers in `utils/`.
 12. **There are no value import cycles.** [`importCycleAbsence.test.ts`](./src/importCycleAbsence.test.ts) re-measures the tree on every run rather than trusting a lint path.
@@ -300,17 +294,8 @@ import { startRuntime } from '@chatic/runtime-web';
 await startRuntime(declaration); // builds the ports and hands the engine to the hooks
 ```
 
-```ts
-// The same without a declaration — still exported, though no app boots this way now.
-import { runtime } from '@chatic/runtime';
-import { createWebRuntime } from '@chatic/runtime-web';
-
-runtime.boot.initAppRuntime(
-    createWebRuntime({ storage, cacheTab, data: { cache: { maxChatsPerChannel: 1000 } } }) // `data` is optional
-);
-```
-
-Both end in the same engine holder, so nothing below the entry point can tell which one ran. Which
+The start ends in the engine holder `runtime.boot.initAppRuntime` fills, so nothing below the entry point
+knows how the engine was built. Which
 adapter fills each port is the app's choice, not this package's or an adapter package's (ADR-0343):
 the declaration is the one file that names them, and the rest of the app reaches the runtime only
 through `runtime`.

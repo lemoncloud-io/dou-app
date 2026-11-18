@@ -234,7 +234,7 @@ query once on subscribe, so a change the OS made while `light` or `dark` was cho
 
 The host profile has a bridge when the page had a `ReactNativeWebView`, `ChaticMessageHandler` or WebKit
 message handler at boot — the answer `isNative()` gave. This library reads the profile rather than a
-`@chatic/host` port because apps that publish no ports render it too. The second effect then posts `SavePreference { key: 'theme', value: theme }`. That
+host port (`runtime.<port>`) because apps that declare no host ports render it too. The second effect then posts `SavePreference { key: 'theme', value: theme }`. That
 effect has **no "the user chose this" guard**: it runs on mount as well as on change, so simply
 opening the app inside a shell writes the current — possibly defaulted — theme into native storage.
 

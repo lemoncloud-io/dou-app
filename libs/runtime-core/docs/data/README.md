@@ -39,10 +39,10 @@ The `data` group of the `runtime` facade (`index.ts`) and the hooks (`hooks/`) a
 surface's, in `libs/runtime/src/data/`.
 
 Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
-filled in a page by `createWebRuntime` in `@chatic/runtime-web` (its `webLocalCachePorts(cacheTab)`), which holds the routing
+filled in a page by a cache adapter of the app's declaration over `@chatic/runtime-web` (`webLocalCachePorts`), which holds the routing
 (`resolveCacheBackendFor`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
 bridge adapters and a tab's invited-cloud import; see [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
-The entry point builds the runtime with them (`createWebRuntime({ cacheTab })` in a page, which calls
+The start builds the runtime with them (`startRuntime(declaration)`, which calls
 `createRuntime({ cache })`), and `localCachePlatform.ports()` throws until it has.
 
 ## Responsibilities
@@ -159,7 +159,7 @@ a sync cursor outliving the storage it described; see
 ### Boot policy
 
 ```ts
-createWebRuntime({ storage, cacheTab, data: { repositories, cache } }); // in a page; it passes `data` to createRuntime
+defineRuntime({ /* name, facts, ports */ data: { repositories, cache } }); // the start passes `data` to createRuntime
 ```
 
 `configureDataRuntime` registers the app's policy **before** the runtime singleton is built. Calls
