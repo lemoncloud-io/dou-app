@@ -1,4 +1,4 @@
-# ADR-0341: A sub WebView page gets no runtime requests where the WebView cannot tell its frames apart
+# ADR-0345: A sub WebView page gets no runtime requests where the WebView cannot tell its frames apart
 
 > Status: Accepted · Decided: 2026-11-18 · Implemented: `feat/sub-webview-frame-gate`
 > · Scope: `apps/mobile/src/app/subWebView/` (`subWebViewFrameOrigin.ts`, `subWebViewRuntimeGate.ts`,
