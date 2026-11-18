@@ -29,4 +29,5 @@ export * from './fences';
 export * from './sortByRecency';
 export * from './welcome';
 export * from './historyNavigation';
+export * from './modifierHold';
 export * from './channelHistory';

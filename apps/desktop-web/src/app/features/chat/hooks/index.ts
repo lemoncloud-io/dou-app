@@ -20,3 +20,4 @@ export * from './usePlaceWelcome';
 export * from './useNewReplyRule';
 export * from './useHistoryNavigation';
 export * from './useChannelHistory';
+export * from './useModifierHold';
