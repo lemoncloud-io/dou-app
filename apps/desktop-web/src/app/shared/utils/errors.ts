@@ -68,7 +68,24 @@ export const serverErrorText = (error: unknown): string => {
     return text.length > RAW_TEXT_MAX ? `${text.slice(0, RAW_TEXT_MAX)}…` : text;
 };
 
-const rawErrorText = (error: unknown): string => {
+/** Deepest wrapper chain followed; a cyclic `cause` cannot loop past it. */
+const CAUSE_DEPTH_MAX = 3;
+
+/**
+ * An error that wraps another — the socket SDK's `AuthSwitchError` is `auth.switch failed: server`
+ * with the server's refusal in `cause` — names only the stage in its own message. The reason is the
+ * cause's text, so it is appended: `auth.switch failed: server — 403 NOT ALLOWED - device unlinked`.
+ */
+const rawErrorText = (error: unknown, depth = 0): string => {
+    const own = ownErrorText(error);
+    const cause = (error as { cause?: unknown } | null)?.cause;
+    if (!cause || depth >= CAUSE_DEPTH_MAX) return own;
+    const inner = rawErrorText(cause, depth + 1);
+    if (!inner || own.includes(inner)) return own;
+    return own ? `${own} — ${inner}` : inner;
+};
+
+const ownErrorText = (error: unknown): string => {
     if (!error) return '';
     const data = (error as { response?: { data?: unknown } }).response?.data;
     if (typeof data === 'string' && data.trim()) return data.trim();
