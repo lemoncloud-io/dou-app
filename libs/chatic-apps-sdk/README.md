@@ -189,6 +189,12 @@ if (apps.supports('data') && placeId) {
   `INVALID` — so `stop()` each one you no longer need.
 - **The cloud is fixed.** If the user's cloud changes under the view, every stream ends with
   `CLOUD_CHANGED`, `onCloudChanged` fires once, and nothing answers after.
+- **So is the place.** What belongs to a place — its rooms, their members and messages, its
+  profiles — is read only in the place your page was opened in, while the user is still there: a list
+  names that place (`sid`) or one of its rooms, and a room or a message is checked against it. Anything
+  else is `RUNTIME_NOT_ALLOWED`, and so is every read of a place once the user moved to another; open
+  a new view there. The places themselves and the cloud's own row are not a place's and stay open.
+  Read the place's id from `session().committedSiteId` or the launch parameters (`place.id`).
 - **Server reads are budgeted**: one per 250 ms and 60 a minute per view, `RATE_LIMITED` past it, with
   `error.details.retryAfterMs`.
 - **Only some launches answer it**: the app has to hold the session itself, the page has to be a
@@ -215,28 +221,26 @@ if (apps.supports('data') && placeId) {
 | `place`    | `place.observeList` (stream)                           | `{}`                                                     | `CloudList<CloudPlace> \| null`       |
 | `place`    | `place.observeItem` (stream)                           | place `id`                                               | `CloudPlace \| null`                  |
 | `place`    | `place.isPlaceDeleted` (server)                        | place `id`                                               | `boolean`                             |
-| `channel`  | `channel.cacheRead`                                    | room `id`                                                | `CloudChannel \| null`                |
-| `channel`  | `channel.cacheReadList`                                | `CloudChannelListQuery` (`{ sid, page, limit, … }`)      | `CloudList<CloudChannel> \| null`     |
-| `channel`  | `channel.fetchList` (server)                           | `CloudChannelListQuery`                                  | `CloudList<CloudChannel>`             |
-| `channel`  | `channel.observeList` (stream)                         | `CloudChannelListQuery`                                  | `CloudList<CloudChannel> \| null`     |
-| `channel`  | `channel.observeItem` (stream)                         | room `id`                                                | `CloudChannel \| null`                |
-| `channel`  | `join.cacheReadList`                                   | `{ channelId?, activeOnly? }`                            | `CloudList<CloudJoin> \| null`        |
-| `channel`  | `join.observeList` (stream)                            | `{ channelId?, activeOnly? }`                            | `CloudList<CloudJoin> \| null`        |
-| `chat`     | `chat.cacheRead`                                       | message `id`                                             | `CloudChat \| null`                   |
+| `channel`  | `channel.cacheRead`                                    | room `id` — a room of the place                          | `CloudChannel \| null`                |
+| `channel`  | `channel.cacheReadList`                                | `CloudChannelListQuery` — `sid` the place's, required    | `CloudList<CloudChannel> \| null`     |
+| `channel`  | `channel.fetchList` (server)                           | `CloudChannelListQuery` — `sid` the place's, required    | `CloudList<CloudChannel>`             |
+| `channel`  | `channel.observeList` (stream)                         | `CloudChannelListQuery` — `sid` the place's, required    | `CloudList<CloudChannel> \| null`     |
+| `channel`  | `channel.observeItem` (stream)                         | room `id` — a room of the place                          | `CloudChannel \| null`                |
+| `channel`  | `join.cacheReadList`                                   | `{ channelId, activeOnly? }` — a room of the place       | `CloudList<CloudJoin> \| null`        |
+| `channel`  | `join.observeList` (stream)                            | `{ channelId, activeOnly? }` — a room of the place       | `CloudList<CloudJoin> \| null`        |
+| `chat`     | `chat.cacheRead`                                       | message `id` — answered if its room is the place's       | `CloudChat \| null`                   |
 | `chat`     | `chat.cacheReadList`                                   | `{ channelId, cursorNo?, limit? }`                       | `CloudList<CloudChat> \| null`        |
 | `chat`     | `chat.listPendingImageChats`                           | room `id`                                                | `CloudChat[]`                         |
 | `chat`     | `chat.observeList` (stream)                            | `{ channelId, cursorNo?, limit?, includeUnsent? }`       | `CloudList<CloudChat> \| null`        |
 | `chat`     | `chat.observeLastList` (stream)                        | room ids                                                 | `CloudLastChat[]`                     |
 | `chat`     | `chat.observeFeedCoverage` (stream)                    | room `id`                                                | `[low, high][]` message-number ranges |
-| `user`     | `user.cacheRead`                                       | user `id`                                                | `CloudUser \| null`                   |
 | `user`     | `user.cacheReadList`                                   | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`        |
 | `user`     | `user.listPlaceMembers` (server)                       | `{ placeId, sessionPlaceId }` — both the current place's | `CloudPlaceMembers`                   |
 | `user`     | `user.observeList` (stream)                            | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`        |
-| `user`     | `user.observeItem` (stream)                            | user `id`                                                | `CloudUser \| null`                   |
-| `user`     | `profile.cacheRead`                                    | `<place id>@<user id>`                                   | `CloudProfile \| null`                |
-| `user`     | `profile.cacheReadList`                                | `{ sid?, uid? }` (optional)                              | `CloudList<CloudProfile> \| null`     |
-| `user`     | `profile.observeList` (stream)                         | `{ sid?, uid? }`                                         | `CloudList<CloudProfile> \| null`     |
-| `user`     | `profile.observeItem` (stream)                         | `<place id>@<user id>`                                   | `CloudProfile \| null`                |
+| `user`     | `profile.cacheRead`                                    | `<place id>@<user id>` — the place's                     | `CloudProfile \| null`                |
+| `user`     | `profile.cacheReadList`                                | `{ sid, uid? }` — `sid` the place's, required            | `CloudList<CloudProfile> \| null`     |
+| `user`     | `profile.observeList` (stream)                         | `{ sid, uid? }` — `sid` the place's, required            | `CloudList<CloudProfile> \| null`     |
+| `user`     | `profile.observeItem` (stream)                         | `<place id>@<user id>` — the place's                     | `CloudProfile \| null`                |
 | `chatSend` | `chat.sendChat` — call it as `sendMessage`             | `{ channelId, content }`                                 | `CloudChat`                           |
 
 ### The rows
@@ -269,9 +273,9 @@ never send them to a third party without telling the user.
 | `session`  | Which cloud and place the user is on, the user's id in this cloud, whether signed in. Nothing of the user's other clouds, no server address, no token                                                                                                                                                                                                                                                                                                                            |
 | `cloud`    | The current cloud's row; from the device cache, also its server addresses (`backend`, `wss`) and the device user ids that accepted an invite (`acceptedBy`). Through `cloud.getCloud`, for a cloud the user owns: its owner, the verified **email**, the linked **account** (`accountId`, `account$`), the subscription id, the cloud server's **account number** (`accountNo`) and service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
 | `place`    | The cloud's places, with their server endpoints (`$envs`). A place's `owner$` is the account server's view of its owner, whose type includes **phone, email, address, birth date**, sign-in details and fields named after secrets (`loginPw`, `$account.otp$`, `$account.key$`) — filled as the server chooses. Never read, keep or send the secret-named ones                                                                                                                  |
-| `channel`  | Rooms in any place of the cloud, their member ids, each member's join (role, nickname, read position), and the embedded owners (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                  |
-| `chat`     | Messages, with their files' addresses, any webhook cards, and the embedded senders (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                                                              |
-| `user`     | Users of the cloud (names, nicknames, pictures, **sign-in ids**), place profiles, and the current place's member list                                                                                                                                                                                                                                                                                                                                                            |
+| `channel`  | Rooms of the place, their member ids, each member's join (role, nickname, read position), and the embedded owners (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                               |
+| `chat`     | Messages in the place's rooms, with their files' addresses, any webhook cards, and the embedded senders (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                                         |
+| `user`     | Users of the place's rooms (names, nicknames, pictures, **sign-in ids**), the place's profiles, and its member list                                                                                                                                                                                                                                                                                                                                                              |
 | `chatSend` | Nothing: it lets the page send                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### Sending a message: `sendMessage`
@@ -295,29 +299,27 @@ a browser it is `NOT_IN_APP`.
 
 ```ts
 const me = await apps.data.myProfile(); // CloudProfile | null
-const sender = chat.ownerId ? await apps.data.placeProfile(chat.ownerId) : null; // a member, in the session's place
-const named = await apps.data.placeProfiles({ placeId }); // CloudList<CloudProfile> | null: name a room's members
+const sender = chat.ownerId ? await apps.data.placeProfile(chat.ownerId) : null; // a member of the place
+const named = await apps.data.placeProfiles(); // CloudList<CloudProfile> | null: name the place's members
 const stop = await apps.data.observePlaceProfile(userId, profile => renderName(profile?.nick));
 ```
 
 A place profile is what a member is called in one place of a cloud: the app keys it to the member's
 id in that cloud, `<place id>@<user id>`, and it mostly holds the name shown there (`nick`) and a
-picture — DoU names a member by it, and by the member's own name where there is none. Every read
-stays in the cloud the view opened on; the place is the `placeId` you pass, or else the place the
-session is on.
+picture — DoU names a member by it, and by the member's own name where there is none. As every read of
+a place, it answers only for the place your page was opened in.
 
-- `placeProfile(userId, { placeId? })` reads one member's profile as the device holds it, and
-  `observePlaceProfile(userId, listener, { placeId?, onEnd? })` hears it and each change.
-- `placeProfiles({ placeId? })` lists the place's profiles the device holds.
-- `myProfile({ placeId? })` and `observeMyProfile(listener, { placeId?, onEnd? })` do the same with the
-  user's own id, read off the session.
+- `placeProfile(userId)` reads one member's profile as the device holds it, and
+  `observePlaceProfile(userId, listener, { onEnd? })` hears it and each change.
+- `placeProfiles()` lists the place's profiles the device holds.
+- `myProfile()` and `observeMyProfile(listener, { onEnd? })` do the same with the user's own id.
 
-They need `user`, which reads profiles (`RUNTIME_NOT_ALLOWED` without it), and `session` for the
-user's own id or when no `placeId` is given (`NOT_SUPPORTED` without it, or before the session is on a
-place). `null` means the device holds no profile for that member in that place: fall back to the
-member's own name. They are `call('profile.cacheRead', '<place id>@<user id>')`,
-`call('profile.cacheReadList', { sid })` and `subscribe('profile.observeItem', [id], …)`, which still
-work.
+They need `user`, which reads profiles, and `session`, which names the place and the user's id:
+without `session`, or before the session is on a place, they are `NOT_SUPPORTED`; without `user`, or
+once the user moved to another place, `RUNTIME_NOT_ALLOWED`. `null` means the device holds no profile
+for that member there: fall back to the member's own name. They are
+`call('profile.cacheRead', '<place id>@<user id>')`, `call('profile.cacheReadList', { sid })` and
+`subscribe('profile.observeItem', [id], …)`, which still work.
 
 ### In the mock
 

@@ -102,7 +102,11 @@ it:
   nothing that moves a cursor or reaches another cloud, and nothing that switches the cloud or the
   place: those are session commands, and `session` is closed. Three cloud reads pass only for the
   current cloud's id, `cloud.getCloud` only with `{ cache: false }`, the one form of it that writes
-  nothing; the member list only for the place the session is on, in the server's page size. The one
+  nothing; the member list only for the place the session is on, in the server's page size. Everything
+  of a place is held to the place the view opened on, while the session is still there: a list by its
+  query's `sid`, a place profile by its `<place>@` key, a room's reads by the room (checked by the
+  bridge, below), a message by its id by the room it answers with; a user row by its id is closed
+  (`otherPlace`), since it is the cloud's, not a place's. The one
   write, `chat.sendChat` under `chatSend`, passes only `{ channelId, content }` with text in both, the
   content at most 1,000 characters — no attachment, mention, reply or system row.
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
@@ -110,9 +114,10 @@ it:
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
   (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page and cloud in its own
   MMKV file; with `chatSend` the alert's title and text say the page sends messages, the yes is kept
-  per place too, and an earlier yes without it does not count), for a message that its room is one the
-  device holds in the view's cloud and the place the view opened on, with the session still there (read
-  from the cache through the page load's host, a failed read answering its own error), and the view's
+  per place too, and an earlier yes without it does not count), for a message and for every read of a
+  room that the room is one the device holds in the view's cloud and the place the view opened on, with
+  the session still there (read from the cache through the page load's host, a failed read answering
+  its own error; for `chat.cacheRead`, the room of the message it answered), and the view's
   budget
   (`subWebViewReadBudget.ts`: server reads at one per 250 ms and 60 a minute, messages apart at one per
   500 ms and 30 a minute, both per view so a reload cannot reset them). Then the request goes to the

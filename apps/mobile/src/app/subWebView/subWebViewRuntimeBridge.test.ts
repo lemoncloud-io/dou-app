@@ -40,6 +40,11 @@ const fakeEngine = () => {
         ch1: { id: 'ch1', cid: 'c1', sid: 's1' },
         ch2: { id: 'ch2', cid: 'c1', sid: 's2' },
     };
+    // Messages this device holds: one in each of those rooms.
+    const messages: Record<string, { id: string; channelId: string }> = {
+        m1: { id: 'm1', channelId: 'ch1' },
+        m2: { id: 'm2', channelId: 'ch2' },
+    };
     const repositories = {
         channel: {
             cacheRead: jest.fn(async (id: string) => rooms[id] ?? null),
@@ -52,7 +57,8 @@ const fakeEngine = () => {
         },
         chat: {
             sendChat: jest.fn(async (payload: { channelId: string; content: string }) => ({ id: 'm9', ...payload })),
-            cacheRead: jest.fn(),
+            cacheRead: jest.fn(async (id: string) => messages[id] ?? null),
+            cacheReadList: jest.fn(async () => ({ list: [] })),
         },
     };
     const engine = {
@@ -196,7 +202,7 @@ describe('createSubWebViewRuntimeBridge', () => {
     it('pushes nothing once its page load is over', async () => {
         const { hello, subscribe, bridge, emitChannels, endLoad } = build();
         await hello();
-        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+        await subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
 
         endLoad();
         emitChannels({ list: [{ id: 'ch1' }] });
@@ -218,7 +224,7 @@ describe('createSubWebViewRuntimeBridge', () => {
         await hello();
 
         const burst = Array.from({ length: SUB_WEBVIEW_STREAMS_PER_LOAD + 4 }, (_, i) =>
-            subscribe(`b${i}`, 'channel.observeList', [{}, { $listener: true }])
+            subscribe(`b${i}`, 'channel.observeList', [{ sid: 's1' }, { $listener: true }])
         );
         answer();
         const results = await Promise.all(burst);
@@ -230,7 +236,7 @@ describe('createSubWebViewRuntimeBridge', () => {
     it('keeps the stream a refused replacement would have replaced', async () => {
         const { hello, subscribe, bridge, emitChannels } = build();
         await hello();
-        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+        await subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
 
         // Two listener markers: the runtime refuses it before it touches the stream under `s1`.
         await expect(
@@ -307,7 +313,7 @@ describe('createSubWebViewRuntimeBridge', () => {
         expect(repositories.chat.sendChat).not.toHaveBeenCalled();
     });
 
-    it('refuses a message once the session left the place the view opened on, and reads on', async () => {
+    it('refuses a message and every read of a place once the session left the place the view opened on', async () => {
         const { hello, call, repositories, moveToPlace } = build({ granted: ['chatSend', 'channel'] });
         await hello();
         moveToPlace('s2');
@@ -316,7 +322,51 @@ describe('createSubWebViewRuntimeBridge', () => {
             error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
         });
         expect(repositories.chat.sendChat).not.toHaveBeenCalled();
-        await expect(call('data', 'channel.cacheReadList', [{ sid: 's2' }])).resolves.toMatchObject({ success: true });
+        for (const sid of ['s1', 's2']) {
+            await expect(call('data', 'channel.cacheReadList', [{ sid }])).resolves.toMatchObject({
+                error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+            });
+        }
+        expect(repositories.channel.cacheReadList).not.toHaveBeenCalled();
+    });
+
+    it('reads a room, and what is in it, only in the place the view opened on', async () => {
+        const { hello, call, repositories } = build({ granted: ['channel', 'chat'] });
+        await hello();
+
+        await expect(call('data', 'channel.cacheRead', ['ch1'])).resolves.toMatchObject({ success: true });
+        await expect(call('data', 'chat.cacheReadList', [{ channelId: 'ch1' }])).resolves.toMatchObject({
+            success: true,
+        });
+        expect(repositories.chat.cacheReadList).toHaveBeenCalledTimes(1);
+
+        await expect(call('data', 'channel.cacheRead', ['ch2'])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+        });
+        await expect(call('data', 'chat.cacheReadList', [{ channelId: 'ch2' }])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+        });
+        await expect(call('data', 'chat.cacheReadList', [{ channelId: 'unknown' }])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+        });
+        expect(repositories.chat.cacheReadList).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers a message by its id only when its room is of the place, and null as it is', async () => {
+        const { hello, call } = build({ granted: ['chat'] });
+        await hello();
+
+        await expect(call('data', 'chat.cacheRead', ['m1'])).resolves.toMatchObject({
+            success: true,
+            data: { value: { id: 'm1' } },
+        });
+        await expect(call('data', 'chat.cacheRead', ['m2'])).resolves.toMatchObject({
+            error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+        });
+        await expect(call('data', 'chat.cacheRead', ['nothing'])).resolves.toMatchObject({
+            success: true,
+            data: { value: null },
+        });
     });
 
     it('asks a page that may send per place, and a page that only reads per cloud', async () => {
@@ -410,10 +460,10 @@ describe('createSubWebViewRuntimeBridge', () => {
         const { hello, call, repositories } = build({ budget: { take } });
         await hello();
 
-        await expect(call('data', 'channel.cacheReadList', [{}])).resolves.toMatchObject({ success: true });
+        await expect(call('data', 'channel.cacheReadList', [{ sid: 's1' }])).resolves.toMatchObject({ success: true });
         expect(take).not.toHaveBeenCalled();
 
-        await expect(call('data', 'channel.fetchList', [{}])).resolves.toMatchObject({
+        await expect(call('data', 'channel.fetchList', [{ sid: 's1' }])).resolves.toMatchObject({
             success: false,
             error: { code: 'RATE_LIMITED', details: { retryAfterMs: 120 } },
         });
@@ -433,7 +483,7 @@ describe('createSubWebViewRuntimeBridge', () => {
         const { hello, subscribe, bridge, emitChannels } = build();
         await hello();
 
-        await expect(subscribe('s1', 'channel.observeList', [{}, { $listener: true }])).resolves.toEqual({
+        await expect(subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }])).resolves.toEqual({
             type: 'OnRuntimeSubscribe',
             success: true,
             data: {},
@@ -453,16 +503,22 @@ describe('createSubWebViewRuntimeBridge', () => {
         await hello();
 
         for (let i = 0; i < SUB_WEBVIEW_STREAMS_PER_LOAD; i += 1) {
-            await expect(subscribe(`s${i}`, 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+            await expect(
+                subscribe(`s${i}`, 'channel.observeList', [{ sid: 's1' }, { $listener: true }])
+            ).resolves.toMatchObject({
                 success: true,
             });
         }
-        await expect(subscribe('one-more', 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+        await expect(
+            subscribe('one-more', 'channel.observeList', [{ sid: 's1' }, { $listener: true }])
+        ).resolves.toMatchObject({
             success: false,
             error: { code: 'INVALID' },
         });
         // The same id again replaces its stream rather than adding one.
-        await expect(subscribe('s0', 'channel.observeList', [{}, { $listener: true }])).resolves.toMatchObject({
+        await expect(
+            subscribe('s0', 'channel.observeList', [{ sid: 's1' }, { $listener: true }])
+        ).resolves.toMatchObject({
             success: true,
         });
     });
@@ -470,7 +526,7 @@ describe('createSubWebViewRuntimeBridge', () => {
     it('ends every open stream when the cloud changes, and answers nothing after', async () => {
         const { hello, subscribe, call, bridge, moveTo, emitChannels, channelListenerCount, repositories } = build();
         await hello();
-        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+        await subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
         emitChannels({ list: [] });
         bridge.pushEvent.mockClear();
 
@@ -503,7 +559,7 @@ describe('createSubWebViewRuntimeBridge', () => {
     it('stops its streams and its session watch when disposed', async () => {
         const { hello, subscribe, runtime, sessionListeners, channelListenerCount } = build();
         await hello();
-        await subscribe('s1', 'channel.observeList', [{}, { $listener: true }]);
+        await subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
 
         runtime.dispose();
 

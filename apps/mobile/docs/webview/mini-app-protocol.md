@@ -626,15 +626,15 @@ requests to its own host, which passes only a whitelist of the runtime's **read*
 `chatSend`, one text send — by the runtime permissions its manifest declares. What an allowed method
 answers crosses unchanged: a page granted `channel` gets the whole channel row.
 
-| Permission | Opens                                                                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `session`  | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                                            |
-| `cloud`    | `cloud.observeItem`, `cloud.cacheRead`, `cloud.getCloud` — the current cloud's id only; `getCloud` as `({ id }, { cache: false })`                      |
-| `place`    | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                                                   |
-| `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`                               |
-| `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                                     |
-| `user`     | `user.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList` |
-| `chatSend` | `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                                                   |
+| Permission | Opens                                                                                                                              |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `session`  | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                       |
+| `cloud`    | `cloud.observeItem`, `cloud.cacheRead`, `cloud.getCloud` — the current cloud's id only; `getCloud` as `({ id }, { cache: false })` |
+| `place`    | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                              |
+| `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`          |
+| `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                |
+| `user`     | `user.observeList`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList`        |
+| `chatSend` | `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                              |
 
 The table is the runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`, which says
 why each other method is closed). Nothing else is open: no method that writes on the server or in the
@@ -683,9 +683,24 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read that asks
   the server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
   `details: { retryAfterMs }`). The reason is the whitelist's for a closed method, `notGranted`,
-  `guard`, or `unknown` for a name it does not have or a method asked the wrong way. A message is
-  checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send budget of
-  its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the reads'.
+  `guard`, `otherPlace` for a read that would reach past the opened place, or `unknown` for a name it
+  does not have or a method asked the wrong way. A message is checked twice more, after consent: its
+  room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send budget of its own, one per 500 ms and 30 a minute
+  (`RATE_LIMITED`), which spends nothing of the reads'.
+- **Bound to the place the view opened on.** What belongs to a place is read only in that place, and
+  only while the session is still on it; once the user moved, every read of a place is refused
+  (`RUNTIME_NOT_ALLOWED`, `guard`) until a new view opens there. A list names the place: `channel`'s
+  `observeList`, `cacheReadList` and `fetchList`, and `profile`'s `observeList` and `cacheReadList`,
+  answer only with the query's `sid` the opened place's. A room names it through the room:
+  `channel.observeItem` and `cacheRead`, `join`'s lists, `chat.observeList`, `cacheReadList`,
+  `observeFeedCoverage` and `listPendingImageChats`, `chat.observeLastList` (every id) and `user`'s
+  lists answer only for a room the device holds in that place, checked as a message's room is. A
+  message by its id (`chat.cacheRead`) names no room, so its answer's room is checked instead, and
+  `null` passes. A place profile (`profile.observeItem`, `cacheRead`) answers only for a key
+  `<opened place>@…`. A user row by its id (`user.observeItem`, `cacheRead`) is the cloud's, not a
+  place's, and is closed (`otherPlace`): a page names a place's members by their place profiles and
+  lists them with `user.listPlaceMembers`. The places themselves (`place`) and the cloud's own row
+  (`cloud`) are not a place's and stay open.
 - **Argument guards.** `channel.observeList`, `join.observeList` and `place.observeList` answer only
   for their query and their listener: a third argument, which would name another cloud's cache
   partition, is refused (`guard`). `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
@@ -719,8 +734,7 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   view only, so the next open asks again.
 - **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
   open stream ends with `CLOUD_CHANGED` and every later request fails with it, even if the cloud comes
-  back. The place is not bound for reads: a page reads any place of the cloud, and only the user moves
-  between them. A message goes only to the place the view opened on.
+  back. Reads of a place and a message alike are held to the place the view opened on (above).
 - **Streams belong to the page load.** At most 16 are open at once, counting subscribes still being
   admitted; a new page load, a hello and the view's close end them all, and nothing of one load is
   pushed to the next.
@@ -737,9 +751,9 @@ weighing. It names what a row carries beyond the obvious, not every field.
 | `session`  | The current cloud's part of the session: its `cloudId` and `siteId`, the user's id in that cloud, whether the user is signed in, and later changes of the same. Never the account's other clouds, the relay, a token or a guest id                                                                                                                                                                                                                                                   |
 | `cloud`    | The current cloud's row from the cache — for a cloud the user owns, often nothing, and at most its name. With `cloud.getCloud`, the relay's view of it: for a cloud the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
 | `place`    | Every place of the cloud the device has cached, and whether one was deleted                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `channel`  | Every room of the cloud the device holds, in any place, the server's room list, and the joins: who is in which room                                                                                                                                                                                                                                                                                                                                                                  |
-| `chat`     | The messages the device holds, in any room of the cloud, with their authors' ids, and the image messages still waiting to upload                                                                                                                                                                                                                                                                                                                                                     |
-| `user`     | Users and place profiles as cached, and a place's member list from the server. A user row carries the account's `loginId` and `identityId`, and any field the server adds to it                                                                                                                                                                                                                                                                                                      |
+| `channel`  | The rooms the device holds in the place the view opened on, that place's room list from the server, and the joins of those rooms: who is in which room                                                                                                                                                                                                                                                                                                                               |
+| `chat`     | The messages the device holds in the rooms of the place the view opened on, with their authors' ids, and those rooms' image messages still waiting to upload                                                                                                                                                                                                                                                                                                                         |
+| `user`     | The users of a room of the opened place and that place's profiles, as cached, and its member list from the server. A user row carries the account's `loginId` and `identityId`, and any field the server adds to it                                                                                                                                                                                                                                                                  |
 | `chatSend` | Nothing to read: the reply is the sent message's row                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 **The rows are a public surface.** Their shape is the runtime contract's, which the hello negotiates

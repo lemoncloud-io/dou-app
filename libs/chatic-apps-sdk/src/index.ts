@@ -28,7 +28,6 @@ export {
     type DataConnection,
     type DataStreamOptions,
     type DataSubscription,
-    type PlaceProfileOptions,
 } from './runtime';
 export type {
     CloudAccountHead,

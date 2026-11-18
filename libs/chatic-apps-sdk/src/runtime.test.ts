@@ -383,7 +383,7 @@ describe('apps.data place profiles, against the mock app', () => {
         );
     });
 
-    it("reads another member's profile in the session's place, or in a place the page names", async () => {
+    it("reads another member's profile in the session's place only", async () => {
         const read = jest.fn((id: string) => profiles.get(id) ?? null);
         const apps = await start({
             permissions: ['session', 'user'],
@@ -391,25 +391,18 @@ describe('apps.data place profiles, against the mock app', () => {
         });
 
         await expect(apps.data.placeProfile('u2')).resolves.toEqual(expect.objectContaining({ nick: 'Them' }));
-        await expect(apps.data.placeProfile('u2', { placeId: 's3' })).resolves.toEqual(
-            expect.objectContaining({ nick: 'Them in s3' })
-        );
-        expect(read.mock.calls).toEqual([['s1@u2'], ['s3@u2']]);
+        expect(read.mock.calls).toEqual([['s1@u2']]);
     });
 
-    it('reads a named place without the session permission, but never the own profile', async () => {
+    it('reads no profile without the session permission, which names the place', async () => {
         const apps = await start({
             permissions: ['user'],
             data: { calls: { 'profile.cacheRead': (id: string) => profiles.get(id) ?? null } },
         });
 
-        await expect(apps.data.placeProfile('u2', { placeId: 's3' })).resolves.toEqual(
-            expect.objectContaining({ id: 's3@u2' })
-        );
         await expect(apps.data.placeProfile('u2')).rejects.toEqual(expect.objectContaining({ code: 'NOT_SUPPORTED' }));
-        await expect(apps.data.myProfile({ placeId: 's1' })).rejects.toEqual(
-            expect.objectContaining({ code: 'NOT_SUPPORTED' })
-        );
+        await expect(apps.data.placeProfiles()).rejects.toEqual(expect.objectContaining({ code: 'NOT_SUPPORTED' }));
+        await expect(apps.data.myProfile()).rejects.toEqual(expect.objectContaining({ code: 'NOT_SUPPORTED' }));
     });
 
     it("lists a place's profiles by the place's id", async () => {

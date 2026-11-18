@@ -66,11 +66,17 @@ const setup = ({
     budget = { take: () => ({ ok: true }) } as SubWebViewReadBudget,
 } = {}) => {
     let cloudId = 'c1';
+    let placeId = 's1';
     const sessionListeners = new Set<() => void>();
     const roomListeners = new Set<(result: unknown) => void>();
     const rooms = [
         { id: 'ch1', cid: 'c1', sid: 's1' },
         { id: 'elsewhere', cid: 'c1', sid: 's2' },
+    ];
+    const profiles = [
+        { id: 's1@u1', cid: 'c1', sid: 's1', uid: 'u1', userId: 'u1', updatedAtMs: 1, nick: 'Me' },
+        { id: 's1@u2', cid: 'c1', sid: 's1', uid: 'u2', userId: 'u2', updatedAtMs: 1, nick: 'Them' },
+        { id: 's2@u2', cid: 'c1', sid: 's2', uid: 'u2', userId: 'u2', updatedAtMs: 1, nick: 'Them elsewhere' },
     ];
     const sendChat = jest.fn(async (input: { channelId: string; content: string }) => ({
         id: 'm1',
@@ -87,10 +93,10 @@ const setup = ({
         session: {
             snapshot: () => ({
                 context: {
-                    cloud: { cloudId, siteId: 's1', isActive: true },
+                    cloud: { cloudId, siteId: placeId, isActive: true },
                     identity: { userId: 'u1', isAuthenticated: true },
                 },
-                committedSiteId: 's1',
+                committedSiteId: placeId,
             }),
             subscribe: (listener: () => void) => {
                 sessionListeners.add(listener);
@@ -101,6 +107,12 @@ const setup = ({
         data: {
             repositories: () => ({
                 chat: { sendChat },
+                profile: {
+                    cacheRead: async (id: string) => profiles.find(profile => profile.id === id) ?? null,
+                    cacheReadList: async (query: { sid?: string }) => ({
+                        list: profiles.filter(profile => profile.sid === query.sid),
+                    }),
+                },
                 channel: {
                     cacheRead: async (id: string) => rooms.find(room => room.id === id) ?? null,
                     cacheReadList: async (query: unknown) => ({ list: [{ id: 'ch1', name: 'General' }], query }),
@@ -159,6 +171,10 @@ const setup = ({
             cloudId = next;
             sessionListeners.forEach(listener => listener());
         },
+        moveToPlace: (next: string) => {
+            placeId = next;
+            sessionListeners.forEach(listener => listener());
+        },
     };
 };
 
@@ -182,6 +198,43 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
             list: [{ id: 'ch1', name: 'General' }],
             query: { sid: 's1' },
         });
+        apps.disconnect();
+    });
+
+    it('reads only the place the view opened on, and nothing of a place once the user moved', async () => {
+        const { transport, moveToPlace } = setup();
+        const apps = await connectOver(transport, { reportErrors: false });
+        const refused = expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' });
+
+        await expect(apps.data.call('channel.cacheRead', 'ch1')).resolves.toEqual(
+            expect.objectContaining({ sid: 's1' })
+        );
+        await expect(apps.data.call('channel.cacheRead', 'elsewhere')).rejects.toEqual(refused);
+        await expect(apps.data.call('channel.cacheReadList', { sid: 's2' })).rejects.toEqual(refused);
+        await expect(apps.data.call('channel.cacheReadList', {})).rejects.toEqual(refused);
+
+        moveToPlace('s2');
+        await expect(apps.data.call('channel.cacheReadList', { sid: 's1' })).rejects.toEqual(refused);
+        await expect(apps.data.call('channel.cacheReadList', { sid: 's2' })).rejects.toEqual(refused);
+        apps.disconnect();
+    });
+
+    it("names the place's members by their place profiles, and no one else", async () => {
+        const { transport } = setup({ granted: ['session', 'user'] });
+        const apps = await connectOver(transport, { reportErrors: false });
+
+        await expect(apps.data.myProfile()).resolves.toEqual(expect.objectContaining({ nick: 'Me' }));
+        await expect(apps.data.placeProfile('u2')).resolves.toEqual(expect.objectContaining({ nick: 'Them' }));
+        await expect(apps.data.placeProfiles()).resolves.toEqual({
+            list: [expect.objectContaining({ id: 's1@u1' }), expect.objectContaining({ id: 's1@u2' })],
+        });
+        await expect(apps.data.call('profile.cacheRead', 's2@u2')).rejects.toEqual(
+            expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
+        );
+        // A user row is the cloud's: by its id it is not open at all.
+        await expect(apps.data.call<unknown>('user.cacheRead' as never, 'u2')).rejects.toEqual(
+            expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
+        );
         apps.disconnect();
     });
 
@@ -209,7 +262,7 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         const { transport } = setup({ budget: { take: () => ({ ok: false, retryAfterMs: 90 }) } });
         const apps = await connectOver(transport, { reportErrors: false });
 
-        await expect(apps.data.call('channel.fetchList', {})).rejects.toEqual(
+        await expect(apps.data.call('channel.fetchList', { sid: 's1' })).rejects.toEqual(
             expect.objectContaining({ code: 'RATE_LIMITED', details: { retryAfterMs: 90 } })
         );
         apps.disconnect();
@@ -362,7 +415,6 @@ const callsMatch: { [N in DataCallName]: CallMatches<N> } = {
     'cloud.getCloud': true,
     'place.cacheReadList': true,
     'place.isPlaceDeleted': true,
-    'user.cacheRead': true,
     'user.cacheReadList': true,
     'user.listPlaceMembers': true,
     'profile.cacheRead': true,
@@ -380,7 +432,6 @@ const streamsMatch: { [N in DataStreamName]: StreamMatches<N> } = {
     'place.observeList': true,
     'place.observeItem': true,
     'user.observeList': true,
-    'user.observeItem': true,
     'profile.observeList': true,
     'profile.observeItem': true,
 };
@@ -422,7 +473,6 @@ const LIBRARY_CALLS: { [N in DataCallName]: DataCalls[N]['permission'] } = {
     'cloud.getCloud': 'cloud',
     'place.cacheReadList': 'place',
     'place.isPlaceDeleted': 'place',
-    'user.cacheRead': 'user',
     'user.cacheReadList': 'user',
     'user.listPlaceMembers': 'user',
     'profile.cacheRead': 'user',
@@ -439,7 +489,6 @@ const LIBRARY_STREAMS: { [N in DataStreamName]: DataStreams[N]['permission'] } =
     'place.observeList': 'place',
     'place.observeItem': 'place',
     'user.observeList': 'user',
-    'user.observeItem': 'user',
     'profile.observeList': 'user',
     'profile.observeItem': 'user',
 };

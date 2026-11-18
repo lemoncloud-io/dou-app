@@ -12,7 +12,12 @@ import type {
     WebMessageHandlerResponse,
 } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import { checkSubWebViewRuntimeRequest, createRuntimeBridgeHost, subWebViewAllowedFor } from '@chatic/runtime-mobile';
+import {
+    SUB_WEB_VIEW_ALLOWED,
+    checkSubWebViewRuntimeRequest,
+    createRuntimeBridgeHost,
+    subWebViewAllowedFor,
+} from '@chatic/runtime-mobile';
 import type { RuntimeBridgeHost, RuntimeHostAnswer } from '@chatic/runtime-mobile';
 
 import type { SubWebViewRuntimeAccess } from './subWebViewRuntimeAccess';
@@ -127,8 +132,9 @@ const isEnded = (event: RuntimeWireValue): boolean =>
 
 const isString = (value: unknown): value is string => typeof value === 'string' && value !== '';
 
-const fieldOf = (args: readonly RuntimeWireValue[], at: { arg: number; field: string }): unknown => {
+const fieldOf = (args: readonly RuntimeWireValue[], at: { arg: number; field?: string }): unknown => {
     const argument = args[at.arg];
+    if (at.field === undefined) return argument;
     return argument !== null && typeof argument === 'object' && !Array.isArray(argument)
         ? (argument as Record<string, unknown>)[at.field]
         : undefined;
@@ -241,9 +247,11 @@ export const createSubWebViewRuntimeBridge = ({
         args: RuntimeWireValue[]
     ): Promise<AppMessageError | null> => {
         if (!cloudStillOpen()) return CLOUD_CHANGED;
+        // A place's reads answer only for the place the view opened on, and only while the session is
+        // still on it: once the user moved, nothing of a place is read until a new view opens.
         const check = checkSubWebViewRuntimeRequest({ kind, target, method, args }, granted, {
             cloudId: currentCloud(),
-            placeId: placeOfSession(session.snapshot()),
+            placeId: onOpenedPlace() ? openedPlaceId : null,
         });
         const notAllowed = (reason: SubWebViewRuntimeRefusalReason) => {
             onRefused?.({ target, method, code: 'RUNTIME_NOT_ALLOWED', reason });
@@ -257,9 +265,15 @@ export const createSubWebViewRuntimeBridge = ({
         const refused = await ask();
         if (refused) return refused;
         if (check.entry.roomInCurrentPlace) {
-            const room = await roomOfPlace(target, fieldOf(args, check.entry.roomInCurrentPlace));
-            if (room === 'notHere') return notAllowed('guard');
-            if (room !== 'here') return room;
+            const at = check.entry.roomInCurrentPlace;
+            const named = fieldOf(args, at);
+            const rooms = at.each ? named : [named];
+            if (!Array.isArray(rooms)) return notAllowed('guard');
+            for (const roomId of rooms) {
+                const room = await roomOfPlace(target, roomId);
+                if (room === 'notHere') return notAllowed('guard');
+                if (room !== 'here') return room;
+            }
         }
         const spending = check.entry.cost === 'server' ? budget : check.entry.cost === 'send' ? sends : null;
         if (spending) {
@@ -273,6 +287,8 @@ export const createSubWebViewRuntimeBridge = ({
         return null;
     };
 
+    const onOpenedPlace = () => openedPlaceId !== null && placeOfSession(session.snapshot()) === openedPlaceId;
+
     /**
      * Whether a room is one of the place the view opened on, in its cloud, with the session still on
      * that place: the room as this device holds it, read through the page load's own runtime host like
@@ -280,7 +296,6 @@ export const createSubWebViewRuntimeBridge = ({
      * A read that fails answers its own failure, so the page learns the runtime's reason, not a guard.
      */
     const roomOfPlace = async (target: string, roomId: unknown): Promise<'here' | 'notHere' | AppMessageError> => {
-        const onOpenedPlace = () => openedPlaceId !== null && placeOfSession(session.snapshot()) === openedPlaceId;
         if (!isString(roomId) || !onOpenedPlace()) return 'notHere';
         const answer = await host.call({ target, method: 'channel.cacheRead', args: [roomId] });
         if ('failure' in answer) return answer.failure;
@@ -333,7 +348,28 @@ export const createSubWebViewRuntimeBridge = ({
             // here, right before the runtime acts — a message must not go out from a closed view.
             if (disposed) return refuse('RuntimeCall', VIEW_CLOSED);
             if (!cloudStillOpen()) return refuse('RuntimeCall', CLOUD_CHANGED);
-            return reply('RuntimeCall', await host.call({ target, method, args }));
+            const answer = await host.call({ target, method, args });
+            const answerRoom = SUB_WEB_VIEW_ALLOWED.get(method)?.answerRoomInCurrentPlace;
+            if (answerRoom && !('failure' in answer)) {
+                // A read by an id that names no room: the room is known only from what it answered.
+                const row = answer.value.value as Record<string, unknown> | null;
+                if (row !== null && typeof row === 'object') {
+                    const room = await roomOfPlace(target, row[answerRoom.field]);
+                    if (room === 'notHere') {
+                        onRefused?.({ target, method, code: 'RUNTIME_NOT_ALLOWED', reason: 'guard' });
+                        return refuse(
+                            'RuntimeCall',
+                            error('RUNTIME_NOT_ALLOWED', `${target}.${method} is not open to this page (guard)`, {
+                                target,
+                                method,
+                                reason: 'guard',
+                            })
+                        );
+                    }
+                    if (room !== 'here') return refuse('RuntimeCall', room);
+                }
+            }
+            return reply('RuntimeCall', answer);
         },
         RuntimeSubscribe: async message => {
             const { subscriptionId, target, topic, args } = message.data ?? {};
