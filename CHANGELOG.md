@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - No version updates
+
+### Features
+
+- (web-ui-kit,web/home) fold place chips to their icon, unfold only the current one
+
 ## [2026-11-18] - root@0.168.2, @chatic/desktop-web@0.60.2
 
 ### Bug Fixes
