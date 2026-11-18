@@ -27,12 +27,13 @@ libs/runtime-core/src/
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
-app builds the runtime through `createWebRuntime(...)` in `@chatic/runtime-web`, which fills the
-page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/runtime`'s
-`initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
+app starts the runtime from its declaration through `startRuntime(...)` in `@chatic/runtime-web`, whose
+adapters fill the page's ports and whose start calls `createRuntime` and hands the engine it returns to
+`@chatic/runtime`'s `initAppRuntime(engine)`; the app reads the runtime through `runtime`. The graph's React hooks stay in
 @chatic/runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
 through `createNativeRuntime(...)` in `@chatic/runtime-mobile`, which fills React Native's ports the
-same way; the mobile app can boot it (its `docs/runtime/`), and nothing starts it yet.
+same way; the mobile app starts it from its own declaration over that package's adapters (its
+`docs/runtime/`).
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without

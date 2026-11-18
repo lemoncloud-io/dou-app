@@ -398,6 +398,11 @@ export default [
                 {
                     enforceBuildableLibDependency: true,
                     allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+                    // Vitest specs load the runtime fake with `await import('@chatic/runtime/testing')`
+                    // inside `vi.mock`, because a hoisted factory cannot use a static import. The rule
+                    // reads that as `@chatic/runtime` being lazy-loaded and then flags every static
+                    // import of the facade in the app. No app loads the facade lazily.
+                    checkDynamicDependenciesExceptions: ['@chatic/runtime'],
                     depConstraints: [
                         {
                             sourceTag: '*',
@@ -485,7 +490,7 @@ export default [
                         {
                             name: '@chatic/runtime-core',
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                     patterns: [
@@ -522,7 +527,7 @@ export default [
                         {
                             group: ['@chatic/runtime-core/*'],
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                 },
@@ -560,8 +565,9 @@ export default [
         },
     },
     {
-        // Asking the host what it is — `isNative()`, a `CHATIC_APP_*` global — belongs to the entry
-        // point and `@chatic/bridges`; features reach the host through `@chatic/host`'s ports. The rule
+        // Asking the host what it is — `isNative()`, a `CHATIC_APP_*` global — belongs to
+        // `@chatic/bridges`; features reach the host through the ports the app's runtime declaration
+        // publishes (`runtime.<port>`). The rule
         // says why; the allow-list (tools/eslint-rules/host-facts-allowlist.js) starts with every file
         // that did it and shrinks as each domain moves onto its port. Tests and fakes play the host on
         // purpose and are left out. The shells only write the globals, which the rule does not report.

@@ -5,6 +5,15 @@ the sockets, sync and the data layer in the page. This package holds the pieces 
 and of nothing else — the page's stores, its `navigator.onLine`, a socket opened by the page — and builds
 the runtime from them.
 
+Every web app starts it from its own declaration of these pieces, in its `src/config/` — see
+[The adapters](#the-adapters) and the example under it:
+
+```ts
+const started = await startRuntime(declaration); // config, host ports, then the engine
+```
+
+`createWebRuntime`, the same set chosen once for every page, is still exported, though no app calls it:
+
 ```ts
 const stores = resolveStorageStores(); // or a browser-only app's own stores
 runtime.boot.initAppRuntime(
@@ -40,10 +49,10 @@ The ports `createWebRuntime` fills, the same in every web app:
 | `RuntimePorts.foreground` | `webForegroundPorts()`         | `document.visibilityState` and the document's `visibilitychange` event                                                                                                           |
 | `RuntimePorts.cache`      | `webLocalCachePorts(cacheTab)` | each cache domain in IndexedDB, in the phone shell's SQLite across the bridge, or in `cacheTab` (a plain tab's invited clouds); see [docs/cache](./docs/cache/README.md)         |
 
-An app that boots the runtime this way takes the whole set through `createWebRuntime`, so a forgotten
-port is not possible. web, desktop-web and the landing site call it from their entry point; admin starts
-from a declaration instead ([The adapters](#the-adapters)), where every port is declared, so a forgotten
-one is a compile error there.
+A caller of `createWebRuntime` takes the whole set at once, so a forgotten port is not possible. No app
+calls it now: web, desktop-web, admin and the landing site each start from a declaration
+([The adapters](#the-adapters)), where every port is declared, so a forgotten one is a compile error
+there.
 
 ### Each port on its own
 
@@ -154,7 +163,8 @@ code, so the checkout adapters are built from what the app hands in and create i
 store's rules can forbid sending a buyer to the website, so `checkout.web` needs the host to offer it
 (`offeredCheckoutMethods`).
 
-A web app's declaration with all of it, as apps/web's entry would write it:
+A web app's declaration with all of it — close to what apps/web declares for a page inside a shell
+(`apps/web/src/config/webHybrid.ts`):
 
 ```ts
 export const web = defineRuntime({
@@ -182,9 +192,10 @@ export const web = defineRuntime({
 const { owner } = await startRuntime(web); // owner: SessionOwnerChoice
 ```
 
-admin starts from a declaration of these adapters. `createWebRuntime` and `resolveStorageStores`
-remain, unchanged, for the apps that have not moved to one yet (web, desktop-web, landing): they make
-for the page the choice a declaration makes for its app. The choice is moving out of this package
+Every web app starts from a declaration of these adapters. `createWebRuntime` and `resolveStorageStores`
+remain, unchanged: they make for the page the choice a declaration makes for its app. web and
+desktop-web still build their stores with `resolveStorageStores` and declare over them; nothing calls
+`createWebRuntime`. The choice is moving out of this package
 because a choice made here is made for every app at once and changes only with a build; an app's
 declaration is read by that app alone, and a `port.*` toggle can switch it on one device (ADR-0343).
 
@@ -196,7 +207,8 @@ the page's bridge, built from the session the shell's `native` answer to the pag
 Nothing is wired in the page — no stores, sockets or cache — and every member reaches the shell's
 runtime as runtime-core's [docs/bridge](../runtime-core/docs/bridge/README.md#the-pages-half-the-mirror-engine)
 describes. It is the counterpart of `createWebRuntime`, never called alongside it: one launch has one
-owner. The web app's entry point builds it once `settleSessionOwner` has settled on the shell (below).
+owner. The web app builds it through its declaration's `engine.mirror` once `settleSessionOwner` has
+settled on the shell (below).
 
 **The port is made before the hello** (`webMirrorPort()`). The shell pushes the session from the moment
 it answers, and the mirror exists only after the answer arrives; the port keeps the newest push heard
@@ -240,10 +252,10 @@ entry point boots either runtime:
 ### The stores
 
 `resolveStorageStores()` is the one place an app's stores are chosen and built. An entry point that uses
-it (apps/web and apps/desktop-web) calls it once and hands the result out — to `prepareSecretStorage`, to
-`createWebRuntime({ storage })`, to its config ports and its own features — instead of constructing stores
-itself. The landing site runs in a browser tab and nowhere else, and hands over its own; admin declares
-storage and cache adapters of its own, over the store objects the rest of the console uses.
+it (apps/web and apps/desktop-web) calls it once and hands the result out — to its declaration's storage
+adapter, which runs `prepareSecretStorage`, to its config ports and its own features — instead of
+constructing stores itself. The landing site runs in a browser tab and nowhere else, and admin likewise
+declares storage and cache adapters of its own, over the store objects the rest of the app uses.
 
 | environment                 | secret     | plain      | device   | tab        |
 | --------------------------- | ---------- | ---------- | -------- | ---------- |

@@ -108,8 +108,8 @@ this order, and only then leaves the page:
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
 2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
-   keys declare them, and the app hands them to `createWebRuntime({ signedOutKeyPrefixes })`, whose `createRuntime`
-   registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
+   keys declare them, and the app's runtime declaration hands them over (`signedOutKeyPrefixes`), whose
+   `createRuntime` registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
 3. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The

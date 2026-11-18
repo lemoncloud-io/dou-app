@@ -8,15 +8,19 @@ them. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/REA
 
 The mobile app can boot it (`apps/mobile/docs/runtime/`), on a launch whose owner is set to the app;
 a dev or production build (from app 0.32.1) sets it for installs nobody switched, unless the web names
-the page. A launch whose vault holds no session is declined and goes to the page (from 0.32.2). An app boots it with
-`bootNativeRuntime` and keeps it alive with `runNativeRuntime`:
+the page. A launch whose vault holds no session is declined and goes to the page (from 0.32.2). The app
+starts it from its own runtime declaration — `startRuntime`, handed on from runtime-client, over the
+adapters below, in `apps/mobile/src/config/mobile.ts` — and keeps it alive with `runNativeRuntime`:
 
 ```ts
 import '@chatic/runtime-mobile/polyfills'; // first, before anything draws random numbers
 
-const { engine } = await bootNativeRuntime({ storage, vault, cache, env, userAgent, leaveToHome });
+const { engine } = await startRuntime(declaration); // the app's `mobile(...)` declaration
 const stop = runNativeRuntime(engine, { deviceIds, push });
 ```
+
+`bootNativeRuntime` — the same steps in one call, with every port fixed here — is still exported, and
+covered by its tests, but the app no longer boots through it.
 
 `createNativeRuntime` is the step inside the boot that assembles the runtime from loaded stores:
 
@@ -80,11 +84,11 @@ process.
 the config set-up `bootNativeRuntime` does first are not part of a start; an app that starts from a
 declaration does them before it, or names config's ports in the declaration.
 
-Nothing starts through these adapters yet: the mobile app still boots with `bootNativeRuntime`, which
-builds through `createNativeRuntime`, and both stay, unchanged, until the app has a declaration of its
-own. When it does, the choice of each port leaves this package for the app, as it does for a web app
-(ADR-0343) — a choice made here would be made for every React Native app at once and could change only
-with a build.
+The mobile app starts through these adapters: its declaration (`apps/mobile/src/config/mobile.ts`)
+checks the build's values first and names config's ports itself, so the choice of each port is the
+app's, as it is for a web app (ADR-0343) — a choice made here would be made for every React Native app at
+once and could change only with a build. `bootNativeRuntime`, which builds through
+`createNativeRuntime`, stays exported, unchanged, with no caller in the app.
 
 Each port has one factory, and each factory builds on its own from what it is handed — nothing reads
 another port's result — so an app can declare port by port what it plugs in. `createNativeRuntime` uses
@@ -147,7 +151,9 @@ vault, so this runtime reads it through `secret` (`libs/session` README, `identi
 
 ## Booting and running
 
-`bootNativeRuntime` boots in the order a page's entry does, and each step is one a page already has:
+`bootNativeRuntime` boots in the order a page's entry does, and each step is one a page already has.
+The app's declaration runs the same steps through `startRuntime` — step 1 in `startMobileRuntime`
+before the start, the rest as the start's config set-up and its `storage.mobile-vault` adapter:
 
 1. **The build's values** (`NATIVE_RUNTIME_ENV_KEYS`: `VITE_ENV`, `VITE_PROJECT`, `VITE_HOST`,
    `VITE_OAUTH_ENDPOINT`, `VITE_SOCIAL_OAUTH_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`,

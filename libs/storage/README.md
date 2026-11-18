@@ -17,8 +17,8 @@ talking to every shell still in use.
 
 - **`@chatic/runtime-web`'s `resolveStorageStores`** is where an app's stores are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` stores for everything else.
-  `apps/web` and `apps/desktop-web` call it once in their entry points and hand the result out
-  (`createWebRuntime({ storage })`, their config ports, their own `app/storage/`).
+  `apps/web` and `apps/desktop-web` call it once and hand the result out (their runtime declaration's
+  storage adapter, their config ports, their own `app/storage/`).
 - **The browser-only apps** — admin, landing, block-kit-builder — have no environment to choose
   between, so each builds its stores once in its own `src/app/storage/` and hands them out from there.
 - **Everything else in the apps and the libs** reaches web storage only through a store — the root
@@ -129,12 +129,7 @@ for what travels with a sign-in — and a lib reads the session's plain store th
 // both from @chatic/runtime-web
 const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
-runtime.boot.initAppRuntime(
-    createWebRuntime({
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
-        cacheTab: stores.webSession, // a tab's invited clouds
-    })
-);
+await startRuntime(declareRuntime(stores)); // the app's src/config/ declaration, over these stores
 ```
 
 ### What not to do

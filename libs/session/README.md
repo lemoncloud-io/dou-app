@@ -117,9 +117,9 @@ vault's, because the plain one is the id the page accepted invites under.
 ### Two ports: secret and plain
 
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
-[`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which `KeyValueStore`
-([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
-`createWebRuntime({ storage })` in a page, whose `createRuntime` calls `sessionStores.configure`.
+[`store/ports/`](./src/store/ports/index.ts), and each app's runtime declaration decides which
+`KeyValueStore` ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, through
+its `storage` adapter; `startRuntime` hands them to `createRuntime`, which calls `sessionStores.configure`.
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

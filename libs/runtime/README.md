@@ -34,8 +34,8 @@ live elsewhere and do not leak to apps: the socket and HTTP managers
 executor ([`libs/http`](../http/README.md)), the storage adapters ([`libs/db`](../db/README.md)),
 the HMAC signer (in [`libs/auth`](../auth/docs/socket/signing.md#the-formula)) and the logging core ([`libs/logger`](../logger/README.md)).
 [`libs/config`](../config/README.md) is the one exception an app's declaration part touches directly — it
-calls `config.init()` from its own entry point, before this lib boots; the call part reads and writes
-settings through `runtime.settings`.
+builds config's ports, which `startRuntime` hands to `config.init()` before this lib boots; the call part
+reads and writes settings through `runtime.settings`.
 
 ## The facade
 
@@ -227,8 +227,8 @@ sequenceDiagram
     participant A as client.auth (SDK)
     participant S as @chatic/session
 
-    App->>App: config.init() · logging wiring
-    App->>App: initAppRuntime(createWebRuntime({ storage, cacheTab, data }))
+    App->>App: logging wiring
+    App->>App: startRuntime(declaration) — config.init · host ports · initAppRuntime(engine)
     App->>Host: mount
     Host->>Host: session.initialize() — gate the subtree until isReady()
     Host->>C: startSockets() — once the gate opens
@@ -293,15 +293,15 @@ and in-package callers reach them by concrete path.
 One boot call and one component. Everything else is a hook.
 
 ```ts
-// apps/admin/src/main.tsx — once, before render. `declaration` is the app's own (`defineRuntime`),
-// naming an adapter per port; see runtime-client's "The runtime declaration".
+// apps/*/src/main.tsx — once, before render. `declaration` is the app's own (`defineRuntime`, in its
+// src/config/), naming an adapter per port; see runtime-client's "The runtime declaration".
 import { startRuntime } from '@chatic/runtime-web';
 
 await startRuntime(declaration); // builds the ports and hands the engine to the hooks
 ```
 
 ```ts
-// apps/web, desktop-web, landing — the same, before they move to a declaration.
+// The same without a declaration — still exported, though no app boots this way now.
 import { runtime } from '@chatic/runtime';
 import { createWebRuntime } from '@chatic/runtime-web';
 
@@ -349,11 +349,13 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; landing builds its own)
-  ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
-  ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
+  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; landing and admin declare their own)
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ createWebRuntime({ storage, cacheTab, signedOutKeyPrefixes?, data? })   @chatic/runtime-web — fills the page's ports
+  ├─ startRuntime(declaration)            @chatic/runtime-web — the app's src/config/ declaration; runs every step below through initAppRuntime
+  ├─ config.init(declaration.config)      @chatic/config — first, this lib reads it lazily
+  ├─ host.publish(ports)                  the host's ports, before anything renders
+  ├─ storage adapter                      in a shell that keeps a vault: prepareSecretStorage loads it, moves web copies in
+  ├─ the engine's ports, from the declaration's adapters (and its signedOutKeyPrefixes?, data?)
   │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order; returns the engine
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required

@@ -51,7 +51,9 @@ policy invariants, the four-lane precedence table, value validation, the lane st
 subscribers, the last-known-good remote payload cache, JSON encoding at the storage boundary, the
 port interfaces, the shared Vite env adapter, and the two React hooks.
 
-**Out** — every adapter implementation (each app's `src/app/config/adapters.ts`), the shell's side of
+**Out** — every adapter implementation (each app's declaration under `src/config/`: `apps/web`'s
+`configPorts.ts`, `apps/desktop-web`'s `adapters/configPorts.ts`, `apps/admin`'s and `apps/landing`'s
+`adapters/config.ts`), the shell's side of
 the KV bridge (`apps/mobile`'s `ConfigKvService` and `useConfigKvHandler`), the remote fetcher (does
 not exist), the screens that draw controls (`apps/web`), the device state log
 (`libs/runtime`'s `attachConfigStateLog`), and product entitlements such as place and channel
@@ -187,25 +189,32 @@ const stop = config.subscribe(['ui.theme'], changed => redraw(changed));
 Three rules hold.
 
 1. **`config.get<T>()` returns `T | undefined`, always.** It is `undefined` before `init`, and for an unknown key. Consumers compare against the value they want (`!== false`, `?? fallback`) rather than trusting the type parameter.
-2. **Read at the point of use, never at module scope.** ES modules evaluate an import's body before the importing file's, so a module-scope `config.get()` runs before `main.tsx` reaches `config.init()` and silently takes the fallback branch. `apps/desktop-web`'s `oauth.ts` records the one time this shipped.
+2. **Read at the point of use, never at module scope.** ES modules evaluate an import's body before the importing file's, so a module-scope `config.get()` runs before `main.tsx`'s `startRuntime` reaches `config.init()` and silently takes the fallback branch. `apps/desktop-web`'s `oauth.ts` records the one time this shipped.
 3. **`lane: 'local'` is this browser, `lane: 'shell'` is the native app.** Writing the shell lane round-trips over the bridge and waits for a confirmation; writing the local lane does not.
 
 ### Wiring
 
-One file per app assembles the ports, and `main.tsx` calls `init` once.
+One file per app assembles the ports and hands them to the app's runtime declaration as its `config`;
+`startRuntime` (runtime-client, through `@chatic/runtime-web`) calls `init` once, as its first step.
 
 ```text
 main.tsx
   ├─ syncThemeFromSharedKey()    apps/web only: seeds storageKeyFor('ui.theme')    ── must be first
-  ├─ config.init(createWebConfigPorts(stores)) hydrateShell() then hydrateStorage()
-  └─ runtime.boot.initAppRuntime(createWebRuntime(...))
-        └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
+  └─ startRuntime(declaration)
+        ├─ config.init(declaration.config)   hydrateShell() then hydrateStorage()
+        └─ initAppRuntime(engine)
+              └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
 ```
 
-Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile` does not import
-this lib — it implements the other side of the shell port instead — but on a launch whose session the
-app's own runtime holds, `libs/runtime-mobile`'s boot calls `init` in the app's process, with the env
-port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/runtime`,
+Past the entry, an app reads and writes settings through `runtime.settings` (`@chatic/runtime`), which
+forwards each call to this lib's `config` at the moment it is made; only the declaration imports
+`@chatic/config` itself.
+
+Four apps do this: `apps/web`, `apps/desktop-web`, `apps/admin` and `apps/landing` (whose account
+surface starts the runtime on demand rather than in `main.tsx`). `apps/mobile` implements the other side
+of the shell port instead, but on a launch whose session the app's own runtime holds, its declaration
+(`apps/mobile/src/config/mobile.ts`) is started the same way and `startRuntime` calls `init` in the
+app's process, with the env port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/runtime`,
 `libs/shared` and `libs/runtime-mobile` import this one.
 
 Anything that seeds a local-lane value runs **before** `init`, because `init`'s `hydrateStorage()` is

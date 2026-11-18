@@ -9,8 +9,9 @@ const path = require('node:path');
  * two more by guessing: what this host can do, and which product rule applies here. The shell's
  * `CHATIC_APP_*` globals are read the same way, most often to tell one phone platform from the other.
  * Each guess holds only while every host with a bridge can do everything the phone can, and nothing
- * outside the page can change its answer. What a host can do reaches a feature through a port of
- * `@chatic/host` instead, chosen once in the app's entry point from what the host declared.
+ * outside the page can change its answer. What a host can do reaches a feature through a host port
+ * instead (`runtime.<port>` from `@chatic/runtime`), chosen once by the app's runtime declaration from
+ * what the host declared.
  *
  * So this reports, outside the allowed files:
  * - any use of `isNative` imported from `@chatic/bridges` — called, or handed on as a value — under
@@ -114,7 +115,7 @@ module.exports = {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Only the entry point may ask the host what it is; features reach it through @chatic/host.',
+            description: 'Only the allowed files may ask the host what it is; features reach it through its ports.',
         },
         schema: [
             {
@@ -125,8 +126,8 @@ module.exports = {
             },
         ],
         messages: {
-            probe: "'{{name}}' only says a bridge exists. Ask the capability's port from @chatic/host instead; only the app's entry point and the files on this rule's allow-list may use it.",
-            global: "'{{name}}' is a fact the host injected. Read it through @chatic/host's ports, or @chatic/bridges' host profile in infrastructure; only the app's entry point and the files on this rule's allow-list may read it off the global object.",
+            probe: "'{{name}}' only says a bridge exists. Ask the capability's port (`runtime.<port>` from @chatic/runtime) instead; only the files on this rule's allow-list may use it.",
+            global: "'{{name}}' is a fact the host injected. Read it through the host ports (`runtime.<port>` from @chatic/runtime), or @chatic/bridges' host profile in infrastructure; only the files on this rule's allow-list may read it off the global object.",
         },
     },
     create(context) {
