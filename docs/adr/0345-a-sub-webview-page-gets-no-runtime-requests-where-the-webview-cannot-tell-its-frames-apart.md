@@ -69,6 +69,14 @@ host decides what it registers before the page's first message.
    other open method takes such a parameter, and every other open read resolves its partition from the
    session's current cloud.
 
+6. **Home is a cloud like any other.** The runtime requests used to need a cloud other than Home
+   (the relay's `default` cloud) selected as the view opened; that condition goes. A page opened on
+   Home reads Home's places and rooms and is bound to Home as a page elsewhere is bound to its cloud:
+   moving to another cloud ends it with `CLOUD_CHANGED`. Nothing recorded why Home was left out, and
+   every check after the gate — the bound cloud, the whitelist, consent, the budgets — holds there
+   unchanged. `cloud.getCloud` answers Home with the relay's minimal `{ id, name, status }`, since the
+   user owns no Home.
+
 ## Alternatives
 
 - **Read the channel from the shape of the reported URL.** A bare origin means the listener, a full URL
@@ -86,6 +94,10 @@ host decides what it registers before the page's first message.
   injected by the WebView into every frame, beyond a page script's reach.
 
 ## Consequences
+
+- A mini app opened on Home — by a link, since the web lists a cloud's mini apps only for a cloud with
+  an owner — can read Home's data once the user agrees. Listing mini apps on Home is the web's to
+  decide, and not done here.
 
 - A page that sent a third argument to one of the three list streams is refused where it was answered.
   No page DoU knows of does; the SDK sends the query and the listener only.

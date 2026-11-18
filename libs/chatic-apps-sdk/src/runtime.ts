@@ -5,6 +5,8 @@ import type {
     DataCallName,
     DataCallResult,
     CloudChat,
+    CloudList,
+    CloudProfile,
     CloudSession,
     DataStreamArgs,
     DataStreamEvent,
@@ -53,6 +55,16 @@ export interface DataSubscription {
  * A method `DataCalls` / `DataStreams` names is typed: its arguments and its answer. Any other
  * name still goes through, answered as `unknown` — an app newer than this library may open more.
  */
+/** Which place a profile is read in: one of this cloud's places; the session's place when left out. */
+export interface PlaceProfileOptions {
+    placeId?: string;
+}
+
+/** Hears a stream the app ended, as `subscribe`'s `onEnd`. */
+export interface DataStreamOptions {
+    onEnd?: (error: ChaticAppsError) => void;
+}
+
 export interface ChaticAppsData {
     /** Opens the conversation; later calls answer the same. `CONSENT_REFUSED` if the user said no. */
     connect(): Promise<DataConnection>;
@@ -94,6 +106,30 @@ export interface ChaticAppsData {
      * `call('chat.sendChat', { channelId, content: text })`.
      */
     sendMessage(channelId: string, text: string): Promise<CloudChat>;
+    /**
+     * A member's place profile — what they are called in one place of this cloud: mostly the name shown
+     * there (`nick`) and a picture — as the device holds it; `null` when it holds none (they have not
+     * set one there; fall back to the member's own name). The app keys it to the member's id in the
+     * cloud, `<place id>@<user id>`. Reads stay in the cloud this view opened on; the place is
+     * `options.placeId`, else the place the session is on. Needs `user`, and `session` when no place is
+     * given: `NOT_SUPPORTED` without a place to read in, `RUNTIME_NOT_ALLOWED` without `user`.
+     */
+    placeProfile(userId: string, options?: PlaceProfileOptions): Promise<CloudProfile | null>;
+    /** Every place profile the device holds for one place — for naming a room's members. As `placeProfile`. */
+    placeProfiles(options?: PlaceProfileOptions): Promise<CloudList<CloudProfile> | null>;
+    /** Hears a member's place profile, as `placeProfile` reads it, and each change to it. */
+    observePlaceProfile(
+        userId: string,
+        listener: (profile: CloudProfile | null) => void,
+        options?: PlaceProfileOptions & DataStreamOptions
+    ): Promise<DataSubscription>;
+    /** The user's own place profile: `placeProfile` with the user's id, read off the session (`session` needed). */
+    myProfile(options?: PlaceProfileOptions): Promise<CloudProfile | null>;
+    /** Hears the user's own place profile, as `myProfile` reads it. */
+    observeMyProfile(
+        listener: (profile: CloudProfile | null) => void,
+        options?: PlaceProfileOptions & DataStreamOptions
+    ): Promise<DataSubscription>;
     /** The session snapshot, with the `session` permission; `null` without it or before `connect`. */
     session(): CloudSession | null;
     /** Hears each session change, with the `session` permission. */
@@ -251,39 +287,81 @@ export const runtimeOver = (
         return reply.value;
     };
 
+    const subscribe = async (
+        method: string,
+        args: unknown[],
+        listener: (...event: never[]) => void,
+        onEnd?: (error: ChaticAppsError) => void
+    ) => {
+        await allowedFor('streams', method);
+        const subscriptionId = `cas-s${(++sequence).toString(36)}`;
+        streams.set(subscriptionId, { listener: listener as (...event: unknown[]) => void, onEnd });
+        try {
+            await client.request('RuntimeSubscribe', {
+                subscriptionId,
+                target: DATA_TARGET,
+                topic: method,
+                args: args.some(isListener) ? args : [...args, LISTENER],
+            });
+        } catch (error) {
+            streams.delete(subscriptionId);
+            failed(error);
+        }
+        return {
+            stop: async () => {
+                if (!streams.delete(subscriptionId)) return;
+                await client.request('RuntimeUnsubscribe', { subscriptionId }).catch(() => undefined);
+            },
+        };
+    };
+
+    // A place profile is the row `<place id>@<user id>` of the cloud this view opened on: the place and,
+    // for the user's own, the user's id are read off the session, so neither needs a method of its own
+    // on the app's side.
+    const placeOf = async (options?: PlaceProfileOptions): Promise<string> => {
+        await connect();
+        const place = options?.placeId || session?.committedSiteId;
+        if (!place) {
+            throw new ChaticAppsError(
+                'NOT_SUPPORTED',
+                'A place profile needs a place: pass placeId, or the session permission while the session is on one.'
+            );
+        }
+        return place;
+    };
+    const myId = async (): Promise<string> => {
+        await connect();
+        const user = session?.context.identity.userId;
+        if (!user) throw new ChaticAppsError('NOT_SUPPORTED', "The user's own profile needs the session permission.");
+        return user;
+    };
+    const profileId = async (userId: string, options?: PlaceProfileOptions) => `${await placeOf(options)}@${userId}`;
+    const placeProfile = async (userId: string, options?: PlaceProfileOptions) =>
+        call('profile.cacheRead', await profileId(userId, options)) as Promise<CloudProfile | null>;
+    const observePlaceProfile = async (
+        userId: string,
+        listener: (profile: CloudProfile | null) => void,
+        options?: PlaceProfileOptions & DataStreamOptions
+    ) =>
+        subscribe(
+            'profile.observeItem',
+            [await profileId(userId, options)],
+            listener as (...event: never[]) => void,
+            options?.onEnd
+        );
+
     return {
         connect: () => connect().then(({ contract, allowed }) => ({ contract, allowed })),
         can: method =>
             !!answered && (answered.allowed.calls.includes(method) || answered.allowed.streams.includes(method)),
         call,
-        subscribe: async (
-            method: string,
-            args: unknown[],
-            listener: (...event: never[]) => void,
-            onEnd?: (error: ChaticAppsError) => void
-        ) => {
-            await allowedFor('streams', method);
-            const subscriptionId = `cas-s${(++sequence).toString(36)}`;
-            streams.set(subscriptionId, { listener: listener as (...event: unknown[]) => void, onEnd });
-            try {
-                await client.request('RuntimeSubscribe', {
-                    subscriptionId,
-                    target: DATA_TARGET,
-                    topic: method,
-                    args: args.some(isListener) ? args : [...args, LISTENER],
-                });
-            } catch (error) {
-                streams.delete(subscriptionId);
-                failed(error);
-            }
-            return {
-                stop: async () => {
-                    if (!streams.delete(subscriptionId)) return;
-                    await client.request('RuntimeUnsubscribe', { subscriptionId }).catch(() => undefined);
-                },
-            };
-        },
+        subscribe,
         sendMessage: (channelId, text) => call('chat.sendChat', { channelId, content: text }),
+        placeProfile,
+        placeProfiles: async options => call('profile.cacheReadList', { sid: await placeOf(options) }),
+        observePlaceProfile,
+        myProfile: async options => placeProfile(await myId(), options),
+        observeMyProfile: async (listener, options) => observePlaceProfile(await myId(), listener, options),
         session: () => session,
         onSessionChange: listener => {
             sessionListeners.add(listener);
@@ -321,6 +399,11 @@ export const browserRuntime = (): ChaticAppsData => {
         call: notInApp,
         subscribe: notInApp,
         sendMessage: notInApp,
+        placeProfile: notInApp,
+        placeProfiles: notInApp,
+        observePlaceProfile: notInApp,
+        myProfile: notInApp,
+        observeMyProfile: notInApp,
         session: () => null,
         onSessionChange: () => () => undefined,
         onCloudChanged: () => () => undefined,

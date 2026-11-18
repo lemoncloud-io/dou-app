@@ -30,6 +30,12 @@ describe('openSubWebViewRuntime', () => {
         expect(access).toMatchObject({ openedCloudId: 'c1', openedPlaceId: 'p1', granted: permissions });
     });
 
+    it('opens the runtime on Home too, bound to Home', () => {
+        mockEngine.mockReturnValue(engineOn('default'));
+
+        expect(openSubWebViewRuntime({ trust: 'reviewed', permissions })).toMatchObject({ openedCloudId: 'default' });
+    });
+
     it('opens nothing, and never asks the runtime, where the WebView reports every frame as the page', () => {
         mockReportsFrameOrigin = false;
 

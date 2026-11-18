@@ -21,7 +21,7 @@ describe('grantedSubWebViewRuntime', () => {
         ['the owner is not settled yet', { owner: undefined }],
         ['an external site', { trust: 'external' }],
         ['the hub', { trust: 'firstParty' }],
-        ['no cloud, or Home, at open', { openedCloudId: null }],
+        ['no cloud at open', { openedCloudId: null }],
         ['a manifest with none', { permissions: new Set() }],
         ['the WebView reports every frame as the top-level page', { reportsFrameOrigin: false }],
     ])('grants nothing when %s', (_, change) => {
@@ -32,9 +32,9 @@ describe('grantedSubWebViewRuntime', () => {
 describe('cloudOfSession', () => {
     const on = (cloudId: string | null) => ({ context: { cloud: { cloudId } } });
 
-    it('reads the selected cloud, and none for Home or no selection', () => {
+    it('reads the selected cloud, Home included, and none without a selection', () => {
         expect(cloudOfSession(on('c1'))).toBe('c1');
-        expect(cloudOfSession(on('default'))).toBeNull();
+        expect(cloudOfSession(on('default'))).toBe('default');
         expect(cloudOfSession(on(null))).toBeNull();
         expect(cloudOfSession(on(''))).toBeNull();
     });

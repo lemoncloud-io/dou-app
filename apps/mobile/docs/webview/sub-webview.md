@@ -85,7 +85,7 @@ also post plain text in the user's name to a room of the place the view opened o
 it:
 
 - **The gate, once as the view opens** (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`): the
-  session owner must be `native`, the page `reviewed`, a cloud other than Home selected, the
+  session owner must be `native`, the page `reviewed`, a cloud selected (Home included), the
   manifest must declare one of the seven, and the WebView must report a frame's message under the
   frame's own origin (`subWebViewFrameOrigin.ts`). Otherwise the four requests are not registered at all.
   That last one is the Android module `SubWebViewFrames`, which answers with the check

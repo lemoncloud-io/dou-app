@@ -613,7 +613,8 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
 - the phone shell — the desktop shell answers the base set only;
 - the launch's session is held by the app's runtime, not by the main web;
 - the page is `reviewed` — an `external` site has no manifest, and the hub needs none of this;
-- a cloud other than Home was selected when the view opened;
+- a cloud was selected when the view opened — Home counts as one: a page opened there reads Home's
+  places and rooms;
 - the manifest declares at least one runtime permission;
 - the WebView reports a frame's message under the frame's own origin — always on iOS, and on Android
   where the WebView supports web message listeners. An older Android WebView reports every frame as the

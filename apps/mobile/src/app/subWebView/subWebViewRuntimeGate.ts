@@ -3,14 +3,13 @@ import type { SubWebViewTrust } from '@chatic/shared';
 
 import type { SessionOwner } from '../services/runtime/sessionOwner';
 
-/** The Home cloud's id in the session: the relay's, which a page never reads. */
-const HOME_CLOUD_ID = 'default';
-
-/** The cloud a session snapshot is on, or `null` for none and for Home. */
-export const cloudOfSession = (snapshot: { context: { cloud: { cloudId: string | null } } }): string | null => {
-    const cloudId = snapshot.context.cloud.cloudId;
-    return cloudId && cloudId !== HOME_CLOUD_ID ? cloudId : null;
-};
+/**
+ * The cloud a session snapshot is on, or `null` when none is selected. Home (the relay's `default`
+ * cloud) counts as a cloud like any other: a page opened there reads Home's places and rooms, bound to
+ * it as a page elsewhere is bound to its cloud.
+ */
+export const cloudOfSession = (snapshot: { context: { cloud: { cloudId: string | null } } }): string | null =>
+    snapshot.context.cloud.cloudId || null;
 
 export interface SubWebViewRuntimeGateInput {
     /** Who holds the session this launch, as the app answered the main web (`settledSessionOwner`). */
@@ -35,7 +34,7 @@ const NONE: ReadonlySet<SubWebViewRuntimePermission> = new Set();
  *   the view stops answering on Android, so there is no relaying through it.
  * - Only a `reviewed` page: an `external` site has no manifest to grant anything, and the hub needs
  *   none of this.
- * - Only when a cloud other than Home was selected as the view opened: the page reads that cloud.
+ * - Only when a cloud — Home included — was selected as the view opened: the page reads that cloud.
  * - Only where the WebView reports a frame's message under the frame's own origin. An older Android
  *   WebView reports every frame as the top-level page, so a frame of another site inside a reviewed
  *   page would pass the origin check and read the cloud, or send in the user's name. The base set and

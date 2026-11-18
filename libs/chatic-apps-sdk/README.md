@@ -192,7 +192,9 @@ if (apps.supports('data') && placeId) {
 - **Server reads are budgeted**: one per 250 ms and 60 a minute per view, `RATE_LIMITED` past it, with
   `error.details.retryAfterMs`.
 - **Only some launches answer it**: the app has to hold the session itself, the page has to be a
-  reviewed one on the phone, and a cloud other than Home has to be selected when it opens.
+  reviewed one on the phone, a cloud — Home included — has to be selected when it opens, and on
+  Android the WebView has to tell the page's own messages from a frame's inside it (an old Android
+  System WebView cannot, and the app then answers none of `apps.data` there).
   `supports('data')` is `false` everywhere else, and every call is `NOT_IN_APP` in a browser.
 - **The types cannot hold every argument the app checks.** An object passed from a variable may carry
   fields its type does not list, and `call<T>` skips the argument types altogether; the app still
@@ -288,6 +290,34 @@ asked per place. A send that fails leaves a failed message in the room on the us
 failed send from DoU's own composer does. Messages have their own budget, one per 500 ms and 30 a
 minute, `RATE_LIMITED` past it. Get the room's id from a read (`channel`) or the launch parameters. In
 a browser it is `NOT_IN_APP`.
+
+### Place profiles: `placeProfile`, `placeProfiles`, `myProfile`
+
+```ts
+const me = await apps.data.myProfile(); // CloudProfile | null
+const sender = chat.ownerId ? await apps.data.placeProfile(chat.ownerId) : null; // a member, in the session's place
+const named = await apps.data.placeProfiles({ placeId }); // CloudList<CloudProfile> | null: name a room's members
+const stop = await apps.data.observePlaceProfile(userId, profile => renderName(profile?.nick));
+```
+
+A place profile is what a member is called in one place of a cloud: the app keys it to the member's
+id in that cloud, `<place id>@<user id>`, and it mostly holds the name shown there (`nick`) and a
+picture — DoU names a member by it, and by the member's own name where there is none. Every read
+stays in the cloud the view opened on; the place is the `placeId` you pass, or else the place the
+session is on.
+
+- `placeProfile(userId, { placeId? })` reads one member's profile as the device holds it, and
+  `observePlaceProfile(userId, listener, { placeId?, onEnd? })` hears it and each change.
+- `placeProfiles({ placeId? })` lists the place's profiles the device holds.
+- `myProfile({ placeId? })` and `observeMyProfile(listener, { placeId?, onEnd? })` do the same with the
+  user's own id, read off the session.
+
+They need `user`, which reads profiles (`RUNTIME_NOT_ALLOWED` without it), and `session` for the
+user's own id or when no `placeId` is given (`NOT_SUPPORTED` without it, or before the session is on a
+place). `null` means the device holds no profile for that member in that place: fall back to the
+member's own name. They are `call('profile.cacheRead', '<place id>@<user id>')`,
+`call('profile.cacheReadList', { sid })` and `subscribe('profile.observeItem', [id], …)`, which still
+work.
 
 ### In the mock
 
@@ -478,11 +508,11 @@ Which app a page meets is the app's business, not the library's: a call the app 
 `NOT_SUPPORTED`, so decide with `apps.supports(...)`, never with a version number. The library's own
 numbers, for reading a bug report:
 
-| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                      |
-| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                   |
-| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                               |
-| next (unreleased) | 2.29.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type |
+| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                                                                                                          |
+| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                       |
+| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                   |
+| next (unreleased) | 2.29.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type |
 
 The data contract is the app's own version for what `apps.data` reads. The app answers a
 page with the newest contract both speak; a library that speaks none the app does is answered
