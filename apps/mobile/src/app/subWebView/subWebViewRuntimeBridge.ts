@@ -287,7 +287,7 @@ export const createSubWebViewRuntimeBridge = ({
         return null;
     };
 
-    const onOpenedPlace = () => openedPlaceId !== null && session.snapshot().committedSiteId === openedPlaceId;
+    const onOpenedPlace = () => openedPlaceId !== null && placeOfSession(session.snapshot()) === openedPlaceId;
 
     /**
      * Whether a room is one of the place the view opened on, in its cloud, with the session still on
