@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - root@0.168.2, @chatic/desktop-web@0.60.2
+
+### Bug Fixes
+
+- (desktop-web) show the server's reason in a failed switch toast
+
 ## [2026-11-18] - No version updates
 
 ### Features
