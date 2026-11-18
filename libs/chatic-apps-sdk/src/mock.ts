@@ -1,4 +1,14 @@
 import { ruledStore, type StoreFile } from './storage';
+import type {
+    DataCallArgs,
+    DataCallName,
+    DataCallResult,
+    CloudChat,
+    CloudSession,
+    DataStreamArgs,
+    DataStreamEvent,
+    DataStreamName,
+} from './runtimeTypes';
 import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
 
 /** A manifest permission, as the page would declare it in `/.well-known/chatic-app.json`. */
@@ -16,18 +26,47 @@ export type MockPermission =
     | 'chatSend';
 
 /**
- * The app's data, as the mock answers `apps.runtime`: each method the page may call, and each stream it
- * may subscribe to, by its `<repository>.<method>` name. The mock does not know the app's whitelist —
- * it answers what is given here and refuses the rest — so read the real `allowed` in the app.
+ * What a known method answers in the mock: the same shape the app answers with, so an answer of the
+ * wrong shape fails the type check here rather than the page in the app.
  */
-export interface MockRuntime {
+export type MockDataCalls = {
+    [M in DataCallName]?: (...args: DataCallArgs<M>) => DataCallResult<M> | Promise<DataCallResult<M>>;
+} & {
+    /** A method this library does not know: answered with whatever it returns. */
+    [method: string]: ((...args: never[]) => unknown) | undefined;
+};
+
+/** A known stream in the mock: `emit` sends one event of the app's shape. */
+export type MockDataStreams = {
+    [M in DataStreamName]?: (
+        emit: (...event: DataStreamEvent<M>) => void,
+        ...args: DataStreamArgs<M>
+    ) => (() => void) | void;
+} & {
+    [method: string]: ((emit: (...event: unknown[]) => void, ...args: never[]) => (() => void) | void) | undefined;
+};
+
+/**
+ * The app's data, as the mock answers `apps.data`: each method the page may call, and each stream it
+ * may subscribe to, by its `<repository>.<method>` name. The mock does not know the app's whitelist —
+ * it answers what is given here and refuses the rest — so read the real `allowed` in the app. The one
+ * exception is the text send: with `chatSend` the mock opens `chat.sendChat` itself and records each
+ * message (`MockController.sentMessages`).
+ */
+export interface MockData {
     /** The session snapshot, given to a page with the `session` permission. */
-    session?: unknown;
-    calls?: { [method: string]: (...args: unknown[]) => unknown };
+    session?: CloudSession | null;
+    calls?: MockDataCalls;
     /** Each gets `emit`, which sends one event, and the page's arguments; it returns how to stop. */
-    streams?: { [method: string]: (emit: (...event: unknown[]) => void, ...args: unknown[]) => (() => void) | void };
+    streams?: MockDataStreams;
     /** How the user answers the app's question about this cloud; `allow` by default. */
     consent?: 'allow' | 'refuse';
+}
+
+/** A message the page sent through `apps.data.sendMessage` (or `chat.sendChat`) in the mock. */
+export interface MockSentMessage {
+    channelId: string;
+    text: string;
 }
 
 /** How the user answers when the page asks for a device: allows it, refuses it, or the OS blocks it. */
@@ -52,8 +91,8 @@ export interface MockOptions {
     storage?: { [key: string]: unknown };
     /** Log each request and reply to the console. On by default. */
     log?: boolean;
-    /** The app's data, for a page with a runtime permission. */
-    runtime?: MockRuntime;
+    /** The cloud's data, for a page with a cloud data permission (`apps.data`). */
+    data?: MockData;
 }
 
 export interface MockController {
@@ -73,6 +112,8 @@ export interface MockController {
     changeContext(change: Partial<Pick<ChaticAppsContext, 'theme' | 'locale'>>): void;
     /** The user moves to another cloud under the view: every stream ends, and nothing answers after. */
     changeCloud(): void;
+    /** The messages the page sent and the mock answered, in the order they went through. */
+    readonly sentMessages: readonly MockSentMessage[];
     /** Removes the fake app. */
     uninstall(): void;
 }
@@ -116,6 +157,11 @@ const KINDS: readonly HapticKind[] = ['selection', 'impact', 'success', 'warning
 const MESSAGE_LIMIT = 64 * 1024;
 const RESULT_LIMIT = 16 * 1024;
 const FORCE_WINDOW_MS = 3000;
+/** The app's limit on a message a page sends, in UTF-16 code units. */
+const SEND_LIMIT = 1000;
+const SEND_METHOD = 'chat.sendChat';
+/** The app's limit on the room id a send names. */
+const ROOM_ID_LIMIT = 200;
 
 /** What the app hands to the OS: web, mail, phone, SMS and store links — never a page or the app's own. */
 const openable = (url: string): boolean => {
@@ -173,8 +219,33 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         ...permissions.flatMap(permission => GATED[permission] ?? []),
         ...(reads ? RUNTIME_REQUESTS : []),
     ]);
-    const runtime = options.runtime ?? {};
+    const runtime = options.data ?? {};
     const runtimeStreams = new Map<string, { seq: number; stop: () => void }>();
+    const sentMessages: MockSentMessage[] = [];
+    // Numbers each send as it is asked for, so sends in flight together get their own ids.
+    let sendNo = 0;
+    // With `chatSend`, the send is open whatever `calls` holds — as in the app, where the permission
+    // opens it — and answers with a made-up message unless `calls` gives its own answer.
+    const sends = permissions.includes('chatSend');
+    const calls: { [method: string]: ((...args: never[]) => unknown) | undefined } = { ...runtime.calls };
+    const ownSendAnswer = calls[SEND_METHOD];
+    const madeUpSend = (input: { channelId: string; content: string }, no: number): CloudChat => {
+        const now = Date.now();
+        return {
+            id: `mock-chat-${no}`,
+            cid: 'mock-cloud',
+            channelId: input.channelId,
+            chatNo: no,
+            isPending: false,
+            isFailed: false,
+            createdAtMs: now,
+            updatedAtMs: now,
+            stereo: 'user',
+            content: input.content,
+        };
+    };
+    if (sends && !ownSendAnswer) calls[SEND_METHOD] = madeUpSend as (...args: never[]) => unknown;
+    if (!sends) delete calls[SEND_METHOD];
     let cloudChanged = false;
     // Each device starts unasked, as on a fresh install.
     const devices: Record<DeviceKind, PermissionState> = { camera: 'prompt', microphone: 'prompt' };
@@ -227,8 +298,13 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     const push = (type: string, data: object) =>
         deliver({ type, success: true, data, refId: `mock-push-${Date.now().toString(36)}` });
     const ok = (type: string, refId: unknown, data: object = {}) => deliver({ type, success: true, data, refId });
-    const fail = (type: string, refId: unknown, code: string, message: string) =>
-        deliver({ type, success: false, error: { code, message }, refId });
+    const fail = (type: string, refId: unknown, code: string, message: string, details?: object) =>
+        deliver({
+            type,
+            success: false,
+            error: details === undefined ? { code, message } : { code, message, details },
+            refId,
+        });
 
     const handle = (raw: string) => {
         let message: { type?: string; data?: Record<string, unknown>; refId?: unknown };
@@ -425,22 +501,61 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                     contract: 1,
                     seq: 0,
                     session: permissions.includes('session') ? (runtime.session ?? null) : null,
-                    allowed: { calls: Object.keys(runtime.calls ?? {}), streams: Object.keys(runtime.streams ?? {}) },
+                    allowed: { calls: Object.keys(calls), streams: Object.keys(runtime.streams ?? {}) },
                 });
             case 'RuntimeCall': {
-                const call = runtime.calls?.[method];
+                const call = calls[method] as ((...args: unknown[]) => unknown) | undefined;
                 if (data.target !== 'data' || !call) {
                     return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', `${method} is not open to this page.`);
                 }
+                if (method !== SEND_METHOD) {
+                    return void Promise.resolve()
+                        .then(() => call(...args))
+                        .then(
+                            value => ok(reply, refId, { value: value ?? null }),
+                            error => fail(reply, refId, 'RUNTIME_ERROR', String((error as Error)?.message ?? error))
+                        );
+                }
+                // The app's own checks on a send's shape: one argument, only a room and plain text. The
+                // room's place and the send budget are the app's alone.
+                const input = args[0] as { channelId?: unknown; content?: unknown } | undefined;
+                const room = input?.channelId;
+                const text = input?.content;
+                const plain =
+                    args.length === 1 &&
+                    typeof input === 'object' &&
+                    input !== null &&
+                    Object.keys(input).every(key => key === 'channelId' || key === 'content') &&
+                    typeof room === 'string' &&
+                    room.trim() !== '' &&
+                    room.length <= ROOM_ID_LIMIT &&
+                    typeof text === 'string' &&
+                    text.trim() !== '' &&
+                    text.length <= SEND_LIMIT;
+                if (!plain) {
+                    return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', 'Only plain text, up to 1000 characters.', {
+                        target: 'data',
+                        method,
+                        reason: 'guard',
+                    });
+                }
+                const no = ++sendNo;
                 return void Promise.resolve()
-                    .then(() => call(...args))
+                    .then(() => (ownSendAnswer ? call(...args) : madeUpSend({ channelId: room, content: text }, no)))
                     .then(
-                        value => ok(reply, refId, { value: value ?? null }),
+                        value => {
+                            // Recorded once it went through: a send the answer failed was not sent.
+                            sentMessages.push({ channelId: room, text });
+                            log('message sent', room, text);
+                            ok(reply, refId, { value: value ?? null });
+                        },
                         error => fail(reply, refId, 'RUNTIME_ERROR', String((error as Error)?.message ?? error))
                     );
             }
             case 'RuntimeSubscribe': {
-                const open = runtime.streams?.[method];
+                const open = runtime.streams?.[method] as
+                    | ((emit: (...event: unknown[]) => void, ...args: unknown[]) => (() => void) | void)
+                    | undefined;
                 const id = String(data.subscriptionId);
                 if (data.target !== 'data' || !open) {
                     return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', `${method} is not open to this page.`);
@@ -484,6 +599,9 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         get devices() {
             return { ...devices };
+        },
+        get sentMessages() {
+            return [...sentMessages];
         },
         pressBack: () => {
             if (closed) return;

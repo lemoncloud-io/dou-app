@@ -201,6 +201,94 @@ only walks that history, so an in-memory stack needs the back button above eithe
 
 Keep the top-right corner of every screen clear of your own controls: the close button floats there.
 
+## A page that uses the cloud's data
+
+A page opened in a cloud can read that cloud — its places, rooms, messages and members — through
+`apps.data`, and post a text message. The package `README.md` lists every method, its arguments and
+the rows it answers; this is how to build a page around them.
+
+**Choose permissions by what the page shows.** Each of `session`, `cloud`, `place`, `channel`, `chat`
+and `user` opens a set of reads, and `chatSend` opens the send. The app does not filter what a read
+answers: a page with `user`, `channel` or `chat` gets users' sign-in ids, one with `place` gets each place's owner as the
+account server has them, one with `cloud` the cloud's account details. Ask for the fewest that do the
+job — what the page does with what it read is its author's responsibility — and do not send any of it
+off the device without telling the user.
+
+```json
+{ "manifestVersion": 1, "name": "Room stats", "permissions": ["session", "channel", "chat"] }
+```
+
+**Wait for the user.** `apps.data.connect()` is where the app asks the user whether this page may
+read this cloud, and it waits as long as the user takes: show the page's own frame first, then connect.
+A refusal is `CONSENT_REFUSED`: say why the page needs the data and offer to close.
+
+```ts
+const apps = await connect();
+if (!apps.supports('data')) return showNotAvailableHere(); // a browser, the desktop, Home, an older app
+try {
+    await apps.data.connect();
+} catch (error) {
+    if (error instanceof ChaticAppsError && error.code === 'CONSENT_REFUSED') return showWhyWeAsk();
+    throw error;
+}
+const session = apps.data.session(); // CloudSession | null — null without `session`
+const placeId = session?.committedSiteId ?? undefined; // undefined without `session`
+```
+
+**Read with the types.** Every method the app opens is typed, so an editor completes the names and a
+wrong argument fails the build. Rows are mostly optional fields: read each with a fallback.
+
+```ts
+const rooms = await apps.data.call('channel.cacheReadList', { sid: placeId });
+for (const room of rooms?.list ?? []) console.log(room.name ?? '(no name)', room.unreadCount ?? 0);
+```
+
+**Streams are a budget.** A page holds at most 16 per page load; the next `subscribe` fails `INVALID`. Subscribe for what is on screen, `stop()`
+when it leaves the screen, and hold only the rows you show — an event can carry a whole list.
+
+**The cloud can change under the page.** If the user moves to another cloud, every stream ends with
+`CLOUD_CHANGED`, `onCloudChanged` fires once, and nothing answers after. Finish the page or show a
+notice; do not retry.
+
+```ts
+apps.data.onCloudChanged(() => apps.finish());
+```
+
+**Send only what the user chose to send.** `apps.data.sendMessage(roomId, text)` posts in the
+user's name, to a room of the place the page was opened in. Send on a tap the user made, with text they
+saw.
+
+**Develop against the mock.** It answers from the data you give it, typed with the same map as the
+app, so an answer of the wrong shape fails the build before it fails in the app:
+
+```ts
+import { installChaticAppsMock } from '@lemoncloud/chatic-apps-sdk/mock';
+
+const app = installChaticAppsMock({
+    permissions: ['session', 'channel', 'chatSend'],
+    data: {
+        session: {
+            context: {
+                cloud: { cloudId: 'cloud-1', siteId: 'place-1', isActive: true },
+                identity: { userId: 'user-1', isAuthenticated: true },
+            },
+            committedSiteId: 'place-1',
+        },
+        calls: {
+            'channel.cacheReadList': () => ({
+                list: [{ id: 'room-1', cid: 'cloud-1', sid: 'place-1', isNotificationEnabled: true, name: 'Lobby' }],
+                meta: { total: 1 },
+            }),
+        },
+    },
+});
+// later: app.sentMessages, app.changeCloud()
+```
+
+Use made-up ids and names in the mock, never a real cloud's. The mock does not know which methods the
+app opens for which permission — it answers what you give it — so check `allowed` from `connect()` in
+the app.
+
 ## For an AI assistant in your project
 
 The package ships `AGENTS.md`: rules for an assistant writing a Chatic app. Assistants read an
@@ -217,6 +305,8 @@ assistant at `node_modules/@lemoncloud/chatic-apps-sdk/AGENTS.md`.
 - [ ] State is saved as the user goes, not only at a button.
 - [ ] No `window.opener`, popup login, file download or server-side rendering.
 - [ ] No user data in errors, in `reportError` or in the page's own logs.
+- [ ] A page that reads the cloud: it asks for only the cloud data permissions it uses, handles
+      `CONSENT_REFUSED` and `CLOUD_CHANGED`, and stops every stream it no longer shows.
 
 ## Deploying
 

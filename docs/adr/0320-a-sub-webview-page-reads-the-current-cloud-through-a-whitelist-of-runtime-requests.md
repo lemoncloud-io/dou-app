@@ -1,6 +1,8 @@
 # ADR-0320: A sub WebView page reads the current cloud through a whitelist of the runtime's requests
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/sub-webview-runtime-whitelist`
+> Status: Accepted; decision 11 (the SDK's untyped `apps.runtime`) superseded in part by
+> [ADR-0341](./0341-chatic-apps-sdk-types-a-pages-cloud-data-by-the-apps-own-names.md)
+> · Decided: 2026-11-16 · Implemented: `feat/sub-webview-runtime-whitelist`
 > · Scope: `libs/runtime-core/src/bridge/subWebViewWhitelist.ts` (the whitelist and its derived lists,
 > re-exported by `libs/runtime-mobile`) · `libs/bridge-messages` (`model/sub-webview.ts` — the
 > permissions, the hello's answer on the sub host, the error codes; `web-message.ts` — the subset;

@@ -91,22 +91,22 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 
 ## What a page can do
 
-| Call                                                          | In the app                                                                                     | In a browser                        | Needs permission                                                           |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
-| `finish(result?)`                                             | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                             | `NOT_IN_APP`                        | —                                                                          |
-| `setTitle(title)`                                             | The app's bar shows it, if the page asked for the bar (1–100 characters)                       | `document.title`                    | —                                                                          |
-| `haptic(kind)`                                                | `selection`, `impact`, `success`, `warning`, `error`                                           | a short vibration, if any           | —                                                                          |
-| `onBack(handler \| null)`                                     | Android back calls `handler` and does nothing else                                             | never called                        | —                                                                          |
-| `onCloseRequest(handler \| null)`                             | Asks before the user closes; return `true` to close                                            | never called                        | —                                                                          |
-| `reportError(error)`                                          | Into DoU's log, under your origin (20 per page load)                                           | `console.error`                     | —                                                                          |
-| `copy(text)`                                                  | The clipboard                                                                                  | the browser's clipboard             | `clipboard`                                                                |
-| `share({ title, message, url })`                              | The share sheet; waits for the user (see below)                                                | Web Share, else copies (`'copied'`) | `share`                                                                    |
-| `openUrl(url)`                                                | The browser, mail, phone, SMS or a store                                                       | a new tab                           | `openUrl`                                                                  |
-| `getUserKey()`                                                | 64 hex characters, the same for this device and site                                           | `NOT_IN_APP`                        | `userKey`                                                                  |
-| `link(params?)`                                               | A link that opens this page in the app (see below)                                             | the page's own root                 | —                                                                          |
-| `storage.get(key)`, `.set(key, value)`, …                     | Your page's own storage on the device (see below)                                              | `localStorage`, same limits         | —                                                                          |
-| `permissions.query(kind)`, `.request(kind)`, `openSettings()` | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below)   | the browser's own permission        | —                                                                          |
-| `runtime.connect()`, `.call(…)`, `.subscribe(…)`              | Reads the app's own data — the current cloud — as DoU's screens do; posts text with `chatSend` | `NOT_IN_APP`                        | `session`, `cloud`, `place`, `channel`, `chat`, `user`; `chatSend` to send |
+| Call                                                             | In the app                                                                                     | In a browser                        | Needs permission                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `finish(result?)`                                                | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                             | `NOT_IN_APP`                        | —                                                                          |
+| `setTitle(title)`                                                | The app's bar shows it, if the page asked for the bar (1–100 characters)                       | `document.title`                    | —                                                                          |
+| `haptic(kind)`                                                   | `selection`, `impact`, `success`, `warning`, `error`                                           | a short vibration, if any           | —                                                                          |
+| `onBack(handler \| null)`                                        | Android back calls `handler` and does nothing else                                             | never called                        | —                                                                          |
+| `onCloseRequest(handler \| null)`                                | Asks before the user closes; return `true` to close                                            | never called                        | —                                                                          |
+| `reportError(error)`                                             | Into DoU's log, under your origin (20 per page load)                                           | `console.error`                     | —                                                                          |
+| `copy(text)`                                                     | The clipboard                                                                                  | the browser's clipboard             | `clipboard`                                                                |
+| `share({ title, message, url })`                                 | The share sheet; waits for the user (see below)                                                | Web Share, else copies (`'copied'`) | `share`                                                                    |
+| `openUrl(url)`                                                   | The browser, mail, phone, SMS or a store                                                       | a new tab                           | `openUrl`                                                                  |
+| `getUserKey()`                                                   | 64 hex characters, the same for this device and site                                           | `NOT_IN_APP`                        | `userKey`                                                                  |
+| `link(params?)`                                                  | A link that opens this page in the app (see below)                                             | the page's own root                 | —                                                                          |
+| `storage.get(key)`, `.set(key, value)`, …                        | Your page's own storage on the device (see below)                                              | `localStorage`, same limits         | —                                                                          |
+| `permissions.query(kind)`, `.request(kind)`, `openSettings()`    | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below)   | the browser's own permission        | —                                                                          |
+| `data.connect()`, `.call(…)`, `.subscribe(…)`, `.sendMessage(…)` | Reads the app's own data — the current cloud — as DoU's screens do; posts text with `chatSend` | `NOT_IN_APP`                        | `session`, `cloud`, `place`, `channel`, `chat`, `user`; `chatSend` to send |
 
 Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or `desktop` — and the
 `params` you were opened with; DoU's own web opens a mini app with `MiniAppLaunchParams`, see below),
@@ -144,70 +144,158 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
   sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
   its type. Pass `connect({ reportErrors: false })` to turn it off.
 
-## Reading the app's data: `apps.runtime`
+## Reading the app's data: `apps.data`
 
 A page can read the cloud it was opened in — its places, rooms, messages, members — through the app's
-own runtime, the same reads DoU's screens make, and hear them change:
+the same reads DoU's own screens make — hear them change, and send a text message:
 
 ```ts
 const apps = await connect();
-if (apps.supports('runtime')) {
-    const { allowed } = await apps.runtime.connect(); // the app asks the user once, here
-    const rooms = await apps.runtime.call('channel.cacheReadList', { sid: params.place.id });
-    const stream = await apps.runtime.subscribe('channel.observeList', [{ sid: params.place.id }], result => {
-        render(result);
+const placeId = (apps.context?.params as Partial<MiniAppLaunchParams> | undefined)?.place?.id;
+if (apps.supports('data') && placeId) {
+    const { allowed } = await apps.data.connect(); // the app asks the user once, here
+    const rooms = await apps.data.call('channel.cacheReadList', { sid: placeId });
+    // rooms: CloudList<CloudChannel> | null
+    const stream = await apps.data.subscribe('channel.observeList', [{ sid: placeId }], result => {
+        render(result?.list ?? []);
     });
-    apps.runtime.onCloudChanged(() => apps.finish());
+    apps.data.onCloudChanged(() => apps.finish());
 }
 ```
 
-- **Reads, and one write, only as your manifest asks.** Each of `session`, `cloud`, `place`, `channel`,
-  `chat` and `user` opens a fixed set of the app's read methods; `connect()` answers the names this page
-  may use (`allowed.calls`, `allowed.streams`), and `can(name)` checks one. Anything else is refused with
-  `RUNTIME_NOT_ALLOWED`. Apart from the one message `chatSend` opens (below), nothing a page can call
-  changes anything, switches the cloud or the place, or reads another cloud.
-- **What comes back is the app's own data**, as its runtime holds it: method names, arguments and
-  results are the app's runtime contract (`SDK_RUNTIME_CONTRACTS` lists the versions this library
-  speaks). They are JSON, typed `unknown` here.
+- **Typed by the app's own names.** Every method the app opens to a page is in `DataCalls` or
+  `DataStreams`, under the app's `<repository>.<method>` name, with its arguments and its answer:
+  a wrong argument or a misused answer fails the type check. A name the library does not know still
+  goes through and answers `unknown` — an app newer than this library may open more. `call<T>(name)`
+  with an explicit type still reaches any method untyped, as it did before the types.
+- **What comes back is the app's own data**, as the app holds it — the rows below, field for field,
+  not reshaped or filtered for pages. `SDK_DATA_CONTRACTS` lists the cloud data contract versions this
+  library speaks.
+- **Reads, and one write, only as your manifest asks.** Each cloud data permission opens a fixed set of
+  methods (the table below); `connect()` answers the names this page may use (`allowed.calls`,
+  `allowed.streams`), and `can(name)` checks one — the types say what a method would be, `can` says
+  whether it is open now. Anything else is refused with `RUNTIME_NOT_ALLOWED`. Apart from the one
+  message `chatSend` opens, nothing a page can call changes anything, switches the cloud or the place,
+  or reads another cloud.
 - **The user is asked once** whether your page may read this cloud. `connect()` waits for the answer
   however long the user takes, with no timeout. A refusal is `CONSENT_REFUSED`; `connect()` asks again
   the next time the page is opened.
-- **Streams**: `subscribe(name, args, listener, onEnd)` hands `listener` each event's arguments. Put
-  `LISTENER` where the method takes its callback, or leave it out to have it go last. `onEnd` hears a
+- **Streams**: `subscribe(name, args, listener, onEnd)` hands `listener` each event. For a typed stream
+  pass only the arguments in the table: the library puts the listener right after them, where the
+  app's method takes its callback. For a name the library does not know, put `LISTENER` where that
+  method takes its callback (left out, it goes last). Pass nothing after the listener. `onEnd` hears a
   stream the app ended: `CLOUD_CHANGED`, a too-large event, or `DISCONNECTED` after the page came back
-  from the back-forward cache (subscribe again). At most 16 at a time.
+  from the back-forward cache (subscribe again). At most 16 per page load — the next `subscribe` fails
+  `INVALID` — so `stop()` each one you no longer need.
 - **The cloud is fixed.** If the user's cloud changes under the view, every stream ends with
   `CLOUD_CHANGED`, `onCloudChanged` fires once, and nothing answers after.
 - **Server reads are budgeted**: one per 250 ms and 60 a minute per view, `RATE_LIMITED` past it, with
   `error.details.retryAfterMs`.
-- **Only some launches answer it**: the app's own runtime has to hold the session, the page has to be a
+- **Only some launches answer it**: the app has to hold the session itself, the page has to be a
   reviewed one on the phone, and a cloud other than Home has to be selected when it opens.
-  `supports('runtime')` is `false` everywhere else.
+  `supports('data')` is `false` everywhere else, and every call is `NOT_IN_APP` in a browser.
+- **The types cannot hold every argument the app checks.** An object passed from a variable may carry
+  fields its type does not list, and `call<T>` skips the argument types altogether; the app still
+  refuses what its checks refuse (an extra field on a send, `pageSize` on `user.listPlaceMembers`), with
+  `RUNTIME_NOT_ALLOWED`.
 - **It reads what the app holds.** Nothing a page calls fetches into the app's cache, so it sees what
-  DoU has already synced, plus the server's room list (`channel.fetchList`), the place's members
-  (`user.listPlaceMembers`, for the place the user is in) and the cloud you are in. `session` is the
-  current cloud's part of the session only.
-- **The cloud you are in**: `call('cloud.getCloud', { id }, { cache: false })`, with `id` the session's
-  `context.cloud.cloudId` (needs `session`), or `params.cloud.id` when DoU opened the page from the
-  cloud's mini app list. It answers the relay's view of the cloud, unfiltered, as the app gets it: for
-  a cloud the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the
-  linked account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id
-  (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal
-  `{ id, name, status }`. Without `{ cache: false }` it is refused.
-  `cloud.cacheRead(id)` answers only what the app happens to hold, often `null` for a cloud the user
-  owns.
-- **Sending a message** (`chatSend`): `call('chat.sendChat', { channelId, content })` posts `content`
-  as plain text, in the user's name and unmarked, to a room of the place the user was in when your
-  page opened, and answers the sent message. One argument, those two fields and nothing else — no
-  attachment, mention or reply — the content at most 1,000 characters with something besides white
-  space in it; a room in another place, one the user is not in, or any room once the user moved to
-  another place, is refused with `RUNTIME_NOT_ALLOWED`. The user is told, when asked, that the page
-  sends messages, and is asked per place. A send that fails leaves a failed message in the room on the
-  user's device, as a failed send from DoU's own composer does. Messages have their own budget, one per 500 ms and 30 a minute, `RATE_LIMITED`
-  past it. Get the room's id from a read (`channel`) or the launch parameters.
+  DoU has already synced, plus the methods marked "server" below.
 
-The mock answers it from `runtime: { calls, streams, session, consent }` and plays the cloud change with
-`changeCloud()`. It does not know the app's whitelist: it answers what you give it.
+### Methods, by permission
+
+| Permission | Method                                                 | Arguments                                                | Answer                                |
+| ---------- | ------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------- |
+| `session`  | — (the hello's answer: `session()`, `onSessionChange`) | —                                                        | `CloudSession`                        |
+| `cloud`    | `cloud.cacheRead`                                      | `id` — the current cloud's                               | `CloudInfo \| null`                   |
+| `cloud`    | `cloud.getCloud` (server)                              | `{ id }` — the current cloud's, `{ cache: false }`       | `CloudInfo`                           |
+| `cloud`    | `cloud.observeItem` (stream)                           | `id` — the current cloud's                               | `CloudInfo \| null`                   |
+| `place`    | `place.cacheReadList`                                  | `{}` (optional)                                          | `CloudList<CloudPlace> \| null`       |
+| `place`    | `place.observeList` (stream)                           | `{}`                                                     | `CloudList<CloudPlace> \| null`       |
+| `place`    | `place.observeItem` (stream)                           | place `id`                                               | `CloudPlace \| null`                  |
+| `place`    | `place.isPlaceDeleted` (server)                        | place `id`                                               | `boolean`                             |
+| `channel`  | `channel.cacheRead`                                    | room `id`                                                | `CloudChannel \| null`                |
+| `channel`  | `channel.cacheReadList`                                | `CloudChannelListQuery` (`{ sid, page, limit, … }`)      | `CloudList<CloudChannel> \| null`     |
+| `channel`  | `channel.fetchList` (server)                           | `CloudChannelListQuery`                                  | `CloudList<CloudChannel>`             |
+| `channel`  | `channel.observeList` (stream)                         | `CloudChannelListQuery`                                  | `CloudList<CloudChannel> \| null`     |
+| `channel`  | `channel.observeItem` (stream)                         | room `id`                                                | `CloudChannel \| null`                |
+| `channel`  | `join.cacheReadList`                                   | `{ channelId?, activeOnly? }`                            | `CloudList<CloudJoin> \| null`        |
+| `channel`  | `join.observeList` (stream)                            | `{ channelId?, activeOnly? }`                            | `CloudList<CloudJoin> \| null`        |
+| `chat`     | `chat.cacheRead`                                       | message `id`                                             | `CloudChat \| null`                   |
+| `chat`     | `chat.cacheReadList`                                   | `{ channelId, cursorNo?, limit? }`                       | `CloudList<CloudChat> \| null`        |
+| `chat`     | `chat.listPendingImageChats`                           | room `id`                                                | `CloudChat[]`                         |
+| `chat`     | `chat.observeList` (stream)                            | `{ channelId, cursorNo?, limit?, includeUnsent? }`       | `CloudList<CloudChat> \| null`        |
+| `chat`     | `chat.observeLastList` (stream)                        | room ids                                                 | `CloudLastChat[]`                     |
+| `chat`     | `chat.observeFeedCoverage` (stream)                    | room `id`                                                | `[low, high][]` message-number ranges |
+| `user`     | `user.cacheRead`                                       | user `id`                                                | `CloudUser \| null`                   |
+| `user`     | `user.cacheReadList`                                   | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`        |
+| `user`     | `user.listPlaceMembers` (server)                       | `{ placeId, sessionPlaceId }` — both the current place's | `CloudPlaceMembers`                   |
+| `user`     | `user.observeList` (stream)                            | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`        |
+| `user`     | `user.observeItem` (stream)                            | user `id`                                                | `CloudUser \| null`                   |
+| `user`     | `profile.cacheRead`                                    | `<place id>@<user id>`                                   | `CloudProfile \| null`                |
+| `user`     | `profile.cacheReadList`                                | `{ sid?, uid? }` (optional)                              | `CloudList<CloudProfile> \| null`     |
+| `user`     | `profile.observeList` (stream)                         | `{ sid?, uid? }`                                         | `CloudList<CloudProfile> \| null`     |
+| `user`     | `profile.observeItem` (stream)                         | `<place id>@<user id>`                                   | `CloudProfile \| null`                |
+| `chatSend` | `chat.sendChat` — call it as `sendMessage`             | `{ channelId, content }`                                 | `CloudChat`                           |
+
+### The rows
+
+All exported as types. Most fields are optional because the same row is filled from different answers
+over time: a field is there only when the server or the app filled it, so read each with a fallback.
+
+| Type           | What it is                              | Fields worth knowing                                                                                                                   |
+| -------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `CloudChannel` | A room                                  | `id`, `sid` (its place), `name`, `stereo` (`dm`, `self`, …), `memberIds`, `chatNo`, `unreadCount`, `lastChat$`                         |
+| `CloudJoin`    | A member's place in a room              | `channelId`, `userId`, `stereo` (`owner`, `member`), `readNo`, `nick`, `notify`                                                        |
+| `CloudChat`    | A message                               | `id`, `channelId`, `chatNo` (`0` while sending), `content`, `ownerId`, `createdAtMs` (always set), `upload$$`, `isPending`, `isFailed` |
+| `CloudPlace`   | A place of the cloud                    | `id`, `name`, `order`, `isOwner`, `owner$`                                                                                             |
+| `CloudUser`    | A user of the cloud                     | `id`, `name`, `nick`, `thumbnail`                                                                                                      |
+| `CloudProfile` | A user's name and picture in one place  | `id` (`<place>@<user>`), `sid`, `userId`, `nick`, `thumbnail`                                                                          |
+| `CloudInfo`    | The current cloud                       | `id`, `name`, `status`, `ownerId`, `cloudType`                                                                                         |
+| `CloudSession` | The current cloud's part of the session | `context.cloud.cloudId`, `context.identity.userId`, `committedSiteId`                                                                  |
+
+`CloudList<Row>` is `{ list, meta: { total, limit?, page?, cursorNo?, readNo?, source? } }`.
+
+### What each permission hands over
+
+The app does not filter a row for pages: what DoU's screens read, your page reads. That includes
+contact and account details, marked in the types as such. Ask only for the permissions the page needs —
+what it does with what it read is its author's responsibility — keep such details on the device, and
+never send them to a third party without telling the user.
+
+| Permission | Hands over                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session`  | Which cloud and place the user is on, the user's id in this cloud, whether signed in. Nothing of the user's other clouds, no server address, no token                                                                                                                                                                                                                                                                                                                            |
+| `cloud`    | The current cloud's row; from the device cache, also its server addresses (`backend`, `wss`) and the device user ids that accepted an invite (`acceptedBy`). Through `cloud.getCloud`, for a cloud the user owns: its owner, the verified **email**, the linked **account** (`accountId`, `account$`), the subscription id, the cloud server's **account number** (`accountNo`) and service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
+| `place`    | The cloud's places, with their server endpoints (`$envs`). A place's `owner$` is the account server's view of its owner, whose type includes **phone, email, address, birth date**, sign-in details and fields named after secrets (`loginPw`, `$account.otp$`, `$account.key$`) — filled as the server chooses. Never read, keep or send the secret-named ones                                                                                                                  |
+| `channel`  | Rooms in any place of the cloud, their member ids, each member's join (role, nickname, read position), and the embedded owners (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                  |
+| `chat`     | Messages, with their files' addresses, any webhook cards, and the embedded senders (`owner$`, with **sign-in ids**)                                                                                                                                                                                                                                                                                                                                                              |
+| `user`     | Users of the cloud (names, nicknames, pictures, **sign-in ids**), place profiles, and the current place's member list                                                                                                                                                                                                                                                                                                                                                            |
+| `chatSend` | Nothing: it lets the page send                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+### Sending a message: `sendMessage`
+
+```ts
+const sent = await apps.data.sendMessage(roomId, 'Round 3: 120 points'); // CloudChat
+```
+
+With `chatSend`, `sendMessage(channelId, text)` posts `text` as plain text, in the user's name and
+unmarked, to a room of the place the user was in when your page opened, and resolves with the sent
+message. It is `call('chat.sendChat', { channelId, content: text })`, which still works. Text only — no
+attachment, mention or reply — at most 1,000 characters with something besides white space in it; a
+room in another place, one the user is not in, or any room once the user moved to another place, is
+refused with `RUNTIME_NOT_ALLOWED`. The user is told, when asked, that the page sends messages, and is
+asked per place. A send that fails leaves a failed message in the room on the user's device, as a
+failed send from DoU's own composer does. Messages have their own budget, one per 500 ms and 30 a
+minute, `RATE_LIMITED` past it. Get the room's id from a read (`channel`) or the launch parameters. In
+a browser it is `NOT_IN_APP`.
+
+### In the mock
+
+The mock answers from `data: { calls, streams, session, consent }`, typed with the same map — an
+answer of the wrong shape fails the type check — and plays the cloud change with `changeCloud()`. It
+does not know the app's whitelist: it answers what you give it. With `chatSend` it opens
+`chat.sendChat` itself, checks a send's shape as the app does (not the room's place, nor the send
+budget), and records each send that went through in `sentMessages`.
 
 ## Permissions
 
@@ -226,7 +314,7 @@ The calls marked above need a permission your page asks for in a file on its own
 
 You ask; an administrator grants them when your page is reviewed, and only what was granted is
 deployed. Without the file your page gets everything else but not what these permissions unlock: a call
-that needs one fails with `NOT_SUPPORTED`, and without a runtime permission `supports('runtime')` is
+that needs one fails with `NOT_SUPPORTED`, and without a cloud data permission `supports('data')` is
 `false`. `display` says how the page is shown:
 
 | `display`         | What the user sees                                                                                     |
@@ -257,26 +345,27 @@ try {
 }
 ```
 
-| Code                   | Means                                                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage                                                                            |
-| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                                                                                            |
-| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                                                                                                    |
-| `INVALID`              | A value is missing, of the wrong type, or too long                                                                                                                              |
-| `TOO_LARGE`            | One call's data is over 65,536 characters                                                                                                                                       |
-| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                                                                                                 |
-| `NOT_OPEN`             | `finish` after the view has already closed                                                                                                                                      |
-| `UNAVAILABLE`          | No device id to make a user key from, the page's storage could not be opened, or the device has no camera or microphone                                                         |
-| `SETTINGS_ERROR`       | `openSettings()`: the OS would not open the settings                                                                                                                            |
-| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                                                                                                         |
-| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection; or, for a runtime stream, the page came back from the back-forward cache and the stream ended (subscribe again) |
-| `RUNTIME_NOT_ALLOWED`  | `runtime`: not a method this page may use, or an argument the app holds to the current cloud or place — for a message, its shape or its room                                    |
-| `CLOUD_CHANGED`        | `runtime`: the user's cloud is no longer the one this view opened on; nothing answers after                                                                                     |
-| `CONSENT_REFUSED`      | `runtime.connect()`: the user did not allow this page to read this cloud                                                                                                        |
-| `RATE_LIMITED`         | `runtime`: too many server reads, or messages sent; wait `error.details.retryAfterMs`                                                                                           |
-| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                                                                                 |
+| Code                   | Means                                                                                                                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage                                                                               |
+| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                                                                                               |
+| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                                                                                                       |
+| `INVALID`              | A value is missing, of the wrong type, or too long                                                                                                                                 |
+| `TOO_LARGE`            | One call's data is over 65,536 characters                                                                                                                                          |
+| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                                                                                                    |
+| `NOT_OPEN`             | `finish` after the view has already closed                                                                                                                                         |
+| `UNAVAILABLE`          | No device id to make a user key from, the page's storage could not be opened, or the device has no camera or microphone                                                            |
+| `SETTINGS_ERROR`       | `openSettings()`: the OS would not open the settings                                                                                                                               |
+| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                                                                                                            |
+| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection; or, for a cloud data stream, the page came back from the back-forward cache and the stream ended (subscribe again) |
+| `RUNTIME_NOT_ALLOWED`  | `data`: not a method this page may use, or an argument the app holds to the current cloud or place — for a message, its shape or its room                                          |
+| `CLOUD_CHANGED`        | `data`: the user's cloud is no longer the one this view opened on; nothing answers after                                                                                           |
+| `CONSENT_REFUSED`      | `data.connect()`: the user did not allow this page to read this cloud                                                                                                              |
+| `RATE_LIMITED`         | `data`: too many server reads, or messages sent; wait `error.details.retryAfterMs`                                                                                                 |
+| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                                                                                    |
 
-Treat a code not in this table as that call failing, and nothing more.
+Treat a code not in this table as that call failing, and nothing more. The codes are the app's own,
+so a few keep the app's older wording (`RUNTIME_NOT_ALLOWED` is about `apps.data`).
 
 ## Rules worth knowing
 
@@ -305,7 +394,7 @@ When DoU itself opens your page — a cloud's owner registered it as the cloud's
 this shape (exported as a type):
 
 ```ts
-import type { MiniAppLaunchParams } from '@chatic/chatic-apps-sdk';
+import type { MiniAppLaunchParams } from '@lemoncloud/chatic-apps-sdk';
 
 const params = apps.context?.params as Partial<MiniAppLaunchParams> | undefined;
 // { cloud: { id, name }, place: { id, name } | null, user: { id, name } }
@@ -379,6 +468,26 @@ It answers as the app does — the base calls, plus the `permissions` you give i
 for the rest — checks what the app checks, and logs every call. It is a stand-in: the share sheet is
 logged rather than shown, the user key is not the app's, and it proves nothing about a phone.
 
+## Versions
+
+While the library is `0.x`, a release that adds anything — a call, a typed method, a field — raises the
+minor version (`0.3.0`), and one that only fixes raises the patch (`0.3.1`). Pin the version you build
+with, and read the changes before moving to a new minor.
+
+Which app a page meets is the app's business, not the library's: a call the app cannot answer fails with
+`NOT_SUPPORTED`, so decide with `apps.supports(...)`, never with a version number. The library's own
+numbers, for reading a bug report:
+
+| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                      |
+| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                   |
+| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                               |
+| next (unreleased) | 2.29.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type |
+
+The data contract is the app's own version for what `apps.data` reads. The app answers a
+page with the newest contract both speak; a library that speaks none the app does is answered
+`NOT_SUPPORTED`.
+
 ## For an AI assistant writing a page
 
 `AGENTS.md` in this package holds the rules for an assistant writing a page: the project, the calls
@@ -389,7 +498,13 @@ prompt along with what the page should do. `GUIDE.md` says how to set the projec
 
 This library lives in the DoU app's repository so it cannot drift from the app: its public types are
 pinned to the app's message definitions by a type-level test, and a contract test in the app runs this
-client against the app's real page host. The protocol it speaks is specified in
+client against the app's real page host. The cloud data rows, arguments and session are declared by hand
+here (the app's types are private packages) and held to the app's by the app's contract test
+(`chaticAppsSdkRuntime.contract.test.ts`):
+the typed methods must be exactly what the whitelist opens, permission by permission, and every row
+(and its embedded views, four levels deep)
+field must match the app's in name, optionality and type. That test compiles itself, because neither
+its transform nor CI type checks the app; dropping or retyping a field of an app row fails it. The protocol it speaks is specified in
 [sub-webview-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/sub-webview-protocol.md).
 
 ```bash
