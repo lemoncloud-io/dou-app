@@ -4,6 +4,20 @@
 
 ### Features
 
+- (chatic-apps-sdk,mobile) type the mini app runtime by the app's own names (ADR-0341)
+
+### Documentation
+
+- (chatic-apps-sdk,adr) say what the types catch, and mark adr-0320's sdk decision superseded
+
+### Refactor
+
+- (chatic-apps-sdk,mobile) name the page api apps.data, not apps.runtime
+
+## [2026-11-18] - No version updates
+
+### Features
+
 - (web-ui-kit,web/home) fold place chips to their icon, unfold only the current one
 
 ## [2026-11-18] - root@0.168.2, @chatic/desktop-web@0.60.2
