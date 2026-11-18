@@ -1,8 +1,10 @@
 import { logHub, recordTelemetry } from '@chatic/bridges';
 
+import { recordAppIconChange, reportAppIconInUse } from './appIcon';
 import {
     noteStatisticsDropped,
     observeScreenViews,
+    onUsageSessionStart,
     selectTelemetryForUpload,
     startTelemetry,
 } from './telemetryRuntime';
@@ -156,5 +158,84 @@ describe('startTelemetry — the process recorder', () => {
         const api = entries.filter(e => e.tag === 'perf.api_request');
         expect(api).toHaveLength(1);
         expect(api[0]).toMatchObject({ kind: 'sample', attrs: { endpoint: '/clouds/:id' }, metrics: { rtt_ms: 40 } });
+    });
+});
+
+describe('onUsageSessionStart', () => {
+    let visibility: DocumentVisibilityState = 'visible';
+    beforeAll(() => {
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility });
+    });
+    const setVisibility = (next: DocumentVisibilityState) => {
+        visibility = next;
+        document.dispatchEvent(new Event('visibilitychange'));
+    };
+
+    it('runs a listener after a later session starts, and not after a short absence or once removed', () => {
+        localStorage.setItem(
+            '@chatic/web.telemetry.policy.override',
+            JSON.stringify({ version: 1, enabled: true, defaults: { usage: 1 } })
+        );
+        let clock = 0;
+        const { entries, unsubscribe } = collect();
+        const stop = startTelemetry({ context: () => ({ runId: 'r1' }), allowPolicyOverride: true, now: () => clock });
+        const tagsWhenCalled: string[][] = [];
+        const remove = onUsageSessionStart(() => tagsWhenCalled.push(entries.map(e => e.tag)));
+
+        // Back after a minute: the same session.
+        setVisibility('hidden');
+        clock += 60_000;
+        setVisibility('visible');
+        expect(tagsWhenCalled).toHaveLength(0);
+
+        // Back after an hour: a new session, whose start is already recorded when the listener runs.
+        setVisibility('hidden');
+        clock += 60 * 60_000;
+        setVisibility('visible');
+        expect(tagsWhenCalled).toHaveLength(1);
+        expect(tagsWhenCalled[0].slice(-2)).toEqual(['usage.session_end', 'usage.session_start']);
+
+        remove();
+        setVisibility('hidden');
+        clock += 60 * 60_000;
+        setVisibility('visible');
+        expect(tagsWhenCalled).toHaveLength(1);
+
+        stop();
+        unsubscribe();
+    });
+});
+
+describe('app icon usage events', () => {
+    it('pass the catalogue and reach the hub as structured usage events', async () => {
+        localStorage.setItem(
+            '@chatic/web.telemetry.policy.override',
+            JSON.stringify({ version: 1, enabled: true, defaults: { usage: 1 } })
+        );
+        const { entries, unsubscribe } = collect();
+        const onReject = jest.fn();
+        const stop = startTelemetry({ context: () => ({ runId: 'r1' }), allowPolicyOverride: true, onReject });
+
+        recordAppIconChange('default', 'MidnightIcon');
+        recordAppIconChange('MidnightIcon', 'NeonIcon');
+        await reportAppIconInUse(() => Promise.resolve({ iconName: 'MidnightIcon', supported: true }));
+        stop();
+        unsubscribe();
+
+        expect(onReject).not.toHaveBeenCalled();
+        const icon = entries.filter(e => e.tag.startsWith('usage.app_icon'));
+        expect(icon).toEqual([
+            expect.objectContaining({
+                tag: 'usage.app_icon_change',
+                kind: 'event',
+                attrs: { from: 'DefaultIcon', to: 'MidnightIcon' },
+            }),
+            expect.objectContaining({
+                tag: 'usage.app_icon_change',
+                kind: 'event',
+                attrs: { from: 'MidnightIcon', to: 'other' },
+            }),
+            expect.objectContaining({ tag: 'usage.app_icon_in_use', kind: 'event', attrs: { icon: 'MidnightIcon' } }),
+        ]);
     });
 });

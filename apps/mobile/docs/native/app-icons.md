@@ -63,6 +63,9 @@ the generator does not touch them; the store listing is uploaded by hand.
 4. Add `{ id, label }` to `AVAILABLE_ICONS` in `src/app/services/dynamicAppIcon/types.ts`. The web
    picker lists whatever the app reports, so an app build without the icon never offers it.
 5. Add `mypage.appIcon.<Id>` to both `apps/web/public/locales/*/translation.json`.
+6. Add the id to `APP_ICON_IDS` in `apps/web/src/app/runtime/telemetry/appIcon.ts`. The usage
+   statistics count an id missing there as `other`, so skipping this step loses the icon's name in
+   the numbers, not the count.
 
 The icon reaches users with the next store build — the pictures live in the app binary. The web
 preview and label can ship first; they stay unused until an app that reports the icon asks for them.
