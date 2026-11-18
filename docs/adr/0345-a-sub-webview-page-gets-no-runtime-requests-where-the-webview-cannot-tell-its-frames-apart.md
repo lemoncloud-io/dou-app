@@ -4,7 +4,7 @@
 > · Scope: `apps/mobile/src/app/subWebView/` (`subWebViewFrameOrigin.ts`, `subWebViewRuntimeGate.ts`,
 > `subWebViewRuntimeAccess.ts`) · `apps/mobile/android` (`SubWebViewFramesModule`, `androidx.webkit`)
 > · `libs/runtime-core` (`SUB_WEB_VIEW_REPOSITORY_WHITELIST`)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
 > (the runtime requests), [ADR-0325](./0325-a-sub-webview-page-may-send-a-text-message-to-a-room-of-its-place.md)
 > (the one text send)

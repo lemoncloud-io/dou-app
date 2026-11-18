@@ -89,7 +89,7 @@ The nav rail's Mini app tile under DM (`components/MiniAppRailButton.tsx`) is th
 the same dialogs and conditions ([nav rail](../shell/nav-rail.md#mini-app)).
 It opens a cloud's mini apps in the desktop shell's sub view, a modal over the app. The shell side is
 in `apps/desktop` (Sub view), and what the page receives is in the sub WebView protocol
-(`apps/mobile/docs/webview/sub-webview-protocol.md`).
+(`apps/mobile/docs/webview/mini-app-protocol.md`).
 
 - **Where it appears.** Only in a shell whose handshake says `subWebViewOpenScope: 'anyHttps'`. The
   web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`

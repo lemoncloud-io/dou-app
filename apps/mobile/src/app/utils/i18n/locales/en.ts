@@ -30,6 +30,7 @@ export const en = {
     webview: {
         loadTitle: 'Unable to load DoU',
         loadMessage: 'Check your connection and try again.',
+        crashMessage: 'Something went wrong while showing the screen. Please try again.',
         retry: 'Try again',
         subClose: 'Close',
         subRuntimeConsent: {

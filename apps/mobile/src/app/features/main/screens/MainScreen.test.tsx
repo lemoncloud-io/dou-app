@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MainScreen } from './MainScreen';
 
 type WebViewProps = {
+    onCrashRecoveryFailed: (reason: 'crash-loop' | 'no-first-screen') => void;
     onError: (event: { nativeEvent: { description: string } }) => void;
     onLoadStart: (event: { nativeEvent: { url: string } }) => void;
     source: { uri: string };
@@ -29,8 +30,8 @@ jest.mock('../../../webview', () => ({
 
 jest.mock('../../core/components', () => ({
     DeepLinkErrorView: () => <div data-testid="deeplink-error" />,
-    WebViewErrorView: ({ onRetry, reason }: { onRetry: () => void; reason?: string | null }) => (
-        <div data-testid="webview-error">
+    WebViewErrorView: ({ onRetry, reason, kind }: { onRetry: () => void; reason?: string | null; kind?: string }) => (
+        <div data-testid="webview-error" data-kind={kind ?? 'load'}>
             <span>{reason}</span>
             <button onClick={onRetry}>retry</button>
         </div>
@@ -104,6 +105,7 @@ describe('MainScreen web page load failure', () => {
 
         expect(screen.queryByTestId('webview')).toBeNull();
         expect(screen.getByTestId('webview-error').textContent).toContain('net::ERR_INTERNET_DISCONNECTED');
+        expect(screen.getByTestId('webview-error').getAttribute('data-kind')).toBe('load');
         expect(mockOnLoadFailed).toHaveBeenCalledTimes(1);
     });
 
@@ -116,6 +118,43 @@ describe('MainScreen web page load failure', () => {
 
         expect(screen.queryByTestId('webview-error')).toBeNull();
         expect(screen.getByTestId('webview')).toBeTruthy();
+        expect(mockWebViewMounts).toHaveBeenCalled();
+    });
+});
+
+describe('MainScreen when crash recovery gives up', () => {
+    beforeEach(() => {
+        webViewProps = null;
+        mockWebViewMounts.mockClear();
+        mockOnLoadFailed.mockClear();
+    });
+
+    // A WebView whose content process keeps dying used to end on a cover or a frozen page, with no
+    // way out short of killing the app.
+    it('replaces the WebView with the crash retry view and lifts the splash', () => {
+        renderScreen();
+
+        act(() => {
+            webViewProps?.onCrashRecoveryFailed('crash-loop');
+        });
+
+        expect(screen.queryByTestId('webview')).toBeNull();
+        const errorView = screen.getByTestId('webview-error');
+        expect(errorView.getAttribute('data-kind')).toBe('crash');
+        expect(errorView.textContent).toContain('crash-loop');
+        expect(mockOnLoadFailed).toHaveBeenCalledTimes(1);
+    });
+
+    it('mounts a fresh WebView on retry', () => {
+        renderScreen();
+        act(() => {
+            webViewProps?.onCrashRecoveryFailed('no-first-screen');
+        });
+        mockWebViewMounts.mockClear();
+
+        fireEvent.click(screen.getByText('retry'));
+
+        expect(screen.queryByTestId('webview-error')).toBeNull();
         expect(mockWebViewMounts).toHaveBeenCalled();
     });
 });

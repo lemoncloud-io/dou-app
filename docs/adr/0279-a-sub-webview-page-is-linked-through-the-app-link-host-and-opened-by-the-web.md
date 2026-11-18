@@ -6,7 +6,7 @@
 > · `libs/bridges` (`BRIDGE_VERSION` 2.17.0) · `apps/mobile` (`deeplinkUtils.ts`, `SubWebView.tsx`,
 > `AndroidManifest.xml`) · `apps/web` (`useHandlePushNavigation.ts`) · `apps/landing` (`/apps/*`, the
 > association file)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > which made the main web the only opener
 

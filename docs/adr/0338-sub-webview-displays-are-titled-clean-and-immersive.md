@@ -5,7 +5,7 @@
 > `subWebView/` (`SubWebView.tsx`, `subWebViewInsetScript.ts`) · `apps/desktop` (manifest read)
 > · `libs/shared` (`subWebViewDisplayOf`) · `libs/bridge-messages` (`SubWebViewDisplay`)
 > · `libs/bridges` (`BRIDGE_VERSION` 2.29.0) · `libs/chatic-apps-sdk` (guide and README)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md)
 > (the manifest and its first two displays), [ADR-0290](./0290-a-sub-webview-page-has-no-title-bar-unless-its-manifest-asks-for-one.md)
 > (the barless display as the default)

@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-03 · Implemented: `feat/chatic-apps-sdk`
 > · Scope: `libs/chatic-apps-sdk` (new) · `apps/mobile/src/app/subWebView/chaticAppsSdk.contract.test.ts`
 > · The library's own documentation is [libs/chatic-apps-sdk/README.md](../../libs/chatic-apps-sdk/README.md);
-> the protocol it speaks is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> the protocol it speaks is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0277](./0277-the-sub-webview-page-protocol-is-specified-and-versioned-apart-from-the-bridge.md),
 > which specified the protocol; [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md),
 > its permissions

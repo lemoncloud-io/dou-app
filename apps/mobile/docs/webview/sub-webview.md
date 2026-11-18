@@ -5,7 +5,7 @@ it with `OpenSubWebView`; the shell shows the page full screen under a small flo
 control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
 in `@chatic/bridge-messages` (`model/sub-webview.ts`). What a page and the shell say to each other —
 the envelope, versions, errors, timing, every request and push — is specified in
-[sub-webview-protocol.md](./sub-webview-protocol.md); this document is how the shell behaves.
+[mini-app-protocol.md](./mini-app-protocol.md); this document is how the shell behaves.
 
 It exists so the app can host pages it does not own the code of — a service of its own, a notice —
 without
@@ -304,7 +304,7 @@ limit per page would need patching the library (see [ADR-0289](../../../../docs/
 
 Pages talk to the shell through [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md)
 (`libs/chatic-apps-sdk`, published as `@lemoncloud/chatic-apps-sdk`), or by hand following
-[sub-webview-protocol.md](./sub-webview-protocol.md), which is the contract either way: the envelope,
+[mini-app-protocol.md](./mini-app-protocol.md), which is the contract either way: the envelope,
 the handshake, every request and push, errors, timeouts and limits. Three things from it that a page
 most often gets wrong:
 
@@ -363,7 +363,7 @@ The main WebView's handshake says `subWebViewOpenScope: 'anyHttps'`. The web shi
 shell, so it offers an owner's own link only where the handshake says so; an app that predates this
 says nothing and opens the reviewed pages alone. A push or a deep link still reaches only the
 reviewed pages — the wider scope is for a link the owner saved, opened by the web. How the desktop
-shows the same tiers is [the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell-2220).
+shows the same tiers is [the protocol's desktop section](./mini-app-protocol.md#the-desktop-shell).
 
 It is a subtree on purpose, not `*.chatic.io`. That would take in the web app itself
 (`dou.chatic.io` boots a second copy of the app in the view, and the storage the two WebViews share
