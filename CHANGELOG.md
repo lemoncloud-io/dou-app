@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-18] - root@0.168.0, @chatic/desktop-web@0.60.0
+
+### Features
+
+- (desktop-web) show the shortcuts a held modifier starts
+
 ## [2026-11-18] - No version updates
 
 ### Features
