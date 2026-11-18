@@ -43,6 +43,15 @@ write is ignored: the log can never fail an update.
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
 `DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `index.ts` and the contract suite both use.
 
+## Back
+
+The Go menu's Back item (shown as ⌘[ / Ctrl+[, not registered, because the page binds that key
+itself) and the three-finger trackpad swipe Electron reports as `left` both send `chatic-ui:back` to
+the page, which decides where Back goes. The menu item does nothing while the window is hidden: it
+would otherwise raise the window and move a page the reader never saw.
+The mouse's side back button is not handled here: Chromium delivers it to the page, which answers it
+along with the key, and handling it here too would go back twice.
+
 ## Downloads
 
 Every download the app's own page starts is reported back to it when it ends

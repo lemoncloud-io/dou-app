@@ -88,6 +88,7 @@ import {
     useHydrateDmPeers,
     useHeldChannel,
     useNextUnreadShortcut,
+    useBackPress,
     usePendingLanding,
     useRailShortcuts,
     usePlaceWelcome,
@@ -828,6 +829,9 @@ export const HomePage = () => {
               onDismiss: clearJumpOrigin,
           }
         : undefined;
+    // Mod+[, the mouse's back button, a swipe or Go → Back on home: the bar's own action, and
+    // nothing while the bar is not offered.
+    useBackPress(() => jumpReturn?.onReturn());
     const settingsChannel = settingsChannelId ? channels.find(channel => channel.id === settingsChannelId) : undefined;
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);

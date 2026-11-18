@@ -13,6 +13,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
+import { pressBack, useBackNavigation } from './features/chat/hooks/useBackNavigation';
 import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenStore } from './shared';
 
 /**
@@ -26,6 +27,12 @@ import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenSto
  * Whenever a target is set it routes home; HomePage applies the cloud/place/
  * channel target once each loads.
  */
+/** Back from any page: Mod+[, the mouse's back button, and the shell's swipe and menu item. */
+const BackNavigation = () => {
+    useBackNavigation();
+    return null;
+};
+
 /** A save the shell finished: "Saved …" and the way to show it, on whichever page the reader is. */
 const DownloadNotices = () => {
     useDownloadNotices();
@@ -53,6 +60,11 @@ const NotificationOpenListener = () => {
             // event with a `chatic-ui:` link rather than an open target.
             if (deeplink === 'chatic-ui:settings') {
                 navigate('/settings');
+                return;
+            }
+            // Go → Back and the trackpad's swipe, the same press as Mod+[.
+            if (deeplink === 'chatic-ui:back') {
+                pressBack();
                 return;
             }
             if (deeplink === 'chatic-ui:shortcuts') {
@@ -122,6 +134,7 @@ export const AppRouter = () => {
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
             {isAuthenticated && <DownloadNotices />}
+            {isAuthenticated && <BackNavigation />}
             {/* Route-independent, so "?" and the menu entry work on every page. */}
             {isAuthenticated && (
                 // Its own boundary: the chat chunk loading must not blank the page.

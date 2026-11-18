@@ -28,3 +28,4 @@ export * from './placeToEnter';
 export * from './fences';
 export * from './sortByRecency';
 export * from './welcome';
+export * from './backNavigation';
