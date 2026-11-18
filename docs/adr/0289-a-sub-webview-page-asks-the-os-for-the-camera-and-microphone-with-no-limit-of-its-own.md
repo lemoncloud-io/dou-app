@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-05 · Implemented: `feat/sub-webview-device-permissions`
 > · Scope: `libs/bridge-messages` (`model/sub-webview.ts`, `SubWebViewRequestType`) · `libs/bridges`
 > (`BRIDGE_VERSION` 2.20.0) · `libs/chatic-apps-sdk` · `apps/mobile/src/app/subWebView/`
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md)
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > which left device features to the OS and to review; [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md),
 > the manifest this deliberately does not extend

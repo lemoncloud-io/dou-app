@@ -1,18 +1,21 @@
-# The sub WebView protocol
+# The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)**, **(2.22.0)**, **(2.26.0)**, **(2.27.0)** or **(2.29.0)**
-> arrived with that bridge version; an app built before it lacks it, which a page learns from the
-> handshake rather than from a version number.
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. This document states the protocol as it stands. Which
+> bridge version brought each part is in [Version history](#version-history) at the end; an app built
+> before a version lacks what it brought, which a page learns from the handshake rather than from a
+> version number.
 
-What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
+What a mini app — a page shown in the app's mini app view — and the shell say to each other, stated as
+rules. The shell
 side is this app; the page side is whatever runs on an allowlisted origin, normally through
 [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md), the library page authors use
 instead of speaking this protocol by hand. Both sides
 are held to this document: the SDK may hide it from authors, but it may not disagree with it.
 
-What the sub WebView is, where it may go and how it closes are in [sub-webview.md](./sub-webview.md).
-This document covers only the conversation.
+How the app builds that view, where it may go and how it closes are in [the view's own doc](./sub-webview.md).
+The app calls the view the sub WebView, and the message names below keep that name (`FinishSubWebView`,
+`window.ChaticSubWebView`); `chatic-apps-sdk` wraps them under mini app names, so a page built with it
+never meets them. This document covers only the conversation.
 
 The words **MUST**, **MUST NOT**, **SHOULD** and **MAY** are used in their usual sense: a page or a
 shell that breaks a MUST is wrong, one that ignores a SHOULD needs a reason.
@@ -30,8 +33,42 @@ shell that breaks a MUST is wrong, one that ignores a SHOULD needs a reason.
 | reply         | The host's answer to one request, matched by `refId`                                |
 | push          | A message from the host that answers no request                                     |
 | subset        | The requests the host answers: `SubWebViewRequestType` in `@chatic/bridge-messages` |
-| manifest      | The page's own declaration of what it needs, served from its origin (2.16.0)        |
+| manifest      | The page's own declaration of what it needs, served from its origin                 |
 | base set      | The requests every page gets, with or without a manifest                            |
+
+## Features
+
+Everything a page can do, by what it is for. **Opened by** is what the phone shell needs before it
+answers: _base_ is every page, a permission name is one the [manifest](#manifest) declares. The
+desktop column is the [desktop shell](#the-desktop-shell); the last column is what
+`chatic-apps-sdk` calls it.
+
+| Feature                    | Means                                                                                                 | Opened by                                                   | Desktop shell                                   | `chatic-apps-sdk`             |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------- | ----------------------------- |
+| Connecting, starting state | [Handshake](#handshake) (`WebAppReady`, `Ping`); the [context](#context)                              | base                                                        | Answered                                        | `connect`, `context`          |
+| Theme and language changes | Push `OnSubWebViewContextChanged`                                                                     | base                                                        | Never pushed: the context stays the opening one | `onContextChange`             |
+| Closing, with a result     | `FinishSubWebView`                                                                                    | base                                                        | Answered                                        | `finish`                      |
+| Title                      | `SetSubWebViewTitle`                                                                                  | base; shown with `display: titled`                          | Answered                                        | `setTitle`                    |
+| Haptics                    | `TriggerHaptic`                                                                                       | base                                                        | `NOT_FOUND`                                     | `haptic`                      |
+| Back                       | `SetCanGoBack`, push `OnBackPressed`                                                                  | base; only Android has a back button                        | `NOT_FOUND`                                     | `onBack`                      |
+| Asking before a close      | `SetSubWebViewCloseGuard`, push `OnSubWebViewCloseRequested`                                          | base                                                        | `NOT_FOUND`                                     | `onCloseRequest`              |
+| Error reports              | `ReportSubWebViewError`                                                                               | base                                                        | Answered                                        | `reportError`                 |
+| Storage on the device      | The five [storage](#storage) requests                                                                 | base                                                        | `NOT_FOUND`; the page's own web storage works   | `storage`                     |
+| Camera and microphone      | The three [device](#device-permissions) requests                                                      | base                                                        | `NOT_FOUND`                                     | `permissions`, `openSettings` |
+| Clipboard                  | `CopyToClipboard`                                                                                     | `clipboard`                                                 | `NOT_FOUND`                                     | `copy`                        |
+| Share sheet                | `OpenShareSheet`                                                                                      | `share`                                                     | `NOT_FOUND`                                     | `share`                       |
+| Opening outside the app    | `OpenURL`                                                                                             | `openUrl`                                                   | `NOT_FOUND`                                     | `openUrl`                     |
+| User key                   | `GetSubWebViewUserKey`                                                                                | `userKey`                                                   | `NOT_FOUND`                                     | `getUserKey`                  |
+| Display                    | The manifest's `display`: `titled`, `clean`, `immersive` ([Layout](#layout))                          | The manifest                                                | Always with the bar                             | None: the page cannot ask     |
+| Safe area                  | The shell pads `titled` and `clean`; `immersive` gets the `--chatic-safe-area-inset-*` CSS properties | `display: immersive`                                        | No system bars, nothing to report               | None: CSS only                |
+| Orientation                | The manifest's `orientation`                                                                          | The manifest                                                | Not applied: a window                           | None                          |
+| Links to the page          | The context's `appLink` ([Links to a page](#links-to-a-page))                                         | base                                                        | Not in the context                              | `link`                        |
+| Reading the cloud's data   | The four [runtime](#runtime-reads) requests, pushes `OnRuntimeEvent`, `OnRuntimeSessionChanged`       | A runtime permission, and [five conditions](#runtime-reads) | `NOT_FOUND`                                     | `data`                        |
+| Sending a text message     | `RuntimeCall` of `chat.sendChat`                                                                      | `chatSend`, and the same five conditions                    | `NOT_FOUND`                                     | `data.sendMessage`            |
+
+**Every other write is closed** — editing or deleting a message, attachments, mentions, replies,
+reactions, making a room. Whatever a page reaches through the runtime is listed in
+[What each permission hands over](#what-each-permission-hands-over).
 
 ## Versions
 
@@ -112,8 +149,8 @@ takes one of two shapes on failure:
 
 - A refusal by the request's own handler has `type` `On<Request>` and `error: { code, message }`.
 - A refusal by the host itself — no handler (`NOT_FOUND`), a handler that threw (`INTERNAL_ERROR`), a
-  message over the size limit (`TOO_LARGE`, 2.15.0) — has `type` `ERROR` and more fields in `error`,
-  which a page MAY log and MUST NOT depend on.
+  message over the size limit (`TOO_LARGE`) — has `type` `ERROR` and more fields in `error`, which a
+  page MAY log and MUST NOT depend on.
 - `Ping` is answered with `type` `Pong`, not `OnPing`.
 - `error.message` is English for a developer. A page MUST NOT show it to the user or branch on it.
 
@@ -128,23 +165,23 @@ A page MUST treat any message whose `refId` matches no pending request as a push
 1. The page sends `WebAppReady` with `data: {}` before any other request.
 2. The host answers `OnWebAppReady`:
 
-    | Field                  | Meaning                                                                |
-    | ---------------------- | ---------------------------------------------------------------------- |
-    | `supportedWebMessages` | What this host answers: the base set and what the manifest permits     |
-    | `supportedAppMessages` | The replies paired with them. Pushes are not listed                    |
-    | `appVersion`           | The shell's `BRIDGE_VERSION` (see [Versions](#versions))               |
-    | `protocolVersion`      | The request's `version`, echoed                                        |
-    | `subWebView`           | **(2.15.0)** The same `SubWebViewContext` as `window.ChaticSubWebView` |
+    | Field                  | Meaning                                                            |
+    | ---------------------- | ------------------------------------------------------------------ |
+    | `supportedWebMessages` | What this host answers: the base set and what the manifest permits |
+    | `supportedAppMessages` | The replies paired with them. Pushes are not listed                |
+    | `appVersion`           | The shell's `BRIDGE_VERSION` (see [Versions](#versions))           |
+    | `protocolVersion`      | The request's `version`, echoed                                    |
+    | `subWebView`           | The same `SubWebViewContext` as `window.ChaticSubWebView`          |
 
 3. The host holds every push until the page's first message, then sends them in order. Any message
    but `SendLog` releases them, not only `WebAppReady`; a page that sends something first may receive
    pushes before it has the handshake's answer.
 
-**(2.15.0) The handshake reply carries the context.** On Android, `window.ChaticSubWebView` can be
-defined after the page's first script runs, so a page that reads it early finds nothing and cannot
-tell "not yet" from "not in the app". The reply arrives at a known moment, so a page SHOULD take the
-context from the reply and nowhere else. When the reply has no `subWebView` (an app before 2.15.0),
-the page reads the global after its `load` event.
+**The handshake reply carries the context.** On Android, `window.ChaticSubWebView` can be defined
+after the page's first script runs, so a page that reads it early finds nothing and cannot tell "not
+yet" from "not in the app". The reply arrives at a known moment, so a page SHOULD take the context
+from the reply and nowhere else. When the reply has no `subWebView` (an app before 2.15.0), the page
+reads the global after its `load` event.
 
 **Whether the page is in the app at all** is `window.ReactNativeWebView`, which the WebView defines
 before any script of the page runs. A page that finds none is in a browser tab: it has no bridge, no
@@ -153,28 +190,27 @@ opened origin, and is not answered (see [Timing](#timing)).
 
 ## Context
 
-`window.ChaticSubWebView`, and from 2.15.0 the handshake's `subWebView`, is a frozen
-`SubWebViewContext`:
+`window.ChaticSubWebView`, and the handshake's `subWebView`, is a frozen `SubWebViewContext`:
 
-| Field             | Type                              | Meaning                                                                                                  |
-| ----------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `protocolVersion` | `1`                               | This protocol's major version                                                                            |
-| `viewId`          | string                            | The view; opaque to the page                                                                             |
-| `platform`        | `'ios' \| 'android' \| 'desktop'` | The OS, or **(2.22.0)** `desktop` for the desktop app (see [The desktop shell](#the-desktop-shell-2220)) |
-| `appVersion`      | string                            | The app's own version (`0.31.0`)                                                                         |
-| `locale`          | string                            | The language the user chose in the app (`ko`, `en`)                                                      |
-| `theme`           | `'light' \| 'dark'`               | The app's resolved theme, which can differ from the OS's                                                 |
-| `params`          | object                            | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                                          |
-| `appLink`         | string                            | **(2.17.0)** The link that opens this page: see [Links to a page](#links-to-a-page-2170)                 |
+| Field             | Type                              | Meaning                                                                                |
+| ----------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
+| `protocolVersion` | `1`                               | This protocol's major version                                                          |
+| `viewId`          | string                            | The view; opaque to the page                                                           |
+| `platform`        | `'ios' \| 'android' \| 'desktop'` | The OS, or `desktop` for the desktop app (see [The desktop shell](#the-desktop-shell)) |
+| `appVersion`      | string                            | The app's own version (`0.31.0`)                                                       |
+| `locale`          | string                            | The language the user chose in the app (`ko`, `en`)                                    |
+| `theme`           | `'light' \| 'dark'`               | The app's resolved theme, which can differ from the OS's                               |
+| `params`          | object                            | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                        |
+| `appLink`         | string                            | The link that opens this page: see [Links to a page](#links-to-a-page)                 |
 
 - It is defined only on the opened origin. A page the view navigated to finds nothing, even on
   another allowlisted origin.
 - What the shell puts in it identifies nothing — not the device, the install or the user. `params`
   are the opener's, not the shell's: DoU's own web opens a mini app with
-  [launch params](#launch-params-2220) that name the user within one cloud. A later change of `theme`
+  [launch params](#launch-params) that name the user within one cloud. A later change of `theme`
   or `locale` arrives as `OnSubWebViewContextChanged`; the global keeps its first values.
 
-## Launch params (2.22.0)
+## Launch params
 
 When DoU's own web opens a mini app — the hub, or one of the links a cloud's owner registered — `params` is a
 `MiniAppLaunchParams`:
@@ -203,7 +239,7 @@ When DoU's own web opens a mini app — the hub, or one of the links a cloud's o
 - Names are cut to 200 characters. A page opened some other way may get other `params`; a page reads
   them as unknown until they have this shape.
 
-## The desktop shell (2.22.0)
+## The desktop shell
 
 The desktop app shows a sub WebView as a modal over its window. What it opens, and how far it trusts
 it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebViewTrustOf`):
@@ -214,16 +250,16 @@ it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebView
 | `reviewed`   | One label under those domains (`https://quiz.apps.chatic.io`)             | read (name, display) | the page's, as on the phone |
 | `external`   | Any other plain https site — a link a cloud's owner registered            | **never fetched**    | **its host, always**        |
 
-- The main window's handshake says `subWebViewOpenScope: 'anyHttps'`, as the phone shell's does from
-  2.22.0. A shell that reports no `subWebViewOpenScope` opens the reviewed pages only, as it always has.
+- The main window's handshake says `subWebViewOpenScope: 'anyHttps'`, as the phone shell's does. A
+  shell that reports no `subWebViewOpenScope` opens the reviewed pages only, as it always has.
 - A URL a parser could read two ways is not opened: userinfo, a port, a backslash, whitespace, a
   control character, an IP literal.
 - The page's host answers `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle` and
   `ReportSubWebViewError`, on every tier, and nothing else — every other request is `NOT_FOUND`,
   whatever the manifest declares. A manifest gives the bar its fallback name and the display
-  (`titled` by default here; `clean` fills the window and keeps the bar; **(2.29.0)** `immersive`
-  is shown as `clean`, since a window has no system bars). An external site is always `titled`.
-  The display names are the phone's, earlier names included (see [Layout](#layout)).
+  (`titled` by default here; `clean` fills the window and keeps the bar; `immersive` is shown as
+  `clean`, since a window has no system bars). An external site is always `titled`. The display
+  names are the phone's, earlier names included (see [Layout](#layout)).
 - Only the opened origin loads in the view. Another https URL — a link, a redirect, `window.open` —
   goes to the OS browser and the view stays. Other schemes are dropped.
 - Esc and the bar's close control close the view as `user`. There is no close guard and no
@@ -232,16 +268,16 @@ it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebView
 - The transport is the phone's, `window.ReactNativeWebView.postMessage` and `message` events on
   `window`, so a page built with `chatic-apps-sdk` runs unchanged.
 
-## Manifest (2.16.0)
+## Manifest
 
 A page declares what it needs in a manifest, served from its own origin at
 `/.well-known/chatic-app.json` — for `https://quiz.apps.chatic.io/`, at
 `https://quiz.apps.chatic.io/.well-known/chatic-app.json`:
 
-**(2.22.0)** Only the hub and a reviewed page have one read. On the phone as on the desktop, an
-`external` site — any other https site, a link a cloud's owner saved — is never asked for a manifest:
-it gets the base set, the bar, and its host as the bar's title whatever it sets (the tiers are in
-[the desktop section](#the-desktop-shell-2220)).
+Only the hub and a reviewed page have one read. On the phone as on the desktop, an `external` site —
+any other https site, a link a cloud's owner saved — is never asked for a manifest: it gets the base
+set, the bar, and its host as the bar's title whatever it sets (the tiers are in
+[the desktop section](#the-desktop-shell)).
 
 ```json
 {
@@ -252,20 +288,20 @@ it gets the base set, the bar, and its host as the bar's title whatever it sets 
 }
 ```
 
-| Field             | Values                                                                                                                                                                                 | Without it                 |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `manifestVersion` | `1`                                                                                                                                                                                    | No manifest at all         |
-| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                                     | No title from the manifest |
-| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; **(2.26.0)** `session`, `cloud`, `place`, `channel`, `chat`, `user`; **(2.27.0)** `chatSend` ([Runtime reads](#runtime-reads-2260)) | The base set only          |
-| `display`         | `titled` (the bar), `clean` (no bar) or `immersive` (no bar, no safe-area padding); see [Layout](#layout) for the names before 2.29.0                                                  | `clean` (no bar)           |
-| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                                         | `any`                      |
+| Field             | Values                                                                                                                                                                | Without it                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `manifestVersion` | `1`                                                                                                                                                                   | No manifest at all         |
+| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                    | No title from the manifest |
+| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; the runtime's `session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend` ([Runtime reads](#runtime-reads)) | The base set only          |
+| `display`         | `titled` (the bar), `clean` (no bar) or `immersive` (no bar, no safe-area padding); see [Layout](#layout) for the older names                                         | `clean` (no bar)           |
+| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                        | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
-`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, **(2.18.0)**
-the five [storage](#storage-2180) requests, and **(2.20.0)** the three [device](#device-permissions-2200)
-requests. None of them reaches more than the page already could: storage holds only what the page
-itself put there, and the device requests only ask the OS what `getUserMedia` would. **The rest is
-declared**, one capability per request:
+`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, the five
+[storage](#storage) requests, and the three [device](#device-permissions) requests. None of them
+reaches more than the page already could: storage holds only what the page itself put there, and the
+device requests only ask the OS what `getUserMedia` would. **The rest is declared**, one capability
+per request:
 
 | Permission  | Unlocks                | Why it is declared                                        |
 | ----------- | ---------------------- | --------------------------------------------------------- |
@@ -273,6 +309,9 @@ declared**, one capability per request:
 | `share`     | `OpenShareSheet`       | Hands text and a link to another app                      |
 | `openUrl`   | `OpenURL`              | Leaves the app for the browser, mail, phone or a store    |
 | `userKey`   | `GetSubWebViewUserKey` | A stable identifier the page's server can keep data under |
+
+The runtime permissions open the four runtime requests together, under conditions of their own; see
+[Runtime reads](#runtime-reads).
 
 A request whose permission the page did not declare is not registered: the handshake does not list
 it, and the host answers it `NOT_FOUND`, exactly as an app that predates it would. So a page decides
@@ -302,11 +341,11 @@ and a page cannot widen its permissions at run time.
 - The redirect check relies on the response naming its URL, which React Native's networking does on
   both platforms.
 
-## Links to a page (2.17.0)
+## Links to a page
 
 A page shares a link to itself as the context's `appLink` — `https://app.chatic.io/apps/<appId>`,
 naming the app the web opened it as (`app-dev.chatic.io` from a dev build) — followed by a query of
-its own. **(2.19.0)** A link is an app id and a query, nothing else: no path, no fragment.
+its own. A link is an app id and a query, nothing else: no path, no fragment.
 
 ```text
 https://app.chatic.io/apps/quiz?level=3&seed=7  →  https://<where quiz is hosted>/?level=3&seed=7
@@ -322,9 +361,9 @@ https://app.chatic.io/apps/quiz?level=3&seed=7  →  https://<where quiz is host
   store. **It never opens the page in the browser.** A link opened in an in-app browser that does not
   hand links to the OS (a messenger's) gets the same page, which tries the app from there.
 - **A page MUST build links from `appLink`**, never from a hard-coded host or its own label: the id need
-  not be the label. When the context has no `appLink` (an app before 2.17.0) the page shares its own
-  root with the query instead. Opened without an id — by a web before 2.19.0 — `appLink` takes the
-  page's label for the id.
+  not be the label. When the context has no `appLink` (an app before 2.17.0, or the desktop shell) the
+  page shares its own root with the query instead. Opened without an id — by a web before 2.19.0 —
+  `appLink` takes the page's label for the id.
 - Only `https` links on the app-link hosts, and the app's custom scheme carrying the same path, are page
   links.
 
@@ -350,18 +389,18 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 
 ## Limits
 
-| What                                         | Limit                               | Over it                 |
-| -------------------------------------------- | ----------------------------------- | ----------------------- |
-| One message from the page, serialized        | **(2.15.0)** 64 KiB (string length) | `TOO_LARGE`, as `ERROR` |
-| `params` (from the opener), `result` (to it) | 16 KiB serialized, JSON only        | `INVALID`               |
-| Title in the bar (`titled` display)          | 1–100 characters after trimming     | `INVALID`               |
-| Share sheet title / message / link           | 100 / 4,000 / 2,048 characters      | `INVALID`               |
-| **(2.18.0)** A storage key                   | 1–200 characters                    | `INVALID`               |
-| **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
-| **(2.26.0)** Runtime streams per page load   | 16                                  | `INVALID`               |
-| **(2.26.0)** Server reads per view           | One per 250 ms, 60 a minute         | `RATE_LIMITED`          |
-| **(2.27.0)** Messages sent per view          | One per 500 ms, 30 a minute         | `RATE_LIMITED`          |
-| **(2.27.0)** A message's text / its room id  | 1–1,000 / 1–200 characters          | `RUNTIME_NOT_ALLOWED`   |
+| What                                         | Limit                           | Over it                 |
+| -------------------------------------------- | ------------------------------- | ----------------------- |
+| One message from the page, serialized        | 64 KiB (string length)          | `TOO_LARGE`, as `ERROR` |
+| `params` (from the opener), `result` (to it) | 16 KiB serialized, JSON only    | `INVALID`               |
+| Title in the bar (`titled` display)          | 1–100 characters after trimming | `INVALID`               |
+| Share sheet title / message / link           | 100 / 4,000 / 2,048 characters  | `INVALID`               |
+| A storage key                                | 1–200 characters                | `INVALID`               |
+| One origin's storage, in all                 | 1,048,576 characters            | `QUOTA_EXCEEDED`        |
+| Runtime streams per page load                | 16                              | `INVALID`               |
+| Server reads per view                        | One per 250 ms, 60 a minute     | `RATE_LIMITED`          |
+| Messages sent per view                       | One per 500 ms, 30 a minute     | `RATE_LIMITED`          |
+| A message's text / its room id               | 1–1,000 / 1–200 characters      | `RUNTIME_NOT_ALLOWED`   |
 
 Lengths are string lengths (UTF-16 code units), not bytes.
 
@@ -369,28 +408,29 @@ Lengths are string lengths (UTF-16 code units), not bytes.
 
 A page MUST treat a code it does not know as a failure of that request and nothing more.
 
-| Code                    | Raised by                                                                                   | Meaning                                                                                                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NOT_FOUND`             | the host                                                                                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app                                                              |
-| `INTERNAL_ERROR`        | the host                                                                                    | A handler failed unexpectedly. Retrying MAY work                                                                                                           |
-| `TOO_LARGE`             | the host **(2.15.0)**                                                                       | The message is over 64 KiB                                                                                                                                 |
-| `INVALID`               | most requests                                                                               | A field is missing, of the wrong type, or over its limit                                                                                                   |
-| `INVALID_KIND`          | `TriggerHaptic`                                                                             | `kind` is not one of the listed values                                                                                                                     |
-| `NOT_OPEN`              | `FinishSubWebView`                                                                          | The view already closed                                                                                                                                    |
-| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                                                                 | The link is not one this request may open or share                                                                                                         |
-| `OPEN_URL_FAILED`       | `OpenURL`                                                                                   | The OS could not open an allowed link                                                                                                                      |
-| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                                                           | The OS refused the write                                                                                                                                   |
-| `SHARE_ERROR`           | `OpenShareSheet`                                                                            | The OS share sheet failed                                                                                                                                  |
-| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)**, the device requests **(2.20.0)** | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware)                 |
-| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                                                      | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written                                                                 |
-| `SETTINGS_ERROR`        | `OpenSettings`                                                                              | **(2.20.0)** The OS would not open the settings                                                                                                            |
-| `RUNTIME_NOT_ALLOWED`   | the runtime requests                                                                        | **(2.26.0)** Not a method this page may use, or a cloud id that is not the current cloud's — **(2.27.0)** or a message's shape or room; `details` says why |
-| `CLOUD_CHANGED`         | the runtime requests                                                                        | **(2.26.0)** The session's cloud is no longer the one the view opened on; final for the view                                                               |
-| `CONSENT_REFUSED`       | the runtime requests                                                                        | **(2.26.0)** The user did not allow this page to read this cloud                                                                                           |
-| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                                           | **(2.26.0)** Over the view's budget of server reads — **(2.27.0)** or of messages sent; `details.retryAfterMs`                                             |
+| Code                    | Raised by                                                         | Meaning                                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NOT_FOUND`             | the host                                                          | Not in this host's subset, or not in the page's manifest. Expected from an older app                                                       |
+| `INTERNAL_ERROR`        | the host                                                          | A handler failed unexpectedly. Retrying MAY work                                                                                           |
+| `TOO_LARGE`             | the host                                                          | The message is over 64 KiB                                                                                                                 |
+| `INVALID`               | most requests                                                     | A field is missing, of the wrong type, or over its limit                                                                                   |
+| `INVALID_KIND`          | `TriggerHaptic`                                                   | `kind` is not one of the listed values                                                                                                     |
+| `NOT_OPEN`              | `FinishSubWebView`                                                | The view already closed                                                                                                                    |
+| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                                       | The link is not one this request may open or share                                                                                         |
+| `OPEN_URL_FAILED`       | `OpenURL`                                                         | The OS could not open an allowed link                                                                                                      |
+| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                                 | The OS refused the write                                                                                                                   |
+| `SHARE_ERROR`           | `OpenShareSheet`                                                  | The OS share sheet failed                                                                                                                  |
+| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests, the device requests | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware) |
+| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                            | The write would take the origin's storage past its limit; nothing was written                                                              |
+| `SETTINGS_ERROR`        | `OpenSettings`                                                    | The OS would not open the settings                                                                                                         |
+| `RUNTIME_NOT_ALLOWED`   | the runtime requests                                              | Not a method this page may use, a cloud id that is not the current cloud's, or a message's shape or room; `details` says why               |
+| `CLOUD_CHANGED`         | the runtime requests                                              | The session's cloud is no longer the one the view opened on; final for the view                                                            |
+| `CONSENT_REFUSED`       | the runtime requests                                              | The user did not allow this page to read this cloud                                                                                        |
+| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                 | Over the view's budget of server reads, or of messages sent; `details.retryAfterMs`                                                        |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
-reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
+reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages`. The runtime requests
+also pass the runtime's own codes through, as the main web gets them.
 
 ## Requests
 
@@ -424,7 +464,7 @@ When the page shows the bar (`display: titled`), it shows, in order of precedenc
 
 ### `CopyToClipboard`
 
-Needs the `clipboard` permission (2.16.0).
+Needs the `clipboard` permission.
 
 | Request            | Reply              | Errors                             |
 | ------------------ | ------------------ | ---------------------------------- |
@@ -436,17 +476,16 @@ Needs the `clipboard` permission (2.16.0).
 | ------------------------------------------------------------------------ | ----- | -------------- |
 | `{ kind: 'selection' \| 'impact' \| 'success' \| 'warning' \| 'error' }` | `{}`  | `INVALID_KIND` |
 
-`selection` is the lightest tick, `impact` a short tap; **(2.16.0)** `success`, `warning` and `error`
-are the outcome of something the user did. On iOS they are the system's notification feedback; on
-Android 11 and later `success` and `error` are the system's confirm and reject effects, and
-`warning`, which Android has no effect for, is the long-press one; before Android 11, `success` is the
-key-press effect and `error` the long-press one. An app before 2.16.0 answers the
-three with `INVALID_KIND`. The OS honours the user's own touch-feedback setting; a reply does not mean
-the device moved.
+`selection` is the lightest tick, `impact` a short tap; `success`, `warning` and `error` are the
+outcome of something the user did. On iOS they are the system's notification feedback; on Android 11
+and later `success` and `error` are the system's confirm and reject effects, and `warning`, which
+Android has no effect for, is the long-press one; before Android 11, `success` is the key-press effect
+and `error` the long-press one. An app before 2.16.0 answers the three with `INVALID_KIND`. The OS
+honours the user's own touch-feedback setting; a reply does not mean the device moved.
 
 ### `OpenURL`
 
-Needs the `openUrl` permission (2.16.0).
+Needs the `openUrl` permission.
 
 | Request           | Reply | Errors                                |
 | ----------------- | ----- | ------------------------------------- |
@@ -455,12 +494,12 @@ Needs the `openUrl` permission (2.16.0).
 Opens only what the view would itself hand to the OS: an `https` or `http` page that is neither the
 hub nor a reviewed page, `mailto:`, `tel:`, `sms:`, `itms-apps:`, `market:`. The app's own links
 and schemes, the hub or a reviewed page (the opened origin included), and anything else answer
-`LINK_NOT_ALLOWED` — as does a `url` that is not a string. **(2.22.0)** Navigating to another origin,
-a reviewed page included, hands it to the OS browser: only the opened origin loads in the view.
+`LINK_NOT_ALLOWED` — as does a `url` that is not a string. Navigating to another origin, a reviewed
+page included, hands it to the OS browser: only the opened origin loads in the view.
 
 ### `OpenShareSheet`
 
-Needs the `share` permission (2.16.0).
+Needs the `share` permission.
 
 | Request                                              | Reply                                                                           | Errors                                       |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------- |
@@ -476,7 +515,7 @@ Needs the `share` permission (2.16.0).
 
 ### `GetSubWebViewUserKey`
 
-Needs the `userKey` permission (2.16.0).
+Needs the `userKey` permission.
 
 | Request | Reply             | Errors        |
 | ------- | ----------------- | ------------- |
@@ -487,7 +526,7 @@ on every other origin. It is not the DoU account and proves nothing — whoever 
 How it is derived, how long it lasts and what it is not are in
 [sub-webview.md](./sub-webview.md#what-the-page-gets-and-what-it-does-not).
 
-### `SetCanGoBack` (2.15.0)
+### `SetCanGoBack`
 
 | Request                  | Reply | Errors    |
 | ------------------------ | ----- | --------- |
@@ -497,7 +536,7 @@ The page claims Android's back button. While the claim is `true`, a back press i
 as `OnBackPressed` and does nothing else; see [Back](#back-android). The claim ends at the next page
 load. iOS has no back button and ignores the claim; its edge swipe goes back in the view's history.
 
-### `SetSubWebViewCloseGuard` (2.15.0)
+### `SetSubWebViewCloseGuard`
 
 | Request                | Reply | Errors    |
 | ---------------------- | ----- | --------- |
@@ -506,7 +545,7 @@ load. iOS has no back button and ignores the claim; its edge swipe goes back in 
 While enabled, the user's close is asked of the page first; see [Closing](#closing). The guard ends
 at the next page load.
 
-### `ReportSubWebViewError` (2.16.0)
+### `ReportSubWebViewError`
 
 | Request                               | Reply                   | Errors    |
 | ------------------------------------- | ----------------------- | --------- |
@@ -520,7 +559,7 @@ written. A page SHOULD report from `window.onerror` and `unhandledrejection`, wh
 `chatic-apps-sdk` does. The report reaches the app's logs and nothing else: a page MUST NOT put
 the user's data in it.
 
-### Storage (2.18.0)
+### Storage
 
 Five requests over one store per origin, in the base set: a page needs no permission to keep its own
 data.
@@ -551,7 +590,7 @@ data.
 - The reply to a write is the usage after it, so a page that keeps close to its limit need not ask.
 - Every storage request MAY also fail `UNAVAILABLE`: the shell could not open the store.
 
-### Device permissions (2.20.0)
+### Device permissions
 
 A page captures with the WebView's own `getUserMedia`, and the OS asks the user the first time, under
 DoU's name. Three requests, in the base set, let a page ask well; none limits it:
@@ -579,14 +618,13 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
   its author answers for it.
 - A page MAY skip these and call `getUserMedia` directly; it then meets the OS prompt mid-capture.
 
-### Runtime reads (2.26.0)
+### Runtime reads
 
 A page may read the app's own data — the current cloud's places, rooms, messages and members — through
 the app's runtime, exactly as DoU's own screens read it. It speaks the main web's four runtime
 requests to its own host, which passes only a whitelist of the runtime's **read** methods — and, with
-`chatSend` (2.27.0), one text send — by the
-runtime permissions its manifest declares. What an allowed method answers crosses unchanged: a page
-granted `channel` gets the whole channel row.
+`chatSend`, one text send — by the runtime permissions its manifest declares. What an allowed method
+answers crosses unchanged: a page granted `channel` gets the whole channel row.
 
 | Permission | Opens                                                                                                                                                   |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -596,16 +634,17 @@ granted `channel` gets the whole channel row.
 | `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`                               |
 | `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                                     |
 | `user`     | `user.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList` |
-| `chatSend` | **(2.27.0)** `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                                      |
+| `chatSend` | `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                                                   |
 
 The table is the runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`, which says
 why each other method is closed). Nothing else is open: no method that writes on the server or in the
 device cache — a refresh that writes what it fetched included, since the page's arguments would decide
 where the rows land — none that moves a sync or read cursor, none that reaches another cloud, and no
 target but `data`: the cloud and place switches are session commands, and `session` is closed. The one
-exception is `chatSend`'s message (2.27.0), below. So a page reads what the app has cached, the server's room list (`channel.fetchList`), the member list and
-the server's view of the current cloud (`cloud.getCloud`, which writes nothing with `{ cache: false }`),
-and fetches nothing into the cache on its own.
+exception is `chatSend`'s message, below. So a page reads what the app has cached, the server's room
+list (`channel.fetchList`), the member list and the server's view of the current cloud
+(`cloud.getCloud`, which writes nothing with `{ cache: false }`), and fetches nothing into the cache on
+its own.
 
 **When the host answers them.** The four requests are registered only when all of these hold, and
 otherwise answer `NOT_FOUND` as in an app that predates them:
@@ -640,23 +679,19 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read that asks
   the server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
   `details: { retryAfterMs }`). The reason is the whitelist's for a closed method, `notGranted`,
-  `guard`, or `unknown` for a name it does not have or a method asked the wrong way. **(2.27.0)** A
-  message is checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send
-  budget of its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the
-  reads'.
+  `guard`, or `unknown` for a name it does not have or a method asked the wrong way. A message is
+  checked twice more, after consent: its room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send budget of
+  its own, one per 500 ms and 30 a minute (`RATE_LIMITED`), which spends nothing of the reads'.
 - **Argument guards.** `cloud.observeItem` and `cloud.cacheRead` answer only for the current cloud's
   id. `cloud.getCloud` answers only as `({ id }, { cache: false })`, with `id` the current cloud's and
   no `cid`. The cache holds an owned cloud only after the app read it from the server, and then only
   its name, so `cloud.cacheRead` often answers `null` for the cloud the user owns; `getCloud` is the
-  read for it. It answers the relay's view of the cloud, unfiltered, as the app gets it: for a cloud
-  the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked
-  account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id
-  (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal
-  `{ id, name, status }`. The page needs the cloud's id for it: the session's `context.cloud.cloudId`
-  with the `session` permission, or `params.cloud.id` when DoU opened the page from the cloud's mini
-  app list. `user.listPlaceMembers` answers only with `placeId` and `sessionPlaceId` both the place
-  the session is on, and no `pageSize`.
-- **Sending a message (2.27.0).** With `chatSend`, `chat.sendChat` answers only for
+  read for it. It answers the relay's view of the cloud, unfiltered, as the app gets it (see
+  [What each permission hands over](#what-each-permission-hands-over)). The page needs the cloud's id
+  for it: the session's `context.cloud.cloudId` with the `session` permission, or `params.cloud.id`
+  when DoU opened the page from the cloud's mini app list. `user.listPlaceMembers` answers only with
+  `placeId` and `sessionPlaceId` both the place the session is on, and no `pageSize`.
+- **Sending a message.** With `chatSend`, `chat.sendChat` answers only for
   `[{ channelId, content }]` — one argument, a plain object with those two fields and no other, each a
   string with something besides white space in it, the room id at most 200 characters and the content
   at most 1,000. Attachments, mentions, replies, a content type, system and webhook rows are all
@@ -684,15 +719,36 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   admitted; a new page load, a hello and the view's close end them all, and nothing of one load is
   pushed to the next.
 
+#### What each permission hands over
+
+**Nothing is filtered.** An allowed method answers the rows the app's runtime holds, every field they
+carry, and its names and arguments are the runtime contract's. A page's permissions are weighed by
+whoever approves them, and the user is asked before the first answer; this table is what they are
+weighing. It names what a row carries beyond the obvious, not every field.
+
+| Permission | What reaches the page                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `session`  | The current cloud's part of the session: its `cloudId` and `siteId`, the user's id in that cloud, whether the user is signed in, and later changes of the same. Never the account's other clouds, the relay, a token or a guest id                                                                                                                                                                                                                                                   |
+| `cloud`    | The current cloud's row from the cache — for a cloud the user owns, often nothing, and at most its name. With `cloud.getCloud`, the relay's view of it: for a cloud the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
+| `place`    | Every place of the cloud the device has cached, and whether one was deleted                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `channel`  | Every room of the cloud the device holds, in any place, the server's room list, and the joins: who is in which room                                                                                                                                                                                                                                                                                                                                                                  |
+| `chat`     | The messages the device holds, in any room of the cloud, with their authors' ids, and the image messages still waiting to upload                                                                                                                                                                                                                                                                                                                                                     |
+| `user`     | Users and place profiles as cached, and a place's member list from the server. A user row carries the account's `loginId` and `identityId`, and any field the server adds to it                                                                                                                                                                                                                                                                                                      |
+| `chatSend` | Nothing to read: the reply is the sent message's row                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+**The rows are a public surface.** Their shape is the runtime contract's, which the hello negotiates
+as `contract`: a field added to a row does not break a page, and a field removed or given another
+meaning moves to a new contract (see [Compatibility](#compatibility)).
+
 ## Pushes
 
-| Push                                      | Data                               | When                                                                              |
-| ----------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
-| `OnSubWebViewContextChanged`              | `{ theme, locale }`                | The app's theme or language changed while the view showed                         |
-| `OnRuntimeEvent` **(2.26.0)**             | `{ subscriptionId, seq, event }`   | An open runtime stream's event; its last is `{ $ended }`                          |
-| `OnRuntimeSessionChanged` **(2.26.0)**    | `{ seq, signals, session }`        | The session changed, with the `session` permission                                |
-| `OnBackPressed` **(2.15.0)**              | `{}`                               | Android back, while the page's `SetCanGoBack` claim is `true`                     |
-| `OnSubWebViewCloseRequested` **(2.15.0)** | `{ trigger: 'control' \| 'back' }` | The user asked to close while the guard is on: the close control, or Android back |
+| Push                         | Data                               | When                                                                              |
+| ---------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
+| `OnSubWebViewContextChanged` | `{ theme, locale }`                | The app's theme or language changed while the view showed                         |
+| `OnRuntimeEvent`             | `{ subscriptionId, seq, event }`   | An open runtime stream's event; its last is `{ $ended }`                          |
+| `OnRuntimeSessionChanged`    | `{ seq, signals, session }`        | The session changed, with the `session` permission                                |
+| `OnBackPressed`              | `{}`                               | Android back, while the page's `SetCanGoBack` claim is `true`                     |
+| `OnSubWebViewCloseRequested` | `{ trigger: 'control' \| 'back' }` | The user asked to close while the guard is on: the close control, or Android back |
 
 A page learns that a push can come from the request it pairs with: `OnBackPressed` from `SetCanGoBack`
 in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
@@ -701,16 +757,15 @@ in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
 
 ### Opening
 
-The opener sends `OpenSubWebView { url, title?, params?, appId? }` — `appId` **(2.19.0)** naming the
-app it resolved `url` from — and the shell shows the view full screen,
-reads the page's [manifest](#manifest-2160), and then loads the page under a floating close control
-alone — or, for a page whose manifest sets `display: titled`, under a bar with the title and a close
-control. Each page load — the first, a
-reload, a navigation — gets a fresh host, and the previous load's claims (title, back, close guard)
-are gone: the shell drops them when a load starts, and a request the previous load sends after that
-cannot set them again. A request the previous load left pending may still be answered, into the new
-document: its `refId` matches nothing there and its `type` is a reply's, not a push's, so a page that
-follows [Push](#push) ignores it.
+The opener sends `OpenSubWebView { url, title?, params?, appId? }` — `appId` naming the app it
+resolved `url` from — and the shell shows the view full screen, reads the page's
+[manifest](#manifest), and then loads the page under a floating close control alone — or, for a page
+whose manifest sets `display: titled`, under a bar with the title and a close control. Each page
+load — the first, a reload, a navigation — gets a fresh host, and the previous load's claims (title,
+back, close guard) are gone: the shell drops them when a load starts, and a request the previous load
+sends after that cannot set them again. A request the previous load left pending may still be
+answered, into the new document: its `refId` matches nothing there and its `type` is a reply's, not a
+push's, so a page that follows [Push](#push) ignores it.
 
 **A page MUST set its claims again after its handshake and on every `pageshow`.** The shell drops
 them when a load starts, and the page cannot always tell that one did: a document restored from the
@@ -720,22 +775,22 @@ dropped. Setting a claim again is harmless; `chatic-apps-sdk` does it for the pa
 
 ### Closing
 
-| Reason   | Who                                                              | Guarded **(2.15.0)** |
-| -------- | ---------------------------------------------------------------- | -------------------- |
-| `user`   | The close control, or Android back with nothing else to do       | Yes                  |
-| `page`   | The page, with `FinishSubWebView`                                | No                   |
-| `host`   | The opener, with `CloseSubWebView`                               | No                   |
-| `system` | The shell, before a deep link or a tapped push navigates the app | No                   |
+| Reason   | Who                                                              | Guarded |
+| -------- | ---------------------------------------------------------------- | ------- |
+| `user`   | The close control, or Android back with nothing else to do       | Yes     |
+| `page`   | The page, with `FinishSubWebView`                                | No      |
+| `host`   | The opener, with `CloseSubWebView`                               | No      |
+| `system` | The shell, before a deep link or a tapped push navigates the app | No      |
 
 The opener hears every close as `OnSubWebViewClosed { viewId, reason, result? }`, except when the
 opener itself reloaded under the view: then the view goes with no event.
 
-**(2.15.0) The close guard.** While a page has the guard on, a `user` close does not close: the shell
-pushes `OnSubWebViewCloseRequested` and waits. The page then either closes with `FinishSubWebView`
-(and MAY hand a `result`), or does nothing and stays. A second close by the user within 3 seconds of
-the first closes the view as `user` without asking, so a page that hangs or never answers cannot keep
-the user in; a close after those 3 seconds asks the page again. The guard is for a page with something to lose — an unsaved form, a game in progress —
-and a page MUST NOT turn it on for anything else.
+**The close guard.** While a page has the guard on, a `user` close does not close: the shell pushes
+`OnSubWebViewCloseRequested` and waits. The page then either closes with `FinishSubWebView` (and MAY
+hand a `result`), or does nothing and stays. A second close by the user within 3 seconds of the first
+closes the view as `user` without asking, so a page that hangs or never answers cannot keep the user
+in; a close after those 3 seconds asks the page again. The guard is for a page with something to
+lose — an unsaved form, a game in progress — and a page MUST NOT turn it on for anything else.
 
 `page`, `host` and `system` closes are never guarded and give the page no notice: the view is gone
 when the shell decides. A page MUST keep anything it cannot lose saved as it goes, and SHOULD save
@@ -745,8 +800,8 @@ on `visibilitychange` to `hidden` (below).
 
 A back press is decided in order:
 
-1. **(2.15.0)** The page's `SetCanGoBack` claim is `true`: push `OnBackPressed` and stop. The page
-   closes its own dialog, or navigates, or calls `SetCanGoBack(false)` and lets the next press through.
+1. The page's `SetCanGoBack` claim is `true`: push `OnBackPressed` and stop. The page closes its own
+   dialog, or navigates, or calls `SetCanGoBack(false)` and lets the next press through.
 2. The view has history: go back in it.
 3. Otherwise: close as `user` — through the close guard if it is on.
 
@@ -763,40 +818,36 @@ Android is measured; on iOS it is not yet checked on a device (see the last sect
 
 ## Layout
 
-**(2.29.0) The displays are named by what the user sees: `titled`, `clean` and `immersive`.** The first
-two were `standard` and `fullscreen` before 2.29.0. Those names are still read and mean what they
-did, so a page deployed with one keeps its look; a new page uses the new names. An app released
-before 2.29.0 knows only the old ones and shows any new name with its default — on the phone no bar,
-inside the safe area — so a page that needs the bar on such an app says `standard` until its users
-have updated.
+**The displays are named by what the user sees: `titled`, `clean` and `immersive`.** The first two
+were `standard` and `fullscreen` before 2.29.0. Those names are still read and mean what they did, so
+a page deployed with one keeps its look; a new page uses the new names. An app released before 2.29.0
+knows only the old ones and shows any new name with its default — on the phone no bar, inside the
+safe area — so a page that needs the bar on such an app says `standard` until its users have updated.
 
-**(2.15.0) The page's viewport lies inside the safe area on every edge**, for `titled` and `clean`.
-The shell pads the view by
-the device's insets on all four sides — top and bottom under the bar and above the home indicator,
-left and right in landscape — and fills the padding with the app's theme background. A page needs no
-inset handling; `env(safe-area-inset-*)` is expected to read 0 in the view, which is not yet checked
-on a device (see the last section). (Before 2.15.0 the shell padded only top and bottom, so in
-landscape a notch could cover the page's side.) `immersive` is the one exception, below.
+**The page's viewport lies inside the safe area on every edge**, for `titled` and `clean`. The shell
+pads the view by the device's insets on all four sides — top and bottom under the bar and above the
+home indicator, left and right in landscape — and fills the padding with the app's theme background.
+A page needs no inset handling; `env(safe-area-inset-*)` is expected to read 0 in the view, which is
+not yet checked on a device (see the last section). `immersive` is the one exception, below.
 
-**(2.16.0) `display: clean` (then `fullscreen`) has no bar, and it is the default.** An app released before the default
-changed shows the bar when the manifest says nothing. No bridge version marks the change and the
-handshake does not report it, so a page cannot tell which default its app has: one that needs the bar,
-or needs none, says so in its manifest rather than relying on the default. The shell draws a floating close control
-over the page's top-right corner instead of the bar, always, so a page cannot leave the user without a way out; a page
-SHOULD keep that corner clear. The padding stays: a `clean` page still cannot draw behind the
-status bar or the home indicator.
+**`display: clean` has no bar, and it is the default.** An app released before the default changed
+shows the bar when the manifest says nothing. No bridge version marks the change and the handshake
+does not report it, so a page cannot tell which default its app has: one that needs the bar, or needs
+none, says so in its manifest rather than relying on the default. The shell draws a floating close
+control over the page's top-right corner instead of the bar, always, so a page cannot leave the user
+without a way out; a page SHOULD keep that corner clear. The padding stays: a `clean` page still
+cannot draw behind the status bar or the home indicator.
 
-**(2.29.0) `display: immersive` is `clean` without the padding.** The view spans the whole screen
-and the page draws under the status bar, the home indicator and, in landscape, the notch; the padding
-and its theme colour are gone. The system bars themselves stay visible. The floating close control
-stays where `clean` puts it, below the
-status bar and clear of the notch. The page then owns the safe area:
+**`display: immersive` is `clean` without the padding.** The view spans the whole screen and the page
+draws under the status bar, the home indicator and, in landscape, the notch; the padding and its theme
+colour are gone. The system bars themselves stay visible. The floating close control stays where
+`clean` puts it, below the status bar and clear of the notch. The page then owns the safe area:
 
 - **The shell tells the page how far each system bar reaches**, as `--chatic-safe-area-inset-top`,
   `--chatic-safe-area-inset-right`, `--chatic-safe-area-inset-bottom` and `--chatic-safe-area-inset-left`
   on `<html>`, in `px`. They are set before the page's scripts where the document has a root element by
-  then (or as soon as it has one, on Android), again when the load ends, and again whenever the insets change (a rotation). Only an
-  `immersive` view gets them.
+  then (or as soon as it has one, on Android), again when the load ends, and again whenever the insets
+  change (a rotation). Only an `immersive` view gets them.
 - **The page MUST set `viewport-fit=cover` in its viewport meta.** Without it WebKit keeps the layout
   out of a landscape notch by itself, so a page that also pads by the shell's properties pads that
   side twice, and `env()` reads 0.
@@ -813,32 +864,32 @@ status bar and clear of the notch. The page then owns the safe area:
   whose manifest it cannot read a display from.
 - The status bar's icons keep the app's theme; a page cannot change them.
 
-**(2.16.0) The manifest's `orientation` holds the view** `portrait` or `landscape`, or lets it follow
-the device (`any`). It applies to the view only; the app underneath returns to its own when the
-view closes.
+**The manifest's `orientation` holds the view** `portrait` or `landscape`, or lets it follow the
+device (`any`). It applies to the view only; the app underneath returns to its own when the view
+closes.
 
 ## Security invariants
 
 These hold in every version; a change that breaks one is not a protocol change but a different
-feature, and needs its own decision — as the runtime reads did, which changed the one about the user
-(2.26.0).
+feature, and needs its own decision — as the runtime reads did, which changed the one about the user.
 
 - **The host answers only the opened origin.** A message from another origin, a frame on one, or a
   page the view navigated to gets no reply.
 - **Nothing the page receives identifies the device or the install**: not the device id, not a value
   that maps to it one to one (a plain hash of it included). **Nor the DoU user, unless the user allowed
-  it (2.26.0):** a page with a runtime permission, once the user said yes, gets the cloud's data as the
-  app holds it — ids in that cloud, names, profiles, messages, members, whatever fields their rows
-  carry, and with `cloud` the relay's view of the cloud, which for a cloud the user owns includes its
-  linked account, subscription and server details (see [Runtime reads](#runtime-reads-2260)) — and never
-  a token, a guest id or the device id. **(2.27.0)** With `chatSend` and the user's yes, a page also
-  posts plain text in the user's name to the rooms of the place the user is on — the one change to the
-  app's data a page can make, and other members cannot tell it from a typed message. The device
-  id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one
-  identifier a page gets, the user key, is an HMAC over the page's origin keyed by the device id:
-  one-way, different on every origin, and only for a page whose manifest declares `userKey`.
-- **(2.18.0) A page's storage is its origin's alone.** The shell picks the store from the opened
-  origin; nothing a page sends names one.
+  it:** a page with a runtime permission, once the user said yes, gets the cloud's data as the app
+  holds it — ids in that cloud, names, profiles, messages, members, whatever fields their rows carry,
+  and with `cloud` the relay's view of the cloud, which for a cloud the user owns includes its linked
+  account, subscription and server details (see
+  [What each permission hands over](#what-each-permission-hands-over)) — and never a token, a guest id
+  or the device id. With `chatSend` and the user's yes, a page also posts plain text in the user's
+  name to the rooms of the place the user is on — the one change to the app's data a page can make,
+  and other members cannot tell it from a typed message. The device id is treated as a credential, not
+  only as an identifier: DoU's own sign-in relies on it. The one identifier a page gets, the user key,
+  is an HMAC over the page's origin keyed by the device id: one-way, different on every origin, and
+  only for a page whose manifest declares `userKey`.
+- **A page's storage is its origin's alone.** The shell picks the store from the opened origin;
+  nothing a page sends names one.
 - **The page cannot reach the opener** except through `params` in and `result` out, and cannot drive
   the app's routing: the app's own links are dropped or refused.
 - **Every request is answered by a handler written for the sub WebView**, never one borrowed from the
@@ -858,6 +909,14 @@ Within a `protocolVersion`:
 A breaking change raises `protocolVersion`. The shell then serves the new major; whether it also
 keeps the old one for a while is decided with that change.
 
+**The runtime requests carry a second contract inside the first**: the runtime's, whose version the
+hello negotiates as `contract`. The methods `allowed` names, their arguments and the rows they answer
+belong to it. A method or a row field MAY be added; one removed, renamed or given another meaning
+moves to a new runtime contract, and the runtime keeps answering the older ones it lists; a page that
+speaks none of them gets `RUNTIME_CONTRACT_MISMATCH`. That covers what the runtime shapes: a field the
+server stops filling is simply absent, which is why a page decides from `allowed` and from the fields a
+row actually has.
+
 ## What this protocol does not provide
 
 | Not provided                                                | Instead                                                                |
@@ -865,7 +924,7 @@ keeps the old one for a while is decided with that change.
 | Notice before a `page`, `host` or `system` close            | Save as you go; `visibilitychange`                                     |
 | A background or foreground push                             | `visibilitychange`                                                     |
 | Safe-area insets on `titled` and `clean`                    | Not needed: the viewport is inside the safe area                       |
-| A colour for the safe-area padding                          | **(2.29.0)** `immersive`, which has no padding to colour               |
+| A colour for the safe-area padding                          | `immersive`, which has no padding to colour                            |
 | The status bar's icon colour                                | Not provided: it follows the app's theme                               |
 | Talking to the opener while open                            | `params` and `result`                                                  |
 | Data that follows the user to another device                | The page's own server, keyed by `GetSubWebViewUserKey`                 |
@@ -882,26 +941,44 @@ tests, but have not been watched on a device:
   (Android's is measured: the main web's client depends on it);
 - that `env(safe-area-inset-*)` reads 0 in the padded view, in portrait and in landscape, on both
   platforms;
-- **(2.29.0)** that in an `immersive` view `env(safe-area-inset-*)` reads the bars' reach on iOS (with
+- that in an `immersive` view `env(safe-area-inset-*)` reads the bars' reach on iOS (with
   `viewport-fit=cover`) and on Android (WebView M136 and later), that the `--chatic-safe-area-inset-*`
   properties are in place before the page's first paint on Android, where the first injection can
   trail the page, that they follow a rotation, and that a focused input near the bottom stays above the
   keyboard in the unpadded view on Android;
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
   Android, which runs edge to edge;
-- **(2.17.0)** that iOS and Android hand an `/apps/…` link to the app (the association file and the
-  intent filter), and that a cold-start link opens the page once the web is up;
-- **(2.19.0)** that the landing page's custom-scheme launch opens the page in the app, from Safari,
-  Chrome and a messenger's in-app browser, and offers the store where the app is missing;
-- **(2.18.0)** that a page's storage survives an app update and a relaunch, and is gone after an
-  uninstall, on both platforms;
-- **(2.20.0)** that iOS plays a `<video playsinline>` camera preview in the page, that WebKit shows no
-  second prompt after the OS's (`grantIfSameHostElseDeny`), and that `RequestSubWebViewPermission`
-  answers `granted`, `prompt` and `blocked` as described on both platforms, after a refusal and after
-  "don't ask again";
-- **(2.26.0)** that a reviewed page reads the runtime on a launch the app's runtime holds, on both
-  platforms: the consent alert, a call, a stream's events, and a stream ended by a cloud change under
-  the view (a deep link);
-- **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
-  react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
-  feel distinct on a device.
+- that iOS and Android hand an `/apps/…` link to the app (the association file and the intent filter),
+  and that a cold-start link opens the page once the web is up;
+- that the landing page's custom-scheme launch opens the page in the app, from Safari, Chrome and a
+  messenger's in-app browser, and offers the store where the app is missing;
+- that a page's storage survives an app update and a relaunch, and is gone after an uninstall, on both
+  platforms;
+- that iOS plays a `<video playsinline>` camera preview in the page, that WebKit shows no second prompt
+  after the OS's (`grantIfSameHostElseDeny`), and that `RequestSubWebViewPermission` answers `granted`,
+  `prompt` and `blocked` as described on both platforms, after a refusal and after "don't ask again";
+- that a reviewed page reads the runtime on a launch the app's runtime holds, on both platforms: the
+  consent alert, a call, a stream's events, and a stream ended by a cloud change under the view (a
+  deep link);
+- that a manifest's `orientation` holds a full-screen modal on both platforms (it is
+  react-native-screens' screen option, set once the manifest is in), and that the outcome haptics feel
+  distinct on a device.
+
+## Version history
+
+What each bridge version brought to this protocol. An app built before a version lacks what it brought:
+a page learns that from `supportedWebMessages` for a request and from a field's absence for a field;
+for the rest, the section that describes it says how a page copes.
+
+| `BRIDGE_VERSION` | What arrived                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2.15.0           | The context in the handshake reply (`subWebView`); the 64 KiB message limit and `TOO_LARGE`; `SetCanGoBack` and `OnBackPressed`; the close guard (`SetSubWebViewCloseGuard`, `OnSubWebViewCloseRequested`); the viewport padded on every edge — before, on top and bottom only, so in landscape a notch could cover a side; the error codes as `SubWebViewPageErrorCode` |
+| 2.16.0           | The manifest — `name`, `display`, `orientation`, and `permissions` `clipboard`, `share`, `openUrl`, `userKey`, with `NOT_FOUND` for a request not declared; `ReportSubWebViewError`; `TriggerHaptic`'s `success`, `warning` and `error`; the bar-less display, then named `fullscreen` (it became the phone's default later, with no version of its own)                 |
+| 2.17.0           | `appLink` and links to a page                                                                                                                                                                                                                                                                                                                                            |
+| 2.18.0           | The five storage requests, the storage limits, `QUOTA_EXCEEDED`, `UNAVAILABLE` from storage, and the invariant that a page's storage is its origin's alone                                                                                                                                                                                                               |
+| 2.19.0           | A link is an app id and a query; `OpenSubWebView`'s `appId`                                                                                                                                                                                                                                                                                                              |
+| 2.20.0           | The three device requests, `SETTINGS_ERROR`, and `UNAVAILABLE` from them                                                                                                                                                                                                                                                                                                 |
+| 2.22.0           | The desktop shell and `platform: 'desktop'`; the three trust tiers and `subWebViewOpenScope: 'anyHttps'`, with no manifest read for an `external` site; launch params; a navigation to another origin handed to the OS browser                                                                                                                                           |
+| 2.26.0           | Runtime reads: the permissions `session`, `cloud`, `place`, `channel`, `chat`, `user`; the four runtime requests and their two pushes; `RUNTIME_NOT_ALLOWED`, `CLOUD_CHANGED`, `CONSENT_REFUSED`, `RATE_LIMITED`; the stream and server-read limits; the security invariant about the user amended                                                                       |
+| 2.27.0           | `chatSend` and `chat.sendChat`; the send limit and the message length limits; `RUNTIME_NOT_ALLOWED` and `RATE_LIMITED` extended to a message; consent kept per place with `chatSend`; the security invariant about the user amended again                                                                                                                                |
+| 2.29.0           | The displays renamed `titled` and `clean` (`standard` and `fullscreen` still read); `immersive` and the `--chatic-safe-area-inset-*` properties; the desktop showing `immersive` as `clean`                                                                                                                                                                              |
