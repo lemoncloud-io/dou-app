@@ -7,8 +7,8 @@ one of the cloud the target belongs to), **how long a target lives** (ref counti
 window), and **what a plan does with a frame** (write it into its own cloud's partition).
 
 A screen never touches any of that. It mounts a hook — `runtime.sync.useChatSync` and its two
-siblings, which live in `@chatic/app-runtime` ([its sync doc](../app-runtime/docs/sync/README.md)).
-This package was cut out of app-runtime as the layer above `@chatic/transport` (ADR-0253).
+siblings, which live in `@chatic/runtime` ([its sync doc](../runtime/docs/sync/README.md)).
+This package was cut out of @chatic/runtime as the layer above `@chatic/transport` (ADR-0253).
 
 Beside it, `BackgroundReceiver` keeps the clouds the user is **not** looking at current — their room
 lists, last messages and read positions — with one delta a minute each. That is a different job from
@@ -16,12 +16,12 @@ a target's, and it is described under [Background receive](#background-receive).
 
 ## Who imports it
 
-`@chatic/app-runtime`, whose `sync` facade group and registration hooks are built on it. **Apps do
+`@chatic/runtime`, whose `sync` facade group and registration hooks are built on it. **Apps do
 not**: they register through `runtime.sync`. The barrel sells the refusal writers
 (`recordRefusedChannel`, `clearRefusedChannel`) and the manager itself, which an app must not reach
 around the hooks; the root eslint config closes the package to apps and every other lib.
 
-Production code imports the barrel only. A test in app-runtime may name a file —
+Production code imports the barrel only. A test in @chatic/runtime may name a file —
 `jest.mock('@chatic/sync/runtime', …)` — because a mock has to replace the file every importer
 reaches, this package's own modules included. This package reads `@chatic/session` and
 `@chatic/transport` the same way.
@@ -46,7 +46,7 @@ libs/sync/src/                        12 source files, 9 tests
 
 `perSlotSync.test.ts` drives the real manager and the real plans over faked slots and a faked data
 runtime; it is the one test that shows a target staying with its cloud end to end.
-app-runtime's `socket/sync/backgroundReceiveScenario.test.ts` does the same for background
+@chatic/runtime's `socket/sync/backgroundReceiveScenario.test.ts` does the same for background
 receive, with the real socket manager and the real data manager on IndexedDB — it stays there because
 the data manager does: a burst of pushes on a cloud off screen becomes one
 delta written into that cloud's partition, entering it continues from the cursor the loop left, and
@@ -55,7 +55,7 @@ a delta asked for by name is announced once the rows an unread count reads are i
 `runtime.ts` is a separate file from the transport's `socket/runtime.ts` for one reason: an edge
 from the socket manager to sync closed a cycle that ran back through the data layer. Sync now sits in
 a package above the transport, so the package graph refuses that edge, and
-[`importCycleAbsence.test.ts`](../app-runtime/src/importCycleAbsence.test.ts) walks this package for
+[`importCycleAbsence.test.ts`](../runtime/src/importCycleAbsence.test.ts) walks this package for
 cycles inside it.
 
 ## Responsibilities
@@ -128,9 +128,9 @@ is a request or two.
 `cacheWrite`, `cacheWriteMany`, `cacheDelete` — of the **slot's own cloud's scoped graph**
 (`syncDataGraph.get().getScopedRepositories(cid)`), under that graph's context: that cloud, and the uid
 this account has there. Not the selected cloud's graph: a frame from a slot is data of that slot's
-cloud whatever the screen is showing. The graph is assembled in app-runtime's `data/`, a package above
+cloud whatever the screen is showing. The graph is assembled in @chatic/runtime's `data/`, a package above
 this one, so `createRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
-sync importing `data/runtime` ([Layers](../app-runtime/README.md#layers)). See
+sync importing `data/runtime` ([Layers](../runtime/README.md#layers)). See
 [runtime-core docs/data/](../runtime-core/docs/data/README.md#scoped-repository-graphs) for what a scoped
 graph is.
 
@@ -167,7 +167,7 @@ written into cannot disagree. What keeps that true is the graph itself: `DataMan
 that a scoped graph is never the app graph and that its context names its own cloud.
 
 The slot's cloud arrives as `createSyncPlans`'s argument rather than an import — `plans.ts` reading
-app-runtime's old `socket/runtime` is what closed the cycle this module was split to cut.
+@chatic/runtime's old `socket/runtime` is what closed the cycle this module was split to cut.
 
 ### `updateLocalSnapshot` is the bridge, and it is domain-agnostic
 
@@ -321,7 +321,7 @@ is, a minute is the latency to plan for.
 
 ### Registering outside React
 
-The screens register through the hooks in app-runtime, and an app registers outside them through
+The screens register through the hooks in @chatic/runtime, and an app registers outside them through
 `runtime.sync.registerSyncTarget`, which goes through the engine to the manager's `register`. Inside the
 runtime, `getSyncManager().register*` registers and returns the dispose:
 
@@ -401,7 +401,7 @@ that finished before it began; it sends its own.
 ## Further reading
 
 - [docs/plans/](./docs/plans/README.md) — what the SDK scheduler underneath does, and the behaviours only its source shows
-- [app-runtime docs/sync/](../app-runtime/docs/sync/README.md) — the registration hooks and chat prime a screen mounts
+- [@chatic/runtime docs/sync/](../runtime/docs/sync/README.md) — the registration hooks and chat prime a screen mounts
 - [transport docs/socket/](../transport/docs/socket/README.md) — `subscribeSlotClients` and slot keys
 - [runtime-core docs/data/](../runtime-core/docs/data/README.md) — the scoped repository graph every plan writes through
 - [`libs/data`](../data/README.md) — the repositories every plan callback writes through

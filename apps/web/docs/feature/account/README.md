@@ -49,7 +49,7 @@ from screen to `mode`/`step`.
 **Out**
 
 - The mutations themselves (`useVerifyAlias`, `useFindAlias`, `useSessionIdentity`) —
-  [`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md).
+  [`libs/runtime`](../../../../../libs/runtime/docs/session/README.md).
 - The wire contract (`POST /oauth/verify-alias`, `POST /oauth/find-alias`) — `libs/http`.
 - Login, logout and the OAuth callback — [auth](../auth/README.md).
 - Linking a phone number or a social account to an existing user — [auth](../auth/README.md) owns

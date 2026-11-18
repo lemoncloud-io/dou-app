@@ -39,9 +39,9 @@ export default [
                                 '@chatic/sync/*',
                                 '@chatic/auth',
                                 '@chatic/auth/*',
-                                '@chatic/app-runtime',
+                                '@chatic/runtime',
                             ],
-                            message: 'This package sits below sync, auth and app-runtime — it may not import them.',
+                            message: 'This package sits below sync, auth and @chatic/runtime — it may not import them.',
                         },
                         {
                             group: ['@chatic/transport', '@chatic/transport/*'],
@@ -71,9 +71,9 @@ export default [
                                 '@chatic/sync/*',
                                 '@chatic/auth',
                                 '@chatic/auth/*',
-                                '@chatic/app-runtime',
+                                '@chatic/runtime',
                             ],
-                            message: 'This package sits below sync, auth and app-runtime — it may not import them.',
+                            message: 'This package sits below sync, auth and @chatic/runtime — it may not import them.',
                         },
                         {
                             group: ['@chatic/transport', '@chatic/transport/*'],

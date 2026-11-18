@@ -5,7 +5,7 @@ import type { HttpRoute } from '@chatic/http';
  *
  * **Why a registry instead of a plain import.** The two implementations live downstream of `http/`:
  * relay recovers through `@chatic/auth`'s `socket/requestRelaySessionRefresh`, cloud through its
- * `socket/renewCloudSession` → `session/cloudTokens` → app-runtime's `data/runtime` → `DataManager` →
+ * `socket/renewCloudSession` → `session/cloudTokens` → @chatic/runtime's `data/runtime` → `DataManager` →
  * `data/factories/httpFactory` → `http/gateways` → back to `http/factory`. Importing either one from
  * the http composition root closes that ring. This module imports nothing at runtime (the single
  * import above is a type, erased at compile time), so both sides reach it without meeting.

@@ -16,7 +16,7 @@ It is spread over two folders of this package and one of runtime-core, and the s
 dependency direction rather than subject: `socket/` holds the wiring and the policy (20 source files,
 18 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
 and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
-starts through app-runtime's hooks
+starts through @chatic/runtime's hooks
 ([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
 in `socket/` because `socket → session` is an existing edge and the reverse is not; putting them under
 `session/` would close a cycle.
@@ -32,8 +32,8 @@ in `socket/` because `socket → session` is an existing edge and the reverse is
 | The signature formula, and the backend refresh endpoint                              | `src/signing/` and the server. The SDK forwards both without reading them |
 
 **Nothing in this package calls a refresh endpoint and nothing builds an `auth.update` packet.**
-[`refreshAbsence.test.ts`](../../../app-runtime/src/refreshAbsence.test.ts) and
-[`authUpdateAbsence.test.ts`](../../../app-runtime/src/authUpdateAbsence.test.ts) walk app-runtime's source and
+[`refreshAbsence.test.ts`](../../../runtime/src/refreshAbsence.test.ts) and
+[`authUpdateAbsence.test.ts`](../../../runtime/src/authUpdateAbsence.test.ts) walk @chatic/runtime's source and
 every package cut from it, this one included,
 strip comments, and fail on the string. Absence checks, not lint rules: a path-based rule was tried
 first and died silently the moment the symbols moved, letting a violating file pass.
@@ -83,7 +83,7 @@ export const SDK_REFRESH_CYCLE_MS = AUTH_OPTIONS.refreshIntervalMs;
 — `deriveAuthStatus`, the relay staleness guard and the cloud credential guard. They all rest on one
 piece of reasoning: **a healthy socket re-mints its credential every cycle, so a credential with less
 than a cycle left proves its socket is not keeping up.** `constants.ts` (in `@chatic/transport`) holds
-the cadence, so app-runtime's credential guards in `session/hooks/app/**` read the same number.
+the cadence, so @chatic/runtime's credential guards in `session/hooks/app/**` read the same number.
 
 ## The status truth table
 

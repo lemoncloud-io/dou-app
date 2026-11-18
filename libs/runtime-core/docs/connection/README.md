@@ -8,7 +8,7 @@ its slots, the active facade and their contract are `@chatic/transport`'s:
 [its socket doc](../../../transport/docs/socket/README.md).
 
 The React side is a host that starts and stops the controller, and hooks that read the sockets
-through the engine's `connection` (below): [app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md).
+through the engine's `connection` (below): [@chatic/runtime docs/connection/](../../../runtime/docs/connection/README.md).
 
 ## Layout
 
@@ -39,7 +39,7 @@ const stopBackground = controller.startBackground(); // from the moment the host
 const stopSockets = controller.startSockets(); // once the session is initialised
 ```
 
-`@chatic/app-runtime`'s host is the one caller on the web; it is in runtime-core so that the native
+`@chatic/runtime`'s host is the one caller on the web; it is in runtime-core so that the native
 process, which renders nothing, can run the same connections. The controller has two halves, each
 returning its own stop, because they start at different moments:
 
@@ -226,7 +226,7 @@ only records what it saw. Each pass runs the binder first and the re-auth second
 
 ### The sockets as screens read them
 
-`engine.connection` (`RuntimeConnection`) is everything the React surface asks of the sockets; app-runtime
+`engine.connection` (`RuntimeConnection`) is everything the React surface asks of the sockets; @chatic/runtime
 reaches the socket manager no other way. Its snapshot is plain data — `active`, the active slot's socket
 state, `verifiedSlots`, every bound slot that is verified, in slot order, and `online`, the transport's
 network signal — and keeps the same objects
@@ -263,7 +263,7 @@ registration that stands until it is dropped, the cache's baseline, and the targ
 
 ## Further reading
 
-- [app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md) — the host that starts and stops this controller, and the hooks that read connection state
+- [@chatic/runtime docs/connection/](../../../runtime/docs/connection/README.md) — the host that starts and stops this controller, and the hooks that read connection state
 - [`@chatic/transport` socket doc](../../../transport/docs/socket/README.md) — the manager these binders drive, slot keys, the active pointer, state and failure reporting
 - [auth docs/socket/](../../../auth/docs/socket/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
 - [libs/sync](../../../sync/README.md) — the per-slot runtimes, and the background receive loop

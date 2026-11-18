@@ -8,7 +8,7 @@
 > place the caller names) · [ADR-0166](./0166-place-invite-is-a-lab-experiment-off-until-a-device-turns-it-on.md)
 > (the place invite stays a Lab experiment; this removes the reason it gave, not the switch)
 > · Scope: `libs/data` (`UserSocketDataSource.fetchPlaceUsers`, `UserRepository.listPlaceMembers`,
-> `ProfileRepository.syncProfilesOf`, `toDomainPlaceMember`) · `libs/app-runtime` socket factory ·
+> `ProfileRepository.syncProfilesOf`, `toDomainPlaceMember`) · `libs/runtime` socket factory ·
 > `apps/desktop-web` and `apps/web` `useInviteCandidates`, `AddMembersDialog`, `PlaceInviteTab`
 > · The module docs are [libs/data repositories/domains.md](../../libs/data/docs/repositories/domains.md),
 > [apps/web channels/invite.md](../../apps/web/docs/feature/channels/invite.md) and

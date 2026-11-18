@@ -2,9 +2,9 @@
 
 // 'blurLastMessage' added: web-only preference that also needs native persistence
 // so it survives webview cache clears on mobile.
-// 'pushRegistration' is not a user setting — it is app-runtime's "this device already registered its
+// 'pushRegistration' is not a user setting — it is @chatic/runtime's "this device already registered its
 // push token" record (ADR-0077), mirrored natively for the same reason: a webview cache clear would
-// otherwise drop it and re-trigger a registration. Owned by libs/app-runtime, not the preference
+// otherwise drop it and re-trigger a registration. Owned by libs/runtime, not the preference
 // store. Writing it requires the mobile allowlist (usePreferenceCacheHandler.ts), which carries it in
 // every phone shell the web still runs in (app 0.30.0 and later); a shell without native preference
 // storage (the desktop shell) refuses it, and the web keeps its localStorage copy.

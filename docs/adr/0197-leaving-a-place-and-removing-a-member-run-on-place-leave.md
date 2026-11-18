@@ -12,7 +12,7 @@
 > [ADR-0185](./0185-desktop-place-management-is-limited-to-admins.md) (desktop's admin menu, left as it is)
 > · Scope: `libs/data` (`PlaceSocketDomainGateway`, `PlaceSocketDataSource.leavePlace` / `getPlace`,
 > `PlaceRepository.leavePlace` / `removeMember` / `isPlaceDeleted` and its list snapshot,
-> `ChannelRepository.evictLeftChannels` / `dropMemberFromChannels`) · `libs/app-runtime` socket factory and `session.clearSiteSelection` ·
+> `ChannelRepository.evictLeftChannels` / `dropMemberFromChannels`) · `libs/runtime` socket factory and `session.clearSiteSelection` ·
 > `apps/web` `features/place`, `features/home`
 > · The module docs are [libs/data repositories/domains.md](../../libs/data/docs/repositories/domains.md),
 > [libs/data remote/socket.md](../../libs/data/docs/remote/socket.md),

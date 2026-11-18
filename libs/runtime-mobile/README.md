@@ -234,7 +234,7 @@ has to build the string itself.
 
 ## Rules
 
-- Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/app-runtime` (the React
+- Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. The app's runtime modules do (`apps/mobile`'s

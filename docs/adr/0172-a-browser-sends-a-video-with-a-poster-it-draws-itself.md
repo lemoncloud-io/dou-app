@@ -1,13 +1,13 @@
 # ADR-0172: A browser sends a video with a poster it draws itself, and a phone draws the frame of one that came without
 
 > Status: Accepted · Decided: 2026-10-06 · Implemented: `feat/video-poster-and-grid-videos`
-> · Scope: `libs/shared/src/image/videoPoster.ts` · `libs/app-runtime/src/data/hooks/useSendImages.ts`
+> · Scope: `libs/shared/src/image/videoPoster.ts` · `libs/runtime/src/data/hooks/useSendImages.ts`
 > (`prepareAttachment`) · `apps/web/src/app/features/channels/` (`lib/videoFrames.ts`, `hooks/useVideoFrames.ts`,
 > `lib/imageCache.ts`, `MessageImages`) · `libs/web-ui-kit` `MessageMediaTiles` (`frameUrl`) ·
 > `libs/app-messages` `ReadVideoFrame` · the iOS and Android `AttachmentPicker` modules
 > · Replaces the "no thumbnail" part of [ADR-0148](./0148-desktop-sends-videos-and-documents-as-they-are.md)
 > for videos; its documents are unchanged.
-> · The module docs are [libs/app-runtime image-send.md](../../libs/app-runtime/docs/data/image-send.md),
+> · The module docs are [libs/runtime image-send.md](../../libs/runtime/docs/data/image-send.md),
 > [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md),
 > [apps/desktop-web chat/images.md](../../apps/desktop-web/docs/chat/images.md) and
 > [apps/mobile native/attachment-picker.md](../../apps/mobile/docs/native/attachment-picker.md)

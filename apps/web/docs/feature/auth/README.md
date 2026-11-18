@@ -6,7 +6,7 @@ the phone-verification machine, the two shells that present it, and the hook eve
 to send a user to login.
 
 Session state, tokens, signing and refresh are not here. They belong to
-[`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md), and this feature reaches
+[`libs/runtime`](../../../../../libs/runtime/docs/session/README.md), and this feature reaches
 them through the `runtime.session.*` facade.
 
 ## Purpose
@@ -55,7 +55,7 @@ machine and its shells, the account-split banner, and the login entry hook.
 **Out**
 
 - Session state, token refresh, signing, socket authentication —
-  [`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md).
+  [`libs/runtime`](../../../../../libs/runtime/docs/session/README.md).
 - Email sign-up and password reset — [account](../account/README.md).
 - The relay invite flows, deeplink parsing and cloud entry — [invite](../invite/README.md).
 - The login **screen** — it lives in [mypage](../mypage/README.md); this feature owns how users get

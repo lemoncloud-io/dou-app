@@ -12,6 +12,11 @@
             "import": "./src/index.ts",
             "default": "./src/index.ts"
         },
+        "./host": {
+            "types": "./src/hostCapabilities/index.ts",
+            "import": "./src/hostCapabilities/index.ts",
+            "default": "./src/hostCapabilities/index.ts"
+        },
         "./package.json": "./package.json"
     },
     "nx": {

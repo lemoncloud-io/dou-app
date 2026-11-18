@@ -14,7 +14,7 @@
   (`apps/web/src/app/features/debug/overlay/debugMenu.ts:25-46`). An ordinary user getting in leads
   straight to data damage and support tickets.
 - **The repository has no logic that identifies an administrator or operator.** `userRole` exists but is
-  used only to test for `'guest'` (`libs/app-runtime/src/runtime/useRuntimeProfile.ts:51`). Gating on
+  used only to test for `'guest'` (`libs/runtime/src/runtime/useRuntimeProfile.ts:51`). Gating on
   server-side permissions would need new backend design.
 - There are three debug mode entry points in the repo.
 

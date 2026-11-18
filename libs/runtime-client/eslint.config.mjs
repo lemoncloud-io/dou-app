@@ -3,7 +3,7 @@ import baseConfig, { noBridgesImport } from '../../eslint.config.mjs';
 export default [
     ...baseConfig,
     // No `@chatic/bridges` in this package — the root config holds the pattern and says why. What the
-    // page's host profile answers is handed in by app-runtime.
+    // page's host profile answers is handed in by @chatic/runtime.
     noBridgesImport,
     // ---------------------------------------------------------------------------------------------
     // The core packages' barrels are open to this package: it is the side of the React surface that

@@ -39,7 +39,7 @@ describe('getHttpManager — 인스턴스', () => {
     });
 });
 
-// This binding is why `http/` can be a leaf inside app-runtime. This is the one file that knows about
+// This binding is why `http/` can be a leaf inside @chatic/runtime. This is the one file that knows about
 // the session.
 describe('자격증명 신선도 포트 — 어떤 route를 물어도 relay로 답한다', () => {
     // relay is the only signing route, and oauth/iap have no credential of their own so they sign

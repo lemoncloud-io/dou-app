@@ -11,7 +11,7 @@
 ## Context
 
 The web app's and the mobile app's automated tests are Jest unit tests in jsdom: about 380 spec files
-in `apps/web`, 75 in `apps/mobile`, 105 in `libs/app-runtime`, all beside their source. None of them runs the web app the
+in `apps/web`, 75 in `apps/mobile`, 105 in `libs/runtime`, all beside their source. None of them runs the web app the
 way the mobile app runs it. Inside the app the web is in its native mode: `window.ReactNativeWebView`
 is present, its cache lives in the shell's SQLite behind bridge messages, its pickers are the shell's,
 and its boot waits on a handshake. A unit test of any one piece mocks the bridge on the other side.

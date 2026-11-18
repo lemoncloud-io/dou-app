@@ -1,8 +1,8 @@
 # ADR-0125: A cloud off screen keeps its lists current with one delta a minute
 
 > Status: Accepted · Decided: 2026-09-29 · Implemented: `feat/background-cloud-receive`
-> · Scope: `libs/app-runtime/src/socket/sync/BackgroundReceiver.ts` · `libs/app-runtime/src/socket/sync/runtime.ts` ·
-> `libs/app-runtime/src/connection/hooks/useBackgroundReceive.ts` · `libs/data/src/repositories/SyncMetaRepository.ts` ·
+> · Scope: `libs/runtime/src/socket/sync/BackgroundReceiver.ts` · `libs/runtime/src/socket/sync/runtime.ts` ·
+> `libs/runtime/src/connection/hooks/useBackgroundReceive.ts` · `libs/data/src/repositories/SyncMetaRepository.ts` ·
 > apps/web `useSocketWakeRecovery`
 > · Builds on: [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository graphs) ·
 > [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) (every joined cloud keeps a socket session)

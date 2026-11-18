@@ -23,7 +23,7 @@ central backend behind the relay, whichever cloud happens to be connected.
 `AuthSocketDomainGateway` is `Pick<AuthGateway, 'linkAccount'>` — one member. **`auth.update` is
 deliberately not in it.** That packet is the socket handshake and belongs to the SDK's
 `AuthController` alone; a second sender would authenticate a session the controller cannot account
-for, because every input to its state machine is keyed to packets it sent itself. `libs/app-runtime`
+for, because every input to its state machine is keyed to packets it sent itself. `libs/runtime`
 enforces the absence with a test that walks its own source and fails on the string —
 see [`libs/auth`](../../../../../libs/auth/docs/socket/README.md).
 
@@ -183,7 +183,7 @@ ordering. `useLinkAccount().confirm` is the `link` proof's.
 
 ```bash
 npx jest --config libs/data/jest.config.js --runInBand --watchman=false --testPathPatterns "Auth"
-npx jest --config libs/app-runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "socketFactory"
+npx jest --config libs/runtime/jest.config.js --runInBand --watchman=false --testPathPatterns "socketFactory"
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false --testPathPatterns "PhoneVerify|useSocialLinks|ContactInvitePage"
 npx tsc -b apps/web/tsconfig.app.json
 ```

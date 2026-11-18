@@ -1,7 +1,7 @@
 # ADR-0275: A browser tab keeps its invited clouds in session storage
 
 > Status: Accepted · Decided: 2026-11-03 · Implemented: `fix/invite-cloud-session-storage`
-> · Scope: `libs/db` (`WebStorageAdapter`), `libs/app-runtime` (`resolveCacheBackend`, `localFactory`,
+> · Scope: `libs/db` (`WebStorageAdapter`), `libs/runtime` (`resolveCacheBackend`, `localFactory`,
 > `InvitedCloudImportStorage`)
 > · Related: [ADR-0053](./0053-per-domain-cache-contract-versions.md) (invited clouds are a
 > local-authority domain; a storage move needs a bridge first) ·

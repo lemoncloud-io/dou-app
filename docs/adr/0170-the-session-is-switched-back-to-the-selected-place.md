@@ -1,7 +1,7 @@
 # ADR-0170: The session is switched back to the selected place
 
 > Status: Accepted · Decided: 2026-10-06 · Implemented: `fix/place-selection-restore`
-> · Scope: libs/app-runtime `socket/auth` (`alignSessionSite`, `renewCloudSession`, `sessionDelegate`,
+> · Scope: libs/runtime `socket/auth` (`alignSessionSite`, `renewCloudSession`, `sessionDelegate`,
 > `bootstrapSocketConnection`, `switchSite`), `session/store` (`getCommittedSessionSiteId`), apps/web
 > `features/invite` (`PlaceInvitePage`)
 > · The module docs are [libs/auth docs/socket](../../libs/auth/docs/socket/README.md) and

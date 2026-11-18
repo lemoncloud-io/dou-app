@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (both apps send through `useSendImages` in `@chatic/app-runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (both apps send through `useSendImages` in `@chatic/runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -202,7 +202,7 @@ quote the request it failed on.
 - **The rows survive a reload.** The web cache never evicts unsent rows (`chatNo: 0`), and the native
   cache keeps the whole row. The files do not survive: a `File` cannot be stored. That is why the app
   sweeps the leftovers when it attaches to a channel — see
-  [the image send hook](../../../app-runtime/docs/data/image-send.md).
+  [the image send hook](../../../runtime/docs/data/image-send.md).
 - **Reaching unsent rows takes two flags.** The web store appends them when asked with
   `includeUnsent`. The native store ignores that flag but honours `sort`, and ascending order puts
   `0` first. `listPendingImageChats` asks for both.

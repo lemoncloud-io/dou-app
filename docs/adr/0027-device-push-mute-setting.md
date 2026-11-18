@@ -39,7 +39,7 @@ A library upgrade opens that path:
 **The front-end architecture constraints the survey found (the important part):**
 
 - Every gateway binds to `SocketManager`'s **active-slot facade**
-  (`libs/app-runtime/src/data/factories/socketFactory.ts:21-26` — now `socketFactory.ts`,
+  (`libs/runtime/src/data/factories/socketFactory.ts:21-26` — now `socketFactory.ts`,
   [SocketManager.ts:239](../../libs/transport/src/socket/SocketManager.ts)). `request()` always goes
   to the active slot — **the cloud slot whenever a cloud is on**.
 - So calling lib 0.4.8's `DeviceGateway.updateRemote` through the existing device gateway would go out
@@ -222,7 +222,7 @@ proved to be a standing cost, so **"the caller decides the destination" is partl
 - The same cleanup removed `ScopedSocketClient`'s unimplemented `onType` (which always threw) from the
   type surface — it comes back when a consumer exists (the extension point stays documented).
 
-Related: the design principles in `libs/app-runtime/docs/socket/kind-scoped-routing.md` were revised.
+Related: the design principles in `libs/runtime/docs/socket/kind-scoped-routing.md` were revised.
 Also, a non-shell (ordinary browser) has no push device in pushes-api, so the write 404s — the My Page
 toggle renders disabled, gated on `isSupported` (`CHATIC_APP_PLATFORM`), with a note that it can only be
 set in the app.

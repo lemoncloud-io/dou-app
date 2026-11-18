@@ -28,7 +28,7 @@ What the app does **not** own:
 
 | Concern                                               | Owner                                                             |
 | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/app-runtime/README.md)         |
+| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/runtime/README.md)             |
 | Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                       |
 | The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
 | Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                   |
@@ -81,7 +81,7 @@ resources; the app side of the native bridge; the debug overlay; boot wiring in 
 **Out** —
 
 - Session, auth, connection lifecycle, background sync, push registration, boot —
-  [`@chatic/app-runtime`](../../libs/app-runtime/README.md).
+  [`@chatic/app-runtime`](../../libs/runtime/README.md).
 - Repositories, local caches, observe streams — [`@chatic/data`](../../libs/data/README.md).
 - The native message transport and the logger facade —
   [`@chatic/bridges`](../../libs/bridges/README.md).

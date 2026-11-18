@@ -2,8 +2,8 @@
 
 Login, token exchange, cloud entry, site selection and teardown: the use cases that write the stores
 in [`@chatic/session`](../../../session/README.md). They are the only writers of those stores. What
-reads them for React — the hooks — is app-runtime's
-([its session doc](../../../app-runtime/docs/session/README.md)).
+reads them for React — the hooks — is @chatic/runtime's
+([its session doc](../../../runtime/docs/session/README.md)).
 
 ## Responsibilities
 
@@ -11,7 +11,7 @@ reads them for React — the hooks — is app-runtime's
 site selection and teardown all go through the `AuthRepository` (ADR-0036). No file here holds a
 gateway. It is not React, so it reads the repository through a synchronous accessor rather than the
 `useRuntimeRepositories` hook — `authRepositorySource.get()`, which `createRuntime()` wires. The
-graph that holds the repository is assembled in app-runtime's `data/`, a package above this one, so it
+graph that holds the repository is assembled in @chatic/runtime's `data/`, a package above this one, so it
 is handed down at boot rather than imported; unwired, `get()` throws a message naming
 `createRuntime()`.
 
@@ -34,7 +34,7 @@ Each is a class with a single exported singleton; the class itself stays private
 **No login hands a screen its token.** The app-facing logins answer with the account's fields
 (`SessionAccountView`, the token view without `Token` — `withoutToken` in
 [`accountView.ts`](../../src/session/accountView.ts)), or less: `createCredentialsByProvider` and the
-app-runtime login hooks. On the phone the session can belong to another process, and the page then
+@chatic/runtime login hooks. On the phone the session can belong to another process, and the page then
 must not hold a credential. An invite login's answer is the invitee's own cloud token, so
 `registerUserWithInviteCode` keeps it ([`inviteLogins.ts`](../../src/session/inviteLogins.ts)) and
 answers with an `InviteLogin` — a handle (with a random part, so a stale one names nothing) and the
@@ -218,7 +218,7 @@ runtime-core's `RelayCredentialGuard` reads both. They used to be asked of lemon
 bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: its callers
-(runtime-core's `loginWithInviteCode` command, app-runtime's `fetchInviteInfoWithCode`) pass positional
+(runtime-core's `loginWithInviteCode` command, @chatic/runtime's `fetchInviteInfoWithCode`) pass positional
 arguments and the repository takes an object. Keeping that translation in one place is its entire reason to exist.
 
 [`clearSiteSelection.ts`](../../src/session/clearSiteSelection.ts) empties the active cloud's place

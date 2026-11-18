@@ -12,7 +12,7 @@ noise.
 ### Current call structure
 
 The registration policy lives in
-`libs/app-runtime/src/push/hooks/useDeviceTokenRegistration.ts`, and the app (`apps/web`) only
+`libs/runtime/src/push/hooks/useDeviceTokenRegistration.ts`, and the app (`apps/web`) only
 injects the FCM token fetch and the platform value as a delegate. There are two triggers.
 
 1. **On authentication** (`isAuthenticated` → true): unconditionally once after `floor.reset()` —
@@ -45,7 +45,7 @@ So an improvement that only touches "the call on boot" has little real effect.
 
 ### The implementation is duplicated
 
-- `libs/app-runtime`'s hook — used by mobile (`apps/web`)
+- `libs/runtime`'s hook — used by mobile (`apps/web`)
 - `apps/desktop-web/src/app/shared/hooks/useDeviceTokenRegistration.ts` — its own implementation
   that doesn't use the runtime hook, and carries the same problem as-is
 
@@ -157,7 +157,7 @@ and reactivated.
 
 ### 6. Merge the two implementations into one
 
-Retire `apps/desktop-web`'s own hook and switch it to use `libs/app-runtime`'s hook. During the
+Retire `apps/desktop-web`'s own hook and switch it to use `libs/runtime`'s hook. During the
 merge, the following must be carried over.
 
 - **Add `stage` to `DeviceTokenDelegate`, and have desktop inject `window.CHATIC_APP_STAGE`.**
@@ -176,7 +176,7 @@ version key (`v1` → `v2`).
 
 **In**
 
-- The dedup/storage logic in `libs/app-runtime`'s registration hook
+- The dedup/storage logic in `libs/runtime`'s registration hook
 - Adding `stage`, `subscribeTokenChange`, `nativeRecordMirror` to `DeviceTokenDelegate`
 - Adjusting `apps/web`'s delegate + wiring the native mirror
 - Adding `pushRegistration` to `libs/app-messages`'s `PreferenceKey`, extending `apps/mobile`'s

@@ -25,16 +25,16 @@ remote/
 
 The two are deliberately symmetric. What one axis does, the other does in the same place.
 
-|                     | Socket axis                              | HTTP axis                              |
-| ------------------- | ---------------------------------------- | -------------------------------------- |
-| Gateway types       | `gateways/socket.ts`                     | `gateways/http.ts`                     |
-| Bundle              | `SocketGatewayBundle` (12 domains)       | `HttpGatewayBundle` (5 domains)        |
-| Data sources        | `socket-data-sources/` (12)              | `http-data-sources/` (5)               |
-| Factory             | `createSocketDataSources({ gateways })`  | `createHttpDataSources({ gateways })`  |
-| Composition root    | app-runtime `factories/socketFactory.ts` | app-runtime `factories/httpFactory.ts` |
-| Types come from     | `@lemoncloud/chatic-sockets-lib`         | `@chatic/http`                         |
-| Mirrors local cache | some domains do (`getCloud` and friends) | **never** — react-query owns it        |
-| Test mocks          | shared `createMockSocketGateways`        | built inline per test                  |
+|                     | Socket axis                                  | HTTP axis                                  |
+| ------------------- | -------------------------------------------- | ------------------------------------------ |
+| Gateway types       | `gateways/socket.ts`                         | `gateways/http.ts`                         |
+| Bundle              | `SocketGatewayBundle` (12 domains)           | `HttpGatewayBundle` (5 domains)            |
+| Data sources        | `socket-data-sources/` (12)                  | `http-data-sources/` (5)                   |
+| Factory             | `createSocketDataSources({ gateways })`      | `createHttpDataSources({ gateways })`      |
+| Composition root    | @chatic/runtime `factories/socketFactory.ts` | @chatic/runtime `factories/httpFactory.ts` |
+| Types come from     | `@lemoncloud/chatic-sockets-lib`             | `@chatic/http`                             |
+| Mirrors local cache | some domains do (`getCloud` and friends)     | **never** — react-query owns it            |
+| Test mocks          | shared `createMockSocketGateways`            | built inline per test                      |
 
 | Document                 | What it covers                                                                                |
 | ------------------------ | --------------------------------------------------------------------------------------------- |
@@ -140,8 +140,8 @@ made the two symmetric. The HTTP axis did not change by a single character.
 | `RemoteGatewayBundle`                               | `SocketGatewayBundle`                                         |
 | `XxxDomainGateway` (socket)                         | `XxxSocketDomainGateway`                                      |
 | `MockRemoteGateways` · `createMockRemoteGateways`   | `MockSocketGateways` · `createMockSocketGateways`             |
-| app-runtime `factories/remoteFactory.ts`            | `factories/socketFactory.ts`                                  |
-| app-runtime `createHttpDataSourceBundle`            | `createHttpDataSources`                                       |
+| @chatic/runtime `factories/remoteFactory.ts`        | `factories/socketFactory.ts`                                  |
+| @chatic/runtime `createHttpDataSourceBundle`        | `createHttpDataSources`                                       |
 | `SocketsRemoteDataSource` · bundle key `sockets`    | `ConnectionSocketDataSource` · bundle key `connection`        |
 | `SocketDomainGateway`                               | `ConnectionSocketDomainGateway`                               |
 | `gateways/index.ts` (socket types + http re-export) | `gateways/socket.ts` ‖ `gateways/http.ts` + barrel `index.ts` |
@@ -149,7 +149,7 @@ made the two symmetric. The HTTP axis did not change by a single character.
 ### 2026-09-14 — the `V2` suffix is gone
 
 V1 had been gone for a long time while the whole data layer still carried `V2`, in directory names and
-identifiers alike — and `libs/app-runtime` already used the V2-free names, so the boundary between the
+identifiers alike — and `libs/runtime` already used the V2-free names, so the boundary between the
 two forced an import alias. Removing the suffix closed that split
 (ADR-0100 decisions 4 and 5).
 
@@ -169,10 +169,10 @@ two forced an import alias. Removing the suffix closed that split
 `RegisterUserV2Body`, `useWebSocketV2`, …) was never in scope and is untouched. So is the
 `apps/admin` path.
 
-Two things moved in `libs/app-runtime` alongside it. `factories/repositoryFactory.ts` is gone — it was
+Two things moved in `libs/runtime` alongside it. `factories/repositoryFactory.ts` is gone — it was
 a 30-line shell whose only job was renaming `contextProvider` to `context`, and once both sides said
 `createRepositories` it would have collided with the thing it wrapped; `DataManager` now calls
 `@chatic/data`'s `createRepositories` directly. `factories/localFactory.ts` stays, and **so does its
 import alias** (`createLocalDataSources as createDataLocalDataSources`): ADR-0100 expected the alias to
-disappear with the suffix, but app-runtime's own `createLocalDataSources` — the one that does storage
+disappear with the suffix, but @chatic/runtime's own `createLocalDataSources` — the one that does storage
 routing — now has exactly the same name, so the collision is real regardless of `V2`.

@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/desktop-web-storage-ports` (its second commit)
 > · Scope: `libs/http` (`signing/sigV4.ts`, `transport/requestTransport.ts`, `adapters/requestExecutor.ts`),
 > `libs/transport` (`http/transport.ts`), `libs/auth` (`relaySession`, `sessionAuthAdapter`,
-> `storage/lemonLeftovers.util.ts`), `libs/app-runtime` (`boot` group), `apps/desktop-web` (auth hooks),
+> `storage/lemonLeftovers.util.ts`), `libs/runtime` (`boot` group), `apps/desktop-web` (auth hooks),
 > `apps/web` (`i18n`), root `package.json`
 > · The behaviour is documented in [libs/http](../../libs/http/README.md) and
 > [libs/transport docs/http](../../libs/transport/docs/http/README.md)

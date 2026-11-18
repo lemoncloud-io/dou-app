@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-09-23 · Implemented: `fix/data-scope-storage`
 > · Scope: `libs/data/src/local/**` · `libs/data/src/repositories/**` ·
-> `libs/app-runtime/src/data/factories/localFactory.ts` · `libs/db/README.md` (docs only)
+> `libs/runtime/src/data/factories/localFactory.ts` · `libs/db/README.md` (docs only)
 > · Lifts the limitation [ADR-0070](./0070-app-runtime-session-hub.md) decision 7 recorded —
 > `contextOverride` "not a means of changing the physical partition"
 > · Related: [ADR-0085](./0085-sid-is-a-value-not-a-cache-scope-axis.md) (the observer scope is the

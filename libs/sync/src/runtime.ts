@@ -12,10 +12,10 @@ import type { ISyncManager } from './types';
  * to the socket. Those edges closed a ring: socket runtime → `SyncManager` → `plans` → data runtime →
  * `DataManager` → `socketFactory` → socket runtime. Two things keep it open now: the socket manager
  * is `@chatic/transport`, a package below this one, and `plans` reads the graph through
- * `syncDataGraph`, which app-runtime hands down at boot. app-runtime's data layer does import this
+ * `syncDataGraph`, which @chatic/runtime hands down at boot. @chatic/runtime's data layer does import this
  * package, which is the direction the package graph allows.
  *
- * Each engine owns ONE creation point (app-runtime README, design principle 2), and this is
+ * Each engine owns ONE creation point (@chatic/runtime README, design principle 2), and this is
  * `SyncManager`'s.
  *
  * **Creation order still matters, and is no longer accidental.** A `SyncManager` attaches a device

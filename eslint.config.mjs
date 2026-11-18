@@ -168,14 +168,15 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  * - `layer:client` — `@chatic/runtime-client`, the half of the React surface that calls the core:
  *   the engine holder, the commands and reads through it, and the plain functions the hooks wrap. It
  *   sits on the core libs, runtime-core and the foundation, and no UI framework — an allow-list like
- *   runtime-core's, so what the hooks need from React, react-query or zustand stays in app-runtime.
- * - `layer:react-surface` — `@chatic/app-runtime`, what apps render against. It never imports an
+ *   runtime-core's, so what the hooks need from React, react-query or zustand stays in @chatic/runtime.
+ * - `layer:react-surface` — `@chatic/runtime`, what apps render against. It never imports an
  *   adapter: which platform fills the ports is the entry point's choice, not the surface's. Reaching
  *   the core through `layer:client` is the direction it is moving in, not a rule: some of its files
  *   still import the core libs directly, and nothing here stops them.
- * - `layer:host` — `@chatic/host`, the capability ports screens reach the host through. A port talks
- *   to the host, not to the relay or the session: the bridge and the host profile are within reach;
- *   the core libs, the runtime, its adapters, the React surface and React are not.
+ * - `layer:host` — `@chatic/host`, a transition shim: the host ports' contracts and holder moved to
+ *   `layer:client` and the reading of the shell's declaration to `layer:adapter` (runtime-web), and it
+ *   re-exports both under its old names until every import has moved. Neither the React surface nor
+ *   React is within its reach.
  * - `platform:web` — a package that only runs in a web page. It may not pull React Native in.
  * - `platform:native` — a package that only runs in React Native's JS process
  *   (`@chatic/runtime-mobile`). It may not depend on a `platform:web` package: what is true of a page
@@ -206,7 +207,7 @@ const runtimeLayerConstraints = [
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
-        // React, react-query and zustand are what app-runtime keeps; this layer is the part of the
+        // React, react-query and zustand are what @chatic/runtime keeps; this layer is the part of the
         // surface that would work unchanged under another UI library.
         sourceTag: 'layer:client',
         onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:runtime-core', 'layer:foundation'],
@@ -233,16 +234,12 @@ const runtimeLayerConstraints = [
         notDependOnLibsWithTags: ['platform:web'],
     },
     {
-        // `@chatic/host`'s ports talk to the host, not to the relay or the session: the host profile and
-        // the bridge are within reach, the data layer and the runtime are not, and neither is React.
+        // `@chatic/host` is a transition shim: it re-exports the port contracts and their holder from
+        // runtime-client and the declaration readers from runtime-web, and is deleted once every import
+        // has moved to them. So those two are within reach, and through them what they sit on; the React
+        // surface and React are not.
         sourceTag: 'layer:host',
-        notDependOnLibsWithTags: [
-            'layer:core-lib',
-            'layer:runtime-core',
-            'layer:client',
-            'layer:adapter',
-            'layer:react-surface',
-        ],
+        notDependOnLibsWithTags: ['layer:react-surface'],
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
 ];
@@ -442,12 +439,12 @@ export default [
         // layers talk.
         //
         // `@chatic/session`, `@chatic/transport`, `@chatic/sync` and `@chatic/auth` are closed to
-        // everything but the runtime modules cut from app-runtime. The session barrel sells the raw
+        // everything but the runtime modules cut from @chatic/runtime. The session barrel sells the raw
         // stores, because the use cases write them; the transport barrel sells the socket manager and
         // the HTTP gateways; the sync barrel sells the manager and the refusal writers; the auth barrel
         // sells the session writers and the renewers. An app that imported one could go around the use
         // cases built on them. Apps read all four through `runtime`. A lib config that extends this
-        // one and may import one of the packages — transport, sync, auth, app-runtime, and the two
+        // one and may import one of the packages — transport, sync, auth, @chatic/runtime, and the two
         // adapters runtime-web and runtime-mobile — sets the rule again for its own files.
         //
         // No package is exempt here, `libs/data` and `libs/session` included: each passes the whole
@@ -463,32 +460,32 @@ export default [
                         {
                             name: '@chatic/session',
                             message:
-                                'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
+                                'Read the session through `runtime.session` from @chatic/runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
                         },
                         {
                             name: '@chatic/auth',
                             message:
-                                'Use the session through `runtime.session` from @chatic/app-runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
+                                'Use the session through `runtime.session` from @chatic/runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
                         },
                         {
                             name: '@chatic/sync',
                             message:
-                                'Register sync through `runtime.sync` from @chatic/app-runtime. @chatic/sync is for the runtime modules — see libs/sync/README.md.',
+                                'Register sync through `runtime.sync` from @chatic/runtime. @chatic/sync is for the runtime modules — see libs/sync/README.md.',
                         },
                         {
                             name: '@chatic/transport',
                             message:
-                                'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
+                                'Reach sockets and HTTP through `runtime` from @chatic/runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
                         },
                         {
                             name: '@chatic/runtime-client',
                             message:
-                                'Read the runtime through `runtime` from @chatic/app-runtime. @chatic/runtime-client is the core side app-runtime is built on — see libs/runtime-client/README.md.',
+                                'Read the runtime through `runtime` from @chatic/runtime. @chatic/runtime-client is the core side @chatic/runtime is built on — see libs/runtime-client/README.md.',
                         },
                         {
                             name: '@chatic/runtime-core',
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                     patterns: [
@@ -500,32 +497,32 @@ export default [
                         {
                             group: ['@chatic/runtime-client/*'],
                             message:
-                                'Read the runtime through `runtime` from @chatic/app-runtime. @chatic/runtime-client is the core side app-runtime is built on — see libs/runtime-client/README.md.',
+                                'Read the runtime through `runtime` from @chatic/runtime. @chatic/runtime-client is the core side @chatic/runtime is built on — see libs/runtime-client/README.md.',
                         },
                         {
                             group: ['@chatic/session/*'],
                             message:
-                                'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
+                                'Read the session through `runtime.session` from @chatic/runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
                         },
                         {
                             group: ['@chatic/auth/*'],
                             message:
-                                'Use the session through `runtime.session` from @chatic/app-runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
+                                'Use the session through `runtime.session` from @chatic/runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
                         },
                         {
                             group: ['@chatic/sync/*'],
                             message:
-                                'Register sync through `runtime.sync` from @chatic/app-runtime. @chatic/sync is for the runtime modules — see libs/sync/README.md.',
+                                'Register sync through `runtime.sync` from @chatic/runtime. @chatic/sync is for the runtime modules — see libs/sync/README.md.',
                         },
                         {
                             group: ['@chatic/transport/*'],
                             message:
-                                'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
+                                'Reach sockets and HTTP through `runtime` from @chatic/runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
                         },
                         {
                             group: ['@chatic/runtime-core/*'],
                             message:
-                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web (a page) or `createNativeRuntime` from @chatic/runtime-mobile (React Native), hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                 },

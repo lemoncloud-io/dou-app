@@ -119,7 +119,7 @@ and never put sid in to begin with. **apps/web has already stopped treating sid 
 ### Ambient sid has already caused an incident on write
 
 `switchSite` **applies sid first and exchanges the token afterward** — `applySelectedSite(siteId)`, then
-exchange, rolled back on failure (`libs/app-runtime/src/socket/auth/switchSite.ts:41`·`:57`). During that
+exchange, rolled back on failure (`libs/runtime/src/socket/auth/switchSite.ts:41`·`:57`). During that
 window, ambient sid and the site the server is actually using disagree.
 
 `apps/web` already routes around that window.
@@ -151,7 +151,7 @@ The app already has sid in hand — there are 66 places that read `selectedSiteI
 ### 1. Producers stop planting sid. The field remains as an explicit-pass-through mechanism
 
 There is exactly one source of ambient sid: the line in `deriveSelectedContext` that layers the session's
-active site onto the context (`libs/app-runtime/src/session/scope/selectedContext.ts:32`). **That line is
+active site onto the context (`libs/runtime/src/session/scope/selectedContext.ts:32`). **That line is
 deleted.** Repositories that need a site take it as an argument, and attach that value directly onto the
 context they pass further down.
 

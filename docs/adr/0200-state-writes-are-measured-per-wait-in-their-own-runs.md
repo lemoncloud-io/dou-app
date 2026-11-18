@@ -1,7 +1,7 @@
 # ADR-0200: State writes are measured per wait, in their own runs
 
 > Status: Accepted · Decided: 2026-10-14 · Implemented: `feat/state-outbox-perf-trace`
-> · Scope: libs/data `outbox/` (`OutboxObserver`) · libs/app-runtime `data/factories/outboxFactory`
+> · Scope: libs/data `outbox/` (`OutboxObserver`) · libs/runtime `data/factories/outboxFactory`
 > (`setStateOutboxObserver`) · libs/perf `state_outbox` · apps/web `runtime/perf/stateOutboxTrace`
 > · Follows [ADR-0193](./0193-state-writes-go-local-first-and-through-an-outbox.md)
 > · Amends [ADR-0181](./0181-requests-and-attachment-sends-are-measured-by-type.md)'s "lower the caps
@@ -39,7 +39,7 @@ ten, collected about ten `chat.read` samples in a week — too few to compare a 
    `account_changed`) and `kind`, with `delivery_ms`, `wait_socket_ms` (the part the cloud was not
    ready) and `attempts` (the request that ended the wait plus each failed one sent again).
 2. **The machine stays clock-free.** `libs/data` takes the observer, clock included, from the host, as
-   it takes the transport. `libs/app-runtime` supplies it, drops a wait the page was hidden during, and
+   it takes the transport. `libs/runtime` supplies it, drops a wait the page was hidden during, and
    hands samples to one observer the web sets; the web samples, caps and records them.
 3. **Its own runs, three in ten.** Run-hash buckets 20–49, apart from `bridge_request` (0–9) and
    `socket_request` (10–19). Wider than theirs, because a state write is rare and the caps are per run:

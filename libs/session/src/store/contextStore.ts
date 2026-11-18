@@ -152,7 +152,7 @@ export const getRecordedCloudIds = (): string[] => Object.keys(cloudStore.getClo
 const buildIdentityContext = (state: SessionIdentityState): IdentityContext => {
     // Pure state store: the uid (for cache observing) + session flags. Profile facts
     // (userRole/isGuest/userType/permissions/name) are tracked from the cached profile via
-    // useProfileFacts (@chatic/app-runtime); the profile payload is not stored here.
+    // useProfileFacts (@chatic/runtime); the profile payload is not stored here.
     return {
         ...state,
         userId: uidOfToken(getActiveSessionToken()),

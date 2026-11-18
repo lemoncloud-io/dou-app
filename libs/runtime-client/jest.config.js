@@ -1,6 +1,6 @@
 module.exports = {
     // No jsdom: this package may not reach for `document` or `window` — what only a page knows is
-    // handed in by app-runtime — and running its tests where those do not exist keeps that honest.
+    // handed in by @chatic/runtime — and running its tests where those do not exist keeps that honest.
     testEnvironment: 'node',
     setupFiles: ['<rootDir>/jest.setup.ts'],
     // `uuid` ships ESM-only; the session's device id makes one, so it must be transformed rather than

@@ -1,11 +1,16 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc/host",
+        // Inside the project, as for the other workspace libraries: an outDir outside it would make nx
+        // read the package as one that is built, and refuse its imports of the source-only packages it
+        // re-exports.
+        "outDir": "dist",
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
         "declaration": true,
         "types": ["node"]
     },
     "include": ["src/**/*.ts"],
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
-    "references": [{ "path": "../bridges/tsconfig.lib.json" }, { "path": "../bridge-messages/tsconfig.lib.json" }]
+    "references": [{ "path": "../runtime-client/tsconfig.lib.json" }, { "path": "../runtime-web/tsconfig.lib.json" }]
 }

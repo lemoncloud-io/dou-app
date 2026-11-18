@@ -4,7 +4,7 @@
 > **Amended by [ADR-0307](./0307-a-credential-guard-never-ends-a-session.md) (2026-11-11):** the
 > relay credential guard has no teardown — no failure streak, no `onTeardown` — so the streak this
 > document describes and Decision 7's move of admin's guard teardown no longer apply.
-> Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin` · `apps/testbed` · `apps/desktop-web`)
+> Scope: `libs/runtime/**` + 4 apps (`apps/web` · `apps/admin` · `apps/testbed` · `apps/desktop-web`)
 > Related: [ADR-0070](./0070-app-runtime-session-hub.md) (session hub — this document applies its §0
 > principle to the remainder and updates the wording of Decisions 2 and 7) ·
 > [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) ·
@@ -20,7 +20,7 @@
 > `useRuntime*`), except for the **one word that does not exist in the repo at all**
 > (`ICredentialRenewer` — derived from the existing verb `renew*`), which is marked as such. The
 > measured occurrence count and grounds for each name are owned, as a table, by
-> `libs/app-runtime/docs/architecture.md` §Naming conventions.
+> `libs/runtime/docs/architecture.md` §Naming conventions.
 
 ## Context
 
@@ -32,18 +32,18 @@ That goal was met and there is nothing to roll back. This document deals with th
 
 Answering one question requires reading seven different values from seven different modules.
 
-| #   | Source                                                                            | Meaning                                   |
-| --- | --------------------------------------------------------------------------------- | ----------------------------------------- |
-| 1   | `identity.isAuthenticated` (`libs/app-runtime/src/session/store/contextStore.ts`) | session **exists** (not validity)         |
-| 2   | `relayStore.getRelayToken()`                                                      | token present or not                      |
-| 3   | `credentialFreshness.timeToExpiry('relay')`                                       | remaining lifetime of the AWS credential  |
-| 4   | `client.auth.state` (Auth SDK)                                                    | controller state (terminal `expired`)     |
-| 5   | `manager.isKindVerified(kind)`                                                    | handshake complete **on this connection** |
-| 6   | `isStoredSessionExpired()`                                                        | the lemon store's separate clock          |
-| 7   | `hasStoredRelaySession()`                                                         | lemon store existence                     |
+| #   | Source                                                                        | Meaning                                   |
+| --- | ----------------------------------------------------------------------------- | ----------------------------------------- |
+| 1   | `identity.isAuthenticated` (`libs/runtime/src/session/store/contextStore.ts`) | session **exists** (not validity)         |
+| 2   | `relayStore.getRelayToken()`                                                  | token present or not                      |
+| 3   | `credentialFreshness.timeToExpiry('relay')`                                   | remaining lifetime of the AWS credential  |
+| 4   | `client.auth.state` (Auth SDK)                                                | controller state (terminal `expired`)     |
+| 5   | `manager.isKindVerified(kind)`                                                | handshake complete **on this connection** |
+| 6   | `isStoredSessionExpired()`                                                    | the lemon store's separate clock          |
+| 7   | `hasStoredRelaySession()`                                                     | lemon store existence                     |
 
 The rule for combining these seven is rewritten **in two places** —
-[`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
+[`useSessionStalenessGuard`](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
 [`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
 [`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts). Both
 ask the same question — "can this slot's socket auth be used right now" — and each justifies itself
@@ -53,9 +53,9 @@ can reuse this verdict, so reproducing an incident means a human has to line up 
 > **Originally counted as four places, and phase 3's execution corrected that to two.** The other
 > two were not copies of the same verdict —
 >
-> - [`useConnectivity`](../../libs/app-runtime/src/connection/hooks/useConnectivity.ts) is a **display
+> - [`useConnectivity`](../../libs/runtime/src/connection/hooks/useConnectivity.ts) is a **display
 >   verdict** (the three grounds under §Decision 1).
-> - [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts)
+> - [`useSessionStalenessGuard`](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts)
 >   uses two clocks under **different policies**: it always refreshes the stored session's
 >   expiration and counts failures toward the teardown streak (admin-v2 logs out after three
 >   consecutive failures), while the credential margin only fires with `forceRefresh` opt-in +
@@ -114,7 +114,7 @@ on both sides.
 
 The decision to keep the two guards separate after ADR-0070 is on record
 (["adding a `kind` option here would put two unrelated recovery strategies behind one
-switch"](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts)), and that
+switch"](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts)), and that
 judgment still holds. The problem is that it **expresses the policy split only in comments**.
 `libs/http` has already solved the same problem with types — `ICredentialRecoverer` has two
 implementations, `NoCredentialRecovery` and `PortCredentialRecoverer`, attached to it. There is no
@@ -152,7 +152,7 @@ injection (storage is a module global), and every read is a `JSON.parse` (a sing
 
 ### 6. The boundary lives only in documentation — 31 of 111 public surfaces go unused by any app
 
-[public-surface.md](../../libs/app-runtime/README.md) admits that store writers are in
+[public-surface.md](../../libs/runtime/README.md) admits that store writers are in
 the barrel, then writes _"this is not an invitation for apps to manipulate the session directly."_
 But `public-surface.test.ts` **locks those symbols in as a public contract**. So the discipline is
 prose, and the test enforces the opposite direction.
@@ -209,7 +209,7 @@ pointed to by §Context 5.
 `-er` agent nouns (`ICredentialRecoverer` · `IAuthSigner` · `IFailureAttributor`), `*Policy` ·
 `*Snapshot` · `*Adapter` · `useRuntime*` · `use*Guard`. Suffixes with zero occurrences in the repo
 (`*Impl` · `*Service` · `*Strategy` · `*Bus` · `*Verdict`) are not used. The mapping table lives in
-`libs/app-runtime/docs/architecture.md` §Naming conventions.
+`libs/runtime/docs/architecture.md` §Naming conventions.
 
 ### 1. `deriveAuthStatus` alone owns the auth state verdict
 
@@ -556,9 +556,9 @@ doesn't know this name either. There's no behavior change, so it goes into phase
 
 ## Target structure
 
-The architecture document for `libs/app-runtime` was **rewritten** to reflect this decision — the
+The architecture document for `libs/runtime` was **rewritten** to reflect this decision — the
 detailed structure · diagrams · scenarios · naming conventions · verification method has a single
-SSoT, `libs/app-runtime/docs/architecture.md`. The new document was written as `architecture-v2.md`,
+SSoT, `libs/runtime/docs/architecture.md`. The new document was written as `architecture-v2.md`,
 and once implementation was complete it absorbed the old document's reference section and inherited
 its file name (§Execution log correction 7).
 
@@ -768,7 +768,7 @@ measurement was finished.
    because the server doesn't provide `expiresIn`, and both renewers' 5-minute margin is derived
    from it. Once the server starts reporting it, the margin's basis changes — the same waiting item
    as ADR-0070's open question.
-5. ~~`Coalescer`'s final home.~~ **Kept in `libs/app-runtime/src/utils/`.** Promoting it to
+5. ~~`Coalescer`'s final home.~~ **Kept in `libs/runtime/src/utils/`.** Promoting it to
    `@chatic/shared` can happen once a consumer needs it outside this package. Right now all 7 of its
    consumers are inside app-runtime.
 6. ~~When to clean up the 12 wrappers.~~ **Cleaned up, 12 → 2.** The basis is a repo measurement: of

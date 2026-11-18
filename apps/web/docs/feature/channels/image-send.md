@@ -6,7 +6,7 @@
 > [`components/ChatImageAttach.tsx`](../../../src/app/features/channels/components/ChatImageAttach.tsx)
 > (the picking). The send itself — pending row, thumbnail previews, file memory, retry, leftovers —
 > is the runtime's `data.useSendImages`, documented in
-> [libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md),
+> [libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md),
 > and the sequence it runs is `@chatic/data`'s
 > ([libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md)).
 
@@ -229,7 +229,7 @@ edit — with whatever is typed as its caption, then clears the field and closes
 open. The caption is the photo message's own text (`sendImages`'s
 `content`): one message carrying the words and the photos, which the mobile and the desktop feed both
 already draw. With "묶어 보내기" off it rides on the first message only
-([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+([libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md)).
 The caption's mention — whoever was picked from the `@` list ([chat-room.md § Mentions](./chat-room.md#mentions))
 — goes with it (`sendPicked(text, mention)`), on the message that carries the text.
 The grid's and the editor's "N장 보내기" send the photos alone and leave the text in the composer;
@@ -323,7 +323,7 @@ did. Off, every item that passes the judge goes as a message of its own, in pick
 sends them one after another, so the feed shows the whole pick at the press and the server numbers the
 messages in pick order. Nothing sent in the room meanwhile lands between them: a camera photo or another
 pick sent before the last of them has gone waits for it. A message that fails is retried or deleted on
-its own ([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+its own ([libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md)).
 The pick is judged whole first, so the one-notice rule and the ten-item cap still hold — off, a pick is
 at most ten messages. A pick where one item passes is sent the usual way either way. The choice is kept
 in `ui.photoSendGrouped` (local, `usePhotoSendGrouping`) and is how the grid opens next time, the way

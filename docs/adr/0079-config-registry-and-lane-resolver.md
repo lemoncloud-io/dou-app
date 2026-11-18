@@ -4,7 +4,7 @@
 > [libs/config/docs/architecture.md §Implementation checklist](../../libs/config/README.md) — path kept
 > for reference; the file does not exist in this tree)
 > Scope: `libs/web-config` → `libs/config` (new — delete old — **the actual importer is only 8 files in
-> `libs/app-runtime`**; mentions of `apps/desktop-web` · `libs/shared` · `libs/http` are comments) ·
+> `libs/runtime`**; mentions of `apps/desktop-web` · `libs/shared` · `libs/http` are comments) ·
 > `apps/web` · `apps/mobile` · `libs/app-messages` (bridge ops) · tunable-consuming libs (`http` · `data` ·
 > `bridges` · `logger`). **`apps/desktop-web` is also in scope** (permitted by the 2026-09-09 instruction to
 > modify it). The migration targets were written as `import.meta.env` 7 files ·
@@ -610,7 +610,7 @@ repo keeps logic in classes. It does not build loose sets of exported functions 
 module mocks, which is exactly `web-config`'s problem today (§Context 2).
 
 **The public surface is one facade.** Like `runtime.<group>.*`
-([app-runtime](../../libs/app-runtime/src/index.ts)), only `config.*` is exported, and internal classes
+([app-runtime](../../libs/runtime/src/index.ts)), only `config.*` is exported, and internal classes
 are not exposed in the barrel. If a consumer grabs `ConfigResolver` directly, it can bypass lane policy.
 
 #### Module layout

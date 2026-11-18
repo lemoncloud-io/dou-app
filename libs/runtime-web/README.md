@@ -17,18 +17,19 @@ runtime.boot.initAppRuntime(
 );
 ```
 
-| Export                          | Does                                                                                                                                                                                    |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createWebRuntime(options)`     | fills the page's ports (below), calls runtime-core's `createRuntime`, and returns the engine for `initAppRuntime(engine)`                                                               |
-| `createBridgedRuntime(options)` | the engine of a page whose phone shell owns the session — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                                                           |
-| `webMirrorPort(client?)`        | the mirror's port over the page's bridge: `RuntimeCall` and `RuntimeSubscribe` (with `RUNTIME_CALL_TIMEOUT_MS`), `RuntimeUnsubscribe` and the two runtime pushes; made before the hello |
-| `settleSessionOwner(options)`   | who holds the session this launch, settled before the entry point boots either runtime — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                            |
-| `resolveStorageStores(env?)`    | chooses and builds every store an app keeps state in, for its environment — see [The stores](#the-stores)                                                                               |
-| `readStorageEnvironment()`      | what that choice depends on: in a shell, the shell keeps a vault, a late vault already confirmed                                                                                        |
-| `LATE_VAULT_MARK`               | the tab mark apps/web writes when a shell turns out to keep a vault only after its handshake                                                                                            |
-| `setNativeCacheSupport(report)` | the phone shell's cache capability, which the cache routing reads; called by apps/web after the bridge handshake, before the data graph is built                                        |
-| `readWebHostFacts(sources?)`    | `WebHostFacts`: what the page knows about its host, as one frozen value — see [Each port on its own](#each-port-on-its-own)                                                             |
-| `xhrPut`, `createXhrPut()`      | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file            |
+| Export                                                    | Does                                                                                                                                                                                    |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createWebRuntime(options)`                               | fills the page's ports (below), calls runtime-core's `createRuntime`, and returns the engine for `initAppRuntime(engine)`                                                               |
+| `createBridgedRuntime(options)`                           | the engine of a page whose phone shell owns the session — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                                                           |
+| `webMirrorPort(client?)`                                  | the mirror's port over the page's bridge: `RuntimeCall` and `RuntimeSubscribe` (with `RUNTIME_CALL_TIMEOUT_MS`), `RuntimeUnsubscribe` and the two runtime pushes; made before the hello |
+| `settleSessionOwner(options)`                             | who holds the session this launch, settled before the entry point boots either runtime — see [A page that mirrors its shell](#a-page-that-mirrors-its-shell)                            |
+| `resolveStorageStores(env?)`                              | chooses and builds every store an app keeps state in, for its environment — see [The stores](#the-stores)                                                                               |
+| `readStorageEnvironment()`                                | what that choice depends on: in a shell, the shell keeps a vault, a late vault already confirmed                                                                                        |
+| `LATE_VAULT_MARK`                                         | the tab mark apps/web writes when a shell turns out to keep a vault only after its handshake                                                                                            |
+| `setNativeCacheSupport(report)`                           | the phone shell's cache capability, which the cache routing reads; called by apps/web after the bridge handshake, before the data graph is built                                        |
+| `readWebHostFacts(sources?)`                              | `WebHostFacts`: what the page knows about its host, as one frozen value — see [Each port on its own](#each-port-on-its-own)                                                             |
+| `resolveCheckoutMethod()` and the other host-port readers | what the shell declared it does, read into the host ports the entry point publishes — see [The host ports a page publishes](#the-host-ports-a-page-publishes)                           |
+| `xhrPut`, `createXhrPut()`                                | `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file            |
 
 The ports `createWebRuntime` fills, the same in every web app:
 
@@ -186,9 +187,41 @@ What else still has a browser answer inside a package moves here as its wiring b
 - `@chatic/http` — its own `navigator.onLine` read for failure attribution; it sits below transport,
   so it cannot read the transport's online port.
 
+### The host ports a page publishes
+
+A web app's entry point chooses its host ports — the contracts and the holder are
+[runtime-client's](../runtime-client/README.md#the-host-ports) — from what the shell declared before the
+page ran (`CHATIC_APP_CAPABILITIES`, read through `@chatic/bridges`' host profile, beside the rest of
+`readWebHostFacts`). `src/hostCapabilities/` reads it, one resolver per port, each defaulting to this
+page's own profile:
+
+| Reader                                                                                                    | Key, since version                                | Answers                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `resolveCheckoutMethod`                                                                                   | `checkout`, 1 (`CHECKOUT_INTRODUCED_IN`)          | `'apple' \| 'google' \| 'web' \| 'none'` — the first listed method the page knows; a non-list or nothing known sells nothing |
+| `resolveMediaMethod`                                                                                      | `media`, 2 (`MEDIA_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                       |
+| `resolveFilesMethod`                                                                                      | `files`, 3 (`FILES_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                       |
+| `resolveLinksMethod`, `resolveDiagnosticsMethod`, `resolvePushMethod`, `resolveAppShell`, `resolveSignIn` | their own keys, 4 (`SHELL_DOMAINS_INTRODUCED_IN`) | `'shell' \| 'browser'`; `resolveAppShell` and `resolveSignIn` add `os` through `hostOsOf`                                    |
+
+Every `'shell' | 'browser'` key goes through `resolveShellOrBrowser`, which holds the three rules:
+
+- **No declaration, or one older than the key** — the shell never knew it — answers what the page did
+  before ports: the shell wherever there is a bridge. For `checkout` the old rule is a phone store
+  (Apple's when `CHATIC_APP_PLATFORM` is `ios`, in any case; Google's otherwise) with a bridge, and the
+  website without one.
+- **A declaration that should hold the key and does not, or holds anything else**, is a bug in the
+  shell: the browser does the work, since every host can do what a browser does, and it is logged.
+  For `checkout` it sells nothing.
+- **`hostOsOf`** reads the phone platform behind a `'shell'` answer from the injected platform, `ios` or
+  `android` regardless of case; a desktop shell and a browser have none.
+
+The entry point builds each port from these answers and publishes them with `host.publish` (`host` is
+handed on from runtime-client, with the port types, so the declaration part imports this package
+alone). The same readers are re-exported from `@chatic/host` while that package lasts, from this
+package's `@chatic/runtime-web/host` entry, which carries none of the runtime.
+
 ## Rules
 
-- Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/app-runtime` (the React
+- Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/runtime` (the React
   surface), React, or React Native. See [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. An app's entry point does, and passes what it builds into the
   assembly.

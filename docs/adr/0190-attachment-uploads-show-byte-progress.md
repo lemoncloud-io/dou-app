@@ -3,9 +3,9 @@
 > Status: Accepted · Decided: 2026-10-12 · Implemented: `feat/upload-progress`
 > · Scope: `libs/data/src/uploads/xhrPut.ts` (`xhr.upload` listener) · `libs/data/src/uploads/sendImageMessage.ts`
 > (`onProgress`) · `apps/web/src/app/runtime/upload/nativePut.ts` (`running` states)
-> · `libs/app-runtime/src/data/hooks/imageSendProgress.ts` · `libs/web-ui-kit/src/composites/chat/ProgressRing.tsx`
+> · `libs/runtime/src/data/hooks/imageSendProgress.ts` · `libs/web-ui-kit/src/composites/chat/ProgressRing.tsx`
 > · The module docs are [libs/data uploads](../../libs/data/docs/uploads/README.md),
-> [libs/app-runtime data/image-send.md](../../libs/app-runtime/docs/data/image-send.md) and
+> [libs/runtime data/image-send.md](../../libs/runtime/docs/data/image-send.md) and
 > [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md)
 
 ## Context
@@ -22,7 +22,7 @@ both shells already send them for uploads — at most one per transfer every 200
 contract already names the upload's length as the progress denominator.
 
 The preflight reason does not hold. A browser preflights a cross-origin request when its method is not
-one it sends unasked *or* an upload listener is set. PUT is never such a method, so every PUT here was
+one it sends unasked _or_ an upload listener is set. PUT is never such a method, so every PUT here was
 preflighted already, and signed URLs are unique, so none reuses a cached preflight either. Measured
 from a local dev page against the dev bucket in Chrome, a PUT to a new URL took the same time with the
 listener as without (median 96 ms against 97), each about 25 ms above a repeat to the same URL; the

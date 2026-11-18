@@ -68,7 +68,7 @@ describe('AuthRepository', () => {
 
         const result = await repository.confirmPhoneCode('01012345678', '123456', { mode: 'login' });
 
-        // Installing the token belongs to app-runtime's session/auth (libs/app-runtime/docs/session/architecture.md).
+        // Installing the token belongs to @chatic/runtime's session/auth (libs/runtime/docs/session/architecture.md).
         expect(result).toBe(confirmResult);
     });
 

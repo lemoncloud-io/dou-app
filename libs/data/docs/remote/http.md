@@ -99,7 +99,7 @@ not change when cache semantics arrive.
 `DomainProduct` / `DomainMembership` mapping is future work, not something this data
 source should invent.
 
-Push-device registration does not go through `data`: `libs/app-runtime` calls the user gateway's
+Push-device registration does not go through `data`: `libs/runtime` calls the user gateway's
 `registerDevice` directly (`data/hooks/device.ts`). `UserHttpDomainGateway` picks only `list` /
 `tryProfile`; `updateProfile` had no repository caller either.
 
@@ -155,7 +155,7 @@ react-query's to cache in the app.
   address from `resolveEndpoint('relay')`.
 - **`claimPairing`'s answer is returned untouched.** On a relay approval its first `approved` answer
   carries the session, and only that one does — every later claim answers `claimed`. Applying that
-  session is `app-runtime`'s, the same path a phone login takes; nothing under `data/` reads it.
+  session is `@chatic/runtime`'s, the same path a phone login takes; nothing under `data/` reads it.
 - **The wire types are temporary copies** (`@chatic/http`'s `gateways/pairingTypes.ts`) until a
   published `@lemoncloud/chatic-backend-api` carries them.
 
@@ -165,7 +165,7 @@ react-query's to cache in the app.
 Diagnostics are not domain data, but they are a data call, so routing them through a repository was the
 choice made (2026-09-02). It is a pass-through layer — no mapping, no cache, no logging.
 
-One data call still does not go through a repository: push-device registration. `libs/app-runtime`'s
+One data call still does not go through a repository: push-device registration. `libs/runtime`'s
 `data/hooks/device.ts` calls the user gateway's `registerDevice` directly, and the once-per-install gate
 lives there too. A retry, a log line or any other policy for that call belongs in that hook — there is no
 repository method it passes through.
@@ -177,7 +177,7 @@ Four things changed character in the migration:
 3. **The endpoint moved from a static env value to a dynamic relay.** The old constant read `WEB_DOU_ENDPOINT` (a build value); the gateway reads `resolveEndpoint('relay')`. The value is the same `DOU_ENDPOINT`; what changes is that the deep-link `?_backend` override now applies to reports too. Since 2026-10-26 both routes go to the archive service (`chatic-archive-api`): `VITE_ARCHIVE_ENDPOINT` when it is set, otherwise the relay address with its `/dou-<stage>` segment swapped for `/arc-<stage>` (a relay with no stage segment is used as it is). While the relay is overridden — a deep-linked `?_backend` — the configured archive is ignored and the address is built from that relay, so the session still sends to its own stage.
 4. **One credential recovery was added.** `HttpClient.run` re-sends a request that failed on an expired signature, once, after reissuing. This is the path a flush actually takes after a long spell in the background. The recovery path does log, so "an upload failure produces no logs" holds for **the request itself** only (at most one entry per recovery attempt, no recursion).
 
-Classification (`retry`/`discard`/`ok`) lives in `app-runtime/report/logBatch.ts` — the queue's
+Classification (`retry`/`discard`/`ok`) lives in `runtime-client/src/diagnostics/logBatch.ts` — the queue's
 vocabulary (`UploadOutcome`) belongs to the logger pipeline and `data` has no reason to know it. So the
 data source and the repository **throw errors as they are, without wrapping** (the status code is the
 input to classification).

@@ -18,7 +18,7 @@ grep -rn "@chatic/data/" --include='*.ts' --include='*.tsx' apps libs | grep -v 
 ```
 
 This lib **does not own the socket connection's lifecycle.** Connecting, re-authenticating and sync
-timing belong to the sync orchestrator in `libs/app-runtime`. When the orchestrator calls a
+timing belong to the sync orchestrator in `libs/runtime`. When the orchestrator calls a
 repository's `refresh*` / `cacheWrite*`, the repository writes the result to local and re-emits it on
 the stream. From the repository's side, whether that call came from the UI or from the orchestrator
 makes no difference.
@@ -44,7 +44,7 @@ outbox (`outbox/`) with its port, its machine and the state definitions.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
-client (`@chatic/http`), sync timing, connection lifecycle and cache routing (`libs/app-runtime`), and
+client (`@chatic/http`), sync timing, connection lifecycle and cache routing (`libs/runtime`), and
 the server-side socket spec.
 
 ## Structure
@@ -58,7 +58,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     UI["UI (React hooks)"]:::ext
-    Sync["sync orchestrator<br/>libs/app-runtime"]:::ext
+    Sync["sync orchestrator<br/>libs/runtime"]:::ext
 
     Repo["Repository × 14<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
@@ -160,7 +160,7 @@ the subscription to the target cloud regardless of the provider's commit lag rig
 ### Wiring
 
 This lib assembles nothing. Gateway instances, storage engines and sync timing are all decided by
-`DataManager` in `libs/app-runtime`.
+`DataManager` in `libs/runtime`.
 
 ```text
 DataManager
@@ -272,7 +272,7 @@ npx jest --config libs/data/jest.config.js
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
 - All 27 data sources have a matching test, and so do all 14 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches seven projects — `apps/web`, `apps/desktop-web`,
-  `libs/app-runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
+  `libs/runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and
   `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.

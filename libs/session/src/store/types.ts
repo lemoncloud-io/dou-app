@@ -2,7 +2,7 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 
 // User classification (userType) and permission policy no longer live in web-core. They are derived
 // in the app layer from the raw identity facts (userRole / isGuest / isCloudActive) exposed by
-// app-runtime's useProfileFacts — see apps/web's useUserPermissions.
+// @chatic/runtime's useProfileFacts — see apps/web's useUserPermissions.
 
 export interface BaseServerContext {
     backend: string | null;
@@ -27,7 +27,7 @@ export interface CloudContext extends BaseServerContext {
  * token, for cache observing) and the `delegatorId` (a guest's own uid, for invite acceptance). The
  * profile payload (UserProfile$) is NOT stored — the raw token is persisted for auth, and profile
  * facts (userRole / isGuest / userType / permissions / name / photo) are tracked from the cached
- * profile via `useProfileFacts` (@chatic/app-runtime), seeded synchronously from the active token's
+ * profile via `useProfileFacts` (@chatic/runtime), seeded synchronously from the active token's
  * user fields (`getActiveSessionUser`). Invited-ness lives in the cached cloud (`cloudType:
  * 'invited'`), and the OAuth provider is no longer session state.
  */

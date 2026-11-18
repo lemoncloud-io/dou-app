@@ -207,7 +207,7 @@ exhausted the active-user tail.
 `createWebInviteCloudStorage`
 ([localFactory.ts:70](../../libs/runtime-core/src/data/factories/localFactory.ts) — since its only
 consumer disappears, ADR-0051 Decision 1's "keep it" is reversed here) · the barrel export
-([index.ts:59](../../libs/app-runtime/src/index.ts)) · the call site
+([index.ts:59](../../libs/runtime/src/index.ts)) · the call site
 ([InvitedCloudDurabilityRunner.tsx:28](../../apps/web/src/app/runtime/InvitedCloudDurabilityRunner.tsx)) ·
 the corresponding describe block in `invitedCloudDurability.test.ts` and the export list in
 `public-surface.test.ts`.
@@ -272,7 +272,7 @@ rewritten `isNativeCacheTypeUsable` (keeping the floor's meaning), introducing
 `MIN_SCHEMA_VERSION_BY_TYPE`, removing the web→native migration bridge (Decision 5's list), updating
 the routing table tests, updating
 [runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md) and
-`libs/app-runtime/docs/data/invite-cloud-durability.md`.
+`libs/runtime/docs/data/invite-cloud-durability.md`.
 
 **Out** — removing the `supportedCacheTypes`/`cacheSchemaVersion` fields (after the backward-compat
 window ends), whether `WEB_PINNED_CACHE_TYPES` survives, recovery strategy for SQLite migration

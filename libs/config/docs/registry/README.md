@@ -222,7 +222,7 @@ the value. `isOverridden` is true for rows 1 to 4 only, so the boot-time state l
 - **Do not put a product entitlement here.** Place and channel counts belong to the server's product catalogue. `feature.limits.enforced` is a bypass gate, not a limit value, and `limit.*` holds only guardrails with no tier meaning — image size, resend attempts, result caps.
 - **Do not declare a `labs` key without `server` in `writableBy`.** The test catches it, but by then the design is already wrong.
 - **Do not declare a user setting as `dev`.** The unlock gate applies to `dev` and nothing else, so on a PROD build the local lane is shut and the feature has no other writer. That was a real outage shape: six `writableBy: ['local']` keys — pin, sort, recent searches, push mute, promo and update dismissal — would have been permanently dead in PROD.
-- **Do not store a setting under a key of your own.** Bypassing the registry loses the lanes, the lock and the snapshot. The `@chatic/config.` prefix is also an exception in `libs/app-runtime`'s logout storage sweep, so settings survive logout — a value that must not survive it is session state, not a setting.
+- **Do not store a setting under a key of your own.** Bypassing the registry loses the lanes, the lock and the snapshot. The `@chatic/config.` prefix is also an exception in `libs/runtime`'s logout storage sweep, so settings survive logout — a value that must not survive it is session state, not a setting.
 - **Do not expect a duplicate key to fail loudly.** It logs and the first declaration wins. The test is the gate.
 
 ## Notes for implementers and tests

@@ -47,7 +47,7 @@ export interface SetOptions {
 /**
  * The one public surface.
  *
- * Shaped like `runtime.<group>.*` in `@chatic/app-runtime`: a facade over classes, not a bag of
+ * Shaped like `runtime.<group>.*` in `@chatic/runtime`: a facade over classes, not a bag of
  * loose exported functions. The internals stay off the barrel on purpose — a consumer holding
  * `ConfigResolver` directly could sidestep the lane policy (ADR-0079 decision 12).
  */

@@ -38,8 +38,8 @@ export default [
                             message: 'Import @chatic/transport through its barrel. Deep paths are for test mocks only.',
                         },
                         {
-                            group: ['@chatic/auth', '@chatic/auth/*', '@chatic/app-runtime'],
-                            message: 'Auth sits beside this package and app-runtime above it — import neither.',
+                            group: ['@chatic/auth', '@chatic/auth/*', '@chatic/runtime'],
+                            message: 'Auth sits beside this package and @chatic/runtime above it — import neither.',
                         },
                         {
                             group: ['@chatic/sync', '@chatic/sync/*'],
@@ -64,8 +64,8 @@ export default [
                                 'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                         {
-                            group: ['@chatic/auth', '@chatic/auth/*', '@chatic/app-runtime'],
-                            message: 'Auth sits beside this package and app-runtime above it — import neither.',
+                            group: ['@chatic/auth', '@chatic/auth/*', '@chatic/runtime'],
+                            message: 'Auth sits beside this package and @chatic/runtime above it — import neither.',
                         },
                         {
                             group: ['@chatic/sync', '@chatic/sync/*'],

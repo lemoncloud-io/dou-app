@@ -152,7 +152,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 - **Remote-only.** Lookup signals and push settings, so there is nothing to cache.
 - Only the socket gateway is routed — `save`/`read`/`sync` go to the `active` slot, while `updateRemote`, the relay-owned push setting, goes to relay (ADR-0027).
-- Push-token registration is **not** here: `libs/app-runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
+- Push-token registration is **not** here: `libs/runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
 
 ### Pairing
 
@@ -163,7 +163,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
   cloud is active → [http.md's pairing lane](../remote/http.md#the-pairing-lane).
 - `checkPairing` sends the code's digits alone: people paste it as it is shown (`0734-4168`).
 - `claimPairing` returns the server's answer exactly as it came. The session in a relay approval's first
-  `approved` answer is applied by `app-runtime`, never here.
+  `approved` answer is applied by `@chatic/runtime`, never here.
 
 ### Report
 
@@ -192,6 +192,6 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - **The scope is its graph's, named on every call.** The local data sources are shared by the app graph and every scoped graph, and on their own they fall back to the selected cloud. A cursor written through cloud A's scoped graph while cloud B is on screen therefore has to carry A's `cid`/`uid` down, or it lands in B's partition — and the next time A is entered, the app graph reads A's partition, finds no cursor, and pulls the whole list again.
 - In other words, this repository is the answer to "where does the next `since` get stored".
 - A cursor points at another domain's data, so when that data moves storage the cursor starts lying that it has "already synced". `routingFingerprint` catches that mismatch (ADR-0053).
-- The same lie follows from clearing that data while the cursor stays. `cacheClear()` exists for the caller that clears a partition's data, and it runs **after** the data, so a sync landing mid-clear cannot leave a fresh cursor over an empty store. A sync that answers after the cursor clear still can, which is what the data source's `cursorsValidAfter` is for: a cursor saved before that instant reads as 0 (reason `cache-cleared`). The assembler supplies it — `libs/app-runtime` moves it to the first boot after a cache clear.
+- The same lie follows from clearing that data while the cursor stays. `cacheClear()` exists for the caller that clears a partition's data, and it runs **after** the data, so a sync landing mid-clear cannot leave a fresh cursor over an empty store. A sync that answers after the cursor clear still can, which is what the data source's `cursorsValidAfter` is for: a cursor saved before that instant reads as 0 (reason `cache-cleared`). The assembler supplies it — `libs/runtime` moves it to the first boot after a cache clear.
 
 ---

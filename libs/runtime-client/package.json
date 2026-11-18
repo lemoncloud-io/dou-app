@@ -12,6 +12,11 @@
             "import": "./src/index.ts",
             "default": "./src/index.ts"
         },
+        "./host": {
+            "types": "./src/host/index.ts",
+            "import": "./src/host/index.ts",
+            "default": "./src/host/index.ts"
+        },
         "./package.json": "./package.json"
     },
     "nx": {

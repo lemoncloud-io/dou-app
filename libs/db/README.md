@@ -342,7 +342,7 @@ implementations. A semantic change made to one and not the other fails there.
 
 ## Usage
 
-**Do not import this lib.** The entry point is a `CacheStorage` handed to you by `@chatic/app-runtime`;
+**Do not import this lib.** The entry point is a `CacheStorage` handed to you by `@chatic/runtime`;
 the classes here are constructor arguments for one set of ports, not an API.
 
 ```ts
@@ -374,7 +374,7 @@ the partition an operation touches is the one it was captured for, not whichever
 ### Wiring
 
 ```text
-DataManager                                  @chatic/app-runtime
+DataManager                                  @chatic/runtime
   └─ createLocalDataSources()                data/factories/localFactory.ts — over localCachePlatform.ports()
        ├─ route(type)                        once per domain per session — the routing decision, made by the platform
        ├─ storage(type, route, provider)     webLocalCachePorts (filled by createWebRuntime), @chatic/runtime-web:
@@ -479,6 +479,6 @@ npx jest --config libs/db/jest.config.js      # every spec in the lib
   metrics totals need `resetNativeCacheMetrics()`.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both
   (`rm -rf libs/db/dist libs/db/out-tsc`) and look again.
-- Downstream: `@chatic/app-runtime` is the only direct dependent; through it a changed barrel
+- Downstream: `@chatic/runtime` is the only direct dependent; through it a changed barrel
   identifier reaches `web`, `desktop-web` and `admin`. `.github/workflows/verify.yml`
-  type checks `@chatic/app-runtime`, `web`, `desktop-web` and `admin`.
+  type checks `@chatic/runtime`, `web`, `desktop-web` and `admin`.

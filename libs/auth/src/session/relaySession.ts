@@ -111,7 +111,7 @@ class RelaySession implements IRelaySession {
      * Applies a relay token view as the active session: persists the token (the auth anchor, the
      * uid/profile-seed source and the credential every signed HTTP request reads), and marks the
      * session authenticated. Profile
-     * shaping is gone — profile facts are tracked from the token + user cache by app-runtime's
+     * shaping is gone — profile facts are tracked from the token + user cache by @chatic/runtime's
      * useRuntimeProfile.
      *
      * Note: this deliberately does NOT touch delegatorId. delegatorId is set once at guest login and
@@ -260,7 +260,7 @@ class RelaySession implements IRelaySession {
      * It used to be called `logoutRelaySession`, one of two same-named pairs inside this package: the
      * root barrel published THIS (socket-silent) half while the docs declared the socket half the
      * public one, and `apps/admin` really did call the silent half. ADR-0070 §context named that
-     * failure mode for the pre-merge `web-core`/`app-runtime` barrels and ADR-0076 decision 7 closes it
+     * failure mode for the pre-merge `web-core`/`@chatic/runtime` barrels and ADR-0076 decision 7 closes it
      * here — the weak halves lose their global names so the collision cannot be re-created.
      */
     async clearAndRedirect(options?: LogoutOptions): Promise<void> {

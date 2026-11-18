@@ -1,7 +1,7 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        // Its own subdirectory, for the reason libs/app-runtime/tsconfig.spec.json gives: spec projects
+        // Its own subdirectory, for the reason libs/runtime/tsconfig.spec.json gives: spec projects
         // sharing one `dist/out-tsc` root overwrite each other's declaration output and build info.
         "outDir": "../../dist/out-tsc/sync-spec",
         // The `@chatic/session` barrel reaches `@chatic/shared`, whose barrel carries React

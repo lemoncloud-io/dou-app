@@ -54,7 +54,7 @@ port interfaces, the shared Vite env adapter, and the two React hooks.
 **Out** — every adapter implementation (each app's `src/app/config/adapters.ts`), the shell's side of
 the KV bridge (`apps/mobile`'s `ConfigKvService` and `useConfigKvHandler`), the remote fetcher (does
 not exist), the screens that draw controls (`apps/web`), the device state log
-(`libs/app-runtime`'s `attachConfigStateLog`), and product entitlements such as place and channel
+(`libs/runtime`'s `attachConfigStateLog`), and product entitlements such as place and channel
 counts, which the server's product catalogue owns.
 
 ## Structure
@@ -67,7 +67,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["app composition root<br/>web · desktop-web · admin"]:::ext
-    UI["UI · libs/app-runtime · libs/shared"]:::ext
+    UI["UI · libs/runtime · libs/shared"]:::ext
 
     Facade["ConfigFacade<br/><i>index.ts — the only public class</i>"]:::resl
     React["react/<br/><i>useConfigValue</i>"]:::resl
@@ -205,7 +205,7 @@ main.tsx
 Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile` does not import
 this lib — it implements the other side of the shell port instead — but on a launch whose session the
 app's own runtime holds, `libs/runtime-mobile`'s boot calls `init` in the app's process, with the env
-port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/app-runtime`,
+port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/runtime`,
 `libs/shared` and `libs/runtime-mobile` import this one.
 
 Anything that seeds a local-lane value runs **before** `init`, because `init`'s `hydrateStorage()` is
@@ -282,4 +282,4 @@ npx jest --config libs/config/jest.config.js
 - Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. A fixture missing a required member runs green under jest whenever the omitted member happens not to be called, which is why the spec project has to be in the reference list.
 - `registry/allModules.spec.ts` is the invariant test: it asserts the key count, that no two domains declare the same key, that `findPolicyViolations` is empty, that no `title`/`description` is blank, and the surface distribution. Adding a key means updating the count there.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
-- Downstream: a changed barrel identifier reaches five projects — `libs/app-runtime`, `libs/shared`, `apps/web`, `apps/admin` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all five.
+- Downstream: a changed barrel identifier reaches five projects — `libs/runtime`, `libs/shared`, `apps/web`, `apps/admin` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all five.

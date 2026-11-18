@@ -8,7 +8,7 @@ The output is what `useRuntimeRepositories()` returns.
 It lives in `@chatic/runtime-core` because it is the runtime's assembly, the same on every platform:
 `createRuntime` (`src/createRuntime.ts`) wires it, and what each platform answers — the cache's
 stores, the socket, the session's storage — comes in through the ports. The React hooks over the
-graph stay in `@chatic/app-runtime`.
+graph stay in `@chatic/runtime`.
 
 It owns nothing about _reading_ data. Streams, merges and cursors are the data layer's; sync timing
 is [libs/sync](../../../sync/README.md)'s.
@@ -36,7 +36,7 @@ libs/runtime-core/src/data/        18 source files, 15 tests
 ```
 
 The `data` group of the `runtime` facade (`index.ts`) and the hooks (`hooks/`) are the React
-surface's, in `libs/app-runtime/src/data/`.
+surface's, in `libs/runtime/src/data/`.
 
 Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
 filled in a page by `createWebRuntime` in `@chatic/runtime-web` (its `webLocalCachePorts(cacheTab)`), which holds the routing
@@ -128,7 +128,7 @@ length of `work` and is internal to this lib. The image send (a row, an upload, 
 the cloud itself through `RuntimeData.holdCloud(cid)` and makes each request on
 `cloudRepositories(cid)`, so the hold covers the whole sequence while the upload between the requests
 stays the page's own
-([image-send.md](../../../app-runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs).
+([image-send.md](../../../runtime/docs/data/image-send.md) — `data.useSendImages`, the one image send every shell runs).
 A hold is a release to call rather than a callback to run, which is what lets it cross to a runtime in
 another process (§ The page's graph). Both sends:
 
@@ -198,7 +198,7 @@ stream with no listener: the hold stands while the page's subscription does, and
 
 The React hooks over this graph — `useRuntimeRepositories`, `useGlobalCacheSearch`, the cloud-name
 syncs, `useSendImages` — are not here: they are the React surface's, in
-[app-runtime docs/data](../../../app-runtime/docs/data/README.md).
+[@chatic/runtime docs/data](../../../runtime/docs/data/README.md).
 
 ### The offline outbox
 
@@ -363,8 +363,8 @@ belongs to [`libs/data`](../../../data/README.md).
 ## Further reading
 
 - [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md) — where a cache type lands, and the version negotiation behind it
-- [app-runtime docs/data](../../../app-runtime/docs/data/README.md) — the hooks over this graph, and `useSendImages`
-- [app-runtime docs/session/](../../../app-runtime/docs/session/README.md) — the session's React surface
+- [@chatic/runtime docs/data](../../../runtime/docs/data/README.md) — the hooks over this graph, and `useSendImages`
+- [@chatic/runtime docs/session/](../../../runtime/docs/session/README.md) — the session's React surface
 - [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over
 - [libs/sync](../../../sync/README.md) — what writes into these repositories without a screen asking
 - [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines

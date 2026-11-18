@@ -41,7 +41,7 @@ describe('webLocalCachePorts storage routing', () => {
     // rather than `instanceof`: importing the classes here would either compare against a stale
     // constructor (resetModules gives the factory a different copy) or, if imported dynamically to
     // dodge that, mark @chatic/data as lazy-loaded and make every static import of it across
-    // app-runtime an @nx/enforce-module-boundaries error.
+    // @chatic/runtime an @nx/enforce-module-boundaries error.
     const loadFactory = async (isNative: boolean) => {
         jest.resetModules();
         if (isNative) (window as any).ReactNativeWebView = { postMessage: jest.fn() };

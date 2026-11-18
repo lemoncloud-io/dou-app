@@ -29,7 +29,7 @@ export const initAppRuntime = (next: RuntimeEngine): void => {
 export const runtimeEngine = (): RuntimeEngine => {
     if (!engine) {
         throw new Error(
-            '[app-runtime] the runtime engine was read before initAppRuntime(engine) — the entry point has to ' +
+            '[runtime] the runtime engine was read before initAppRuntime(engine) — the entry point has to ' +
                 'build one (createWebRuntime in a page) and hand it over before render.'
         );
     }

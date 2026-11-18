@@ -25,7 +25,7 @@
 
 ## Context
 
-`libs/app-runtime` has already built and tested the hot/cold 2-tier cache machinery
+`libs/runtime` has already built and tested the hot/cold 2-tier cache machinery
 (`DynamicCacheStorage`: cold = the source of truth, hot = a derived cache), but `selectStrategy()` in
 `factories/localFactory.ts` hard-returns `IndexedDbOnlyCacheStorageStrategy` in every environment, so
 the cold (native SQLite) layer is dormant. A TODO comment says Hot+Cold is disabled "until the native

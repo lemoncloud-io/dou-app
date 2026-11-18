@@ -1,7 +1,7 @@
 # ADR-0081: A server-revoked relay session is that session's verdict — end it locally at `auth.switch`
 
 > Status: Accepted · Decided: 2026-09-11 · Implementation: `af161996` (PR #445)
-> Scope: `libs/app-runtime/src/socket/auth/revokedSession.ts` (new) · `libs/app-runtime/src/socket/auth/switchSite.ts`
+> Scope: `libs/runtime/src/socket/auth/revokedSession.ts` (new) · `libs/runtime/src/socket/auth/switchSite.ts`
 > Related: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) (single verdict for auth
 > state — this document covers "revoke," missing from that verdict list) · [ADR-0070](./0070-app-runtime-session-hub.md)
 

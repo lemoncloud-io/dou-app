@@ -5,7 +5,7 @@ import type { PerfTraceName } from './types';
  * The one trace of a given name currently in progress, and what it is about.
  *
  * For a trace that several modules contribute phases to without being connected to each other —
- * `chat_room_sync` is begun by a tap in the web, marked by the sync hooks in `libs/app-runtime`,
+ * `chat_room_sync` is begun by a tap in the web, marked by the sync hooks in `libs/runtime`,
  * and ended by the room page. None of them can hand the handle to the next, so they meet here,
  * keyed by the trace name and the subject it measures (the channel, for a room).
  *

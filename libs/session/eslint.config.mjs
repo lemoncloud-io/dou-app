@@ -27,7 +27,7 @@ export default [
                 {
                     patterns: [
                         {
-                            group: ['../scope', '../scope/*', '@chatic/app-runtime'],
+                            group: ['../scope', '../scope/*', '@chatic/runtime'],
                             message: 'The store is passive — it stores and notifies, and knows nothing above it.',
                         },
                         {

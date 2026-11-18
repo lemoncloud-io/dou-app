@@ -36,11 +36,11 @@ A "V1 is gone" comment appears in three README files. There's no V1, yet the `V2
 And a forced alias sits right at the boundary.
 
 ```ts
-// libs/app-runtime/src/data/factories/localFactory.ts:5
+// libs/runtime/src/data/factories/localFactory.ts:5
 createLocalDataSources as createDataLocalDataSources,
 ```
 
-`libs/app-runtime` already uses names without `V2` — `createRepositories`, `createLocalDataSources`. **Only
+`libs/runtime` already uses names without `V2` — `createRepositories`, `createLocalDataSources`. **Only
 `libs/data` still speaks V2; nothing else does.**
 
 ### Blast-radius measurement
@@ -241,7 +241,7 @@ Hands off to `dev-2_implement`'s spec writing (Phase A).
 
 Candidate order for the rest of the repo-wide track:
 
-1. `libs/app-runtime` — 24 documents, the second largest, with the same README-duplication shape
+1. `libs/runtime` — 24 documents, the second largest, with the same README-duplication shape
 2. `apps/web` — 55 documents, the largest
 3. Merging the 3 duplicate root `docs/` trees — **not starting from scratch.** The same work was finished on
    2026-08-20 but the worktree disappeared and it was lost (it never landed on any branch). The verdict survives at

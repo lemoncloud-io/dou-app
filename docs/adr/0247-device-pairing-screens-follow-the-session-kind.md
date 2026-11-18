@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-27 · Implemented: `feat/device-pairing`
 > · Scope: `apps/web/src/app/features/pairing/`, `apps/desktop-web/src/app/features/pairing/`,
-> `libs/app-runtime/src/session/pairing/`, `libs/data` (`PairingRepository`, `UserRepository.listDevices`)
+> `libs/runtime/src/session/pairing/`, `libs/data` (`PairingRepository`, `UserRepository.listDevices`)
 > · The module docs are [apps/web pairing](../../apps/web/docs/feature/pairing/README.md),
 > [apps/desktop-web pairing](../../apps/desktop-web/docs/pairing/README.md) and
 > [libs/auth pairing](../../libs/auth/docs/pairing/README.md)

@@ -394,7 +394,7 @@ describe('session/auth/cloudSession', () => {
         expect(mockSaveSelectedSiteId).toHaveBeenCalledWith('site-old'); // previous sid restored
     });
 
-    describe('applySelectedSite (optimistic sid primitive for the app-runtime socket switch)', () => {
+    describe('applySelectedSite (optimistic sid primitive for the @chatic/runtime socket switch)', () => {
         // It no longer announces anything itself: `setSelectedSiteId` routes to the relay or cloud
         // store by active cloud and BOTH emit `selection` (ADR-0076 decision 2). A broadcast here was a
         // second fan-out for one write.

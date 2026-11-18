@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-09-29 · Implemented: `feat/cross-cloud-unread-web`
 > · Scope: apps/web `OtherCloudUnreadProvider` · `CloudPushMarkRunner` · `utils/countUnread.ts` ·
-> `libs/app-runtime/src/socket/sync/backgroundDeltas.ts` · `refreshBackgroundClouds(cid)`
+> `libs/runtime/src/socket/sync/backgroundDeltas.ts` · `refreshBackgroundClouds(cid)`
 > · Supersedes: [ADR-0056](./0056-place-cloud-unread-dot-from-cache-and-push.md) decision 2's dot
 > formula and its switch-only clear. Its `cid` resolution, the switch clear for a cloud with no slot,
 > and decisions 1, 3, 4 and 5 stand.

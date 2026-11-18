@@ -23,20 +23,20 @@ libs/runtime-core/src/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host, the page's mirror engine — see docs/bridge/
-└── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (app-runtime docs/sync/)
+└── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (@chatic/runtime docs/sync/)
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
 app builds the runtime through `createWebRuntime(...)` in `@chatic/runtime-web`, which fills the
-page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/app-runtime`'s
+page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/runtime`'s
 `initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
-app-runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
+@chatic/runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
 through `createNativeRuntime(...)` in `@chatic/runtime-mobile`, which fills React Native's ports the
 same way; the mobile app can boot it (its `docs/runtime/`), and nothing starts it yet.
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without
-React, and app-runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
+React, and @chatic/runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
 So does the relay session's own lifecycle: `createSessionController` brings the session up at boot
 and keeps a session-less visitor signed in as a guest ([docs/session](./docs/session/README.md)).
 
@@ -58,23 +58,23 @@ surface starts its lifecycle work from, instead of making it itself:
 | `pushRegistration(options)`                                     | push device-token registration                                   |
 
 The engine `createRuntime` returns is the **core engine**: each member makes the core implementation, in
-this process. The classes behind it are not on the barrel — only their types are — so app-runtime can
+this process. The classes behind it are not on the barrel — only their types are — so @chatic/runtime can
 reach them only through the engine it was handed. A runtime that runs elsewhere (the native process,
 with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
 do not know which engine they were given.
 
 `session`, `commands`, `connection`, `sync` and `data` are the members that are not factories: the core engine
 keeps one session view over this process's stores ([docs/session](./docs/session/README.md#the-session-view)),
-and every session reader app-runtime publishes reads through it; `commands` run this process's use cases
-([docs/session](./docs/session/README.md#the-commands)), and every session command app-runtime
+and every session reader @chatic/runtime publishes reads through it; `commands` run this process's use cases
+([docs/session](./docs/session/README.md#the-commands)), and every session command @chatic/runtime
 publishes runs through them; `connection` reads and drives this process's socket manager
 ([docs/connection](./docs/connection/README.md#the-sockets-as-screens-read-them)) and `sync` its sync
-manager, and app-runtime reaches neither manager any other way; `data` hands over the page's view of
+manager, and @chatic/runtime reaches neither manager any other way; `data` hands over the page's view of
 this process's repository graphs, without the token issuers ([docs/data](./docs/data/README.md#the-pages-graph)).
 
 Everything the React surface reads or drives goes through the engine, sending media included: the page
 holds the cloud (`data.holdCloud`) and makes the upload and send calls through the engine, and uploads
-the bytes itself — see [app-runtime docs/data](../app-runtime/docs/data/README.md).
+the bytes itself — see [@chatic/runtime docs/data](../runtime/docs/data/README.md).
 
 ## The runtime across the bridge
 
@@ -130,7 +130,7 @@ way:
 ```mermaid
 flowchart TD
     Apps["apps/* entry points"]
-    Surface["@chatic/app-runtime<br/><i>layer:react-surface</i>"]
+    Surface["@chatic/runtime<br/><i>layer:react-surface</i>"]
     Client["@chatic/runtime-client<br/><i>layer:client</i>"]
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
     Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:native</i>"]
@@ -183,7 +183,7 @@ Native also declares (`WebSocket`, `XMLHttpRequest`, `File`, `fetch`) arrive thr
 `@chatic/bridge-messages` and type-check, so for those the lint list is the check.
 
 Not enforced yet, because today's code still does it: the core packages import `@chatic/storage` and
-`@chatic/http`, `@chatic/app-runtime` imports the core packages directly, and an app may import an
+`@chatic/http`, `@chatic/runtime` imports the core packages directly, and an app may import an
 adapter from any file rather than its entry point. Each goes when the code it describes moves.
 
 ## The wiring calls

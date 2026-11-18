@@ -49,7 +49,7 @@ let booted = false;
 /**
  * Assembles the runtime from the platform's ports — the one place that wires the core packages
  * together. A web app reaches it through `createWebRuntime` in `@chatic/runtime-web`, once from its
- * entry point, before render, and hands the engine it returns to `@chatic/app-runtime`'s
+ * entry point, before render, and hands the engine it returns to `@chatic/runtime`'s
  * `initAppRuntime(engine)`. The packages it wires are process-wide, one per launch; the engine it
  * returns is how the React surface starts its lifecycle work on them.
  *

@@ -613,7 +613,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
   timer, so fake timers are load-bearing rather than an optimisation.
 - `setupBridgeLogger` keeps module state — a `handle` that makes it idempotent. A spec that does not
   call `teardown()` leaves the forwarder subscribed to the hub for the next one.
-- Downstream: 260 files across `apps/web`, `libs/app-runtime`, `apps/desktop-web`, `apps/mobile`,
+- Downstream: 260 files across `apps/web`, `libs/runtime`, `apps/desktop-web`, `apps/mobile`,
   `libs/db`, `libs/data`, `apps/admin`, `apps/desktop`, `libs/shared` and `libs/theme` import this
   barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile`,
   and excludes `web` from the test run — those are the ones to check by hand.

@@ -40,7 +40,7 @@
             "path": "./libs/bridges"
         },
         {
-            "path": "./libs/app-runtime"
+            "path": "./libs/runtime"
         },
         {
             "path": "./apps/desktop-web"

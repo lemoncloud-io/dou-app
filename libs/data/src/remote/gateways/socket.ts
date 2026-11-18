@@ -30,7 +30,7 @@ import type { ChannelGetRequestData } from '@lemoncloud/chatic-sockets-api/dist/
  * socket handshake, owned end to end by the SDK's AuthController. A second sender would authenticate
  * a connection the controller does not know it authenticated, so the controller's own state machine
  * (refresh scheduling, failure counting, terminal `expired`) would be reasoning about a session it
- * did not open. Nothing outside the SDK may send it — see app-runtime's `authUpdateAbsence.test.ts`.
+ * did not open. Nothing outside the SDK may send it — see @chatic/runtime's `authUpdateAbsence.test.ts`.
  */
 export type AuthSocketDomainGateway = Pick<AuthGateway, 'linkAccount'>;
 export type ChatSocketDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete' | 'reaction'>;

@@ -1,8 +1,8 @@
 # ADR-0255: A sync target belongs to its cloud's slot, not to the active slot
 
 > Status: Accepted · Decided: 2026-09-28 · Implemented: `refactor/per-slot-sync`
-> · Scope: `libs/app-runtime/src/socket/sync/**` · `libs/app-runtime/src/data/DataManager.ts` ·
-> `libs/app-runtime/src/data/factories/socketFactory.ts` · `libs/app-runtime/src/session/store/contextStore.ts`
+> · Scope: `libs/runtime/src/socket/sync/**` · `libs/runtime/src/data/DataManager.ts` ·
+> `libs/runtime/src/data/factories/socketFactory.ts` · `libs/runtime/src/session/store/contextStore.ts`
 > · Builds on: [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (slots keyed by cid) ·
 > [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md) (the active slot is a pointer) ·
 > [ADR-0117](./0117-socket-auth-is-keyed-by-the-slot-s-cloud.md) (auth keyed by the slot's cloud)

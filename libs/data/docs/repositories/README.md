@@ -166,7 +166,7 @@ classDiagram
 
 `CacheStorage` and `ScopedCacheStorage` belong to this lib — interfaces `ports/` declares, plus the
 slot that builds one adapter per partition (`createScopedCacheStorage`). The adapters below it
-are owned by `@chatic/db`, and which domain gets which adapter is decided by `libs/app-runtime`.
+are owned by `@chatic/db`, and which domain gets which adapter is decided by `libs/runtime`.
 
 ## Repository wiring
 
@@ -273,7 +273,7 @@ This is inference, so it is kept narrow and reversible:
 - `ChatRepository` additionally provides `cacheClearByChannelId(channelId)`.
 - Logout, cloud switch and test setup each have to decide their clear scope explicitly.
 - **Clearing a domain's rows means clearing the partition's sync cursors after them** (`syncMeta.cacheClear()`). A cursor that outlives its data still claims "synced up to T", so the next sync asks only for the delta after T and the gap never fills. A whole-partition clear of `chat` counts as refillable despite the bullet below, because `join` goes with it and the rows the server will not return were hidden by the join window anyway — what is lost is unsent messages.
-- Two domains hold data the server cannot give back, and a clear meant to be refilled from the server must skip them: `cloud` (the `invitecloud` slot — there is no list API for invited clouds) and `invite` (its `dismissedAt` is written only on this device). The whole-device sweep that follows these rules is `clearLocalCaches` in `libs/app-runtime`.
+- Two domains hold data the server cannot give back, and a clear meant to be refilled from the server must skip them: `cloud` (the `invitecloud` slot — there is no list API for invited clouds) and `invite` (its `dismissedAt` is written only on this device). The whole-device sweep that follows these rules is `clearLocalCaches` in `libs/runtime`.
 - **Deleting chat cannot be undone.** Other domains can be refilled by the server if wrongly cleared, but the message feed is windowed by `join.joinedNo`, and the server will not hand back anything before it. So chat deletion is attached to explicit signals only, never to inference → below. A `hidden` mark inferred from a re-read feed page is not a deletion: the row stays and the mark is reversible ([What a feed page proves](#what-a-feed-page-proves)).
 
 How storage carries that request out is in
@@ -312,7 +312,7 @@ reason.
 | -------------------------- | --------------------------------------------------------------------- |
 | A successful self-leave    | `ChannelRepository.leaveChannel`                                      |
 | A successful place leave   | `ChannelRepository.evictLeftChannels`, for each room the server names |
-| Removal of my own join row | the join sync plan's `onRemove` (app-runtime)                         |
+| Removal of my own join row | the join sync plan's `onRemove` (@chatic/runtime)                     |
 
 It is **not** attached to `ChannelSyncPlan.onRemove` or to `syncChannels`' stale prune. One misjudgement
 by inference-based cleanup becomes unrecoverable history loss.

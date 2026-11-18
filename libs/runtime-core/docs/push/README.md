@@ -6,8 +6,8 @@ registered with the home broker, which the central push service then fans out th
 
 `PushRegistration` owns **when to register and when not to**, with no React in it. It does not know how
 a token is obtained; that is shell knowledge, and it arrives as a delegate. An app starts it through
-`runtime.push.useDeviceTokenRegistration(delegate)` in `@chatic/app-runtime`
-([its push doc](../../../app-runtime/docs/push/README.md)); the native runtime will start the same
+`runtime.push.useDeviceTokenRegistration(delegate)` in `@chatic/runtime`
+([its push doc](../../../runtime/docs/push/README.md)); the native runtime will start the same
 class.
 
 ## Layout
@@ -27,7 +27,7 @@ what it contains.
 | Owner                       | What                                                                                                                                                                                                           |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **runtime-core**            | The whole registration policy: auth gating, once-per-install dedup and its durable record, the burst floor, retry on failure, overlap prevention, the device id and the account uid, and the registration call |
-| **app-runtime**             | `useDeviceTokenRegistration`: starts and stops the registration, hands it the latest delegate and the device ids, and passes on a window `focus`                                                               |
+| **@chatic/runtime**         | `useDeviceTokenRegistration`: starts and stops the registration, hands it the latest delegate and the device ids, and passes on a window `focus`                                                               |
 | **the app (shell adapter)** | All shell knowledge: how to obtain a token, reading the shell's window globals, and deciding whether this even _is_ a native shell                                                                             |
 
 Outside a native shell the app passes `null` and nothing starts. This is the same inversion as
@@ -181,6 +181,6 @@ right project.
 
 ## Further reading
 
-- [app-runtime docs/push/](../../../app-runtime/docs/push/README.md) — the hook an app mounts
+- [@chatic/runtime docs/push/](../../../runtime/docs/push/README.md) — the hook an app mounts
 - [docs/session/](../session/README.md) — the foreground port the return-to-app trigger reads
-- [app-runtime docs/session/](../../../app-runtime/docs/session/README.md) — `useDynamicDeviceId`, where the device ids come from on the web
+- [@chatic/runtime docs/session/](../../../runtime/docs/session/README.md) — `useDynamicDeviceId`, where the device ids come from on the web

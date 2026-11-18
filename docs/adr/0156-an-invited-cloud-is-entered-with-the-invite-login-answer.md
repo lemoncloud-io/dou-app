@@ -2,8 +2,8 @@
 
 > Status: Accepted · Decided: 2026-10-01
 > · Scope: `apps/web/src/app/features/invite/accept/` · `apps/web/src/app/hooks/useInvitedClouds.ts` ·
-> `apps/web/src/app/utils/invitedCloudAcceptance.ts` · `libs/app-runtime/src/session/auth/{cloudSession,cloudTokens}.ts` ·
-> `libs/app-runtime/src/session/hooks/session/actions/useSwitchCloudSession.ts` ·
+> `apps/web/src/app/utils/invitedCloudAcceptance.ts` · `libs/runtime/src/session/auth/{cloudSession,cloudTokens}.ts` ·
+> `libs/runtime/src/session/hooks/session/actions/useSwitchCloudSession.ts` ·
 > `libs/app-messages/src/types/model/cache.ts` (`CacheCloudView.acceptedBy`)
 > · Amends: [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) decision 1 — the invited
 > clouds handed to the background sockets are the ones the device user accepted, not the whole cache

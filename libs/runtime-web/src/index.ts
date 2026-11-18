@@ -28,6 +28,49 @@ export type { NativeCacheSupport } from './localCache';
 export { readWebHostFacts } from './hostFacts';
 export type { WebHostFacts, WebHostFactsSources } from './hostFacts';
 
+// what the shell declared it does, read into the host ports the entry point publishes (`host.publish`);
+// features read the published ports as `runtime.<port>` from `@chatic/runtime`
+export {
+    CHECKOUT_INTRODUCED_IN,
+    FILES_INTRODUCED_IN,
+    MEDIA_INTRODUCED_IN,
+    SHELL_DOMAINS_INTRODUCED_IN,
+    hostOsOf,
+    resolveAppShell,
+    resolveCheckoutMethod,
+    resolveDiagnosticsMethod,
+    resolveFilesMethod,
+    resolveLinksMethod,
+    resolveMediaMethod,
+    resolvePushMethod,
+    resolveShellOrBrowser,
+    resolveSignIn,
+} from './hostCapabilities';
+export { host } from '@chatic/runtime-client';
+export type {
+    AppShellPort,
+    CheckoutMethod,
+    CheckoutPort,
+    DiagnosticsPort,
+    FilesMethod,
+    FilesPort,
+    HostOs,
+    HostPorts,
+    LinksPort,
+    MediaMethod,
+    MediaPort,
+    NoCheckout,
+    PushPort,
+    ShellOrBrowser,
+    SignInPort,
+    StoreCheckout,
+    StoreName,
+    StorePurchase,
+    StorePurchaseError,
+    StorePurchaseRequest,
+    WebCheckout,
+} from '@chatic/runtime-client';
+
 // each port's pieces, one factory each, every one buildable on its own from what it is handed —
 // `createWebRuntime` and `resolveStorageStores` are the same factories, chosen for the page
 export { webTransportPorts } from './transport';

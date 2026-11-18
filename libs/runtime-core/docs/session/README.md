@@ -8,8 +8,8 @@ its signal, the derived contexts — is `@chatic/session`'s; logging in and out,
 are `@chatic/auth`'s use cases. The controller only decides **when** to call them, and the commands
 only run them for a screen.
 
-The connection host in `@chatic/app-runtime` makes one controller and starts it
-([app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md)); the native runtime
+The connection host in `@chatic/runtime` makes one controller and starts it
+([@chatic/runtime docs/connection/](../../../runtime/docs/connection/README.md)); the native runtime
 will start the same one.
 
 ## Layout
@@ -30,7 +30,7 @@ anything that reads the session through the engine; `testing/sessionCommands.ts`
 for the commands — each command a test does not pass rejects, naming itself.
 
 The connection host starts the session controller; an app starts the two guards with its own policy
-(`runtime.session.useSessionStalenessGuard` / `useCloudCredentialGuard` in app-runtime).
+(`runtime.session.useSessionStalenessGuard` / `useCloudCredentialGuard` in @chatic/runtime).
 
 ## Usage
 
@@ -149,7 +149,7 @@ guards' `check` itself.
 
 ### The session view
 
-`engine.session` is how the React surface reads the session — every reader app-runtime publishes
+`engine.session` is how the React surface reads the session — every reader @chatic/runtime publishes
 (`useGlobalSession`, `getUidInCloud`, `isPairedSession` and the rest) goes through it. It is a
 `SessionView { snapshot(), subscribe(listener), onLogout(listener) }`, and the snapshot is a
 `SessionSnapshot`. `onLogout` hears each sign-out as it happens (the core view registers on the relay
@@ -192,7 +192,7 @@ has to be handed over, and the stores wired, before the first render — which e
 
 ### The commands
 
-`engine.commands` is how the React surface changes the session — every command app-runtime publishes
+`engine.commands` is how the React surface changes the session — every command @chatic/runtime publishes
 (`logoutSession`, `confirmPhoneLogin`, `clearSiteSelection`, …) and every action, login and pairing hook
 goes through it. `SessionCommands` lists them:
 
@@ -239,6 +239,6 @@ bound.
 
 ## Further reading
 
-- [app-runtime docs/connection/](../../../app-runtime/docs/connection/README.md) — the host that starts this controller and gates on `isReady()`
+- [@chatic/runtime docs/connection/](../../../runtime/docs/connection/README.md) — the host that starts this controller and gates on `isReady()`
 - [auth docs/socket/](../../../auth/docs/socket/README.md) — what a revoked session is, and why the keep-alive follows it with a guest login
 - [`libs/session`](../../../session/README.md) — the stores and the signal this controller reads

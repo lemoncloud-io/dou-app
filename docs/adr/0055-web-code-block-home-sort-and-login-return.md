@@ -196,7 +196,7 @@ row-structure complexity and entanglement with the `blurLastMessage` setting).
 - **Lift the `useLastChat` observation up to the list level.** Today `ChannelItem` (the row) calls it
   individually, but sorting needs to know the time **before** the rows are drawn. Since both the
   register and subscribe APIs are imperative (`getSyncManager().register`,
-  `repositories.chat.observeList` — [`useSyncTarget.ts`](../../libs/app-runtime/src/socket/sync/hooks/useSyncTarget.ts)),
+  `repositories.chat.observeList` — [`useSyncTarget.ts`](../../libs/runtime/src/socket/sync/hooks/useSyncTarget.ts)),
   a list-level hook handling N items is feasible. Rows **receive the result as a prop** — no
   duplicate observation is created.
 - **`'unread'` sort and pinning stay as-is.** Both are stable sorts layered on top of this base order,
@@ -214,7 +214,7 @@ row-structure complexity and entanglement with the `blurLastMessage` setting).
 > accuracy, the feature was dropped rather than patched. Scope of the revert: deleting `useLastChats`
 > and its fan-out cap `limitConcurrency`, restoring the row-level `useLastChat`, restoring
 > read-cursor-based sort in `sortChannels`, `ChannelList`, and `PlaceChannelManagePage`, and restoring
-> `useSyncTarget` and `libs/app-runtime`'s public surface. As a result, the **"display time and sort
+> `useSyncTarget` and `libs/runtime`'s public surface. As a result, the **"display time and sort
 > order diverged" flaw** this decision claimed to close **is open again**, and the follow-up ADR-0047
 > §3 left behind is still unresolved. Retrying this is handled by a separate ADR.
 

@@ -1,7 +1,7 @@
 # ADR-0302: The session has no default medium
 
 > Status: Accepted · Decided: 2026-11-10 · Implemented: `refactor/session-media-required`
-> · Scope: `libs/session` (`store/ports/sessionMedia.ts`), `libs/app-runtime` (`init.ts`),
+> · Scope: `libs/session` (`store/ports/sessionMedia.ts`), `libs/runtime` (`init.ts`),
 > `apps/landing` (`features/subscription/lib/port/http/runtime.ts`), tests in session, auth and
 > app-runtime that reach a real store
 > · The behaviour is documented in [libs/session § Two ports](../../libs/session/README.md#two-ports-secret-and-plain)

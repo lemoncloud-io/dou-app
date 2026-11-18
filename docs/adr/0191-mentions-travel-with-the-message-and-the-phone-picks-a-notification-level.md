@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `feat/channel-notify-mode`
 > · Scope: `libs/data/src/domain/mention.ts` · `libs/data` `ChatRepository` (send and pending image rows)
-> · `libs/app-runtime` `sendChatInCloud` and `useSendImages` (`mention`) · `apps/web/src/app/features/channels/`
+> · `libs/runtime` `sendChatInCloud` and `useSendImages` (`mention`) · `apps/web/src/app/features/channels/`
 > (`useMentionComposer`, `MentionSuggestions`, `NotifyModeSheet`, `MessageText`, `ChannelMessageRow`,
 > the room and thread pages, `ChannelSettingsPage`)
 > · Partially supersedes [ADR-0025](./0025-channel-notification-mute-toggle.md) (its on/off switch and the

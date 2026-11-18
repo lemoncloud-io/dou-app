@@ -3,24 +3,24 @@
 **The connections, and nothing that decides when to use them.** `SocketManager` holds one socket
 client per slot — relay, the committed cloud, and a background slot per other joined cloud — behind
 an active facade; `HttpManager` resolves each HTTP route's host, signs through the relay request transport
-and knows when the signing credential has lapsed. It was cut out of `@chatic/app-runtime` as the layer
-above `@chatic/session` (ADR-0253): it reads the session, and nothing in app-runtime.
+and knows when the signing credential has lapsed. It was cut out of `@chatic/runtime` as the layer
+above `@chatic/session` (ADR-0253): it reads the session, and nothing in @chatic/runtime.
 
 Which slots should exist, who logs a slot in, and what a cloud switch does are not here. Those are
-runtime-core's — the connection controller, which app-runtime's host starts — and the authentication wiring
+runtime-core's — the connection controller, which @chatic/runtime's host starts — and the authentication wiring
 and the sync runtimes are [`@chatic/auth`](../auth/README.md)'s and [`@chatic/sync`](../sync/README.md)'s.
 
 ## Who imports it
 
-`@chatic/app-runtime` and the modules cut from it that sit above this one. **Apps do not**: they reach sockets and HTTP
+`@chatic/runtime` and the modules cut from it that sit above this one. **Apps do not**: they reach sockets and HTTP
 through `runtime` — the sockets as `runtime.connection` reads and drives them through the engine,
 `runtime.boot.webTransport`, `runtime.session.authFailureReaction` — which publishes the parts an app is
 meant to hold. The socket manager itself is not among them.
 
-Production code imports the barrel only. A test in app-runtime may name a file —
+Production code imports the barrel only. A test in @chatic/runtime may name a file —
 `jest.mock('@chatic/transport/socket/runtime', …)` — because a mock has to replace the module every
 importer reaches, this package's own modules included, and mocking the barrel would leave those on
-the real module. The root eslint config closes both forms to everything else, and app-runtime's own
+the real module. The root eslint config closes both forms to everything else, and @chatic/runtime's own
 config re-opens the barrel and, in tests only, the deep form. This package reads `@chatic/session` the
 same way: the barrel in code, a named file in a test that mocks a store.
 
@@ -45,7 +45,7 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    singletons. A second `new` for either is a bug; a test that needs a fresh `SocketManager` builds
    one by its file path.
 2. **Nothing here refreshes a credential or builds an `auth.update` packet.** The SDK's auth
-   controller owns both. Two tests in app-runtime walk this package's source along with the rest and
+   controller owns both. Two tests in @chatic/runtime walk this package's source along with the rest and
    fail on the string: `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts`.
 3. **Nothing here reaches upward.** What the runtime above has to supply — recovering a lapsed
    credential, reacting to a final refusal — is a registry it fills at boot (`credentialRecovery`,
@@ -101,5 +101,5 @@ npx jest --config libs/transport/jest.config.js
 npx tsc -b libs/transport/tsconfig.json
 ```
 
-The jest config maps `@chatic/assets`, styles and images the way app-runtime's does: modules this
+The jest config maps `@chatic/assets`, styles and images the way @chatic/runtime's does: modules this
 lib reaches still import the `@chatic/shared` barrel, and that barrel carries React components.

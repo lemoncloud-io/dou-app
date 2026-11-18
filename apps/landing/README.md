@@ -1004,5 +1004,5 @@ Then the boundary commands in [Layering](#layering).
 
 Nothing imports this app, so a change here reaches no other project — the reverse is not true:
 `libs/policy-content`, `libs/theme`, `libs/shared`, `assets`, and — for the account surface's HTTP port —
-`libs/config` and `libs/app-runtime` all reach it, and `tsconfig.app.json` and `tsconfig.spec.json`
+`libs/config` and `libs/runtime` all reach it, and `tsconfig.app.json` and `tsconfig.spec.json`
 both reference exactly those six.

@@ -7,5 +7,5 @@
         "types": ["jest", "node"]
     },
     "include": ["src/**/*.ts", "src/**/*.d.ts"],
-    "references": [{ "path": "../bridges/tsconfig.lib.json" }, { "path": "../bridge-messages/tsconfig.lib.json" }]
+    "references": [{ "path": "../runtime-client/tsconfig.lib.json" }, { "path": "../runtime-web/tsconfig.lib.json" }]
 }

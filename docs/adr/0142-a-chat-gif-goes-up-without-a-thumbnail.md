@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-09-30
 > · Scope: `libs/shared/src/image/prepareImage.ts` (`prepareChatAttachment`)
-> · `libs/app-runtime/src/data/hooks/useSendImages.ts` · `apps/testbed/src/app/features/image-send/useImageSend.ts`
+> · `libs/runtime/src/data/hooks/useSendImages.ts` · `apps/testbed/src/app/features/image-send/useImageSend.ts`
 > · Supersedes, for chat attachments: [ADR-0111](./0111-the-destination-decides-how-a-picked-image-is-prepared.md)'s
 > rule that an animated GIF gets a first-frame thumbnail
 > · The module docs are [libs/shared README](../../libs/shared/README.md) and

@@ -28,7 +28,7 @@ talking to every shell still in use.
 - **`@chatic/session`** declares its ports in terms of `KeyValueStore`, and defaults to a
   `webSession` store until an entry point configures it.
 - **`@chatic/auth`**'s logout sweep and its boot clean-up of an old lemon-web-core bundle walk the
-  plain store's keys, and **`@chatic/app-runtime`**'s push registration record keeps its web copy
+  plain store's keys, and **`@chatic/runtime`**'s push registration record keeps its web copy
   there.
 
 It imports nothing from the workspace.
