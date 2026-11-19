@@ -77,7 +77,7 @@ export const startTelemetry = (options: StartTelemetryOptions): (() => void) => 
         now,
         createId: createLogId,
         // The entry point the `diagnostics` port reports: the app's icon, or a browser.
-        entry: runtime.diagnostics.kind === 'shell' ? 'icon' : 'browser',
+        entry: runtime.diagnostics.entry,
         recordEvent: (name, fields) => recorder.event(name, fields),
         // The tracker is declared below; this only runs on a later rollover.
         onNewSession: () => {

@@ -1,18 +1,22 @@
+// Where the `diagnostics` port has a boot record, the snapshot goes to it; a watched one stands in for the app's.
 const mockIsNative = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const mockSendBootMetrics = jest.fn();
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get diagnostics() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return {
+                ...testing.browserDiagnostics(),
+                ...(mockIsNative() ? { kind: 'shell', bootMetrics: { send: mockSendBootMetrics } } : {}),
+            };
         },
-    })
-);
-jest.mock('../../../bridge', () => ({ appBridge: { sendBootMetrics: jest.fn() } }));
+    });
+});
 
-import { appBridge } from '../../../bridge';
 import { scheduleBootMetricsReport } from './reportBootMetrics';
 
 const isNativeMock = mockIsNative;
-const sendMock = appBridge.sendBootMetrics as jest.Mock;
+const sendMock = mockSendBootMetrics;
 
 describe('scheduleBootMetricsReport — 웹 부팅 스냅샷 네이티브 전송', () => {
     beforeEach(() => {

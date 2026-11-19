@@ -1,6 +1,5 @@
 import { renderHook } from '@testing-library/react';
 
-import { appBridge } from '../bridge';
 import { useBackHandler } from './useBackHandler';
 
 // The rewind is reached through `useStackBack`, which this hook delegates its judgement to; the real
@@ -12,16 +11,18 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigate,
 }));
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The frame's back gesture, as the host's `appShell` port offers it; a browser's back is its own.
+// One object for the whole suite, as the port is one value per start.
+const mockBackGesture = { setCanGoBack: jest.fn() };
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: isNativeValue ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), backGesture: isNativeValue ? mockBackGesture : null };
         },
-    })
-);
+    });
+});
 jest.mock('../bridge', () => ({
-    appBridge: { setCanGoBack: jest.fn() },
     useOnBackPressed: jest.fn(),
 }));
 
@@ -120,13 +121,13 @@ describe('useBackHandler — the back press judgement', () => {
 
         renderHook(() => useBackHandler());
 
-        expect(appBridge.setCanGoBack).toHaveBeenCalledWith(false);
+        expect(mockBackGesture.setCanGoBack).toHaveBeenCalledWith(false);
 
         jest.clearAllMocks();
         openDialog();
         renderHook(() => useBackHandler());
 
-        expect(appBridge.setCanGoBack).toHaveBeenCalledWith(true);
+        expect(mockBackGesture.setCanGoBack).toHaveBeenCalledWith(true);
     });
 
     // The outcome is the point of this refactor: the third branch used to be an unnamed early
