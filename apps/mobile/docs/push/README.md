@@ -31,7 +31,7 @@ suspended then), and the web re-aggregates the true count on the next foreground
 | `src/app/bridge/SharedLanguageBridge.ts`                           | copies the web's language choice to where the two push services read it — see [../system/language.md](../system/language.md)                                                                                                      |
 | `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy in the pinned language else the device's, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid`/`chatId` into the tap link, fetches the sender's image                  |
 | `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                                                                                           |
-| `android/.../push/ActiveAppIcon.kt`                                | the launcher icon the user has active — its picture for a banner's large icon, its accent for the small icon                                                                                                                      |
+| `android/.../push/ActiveAppIcon.kt`                                | the accent of the launcher icon the user has active, for the banner's small icon                                                                                                                                                  |
 | `android/.../push/LanguagePreferenceStore.kt`                      | the language choice the messaging service reads (its own `chatic_language` file)                                                                                                                                                  |
 | `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding                                                                             |
 | `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json` (pinned language, else the device's); attaches the sender's image; increments the shared badge and appends a push-mark record while the app is backgrounded |
@@ -389,10 +389,9 @@ profile and the OS then redraws the title, so the attachment is used instead.
 and is far over a push's size limit; the image reaches real pushes once profiles move to addresses.
 Until then this path is exercised with `send-test-push.js --thumbnail`.
 
-On Android a banner with no sender face shows the active app icon in that slot instead, and the small
-icon beside the app name is the logo's silhouette tinted with that icon's accent (which the system may
-adjust for contrast) — how both are chosen is in
-[App icons § Notification icon](../native/app-icons.md#notification-icon).
+On Android the small icon beside the app name is the logo's silhouette tinted with the accent of the
+app icon the user picked (which the system may adjust for contrast, and One UI replaces with the
+default app icon) — see [App icons § Notification icon](../native/app-icons.md#notification-icon).
 
 ## Cloud activation push
 

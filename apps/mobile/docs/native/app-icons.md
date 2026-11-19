@@ -52,19 +52,22 @@ icon, see [Notification icon](#notification-icon).
 
 ## Notification icon
 
-On Android a push banner follows the icon the user picked: switch to Aurora, and the next banner
-shows the Aurora icon. It does so in two places, because Android lets an app colour only one of them.
+On Android a push banner's small icon — beside the app name and in the status bar — is
+`drawable-*/ic_notification.png`, tinted with the accent of the icon the user picked: switch to
+Aurora, and the next banner's circle is Aurora's blue. `ActiveAppIcon` finds the enabled icon alias
+(the same `…Icon` aliases switching flips) and reads its accent.
 
-- **The large icon**, right of the text, is the active launcher icon itself, in full colour —
-  `ActiveAppIcon` finds the enabled icon alias (the same `…Icon` aliases switching flips) and draws
-  its icon. A sender's face, when a push carries one, takes this slot instead.
-- **The small icon**, beside the app name and in the status bar, is `drawable-*/ic_notification.png`,
-  tinted with the active icon's accent. Android draws a small icon from its alpha alone and tints it —
-  white in the status bar, the accent in the shade — so this slot can never hold the coloured logo.
-  The push service used to pass the launcher icon, whose opaque square showed as a plain grey square;
-  the generator instead takes the monochrome layer's cut-out silhouette, crops it square around the
-  logo and fits it into the 22 dp live area of a 24 dp icon (the adaptive canvas's margins would leave
-  the logo a dot). One file serves every icon, since the logo is the same in all of them.
+Android draws a small icon from its alpha alone and tints it — white in the status bar, the accent in
+the shade — so this slot can never hold the coloured logo. The push service used to pass the launcher
+icon, whose opaque square showed as a plain grey square; the generator instead takes the monochrome
+layer's cut-out silhouette, crops it square around the logo and fits it into the 22 dp live area of a
+24 dp icon (the adaptive canvas's margins would leave the logo a dot). One file serves every icon,
+since the logo is the same in all of them.
+
+The large icon, right of the text, is not the app icon. It is the slot for the push's own picture —
+the sender's face when a push carries one — and stays empty otherwise, as messaging apps leave it. A
+copy of the app icon there was tried and dropped: it repeated what the small icon already says, and
+on One UI it sat beside a second, different app icon.
 
 The accent is a single colour per icon, `accent` in `ICONS`, written to
 `values/ic_launcher_accents.xml` as `notification_accent_<key>` and attached to each alias as its
@@ -78,9 +81,14 @@ colour passes unchanged on both a light and a dark shade, so the circle differs 
 Android 15 the lime is exact in dark mode, with a dark glyph, and darkened to `#357700` in light mode;
 the white icon's accent comes out grey.
 
+**Samsung's One UI does not use the small icon in the shade.** It draws the app's own full-colour icon
+there instead, and the one it shows is the `<application>` element's icon, which is always
+DefaultIcon: on a One UI phone set to Sky, the banner still showed the lime icon. No app API changes
+that — switching icons only toggles launcher aliases, and the application icon is fixed at install.
+
 A banner the FCM SDK draws itself — a message with a `notification` block while the app is in the
 background, which the server does not send but the Firebase console does — cannot look up the active
-icon, so it gets the silhouette and DefaultIcon's lime and no large icon: the icon through the
+icon, so it gets the silhouette and DefaultIcon's lime: the icon through the
 manifest's `default_notification_icon`, the colour through `messaging_android_notification_color` in
 `firebase.json`. react-native-firebase already declares the colour meta-data (default white) and
 fills it from there, so a second declaration in the manifest fails the merge.

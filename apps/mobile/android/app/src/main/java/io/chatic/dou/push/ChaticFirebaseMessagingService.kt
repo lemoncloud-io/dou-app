@@ -547,23 +547,23 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-        // The banner follows the app icon the user picked. Android draws the small icon from its
-        // alpha alone, so that slot gets the logo's cut-out silhouette (the coloured launcher icon
-        // showed as a plain grey square) tinted with the icon's accent; the icon itself, in colour,
-        // goes in the large-icon slot whenever no sender face takes it.
-        val appIcon = ActiveAppIcon.read(this)
+        // Android draws the small icon from its alpha alone, so it is the logo's cut-out silhouette
+        // (the coloured launcher icon showed as a plain grey square), tinted with the accent of the
+        // app icon the user picked.
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification)
-            .setColor(appIcon.accent)
+            .setColor(ActiveAppIcon.accent(this))
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
-        // The sender's face, else the active app icon. Title and body stay the plain assembled copy —
-        // not MessagingStyle, which would redraw the sender and room its own way and make this banner
-        // read differently from the iOS one and the in-app one.
-        (largeIcon ?: appIcon.picture)?.let { notificationBuilder.setLargeIcon(it) }
+        // The sender's face. Title and body stay the plain assembled copy — not MessagingStyle, which
+        // would redraw the sender and room its own way and make this banner read differently from the
+        // iOS one and the in-app one.
+        if (largeIcon != null) {
+            notificationBuilder.setLargeIcon(largeIcon)
+        }
 
         // Drive the launcher app-icon badge count where the launcher supports numeric badges.
         // Badge fidelity is launcher-dependent on Android (same limitation as notifee): launchers
