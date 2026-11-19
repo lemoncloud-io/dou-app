@@ -208,4 +208,6 @@ export const ko: Messages = {
     talksTo: hosts => `페이지가 통신하는 곳: ${hosts} — 각각 무엇을 받는지 확인하세요.`,
     bundle: (files, kilobytes) => `번들: 파일 ${files}개, ${kilobytes} KB.`,
     detailsHint: '줄마다 어떤 규칙인지 보려면 --details를 붙이세요.',
+    bundled: (file, files) => `✓ 파일 ${files}개를 ${file}에 묶었습니다. 넘길 zip은 이것입니다.`,
+    bundleFailed: reason => `✗ 페이지를 묶지 못했습니다: ${reason}`,
 };

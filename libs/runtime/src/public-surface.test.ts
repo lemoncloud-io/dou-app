@@ -5,6 +5,7 @@
 import { host } from '@chatic/runtime-client';
 
 import * as api from './index';
+import { browserAppShell, browserDiagnostics, browserLinks } from './testing';
 
 /**
  * Locks the package's PUBLIC runtime surface — now group by group.
@@ -268,10 +269,10 @@ describe('@chatic/runtime public surface', () => {
             checkout: { kind: 'none' },
             media: { kind: 'browser' },
             files: { kind: 'shell' },
-            links: { kind: 'browser' },
-            appShell: { kind: 'shell', os: 'ios' },
+            links: browserLinks(),
+            appShell: { ...browserAppShell(), kind: 'shell', os: 'ios' },
             signIn: { kind: 'shell', os: 'android' },
-            diagnostics: { kind: 'browser' },
+            diagnostics: browserDiagnostics(),
             push: { kind: 'shell' },
         });
 

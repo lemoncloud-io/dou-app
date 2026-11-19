@@ -1,10 +1,8 @@
-// useDebugMode (imported for the cross-hook sync test) pulls in the real appBridge chain,
-// which reaches webTransport's `import.meta.env` read — unparseable under ts-jest's
-// CommonJS transform. Mock the bridge at the same boundary useDebugMode.test.ts does.
-jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
 // A browser tab: the page keeps its own diagnostics, so an unlock is not propagated to an app.
 jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({ diagnostics: { kind: 'browser' } })
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        diagnostics: require('@chatic/runtime/testing').browserDiagnostics(),
+    })
 );
 
 import { act, renderHook } from '@testing-library/react';

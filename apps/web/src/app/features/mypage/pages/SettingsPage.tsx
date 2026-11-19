@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
+import { useNavigateWithTransition } from '@chatic/shared';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge } from '../../../bridge';
 import { haptics } from '../../../bridge/haptics';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
@@ -72,18 +71,9 @@ export const SettingsPage = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
-    // Part of the update check: where the app runs the frame around the page (the host's `appShell`
-    // port) it opens its own store listing; anywhere else the page opens the store's web page.
-    const handleOpenStore = () => {
-        if (runtime.appShell.kind === 'shell') {
-            appBridge.openStore();
-            return;
-        }
-
-        const storeUrl = getStoreUrl(deviceInfo?.platform);
-        if (!storeUrl) return;
-        window.open(storeUrl, '_blank');
-    };
+    // Part of the update check (the host's `appShell` port): the frame that found the newer build opens
+    // its own store listing. Without a store to check, no update is ever found and the row never calls this.
+    const handleOpenStore = () => runtime.appShell.storeUpdate?.openStore();
 
     const versionText = isMobilePlatform
         ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
@@ -128,7 +118,7 @@ export const SettingsPage = () => {
                         }
                         onClick={() => setIsLanguageSheetOpen(true)}
                     />
-                    {runtime.appShell.kind === 'shell' && isIconChangeSupported && (
+                    {isIconChangeSupported && (
                         <ListRow
                             title={t('mypage.appIconSettings')}
                             trailing={

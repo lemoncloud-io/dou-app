@@ -373,9 +373,30 @@ Netlify 같은 곳의 미리보기 배포)에 올리고 그 주소를 대신 추
 `node_modules` 안의 것이 아니라 프로젝트 최상위의 `AGENTS.md`를 읽으므로, 그곳으로 복사하거나 AI 어시스턴트가
 `node_modules/@lemoncloud/chatic-apps-sdk/AGENTS.md`를 보게 한다.
 
+0.3.0부터는 스킬도 함께 제공한다. `skill/SKILL.md`(한국어판 `skill/SKILL.ko.md`)는 웹 페이지를 한 번도 만들어 보지 않은 사람을
+한 번에 하나씩 묻는 질문으로 아이디어에서 검증기를 통과한 zip까지 이끄는 절차다. 세 단계 — 아이디어, 초기 구축,
+배포 준비 — 로 나아가고, 계획과 진행 상황을 프로젝트 최상위의 `MINIAPP.md`에 남겨 다른 날의 대화가 멈춘 곳에서
+이어 간다. 프로젝트의 파일만 고치고, 시작 패키지를 묻고 나서 한 번 설치하고, 프로젝트의 스크립트만 돌린다.
+무엇도 업로드하거나 제출하지 않는다.
+
+쓰려면 `skill` 폴더를 AI 어시스턴트가 스킬을 읽는 곳에 두거나, `SKILL.md`를 주고 따르라고 한다. 이미 패키지를
+설치한 프로젝트라면 `node_modules`에서 복사하고, 빈 폴더라면 설치할 배포 버전의 파일을 받는다.
+
+```bash
+cp -R node_modules/@lemoncloud/chatic-apps-sdk/skill ./chatic-app-skill
+curl -fsSLO https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/skill/SKILL.md
+```
+
+스킬의 첫 설치에는 npm에 SDK 0.3.0과 `@lemoncloud/chatic-apps-devtools`가 있어야 한다. 둘 다 배포되기 전에는 위
+명령도, 그 설치도 되지 않는다. 그다음 AI 어시스턴트에게 원하는 것을 말한다 — "퀴즈 미니앱 만들어줘"면 시작하기에
+충분하다. 사본은 패키지와 함께
+갱신되지 않는다. 스킬은 자기가 맞춰 쓴 SDK 버전을 적어 두고, 설치된 것과 다르면 알린다.
+
 ## 넘겨주기 전에
 
 - [ ] `npm run build`가 최상위에 `index.html`과 `.well-known/chatic-app.json`이 있는 `dist/`를 만든다.
+- [ ] `@lemoncloud/chatic-apps-devtools`가 배포된 뒤: `npx @lemoncloud/chatic-apps-devtools verify`(또는 프로젝트의 `npm run verify`)가 "넘길 준비가 됐습니다"로
+      끝난다.
 - [ ] 일반 파일 서버에서 열었을 때, 빌드된 페이지가 주소에 경로 없이 루트에서 동작한다.
 - [ ] 페이지가 앱 없는 브라우저(`apps.inApp`이 `false`)와 대역 양쪽에서 동작한다.
 - [ ] 매니페스트의 모든 권한이 쓰이고, 권한이 필요한 모든 호출이 `apps.supports(…)`로 보호되거나

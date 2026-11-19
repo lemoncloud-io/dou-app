@@ -164,9 +164,14 @@ The same two buttons, at the same two ends of the bar, but the page moves the fi
    and that copy in the HTTP cache carries no CORS headers: a fetch answered from it fails as if the
    bucket sent none. The byte progress drives the same ring as in the app.
 2. **A 403 reads the message again once** for the upload's new address, the same rule as in the app.
-3. **Save** hands the bytes to the browser as a download under the upload's name (`saveBlob`: a `blob:`
-   address on an anchor with `download`). An upload older than names is saved as its upload id with the
-   extension its type gives. The browser's own download UI is the feedback, so no toast follows.
+3. **Save** hands the bytes to the browser as a download under the upload's name (`saveFileInBrowser`,
+   `lib/browserSave.ts`: a `blob:` address on an anchor with `download`). An upload older than names is
+   saved as its upload id with the extension its type gives. The browser's own download UI is the
+   feedback, so no toast follows. **On iOS and iPadOS the save is the share sheet instead**, whose "Save
+   Image" and "Save to Files" keep the file: a home-screen web app and the in-app browsers (KakaoTalk's)
+   do not download a `blob:` address, they show the file in place of the page with no way back. Safari's
+   tab is treated the same, so there is one rule for iOS. A save the sheet refuses for a stale press
+   keeps its bytes like a share does, and the next press saves them.
 4. **Share** puts the file alone on the Web Share sheet (`lib/browserShare.ts`) — no title or text, which
    a receiving app would take as a second item. Its type comes from the response, or from the name when
    the bucket answered `application/octet-stream`, since browsers decide by type what may be shared.
@@ -214,6 +219,7 @@ the download catch-up would then find no record and fail a save that had succeed
 | `features/channels/lib/imageExport.ts`              | the flow above, save all, and their toasts                               |
 | `features/channels/lib/browserMediaExport.ts`       | a browser tab's fetch, save and share, and the file name it uses         |
 | `features/channels/lib/browserShare.ts`             | whether the browser shares files, and the share itself                   |
+| `features/channels/lib/browserSave.ts`              | a browser save: the download, or the share sheet on iOS                  |
 | `features/channels/hooks/useImageExports.tsx`       | the per-upload busy state, what is savable, the dependencies, the toasts |
 | `features/channels/components/SaveShareButtons.tsx` | the two buttons, the save-all position and the save sheet                |
 | `features/channels/components/MessageImages.tsx`    | puts the buttons in the viewer, stops shares and save all on close       |

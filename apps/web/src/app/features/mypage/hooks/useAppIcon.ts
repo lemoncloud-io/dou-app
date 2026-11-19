@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { logger, webClient } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/bridge-messages';
 import { runtime } from '@chatic/runtime';
 
@@ -18,8 +18,8 @@ export const isDefaultAppIcon = (id: string | null): boolean => id === null || i
 /**
  * Encapsulates native app-icon support: fetching the current icon and the
  * available icon list on mount, changing the icon, and resolving the
- * localized label for the current icon. No-ops unless the app runs the frame
- * around the page (the host's `appShell` port).
+ * localized label for the current icon. No-ops unless the frame offers alternate
+ * icons (the host's `appShell` port); `isSupported` stays false there.
  */
 export const useAppIcon = () => {
     const { t } = useTranslation();
@@ -28,25 +28,26 @@ export const useAppIcon = () => {
     const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
 
     useEffect(() => {
-        if (runtime.appShell.kind !== 'shell') return;
+        const appIcon = runtime.appShell.appIcon;
+        if (!appIcon) return;
 
-        webClient
-            .request({ type: 'FetchAppIcon', data: {} })
-            .then(res => {
-                if (res.success && res.data) {
-                    setIsSupported(res.data.supported);
-                    setCurrentIcon(res.data.iconName);
+        appIcon
+            .current()
+            .then(status => {
+                if (status) {
+                    setIsSupported(status.supported);
+                    setCurrentIcon(status.iconName);
                 }
             })
             .catch(err => {
                 logger.error('APP_ICON', '[useAppIcon] failed to fetch app icon status', { error: err });
             });
 
-        webClient
-            .request({ type: 'FetchAppIconList', data: {} })
-            .then(res => {
-                if (res.success && res.data) {
-                    setAvailableIcons(res.data.availableIcons);
+        appIcon
+            .options()
+            .then(icons => {
+                if (icons) {
+                    setAvailableIcons(icons);
                 }
             })
             .catch(err => {
@@ -55,12 +56,14 @@ export const useAppIcon = () => {
     }, []);
 
     const selectIcon = async (iconId: string | null) => {
+        const appIcon = runtime.appShell.appIcon;
+        if (!appIcon) return false;
         try {
-            const res = await webClient.request({ type: 'ChangeAppIcon', data: { iconName: iconId } });
-            if (res.success && res.data?.success) {
+            const applied = await appIcon.change(iconId);
+            if (applied) {
                 // The icon the app says it applied, not the one asked for: that is what the user now has.
-                recordAppIconChange(currentIcon, res.data.iconName ?? iconId);
-                setCurrentIcon(res.data.iconName ?? 'default');
+                recordAppIconChange(currentIcon, applied.iconName ?? iconId);
+                setCurrentIcon(applied.iconName ?? 'default');
                 return true;
             }
         } catch (err) {

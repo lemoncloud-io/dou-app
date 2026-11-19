@@ -1,20 +1,24 @@
-import { appBridge } from '../../../bridge';
 import { openSubWebViewTarget } from '../../../bridge/subWebViewLink';
 import { openExternalUrl } from './openExternalUrl';
 
 const mockIsNative = jest.fn();
-// Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The app's way: the OS browser, beside its sub WebView. The test watches the hand-off to the OS.
+const mockOpenUrl = jest.fn();
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get links() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return mockIsNative()
+                ? {
+                      ...testing.browserLinks(),
+                      kind: 'shell',
+                      openUrl: (url: string) => mockOpenUrl(url),
+                      subWebView: { openScope: jest.fn(), open: jest.fn() },
+                  }
+                : testing.browserLinks();
         },
-    })
-);
-
-jest.mock('../../../bridge', () => ({
-    appBridge: { openURL: jest.fn() },
-}));
+    });
+});
 
 let mockSupportsSubWebView = true;
 jest.mock('../../../bridge/shellCapabilities', () => ({
@@ -48,7 +52,7 @@ describe('openExternalUrl', () => {
 
         openExternalUrl('https://example.com/a');
 
-        expect(appBridge.openURL).toHaveBeenCalledWith('https://example.com/a');
+        expect(mockOpenUrl).toHaveBeenCalledWith('https://example.com/a');
         expect(openSubWebViewTarget).not.toHaveBeenCalled();
         expect(open).not.toHaveBeenCalled();
     });
@@ -59,7 +63,7 @@ describe('openExternalUrl', () => {
         openExternalUrl('https://example.com/a');
 
         expect(open).toHaveBeenCalledWith('https://example.com/a', '_blank', 'noopener,noreferrer');
-        expect(appBridge.openURL).not.toHaveBeenCalled();
+        expect(mockOpenUrl).not.toHaveBeenCalled();
     });
 
     describe('a mini app link', () => {
@@ -69,7 +73,7 @@ describe('openExternalUrl', () => {
             openExternalUrl('https://app.chatic.io/apps/dou-raise');
 
             expect(openSubWebViewTarget).toHaveBeenCalledWith({ link: { appId: 'dou-raise', query: '' } });
-            expect(appBridge.openURL).not.toHaveBeenCalled();
+            expect(mockOpenUrl).not.toHaveBeenCalled();
         });
 
         // A message sent before its page shared the app link carries the page's own address.
@@ -77,7 +81,7 @@ describe('openExternalUrl', () => {
             openExternalUrl('https://dou-raise.apps.chatic.io/');
 
             expect(openSubWebViewTarget).toHaveBeenCalledWith({ pageUrl: 'https://dou-raise.apps.chatic.io/' });
-            expect(appBridge.openURL).not.toHaveBeenCalled();
+            expect(mockOpenUrl).not.toHaveBeenCalled();
         });
 
         // A tap the user asked for opens something: the app link, through the OS, as before.
@@ -87,7 +91,7 @@ describe('openExternalUrl', () => {
             openExternalUrl('https://app.chatic.io/apps/unknown');
             await settle();
 
-            expect(appBridge.openURL).toHaveBeenCalledWith('https://app.chatic.io/apps/unknown');
+            expect(mockOpenUrl).toHaveBeenCalledWith('https://app.chatic.io/apps/unknown');
         });
 
         // A refusal is the shell's answer about this page, logged; the OS would show it outside the app.
@@ -97,13 +101,13 @@ describe('openExternalUrl', () => {
             openExternalUrl('https://app.chatic.io/apps/dou-raise');
             await settle();
 
-            expect(appBridge.openURL).not.toHaveBeenCalled();
+            expect(mockOpenUrl).not.toHaveBeenCalled();
         });
 
         it("hands another stage's page address to the OS", () => {
             openExternalUrl('https://dou-raise.apps-dev.chatic.io/');
 
-            expect(appBridge.openURL).toHaveBeenCalledWith('https://dou-raise.apps-dev.chatic.io/');
+            expect(mockOpenUrl).toHaveBeenCalledWith('https://dou-raise.apps-dev.chatic.io/');
             expect(openSubWebViewTarget).not.toHaveBeenCalled();
         });
 
@@ -112,7 +116,7 @@ describe('openExternalUrl', () => {
 
             openExternalUrl('https://app.chatic.io/apps/dou-raise');
 
-            expect(appBridge.openURL).toHaveBeenCalledWith('https://app.chatic.io/apps/dou-raise');
+            expect(mockOpenUrl).toHaveBeenCalledWith('https://app.chatic.io/apps/dou-raise');
             expect(openSubWebViewTarget).not.toHaveBeenCalled();
         });
     });

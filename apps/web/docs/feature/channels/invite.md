@@ -50,7 +50,7 @@ seats still free (`MAX_ROOM_MEMBERS` in `InvitePage`). A new group with no membe
 toasts its own batch-cap line, which is what the place invite page still does. People invited by
 contact who have not joined yet are not counted — nothing on the client can see them.
 
-**Contacts are only requested once the contact tab has been opened.** `appBridge.getContacts()`
+**Contacts are only requested once the contact tab has been opened.** `runtime.links.contacts.read()`
 raises the OS permission prompt, so calling it on mount would ask people who never intended to use
 it. The trigger is a latch — "has this tab ever been opened" — not the tab's current value: keying
 the effect on the value means switching back runs the cleanup, which cancels an in-flight request

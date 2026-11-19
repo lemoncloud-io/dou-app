@@ -3,7 +3,6 @@ import { create } from 'zustand';
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
-import { appBridge } from '../../../bridge';
 import { useAppForeground } from '../../../bridge/useAppForeground';
 
 export interface AppUpdateStatus {
@@ -37,22 +36,19 @@ export const useAppUpdateStore = create<AppUpdateStore>(set => ({
 /**
  * Checks for an app update on mount and on every foreground return, publishes the result to the
  * shared store, and returns the current status. Safe to mount from several places at once — the
- * native side caches a successful lookup, so the extra calls are cheap. Only where the app runs the
- * frame around the page (the host's `appShell` port) is the bridge asked; anywhere else (a plain
- * browser) it never is, and the status stays on the "no update" default.
+ * native side caches a successful lookup, so the extra calls are cheap. Only where the frame is
+ * updated from a store it can check (the host's `appShell` port) is the store asked; anywhere else (a
+ * plain browser) it never is, and the status stays on the "no update" default.
  */
 export const useAppUpdateStatus = (): AppUpdateStatus => {
     const updateAvailable = useAppUpdateStore(state => state.updateAvailable);
     const latestVersion = useAppUpdateStore(state => state.latestVersion);
 
     const check = useCallback(async () => {
-        if (runtime.appShell.kind !== 'shell') return;
+        const storeUpdate = runtime.appShell.storeUpdate;
+        if (!storeUpdate) return;
         try {
-            const response = await appBridge.checkAppUpdate();
-            const next = {
-                updateAvailable: response.data.updateAvailable,
-                latestVersion: response.data.latestVersion,
-            };
+            const next = await storeUpdate.check();
             // Only on the transition, not on every check: this runs on mount and on every
             // foreground return, so reporting the standing state would file the same line all day.
             // The edge is what answers both shapes of the report — "the update prompt never

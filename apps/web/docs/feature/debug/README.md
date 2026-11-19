@@ -277,7 +277,8 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
   about them.
 - **`main.tsx` sends `appBridge.setDebugMode(false)` on every boot.** It clears a persisted flag
   that older installed app builds still read; the native debug UI it used to gate no longer exists.
-  Unlocking afterwards propagates with `setDebugMode(true)`.
+  Unlocking afterwards propagates through `runtime.diagnostics.debugMode` (`setDebugMode(true)`
+  underneath; `null`, so nothing to tell, in a browser).
 - **`screenManifest.test.ts` is the catalog's guard** — unique keys, menu and registry in step, the
   tab strip in menu order, every icon resolvable, every screen named in both languages. A new screen
   that skips a step above fails there rather than at runtime.

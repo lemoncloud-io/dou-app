@@ -1,22 +1,22 @@
-// Mock the host's port and the bridge so the test controls the app/page branch directly.
+// The host's port, so the test controls the app/page side directly: the app's copy is watched, the
+// page's is the real Clipboard API over a mocked `navigator.clipboard`.
 const mockIsNative = jest.fn();
-// Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const mockAppCopy = jest.fn();
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get links() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return mockIsNative()
+                ? { ...testing.browserLinks(), kind: 'shell', copyText: (text: string) => mockAppCopy(text) }
+                : testing.browserLinks();
         },
-    })
-);
-// Mocked at the direct module path, matching how copyText imports it (the barrel would drag in
-// bridge/navigation, which cannot be parsed under ts-jest's CommonJS output).
-jest.mock('../../../bridge/appBridge', () => ({ appBridge: { copyClipBoard: jest.fn() } }));
+    });
+});
 
-import { appBridge } from '../../../bridge/appBridge';
 import { copyText, copyTextWithResult } from './copyText';
 
 const isNativeMock = mockIsNative;
-const copyClipBoardMock = appBridge.copyClipBoard as jest.Mock;
+const copyClipBoardMock = mockAppCopy;
 
 describe('copyText', () => {
     let writeTextMock: jest.Mock;
@@ -99,7 +99,7 @@ describe('copyTextWithResult', () => {
 
     it('앱 안에서는 브릿지 응답을 기다려 참을 답한다', async () => {
         isNativeMock.mockReturnValue(true);
-        copyClipBoardMock.mockResolvedValue({ ok: true });
+        copyClipBoardMock.mockResolvedValue(true);
 
         await expect(copyTextWithResult('hello')).resolves.toBe(true);
         expect(copyClipBoardMock).toHaveBeenCalledWith('hello');
@@ -107,6 +107,13 @@ describe('copyTextWithResult', () => {
     });
 
     it('브릿지가 거절하면 실패로 답한다', async () => {
+        isNativeMock.mockReturnValue(true);
+        copyClipBoardMock.mockResolvedValue(false);
+
+        await expect(copyTextWithResult('hello')).resolves.toBe(false);
+    });
+
+    it('answers false, too, if the copy rejects', async () => {
         isNativeMock.mockReturnValue(true);
         copyClipBoardMock.mockRejectedValue(new Error('NOT_FOUND'));
 

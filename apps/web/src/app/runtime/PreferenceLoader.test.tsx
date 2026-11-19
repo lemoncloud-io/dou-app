@@ -1,24 +1,28 @@
 import { render } from '@testing-library/react';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge, syncLanguageChoiceToShell } from '../bridge';
+import { syncLanguageChoiceToShell } from '../bridge';
 import { PreferenceLoader } from './PreferenceLoader';
 
 const mockIsNative = jest.fn((): boolean => false);
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
+// Its `read` answers with the bridge's whole response here, and the store hands back the value in it,
+// as the web app's implementation does.
+const mockFetchPreference = jest.fn();
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            const read = async (key: string) => (await mockFetchPreference({ key })).data.value;
+            return { ...browserAppShell(), preferences: mockIsNative() ? { save: jest.fn(), read } : null };
         },
         settings: { snapshot: jest.fn(), set: jest.fn() },
-    })
-);
-jest.mock('../bridge', () => ({ appBridge: { fetchPreference: jest.fn() }, syncLanguageChoiceToShell: jest.fn() }));
+    });
+});
+jest.mock('../bridge', () => ({ syncLanguageChoiceToShell: jest.fn() }));
 
 const mockSnapshot = runtime.settings.snapshot as jest.Mock;
 const mockSet = runtime.settings.set as jest.Mock;
-const mockFetchPreference = appBridge.fetchPreference as jest.Mock;
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 

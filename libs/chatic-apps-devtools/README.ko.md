@@ -56,6 +56,14 @@ Chatic 앱 검사
 명령 `chatic-apps`)입니다. SDK의 배포 경로가 출처 증명이 붙는 CI 배포로 바뀐 뒤에 싣습니다. 작성자의 컴퓨터에서 도는
 명령은 라이브러리보다 공격자에게 더 값진 표적이기 때문입니다.
 
+## `bundle`
+
+`chatic-apps bundle`은 빌드 폴더를 넘길 zip으로 묶습니다: 폴더의 내용을 압축 파일 맨 위에(`index.html`,
+`.well-known/chatic-app.json`, `assets/…`) 넣고, 그 밖의 것은 넣지 않습니다. `verify`처럼 프로젝트의 `bundle`
+스크립트로 둡니다. `--out`으로 다른 파일을 지정하지 않으면 `<프로젝트 폴더>.zip`을 쓰고, 빌드되지 않았거나 링크가 있는
+폴더는 거절하며, 같은 빌드는 같은 바이트로 묶습니다 — 항목을 정렬하고 날짜를 1980-01-01로 둡니다. 다른 것은
+점검하지 않으므로 `verify`를 먼저 돌리세요.
+
 ## 안쪽: `check`와 `scenarios`
 
 `verify`는 점검기 다음에 시나리오 실행기를 돌립니다. 둘 다 따로 쓰는 명령으로도 남아 있습니다. CI용이고, 규칙 이름이
@@ -175,7 +183,7 @@ export default {
 
 ## API
 
-`verify`와 `formatVerify`가 명령의 API입니다. `check`, `runScenarios`, `loadDist`, `loadEntry`, `openPage`,
+`verify`, `formatVerify`, `bundle`이 명령들의 API입니다. `check`, `runScenarios`, `loadDist`, `loadEntry`, `openPage`,
 `loadScenarioConfig`는 시험용으로 내보냅니다. `loadEntry`는 페이지를 소스에서 프로덕션 빌드처럼(`import.meta.env.DEV`가
 false) 묶고, 소스를 바꾸는 함수를 받을 수 있습니다. 페이지의 시험이 일부러 깨뜨린 사본을 만드는 방법입니다.
 `openPage`는 페이지를 열기 전에 호스트 — mock이든 실제 호스트든 — 를 끼워 넣는 고리를 받습니다.

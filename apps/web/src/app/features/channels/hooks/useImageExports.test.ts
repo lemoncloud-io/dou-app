@@ -47,10 +47,12 @@ jest.mock('@chatic/runtime', () =>
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
 const fetchInBrowser = jest.fn();
-const saveBlob = jest.fn();
 jest.mock('../lib/fileDownload', () => ({
     fetchInBrowser: (...args: unknown[]) => fetchInBrowser(...args),
-    saveBlob: (...args: unknown[]) => saveBlob(...args),
+}));
+const saveBlob = jest.fn();
+jest.mock('../lib/browserSave', () => ({
+    saveFileInBrowser: (...args: unknown[]) => saveBlob(...args),
 }));
 const shareFileInBrowser = jest.fn();
 let browserShares = true;
@@ -94,7 +96,7 @@ beforeEach(() => {
     filesKind = 'shell';
     browserShares = true;
     fetchInBrowser.mockReset();
-    saveBlob.mockReset();
+    saveBlob.mockReset().mockResolvedValue('saved');
     shareFileInBrowser.mockReset();
 });
 afterEach(() => shellCapabilities.reset());
@@ -492,6 +494,18 @@ describe('useImageExports in a browser', () => {
 
         expect(saveBlob).toHaveBeenCalledTimes(1);
         expect(fetchInBrowser).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the bytes when the iOS share sheet refuses a save, and saves them on the next press', async () => {
+        saveBlob.mockResolvedValueOnce('needs-gesture').mockResolvedValueOnce('saved');
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('save', image));
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.browserShare.again' });
+
+        await act(() => result.current.run('save', image));
+        expect(fetchInBrowser).toHaveBeenCalledTimes(1);
+        expect(saveBlob).toHaveBeenCalledTimes(2);
     });
 
     it('says so when the original cannot be fetched', async () => {

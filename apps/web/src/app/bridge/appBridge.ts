@@ -385,7 +385,8 @@ export const appBridge = {
      * above is served by notifee whose badge API is a no-op off iOS (ADR-0099).
      *
      * Raw like its neighbours: unwrapping and the platform routing that decides WHICH of the two to
-     * ask both live in `nativeBadgeReader`, so this stays a message facade.
+     * ask both live in the `appShell` port's `iconBadge` (`src/config/adapters/appShell.ts`), so this
+     * stays a message facade.
      */
     fetchBadgeBase(): Promise<WebMessageResponse<'FetchBadgeBase'>> {
         return webClient.request({ type: 'FetchBadgeBase', data: {} });

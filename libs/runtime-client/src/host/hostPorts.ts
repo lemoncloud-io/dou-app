@@ -1,14 +1,8 @@
+import type { AppShellPort } from './appShell';
 import type { CheckoutPort } from './checkout';
-import type {
-    AppShellPort,
-    DiagnosticsPort,
-    FilesPort,
-    HostPorts,
-    LinksPort,
-    MediaPort,
-    ShellOrBrowser,
-    SignInPort,
-} from './ports';
+import type { DiagnosticsPort } from './diagnostics';
+import type { LinksPort } from './links';
+import type { FilesPort, HostPorts, MediaPort, ShellOrBrowser, SignInPort } from './ports';
 
 const NOT_PUBLISHED = "[host] the ports are read before the app's entry point published them (host.publish)";
 

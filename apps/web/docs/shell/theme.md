@@ -64,8 +64,9 @@ read the native's own legacy `themeStore` (updated by the mobile `usePreferenceC
 
 1. `runtime.settings.set('ui.theme', theme, { lane: 'shell' })` — the storage
    `runtime.settings.get('ui.theme')` resolves from on the next boot.
-2. `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` (native only, confirmed
-   with one retry) — the storage native's own UI reads.
+2. `runtime.appShell.preferences.save('theme', theme)` — `appBridge.savePreferenceConfirmed` underneath
+   (only where the frame keeps a preference store, `null` in a browser; confirmed with one retry) — the
+   storage native's own UI reads.
 
 On top of that, `deviceStore.set('vite-ui-theme', theme)` makes a third write, into the app's
 `localStorage` store —

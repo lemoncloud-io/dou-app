@@ -1,10 +1,8 @@
-import { runtime } from '@chatic/runtime';
+import { runtime, type LinkPreviewReader } from '@chatic/runtime';
 import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
-
-import { webClient } from '@chatic/bridges';
 
 /**
  * What the chip renders — a view model, not the wire contract. The shell sends
@@ -32,15 +30,14 @@ const storeMetadata = (url: string, meta: UrlMetadata | null) => {
     metadataCache.set(url, meta);
 };
 
-const requestMetadata = (url: string): Promise<UrlMetadata | null> => {
+const requestMetadata = (url: string, reader: LinkPreviewReader): Promise<UrlMetadata | null> => {
     const cached = metadataCache.get(url);
     if (cached !== undefined) return Promise.resolve(cached);
     const pending = inFlight.get(url);
     if (pending) return pending;
-    const request = webClient
-        .request({ type: 'FetchUrlMetadata', data: { url } })
-        .then(response => {
-            const data = response.data;
+    const request = reader
+        .fetch(url)
+        .then(data => {
             if (!data?.success || !data.title) return null;
             // `data.imageUrl` is deliberately not carried over — see the component.
             return { url: data.url, title: data.title, siteName: data.siteName };
@@ -62,8 +59,8 @@ interface LinkPreviewCardProps {
 /**
  * Compact unfurl chip under a message link. Desktop shell only — the renderer
  * can't read cross-origin pages, so the main process fetches and parses og:
- * tags (FetchUrlMetadata). Renders nothing in a plain browser or when the page
- * yields no usable metadata. Block-level <span>s because the host paragraph
+ * tags (`runtime.links.linkPreview`). Renders nothing in a plain browser or when
+ * the page yields no usable metadata. Block-level <span>s because the host paragraph
  * is a <p>.
  *
  * The chip shows only the source name and the title. Dropping the `og:image`
@@ -81,10 +78,11 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);
 
     useEffect(() => {
-        // Only the app reads a link's preview, where it takes the page's links (`runtime.links`).
-        if (runtime.links.kind !== 'shell') return;
+        // Only the app reads a link's preview: a browser has no reader.
+        const reader = runtime.links.linkPreview;
+        if (!reader) return;
         let active = true;
-        void requestMetadata(url).then(result => {
+        void requestMetadata(url, reader).then(result => {
             if (active) setMeta(result);
         });
         return () => {
@@ -92,7 +90,7 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
         };
     }, [url]);
 
-    if (runtime.links.kind !== 'shell') return null;
+    if (!runtime.links.linkPreview) return null;
 
     // The chip used to pop in at full height the moment the shell answered, pushing
     // the text below it down under a reader who was mid-sentence. It now opens from

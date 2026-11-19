@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge } from '../../../bridge';
 
 import { PageHeader } from '../../../ui/components';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
@@ -20,14 +19,8 @@ interface LicenseEntry {
 const OpenSourceHero = () => {
     const { t } = useTranslation();
 
-    const handleGithubClick = () => {
-        // The OS browser where the app takes the page's links (`runtime.links`), else a new tab.
-        if (runtime.links.kind === 'shell') {
-            appBridge.openURL(GITHUB_URL);
-        } else {
-            window.open(GITHUB_URL, '_blank');
-        }
-    };
+    // The OS browser in the app, a new tab in a browser.
+    const handleGithubClick = () => runtime.links.openUrl(GITHUB_URL);
 
     return (
         <div className="mx-4 rounded-[18px] bg-card px-5 py-6 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">

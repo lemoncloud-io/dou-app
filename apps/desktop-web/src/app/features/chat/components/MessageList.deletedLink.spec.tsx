@@ -7,8 +7,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+// The link card only draws inside the desktop shell, whose preview reader answers with the unfurled
+// page. Faking it makes every link "resolve" to a card.
+vi.mock('@chatic/runtime', async () => {
+    const testing = await import('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -18,21 +21,21 @@ vi.mock('@chatic/runtime', async () =>
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
-        // Who takes the page's links, as the host's `links` port says.
-        links: { kind: 'shell' },
-    })
-);
-
-// The link card only draws inside the desktop shell, which answers `FetchUrlMetadata`
-// with the unfurled page. Faking the bridge makes every link "resolve" to a card.
-vi.mock('@chatic/bridges', async importOriginal => ({
-    ...(await importOriginal<object>()),
-    webClient: {
-        request: vi.fn().mockResolvedValue({
-            data: { success: true, url: 'https://leki.example/', title: 'leki wiki', siteName: 'leki' },
-        }),
-    },
-}));
+        links: {
+            ...testing.browserLinks(),
+            kind: 'shell',
+            linkPreview: {
+                fetch: () =>
+                    Promise.resolve({
+                        success: true,
+                        url: 'https://leki.example/',
+                        title: 'leki wiki',
+                        siteName: 'leki',
+                    }),
+            },
+        },
+    });
+});
 
 import '../../../../i18n';
 

@@ -38,7 +38,8 @@ top of the script, and writes, per icon:
 - **Web** — the 180 px preview the picker sheet shows, `apps/web/public/assets/app-icons/<Id>.png`.
 
 All Android icons share one foreground and one monochrome layer, written once:
-`mipmap-*/ic_launcher_mascot_foreground.webp` and `…_monochrome.webp`.
+`mipmap-*/ic_launcher_mascot_foreground.webp` and `…_monochrome.webp` — and one notification small
+icon, see [Notification icon](#notification-icon).
 
 - The foreground places the whole 1024 composition in the middle 72 dp of the 108 dp adaptive canvas —
   the part a launcher shows — so the logo sits where it does on iOS. It stays inside the 66 dp circle
@@ -49,17 +50,55 @@ All Android icons share one foreground and one monochrome layer, written once:
   (The hand-made layers this replaced used the coloured foreground, square included, as their
   monochrome layer, so a themed launcher showed a plain square.)
 
+## Notification icon
+
+On Android a push banner follows the icon the user picked: switch to Aurora, and the next banner
+shows the Aurora icon. It does so in two places, because Android lets an app colour only one of them.
+
+- **The large icon**, right of the text, is the active launcher icon itself, in full colour —
+  `ActiveAppIcon` finds the enabled icon alias (the same `…Icon` aliases switching flips) and draws
+  its icon. A sender's face, when a push carries one, takes this slot instead.
+- **The small icon**, beside the app name and in the status bar, is `drawable-*/ic_notification.png`,
+  tinted with the active icon's accent. Android draws a small icon from its alpha alone and tints it —
+  white in the status bar, the accent in the shade — so this slot can never hold the coloured logo.
+  The push service used to pass the launcher icon, whose opaque square showed as a plain grey square;
+  the generator instead takes the monochrome layer's cut-out silhouette, crops it square around the
+  logo and fits it into the 22 dp live area of a 24 dp icon (the adaptive canvas's margins would leave
+  the logo a dot). One file serves every icon, since the logo is the same in all of them.
+
+The accent is a single colour per icon, `accent` in `ICONS`, written to
+`values/ic_launcher_accents.xml` as `notification_accent_<key>` and attached to each alias as its
+`io.chatic.dou.notification_accent` meta-data. A gradient background names the stop that reads as
+the icon (Aurora's blue, Sky's top).
+
+The accent is a request, not a guarantee. From Android 12 the system UI checks it against the shade's
+background as it draws the banner, darkens or lightens it until it reads, and picks a white or dark
+glyph for the circle; an ordinary push cannot opt out (only media and call notifications can). No one
+colour passes unchanged on both a light and a dark shade, so the circle differs between the modes. On
+Android 15 the lime is exact in dark mode, with a dark glyph, and darkened to `#357700` in light mode;
+the white icon's accent comes out grey.
+
+A banner the FCM SDK draws itself — a message with a `notification` block while the app is in the
+background, which the server does not send but the Firebase console does — cannot look up the active
+icon, so it gets the silhouette and DefaultIcon's lime and no large icon: the icon through the
+manifest's `default_notification_icon`, the colour through `messaging_android_notification_color` in
+`firebase.json`. react-native-firebase already declares the colour meta-data (default white) and
+fills it from there, so a second declaration in the manifest fails the merge.
+
 The Play Store listing icons beside `res/` (`src/main/*-playstore.png`) are not part of the build and
 the generator does not touch them; the store listing is uploaded by hand.
 
 ## Adding an icon
 
 1. Add an entry to `ICONS` in `scripts/generate-app-icons.js` — `id` (PascalCase, ends in `Icon`),
-   `key` (lowercase, used in Android resource names), and a `solid`, `linear` or `radial` background —
+   `key` (lowercase, used in Android resource names), an `accent` (see
+   [Notification icon](#notification-icon)), and a `solid`, `linear` or `radial` background —
    and run `yarn generate:app-icons`.
 2. iOS: add the id under `CFBundleIcons` → `CFBundleAlternateIcons` in `ios/Chatic/Info.plist`.
 3. Android: add an `activity-alias` named `.<Id>` to `AndroidManifest.xml`, `enabled="false"`, with
-   `@mipmap/ic_launcher_<key>` and `…_round` as its icons.
+   `@mipmap/ic_launcher_<key>` and `…_round` as its icons and an `io.chatic.dou.notification_accent`
+   meta-data pointing at `@color/notification_accent_<key>`. Without it the icon's banners fall back
+   to the lime accent.
 4. Add `{ id, label }` to `AVAILABLE_ICONS` in `src/app/services/dynamicAppIcon/types.ts`. The web
    picker lists whatever the app reports, so an app build without the icon never offers it.
 5. Add `mypage.appIcon.<Id>` to both `apps/web/public/locales/*/translation.json`.

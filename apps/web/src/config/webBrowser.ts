@@ -1,12 +1,9 @@
 import {
-    appShellHost,
     authLocation,
     defineRuntime,
-    diagnosticsHost,
     engineCore,
     filesHost,
     foregroundVisibility,
-    linksHost,
     mediaHost,
     pushHost,
     signInHost,
@@ -16,7 +13,10 @@ import {
 import type { SessionOwnerChoice, StorageStores, WebHostFacts } from '@chatic/runtime-web';
 
 import { cacheWebLocal } from './adapters/cache';
+import { appShellHost } from './adapters/appShell';
 import { checkoutAsDeclared } from './adapters/checkout';
+import { diagnosticsHost } from './adapters/diagnostics';
+import { linksHost } from './adapters/links';
 import { storageResolved } from './adapters/storage';
 import { createWebConfigPorts } from './configPorts';
 import { webRuntimePolicies, type WebRuntimeDeclaration } from './policies';

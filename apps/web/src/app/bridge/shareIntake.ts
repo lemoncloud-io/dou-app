@@ -1,4 +1,4 @@
-import { logger, webClient } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
 import { runtime, type ShellFileRef } from '@chatic/runtime';
 import type { RefusedAttachment } from '@chatic/bridge-messages';
 
@@ -15,13 +15,6 @@ export interface ShareIntake {
     text?: string;
 }
 
-/**
- * Android copies the shared items after it has opened the app, and answers once the last copy is
- * written: a few large videos take a while. Bounded like a conversion, not like a picker that waits on
- * a person.
- */
-const FETCH_TIMEOUT_MS = 10 * 60_000;
-
 const codeOf = (error: unknown): string | undefined => (error as { code?: string })?.code;
 
 /**
@@ -35,13 +28,11 @@ const NOTHING_TO_SHARE = new Set(['GONE', 'INVALID']);
  * failure — a timeout or the bridge dropping — which the page reports rather than reading as empty.
  */
 export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> => {
-    // Share intake is the app's, where it takes the page's links (`runtime.links`).
-    if (runtime.links.kind !== 'shell') return null;
+    // Only an app can share into the page; where none does, there is nothing to show.
+    const source = runtime.links.shareIntake;
+    if (!source) return null;
     try {
-        const { data } = await webClient.request(
-            { type: 'FetchShareIntake', data: { id } },
-            { timeoutMs: FETCH_TIMEOUT_MS }
-        );
+        const data = await source.fetch(id);
         return {
             items: data.items.map(toShellFile),
             refused: data.refused,
@@ -63,9 +54,10 @@ export const fetchShareIntake = async (id: string): Promise<ShareIntake | null> 
  * leaves the copies to the app's own day-old sweep, which is no reason to stop the person.
  */
 export const releaseShareIntake = async (id: string, { discard }: { discard: boolean }): Promise<void> => {
-    if (runtime.links.kind !== 'shell') return;
+    const source = runtime.links.shareIntake;
+    if (!source) return;
     try {
-        await webClient.request({ type: 'ReleaseShareIntake', data: { id, discard } });
+        await source.release(id, { discard });
     } catch (error) {
         logger.warn('file.share_intake_release_failed', 'share intake release failed', {
             code: codeOf(error),

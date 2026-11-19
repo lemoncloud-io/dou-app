@@ -1,29 +1,29 @@
 import { runtime } from '@chatic/runtime';
 import { useState } from 'react';
 
-import { webClient } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const nowLabel = (): string => new Date().toLocaleTimeString();
 
 /**
- * Dev-only OS badge tester — drives the shell's SetBadgeCount handler, where the app runs the frame
- * around the page (the host's `appShell` port).
+ * Dev-only OS badge tester — drives the shell's SetBadgeCount handler, where the frame paints a dock
+ * badge (the host's `appShell` port).
  */
 export const DebugBadgeCountPage = () => {
     const [count, setCount] = useState('5');
     const [log, setLog] = useState<string[]>([]);
-    const native = runtime.appShell.kind === 'shell';
+    const dockBadge = runtime.appShell.dockBadge;
+    const native = dockBadge !== null;
 
     const push = (message: string) => setLog(prev => [`[${nowLabel()}] ${message}`, ...prev].slice(0, 30));
 
     const setBadge = async (value: number) => {
-        if (!native) {
+        if (!dockBadge) {
             push('not running in the desktop shell — no-op');
             return;
         }
         try {
-            const res = await webClient.request({ type: 'SetBadgeCount', data: { count: value } });
+            const res = await dockBadge.set(value);
 
             push(`SetBadgeCount(${value}) → ${JSON.stringify((res as any)?.data ?? res)}`);
         } catch (error) {

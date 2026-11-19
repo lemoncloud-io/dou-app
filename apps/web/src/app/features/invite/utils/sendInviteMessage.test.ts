@@ -2,19 +2,23 @@ const isNativeMock = jest.fn();
 const sendSmsMock = jest.fn();
 const copyMessageToClipboardMock = jest.fn();
 
-// Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The app's text composer where the host has one; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get links() {
-            return { kind: isNativeMock() ? 'shell' : 'browser' };
+            return isNativeMock()
+                ? {
+                      ...testing.browserLinks(),
+                      kind: 'shell',
+                      sms: { compose: (...args: unknown[]) => sendSmsMock(...args) },
+                  }
+                : testing.browserLinks();
         },
-    })
-);
+    });
+});
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn() },
-}));
-jest.mock('../../../bridge', () => ({
-    appBridge: { sendSms: (...args: unknown[]) => sendSmsMock(...args) },
 }));
 jest.mock('../../channels/utils/copyMessageToClipboard', () => ({
     copyMessageToClipboard: (...args: unknown[]) => copyMessageToClipboardMock(...args),
@@ -29,7 +33,7 @@ describe('sendInviteMessage', () => {
 
     it('네이티브에서 SMS 브릿지가 성공하면 sms를 반환하고 클립보드는 건드리지 않는다', async () => {
         isNativeMock.mockReturnValue(true);
-        sendSmsMock.mockResolvedValue({ data: { success: true } });
+        sendSmsMock.mockResolvedValue({ success: true });
 
         const result = await sendInviteMessage('01012345678', 'invite body');
 
@@ -41,7 +45,7 @@ describe('sendInviteMessage', () => {
     it('returns sms for the reply an installed shell actually sends, with no data field', async () => {
         // Shells up to 0.28.4 answer `{ type: 'OnSendSms', success: true }` — no `data`.
         isNativeMock.mockReturnValue(true);
-        sendSmsMock.mockResolvedValue({ type: 'OnSendSms', success: true });
+        sendSmsMock.mockResolvedValue(undefined);
 
         const result = await sendInviteMessage('01012345678', 'invite body');
 
@@ -61,7 +65,7 @@ describe('sendInviteMessage', () => {
 
     it('네이티브지만 SMS 브릿지가 success:false면 클립보드로 폴백한다', async () => {
         isNativeMock.mockReturnValue(true);
-        sendSmsMock.mockResolvedValue({ data: { success: false } });
+        sendSmsMock.mockResolvedValue({ success: false });
         copyMessageToClipboardMock.mockResolvedValue(true);
 
         const result = await sendInviteMessage('01012345678', 'invite body');

@@ -176,22 +176,16 @@ export const cacheShellSqlite: WebAdapter<'cache'> = {
 export { engineMirror } from './engine';
 export type { EngineMirrorOptions } from './engine';
 export {
-    appShellBrowser,
-    appShellHost,
-    appShellShell,
+    appShellAdapters,
     checkoutFromHost,
     checkoutNone,
     checkoutStore,
     checkoutWeb,
-    diagnosticsBrowser,
-    diagnosticsHost,
-    diagnosticsShell,
+    diagnosticsAdapters,
     filesBrowser,
     filesHost,
     filesShell,
-    linksBrowser,
-    linksHost,
-    linksShell,
+    linksAdapters,
     mediaBrowser,
     mediaHost,
     mediaShell,
@@ -202,4 +196,11 @@ export {
     signInHost,
     signInShell,
 } from './hostPorts';
-export type { CheckoutImplementations, WebHostAdapter } from './hostPorts';
+export { pageLinks } from './pageLinks';
+export type {
+    CheckoutImplementations,
+    ShellOrBrowserAdapters,
+    ShellOrBrowserBase,
+    ShellOrBrowserImplementations,
+    WebHostAdapter,
+} from './hostPorts';

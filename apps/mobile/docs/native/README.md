@@ -133,7 +133,8 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
   copied into `attach-pick` and handed to the web's share page by id.
 - [photo-library.md](./photo-library.md) — the in-app photo picker's library reads (photos and videos),
   PhotoKit and MediaStore, and keeping a picked video for its upload.
-- [app-icons.md](./app-icons.md) — the icons a user can pick, generated from one logo master, and how
-  switching keeps exactly one launcher entry on Android.
+- [app-icons.md](./app-icons.md) — the icons a user can pick, generated from one logo master, how
+  switching keeps exactly one launcher entry on Android, and how Android push banners follow the
+  active icon.
 - [../push/badge.md](../push/badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
 - [../push/README.md](../push/README.md) — the push-delivery path with no TypeScript wrapper of its own.
