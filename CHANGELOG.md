@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-19] - No version updates
+
+### Chores
+
+- (chatic-apps-devtools) release 0.1.0 with the sdk
+- (chatic-apps-sdk) release 0.3.0
+
 ## [2026-11-19] - root@0.168.10, @chatic/web@0.96.5, @chatic/landing@0.19.5, @chatic/desktop-web@0.60.6
 
 ### Documentation
