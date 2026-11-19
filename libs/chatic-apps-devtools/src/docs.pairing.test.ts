@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { POINTER_LINES, shapeOf } from '@chatic/chatic-apps-sdk/internal';
+import { POINTER_LINES, firstLine, shapeOf } from '@chatic/chatic-apps-sdk/internal';
 
 /**
  * This package's README ships in English and in Korean, as the SDK's author documents do, and is held
@@ -22,7 +22,7 @@ describe('the Korean README', () => {
     });
 
     it('and the English one point at each other on their first line', () => {
-        expect(read('README.md').split('\n')[0]).toMatch(POINTER_LINES.english);
-        expect(read('README.ko.md').split('\n')[0]).toMatch(POINTER_LINES.korean);
+        expect(firstLine(read('README.md'))).toMatch(POINTER_LINES.english);
+        expect(firstLine(read('README.ko.md'))).toMatch(POINTER_LINES.korean);
     });
 });

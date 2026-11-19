@@ -40,4 +40,8 @@ export interface Messages {
     talksTo: (hosts: string) => string;
     bundle: (files: number, kilobytes: string) => string;
     detailsHint: string;
+    /** What `bundle` says once the zip is written. */
+    bundled: (file: string, files: number) => string;
+    /** What `bundle` says when it cannot pack: the reason is the tool's own, in English. */
+    bundleFailed: (reason: string) => string;
 }

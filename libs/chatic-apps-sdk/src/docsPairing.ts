@@ -21,3 +21,13 @@ export const shapeOf = (markdown: string): DocumentShape => {
 
 /** The first line each of a pair opens with: the English one points at the Korean one, and back. */
 export const POINTER_LINES = { english: /^> Korean: /, korean: /^> English: / } as const;
+
+/**
+ * A document's first line of text, after the front matter a skill opens with (`---` … `---`), if any:
+ * where the pointer to the other language goes.
+ */
+export const firstLine = (markdown: string): string =>
+    markdown
+        .replace(/^---\n[\s\S]*?\n---\n/, '')
+        .replace(/^\s*\n/, '')
+        .split('\n')[0];
