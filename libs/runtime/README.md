@@ -70,6 +70,9 @@ What the facade hands out, beside the groups that were always here:
   browser's while nothing is published.
 - `publishTestHostPorts(overrides)` publishes a browser's ports with the test's on top into the real
   holder, for a test that leaves the module real; `resetTestHostPorts()` forgets them.
+- `browserLinks()`, `browserAppShell()` and `browserDiagnostics()` are a browser tab's value of the
+  three ports that carry members — what the page does on its own, every app-only member `null` — for a
+  test that lays the members it watches on top of one.
 
 ```ts
 jest.mock('@chatic/runtime', () =>

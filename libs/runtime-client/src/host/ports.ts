@@ -1,4 +1,7 @@
+import type { AppShellPort } from './appShell';
 import type { CheckoutPort } from './checkout';
+import type { DiagnosticsPort } from './diagnostics';
+import type { LinksPort } from './links';
 
 /**
  * Who does a domain's work on this host: the shell — the app around the page — through its bridge, or
@@ -51,27 +54,6 @@ export interface FilesPort {
 export type FilesMethod = ShellOrBrowser;
 
 /**
- * Who takes the page's links out of it: opening a URL in the OS browser or a sub web view, the
- * clipboard, share intake, SMS and contact invites, and reading a link's preview. `shell` — the app
- * does, through its bridge; `browser` — the page does, with `window.open`, the Clipboard API and a
- * plain link.
- */
-export interface LinksPort {
-    readonly kind: ShellOrBrowser;
-}
-
-/**
- * Who runs the frame around the page: the app icon and badge, haptics, the back gesture, the
- * keyboard, theme and language sync with the shell, the update check, and the app's return to the
- * foreground. `shell` — the app does, and `os` names its phone platform where one applies; `browser` —
- * there is no frame beyond the browser's, and `os` is `null`.
- */
-export interface AppShellPort {
-    readonly kind: ShellOrBrowser;
-    readonly os: HostOs;
-}
-
-/**
  * Who signs a person in with a social provider, links accounts, and holds the account a second
  * device pairs with. `shell` — the app does, with the platform's own sign-in where it has one (`os`
  * says which), and this device can approve a pairing; `browser` — the page does, with the providers' web
@@ -80,15 +62,6 @@ export interface AppShellPort {
 export interface SignInPort {
     readonly kind: ShellOrBrowser;
     readonly os: HostOs;
-}
-
-/**
- * Where the page's diagnostics go: its logs and their upload, the telemetry entry point, issue
- * reports and boot metrics. `shell` — through the app, which queues logs and reports and was the
- * entry point (its icon); `browser` — the page sends its own, and was opened in a browser.
- */
-export interface DiagnosticsPort {
-    readonly kind: ShellOrBrowser;
 }
 
 /**

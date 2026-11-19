@@ -126,7 +126,7 @@ export interface AttachPanelSlot {
  *   slides down with the composer, as for ×. In a browser no height ever comes, so it slides at once.
  * - **×, back and the rest** slide the panel down, and the composer descends with it.
  *
- * "In the app" is where the app runs the frame around the page, keyboard included (the host's `appShell`
+ * "In the app" is where the frame reports the keyboard's height to the page (the host's `appShell`
  * port); anywhere else the page treats itself as in a browser.
  *
  * The composer pads itself by the larger of the keyboard and the panel (`COMPOSER_PADDING_BOTTOM`),
@@ -248,7 +248,8 @@ export const useAttachPanelSlot = ({
         // Read before the caller's blur drops the keyboard: a keyboard still up is the height to match.
         const focused = !!inputRef?.current && document.activeElement === inputRef.current;
         const keyboardUp =
-            injectedLength('--keyboard-height') >= KEYBOARD_MIN_PX || (focused && runtime.appShell.kind === 'shell');
+            injectedLength('--keyboard-height') >= KEYBOARD_MIN_PX ||
+            (focused && runtime.appShell.reportsKeyboardHeight);
         const safe = injectedLength('--safe-bottom');
         update({
             phase: 'open',
@@ -266,7 +267,7 @@ export const useAttachPanelSlot = ({
 
     const handOver = useCallback(() => {
         if (current.current.phase !== 'open') return;
-        if (runtime.appShell.kind !== 'shell') {
+        if (!runtime.appShell.reportsKeyboardHeight) {
             hide();
             return;
         }

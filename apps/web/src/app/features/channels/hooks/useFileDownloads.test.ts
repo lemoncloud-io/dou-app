@@ -562,6 +562,30 @@ describe('useFileDownloads — a file from another message', () => {
     });
 });
 
+describe('useFileDownloads — a browser save the iOS share sheet refused', () => {
+    it('says to press again, and the next press saves the bytes it already has', async () => {
+        native = false;
+        const held = new Blob(['%PDF']);
+        downloadInBrowser.mockImplementationOnce(
+            async (_url: string, _name: string, options: { onHeld: (blob: Blob) => void }) => {
+                options.onHeld(held);
+                return 'needs-gesture';
+            }
+        );
+        const { result } = render();
+
+        await act(() => result.current.download(doc));
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.browserShare.again' });
+
+        await act(() => result.current.download(doc));
+        expect(downloadInBrowser).toHaveBeenLastCalledWith(
+            'https://bucket/old',
+            'report.pdf',
+            expect.objectContaining({ held })
+        );
+    });
+});
+
 describe('useFileDownloads — the document viewer', () => {
     const onPreview = jest.fn();
     const withViewer = () => renderHook(() => useFileDownloads({ cid: 'c', chatId: 'm', onPreview }));

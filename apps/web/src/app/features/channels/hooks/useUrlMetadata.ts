@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-
-import { appBridge } from '../../../bridge';
+import { runtime, type LinkPreviewReader } from '@chatic/runtime';
 
 export interface UrlMetadata {
     url: string;
@@ -29,13 +27,13 @@ const store = (url: string, meta: UrlMetadata | null) => {
 };
 
 /**
- * Resolves a link's preview metadata, or null when there is no preview to show.
+ * Resolves a link's preview metadata through `reader`, or null when there is no preview to show.
  *
  * Every failure collapses to the same null: a rejected bridge request (no handler on an older
  * shell, timeout), a page with no og tags, or a page with no title. The card is optional, so none
  * of these is worth surfacing — and the null is cached so scrolling never re-asks.
  */
-export const requestUrlMetadata = (url: string): Promise<UrlMetadata | null> => {
+export const requestUrlMetadata = (url: string, reader: LinkPreviewReader): Promise<UrlMetadata | null> => {
     // `!== undefined`, not a truthiness check: a cached null is a real answer.
     const cached = cache.get(url);
     if (cached !== undefined) return Promise.resolve(cached);
@@ -43,10 +41,9 @@ export const requestUrlMetadata = (url: string): Promise<UrlMetadata | null> => 
     const pending = inFlight.get(url);
     if (pending) return pending;
 
-    const request = appBridge
-        .fetchUrlMetadata(url)
-        .then(response => {
-            const data = response.data;
+    const request = reader
+        .fetch(url)
+        .then(data => {
             if (!data?.success || !data.title) return null;
             return {
                 url: data.url,
@@ -76,8 +73,8 @@ export const __resetUrlMetadataCache = () => {
 /**
  * Preview metadata for a link, or null while unresolved or when there is nothing to show.
  *
- * Returns null where the page takes its own links (`runtime.links`), as in a plain browser:
- * parsing needs the app, so there is no point asking.
+ * Returns null where the host reads no previews (`runtime.links.linkPreview`), as in a plain
+ * browser: parsing needs the app, so there is no point asking.
  */
 export const useUrlMetadata = (url: string): UrlMetadata | null => {
     // Read synchronously so a row that scrolled out and back shows its card without a flash. The
@@ -88,10 +85,11 @@ export const useUrlMetadata = (url: string): UrlMetadata | null => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => cache.get(url) ?? null);
 
     useEffect(() => {
-        if (runtime.links.kind !== 'shell') return;
+        const reader = runtime.links.linkPreview;
+        if (!reader) return;
 
         let active = true;
-        void requestUrlMetadata(url).then(result => {
+        void requestUrlMetadata(url, reader).then(result => {
             if (active) setMeta(result);
         });
         return () => {

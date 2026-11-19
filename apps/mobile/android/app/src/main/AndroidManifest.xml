@@ -147,6 +147,8 @@
                     android:pathPattern="/apps/.*" />
             </intent-filter>
         </activity>
+        <!-- Launcher icons. Each alias carries its notification accent, so a push banner can take the
+             colour of whichever icon is active (ChaticFirebaseMessagingService reads it). -->
         <activity-alias
             android:name=".DefaultIcon"
             android:enabled="true"
@@ -158,6 +160,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="io.chatic.dou.notification_accent"
+                android:resource="@color/notification_accent_default" />
         </activity-alias>
         <activity-alias
             android:name=".WhiteIcon"
@@ -170,6 +175,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="io.chatic.dou.notification_accent"
+                android:resource="@color/notification_accent_white" />
         </activity-alias>
         <activity-alias
             android:name=".MidnightIcon"
@@ -182,6 +190,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="io.chatic.dou.notification_accent"
+                android:resource="@color/notification_accent_midnight" />
         </activity-alias>
         <activity-alias
             android:name=".AuroraIcon"
@@ -194,6 +205,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="io.chatic.dou.notification_accent"
+                android:resource="@color/notification_accent_aurora" />
         </activity-alias>
         <activity-alias
             android:name=".SkyIcon"
@@ -206,6 +220,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="io.chatic.dou.notification_accent"
+                android:resource="@color/notification_accent_sky" />
         </activity-alias>
 
         <service
@@ -230,6 +247,14 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+        <!-- What the FCM SDK uses when it draws a banner itself — a message with a `notification`
+             block while the app is in the background, which our server does not send but the
+             Firebase console does. Without it the SDK falls back to the launcher icon, a grey square.
+             The matching colour is set through firebase.json, because react-native-firebase already
+             declares that meta-data with its own default. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
         <!-- WorkManager's own foreground service, still merged in through notifee. It keeps the
              service type it has always been declared with. -->
         <service

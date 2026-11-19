@@ -1,26 +1,28 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { appBridge } from '../../../bridge';
-import { __resetUrlMetadataCache, requestUrlMetadata, useUrlMetadata } from './useUrlMetadata';
+import { __resetUrlMetadataCache, requestUrlMetadata as request, useUrlMetadata } from './useUrlMetadata';
 
 const mockIsNative = jest.fn();
-// Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const fetchUrlMetadata = jest.fn();
+// The app's preview reader where the host has one; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get links() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return mockIsNative()
+                ? { ...testing.browserLinks(), kind: 'shell', linkPreview: { fetch: fetchUrlMetadata } }
+                : testing.browserLinks();
         },
-    })
-);
+    });
+});
 
-jest.mock('../../../bridge', () => ({
-    appBridge: { fetchUrlMetadata: jest.fn() },
-}));
-
-const fetchUrlMetadata = appBridge.fetchUrlMetadata as jest.Mock;
+const requestUrlMetadata = (url: string) => request(url, { fetch: fetchUrlMetadata });
 
 const ok = (url: string, overrides: Record<string, unknown> = {}) => ({
-    data: { success: true, url, title: 'Title', ...overrides },
+    success: true,
+    url,
+    title: 'Title',
+    ...overrides,
 });
 
 describe('requestUrlMetadata', () => {
@@ -57,7 +59,7 @@ describe('requestUrlMetadata', () => {
     });
 
     it('caches failures too, so scrolling never re-asks for a page with no preview', async () => {
-        fetchUrlMetadata.mockResolvedValue({ data: { success: false, url: 'https://example.com/a' } });
+        fetchUrlMetadata.mockResolvedValue({ success: false, url: 'https://example.com/a' });
 
         await expect(requestUrlMetadata('https://example.com/a')).resolves.toBeNull();
         await expect(requestUrlMetadata('https://example.com/a')).resolves.toBeNull();
@@ -65,7 +67,7 @@ describe('requestUrlMetadata', () => {
     });
 
     it('treats a titleless response as no preview', async () => {
-        fetchUrlMetadata.mockResolvedValue({ data: { success: true, url: 'https://example.com/a' } });
+        fetchUrlMetadata.mockResolvedValue({ success: true, url: 'https://example.com/a' });
 
         await expect(requestUrlMetadata('https://example.com/a')).resolves.toBeNull();
     });

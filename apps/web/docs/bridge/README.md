@@ -26,10 +26,14 @@ and the third is the host ports this app's declarations choose (`src/config/`):
 
 `appBridge` (`appBridge.ts`) wraps the `webClient.post`/`webClient.request` calls the app makes —
 70 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
-mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
-'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. The
-exceptions are the modules that own a whole exchange with its own fallbacks and timeouts —
-`attachmentPicker`, `shareIntake`, `audioRecorder` — which call `webClient` themselves.
+mirrors, and more). Code calls `appBridge.openURL(url)`, never `webClient.post({ type:
+'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. Where
+the work belongs to a host port (links, the app's frame, diagnostics), a feature calls the port
+(`runtime.links.openUrl(url)`) and the web's shell implementation of it, in `src/config/adapters/`,
+calls `appBridge` ([host ports](./host-ports.md)). The exceptions are the modules that own a whole
+exchange with its own fallbacks and timeouts — `attachmentPicker`, `audioRecorder` — which call
+`webClient` themselves. Share intake's request, with its long timeout, lives in the `links` port's
+shell implementation (`src/config/adapters/links.ts`); `shareIntake.ts` calls `runtime.links.shareIntake`.
 
 | Pattern                  | Shape                       | When                                                                         |
 | ------------------------ | --------------------------- | ---------------------------------------------------------------------------- |
@@ -99,11 +103,11 @@ button and its rules → [feature/channels/image-send.md](../feature/channels/im
 `openSubWebView({ url, title, params, appId })` shows a page from another origin without leaving the app, as far
 as the app it runs in allows, and says where it went:
 
-| Where the page runs                           | What happens                          | Returns                         |
-| --------------------------------------------- | ------------------------------------- | ------------------------------- |
-| An app whose handshake lists `OpenSubWebView` | The shell's sub WebView, over the app | `{ via: 'subWebView', viewId }` |
-| An app built before it                        | `appBridge.openURL` — the OS browser  | `{ via: 'external' }`           |
-| A plain browser                               | A new tab                             | `{ via: 'browser' }`            |
+| Where the page runs                           | What happens                             | Returns                         |
+| --------------------------------------------- | ---------------------------------------- | ------------------------------- |
+| An app whose handshake lists `OpenSubWebView` | The shell's sub WebView, over the app    | `{ via: 'subWebView', viewId }` |
+| An app built before it                        | `runtime.links.openUrl` — the OS browser | `{ via: 'external' }`           |
+| A host with no sub WebView (a plain browser)  | `runtime.links.openUrl` — a new tab      | `{ via: 'browser' }`            |
 
 `appId` names the app `url` was resolved from (`bridge/subWebViewApps.ts`); the shell builds the
 page's share link from it, so a link the page shares names the app rather than where it is hosted.

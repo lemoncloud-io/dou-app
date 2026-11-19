@@ -610,6 +610,25 @@ export default [
         },
     },
     {
+        // A feature calls a host port's members; it does not ask which side (`kind`) does the work. The
+        // declaration part (`src/config/`) builds the ports and may read it; tests play a host. The list
+        // grows as each port's work moves behind its members.
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: [
+            '**/*.spec.ts',
+            '**/*.spec.tsx',
+            '**/*.test.ts',
+            '**/*.test.tsx',
+            '**/testing/**',
+            '**/__mocks__/**',
+            'apps/*/src/config/**',
+        ],
+        rules: {
+            // tools/eslint-rules/host-port-kind.js
+            '@nx/workspace-host-port-kind': ['error', { ports: ['links', 'appShell', 'diagnostics'] }],
+        },
+    },
+    {
         // The web-storage ban — its reasons and its scope are at `WEB_STORAGE_BAN_SCOPE` above.
         ...WEB_STORAGE_BAN_SCOPE,
         rules: {

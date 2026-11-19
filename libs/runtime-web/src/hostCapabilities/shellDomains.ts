@@ -11,7 +11,7 @@ export const resolveLinksMethod = (profile: DeclaredHost = hostProfile()): Shell
     resolveShellOrBrowser(profile, 'links', SHELL_DOMAINS_INTRODUCED_IN);
 
 /** Who runs the frame around the page, and on which phone platform where the shell does. */
-export const resolveAppShell = (profile: DeclaredHost = hostProfile()): AppShellPort => {
+export const resolveAppShell = (profile: DeclaredHost = hostProfile()): Pick<AppShellPort, 'kind' | 'os'> => {
     const kind = resolveShellOrBrowser(profile, 'appShell', SHELL_DOMAINS_INTRODUCED_IN);
     return { kind, os: hostOsOf(profile, kind) };
 };

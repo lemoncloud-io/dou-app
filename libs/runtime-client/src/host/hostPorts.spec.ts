@@ -5,14 +5,16 @@ import type { HostPorts } from './ports';
 
 const { HostFacade, host } = bindings;
 
+// The holder only stores and hands back what it was given, so a port's members do not matter here: each
+// port is its choice alone, cast to the whole port.
 const none = (): HostPorts => ({
     checkout: { kind: 'none' },
     media: { kind: 'browser' },
     files: { kind: 'browser' },
-    links: { kind: 'browser' },
-    appShell: { kind: 'browser', os: null },
+    links: { kind: 'browser' } as HostPorts['links'],
+    appShell: { kind: 'browser', os: null } as HostPorts['appShell'],
     signIn: { kind: 'browser', os: null },
-    diagnostics: { kind: 'browser' },
+    diagnostics: { kind: 'browser' } as HostPorts['diagnostics'],
     push: { kind: 'browser' },
 });
 

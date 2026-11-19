@@ -92,12 +92,13 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
 (`apps/mobile/docs/webview/mini-app-protocol.md`).
 
 - **Where it appears.** Only in a shell whose handshake says `subWebViewOpenScope: 'anyHttps'`. The
-  web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
-  desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
-  shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
-  has no owner and no mini app link. It is also hidden on production: mini apps are not released there
-  yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV` (a build with no stage hides it
-  too).
+  web ships before the shell, so it asks rather than assuming: `utils/subWebViewShell.ts` reads
+  `runtime.links.subWebView` (`null` in a plain browser), whose desktop shell implementation
+  (`src/config/adapters/links.ts`) sends the one `WebAppReady` desktop-web sends, answered with no side
+  effect. A plain browser, an older shell and the phone do not show it. Neither does the Default Cloud
+  (Home), which is the relay's and has no owner and no mini app link. It is also hidden on production:
+  mini apps are not released there yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV`
+  (a build with no stage hides it too).
 - **The link.** A cloud has one mini app link, kept on the relay as the cloud's `miniAppUrl` field
   (`hooks/useCloudMiniApp.ts`, through `CloudRepository.fetchMiniAppUrl` / `saveMiniAppUrl`; react-query
   is its only cache). `''` means none. The relay checks nothing about the value, so the web checks it

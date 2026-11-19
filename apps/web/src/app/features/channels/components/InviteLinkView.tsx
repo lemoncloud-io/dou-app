@@ -6,7 +6,6 @@ import { runtime } from '@chatic/runtime';
 import { Button, IconClose, InviteLinkCard } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { appBridge } from '../../../bridge';
 import { PageHeader } from '../../../ui/components';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
@@ -46,9 +45,10 @@ export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteL
             return;
         }
         try {
-            // The app's share sheet where it takes the page's links (`runtime.links`); a copy otherwise.
-            if (runtime.links.kind === 'shell') {
-                appBridge.openShareSheet(inviteLink);
+            // The OS share sheet where the host has one (`runtime.links.shareSheet`); a copy otherwise.
+            const { shareSheet } = runtime.links;
+            if (shareSheet) {
+                shareSheet.open(inviteLink);
             } else {
                 await copyMessageToClipboard(inviteLink);
                 toast({ title: t('inviteLink.copyDone') });

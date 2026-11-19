@@ -1,30 +1,28 @@
 import { act, renderHook } from '@testing-library/react';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge } from '../bridge';
 import { useTheme } from './useTheme';
 
 const mockIsNative = jest.fn(() => false);
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const mockSavePreference = jest.fn();
+// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            return {
+                ...browserAppShell(),
+                preferences: mockIsNative() ? { save: mockSavePreference, read: jest.fn() } : null,
+            };
         },
         settings: { set: jest.fn(), useConfigValue: jest.fn() },
-    })
-);
-jest.mock('../bridge', () => ({
-    appBridge: { savePreferenceConfirmed: jest.fn().mockResolvedValue({ success: true }) },
-}));
+    });
+});
 
 const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunction<
     typeof runtime.settings.useConfigValue
 >;
 const mockSet = runtime.settings.set as jest.Mock;
-const mockSavePreferenceConfirmed = appBridge.savePreferenceConfirmed as jest.MockedFunction<
-    typeof appBridge.savePreferenceConfirmed
->;
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 // ---------------------------------------------------------------------------
@@ -58,7 +56,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockUseConfigValue.mockReturnValue('system');
     mockIsNative.mockReturnValue(false);
-    mockSavePreferenceConfirmed.mockResolvedValue({ success: true } as never);
+    mockSavePreference.mockResolvedValue(undefined);
 });
 
 describe('useTheme — 테마 해석', () => {
@@ -118,7 +116,7 @@ describe('useTheme — setTheme', () => {
 
         act(() => result.current.setTheme('dark'));
 
-        expect(mockSavePreferenceConfirmed).not.toHaveBeenCalled();
+        expect(mockSavePreference).not.toHaveBeenCalled();
     });
 
     it('네이티브에서는 상태바 등을 소유한 옛 themeStore로도 확인형 전송을 한다', async () => {
@@ -128,30 +126,30 @@ describe('useTheme — setTheme', () => {
         act(() => result.current.setTheme('dark'));
         await flush();
 
-        expect(mockSavePreferenceConfirmed).toHaveBeenCalledWith({ key: 'theme', value: 'dark' });
+        expect(mockSavePreference).toHaveBeenCalledWith('theme', 'dark');
     });
 
     it('themeStore 브릿지가 실패하면 한 번 재시도한다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockSavePreferenceConfirmed.mockRejectedValueOnce(new Error('dropped'));
+        mockSavePreference.mockRejectedValueOnce(new Error('dropped'));
         const { result } = renderHook(() => useTheme());
 
         act(() => result.current.setTheme('dark'));
         await flush();
         await flush();
 
-        expect(mockSavePreferenceConfirmed).toHaveBeenCalledTimes(2);
+        expect(mockSavePreference).toHaveBeenCalledTimes(2);
     });
 
     it('재시도까지 실패해도 예외가 새지 않는다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockSavePreferenceConfirmed.mockRejectedValue(new Error('offline'));
+        mockSavePreference.mockRejectedValue(new Error('offline'));
         const { result } = renderHook(() => useTheme());
 
         expect(() => act(() => result.current.setTheme('dark'))).not.toThrow();
         await flush();
         await flush();
 
-        expect(mockSavePreferenceConfirmed).toHaveBeenCalledTimes(2);
+        expect(mockSavePreference).toHaveBeenCalledTimes(2);
     });
 });

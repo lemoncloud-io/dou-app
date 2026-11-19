@@ -1,6 +1,7 @@
 # host ports — how this app reaches what the host can do
 
-> Scope: the `host` slot of `apps/web/src/config/`'s two declarations, and `config/adapters/checkout/`.
+> Scope: the `host` slot of `apps/web/src/config/`'s two declarations, `config/adapters/checkout/`, and
+> `config/adapters/{links,appShell,diagnostics}.ts`.
 > The port types and the adapters are [`@chatic/runtime-web`](../../../../libs/runtime-web/README.md#the-host-port-adapters);
 > the host profile they read is [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
@@ -18,23 +19,54 @@ doing the work, or to `<port>.shell` where the shell declared that it does it; c
 the website where the host offers them, or to nothing. In a browser tab (`web-browser`) every port has
 its default alone — the page already does everything itself.
 
-## links, appShell, signIn, diagnostics, push
+## links, appShell, diagnostics — ports that carry the work
 
-Each is `{ kind: 'shell' | 'browser' }` (`appShell` and `signIn` add `os`), published from the declaration's
-version-4 keys or, before them, the legacy rule. Where each domain's files read it:
+These three carry what the host does, not only who does it. Each still has `kind` (`appShell` adds
+`os`), published from the declaration's version-4 keys or, before them, the legacy rule, and only the
+declaration part and the log pipeline (below) read it: a feature calls the port's members and never
+branches on `kind`. The contracts are runtime-client's (`host/links.ts`, `host/appShell.ts`,
+`host/diagnostics.ts`). This app's two implementations of each are in
+`src/config/adapters/{links,appShell,diagnostics}.ts`: the shell side through `appBridge` (and
+`webClient` for the few messages it does not wrap), the page side with what any browser offers.
+runtime-web's `linksAdapters` / `appShellAdapters` / `diagnosticsAdapters` turn them into the
+`<port>.host`, `.shell` and `.browser` adapters the declarations name.
 
-- **links** — `openExternalUrl`, the clipboard copies, share intake (`bridge/shareIntake.ts`), sub web
-  views (`bridge/subWebView.ts`), contact and SMS invites, invite links, link previews, the licenses
-  page's link.
-- **appShell** — haptics, the language and theme sync with the shell, the back handler, the keyboard in
-  the attach panel, the update status, the app icon and the settings that offer it, the preference
-  loader, and the badge read for logs (`os` tells iOS from Android).
+**What every host does is a method; what only some hosts have is a member that is `null` where the
+host lacks it.** A feature asks for the member (`runtime.links.contacts`), not for the side, so a toggle
+that moves one port to the page, or a host that does the work a third way, changes nothing in it.
+
+- **links** — `openUrl` and `copyText` everywhere (the OS browser and `CopyToClipboard` in the phone
+  app; `window.open` and the Clipboard API in a browser). The phone app's `shareSheet`, `shareIntake`,
+  `contacts`, `sms`, `linkPreview` and `subWebView` are `null` in a browser. Read by `openExternalUrl`,
+  the clipboard copies, share intake (`bridge/shareIntake.ts`), sub web views (`bridge/subWebView.ts`),
+  contact and SMS invites, invite links, link previews and the licenses page's link.
+- **appShell** — `ownsWindow` and `reportsKeyboardHeight` (the keyboard in the attach panel), and the
+  phone app's `haptics`, `preferences` (its own store: the theme and language sync, the preference
+  loader), `backGesture`, `iconBadge` (the badge read for logs; the iOS/Android split lives in the
+  implementation), `appIcon` and `storeUpdate` (the update check and the store listing). `dockBadge`
+  and `selfUpdate` are the desktop app's
+  ([desktop-web `docs/host/`](../../../desktop-web/docs/host/README.md)), `null` here; in a browser
+  every capability is `null`.
+- **diagnostics** — `entry` (telemetry's entry point: `icon` or `browser`), and the phone app's
+  `debugMode` (the debug switch), `bootMetrics` and `pendingReports` (the pending-report flusher),
+  `null` in a browser. The log pipeline — the console listener, the log context and uploader, and who
+  held the session — is wired before the ports are published, so it still reads the choice, through
+  `config/diagnosticsKind.ts`.
+
+`@nx/workspace-host-port-kind` (`tools/eslint-rules/host-port-kind.js`) reports a read of these ports'
+`kind` anywhere but `apps/*/src/config/**` and tests. A test starts from `browserLinks()`,
+`browserAppShell()` or `browserDiagnostics()` (`@chatic/runtime/testing`) and lays the members it
+watches on top.
+
+## signIn, push
+
+Each still carries the choice alone, `{ kind: 'shell' | 'browser' }` (`signIn` adds `os`), published the
+same way, and the files that use it branch on `kind`:
+
 - **signIn** — the login page and account linking (`os === 'ios'` offers Apple's own sign-in), social
   links, and the pairing screens: the app holds the account and approves; the page asks. Also the
   subscription entries that depend on who holds the account — My page's subscription row for a guest
   and the cloud-manage page — since a subscription follows the account the app signs in with.
-- **diagnostics** — the console listener, the log context and uploader, the pending-report flusher,
-  telemetry's entry point, boot metrics, the debug switch's mode, and who held the session.
 - **push** — device-token registration, push mute, push taps (`usePushNavigate`) and the invited-cloud
   runner.
 

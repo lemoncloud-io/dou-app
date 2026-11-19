@@ -1,5 +1,7 @@
 package io.chatic.dou.module
 
+import android.content.pm.PackageManager
+
 /**
  * Which launcher aliases to turn on and off when the app icon changes.
  *
@@ -22,7 +24,34 @@ object LauncherAliases {
      * also opens the main activity) from being switched off by an icon change.
      */
     fun iconAliases(declared: Collection<Alias>, mainActivity: String): List<String> =
-        declared.filter { it.targetActivity == mainActivity && it.name.endsWith("Icon") }.map { it.name }.distinct()
+        declared.filter { isIconAlias(it.name, it.targetActivity, mainActivity) }.map { it.name }.distinct()
+
+    /**
+     * An alias with what decides whether it is on: [manifestEnabled] is its `android:enabled`, and
+     * [setting] is the package manager's `COMPONENT_ENABLED_STATE_*` for it, which an icon switch writes.
+     */
+    data class AliasState(
+        val name: String,
+        val targetActivity: String?,
+        val manifestEnabled: Boolean,
+        val setting: Int,
+    )
+
+    /**
+     * The icon alias the launcher shows now, or null when none is on. An alias never switched
+     * keeps its manifest value (`DEFAULT`), so a fresh install reads as DefaultIcon.
+     */
+    fun activeIcon(aliases: Collection<AliasState>, mainActivity: String): String? =
+        aliases.firstOrNull { isIconAlias(it.name, it.targetActivity, mainActivity) && isOn(it) }?.name
+
+    private fun isIconAlias(name: String, targetActivity: String?, mainActivity: String): Boolean =
+        targetActivity == mainActivity && name.endsWith("Icon")
+
+    private fun isOn(alias: AliasState): Boolean = when (alias.setting) {
+        PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+        PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> alias.manifestEnabled
+        else -> false
+    }
 
     /**
      * The switch to [target], or null when [target] is not one of [iconAliases] — refused before

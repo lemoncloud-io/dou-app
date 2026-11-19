@@ -82,7 +82,10 @@ describe('desktop-web runtime declaration', () => {
     it("publishes a browser tab's host ports, nothing sold", async () => {
         const { publishHost } = await start();
 
-        expect(publishHost).toHaveBeenCalledWith({
+        expect(publishHost).toHaveBeenCalledTimes(1);
+        // The ports built from the app's implementations carry members beside the choice; the choice is what is
+        // pinned here.
+        expect(publishHost.mock.calls[0][0]).toMatchObject({
             checkout: { kind: 'none' },
             media: { kind: 'browser' },
             files: { kind: 'browser' },

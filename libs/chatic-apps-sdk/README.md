@@ -512,11 +512,11 @@ Which app a page meets is the app's business, not the library's: a call the app 
 `NOT_SUPPORTED`, so decide with `apps.supports(...)`, never with a version number. The library's own
 numbers, for reading a bug report:
 
-| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                                                                                                          |
-| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                       |
-| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                   |
-| next (unreleased) | 2.32.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type |
+| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                                                                                                                                        |
+| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                                                     |
+| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                                                 |
+| next (unreleased) | 2.32.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type; the skill (`skill/SKILL.md`) |
 
 The data contract is the app's own version for what `apps.data` reads. The app answers a
 page with the newest contract both speak; a library that speaks none the app does is answered
@@ -527,6 +527,10 @@ page with the newest contract both speak; a library that speaks none the app doe
 `AGENTS.md` in this package holds the rules for an assistant writing a page: the project, the calls
 and the page. Copy it to the top of your project, where an assistant looks for it, or paste it into the
 prompt along with what the page should do. `GUIDE.md` says how to set the project up.
+
+`skill/SKILL.md` (Korean: `skill/SKILL.ko.md`) is a procedure for the assistant: it asks the author one
+question at a time and goes from an idea to a zip that passes the verifier, in three stages. `GUIDE.md`,
+"For an AI assistant in your project", says how to copy it into a project.
 
 ## For maintainers
 

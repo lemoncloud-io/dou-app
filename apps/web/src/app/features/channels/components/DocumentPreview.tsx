@@ -8,7 +8,8 @@ import { DocumentViewer, MediaViewerActionButton, type DocumentViewerStatus } fr
 
 import { freshFileUrl, useFileDownloads } from '../hooks/useFileDownloads';
 import { canShareFilesInBrowser, shareFileInBrowser } from '../lib/browserShare';
-import { fetchInBrowser, saveBlob, type BrowserFetchResult } from '../lib/fileDownload';
+import { saveFileInBrowser } from '../lib/browserSave';
+import { fetchInBrowser, type BrowserFetchResult } from '../lib/fileDownload';
 import { loadPdf, preloadPdf, type PdfDocument } from '../lib/pdf';
 
 /** The document the viewer shows, and the message it came from (to sign its address again). */
@@ -117,9 +118,16 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
     const loaded: Loaded = held.for === shown ? held : { status: 'loading' };
     const name = file.name ?? t('chat.attach.fileCard.fallbackName');
 
-    const save = () => {
-        if (loaded.blob) saveBlob(loaded.blob, name);
-        else void files.download(file, chatId);
+    const save = async () => {
+        if (!loaded.blob) {
+            void files.download(file, chatId);
+            return;
+        }
+        // On iOS this is the share sheet ("Save to Files"); the bytes are already here, so the press
+        // is fresh enough for it.
+        const saved = await saveFileInBrowser(loaded.blob, name);
+        if (saved === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
+        if (saved === 'failed') toast({ title: t('chat.attach.browserShare.saveFailed'), variant: 'destructive' });
     };
 
     const share = async () => {
@@ -176,7 +184,7 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
                     )}
                     <MediaViewerActionButton
                         label={t('chat.attach.document.save', { name })}
-                        onClick={save}
+                        onClick={() => void save()}
                         busy={saving}
                         progress={saving ? files.progressOf(file) : null}
                     >

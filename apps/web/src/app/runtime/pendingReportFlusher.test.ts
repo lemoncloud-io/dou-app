@@ -3,13 +3,26 @@ import type { PendingReportInfo } from '@chatic/bridge-messages';
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// Where the `diagnostics` port has the app's queue, the flusher drains it; a watched one stands in for the app's.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get diagnostics() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return {
+                ...testing.browserDiagnostics(),
+                ...(mockIsNative()
+                    ? {
+                          kind: 'shell',
+                          pendingReports: {
+                              fetch: () => mockFetchPendingReports(),
+                              ack: (ids: string[]) => mockAckPendingReports(ids),
+                          },
+                      }
+                    : {}),
+            };
         },
-    })
-);
+    });
+});
 
 jest.mock('@chatic/bridges', () => ({
     ingestLogEntry: (...args: unknown[]) => mockIngestLogEntry(...args),
@@ -17,13 +30,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 const mockFetchPendingReports = jest.fn();
-const mockAckPendingReports = jest.fn().mockResolvedValue({ success: true, data: { size: 0 } });
-jest.mock('../bridge', () => ({
-    appBridge: {
-        fetchPendingReports: () => mockFetchPendingReports(),
-        ackPendingReports: (ids: string[]) => mockAckPendingReports(ids),
-    },
-}));
+const mockAckPendingReports = jest.fn().mockResolvedValue(undefined);
 
 import { schedulePendingReportFlush } from './pendingReportFlusher';
 
@@ -58,21 +65,16 @@ describe('schedulePendingReportFlush', () => {
     });
 
     it('큐의 리포트를 감지 시각 그대로 로그 엔트리로 합류시키고 ack한다', async () => {
-        mockFetchPendingReports.mockResolvedValue({
-            success: true,
-            data: {
-                reports: [
-                    report({
-                        id: 'a',
-                        category: 'native-error',
-                        message: 'boom',
-                        stack: 'Error: boom\n  at native',
-                        detectedAt: 42,
-                        logs: [{ tag: 'APP', message: 'crumb', timestamp: 1, level: 'info' }],
-                    }),
-                ],
-            },
-        });
+        mockFetchPendingReports.mockResolvedValue([
+            report({
+                id: 'a',
+                category: 'native-error',
+                message: 'boom',
+                stack: 'Error: boom\n  at native',
+                detectedAt: 42,
+                logs: [{ tag: 'APP', message: 'crumb', timestamp: 1, level: 'info' }],
+            }),
+        ]);
 
         await flushNow();
 
@@ -96,10 +98,7 @@ describe('schedulePendingReportFlush', () => {
     });
 
     it('허용 목록 밖 카테고리는 unknown으로 강등한다', async () => {
-        mockFetchPendingReports.mockResolvedValue({
-            success: true,
-            data: { reports: [report({ id: 'x', category: 'made-up', message: 'huh' })] },
-        });
+        mockFetchPendingReports.mockResolvedValue([report({ id: 'x', category: 'made-up', message: 'huh' })]);
 
         await flushNow();
 
@@ -107,10 +106,7 @@ describe('schedulePendingReportFlush', () => {
     });
 
     it('현재 런의 컨텍스트를 덧씌우지 않는다', async () => {
-        mockFetchPendingReports.mockResolvedValue({
-            success: true,
-            data: { reports: [report({ id: 'a' })] },
-        });
+        mockFetchPendingReports.mockResolvedValue([report({ id: 'a' })]);
 
         await flushNow();
 
@@ -123,10 +119,10 @@ describe('schedulePendingReportFlush', () => {
     });
 
     it('대리 전송이 실패한 항목은 ack하지 않는다 (다음 부팅 재시도)', async () => {
-        mockFetchPendingReports.mockResolvedValue({
-            success: true,
-            data: { reports: [report({ id: 'ok' }), report({ id: 'fail', category: 'native-crash' })] },
-        });
+        mockFetchPendingReports.mockResolvedValue([
+            report({ id: 'ok' }),
+            report({ id: 'fail', category: 'native-crash' }),
+        ]);
         mockIngestLogEntry
             .mockImplementationOnce(() => undefined)
             .mockImplementationOnce(() => {
@@ -139,7 +135,7 @@ describe('schedulePendingReportFlush', () => {
     });
 
     it('빈 큐면 전송도 ack도 하지 않는다', async () => {
-        mockFetchPendingReports.mockResolvedValue({ success: true, data: { reports: [] } });
+        mockFetchPendingReports.mockResolvedValue([]);
 
         await flushNow();
 

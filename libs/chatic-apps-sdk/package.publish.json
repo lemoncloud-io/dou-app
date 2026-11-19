@@ -48,7 +48,9 @@
         "GUIDE.md",
         "GUIDE.ko.md",
         "AGENTS.md",
-        "AGENTS.ko.md"
+        "AGENTS.ko.md",
+        "skill/SKILL.md",
+        "skill/SKILL.ko.md"
     ],
     "publishConfig": {
         "access": "public"

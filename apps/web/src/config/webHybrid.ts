@@ -1,22 +1,13 @@
 import {
-    appShellBrowser,
-    appShellHost,
-    appShellShell,
     authLocation,
     checkoutNone,
     checkoutStore,
     checkoutWeb,
     defineRuntime,
-    diagnosticsBrowser,
-    diagnosticsHost,
-    diagnosticsShell,
     filesBrowser,
     filesHost,
     filesShell,
     foregroundVisibility,
-    linksBrowser,
-    linksHost,
-    linksShell,
     mediaBrowser,
     mediaHost,
     mediaShell,
@@ -32,7 +23,10 @@ import {
 import type { SessionOwnerChoice, StorageStores, WebHostFacts } from '@chatic/runtime-web';
 
 import { cacheWebLocal } from './adapters/cache';
+import { appShellBrowser, appShellHost, appShellShell } from './adapters/appShell';
 import { checkoutAsDeclared, storeCheckout, webCheckout } from './adapters/checkout';
+import { diagnosticsBrowser, diagnosticsHost, diagnosticsShell } from './adapters/diagnostics';
+import { linksBrowser, linksHost, linksShell } from './adapters/links';
 import { engineMirrorRecorded } from './adapters/engine';
 import { storageResolved } from './adapters/storage';
 import { createWebConfigPorts } from './configPorts';

@@ -1,6 +1,6 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { RULES, type RuleId } from './check';
 import { en } from './i18n/en';
@@ -112,7 +112,28 @@ describe('formatVerify', () => {
     });
 });
 
+const MOCK = resolve(__dirname, '../../chatic-apps-sdk/src/mock.ts');
+
 describe('verify', () => {
+    it('says one thing to fix once, however many scenarios met it', async () => {
+        // A throwaway built page that never shows what its scenario file waits for.
+        const root = mkdtempSync(join(tmpdir(), 'chatic-apps-verify-'));
+        try {
+            mkdirSync(join(root, 'dist/.well-known'), { recursive: true });
+            writeFileSync(join(root, 'dist/index.html'), '<!doctype html><html><body><main></main></body></html>');
+            writeFileSync(
+                join(root, 'dist/.well-known/chatic-app.json'),
+                JSON.stringify({ manifestVersion: 1, name: 'Throwaway', permissions: [] })
+            );
+            writeFileSync(join(root, 'chatic-apps.scenarios.mjs'), "export default { ready: '#never' };\n");
+            const result = await verify({ root, language: 'en', mockModule: MOCK });
+            const notReady = result.items.filter(item => item.problem.startsWith('The page never showed #never'));
+            expect(notReady).toHaveLength(1);
+        } finally {
+            rmSync(root, { recursive: true, force: true });
+        }
+    }, 60_000);
+
     it('says what to do for an empty folder, in plain words, without running scenarios', async () => {
         const root = mkdtempSync(join(tmpdir(), 'chatic-apps-verify-'));
         try {
