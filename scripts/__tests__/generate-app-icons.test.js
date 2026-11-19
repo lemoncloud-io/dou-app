@@ -4,8 +4,10 @@ const {
     androidColor,
     androidBackgroundXml,
     adaptiveIconXml,
+    accentsXml,
     iosContentsJson,
     monochromeAlpha,
+    notificationCrop,
     outputPaths,
     halvingSteps,
 } = require('../generate-app-icons');
@@ -82,6 +84,21 @@ describe('generate-app-icons', () => {
         });
     });
 
+    describe('accentsXml', () => {
+        it('writes one opaque notification accent colour per icon, named by its key', () => {
+            const xml = accentsXml([
+                { key: 'default', accent: '#b0ea10' },
+                { key: 'aurora', accent: '#3B82F6' },
+            ]);
+            expect(xml).toContain('<color name="notification_accent_default">#FFB0EA10</color>');
+            expect(xml).toContain('<color name="notification_accent_aurora">#FF3B82F6</color>');
+        });
+
+        it('rejects an icon whose accent is missing or not #RRGGBB', () => {
+            expect(() => accentsXml([{ key: 'broken' }])).toThrow('#RRGGBB');
+        });
+    });
+
     describe('iosContentsJson', () => {
         it('lists every size the hand-made sets carry, with the 1024 marked for the store', () => {
             const { images } = JSON.parse(iosContentsJson());
@@ -111,6 +128,28 @@ describe('generate-app-icons', () => {
         });
     });
 
+    describe('notificationCrop', () => {
+        it('cuts a square as wide as the logo and centred on it', () => {
+            expect(notificationCrop({ left: 100, top: 200, right: 900, bottom: 800 })).toEqual({
+                x: 100,
+                y: 100,
+                side: 800,
+            });
+        });
+
+        it('widens a tall logo sideways rather than squashing it', () => {
+            expect(notificationCrop({ left: 400, top: 100, right: 600, bottom: 900 })).toEqual({
+                x: 100,
+                y: 100,
+                side: 800,
+            });
+        });
+
+        it('rejects a master with nothing opaque in it', () => {
+            expect(() => notificationCrop({ left: 1024, top: 1024, right: 0, bottom: 0 })).toThrow('no opaque pixels');
+        });
+    });
+
     describe('outputPaths', () => {
         it('writes one iOS set, Android layers, legacy bitmaps and a web preview per icon', () => {
             const files = outputPaths([{ id: 'TestIcon', key: 'test' }]);
@@ -122,12 +161,20 @@ describe('generate-app-icons', () => {
             );
             expect(files).toContain('apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_test.webp');
             expect(files).toContain('apps/web/public/assets/app-icons/TestIcon.png');
+            expect(files).toContain('apps/mobile/android/app/src/main/res/values/ic_launcher_accents.xml');
             expect(new Set(files).size).toBe(files.length);
         });
 
         it('writes the shared logo layers once, not once per icon', () => {
             const files = outputPaths(ICONS);
             expect(files.filter(f => f.endsWith('mipmap-mdpi/ic_launcher_mascot_foreground.webp'))).toHaveLength(1);
+        });
+
+        it('writes one notification small icon per density, shared by every app icon', () => {
+            const files = outputPaths(ICONS);
+            for (const density of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+                expect(files.filter(f => f.endsWith(`drawable-${density}/ic_notification.png`))).toHaveLength(1);
+            }
         });
     });
 
@@ -152,6 +199,10 @@ describe('generate-app-icons', () => {
             expect(new Set(ICONS.map(i => i.id)).size).toBe(ICONS.length);
             expect(new Set(ICONS.map(i => i.key)).size).toBe(ICONS.length);
             for (const icon of ICONS) expect(icon.key).toMatch(/^[a-z][a-z0-9_]*$/);
+        });
+
+        it('gives every icon an accent, since the push service reads one for whichever icon is active', () => {
+            for (const icon of ICONS) expect(icon.accent).toMatch(/^#[0-9A-Fa-f]{6}$/);
         });
     });
 });
