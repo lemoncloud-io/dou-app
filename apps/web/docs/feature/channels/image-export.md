@@ -3,7 +3,10 @@
 **Inside an app that can, the media viewer saves the showing photo or video — or every one of the
 message — to the phone's library, or puts the showing one on the share sheet.** The page does not
 hold the bytes, so the shell downloads the original itself and hands its own file onward; the page
-only starts the download, waits, and reports the result. A browser tab shows neither button.
+only starts the download, waits, and reports the result.
+
+**In a browser tab the page does it itself** — it fetches the original, hands it to the browser as a
+download, or puts it on the browser's share sheet ([§ In a browser tab](#in-a-browser-tab)).
 
 What the shell does with each message — where a download lands, which files it lets out, the
 permission prompts — is [apps/mobile media-export.md](../../../../mobile/docs/native/media-export.md)
@@ -26,7 +29,8 @@ gives it the handshake reply the moment it arrives; before that, and in a browse
 reply, the answer is false.
 
 Every phone app this page runs in lists both, and takes videos as well as photos, so the handshake is
-what tells the app from a browser rather than one app version from another. It arrives
+what tells the app from a browser rather than one app version from another. Without it, a page whose
+host `files` port is `browser` takes the browser path below; one that is neither shows no buttons. It arrives
 asynchronously, which races nothing here: the buttons start hidden, and the viewer opens long after
 boot.
 
@@ -150,6 +154,41 @@ shows which item it is on between the two buttons ("3 / 5 저장 중", a `status
   it did. Stopping mid-download would throw away a file already on its way; going on through the
   whole message after the user left could run for minutes with nothing on screen to stop it.
 
+## In a browser tab
+
+The same two buttons, at the same two ends of the bar, but the page moves the file
+(`lib/browserMediaExport.ts`, driven by `useImageExports` when `runtime.files.kind` is `browser`):
+
+1. **Fetch the original** (`fetchInBrowser`, `lib/fileDownload.ts`) with `mode: 'cors'`, no credentials
+   and `cache: 'no-store'`. The tile or the viewer has usually loaded this very address through `<img>`,
+   and that copy in the HTTP cache carries no CORS headers: a fetch answered from it fails as if the
+   bucket sent none. The byte progress drives the same ring as in the app.
+2. **A 403 reads the message again once** for the upload's new address, the same rule as in the app.
+3. **Save** hands the bytes to the browser as a download under the upload's name (`saveBlob`: a `blob:`
+   address on an anchor with `download`). An upload older than names is saved as its upload id with the
+   extension its type gives. The browser's own download UI is the feedback, so no toast follows.
+4. **Share** puts the file alone on the Web Share sheet (`lib/browserShare.ts`) — no title or text, which
+   a receiving app would take as a second item. Its type comes from the response, or from the name when
+   the bucket answered `application/octet-stream`, since browsers decide by type what may be shared.
+
+**Share is offered only where the browser shares files**: `canShareFilesInBrowser()` asks
+`navigator.canShare` with a stand-in PDF, once per viewer. Most desktop browsers say no, and the bar
+shows save alone at its right end (`SaveShareButtons`' `canShare`).
+
+**A share has to start within moments of the press**, and a long fetch can outlast that. The browser then
+refuses with `NotAllowedError`; the page keeps the bytes it fetched for that upload and says "Ready to
+share. Tap again" (`chat.attach.browserShare.again`), and the next press shares them at once. A closed
+sheet says nothing. A fetch that fails — the bucket sends no CORS headers, offline, a second 403 — says
+the item could not be saved or shared.
+
+**Save all is an app feature** (`canSaveAll`): a browser asks before letting a page start several
+downloads. The room's file list still saves a selection, one download after another, with one toast if
+any failed. The whole file sits in memory while it is saved or shared; a long video can be hundreds of
+megabytes.
+
+The decision and its alternatives are in
+[ADR-0353](../../../../../docs/adr/0353-a-browser-tab-previews-pdfs-and-saves-and-shares-media-itself.md).
+
 ## Catching up after the page was away
 
 The shell holds each download's terminal state until it is acknowledged. When the page was suspended
@@ -173,6 +212,8 @@ the download catch-up would then find no record and fail a save that had succeed
 | `bridge/appBridge.ts`                               | `saveToPhotoLibrary`, `shareFile`                                        |
 | `runtime/transfer/nativeGet.ts`                     | start, wait, stall window, cancel, acknowledge, list catch-up            |
 | `features/channels/lib/imageExport.ts`              | the flow above, save all, and their toasts                               |
+| `features/channels/lib/browserMediaExport.ts`       | a browser tab's fetch, save and share, and the file name it uses         |
+| `features/channels/lib/browserShare.ts`             | whether the browser shares files, and the share itself                   |
 | `features/channels/hooks/useImageExports.tsx`       | the per-upload busy state, what is savable, the dependencies, the toasts |
 | `features/channels/components/SaveShareButtons.tsx` | the two buttons, the save-all position and the save sheet                |
 | `features/channels/components/MessageImages.tsx`    | puts the buttons in the viewer, stops shares and save all on close       |
@@ -186,8 +227,6 @@ The decision is recorded in
 - **Save or share from a tile, or from the message's action sheet.** Only the viewer has them.
 - **Sharing several items at once.** `ShareFile` takes one file; widening it is a shell change.
 - **Desktop.** `apps/desktop-web` has its own viewer and is not touched here.
-- **A browser.** A browser tab could offer a download link, but only for a photo whose bytes it holds,
-  which depends on the bucket's CORS. Not offered.
 
 ## How to verify
 
@@ -196,6 +235,7 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/bridge/shellCapabilit
   apps/web/src/app/bridge/shellDownload apps/web/src/app/bridge/appBridge \
   apps/web/src/app/runtime/transfer apps/web/src/app/runtime/upload \
   apps/web/src/app/features/channels/lib/imageExport \
+  apps/web/src/app/features/channels/lib/browserMediaExport apps/web/src/app/features/channels/lib/browserShare \
   apps/web/src/app/features/channels/hooks/useImageExports \
   apps/web/src/app/features/channels/components/SaveShareButtons
 npx nx test @chatic/web-ui-kit -- MediaViewer
@@ -208,6 +248,10 @@ and find three, with the bar counting "1 / 3", "2 / 3", "3 / 3"; press share and
 no toast should appear. Deny the permission and the toast's Settings opens
 the system settings over the open viewer. Then cut the body off mid-download: Android reports a
 network failure at once, while iOS keeps the download running until the window cancels it.
+
+In a browser tab (the dev server, a phone browser): open a sent photo, press save, and the browser
+downloads it under its name; on a phone, press share and the system sheet offers the file. A desktop
+browser that cannot share files shows save alone.
 
 The page needs a current system WebView. An Android 9 emulator image without the Play Store keeps
 WebView 66, which cannot run the page at all — dev or production build.

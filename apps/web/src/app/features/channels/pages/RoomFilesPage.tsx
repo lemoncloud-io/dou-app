@@ -36,6 +36,7 @@ import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { threadRootNo } from '../../../utils/notifications/notificationModel';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DocumentPreview, type DocumentPreviewTarget } from '../components/DocumentPreview';
 import { useChannel } from '../hooks/useChannel';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageExports, type ExportableMedia } from '../hooks/useImageExports';
@@ -154,7 +155,9 @@ export const RoomFilesPage = () => {
 
     const { counts } = useRoomMediaCounts(cid, channelId);
     const files = useRoomFiles({ cid, uid, channelId, tab });
-    const downloads = useFileDownloads({ cid });
+    // A PDF pressed in a browser opens in the document viewer rather than downloading.
+    const [previewing, setPreviewing] = useState<DocumentPreviewTarget | null>(null);
+    const downloads = useFileDownloads({ cid, onPreview: (file, chatId) => setPreviewing({ file, chatId }) });
     const exports = useImageExports({ cid });
 
     const [query, setQuery] = useState('');
@@ -214,8 +217,17 @@ export const RoomFilesPage = () => {
 
     const exportableOf = (entry: RoomFileEntry): ExportableMedia | undefined =>
         entry.media && entry.media.state === 'ready'
-            ? { uploadId: entry.ref, url: entry.media.src, name: entry.media.name, kind: entry.media.kind }
+            ? {
+                  uploadId: entry.ref,
+                  url: entry.media.src,
+                  name: entry.media.name,
+                  kind: entry.media.kind,
+                  // The list mixes messages: an expired address is signed again through this item's own.
+                  chatId: entry.chatId,
+              }
             : undefined;
+    // A photo or video where share cannot happen (a browser that shares no files) is not offered it.
+    const shareUnavailable = (entry: RoomFileEntry) => !!exportableOf(entry) && !exports.canShare;
 
     const save = (entries: readonly RoomFileEntry[]) => {
         const media = entries.map(exportableOf).filter((item): item is ExportableMedia => !!item);
@@ -278,7 +290,9 @@ export const RoomFilesPage = () => {
         ...(entry.kind === 'link'
             ? [{ key: 'copy', label: t('chat.files.copyLink'), onPress: () => void copyLinks([entry]) }]
             : [{ key: 'save', label: t('chat.attach.audio.save'), onPress: () => save([entry]) }]),
-        { key: 'share', label: t('chat.files.shareOut'), onPress: () => share(entry) },
+        ...(shareUnavailable(entry)
+            ? []
+            : [{ key: 'share', label: t('chat.files.shareOut'), onPress: () => share(entry) }]),
         { key: 'delete', label: t('chat.files.delete'), destructive: true, onPress: () => setConfirmHide([entry]) },
     ];
 
@@ -309,7 +323,7 @@ export const RoomFilesPage = () => {
             icon: <IconShare size={24} />,
             label: t('chat.attach.audio.share'),
             onPress: () => picked[0] && share(picked[0]),
-            disabled: !allowed.share,
+            disabled: !allowed.share || (picked[0] !== undefined && shareUnavailable(picked[0])),
         },
         {
             key: 'delete',
@@ -542,6 +556,7 @@ export const RoomFilesPage = () => {
                     play: t('chat.attach.viewerPlay'),
                 }}
             />
+            <DocumentPreview cid={cid} target={previewing} onClose={() => setPreviewing(null)} />
         </div>
     );
 };

@@ -39,7 +39,7 @@ device found, not the room's total. A new device shows few at first.
 date · length · size` — the length once the file was played on this device — and, while it plays, the
   seek bar. The name opens the detail.
 - **Files**: the file mark, the name, `sender · date · size`; pressing opens it as the document card
-  does.
+  does — in a browser a PDF opens in the document viewer ([image-send.md](./image-send.md#the-document-viewer-browser)).
 - **Links**: the address and `sender · date`; pressing opens it.
 - **Photos·videos**: a three-column grid; a tile opens the media viewer over the loaded items.
 
@@ -56,7 +56,10 @@ The bar offers Save · Share · Delete — Copy link · Share · Delete on the l
 - **share takes one file**: the app's share sheet (`ShareFile`) carries a single file, so share is on only
   with exactly one selected. A link is shared through the page's `navigator.share` where there is one;
 - save reports once for the whole selection (`useFileDownloads.saveAll`, the viewer's save-all for photos
-  and videos), with a retry of what failed.
+  and videos), with a retry of what failed. In a browser tab each item is a browser download in turn, and
+  one toast says when any could not be saved, with no retry
+  ([image-export.md § In a browser tab](./image-export.md#in-a-browser-tab)). Share in a browser reaches
+  a photo or video only where the browser shares files, and never a document: there it does nothing.
 
 ## Delete hides, on this device only
 

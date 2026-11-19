@@ -13,6 +13,7 @@ import { useInView } from '../hooks/useInView';
 import { useVideoFrames } from '../hooks/useVideoFrames';
 import { imageCacheKey, type ImageVariant } from '../lib/imageCache';
 
+import { DocumentPreview, type DocumentPreviewTarget } from './DocumentPreview';
 import { MessageAudioBubble, type AudioMessageContext } from './MessageAudioBubble';
 import { SaveShareButtons } from './SaveShareButtons';
 
@@ -96,7 +97,9 @@ export const MessageImages = ({ uploads: allUploads, chatId, cid, align, audio, 
         return { uploads: kept.map(index => allUploads[index]!), slotPositions: kept };
     }, [allUploads, hiddenSlots]);
     const split = useMemo(() => chatMediaItems(cid, uploads), [cid, uploads]);
-    const files = useFileDownloads({ cid, chatId });
+    // A PDF pressed in a browser opens here rather than downloading (`opensInPageViewer`).
+    const [previewing, setPreviewing] = useState<DocumentPreviewTarget | null>(null);
+    const files = useFileDownloads({ cid, chatId, onPreview: (file, from) => setPreviewing({ file, chatId: from }) });
     // How far a message still on its way has gone, by `upload$$` position. Only a pending row has any,
     // and it is read from page memory, so the ring's ticks never touch the cached row.
     const sendProgress = runtime.data.useImageSendProgress(chatId);
@@ -306,8 +309,9 @@ export const MessageImages = ({ uploads: allUploads, chatId, cid, align, audio, 
                                       item={item}
                                       busy={exports.busyFor(item.uploadId)}
                                       onAction={(action, target) => void exports.run(action, target)}
+                                      canShare={exports.canShare}
                                       saveAll={
-                                          savable.length > 1
+                                          exports.canSaveAll && savable.length > 1
                                               ? {
                                                     count: savable.length,
                                                     videos: savable.some(entry => entry.kind === 'video'),
@@ -335,6 +339,9 @@ export const MessageImages = ({ uploads: allUploads, chatId, cid, align, audio, 
                     play: t('chat.attach.viewerPlay'),
                 }}
             />
+            {split.files.length > 0 && (
+                <DocumentPreview cid={cid} target={previewing} onClose={() => setPreviewing(null)} />
+            )}
         </>
     );
 };

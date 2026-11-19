@@ -1366,6 +1366,16 @@
                 "ok": "확인",
                 "sendRest_one": "나머지 {{count}}개 보내기",
                 "sendRest_other": "나머지 {{count}}개 보내기"
+            },
+            "document": {
+                "loading": "{{name}} 여는 중",
+                "failed": "미리 볼 수 없는 파일이에요.\n저장하거나 공유해서 다른 앱으로 열어 보세요.",
+                "save": "{{name}} 저장",
+                "share": "{{name}} 공유"
+            },
+            "browserShare": {
+                "again": "공유할 준비가 됐어요. 다시 눌러 주세요",
+                "failed": "파일을 공유하지 못했어요"
             }
         },
         "preview": {

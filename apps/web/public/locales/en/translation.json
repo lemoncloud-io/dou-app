@@ -1366,6 +1366,16 @@
                 "ok": "OK",
                 "sendRest_other": "Send the other {{count}}",
                 "sendRest_one": "Send the other 1"
+            },
+            "document": {
+                "loading": "Opening {{name}}",
+                "failed": "This file can’t be previewed.\nSave or share it to open it in another app.",
+                "save": "Save {{name}}",
+                "share": "Share {{name}}"
+            },
+            "browserShare": {
+                "again": "Ready to share. Tap again",
+                "failed": "Couldn’t share the file"
             }
         },
         "preview": {

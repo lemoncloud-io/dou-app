@@ -1,14 +1,62 @@
 /// <reference types='vitest' />
 import * as fs from 'fs';
+import { createRequire } from 'module';
 import * as path from 'path';
 
 import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
-import { defineConfig, searchForWorkspaceRoot } from 'vite';
+import { defineConfig, searchForWorkspaceRoot, type Plugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
 import webPkg from './package.json' with { type: 'json' };
+
+/**
+ * pdf.js's data files, served at `/pdfjs/<dir>/` in dev and emitted there in a build: the Adobe
+ * CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
+ * profiles, and the image-decoder wasm. Without them such a PDF draws without its text or images.
+ * The script-engine wasm is left out; the viewer never runs a PDF's scripts. The same plugin
+ * `apps/desktop-web` carries for its own viewer.
+ */
+const PDFJS_ASSET_DIRS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'];
+const pdfjsAssetsPlugin = (): Plugin => {
+    const root = path.dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
+    // `<dir>/<name>` of every file served. A request is answered only on an exact match, so no path
+    // it names can reach outside these folders.
+    const files = new Set(
+        PDFJS_ASSET_DIRS.flatMap(dir =>
+            fs
+                .readdirSync(path.join(root, dir))
+                .filter(name => !name.startsWith('quickjs') && fs.statSync(path.join(root, dir, name)).isFile())
+                .map(name => `${dir}/${name}`)
+        )
+    );
+    return {
+        name: 'pdfjs-assets',
+        configureServer(server) {
+            server.middlewares.use('/pdfjs', (req, res, next) => {
+                let file = '';
+                try {
+                    file = decodeURIComponent((req.url ?? '').split('?')[0]).replace(/^\/+/, '');
+                } catch {
+                    // A malformed escape names no file of ours.
+                }
+                if (!files.has(file)) return next();
+                res.setHeader('Content-Type', file.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream');
+                res.end(fs.readFileSync(path.join(root, file)));
+            });
+        },
+        generateBundle() {
+            for (const file of files) {
+                this.emitFile({
+                    type: 'asset',
+                    fileName: `pdfjs/${file}`,
+                    source: fs.readFileSync(path.join(root, file)),
+                });
+            }
+        },
+    };
+};
 
 const copySharedPublicPlugin = () => {
     const sharedPublicDir = path.resolve(import.meta.dirname, '../../assets/public');
@@ -145,6 +193,7 @@ export default defineConfig({
         nxViteTsPaths(),
         nxCopyAssetsPlugin(['*.md']),
         copySharedPublicPlugin(),
+        pdfjsAssetsPlugin(),
     ],
 
     build: {

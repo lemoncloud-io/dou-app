@@ -5,7 +5,7 @@ import { runtime, isPendingUploadSlot, type ChatFileSlot, type DomainChat } from
 import { logger, webClient } from '@chatic/bridges';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import type { MessageFileDownloadState } from '@chatic/web-ui-kit';
+import { messageFileKind, type MessageFileDownloadState } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge/appBridge';
 import { getShellDownloads } from '../../../bridge/shellDownload';
@@ -62,6 +62,18 @@ interface Context {
     t: Translate;
 }
 
+/** Reads the message again and returns this upload's fresh address, if it has one. */
+export const freshFileUrl = async (
+    cid: string,
+    chatId: string | undefined,
+    file: Pick<ChatFileSlot, 'uploadId'>
+): Promise<string | undefined> => {
+    if (!chatId || !file.uploadId) return undefined;
+    const chat: DomainChat = await runtime.data.getCloudRepositories(cid).chat.getChat({ id: chatId });
+    const slot = chat.upload$$?.find(entry => !isPendingUploadSlot(entry) && entry.id === file.uploadId);
+    return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? undefined) : undefined;
+};
+
 /** The shell and the data layer, for one card. */
 const depsFor = ({ cid, chatId }: Context, file: ChatFileSlot, controller: AbortController): FileExportDeps => {
     const downloads = getShellDownloads();
@@ -76,12 +88,7 @@ const depsFor = ({ cid, chatId }: Context, file: ChatFileSlot, controller: Abort
         save: (uri, name) =>
             webClient.request({ type: 'SaveFile', data: { uri, name } }, { timeoutMs: SHELL_USE_TIMEOUT_MS }),
         share: (uri, title) => appBridge.shareFile(uri, title),
-        freshUrl: async () => {
-            if (!chatId || !file.uploadId) return undefined;
-            const chat: DomainChat = await runtime.data.getCloudRepositories(cid).chat.getChat({ id: chatId });
-            const slot = chat.upload$$?.find(entry => !isPendingUploadSlot(entry) && entry.id === file.uploadId);
-            return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? undefined) : undefined;
-        },
+        freshUrl: () => freshFileUrl(cid, chatId, file),
         kept: () => kept.get(file.key),
         keep: uri => {
             // The file is here: whatever follows is the OS surface's, not the card's progress.
@@ -240,6 +247,19 @@ export interface BatchFile {
 /** Whether the app downloads and keeps files on this host, as the host's `files` port says. */
 const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
 
+/**
+ * Whether pressing a card opens the page's own document viewer instead of downloading: a sent PDF, in
+ * a browser. The app opens files with the OS (QuickLook, the Android viewer), which already reads
+ * them; a browser had nothing between the card and a download, and a phone browser then shows the
+ * downloaded PDF in place of the page, with no way back to the room.
+ */
+export const opensInPageViewer = (file: ChatFileSlot): boolean =>
+    !appMovesFiles() &&
+    file.state === 'ready' &&
+    !!file.url &&
+    !file.audio &&
+    (messageFileKind(file.name) === 'pdf' || file.contentType === 'application/pdf');
+
 /** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
 const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {
     if (!appMovesFiles()) {
@@ -270,8 +290,19 @@ const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: 
  *
  * A list that mixes messages (the room's file list) passes each file's own message (`fromChatId`), so
  * an expired address is signed again through the message the file belongs to.
+ *
+ * A host that draws the document viewer passes `onPreview`: in a browser the card body then opens a
+ * PDF there (`opensInPageViewer`) rather than downloading it. The button still downloads.
  */
-export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string }) => {
+export const useFileDownloads = ({
+    cid,
+    chatId,
+    onPreview,
+}: {
+    cid: string;
+    chatId?: string;
+    onPreview?: (file: ChatFileSlot, chatId: string | undefined) => void;
+}) => {
     const { t } = useTranslation();
     const refresh = useImageAddressRefresh();
     const snapshot = useSyncExternalStore(subscribe, getVersion);
@@ -301,14 +332,21 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
         [chatId, cid, refresh, t]
     );
 
-    /** The card body, and a `done` button: in the app, download if needed and open it. */
+    /**
+     * The card body, and a `done` button: in the app, download if needed and open it; in a browser, a
+     * PDF opens in the host's viewer when it has one, and anything else downloads.
+     */
     const open = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
             const context = { cid, chatId: fromChatId ?? chatId, t };
+            if (onPreview && opensInPageViewer(file)) {
+                onPreview(file, context.chatId);
+                return;
+            }
             if (!appMovesFiles()) return downloadHere(context, file, refresh);
             await perform(context, 'open', file);
         },
-        [chatId, cid, refresh, t]
+        [chatId, cid, onPreview, refresh, t]
     );
 
     /** The action sheet's "Share file": in the app only, download if needed and put it on the share sheet. */

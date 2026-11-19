@@ -76,7 +76,10 @@ const mockSaveAll = jest.fn();
 jest.mock('../hooks/useFileDownloads', () => ({
     useFileDownloads: () => ({ saveAll: mockSaveAll, share: jest.fn(), open: jest.fn() }),
 }));
-jest.mock('../hooks/useImageExports', () => ({ useImageExports: () => ({ runAll: jest.fn(), run: jest.fn() }) }));
+let mockCanShare = true;
+jest.mock('../hooks/useImageExports', () => ({
+    useImageExports: () => ({ runAll: jest.fn(), run: jest.fn(), canShare: mockCanShare }),
+}));
 jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 
 const NOV_2026 = Date.UTC(2026, 10, 11, 12);
@@ -110,6 +113,32 @@ const audioItem = (chatNo: number, sentAt = NOV_2026): RoomMediaItem => ({
         ],
     } as unknown as DomainChat,
 });
+
+/** A cached message with one photo in slot 0. */
+const photoItem = (chatNo: number): RoomMediaItem => ({
+    ...audioItem(chatNo),
+    kind: 'image',
+    chat: {
+        ...audioItem(chatNo).chat,
+        upload$$: [
+            {
+                id: `up-${chatNo}`,
+                stereo: 'image',
+                status: 'ready',
+                contentType: 'image/png',
+                name: `photo-${chatNo}.png`,
+                contentSize: 1000,
+                orgUrl: `https://s3/${chatNo}.png`,
+            },
+        ],
+    } as unknown as DomainChat,
+});
+
+/** The photos tab's only page, finished; other kinds answer empty. */
+const photoPage = (items: RoomMediaItem[]) =>
+    mockListRoomMedia.mockImplementation((input: { kind: string }) =>
+        Promise.resolve(input.kind === 'image' ? { items, nextCursorNo: null } : { items: [], nextCursorNo: null })
+    );
 
 /** The audio tab's only page, finished; other kinds answer empty. */
 const audioPage = (items: RoomMediaItem[]) =>
@@ -254,6 +283,20 @@ describe('RoomFilesPage', () => {
         expect(barButton('chat.attach.audio.share')).toBeDisabled();
         expect(barButton('chat.attach.audio.save')).toBeEnabled();
         expect(screen.queryByText('chat.files.exportLimit')).not.toBeInTheDocument();
+    });
+
+    it('keeps share off for a photo where the browser cannot share files', async () => {
+        mockCanShare = false;
+        photoPage([photoItem(9)]);
+        renderPage('media');
+        await screen.findByLabelText(/chat\.attach\.tile/);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.files.select' }));
+        // Selecting, a press on the tile picks it.
+        fireEvent.click(screen.getByLabelText(/chat\.attach\.tile/));
+
+        expect(barButton('chat.attach.audio.share')).toBeDisabled();
+        expect(barButton('chat.attach.audio.save')).toBeEnabled();
+        mockCanShare = true;
     });
 
     it('hides the picked files on this device after a confirm, and an undo shows them again', async () => {

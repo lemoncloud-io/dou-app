@@ -23,6 +23,17 @@ describe('SaveShareButtons', () => {
         ]);
     });
 
+    it('leaves share out where it cannot be offered, keeping save at the right end', () => {
+        const { container } = render(
+            <SaveShareButtons item={image} busy={undefined} onAction={jest.fn()} canShare={false} />
+        );
+
+        expect(screen.getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual([
+            'chat.attach.export.save',
+        ]);
+        expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+    });
+
     it('offers both actions for a sent image', () => {
         const onAction = jest.fn();
         render(<SaveShareButtons item={image} busy={undefined} onAction={onAction} />);
