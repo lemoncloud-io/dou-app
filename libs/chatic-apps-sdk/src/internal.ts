@@ -5,4 +5,4 @@
  */
 export { connectOver } from './chaticApps';
 export type { Transport } from './transport';
-export { POINTER_LINES, shapeOf, type DocumentShape } from './docsPairing';
+export { POINTER_LINES, firstLine, shapeOf, type DocumentShape } from './docsPairing';
