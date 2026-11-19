@@ -50,7 +50,7 @@ Bundle: 4 files, 23.0 KB.
 - **The build folder is `dist/`** unless `--dist` names another; `--root` is the project's folder.
 - **No setup needed.** Without a scenario file it runs the behaviour checks that need no screens (start,
   back at the root, close, theme, hiding and coming back, a refused consent, a cloud change, a rate
-  limit) and says that a scenario file adds the screen checks. Not built yet, it says to build first.
+  limit, and a turn of the phone for an `immersive` page) and says that a scenario file adds the screen checks. Not built yet, it says to build first.
 - Exits `0` when there is nothing to fix, `1` when there is.
 
 The package is not published yet. Its publish manifest is `package.publish.json` (as
@@ -121,7 +121,7 @@ does not trip it. They are patterns, not a parser: they can miss a violation wri
 string that merely mentions a forbidden name can trip them.
 
 **Permissions in use** come from the calls that need them (`copy`, `share`, `openUrl`, `getUserKey`,
-`data.sendMessage`, `data.session`, the place profile helpers), looked for only in files that import the
+`data.sendMessage`, `data.react`, `data.session`, the place profile helpers), looked for only in files that import the
 SDK or its types, and from quoted data method names, each
 mapped to its permission by a table that is keyed by the SDK's own `DataCalls` and `DataStreams` types —
 a method the SDK adds or drops fails to compile here.
@@ -155,6 +155,7 @@ layout, the safe area and real touch are not tried here. The runner never reache
 | `cloud-change`    | A stream stays open, a page that had one open does not react, or it keeps sending data requests                                                       |
 | `big-list`        | A screen draws more than 2,000 elements for lists of 5,000 rows                                                                                       |
 | `rate-limited`    | A read refused with `RATE_LIMITED` is never tried again                                                                                               |
+| `rotation`        | An `immersive` page throws or reports an error when the phone turns and turns back (its insets change); it runs only for an `immersive` manifest      |
 
 Errors are what the page throws (synchronously, in an event listener, or as an unhandled rejection) and
 what it reports through `reportError`. Streams are counted on the wire: subscribed and answered, minus
@@ -194,7 +195,9 @@ SDK (`@lemoncloud/chatic-apps-sdk/mock`); `--mock` names another module, as this
 `verify`, `formatVerify` and `bundle` are the commands' API. `check`, `runScenarios`, `loadDist`, `loadEntry`,
 `openPage` and `loadScenarioConfig` are exported for tests. `loadEntry` bundles a page from its sources as a production build would (`import.meta.env.DEV`
 false) with an optional source transform, which is how a page's own tests make broken copies of it;
-`openPage` opens a page with a hook to put a host — the mock, or a real one — in place first.
+`openPage` opens a page with a hook to put a host — the mock, or a real one — in place first. `openMockedPage` opens one with the SDK's mock already in place, given the mock's options — a
+context of the test's choosing, `display: 'immersive'`, or no `display` and `safeArea` for an older app —
+and hands back the mock's controller as `app`.
 
 The build writes one declaration file for this API, `index.d.ts`, beside `index.js` and `cli.js`.
 

@@ -2,12 +2,15 @@ export { bundle, zip, type BundleOptions, type BundleResult } from './bundle';
 export { RULES, check, formatCheck, type CheckOptions, type CheckResult, type Finding, type RuleId } from './check';
 export { CONFIG_FILES, loadScenarioConfig } from './config';
 export {
+    DEFAULT_MOCK_MODULE,
     PAGE_URL,
     loadDist,
     loadEntry,
+    openMockedPage,
     openPage,
     settle,
     type EntryOptions,
+    type MockedPageOptions,
     type OpenOptions,
     type OpenedPage,
     type PageSource,

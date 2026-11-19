@@ -158,7 +158,14 @@ export const openPage = (source: PageSource, options: OpenOptions = {}): OpenedP
     window.scrollTo = () => undefined;
     const onRejection = (reason: unknown) => errors.push(`Unhandled rejection: ${describe(reason)}`);
     process.on('unhandledRejection', onRejection);
-    options.beforeScripts?.(window);
+    try {
+        options.beforeScripts?.(window);
+    } catch (error) {
+        // Nothing of the page has run: leave nothing behind, and say why.
+        process.off('unhandledRejection', onRejection);
+        window.close();
+        throw error;
+    }
     for (const script of source.scripts) {
         try {
             window.eval(script);
@@ -182,6 +189,43 @@ const describe = (error: unknown): string => {
         return `${name ?? 'Error'}: ${message ?? ''}`;
     }
     return String(error);
+};
+
+/** The module the mock is imported from, by default: the project's installed SDK. */
+export const DEFAULT_MOCK_MODULE = '@lemoncloud/chatic-apps-sdk/mock';
+
+export interface MockedPageOptions {
+    /** What `installChaticAppsMock` takes: permissions, data, context, … */
+    mock?: object;
+    /** The module the mock is imported from; the project's installed SDK by default. */
+    mockModule?: string;
+    /** Where `mockModule` resolves from: the project's folder. */
+    resolveDir: string;
+}
+
+/**
+ * Opens `source` with the SDK's mock of the app installed first, as the scenario runner does: for a
+ * page's own tests of what the runner does not try — a context of its choosing, an older app.
+ * `app` is the mock's controller (`pressBack`, `rotate`, `reactions`, …).
+ */
+export const openMockedPage = async (
+    source: PageSource,
+    options: MockedPageOptions
+): Promise<OpenedPage & { app: unknown }> => {
+    const script = await bundleModule(
+        `import { installChaticAppsMock } from ${JSON.stringify(options.mockModule ?? DEFAULT_MOCK_MODULE)};\n` +
+            'window.__chaticAppsMockedPage = installChaticAppsMock(window.__chaticAppsMockedPageOptions);',
+        options.resolveDir
+    );
+    let app: unknown;
+    const page = openPage(source, {
+        beforeScripts: window => {
+            Object.assign(window, { __chaticAppsMockedPageOptions: { log: false, ...options.mock } });
+            window.eval(script);
+            app = (window as unknown as { __chaticAppsMockedPage?: unknown }).__chaticAppsMockedPage;
+        },
+    });
+    return { ...page, app };
 };
 
 /** Waits for the page's queued work: replies, timers of `ms`, and what they set off. */

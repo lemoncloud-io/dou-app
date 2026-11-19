@@ -7,9 +7,14 @@ describe('the permission table', () => {
 
     it('opens every data permission with at least one method', () => {
         const opened = new Set(Object.values(DATA_METHODS));
-        for (const permission of ['cloud', 'place', 'channel', 'chat', 'user', 'chatSend'] as const) {
+        for (const permission of ['cloud', 'place', 'channel', 'chat', 'user', 'chatSend', 'chatReact'] as const) {
             expect(opened.has(permission)).toBe(true);
         }
+    });
+
+    it('takes no translation key for a data method', () => {
+        const keys = "'profile.settings' 'chat.setup' 'user.settings' 'place.sets'";
+        expect([...keys.matchAll(DATA_METHOD_NAME)]).toEqual([]);
     });
 
     it('finds every typed method name by the pattern unknown names are caught with', () => {

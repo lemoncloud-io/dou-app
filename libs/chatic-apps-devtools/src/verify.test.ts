@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 import { RULES, type RuleId } from './check';
+import { openMockedPage } from './page';
 import { en } from './i18n/en';
 import { ko } from './i18n/ko';
 import type { IssueKind } from './scenarios';
@@ -56,6 +57,7 @@ describe('the scenarios run without a scenario file', () => {
                 'consent-refused',
                 'cloud-change',
                 'rate-limited',
+                'rotation',
             ].sort()
         );
     });
@@ -150,4 +152,20 @@ describe('verify', () => {
             rmSync(root, { recursive: true, force: true });
         }
     });
+});
+
+describe('openMockedPage', () => {
+    it('opens a page with the mock in place, as the context asks', async () => {
+        const page = await openMockedPage(
+            { html: '<!doctype html><html><body></body></html>', scripts: [] },
+            { mock: { context: { display: 'immersive' } }, mockModule: MOCK, resolveDir: __dirname }
+        );
+        try {
+            const context = (page.window as unknown as { ChaticSubWebView?: { safeArea?: object } }).ChaticSubWebView;
+            expect(context?.safeArea).toEqual({ top: 47, right: 0, bottom: 34, left: 0 });
+            expect(typeof (page.app as { rotate?: unknown }).rotate).toBe('function');
+        } finally {
+            page.close();
+        }
+    }, 60_000);
 });
