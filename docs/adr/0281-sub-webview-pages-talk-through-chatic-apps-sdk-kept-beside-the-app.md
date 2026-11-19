@@ -1,6 +1,6 @@
 # ADR-0281: Sub WebView pages talk through chatic-apps-sdk, kept beside the app
 
-> Status: Accepted · Decided: 2026-11-03 · Implemented: `feat/chatic-apps-sdk`
+> Status: Accepted, its rejected CLI alternative partly revisited by [ADR-0351](./0351-mini-app-dev-tools-are-a-package-beside-the-sdk-not-in-it.md) · Decided: 2026-11-03 · Implemented: `feat/chatic-apps-sdk`
 > · Scope: `libs/chatic-apps-sdk` (new) · `apps/mobile/src/app/subWebView/chaticAppsSdk.contract.test.ts`
 > · The library's own documentation is [libs/chatic-apps-sdk/README.md](../../libs/chatic-apps-sdk/README.md);
 > the protocol it speaks is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md)

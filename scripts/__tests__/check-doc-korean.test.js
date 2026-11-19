@@ -49,9 +49,10 @@ describe('check-doc-korean', () => {
         expect(check('이 릴리스는 전부 한글로 적혀 있다', 'CHANGELOG.md')).toEqual([]);
     });
 
-    it("is exempt for the SDK's Korean author documents", () => {
+    it("is exempt for the mini app packages' Korean author documents", () => {
         for (const file of [
             'libs/chatic-apps-sdk/README.ko.md',
+            'libs/chatic-apps-devtools/README.ko.md',
             'libs/chatic-apps-sdk/docs/guide/README.ko.md',
             'libs/chatic-apps-sdk/docs/guide/agent-rules.ko.md',
         ]) {
@@ -59,10 +60,12 @@ describe('check-doc-korean', () => {
         }
     });
 
-    it('still reports Korean prose everywhere else, a .ko.md outside the SDK and the SDK English files included', () => {
+    it('still reports Korean prose everywhere else, a .ko.md outside the two packages and their English files included', () => {
         for (const file of [
             'libs/data/README.ko.md',
             'docs/guide.ko.md',
+            'libs/chatic-apps-devtools-extra/README.ko.md',
+            'libs/chatic-apps-devtools/README.md',
             'libs/chatic-apps-sdk/README.md',
             'libs/chatic-apps-sdk/docs/guide/README.md',
         ]) {

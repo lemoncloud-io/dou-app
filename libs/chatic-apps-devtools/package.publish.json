@@ -1,0 +1,35 @@
+{
+    "name": "@lemoncloud/chatic-apps-devtools",
+    "version": "0.0.0",
+    "description": "Check and try a Chatic app page before it is handed over",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lemoncloud-io/dou-app.git",
+        "directory": "libs/chatic-apps-devtools"
+    },
+    "type": "module",
+    "bin": {
+        "chatic-apps": "./cli.js"
+    },
+    "main": "./index.js",
+    "types": "./index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./index.d.ts",
+            "default": "./index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": ["*.js", "*.d.ts", "README.md", "README.ko.md"],
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "esbuild": "^0.25.0",
+        "jsdom": "^22.1.0"
+    },
+    "peerDependencies": {
+        "@lemoncloud/chatic-apps-sdk": ">=0.3.0-0"
+    }
+}
