@@ -41,7 +41,9 @@ date · length · size` — the length once the file was played on this device �
 - **Files**: the file mark, the name, `sender · date · size`; pressing opens it as the document card
   does — in a browser a PDF opens in the document viewer ([image-send.md](./image-send.md#the-document-viewer-browser)).
 - **Links**: the address and `sender · date`; pressing opens it.
-- **Photos·videos**: a three-column grid; a tile opens the media viewer over the loaded items.
+- **Photos·videos**: a three-column grid; a tile opens the media viewer over the loaded items, with the
+  room viewer's share and save for the showing item (`SaveShareButtons`, without save all: the list's
+  own selection saves several). Closing the viewer stops a share still downloading.
 
 Senders are named the way the room's rows name them (`useRoomSenderName`). Each row's ⋮ opens a sheet with
 its name and details: Details (audio), View in chat, Save (or Copy link), Share, Delete.

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -37,6 +37,7 @@ import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpace
 import { threadRootNo } from '../../../utils/notifications/notificationModel';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DocumentPreview, type DocumentPreviewTarget } from '../components/DocumentPreview';
+import { SaveShareButtons } from '../components/SaveShareButtons';
 import { useChannel } from '../hooks/useChannel';
 import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useImageExports, type ExportableMedia } from '../hooks/useImageExports';
@@ -183,6 +184,15 @@ export const RoomFilesPage = () => {
     const picked = shown.filter(entry => selected?.has(entry.key));
     const allowed = selectionActionState(picked.length);
     const viewable = shown.filter(entry => entry.media && entry.media.state === 'ready' && entry.media.src);
+    // Closing the viewer stops a share still downloading, so its sheet never opens over the list — as
+    // the room's viewer does. Only on the close itself: a selection being saved is left to finish.
+    const { stopOnClose } = exports;
+    const viewerOpen = viewerAt !== null;
+    const wasViewerOpen = useRef(false);
+    useEffect(() => {
+        if (wasViewerOpen.current && !viewerOpen) stopOnClose();
+        wasViewerOpen.current = viewerOpen;
+    }, [viewerOpen, stopOnClose]);
 
     const setTab = (next: RoomFilesTab) => {
         setQuery('');
@@ -548,6 +558,25 @@ export const RoomFilesPage = () => {
                 autoPlay
                 onIndexChange={setViewerAt}
                 onClose={() => setViewerAt(null)}
+                // The same share and save the room's viewer offers, for the showing item alone: the
+                // list's own selection is how several are saved here.
+                renderFooter={
+                    exports.canExport
+                        ? at => {
+                              const entry = viewable[at];
+                              const item = entry && exportableOf(entry);
+                              if (!item) return null;
+                              return (
+                                  <SaveShareButtons
+                                      item={item}
+                                      busy={exports.busyFor(item.uploadId)}
+                                      onAction={(action, target) => void exports.run(action, target)}
+                                      canShare={exports.canShare}
+                                  />
+                              );
+                          }
+                        : undefined
+                }
                 labels={{
                     title: t('chat.attach.viewer'),
                     close: t('chat.attach.viewerClose'),
