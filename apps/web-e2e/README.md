@@ -127,6 +127,11 @@ above the web's version floor. `test.use({ shellAppVersion: '0.29.2' })` install
 instead, which is how `app-version-floor.spec.ts` reaches the update screen. Nothing else about the
 shell changes: it still answers what a current app answers.
 
+What the app declares it can do is the other half of an older build. `test.use({ shellCapabilities })`
+replaces the declaration the shell injects (the `capabilities` above) with what that build sent — as a
+fixture function when it depends on `shellPlatform` — which is how `installed-app-declaration.spec.ts`
+replays the spellings 0.32.x declares.
+
 ### A browser tab
 
 `test.use({ inApp: false })` opens the page as a plain browser tab instead: no shell is installed, so
@@ -204,6 +209,7 @@ written there.
 | `push-navigation.spec.ts`           | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home, leaving one home entry rather than two.                                                                                                         |
 | `cloud-invite-entry.spec.ts`        | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                                                                                                               |
 | `oauth-login.spec.ts`               | Each of the shell's answers to `OAuthLogin` ends the wait: a native token or the virtual shell's relay code (exchanged at `verify-oauth-code`) promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                                                                 |
+| `installed-app-declaration.spec.ts` | An installed 0.32.2 app declaring every capability in the old spelling (`'app'`, `test.use({ shellCapabilities })`) still signs in through the shell (`OAuthLogin`), not the page.                                                                                                                                                                                                                                    |
 | `app-resume.spec.ts`                | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up; a socket left half-open (`backend.silenceSockets()`) is found by the wake probe's ping and replaced within seconds.                                                          |
 | `relay-invite-entry.spec.ts`        | A relay invite link opened as the app comes back to the foreground, whose `invite.get` is lost to the socket closing under it, is read again on the next socket once it has signed in, and the invite shows with no failure dialog.                                                                                                                                                                                   |
 | `chat-paging.spec.ts`               | A room opens on its newest messages; each scroll to the top asks for 50 more below the oldest one shown (`chat.feed`, `cursorNo`), until the room's first, with every message once and the row being read kept in place. An older page refused is asked for again after 2s, then 4s, with the room intact; one held is asked for once however often the reader scrolls.                                               |

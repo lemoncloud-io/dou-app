@@ -6,7 +6,8 @@
 > stands) · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
 > `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
 > (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`), `feat/host-files-port` (step 3, `files`),
-> `feat/host-ports-rest` (steps 4–7, together), `refactor/host-shell-browser-methods` (the values' names)
+> `feat/host-ports-rest` (steps 4–7, together), `refactor/host-shell-browser-methods` (the values' names),
+> `fix/host-capability-legacy-values` (the old spellings read again)
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports in `libs/host` until ADR-0346 removed it (now
 > [libs/runtime-client § The host ports](../../libs/runtime-client/README.md#the-host-ports))
@@ -145,9 +146,20 @@ word the workspace already uses for the phone, desktop and virtual shells. `'bro
 browser engine offers the page, the means every host has, which is why every fallback lands on it. The
 values were first written `'app' | 'page'` — for `media`, `files` and then the five version-4 keys — and
 renamed afterwards, because "app" already named every project under `apps/` and the mini apps, and
-"page" named screens, pages of a feed and a mini app's page. A shell that still
-declares an old value names something the web does not know, so that key is logged and answered
-`'browser'`, like any other value a shell gets wrong.
+"page" named screens, pages of a feed and a mini app's page.
+
+The web still reads the old spellings: `'app'` as `'shell'`, `'page'` as `'browser'`, without a
+warning. The rename first shipped without that, on the reasoning that a shell declaring an old value had
+got it wrong and should be answered `'browser'` like any other value. But the phone app had already
+shipped the old spellings to the stores (0.32.x declares all seven keys as `'app'`), and an installed
+build keeps declaring them until it is updated, while the page it loads is always the newest deploy. The
+web deploy that carried the rename therefore answered `'browser'` for every port on every installed phone
+— no native Google or Apple sign-in, no app icon choice, attachments and push through the page — on iOS
+and Android at once. Values a shipped shell declares are part of the contract the web keeps, like the
+`checkout` values and `CHATIC_APP_STORAGE_MEDIA`; a rename adds a spelling the web reads, it does not
+retire the one already in the field. Shells declare the new spellings; the virtual shell, which no one
+installs, ignores the old ones with a warning. The web drops them only once the phone app's version floor
+is above the last build that declares them.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.

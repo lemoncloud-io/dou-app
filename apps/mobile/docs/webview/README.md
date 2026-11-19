@@ -329,7 +329,9 @@ instead of surfacing as an opaque "Script error.":
   store-distributed app may not point a buyer at — and `'shell'` for every other key (`media`, `files`,
   `links`, `appShell`, `signIn`, `diagnostics`, `push`), since this app does each of those itself. The web chooses its host ports (`runtime.<port>`) from it
   before its first render; a build without it gets the web's rule for an app that declares nothing,
-  which gives the same answer. Set early in the script, beside the storage media, so a later snippet
+  which gives the same answer. Builds up to 0.32.x declared these keys as `'app'` (and `'page'`), from
+  before the values were renamed; the web keeps reading those, since installed builds go on sending
+  them. Set early in the script, beside the storage media, so a later snippet
   that throws cannot skip it
 - `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }`, only on
   a launch the app's own runtime owns; absent otherwise, so a page asks for the runtime handshake only

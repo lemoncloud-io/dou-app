@@ -54,7 +54,7 @@ describe.each(Object.entries(kinds))('the %s port', (key, kindOf) => {
 
     it('falls back to the browser, and says so, when a version-4 declaration leaves the key out or names something else', () => {
         expect(kindOf(phone('ios', v4({})))).toBe('browser');
-        expect(kindOf(phone('ios', v4({ [key]: 'app' })))).toBe('browser');
+        expect(kindOf(phone('ios', v4({ [key]: 'native' })))).toBe('browser');
         // Both are logged: the missing key where the declaration is read, the unknown value here.
         expect(warn).toHaveBeenCalledTimes(2);
     });
