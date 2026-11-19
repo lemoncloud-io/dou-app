@@ -190,7 +190,8 @@ if (apps.supports('data') && placeId) {
   클라우드 자신의 행은 어느 플레이스에도 속하지 않으므로 계속 열려 있다. 플레이스 id는 `session().committedSiteId`나 실행
   파라미터(`place.id`)에서 읽는다.
 - **서버 읽기에는 한도가 있다**: 뷰당 250 ms에 한 번, 1분에 60번이며, 넘으면 `error.details.retryAfterMs`와 함께
-  `RATE_LIMITED`다.
+  `RATE_LIMITED`다. 캐시 읽기에도 따로 한도가 있다: 뷰당 1분에 600번이며, 읽기나 메시지를 위해 앱이 확인하는 채팅방 하나하나가
+  한 번으로 센다.
 - **일부 실행에서만 응답한다**: 앱이 세션을 직접 가지고 있어야 하고, 휴대폰에서 열린 것이어야 하고, 페이지는 심사를 거친 것이어야
   하고, 페이지가 열릴 때 클라우드 — 홈 포함 — 가 선택되어 있어야 하며, Android에서는 WebView가 페이지 자신의
   메시지와 그 안의 프레임이 보낸 메시지를 구분할 수 있어야 한다(오래된 Android System WebView는 구분하지 못하고,
@@ -381,7 +382,7 @@ try {
 | `RUNTIME_NOT_ALLOWED`  | `data`: 이 페이지가 쓸 수 있는 메서드가 아니거나, 앱이 현재 클라우드나 플레이스로 제한하는 인자 — 메시지라면 그 모양이나 그 채팅방                                |
 | `CLOUD_CHANGED`        | `data`: 사용자의 클라우드가 더 이상 이 뷰가 열린 클라우드가 아님. 그 뒤로는 아무것도 응답하지 않음                                                                |
 | `CONSENT_REFUSED`      | `data.connect()`: 사용자가 이 페이지가 이 클라우드를 읽도록 허용하지 않음                                                                                         |
-| `RATE_LIMITED`         | `data`: 서버 읽기나 보낸 메시지가 너무 많음. `error.details.retryAfterMs`만큼 기다릴 것                                                                           |
+| `RATE_LIMITED`         | `data`: 서버 읽기, 캐시 읽기, 보낸 메시지가 너무 많음. `error.details.retryAfterMs`만큼 기다릴 것                                                                 |
 | `UNSUPPORTED_PROTOCOL` | `connect()`만: 앱이 이 라이브러리보다 새로움. 라이브러리를 업데이트할 것                                                                                          |
 
 이 표에 없는 코드는 그 호출이 실패한 것으로만 다룬다. 코드는 앱 자신의 것이라서 몇몇은 앱의 예전 용어를
@@ -499,7 +500,7 @@ mock은 앱처럼 응답하고 — 기본 호출과 넘겨준 `permissions`에 �
 | ----------------- | --------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 0.1.0             | 2.19.0                                  | —                                  | 기본 호출, 저장소, 공유, 사용자 키                                                                                                                                                                                                         |
 | 0.2.0             | 2.20.0                                  | —                                  | 카메라와 마이크 권한, 패키지의 `GUIDE.md`와 `AGENTS.md`                                                                                                                                                                                    |
-| next (unreleased) | 2.32.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`) |
+| next (unreleased) | 2.33.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`) |
 
 데이터 계약은 `apps.data`가 읽는 것에 대한 앱 자신의 버전이다. 앱은 양쪽이 모두 지원하는 가장 새로운 계약으로
 페이지에 응답한다. 앱이 지원하는 계약을 하나도 지원하지 않는 라이브러리는 `NOT_SUPPORTED`로 응답받는다.

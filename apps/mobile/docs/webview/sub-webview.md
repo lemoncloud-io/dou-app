@@ -129,7 +129,14 @@ it:
   its own error; for `chat.cacheRead`, the room of the message it answered), and the view's
   budget
   (`subWebViewReadBudget.ts`: server reads at one per 250 ms and 60 a minute, messages apart at one per
-  500 ms and 30 a minute, reactions apart at one per 250 ms and 60 a minute, both per view so a reload cannot reset them). Then the request goes to the
+  500 ms and 30 a minute, reactions apart at one per 250 ms and 60 a minute, cache reads apart at 600 a
+  minute, all per view so a reload cannot reset
+  them; each room check the bridge reads for a page spends the cache budget too, so neither a long
+  list of rooms nor a loop of sends reads the cache for free). While the app is in the background
+  (`AppState`), each stream keeps only
+  its latest event and delivers it on return: every stream the whitelist opens sends its whole state
+  each time, and on Android nothing reaches a page in the background anyway, so the events would
+  otherwise pile up and arrive at once. Then the request goes to the
   runtime unchanged — unless the view closed or its cloud changed while the checks waited, which
   nothing is sent past. A
   page with `session` gets the current cloud's part of the session (`sessionForPage`), never the
@@ -441,12 +448,18 @@ sequenceDiagram
     Handler-->>Web: OnSubWebViewClosed { viewId, reason: 'user' }
 ```
 
-| Reason   | Who closed it                                                                                  |
-| -------- | ---------------------------------------------------------------------------------------------- |
-| `user`   | The close control (the bar's, or the floating one), or Android back with no page to go back to |
-| `host`   | The web, with `CloseSubWebView`                                                                |
-| `system` | The shell, before a deep link or a tapped push navigates the web                               |
-| `page`   | The page, with `FinishSubWebView` — the only reason that carries a `result`                    |
+| Reason   | Who closed it                                                                                      |
+| -------- | -------------------------------------------------------------------------------------------------- |
+| `user`   | The close control (the bar's, or the floating one), or Android back with no page to go back to     |
+| `host`   | The web, with `CloseSubWebView`                                                                    |
+| `system` | The shell, before a deep link or a tapped push navigates the web, or after the page's process died |
+| `page`   | The page, with `FinishSubWebView` — the only reason that carries a `result`                        |
+
+**A page whose process died closes the view** as `system` (`onContentProcessDidTerminate` on iOS,
+`onRenderProcessGone` on Android), with no reload: the OS reclaims a heavy page's memory, and a page
+that did it once would do it again. The main WebView reloads instead, since it is the app. The
+exception is iOS ending the process while the app is in the background, which WebKit does to any page:
+the view reloads once, and closes only if it happens again.
 
 **A deep link or a tapped push closes the view first.** `useDeepLinkNavigation` closes a showing
 view

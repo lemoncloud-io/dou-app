@@ -1,6 +1,6 @@
 # The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.32.0. This document states the protocol as it stands. Which
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.33.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.
@@ -174,7 +174,9 @@ A page MUST treat any message whose `refId` matches no pending request as a push
     | `protocolVersion`      | The request's `version`, echoed                                    |
     | `subWebView`           | The same `SubWebViewContext` as `window.ChaticSubWebView`          |
 
-3. The host holds every push until the page's first message, then sends them in order. Any message
+3. The host holds every push until the page's first message, then sends them in order. The hold
+   has no ceiling, and needs none: before its first message a page can be pushed only a context change
+   (a theme, a language, a settled safe area), since every other push answers something the page sent. Any message
    but `SendLog` releases them, not only `WebAppReady`; a page that sends something first may receive
    pushes before it has the handshake's answer.
 
@@ -407,6 +409,7 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | One origin's storage, in all                 | 1,048,576 characters            | `QUOTA_EXCEEDED`        |
 | Runtime streams per page load                | 16                              | `INVALID`               |
 | Server reads per view                        | One per 250 ms, 60 a minute     | `RATE_LIMITED`          |
+| Cache reads per view                         | 600 a minute, no spacing        | `RATE_LIMITED`          |
 | Messages sent per view                       | One per 500 ms, 30 a minute     | `RATE_LIMITED`          |
 | A message's text / its room id               | 1–1,000 / 1–200 characters      | `RUNTIME_NOT_ALLOWED`   |
 | Reactions set per view                       | One per 250 ms, 60 a minute     | `RATE_LIMITED`          |
@@ -436,7 +439,7 @@ A page MUST treat a code it does not know as a failure of that request and nothi
 | `RUNTIME_NOT_ALLOWED`   | the runtime requests                                              | Not a method this page may use, a cloud id that is not the current cloud's, or a message's shape or room; `details` says why               |
 | `CLOUD_CHANGED`         | the runtime requests                                              | The session's cloud is no longer the one the view opened on; final for the view                                                            |
 | `CONSENT_REFUSED`       | the runtime requests                                              | The user did not allow this page to read this cloud                                                                                        |
-| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                 | Over the view's budget of server reads, of messages sent, or of reactions set; `details.retryAfterMs`                                      |
+| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                 | Over the view's budget of server reads, of cache reads, of messages sent, or of reactions set; `details.retryAfterMs`                      |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages`. The runtime requests
@@ -692,9 +695,13 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
 - **Checks, in order**: the request's shape, and for a subscribe room for one more stream (`INVALID`);
   the view's cloud is still the session's (`CLOUD_CHANGED`); the target, the method, the way it is
   asked, the permission, and the entry's argument guards (`RUNTIME_NOT_ALLOWED`,
-  `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read that asks
-  the server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
-  `details: { retryAfterMs }`). The reason is the whitelist's for a closed method, `notGranted`,
+  `details: { target, method, reason }`); the user's consent (`CONSENT_REFUSED`); for a read of the
+  device cache — a call or a stream — the view's cache budget of 600 a minute (`RATE_LIMITED`,
+  `details: { retryAfterMs }`); a room's reads checked for their room (`RUNTIME_NOT_ALLOWED`, `guard`),
+  each room's check one more read of the cache budget, a message's included, so a long list of rooms
+  or a loop of sends to rooms that are not there is held to it too; for a read that asks the
+  server, the view's budget of one per 250 ms and 60 a minute (`RATE_LIMITED`,
+  `details: { retryAfterMs }`). The three budgets are apart: none spends another's. The reason is the whitelist's for a closed method, `notGranted`,
   `guard`, `otherPlace` for a read that would reach past the opened place, or `unknown` for a name it
   does not have or a method asked the wrong way. A message is checked twice more, after consent: its
   room (`RUNTIME_NOT_ALLOWED`, `guard`), and a send budget of its own, one per 500 ms and 30 a minute
@@ -778,6 +785,19 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
 - **Streams belong to the page load.** At most 16 are open at once, counting subscribes still being
   admitted; a new page load, a hello and the view's close end them all, and nothing of one load is
   pushed to the next.
+- **Every stream sends the whole of what it watches, each time.** A list stream's event is the list as
+  it now stands (`{ list, … }`), an item stream's the row or `null`, `chat.observeLastList` every room's
+  last message, `chat.observeFeedCoverage` every covered range — never a change against the event
+  before. A page MAY drop any event but the latest; it MUST NOT expect consecutive `seq` numbers.
+- **While the app is in the background, a stream keeps only its latest event.** The shell holds one event
+  per stream, the newest, and a stream's end replaces whatever it held; once the app is in front again
+  it delivers them in the order they last changed. Since each event is whole, nothing is lost but the
+  steps in between, which on Android would otherwise all arrive at once on return. A stream the page
+  closed meanwhile delivers nothing.
+- **One event, or one answer, is at most 4 MiB** of JSON (4,194,304 characters). An answer over it
+  fails, and a stream event over it ends the stream with `{ $ended }` carrying
+  `RUNTIME_PAYLOAD_TOO_LARGE`. It is a safeguard, not a budget: a page reading a large room reads a
+  page of it at a time.
 
 #### What each permission hands over
 
@@ -836,12 +856,12 @@ dropped. Setting a claim again is harmless; `chatic-apps-sdk` does it for the pa
 
 ### Closing
 
-| Reason   | Who                                                              | Guarded |
-| -------- | ---------------------------------------------------------------- | ------- |
-| `user`   | The close control, or Android back with nothing else to do       | Yes     |
-| `page`   | The page, with `FinishSubWebView`                                | No      |
-| `host`   | The opener, with `CloseSubWebView`                               | No      |
-| `system` | The shell, before a deep link or a tapped push navigates the app | No      |
+| Reason   | Who                                                                                                | Guarded |
+| -------- | -------------------------------------------------------------------------------------------------- | ------- |
+| `user`   | The close control, or Android back with nothing else to do                                         | Yes     |
+| `page`   | The page, with `FinishSubWebView`                                                                  | No      |
+| `host`   | The opener, with `CloseSubWebView`                                                                 | No      |
+| `system` | The shell: before a deep link or a tapped push navigates the app, or after the page's process died | No      |
 
 The opener hears every close as `OnSubWebViewClosed { viewId, reason, result? }`, except when the
 opener itself reloaded under the view: then the view goes with no event.
@@ -852,6 +872,13 @@ hand a `result`), or does nothing and stays. A second close by the user within 3
 closes the view as `user` without asking, so a page that hangs or never answers cannot keep the user
 in; a close after those 3 seconds asks the page again. The guard is for a page with something to
 lose — an unsaved form, a game in progress — and a page MUST NOT turn it on for anything else.
+
+**A page whose process dies is closed**, as `system`, and not reloaded. The OS ends a WebView's content
+process when the device runs short of memory — a heavy game is the likely cause — and the view would
+stay blank; on Android a WebView whose renderer is gone cannot be used again. A page that runs the
+device out of memory would only do it again on a reload. One exception: when iOS ends the process
+while the app is in the background, which it does to any page for the system's memory, the page is
+reloaded once — a new page load, with the opening `params` — and closed only if it happens again.
 
 `page`, `host` and `system` closes are never guarded and give the page no notice: the view is gone
 when the shell decides. A page MUST keep anything it cannot lose saved as it goes, and SHOULD save
@@ -1034,6 +1061,8 @@ tests, but have not been watched on a device:
 - that a reviewed page reads the runtime on a launch the app's runtime holds, on both platforms: the
   consent alert, a call, a stream's events, and a stream ended by a cloud change under the view (a
   deep link);
+- that a page whose content process is killed closes the view as `system` on both platforms, and
+  that on return from the background each stream delivers one event;
 - that a manifest's `orientation` holds a full-screen modal on both platforms (it is
   react-native-screens' screen option, set once the manifest is in), and that the outcome haptics feel
   distinct on a device.
@@ -1058,3 +1087,4 @@ for the rest, the section that describes it says how a page copes.
 | 2.29.0           | The displays renamed `titled` and `clean` (`standard` and `fullscreen` still read); `immersive` and the `--chatic-safe-area-inset-*` properties; the desktop showing `immersive` as `clean`                                                                                                                                                                              |
 | 2.30.0           | The context's `display` and `safeArea`; `safeArea` in `OnSubWebViewContextChanged`, pushed once the insets settle                                                                                                                                                                                                                                                        |
 | 2.32.0           | `chatReact` and `chat.setReaction`: one emoji on or off a message of the opened place, checked through the message's cached room; the reaction limit; consent kept per place with `chatReact`; the security invariant about the user amended again                                                                                                                       |
+| 2.33.0           | The cache-read limit and `RATE_LIMITED` for it; a stream holding only its latest event while the app is in the background; a page whose process died closed as `system`; the 4 MiB event and answer limit stated                                                                                                                                                         |

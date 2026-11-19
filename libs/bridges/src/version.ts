@@ -86,8 +86,12 @@
 //         OnSubWebViewContextChanged carries `safeArea` too, pushed once the insets settle.
 // 2.32.0: a sub WebView page's runtime permissions add `chatReact` — `chat.setReaction` of one emoji,
 //         on or off, on a message of a room of the place the view opened on, budgeted apart from the
-//         reads and the sends. (2.31.0 is the resource limits, decided in a change of its own.)
-export const BRIDGE_VERSION = '2.32.0' as const;
+//         reads and the sends.
+// 2.33.0: a sub WebView page's reads of the device cache are limited to 600 a minute per view, past
+//         which they answer RATE_LIMITED; while the app is in the background, each of its runtime streams
+//         keeps only its latest event, delivered on return; and a page whose process died closes the
+//         view as `system`.
+export const BRIDGE_VERSION = '2.33.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,
