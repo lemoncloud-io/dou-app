@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { ChatAttachmentKind } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, type ChatAttachmentKind } from '@chatic/runtime';
 import { deviceStore, persistStorageOver } from '../../storage';
 
 /** What a saved message carried, snapshotted with it: the Files filter and the card's file tile read it. */
@@ -31,7 +31,16 @@ export interface SavedItem {
     avatar?: string;
     colorSeed?: string;
     ownerId?: string;
-    /** Place the message belongs to — groups the list + drives cross-place jump. */
+    /**
+     * Cloud the message was saved in — `RELAY_CLOUD_ID` (`'default'`) for the Default Cloud. The list is
+     * one device-wide store, so this is what keeps a cloud's Saved page to its own messages. Absent on
+     * items saved before it was kept (`isSavedInCloud` places those).
+     */
+    cloudId?: string;
+    /**
+     * Place the message belongs to — groups the list + drives cross-place jump. On the Default Cloud
+     * this is the `'default'` sentinel, which names the cloud and is never a site id.
+     */
     placeId?: string;
     /** Root chatNo string when this message is a thread reply; absent = top-level. */
     parentId?: string;
@@ -74,6 +83,39 @@ export const useSavedItemsStore = create<SavedItemsState>()(
         { name: 'chatic-saved-items', storage: persistStorageOver(deviceStore) }
     )
 );
+
+/** Where the session is, in the shape a save records it: `getActiveServerContext()`'s fields. */
+export interface SavedOriginServer {
+    kind: 'relay' | 'cloud';
+    cloudId?: string;
+    siteId?: string | null;
+}
+
+/**
+ * The cloud and place a message saved now belongs to. The home screen scopes the Default Cloud by the
+ * `'default'` sentinel rather than by one of its places, so its items are tagged with that key for both.
+ */
+export const savedOriginOf = (server: SavedOriginServer): Pick<SavedItem, 'cloudId' | 'placeId'> =>
+    server.kind === 'cloud'
+        ? { cloudId: server.cloudId, placeId: server.siteId ?? undefined }
+        : { cloudId: RELAY_CLOUD_ID, placeId: RELAY_CLOUD_ID };
+
+/**
+ * Whether a saved item belongs to the cloud the Saved page is showing. Opening an item jumps within the
+ * active cloud — a place switch at most — so an item from another cloud must not be listed: its place
+ * would be sent as a site of this cloud, and the Default Cloud's `'default'` sentinel is no site at all.
+ *
+ * An item that records its cloud is that cloud's. One saved before the cloud was kept can only be placed
+ * roughly, because every cloud numbers its places from the same start — a place id names one in every
+ * cloud. Its `'default'` place is the Default Cloud's; a real place is some cloud's, so it shows in every
+ * cloud but the Default Cloud, and may open the same-numbered place of the cloud it is opened in; one with
+ * no place at all opens without a switch, so it shows everywhere.
+ */
+export const isSavedInCloud = (item: Pick<SavedItem, 'cloudId' | 'placeId'>, cloudId: string): boolean => {
+    if (item.cloudId) return item.cloudId === cloudId;
+    if (!item.placeId) return true;
+    return (item.placeId === RELAY_CLOUD_ID) === (cloudId === RELAY_CLOUD_ID);
+};
 
 /** The pages that take the main pane in place of a conversation. */
 export type MainPanePage = 'saved' | 'threads';

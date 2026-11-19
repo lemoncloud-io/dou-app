@@ -45,6 +45,7 @@ import {
     formatClockTime,
     formatShortDate,
     messagePreview,
+    savedOriginOf,
     useMediaQuery,
     useSavedItemsStore,
 } from '../../../shared';
@@ -65,15 +66,6 @@ import {
 } from '@chatic/block-kit';
 
 import { RichText, type MentionResolver } from './RichText';
-
-// Active place id (with the relay 'default' sentinel), read at call time so a saved item is
-// tagged with the place it was captured in. Non-reactive on purpose: this value is only needed
-// inside the save onClick, so a per-row session subscription would re-render every row on
-// unrelated session changes for nothing.
-const currentPlaceId = (): string | undefined => {
-    const server = runtime.session.getActiveServerContext();
-    return server.kind === 'cloud' ? (server.siteId ?? undefined) : 'default';
-};
 
 /** A thread reply author, display-resolved (Place Profile / roster / viewer). */
 export interface ThreadReplierView {
@@ -901,7 +893,12 @@ export const MessageRow = memo(
                                                                         avatar: group.avatar,
                                                                         colorSeed: group.colorSeed,
                                                                         ownerId: group.ownerId,
-                                                                        placeId: currentPlaceId(),
+                                                                        // Read at click time, not per row: a session
+                                                                        // subscription per row would re-render every
+                                                                        // row on unrelated session changes.
+                                                                        ...savedOriginOf(
+                                                                            runtime.session.getActiveServerContext()
+                                                                        ),
                                                                         parentId: message.parentId,
                                                                         sentAt:
                                                                             message.createdAt ??

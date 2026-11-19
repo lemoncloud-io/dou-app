@@ -1,3 +1,4 @@
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import { startPerfTrace } from '@chatic/perf';
 import { cloudSession } from '../session/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '@chatic/session';
@@ -29,11 +30,19 @@ export const isSiteSwitchInFlight = (): boolean => switchesInFlight > 0;
  * This is also where the `site_switch` trace is taken, rather than in the mutation wrapper one level
  * up: the no-op return below would otherwise contribute a stream of ~0ms samples and deflate the
  * p95. Everything past that guard is real work, and since this function IS the mutation's
- * `mutationFn`, "until the mutation resolves" still describes the endpoint exactly. Failures are
- * recorded too (`outcome: error`) — a switch slow enough to fail is precisely the sample the tail is
- * made of.
+ * `mutationFn`, "until the mutation resolves" still describes the endpoint exactly. Failures past
+ * those guards are recorded too (`outcome: error`) — a switch slow enough to fail is precisely the
+ * sample the tail is made of. The `'default'` refusal is a caller's mistake, not a switch, and is left
+ * out of the trace with the no-op.
  */
 export const switchSite = async (siteId: string): Promise<void> => {
+    // `'default'` is the Default Cloud's id, which the apps also use as that cloud's place scope key —
+    // never a site. Sent as one, the backend looks the site up, misses, and the failure reaches the
+    // server's error channel for what is a client mix-up; refused here, it fails the switch the same
+    // way without leaving the device or touching the selection.
+    if (siteId === RELAY_CLOUD_ID) {
+        throw new Error(`[switchSiteViaSocket] '${siteId}' names the Default Cloud, not a site`);
+    }
     const prevSiteId = getSelectedSiteId();
     if (siteId === prevSiteId) {
         return;

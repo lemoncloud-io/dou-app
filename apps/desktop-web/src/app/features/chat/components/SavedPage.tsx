@@ -13,6 +13,7 @@ import {
     attachmentLabel,
     avatarStyle,
     formatListTime,
+    isSavedInCloud,
     threadRootNo,
     useSavedItemsStore,
     useSavedPageStore,
@@ -331,7 +332,14 @@ export const SavedPage = ({ cloudId, channels, places, currentPlaceId, onSelect 
     const remove = useSavedItemsStore(s => s.remove);
     const [filter, setFilter] = useState<SavedFilter>('all');
 
-    const sorted = useMemo(() => Object.values(items).sort((a, b) => b.savedAt - a.savedAt), [items]);
+    // The store is device-wide; the page is this cloud's (`isSavedInCloud` says why it must be).
+    const sorted = useMemo(
+        () =>
+            Object.values(items)
+                .filter(item => isSavedInCloud(item, cloudId))
+                .sort((a, b) => b.savedAt - a.savedAt),
+        [items, cloudId]
+    );
     const shown = groupSaved(sorted.filter(item => isInFilter(item, filter)));
     const channelById = useMemo(() => new Map(channels.map(channel => [channel.id ?? '', channel])), [channels]);
     // Channel ids repeat across places: only a message saved here can be named from this place's list.
@@ -418,9 +426,13 @@ export const SavedPage = ({ cloudId, channels, places, currentPlaceId, onSelect 
                                 };
                             });
                             const lead = group.items[0];
-                            // Read live only what was saved in this very place: an item without one may
-                            // come from another cloud, whose channel ids mean other rooms.
-                            const channel = lead.placeId === currentPlaceId ? channelOf(lead) : undefined;
+                            // Read live only what was saved in this very place of this very cloud: place
+                            // and channel ids repeat across clouds, so an item that does not record its
+                            // cloud may name another cloud's room under the same ids.
+                            const channel =
+                                lead.cloudId === cloudId && lead.placeId === currentPlaceId
+                                    ? channelOf(lead)
+                                    : undefined;
                             if (!channel) return snapshots.map(snapshot => snapshot.card);
                             const source = group.rootNo ? 'thread' : sourceOf(lead);
                             // The card opens at the message saved last.

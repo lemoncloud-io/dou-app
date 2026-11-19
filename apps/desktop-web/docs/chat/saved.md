@@ -18,20 +18,33 @@ that only lists saved messages passes `hideSavedMark` to leave it out.
 
 An item is a snapshot taken when the message is saved, not a pointer to it: the source row can page out
 of the chat cache, and the page must still draw it. It keeps the message's text (or, for a message
-with no text, what it carries — "Photo", "3 files"), its author's name and picture, its channel, place
-and thread root, when it was sent, and what it carried: the attachments' kind and count, and the first
-one's name and size (`savedAttachmentOf`). Items saved before a field was kept simply lack it, and the
-card leaves that part out.
+with no text, what it carries — "Photo", "3 files"), its author's name and picture, its cloud, channel,
+place and thread root, when it was sent, and what it carried: the attachments' kind and count, and the
+first one's name and size (`savedAttachmentOf`). Items saved before a field was kept simply lack it, and
+the card leaves that part out.
+
+The cloud and place come from the session at the moment of saving (`savedOriginOf`). A message saved
+on the Default Cloud records `'default'` for both: the home screen scopes that cloud by the `'default'`
+key rather than by one of its places, so the item takes the same key. That key names the cloud and
+is never a site — which is why the page below keeps it out of every other cloud.
 
 ## The page
 
 Saved is the first row of the Home sidebar. It opens `SavedPage` in the main pane, in place of the
 conversation, and the row stays marked while it is there.
 
-- The title counts every saved item. The cards are newest first, from every place of the cloud; one
+- The page is the active cloud's. The store holds every cloud's items on this device, and opening
+  one only ever switches place inside the active cloud, so an item from another cloud would send its
+  place as a site of this one — and the Default Cloud's `'default'` is no site at all
+  (`isSavedInCloud`). An item saved before the cloud was kept can only be placed roughly, since
+  every cloud numbers its places from the same start: a `'default'` place is the Default Cloud's; a
+  real place shows in every cloud but the Default Cloud, and may open that cloud's place of the same
+  number; one with no place opens without a switch, so it shows in every cloud.
+- The title counts this cloud's items. The cards are newest first, from every place of the cloud; one
   saved in another place names that place after its channel.
 - **All · Messages · Files** filter the cards. A message saved with any attachment is a file — a photo
-  with a caption included — and the rest are messages. The filters are off while nothing is saved.
+  with a caption included — and the rest are messages. The filters are off while this
+  cloud has nothing saved; another cloud's items do not count.
 - A card leads with where the message came from: a thread (it has a root), a 1:1 (its room is one, in
   this place's list), or a channel, with the channel's name when this place lists it. Then the author,
   the time it was sent, the text, and a tile for its first file.
@@ -60,8 +73,9 @@ of the snapshot.
   and the snapshot still holds the words it was saved for, so it counts as unreadable. A readable
   root alone does not make a card live, since it may not be one of the saved messages. A saved message
   that cannot be read while others can keeps its snapshot card, under the live one.
-- Only a message saved in this very place is read live. Channel ids repeat across places and clouds,
-  so a message saved elsewhere, or recorded without a place, always shows its snapshot.
+- Only a message saved in this very place of this cloud is read live. Place and channel ids repeat
+  across places and clouds, so a message saved elsewhere, or recorded without its place or its cloud,
+  always shows its snapshot.
 - The bookmark on a live card unsaves every message on it. A single row's own menu unsaves just that
   one, and the card shrinks.
 
