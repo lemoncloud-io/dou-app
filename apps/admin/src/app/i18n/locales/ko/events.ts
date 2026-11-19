@@ -78,6 +78,8 @@ export const events: { areas: Record<string, string>; tags: Record<string, strin
         'perf.long_tasks': '화면 버벅임',
         'perf.api_request': '서버 요청',
         'perf.screen_render': '화면 그리기',
+        'perf.image_load': '이미지 불러오기',
+        'perf.image_refresh': '이미지 주소 갱신',
         'perf.telemetry_dropped': '통계 누락',
         'usage.screen_view': '화면 보기',
         'usage.session_start': '앱 사용 시작',

@@ -4,12 +4,14 @@ import {
     type ImageCacheDeps,
     type ImageCacheRecord,
     type ImageCacheStore,
+    type ImageLoadReport,
     type ImageVariant,
 } from './imageCache';
 
-const answer = (bytes: number, { ok = true, type = 'image/jpeg' } = {}) =>
+const answer = (bytes: number, { ok = true, type = 'image/jpeg', status = ok ? 200 : 403 } = {}) =>
     ({
         ok,
+        status,
         headers: { get: (name: string) => (name === 'content-type' ? type : null) },
         arrayBuffer: async () => new ArrayBuffer(bytes),
     }) as unknown as Response;
@@ -527,5 +529,202 @@ describe('ImageCache — frames made on this device', () => {
 
         await expect(cache.lookup(key)).resolves.toBe(src);
         expect(store.get).not.toHaveBeenCalled();
+    });
+});
+
+describe('ImageCache — load reports', () => {
+    /** A cache whose monotonic clock moves only when a test says so, and whose reports are collected. */
+    const observed = (overrides: Partial<ImageCacheDeps> = {}) => {
+        let elapsed = 0;
+        const reports: ImageLoadReport[] = [];
+        const result = setup({
+            observe: () => report => reports.push(report),
+            elapsed: () => elapsed,
+            ...overrides,
+        });
+        return { ...result, reports, tick: (ms: number) => (elapsed += ms) };
+    };
+
+    it('reports a download it kept: the store missed, then the bucket answered', async () => {
+        const { cache, deps, store, reports, tick } = observed();
+        store.get.mockImplementation(async () => {
+            tick(5);
+            return undefined;
+        });
+        deps.fetch.mockImplementation(async () => {
+            tick(120);
+            return answer(4096);
+        });
+
+        await cache.load('k', 'thumb', 'u');
+
+        expect(reports).toEqual([
+            { variant: 'thumb', source: 'network', store: 'miss', storeMs: 5, fetchMs: 120, totalMs: 125, bytes: 4096 },
+        ]);
+    });
+
+    it('reports a store hit with what the read cost, and nothing fetched', async () => {
+        const { cache: before, records } = setup();
+        await before.load('k', 'org', 'u');
+        await flush();
+        const { cache, store, reports, tick } = observed();
+        store.get.mockImplementation(async () => {
+            tick(30);
+            return records.get('k');
+        });
+
+        await cache.load('k', 'org', 'u');
+
+        expect(reports).toEqual([{ variant: 'org', source: 'store', store: 'hit', storeMs: 30, totalMs: 30 }]);
+    });
+
+    // The refreshed address arrives while the expired one is still on its way: two real resolves.
+    it('reports a joined load that retries with its own address after the running one answered nothing', async () => {
+        const fetch = jest.fn(async (url: string) => (url === 'old' ? answer(10, { ok: false }) : answer(10)));
+        const { cache, reports } = observed({ fetch });
+
+        await Promise.all([cache.load('k', 'thumb', 'old'), cache.load('k', 'thumb', 'new')]);
+
+        expect(reports.map(report => report.fallback ?? report.source)).toEqual(['expired', 'network']);
+    });
+
+    it('reports nothing for a memory hit or a load joined onto one already running', async () => {
+        const { cache, reports } = observed();
+
+        await Promise.all([cache.load('k', 'thumb', 'u1'), cache.load('k', 'thumb', 'u2')]);
+        await cache.load('k', 'thumb', 'u3');
+
+        expect(reports).toHaveLength(1);
+    });
+
+    it.each([
+        ['a 403 as expired', answer(10, { ok: false, status: 403 }), 'expired'],
+        ['another error status as http', answer(10, { ok: false, status: 500 }), 'http'],
+        ['a body of another type as not_image', answer(10, { type: 'application/xml' }), 'not_image'],
+    ] as const)('reports %s, with the address drawn instead', async (_, response, fallback) => {
+        const { cache, reports } = observed({ fetch: jest.fn(async () => response) });
+
+        await cache.load('k', 'thumb', 'u');
+
+        expect(reports).toEqual([expect.objectContaining({ source: 'address', fallback, store: 'miss' })]);
+        expect(reports[0]).not.toHaveProperty('bytes');
+    });
+
+    it('reports a fetch with no answer, then the loads its backoff skips', async () => {
+        const fetch = jest.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+        const { cache, reports } = observed({ fetch });
+
+        await cache.load('a', 'thumb', 'u');
+        await cache.load('b', 'thumb', 'u');
+
+        expect(reports.map(report => report.fallback)).toEqual(['no_answer', 'backoff']);
+        expect(reports[1]).not.toHaveProperty('fetchMs');
+    });
+
+    it('reports a body that broke off as no_answer, without starting the backoff', async () => {
+        const broken = { ...answer(10), arrayBuffer: async () => Promise.reject(new TypeError('network')) };
+        const fetch = jest.fn().mockResolvedValueOnce(broken as unknown as Response);
+        fetch.mockResolvedValue(answer(10));
+        const { cache, reports } = observed({ fetch });
+
+        expect(await cache.load('a', 'thumb', 'u')).toBeNull();
+        expect(await cache.load('b', 'thumb', 'u')).toBe('blob:1');
+
+        expect(reports.map(report => report.fallback ?? report.source)).toEqual(['no_answer', 'network']);
+    });
+
+    it.each([
+        [
+            'a store that failed',
+            (store: jest.Mocked<ImageCacheStore>) => store.get.mockRejectedValue(new Error('x')),
+            'error',
+        ],
+        ['no store at all', null, 'none'],
+    ] as const)('names %s in the report', async (_, arrange, outcome) => {
+        const { store } = memoryStore();
+        if (arrange) arrange(store);
+        const { cache, reports } = observed({ store: arrange ? store : null });
+
+        await cache.load('k', 'thumb', 'u');
+
+        expect(reports[0]?.store).toBe(outcome);
+    });
+
+    // The one that matters for a slow WebView store: the tile waited the whole second before fetching.
+    it('reports a store read that timed out apart from a miss', async () => {
+        jest.useFakeTimers();
+        try {
+            const { cache, store, reports } = observed();
+            store.get.mockReturnValue(new Promise(() => undefined));
+
+            const loading = cache.load('k', 'thumb', 'u');
+            await jest.advanceTimersByTimeAsync(1000);
+            await loading;
+
+            expect(reports).toEqual([expect.objectContaining({ store: 'timeout', source: 'network' })]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('reports nothing for a download that was cancelled', async () => {
+        jest.useFakeTimers();
+        try {
+            const fetch = jest.fn(
+                (_url: string, signal: AbortSignal) =>
+                    new Promise<Response>((_, reject) =>
+                        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+                    )
+            );
+            const { cache, reports } = observed({ store: null, fetch });
+            cache.retain('k');
+            const loading = cache.load('k', 'org', 'u');
+            await jest.advanceTimersByTimeAsync(0);
+
+            cache.release('k');
+            await jest.advanceTimersByTimeAsync(1000);
+
+            expect(await loading).toBeNull();
+            expect(reports).toEqual([]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it.each([
+        [
+            'at the begin',
+            () => {
+                throw new Error('measurement broke');
+            },
+        ],
+        [
+            'at the end',
+            () => () => {
+                throw new Error('measurement broke');
+            },
+        ],
+    ])('loads as usual when the observer throws %s', async (_, observe) => {
+        const { cache } = observed({ observe });
+
+        expect(await cache.load('k', 'thumb', 'u')).toBe('blob:1');
+    });
+
+    it('begins a report when the load starts, before the store answers', async () => {
+        const order: string[] = [];
+        const { cache, store } = observed({
+            observe: () => {
+                order.push('begin');
+                return () => order.push('end');
+            },
+        });
+        store.get.mockImplementation(async () => {
+            order.push('store');
+            return undefined;
+        });
+
+        await cache.load('k', 'thumb', 'u');
+
+        expect(order).toEqual(['begin', 'store', 'end']);
     });
 });

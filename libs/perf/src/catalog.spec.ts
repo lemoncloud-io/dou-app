@@ -126,12 +126,12 @@ describe('firebaseResultOf — Firebase receives exactly what it did', () => {
         }
     });
 
-    it('covers every existing trace and leaves the three new ones to the pipeline', () => {
+    it('covers every existing trace and leaves the pipeline-only ones to the pipeline', () => {
         const firebaseNames = (Object.keys(PERF_TRACE_CATALOG) as PerfTraceName[]).filter(name =>
             isFirebaseTrace(name)
         );
         expect(firebaseNames.sort()).toEqual(Object.keys(FIREBASE_TODAY).sort());
-        for (const name of ['long_tasks', 'api_request', 'screen_render'] as const) {
+        for (const name of ['long_tasks', 'api_request', 'screen_render', 'image_load', 'image_refresh'] as const) {
             expect(firebaseResultOf(resultWith(name, [], []))).toBeNull();
         }
     });

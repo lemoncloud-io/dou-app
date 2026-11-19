@@ -1,6 +1,8 @@
 import { useEffect, useReducer, useRef } from 'react';
 
-import { ImageCache, type ImageVariant } from '../lib/imageCache';
+import { perfNow } from '@chatic/perf';
+
+import { ImageCache, type ImageLoadReport, type ImageVariant } from '../lib/imageCache';
 import { IndexedDbImageCacheStore } from '../lib/imageCacheStore';
 
 export interface CachedImageRequest {
@@ -19,6 +21,22 @@ export interface CachedImageRequest {
 export type CachedImage = { status: 'pending' } | { status: 'cached'; src: string } | { status: 'direct'; src: string };
 
 let shared: ImageCache | null = null;
+/** Re-exported so a measurement can name the report without reaching into the cache itself. */
+export type { ImageLoadReport };
+
+/** Called when a load starts; the function it returns is told how the load ended. */
+export type ImageLoadObserver = () => ((report: ImageLoadReport) => void) | undefined;
+
+let loadObserver: ImageLoadObserver | undefined;
+
+/**
+ * Hands every load the page's cache resolves to `observer` — the `image_load` measurement, which
+ * `main.tsx` connects here so this feature knows nothing about where measurements go. Read on each
+ * load, so it may be set before or after the cache exists.
+ */
+export const setImageLoadObserver = (observer: ImageLoadObserver | undefined): void => {
+    loadObserver = observer;
+};
 
 const createCache = (): ImageCache =>
     new ImageCache({
@@ -28,6 +46,8 @@ const createCache = (): ImageCache =>
         fetch: (url, signal) => fetch(url, { mode: 'cors', credentials: 'omit', signal }),
         createObjectURL: blob => URL.createObjectURL(blob),
         revokeObjectURL: url => URL.revokeObjectURL(url),
+        observe: () => loadObserver?.(),
+        elapsed: perfNow,
     });
 
 /** The page's one cache, so the room and its thread share what either has loaded. */

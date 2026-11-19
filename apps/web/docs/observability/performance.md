@@ -50,6 +50,8 @@ nothing; outside the app it still carries nothing.
 | `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                                                                                    | `op` · `outcome` · `kind`                                                            |
 | `socket_verify`   | `libs/runtime`, as samples — see its socket doc                                                                                               | `kind` · `cause` · `outcome`                                                         |
 | `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)                                                                                | `lane` · `outcome` · `step` · `room`                                                 |
+| `image_load`      | `imageLoadTrace.ts`, as samples, pipeline only — [below](#image_load-and-image_refresh)                                                       | `variant` · `source` · `store` · `fallback`                                          |
+| `image_refresh`   | `imageLoadTrace.ts`, as samples, pipeline only — [below](#image_load-and-image_refresh)                                                       | `outcome`                                                                            |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -536,3 +538,63 @@ Reading it: break down by `lane` first. On the dev server a fresh guest's cloud 
 did not carry the room spends most of its time between `accepted` and `room`, about a second when the
 push found it. Break relay runs down by `room` to see whether production pushes the room as dev
 does: a run with `list` paid at least 1.5 s for tier 2 first.
+
+## `image_load` and `image_refresh`
+
+How chat images reach the screen. A chat image is drawn through the page's image cache, keyed by
+upload rather than by its signed address (`features/channels` [image-send.md](../feature/channels/image-send.md#the-image-cache)),
+and these two samples say where the time goes when one is slow: a store that answers late, a bucket
+that answers late, a cache that keeps nothing so every image is its signed address, or an address that
+expired and cost a re-read of its message first.
+
+- **Where it is taken.** `ImageCache`'s `observe` dependency is a begin/end pair: it is called when a
+  load starts resolving, and the function it returns is told how that load ended. `useCachedImages`
+  passes it on to the observer `main.tsx` sets (`setImageLoadObserver` → `observeImageLoads`), and
+  `useImageAddressRefresh` does the same for a re-read (`setImageRefreshObserver`). Neither feature
+  module knows where a measurement goes; the trace notes at the begin what it needs at the end.
+- **`image_load` is one image the cache did not already have in memory.** A memory hit is instant and
+  is not a sample; nor is a load that joined one already running and took its answer, or a download
+  cancelled because nothing drew it any more. A joined load that retries with its own, newer address
+  after the running one answered nothing is a sample of its own, so one image can report `expired`
+  and then `network` — two real trips.
+    - **`source`** — `store` (the page's IndexedDB had it), `network` (downloaded and kept), or
+      `address` (nothing kept: the tile draws the signed address itself, as before the cache).
+    - **`store`** — what the store answered: `hit`, `miss`, `timeout` (slower than the second the
+      cache waits, then treated as a miss), `error`, or `none` (no store on this page).
+    - **`fallback`**, only with `source: address` — `expired` (a 403, what an expired signature
+      answers), `http` (another error status), `not_image`, `no_answer` (no response: CORS or the
+      network, or a body that broke off) or `backoff` (a recent fetch that got no response at all made
+      the cache skip the fetch for a minute; a body that broke off does not start it).
+    - **`variant`** — `thumb` or `org`.
+    - **Metrics:** `value_ms` — from the load's start to the cache's answer; `store_ms` — the store
+      read; `fetch_ms` — from the request to the body's last byte for a kept download, and on
+      `source: address` to the answer (or failure) that ruled the download out; `bytes_kb` — the size
+      of a kept download.
+- **`image_refresh` is one message read again** because a signed address stopped loading — almost
+  always an expired signature on a row the chat cache kept. `kind` says whose: `image` (a tile or the
+  viewer) or `file` (a document download that found its address expired, which re-reads the same
+  way). `outcome` (`ok` / `failed`) and `value_ms`, the read. An image waits for this read before it
+  can load at all, so the time an expired image costs is this plus its own load.
+- **What neither measures.** The `<img>` loading and decoding an object URL or an address once the
+  cache has answered. For `source: address` that is the whole download, which the browser makes, so
+  `value_ms` there is only the time spent deciding to fall back.
+- **Twelve loads a minute, eight of a variant**, so a room's burst of thumbnails leaves room for the
+  original of the photo opened next; **six re-reads a minute**; three of the two traces together while
+  traces are held for the report. Which runs record them is the telemetry policy's decision — today one run in five,
+  like every other pipeline-only trace.
+- **Hidden time is never in a sample.** The trace notes `pageHideCount()` when a load or re-read
+  begins and drops it if the count moved by the end, or if it ends on a hidden page. A load that
+  started, sat through the app in the background and finished on return would otherwise carry the
+  suspension as its own time — the exact slow tail this trace exists to explain.
+
+### Reading it
+
+- **`source` mix per `variant`.** A high share of `address` means the cache is not keeping images
+  here; its `fallback` says why — `no_answer` for a bucket without CORS, `expired` for rows whose
+  addresses ran out before the cache got them.
+- **`store_ms` on `source: store`, and the share of `store: timeout`.** This is the WebView's IndexedDB
+  answering. If it is slow, a store outside the page is what would help, not a faster network.
+- **`fetch_ms` against `bytes_kb` on `source: network`.** A first sight of an image is a download no
+  cache can avoid; a slow one points at the bucket or the image's size rather than at the cache.
+- **`image_refresh` (`kind: image`) count against `image_load` count** is how often an expired
+  address is in the way of an image.

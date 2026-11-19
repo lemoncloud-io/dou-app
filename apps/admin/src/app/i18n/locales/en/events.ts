@@ -75,6 +75,8 @@ export const events: typeof ko = {
         'perf.long_tasks': 'Long tasks',
         'perf.api_request': 'API request',
         'perf.screen_render': 'Screen render',
+        'perf.image_load': 'Image load',
+        'perf.image_refresh': 'Image address refresh',
         'perf.telemetry_dropped': 'Dropped statistics',
         'usage.screen_view': 'Screen view',
         'usage.session_start': 'Session start',

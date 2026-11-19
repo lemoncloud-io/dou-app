@@ -20,6 +20,8 @@ import App from './app/app';
 import { configureAppStores } from './app/storage';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
+import { setImageLoadObserver } from './app/features/channels/hooks/useCachedImages';
+import { setImageRefreshObserver } from './app/features/channels/hooks/useImageAddressRefresh';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
 import { clearInputLocks } from './app/features/channels/stores/useInputLockStore';
 import { clearNotifications } from './app/stores/useNotificationStore';
@@ -34,6 +36,7 @@ import { schedulePendingReportFlush } from './app/runtime/pendingReportFlusher';
 import {
     configureWebPerfTraces,
     observeBridgeRequests,
+    observeImageLoads,
     observeSocketRequests,
     observeStateOutbox,
 } from './app/runtime/perf';
@@ -230,6 +233,14 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
     observeStateOutbox({
         setObserver: runtime.data.setStateOutboxObserver,
         runId: readInjectedRunId(),
+        isHeld: webPerfTraces.isHeld,
+    });
+
+    // Times how chat images reach the screen — from the page's image cache, the bucket or their signed
+    // address — and how often an expired address costs a re-read. Pipeline only, so the policy decides.
+    observeImageLoads({
+        setLoadObserver: setImageLoadObserver,
+        setRefreshObserver: setImageRefreshObserver,
         isHeld: webPerfTraces.isHeld,
     });
 

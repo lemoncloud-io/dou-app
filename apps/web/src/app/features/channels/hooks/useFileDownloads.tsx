@@ -242,7 +242,7 @@ const downloadHere = async ({ cid, chatId, t }: Context, file: ChatFileSlot, ref
             onHeld: blob => heldBytes.set(file.key, blob),
         });
         if (result === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
-        if (result === 'expired' && chatId) void refresh({ cid, chatId, src: file.url });
+        if (result === 'expired' && chatId) void refresh({ cid, chatId, src: file.url, kind: 'file' });
         if (result === 'expired' || result === 'failed') {
             toast({ title: t('chat.attach.fileCard.downloadFailed'), variant: 'destructive' });
         }
