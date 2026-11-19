@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,chatic-apps-sdk) hold a mini app to a cache budget, merge its events while hidden
+
+## [2026-11-19] - No version updates
+
+### Features
+
 - (mobile,runtime-core,bridge-messages) let a mini app react to a message of its place
 
 ## [2026-11-19] - No version updates
