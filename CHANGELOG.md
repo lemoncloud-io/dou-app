@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-19] - root@0.169.0, @chatic/web@0.97.0
+
+### Features
+
+- (web) set a cloud's recovery email only from cloud management, not on add or entry (ADR-0360)
+
 ## [2026-11-19] - No version updates
 
 ### Chores
