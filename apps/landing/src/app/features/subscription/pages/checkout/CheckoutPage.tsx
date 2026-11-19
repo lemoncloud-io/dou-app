@@ -9,7 +9,7 @@ import { useBillingInfo, useForeignBilling, usePreviewCheckout } from '../../hoo
 import { KOREA, currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { useManagementScreens } from '../../lib/screens';
-import { EMPTY_PAYER, type PayerDraft, payerOf } from '../../lib/payer';
+import { EMPTY_PAYER, type PayerDraft, payerEmailOf, payerOf } from '../../lib/payer';
 import { cn, formatDate, formatMoney } from '../../utils';
 import {
     BILLING_COUNTRY_OPTIONS,
@@ -94,7 +94,9 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
     const billing = useBillingInfo({ enabled: management });
 
     const [payer, setPayer] = useState<PayerDraft>(
-        returned?.payer ? { name: returned.payer.name, phone: returned.payer.phone } : EMPTY_PAYER
+        returned?.payer
+            ? { name: returned.payer.name, phone: returned.payer.phone, email: returned.payer.email }
+            : EMPTY_PAYER
     );
     const [consents, setConsents] = useState<Consents>(returned ? setAllConsents(true) : NO_CONSENTS);
     const [changingEmail, setChangingEmail] = useState(false);
@@ -114,8 +116,10 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
 
     const money = (amount: CheckoutPreview['amountToday']) => formatMoney(amount, i18n.language);
     const { account, withTrial } = base.data;
-    // With the billing-email screens hidden, the card company gets the account's own address.
-    const emailAddress = management ? billingEmail?.address : account.email;
+    // With the billing-email screens hidden, the card company gets the account's own address, and an
+    // account without one is asked for it with the payer.
+    const knownEmail = management ? billingEmail?.address : account.email;
+    const emailAddress = payerEmailOf(knownEmail, payer);
     const needsPayer = !!country && payerRequiredIn(country);
     // The amounts are the country's only once its own preview is in, not the one before it.
     const priced = !!country && decided && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
@@ -283,22 +287,17 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
                 <p className="text-xs font-medium leading-normal text-mute">
                     {t('subscription.checkout.billing.countryNote')}
                 </p>
-                {needsPayer && !management && emailAddress && (
+                {needsPayer && !management && knownEmail && (
                     <p className="text-xs font-medium leading-normal text-mute">
                         {t('subscription.checkout.billing.noticeEmail')}
                     </p>
-                )}
-                {needsPayer && !management && !emailAddress && (
-                    <Banner tone="warning" title={t('subscription.checkout.billing.noAccountEmail.title')}>
-                        {t('subscription.checkout.billing.noAccountEmail.body')}
-                    </Banner>
                 )}
             </Card>
 
             {needsPayer && (
                 <Card className={CARD}>
                     <h2 className={CARD_TITLE}>{t('subscription.checkout.billing.payerTitle')}</h2>
-                    <PayerFields idPrefix="checkout-payer" value={payer} onChange={setPayer} />
+                    <PayerFields idPrefix="checkout-payer" value={payer} onChange={setPayer} askEmail={!knownEmail} />
                 </Card>
             )}
 

@@ -340,7 +340,9 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 **The billing-email screens are hidden** — W-16 and the email step W-24 — until their server exists
 (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes are not
 registered, every link into them is gone, and the port methods, the HTTP port and the tests' fake server
-are left as they were. What that costs: receipts go to the sign-in address alone.
+are left as they were. What that costs: receipts go to the sign-in address alone, and an account the
+server holds no address for types one in with the payer, unverified (ADR-0350) — that one goes to the card
+company with the card, and the page promises nothing about receipts for it.
 
 **The card screen, W-12, is open** (ADR-0250). `MANAGEMENT_SCREENS_OPEN` is two values, `{ cards, emails }`,
 and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
@@ -687,7 +689,13 @@ What the screens get from the server differs from the tests' fake server in a fe
 - The payer's name and mobile number, which the won provider's card company requires with every card,
   are asked for on W-08 and in W-12's add-card dialog when the billing is in Korea (see
   [Billing outside Korea](#billing-outside-korea)). They travel with that checkout or card and are not
-  stored. The payer's address is the account's own while the billing-email screens are hidden.
+  stored. The payer's address is the account's own while the billing-email screens are hidden. An
+  account may have none: Apple can withhold it, and since sign-in goes through `verify-oauth-code` the
+  server keeps only a masked hint of the provider's address, not the address. The card company will not
+  register a card without one, so `PayerFields` then asks for an address too (`askEmail`), and
+  `payerEmailOf` hands on whichever the reader has: the known address first, else the typed one once it is
+  shaped like an address. It is not verified or kept — like the name and number, it is asked again with
+  the next card.
 
 #### Sandbox payments (development)
 
@@ -781,7 +789,7 @@ A cancelled or timed-out sign-in keeps its `next` (the port returns it with the 
 
 **Billing emails (hidden).** While the billing-email screens are hidden, a checkout skips all of this: W-08
 has no billing-email block and hands the card company the signed-in account's own address, and an account
-with none cannot start one. The rest of this paragraph is what opening them restores. A first checkout verifies its billing address on the email step (W-24) before
+with none types one in with the payer. The rest of this paragraph is what opening them restores. A first checkout verifies its billing address on the email step (W-24) before
 the payment details (W-08): a Google sign-in address can be used as it is (`adoptSignInEmail`), any
 other address is verified by code, and W-08 sends a reader without a verified primary address
 (`primaryVerifiedEmail`) back to W-24. W-24, the add flow on W-16 and the change popup all use

@@ -1,4 +1,4 @@
-import { isMobilePhone, isPayerComplete, isPayerName, normalizePhone, payerOf } from './payer';
+import { isMobilePhone, isPayerComplete, isPayerName, normalizePhone, payerEmailOf, payerOf } from './payer';
 
 describe('payer', () => {
     it('takes a mobile number with or without separators, and nothing else', () => {
@@ -21,13 +21,25 @@ describe('payer', () => {
     });
 
     it('is complete only with both fields valid', () => {
-        expect(isPayerComplete({ name: '김민지', phone: '01012345678' })).toBe(true);
-        expect(isPayerComplete({ name: '김민지', phone: '' })).toBe(false);
-        expect(isPayerComplete({ name: '', phone: '01012345678' })).toBe(false);
+        expect(isPayerComplete({ name: '김민지', phone: '01012345678', email: '' })).toBe(true);
+        expect(isPayerComplete({ name: '김민지', phone: '', email: '' })).toBe(false);
+        expect(isPayerComplete({ name: '', phone: '01012345678', email: '' })).toBe(false);
+    });
+
+    it('gives the card company the address already known, over anything typed', () => {
+        const draft = { name: '김민지', phone: '01012345678', email: 'typed@example.com' };
+        expect(payerEmailOf('minji.kim@gmail.com', draft)).toBe('minji.kim@gmail.com');
+    });
+
+    it('takes the typed address where none is known, once it is shaped like one', () => {
+        const draft = (email: string) => ({ name: '김민지', phone: '01012345678', email });
+        expect(payerEmailOf(undefined, draft(' minji@example.com '))).toBe('minji@example.com');
+        expect(payerEmailOf(undefined, draft('minji@'))).toBeUndefined();
+        expect(payerEmailOf(undefined, draft(''))).toBeUndefined();
     });
 
     it('hands the port a trimmed name, a bare number and the billing address', () => {
-        expect(payerOf({ name: ' 김민지 ', phone: '010-1234-5678' }, 'minji.kim@gmail.com')).toEqual({
+        expect(payerOf({ name: ' 김민지 ', phone: '010-1234-5678', email: '' }, 'minji.kim@gmail.com')).toEqual({
             name: '김민지',
             phone: '01012345678',
             email: 'minji.kim@gmail.com',

@@ -22,7 +22,7 @@ import {
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { currencyOfProvider, lockedCountryOf, payerRequiredFor } from '../../lib/billingCountry';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
-import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerOf } from '../../lib/payer';
+import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerEmailOf, payerOf } from '../../lib/payer';
 import { cardGroupsOf, defaultCardOf } from '../../lib/paymentMethods';
 import { savePendingCardChange, takePendingCardChange } from '../../lib/pendingCheckout';
 import { isPortError, useSupports, useToday } from '../../lib/port';
@@ -81,8 +81,10 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const billing = useBillingInfo({ enabled: useManagementScreens().emails });
     // Asked again for every card and kept only while the dialog is open (see `PayerFields`).
     const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
-    // Receipts go to the verified billing address; an account that never set one uses its sign-in address.
-    const payerEmail = (billing.data && primaryVerifiedEmail(billing.data)?.address) ?? session.data?.email;
+    // Receipts go to the verified billing address; an account that never set one uses its sign-in address,
+    // and an account with neither types one in with the payer.
+    const knownEmail = (billing.data && primaryVerifiedEmail(billing.data)?.address) ?? session.data?.email;
+    const payerEmail = payerEmailOf(knownEmail, payer);
 
     // The dialog's content outlives its closing, so a closing dialog keeps its words until it is gone.
     const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -393,7 +395,14 @@ export const PaymentMethodsPage = (): JSX.Element => {
                             </p>
                         </div>
                     )}
-                    {needsPayer && <PayerFields idPrefix="add-card-payer" value={payer} onChange={setPayer} />}
+                    {needsPayer && (
+                        <PayerFields
+                            idPrefix="add-card-payer"
+                            value={payer}
+                            onChange={setPayer}
+                            askEmail={!knownEmail}
+                        />
+                    )}
                 </div>
             </ConfirmDialog>
             <ConfirmDialog

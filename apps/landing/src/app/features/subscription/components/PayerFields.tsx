@@ -2,7 +2,7 @@ import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { type PayerDraft, isMobilePhone, isPayerName } from '../lib/payer';
-import { cn } from '../utils';
+import { cn, isEmailAddress } from '../utils';
 
 const INPUT =
     'h-[47px] rounded-lg border bg-white px-4 text-sm font-medium text-ink outline-none placeholder:text-[#b4b6bc] ' +
@@ -12,20 +12,26 @@ const INPUT =
  * The cardholder's name and mobile number, which the card company requires with every card. Drawn in
  * W-08's form-row style, and reused where a card is added later — nothing typed here is kept, so each
  * card asks again. A field says what is wrong with it only once the reader has left it.
+ *
+ * The card company wants an email address too. It is normally the account's own and not asked for;
+ * `askEmail` adds a field for it where the account has none (see `payerEmailOf`).
  */
 export const PayerFields = ({
     value,
     onChange,
     idPrefix,
+    askEmail = false,
 }: {
     value: PayerDraft;
     onChange: (next: PayerDraft) => void;
     idPrefix: string;
+    askEmail?: boolean;
 }): JSX.Element => {
     const { t } = useTranslation();
-    const [touched, setTouched] = useState({ name: false, phone: false });
+    const [touched, setTouched] = useState({ name: false, phone: false, email: false });
     const nameError = touched.name && !isPayerName(value.name);
     const phoneError = touched.phone && !isMobilePhone(value.phone);
+    const emailError = touched.email && !isEmailAddress(value.email);
 
     return (
         <div className="flex flex-col gap-3">
@@ -74,6 +80,31 @@ export const PayerFields = ({
                         </p>
                     )}
                 </div>
+                {askEmail && (
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                        <label htmlFor={`${idPrefix}-email`} className="text-[13px] font-semibold text-[#4d4f57]">
+                            {t('subscription.common.payer.email')}
+                        </label>
+                        <input
+                            id={`${idPrefix}-email`}
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            aria-required
+                            aria-invalid={emailError}
+                            className={cn(INPUT, emailError ? 'border-status-danger' : 'border-[#d9dbe0]')}
+                            placeholder={t('subscription.common.payer.emailPlaceholder')}
+                            value={value.email}
+                            onChange={event => onChange({ ...value, email: event.target.value })}
+                            onBlur={() => setTouched(current => ({ ...current, email: true }))}
+                        />
+                        {emailError && (
+                            <p role="alert" className="text-xs text-status-danger">
+                                {t('subscription.common.payer.emailInvalid')}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
             <p className="text-[13px] text-subtitle">{t('subscription.common.payer.note')}</p>
         </div>
