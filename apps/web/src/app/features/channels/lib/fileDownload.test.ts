@@ -1,3 +1,4 @@
+import type { BrowserSaveResult } from './browserSave';
 import { downloadInBrowser, fetchInBrowser, type BrowserDownloadDeps } from './fileDownload';
 
 // jsdom has no `Response`; the download reads only these three members.
@@ -5,7 +6,7 @@ const respond = (status: number, body = 'bytes') =>
     ({ status, ok: status >= 200 && status < 300, blob: async () => new Blob([body]) }) as unknown as Response;
 
 const deps = (fetchImpl: BrowserDownloadDeps['fetch']) => {
-    const save = jest.fn<void, [Blob, string]>();
+    const save = jest.fn<Promise<BrowserSaveResult>, [Blob, string]>(async () => 'saved');
     return { save, deps: { fetch: fetchImpl, save } };
 };
 
@@ -71,6 +72,35 @@ const streamed = (chunks: string[], length?: number) => {
         blob: async () => new Blob(chunks),
     } as unknown as Response;
 };
+
+describe('downloadInBrowser — the iOS share sheet', () => {
+    it('hands back the bytes when the sheet wants a fresh press, and saves held bytes without fetching', async () => {
+        const fetchSpy = jest.fn(async () => respond(200, '%PDF'));
+        const save = jest
+            .fn<Promise<BrowserSaveResult>, [Blob, string]>()
+            .mockResolvedValueOnce('needs-gesture')
+            .mockResolvedValueOnce('saved');
+        const onHeld = jest.fn();
+
+        await expect(downloadInBrowser('u', 'a.pdf', { onHeld, deps: { fetch: fetchSpy, save } })).resolves.toBe(
+            'needs-gesture'
+        );
+        const [held] = onHeld.mock.calls[0] as [Blob];
+        expect(held.size).toBe(4);
+
+        await expect(downloadInBrowser('u', 'a.pdf', { held, deps: { fetch: fetchSpy, save } })).resolves.toBe('saved');
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect(save).toHaveBeenLastCalledWith(held, 'a.pdf');
+    });
+
+    it('passes on a closed sheet as dismissed', async () => {
+        const save = jest.fn<Promise<BrowserSaveResult>, [Blob, string]>(async () => 'dismissed');
+
+        await expect(
+            downloadInBrowser('u', 'a.pdf', { deps: { fetch: async () => respond(200), save } })
+        ).resolves.toBe('dismissed');
+    });
+});
 
 describe('fetchInBrowser', () => {
     afterEach(() => {

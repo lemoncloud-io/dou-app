@@ -33,6 +33,11 @@ const downloading = new Map<string, Downloading>();
 const busy = new Set<string>();
 /** Files the shell downloaded this session: card key → `file://` URI. */
 const kept = new Map<string, string>();
+/**
+ * In a browser on iOS, bytes fetched for a save the share sheet then refused (the press was too far
+ * behind), by card key: the next press saves them without fetching. Dropped once used.
+ */
+const heldBytes = new Map<string, Blob>();
 
 let version = 0;
 const listeners = new Set<() => void>();
@@ -51,6 +56,7 @@ export const resetFileDownloads = (): void => {
     downloading.clear();
     busy.clear();
     kept.clear();
+    heldBytes.clear();
     changed();
 };
 
@@ -223,9 +229,14 @@ const downloadHere = async ({ cid, chatId, t }: Context, file: ChatFileSlot, ref
     downloading.set(file.key, entry);
     changed();
     try {
+        const held = heldBytes.get(file.key);
+        heldBytes.delete(file.key);
         const result = await downloadInBrowser(file.url, file.name ?? t('chat.attach.fileCard.fallbackName'), {
             signal: entry.controller.signal,
+            held,
+            onHeld: blob => heldBytes.set(file.key, blob),
         });
+        if (result === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
         if (result === 'expired' && chatId) void refresh({ cid, chatId, src: file.url });
         if (result === 'expired' || result === 'failed') {
             toast({ title: t('chat.attach.fileCard.downloadFailed'), variant: 'destructive' });

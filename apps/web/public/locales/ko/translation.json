@@ -1375,7 +1375,8 @@
             },
             "browserShare": {
                 "again": "공유할 준비가 됐어요. 다시 눌러 주세요",
-                "failed": "파일을 공유하지 못했어요"
+                "failed": "파일을 공유하지 못했어요",
+                "saveFailed": "파일을 저장하지 못했어요"
             }
         },
         "preview": {
