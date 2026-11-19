@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.9, @chatic/web@0.96.4
+
+### Features
+
+- (web-ui-kit) pinch and double-tap zoom in the document viewer
+
+### Bug Fixes
+
+- (web) offer share and save in the room file list's photo viewer
+
 ## [2026-11-19] - No version updates
 
 ### Features
