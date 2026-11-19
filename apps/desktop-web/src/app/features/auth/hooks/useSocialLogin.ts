@@ -42,10 +42,15 @@ const openAuthorize = (provider: OAuthProvider, intent: OAuthStartIntent, accoun
     openBrowser(buildAuthorizeUrl(provider, record.nonce));
 };
 
-/** The system browser where the app signs a person in (`runtime.signIn`); this tab where the page does. */
+/**
+ * Sends the person to the relay the host's way (`runtime.signIn`): the system browser from the app, this
+ * tab's own navigation in a browser. desktop-web fills the relay on both sides, so a host without one is
+ * a declaration that went wrong — logged, since nothing else would show it.
+ */
 const openBrowser = (url: string): void => {
-    if (runtime.signIn.kind === 'shell') window.open(url, '_blank');
-    else window.location.assign(url);
+    const relay = runtime.signIn.relayOAuth;
+    if (relay) relay.openAuthorize(url);
+    else logger.error('AUTH', '[useSocialLogin] this host has no relay sign-in to open');
 };
 
 /**

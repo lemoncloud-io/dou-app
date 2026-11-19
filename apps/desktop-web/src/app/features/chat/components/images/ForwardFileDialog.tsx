@@ -9,7 +9,6 @@ import { cn } from '@chatic/ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { pageUploadPut } from '../../../../../config/upload';
 import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';
 import { channelKind, toastFailure, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../../shared';
@@ -176,7 +175,7 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
     const { sendImages } = runtime.data.useSendImages({
         cid: job.cid,
         channelId: job.channelId,
-        put: pageUploadPut,
+        put: runtime.files.put,
         attach: false,
     });
     useEffect(() => {

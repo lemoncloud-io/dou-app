@@ -40,6 +40,7 @@ describe('desktopAppShell — the desktop app', () => {
             iconBadge: null,
             appIcon: null,
             storeUpdate: null,
+            systemSettings: null,
         });
     });
 
@@ -94,6 +95,7 @@ describe('desktopAppShell — a browser tab', () => {
             appIcon: null,
             storeUpdate: null,
             selfUpdate: null,
+            systemSettings: null,
         });
         expect(request).not.toHaveBeenCalled();
         expect(onEvent).not.toHaveBeenCalled();

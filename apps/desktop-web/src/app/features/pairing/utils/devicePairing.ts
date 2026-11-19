@@ -11,18 +11,18 @@ export const isDevicePairingEnabled = (): boolean =>
     runtime.settings.get<boolean>('feature.auth.devicePairing') === true;
 
 /**
- * Whether this client can be the requesting side: a plain browser, where the page signs in
- * (`runtime.signIn`). The desktop app signs in on its own, and a code shown inside it would ask a
- * phone to approve the app it is already beside.
+ * Whether this client can be the requesting side: a plain browser, as `runtime.signIn` says. The
+ * desktop app signs in on its own, and a code shown inside it would ask a phone to approve the app it
+ * is already beside.
  */
-export const canRequestPairing = (): boolean => isDevicePairingEnabled() && runtime.signIn.kind !== 'shell';
+export const canRequestPairing = (): boolean => isDevicePairingEnabled() && runtime.signIn.requestsPairing;
 
 /**
- * Whether this client can be the approving side: the desktop app (where the app signs in,
- * `runtime.signIn`), signed in to an account, and only one that signed in for itself. Approving
+ * Whether this client can be the approving side: the desktop app (`runtime.signIn` says it approves),
+ * signed in to an account, and only one that signed in for itself. Approving
  * hands on a sign-in, so the device doing it has to hold one: a guest has none of its own to give. A
  * session that was itself paired is a delegate of another device — letting it approve would hand out
  * access that the account never granted from a device it trusts.
  */
 export const canApprovePairing = (isPairedSession: boolean): boolean =>
-    isDevicePairingEnabled() && runtime.signIn.kind === 'shell' && !isPairedSession && !isRelayGuest();
+    isDevicePairingEnabled() && runtime.signIn.approvesPairing && !isPairedSession && !isRelayGuest();

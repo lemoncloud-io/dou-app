@@ -3,7 +3,6 @@ import { useEffect, useRef } from 'react';
 import i18next from 'i18next';
 
 import type { DomainChannel, DomainJoin } from '@chatic/runtime';
-import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
 import { usePlaces } from './usePlaces';
@@ -59,9 +58,9 @@ const isViewing = (channelId: string): boolean =>
  * Desktop-only OS notifications. The shared chat-feed engine (useChannelChatFeeds) streams every
  * registered channel's genuinely-new messages here; when a newer message from someone else
  * arrives while the window is hidden, ask the shell to show an OS notification. Covers channels
- * across every place the user belongs to. The banners are a no-op where the `push` port says the
- * app delivers no notifications (outside the Desktop Shell) and swallow NATIVE_NOT_SUPPORTED so plain-browser / older-shell runs degrade
- * gracefully (ADR-0001).
+ * across every place the user belongs to. The banners are a no-op where the page cannot raise one
+ * (outside the Desktop Shell), and one an older shell cannot show is dropped, so plain-browser and
+ * older-shell runs degrade gracefully.
  *
  * The per-channel notify mode is reverse-synced separately (`join.observeList`): another device
  * changing join.notify lands here as a join cache update — mirrored into the local prefs (which
@@ -82,10 +81,11 @@ export const useDesktopNotifications = (): void => {
     // dropped optimistic own sentinels and skipped the cache warm-up baseline, so `chats` are
     // persisted messages strictly above the previous high-water mark.
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        // No-op unless the `push` port says the app delivers notifications (the Desktop Shell) — the
-        // renderer must never raise an OS banner in a plain browser (webClient would
-        // NATIVE_NOT_SUPPORTED anyway; skip the round-trip).
-        if (runtime.push.kind !== 'shell') return;
+        // No-op where the page cannot raise an OS banner (anywhere but the Desktop Shell) — checked
+        // first, so a plain browser does not run the preference and dedupe checks below for a banner
+        // that could never show.
+        const localBanner = runtime.push.localBanner;
+        if (!localBanner) return;
 
         // The channel watermark gives us the latest message (chat content streams only for the
         // focused room in v2, so background notifications ride the channel record instead).
@@ -137,22 +137,16 @@ export const useDesktopNotifications = (): void => {
         // title already is the sender, so don't repeat it. The sender is named as the feed names them.
         const sender = chatSenderName(chat, placeId);
         const body = messagePreview(chat);
-        void webClient
-            .request({
-                type: 'ShowNotification',
-                data: {
-                    title: notificationTitle(channel, sender, kind),
-                    body: channel.name && sender ? `${sender}: ${body}` : body,
-                    channelId: channel.id,
-                    // Clicking the notification routes here (place + channel, + thread root).
-                    // `parentId` on a persisted record is already the root's chatNo string —
-                    // the key the open-thread store and ThreadPanel take (see `threadRootId`).
-                    deeplink: buildOpenDeeplink({ placeId, channelId: channel.id, rootId: chat.parentId }),
-                },
-            })
-            // Degrade gracefully on older shells (NATIVE_NOT_SUPPORTED) or transient bridge
-            // errors — a dropped OS banner must never break the renderer.
-            .catch(() => undefined);
+        // A banner the shell cannot show is dropped by the port, never thrown at the renderer.
+        localBanner.present({
+            title: notificationTitle(channel, sender, kind),
+            body: channel.name && sender ? `${sender}: ${body}` : body,
+            channelId: channel.id,
+            // Clicking the notification routes here (place + channel, + thread root).
+            // `parentId` on a persisted record is already the root's chatNo string —
+            // the key the open-thread store and ThreadPanel take (see `threadRootId`).
+            deeplink: buildOpenDeeplink({ placeId, channelId: channel.id, rootId: chat.parentId }),
+        });
     });
 
     // Join the place ids into a stable dependency so the effect re-runs only when the set changes.

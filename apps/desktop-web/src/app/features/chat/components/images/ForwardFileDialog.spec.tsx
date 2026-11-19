@@ -28,17 +28,20 @@ vi.mock('../../../../shared', async importOriginal => ({
 }));
 
 const sendImages = vi.hoisted(() => vi.fn());
-const sendTargets = vi.hoisted(() => [] as { cid: string; channelId: string; attach?: boolean }[]);
+const filesPut = vi.hoisted(() => vi.fn());
+const sendTargets = vi.hoisted(() => [] as { cid: string; channelId: string; attach?: boolean; put?: unknown }[]);
 vi.mock('@chatic/runtime', async importOriginal => {
     const original = await importOriginal<typeof AppRuntime>();
     return {
         ...original,
         runtime: {
             ...original.runtime,
+            files: { put: filesPut },
             data: {
                 ...original.runtime.data,
-                useSendImages: (target: { cid: string; channelId: string; attach?: boolean }) => {
-                    sendTargets.push({ cid: target.cid, channelId: target.channelId, attach: target.attach });
+                useSendImages: (target: { cid: string; channelId: string; attach?: boolean; put?: unknown }) => {
+                    const { cid, channelId, attach, put } = target;
+                    sendTargets.push({ cid, channelId, attach, put });
                     return { sendImages };
                 },
             },
@@ -87,7 +90,7 @@ describe('ForwardFileHost', () => {
         await vi.waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
         expect(toast).toHaveBeenCalledWith({ description: 'Forwarding to ops' });
         // Not as the room's screen: the room may be open, and its rows are that screen's.
-        expect(sendTargets).toContainEqual({ cid: 'cl-1', channelId: 'ch-ops', attach: false });
+        expect(sendTargets).toContainEqual({ cid: 'cl-1', channelId: 'ch-ops', attach: false, put: filesPut });
         const [[files]] = sendImages.mock.calls as [[File[]]];
         expect(files[0].name).toBe('memo.m4a');
         expect(files[0].type).toBe('audio/mp4');

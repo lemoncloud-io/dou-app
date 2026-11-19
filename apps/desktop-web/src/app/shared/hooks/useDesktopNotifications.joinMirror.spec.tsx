@@ -12,10 +12,6 @@ const joinEmitters = new Map<string, Emit>();
 
 let native = true;
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: { request: vi.fn() },
-}));
-
 vi.mock('@chatic/runtime', async () => {
     // One object for every render: the hook's effect depends on the repositories' identity.
     const repositories = {
@@ -32,12 +28,14 @@ vi.mock('@chatic/runtime', async () => {
             },
         },
     };
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
         get push() {
-            return { kind: native ? 'shell' : 'browser' };
+            // The desktop shell lets the page raise OS banners; a browser does not.
+            return { ...browserPush(), localBanner: native ? { present: vi.fn() } : null };
         },
     });
 });

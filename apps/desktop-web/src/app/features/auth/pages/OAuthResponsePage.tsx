@@ -15,8 +15,8 @@ import { tabStore } from '../../../storage';
  * login. A return that has no nonce is not one this app asked for, so the page stops with the
  * failure screen instead of opening the app.
  *
- * - Inside the Desktop Shell (where the app signs in, `runtime.signIn`): exchange the code
- *   directly — covers the degenerate case where the relay return landed in the app window.
+ * - Inside the Desktop Shell (where the relay's code is completed in place, `runtime.signIn`): exchange
+ *   the code directly — covers the degenerate case where the relay return landed in the app window.
  * - In a plain browser (the normal system-browser flow): forward the code and the nonce into
  *   the app via the `chatic://oauth` deeplink, with a manual button as fallback
  *   for when the auto-jump is blocked.
@@ -36,13 +36,15 @@ export const OAuthResponsePage = () => {
     const provider = params.get('provider') || 'google';
     const nonce = params.get('nonce') ?? '';
     const isComplete = code.length > 0 && nonce.length > 0;
+    // Where the code is exchanged: here, inside the app; or handed back to the app from the system browser.
+    const completesInPlace = runtime.signIn.relayOAuth?.returnedCode === 'complete';
 
     useEffect(() => {
         if (ranRef.current) return;
         ranRef.current = true;
         if (!isComplete) return;
 
-        if (runtime.signIn.kind === 'shell') {
+        if (completesInPlace) {
             // Pre-auth: success flips isAuthenticated → router leaves this branch.
             // In-app (already signed in): the exchange swaps the session and reloads.
             // A link leaves the session as it was, so nothing moves the page: go back to the account hub.
@@ -58,10 +60,10 @@ export const OAuthResponsePage = () => {
         if (tabStore.get(HANDOFF_SENT_KEY) === nonce) return;
         tabStore.set(HANDOFF_SENT_KEY, nonce);
         window.location.replace(url);
-    }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
+    }, [isComplete, provider, code, nonce, completeFromHandoff, navigate, completesInPlace]);
 
     const failed = !isComplete || isError;
-    const inApp = runtime.signIn.kind === 'shell';
+    const inApp = completesInPlace;
 
     return (
         <AuthCard

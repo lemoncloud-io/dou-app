@@ -8,14 +8,11 @@ const ACCOUNT_UID = 'acct-1';
 const CLOUD_UID = 'cloud-user-9';
 
 let feedHandler: ((feed: unknown) => void) | null = null;
-const request = vi.hoisted(() => vi.fn());
+const present = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: { request },
-}));
-
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: { observeList: () => () => undefined },
@@ -24,10 +21,10 @@ vi.mock('@chatic/runtime', async () =>
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-        // Inside the desktop shell: the app delivers notifications, so banners are raised.
-        push: { kind: 'shell' },
-    })
-);
+        // Inside the desktop shell: the page can raise an OS banner.
+        push: { ...browserPush(), localBanner: { present } },
+    });
+});
 
 vi.mock('./usePlaces', () => ({ usePlaces: () => ({ places: [] }) }));
 
@@ -54,7 +51,6 @@ const feed = (chat: Record<string, unknown>, joinUserId: string | null = CLOUD_U
 
 beforeEach(() => {
     vi.clearAllMocks();
-    request.mockResolvedValue(undefined);
     feedHandler = null;
     useReadCursorStore.setState({ cursors: {} });
     useSelectedChannelStore.setState({ selectedChannelId: null });
@@ -72,30 +68,30 @@ beforeEach(() => {
 describe('useDesktopNotifications', () => {
     it('banners a message written by someone else', () => {
         feedHandler?.(feed({}));
-        expect(request).toHaveBeenCalledTimes(1);
+        expect(present).toHaveBeenCalledTimes(1);
     });
 
     it('stays silent for my own message identified by my account id', () => {
         feedHandler?.(feed({ ownerId: ACCOUNT_UID }));
-        expect(request).not.toHaveBeenCalled();
+        expect(present).not.toHaveBeenCalled();
     });
 
     // Outside the relay a persisted message's owner is the per-channel cloud user id.
     it('stays silent for my own message identified by my per-channel cloud user id', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID }));
-        expect(request).not.toHaveBeenCalled();
+        expect(present).not.toHaveBeenCalled();
     });
 
     // A webhook is never mine, even if the server stamps my id on it: the feed shows it as unread,
     // so the banner must not be the one surface that calls it mine.
     it('banners a webhook message even when its owner id is mine', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID, stereo: 'webhook' }));
-        expect(request).toHaveBeenCalledTimes(1);
+        expect(present).toHaveBeenCalledTimes(1);
     });
 
     it('still banners someone else when the channel has no join of mine yet', () => {
         feedHandler?.(feed({}, null));
-        expect(request).toHaveBeenCalledTimes(1);
+        expect(present).toHaveBeenCalledTimes(1);
     });
 
     describe('in a channel set to mentions only', () => {
@@ -106,26 +102,26 @@ describe('useDesktopNotifications', () => {
 
         it('banners a message whose record names me though the text does not', () => {
             feedHandler?.(mentionOnly({ content: '@Nickname hello', mention$: { userIds: [CLOUD_UID] } }));
-            expect(request).toHaveBeenCalledTimes(1);
+            expect(present).toHaveBeenCalledTimes(1);
         });
 
         it('stays silent for my name in the text when the record names someone else', () => {
             feedHandler?.(mentionOnly({ content: 'hello @Me', mention$: { userIds: ['u-other'] } }));
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         // A 1:1 has no such level: the server sends every message of it, so this banners them all.
         it('banners every message of a 1:1 that was left on mentions only', () => {
             const { channel, ...rest } = mentionOnly({ content: 'hello' });
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
-            expect(request).toHaveBeenCalledTimes(1);
+            expect(present).toHaveBeenCalledTimes(1);
         });
     });
 
     describe('banner title', () => {
         const titleOfFirstBanner = (): string => {
-            const call = request.mock.calls[0]?.[0] as { data?: { title?: string } } | undefined;
-            return call?.data?.title ?? '';
+            const call = present.mock.calls[0]?.[0] as { title?: string } | undefined;
+            return call?.title ?? '';
         };
 
         it('titles a message whose record names me as a mention of the channel', () => {
@@ -194,7 +190,7 @@ describe('useDesktopNotifications', () => {
         it('stays silent for a mention in a channel turned off', () => {
             useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'none' } });
             feedHandler?.(feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } }));
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         // The banner copy is translated at notify time, so both locales render through this path.
@@ -210,7 +206,6 @@ describe('useDesktopNotifications', () => {
                 );
                 expect(titleOfFirstBanner()).toBe(direct);
                 vi.clearAllMocks();
-                request.mockResolvedValue(undefined);
                 feedHandler?.(feed({ content: 'standup', mention$: { all: true }, owner$: { name: 'Raine' } }));
                 expect(titleOfFirstBanner()).toBe(everyone);
             } finally {
@@ -229,32 +224,32 @@ describe('useDesktopNotifications', () => {
         it('stays silent in quiet hours when the toggle is off', () => {
             quietWith({ mentionBreaksQuietHours: false });
             feedHandler?.(directFeed());
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('banners a record-named direct mention when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true });
             feedHandler?.(directFeed());
-            expect(request).toHaveBeenCalledTimes(1);
+            expect(present).toHaveBeenCalledTimes(1);
         });
 
         it('stays silent for an everyone call when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true });
             feedHandler?.(directFeed({ mention$: { all: true } }));
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent for my name in the text with no record when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true });
             feedHandler?.(feed({ content: 'hello @Me', owner$: { name: 'Raine' } }));
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent for a 1:1 when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true });
             const { channel, ...rest } = directFeed();
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent while snoozed when the toggle is on', () => {
@@ -264,19 +259,19 @@ describe('useDesktopNotifications', () => {
                 snoozeUntil: Date.now() + 60_000,
             });
             feedHandler?.(directFeed());
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent for a channel turned off when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true, channelNotify: { 'ch-1': 'none' } });
             feedHandler?.(directFeed());
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent with the global switch off when the toggle is on', () => {
             quietWith({ mentionBreaksQuietHours: true, desktopEnabled: false });
             feedHandler?.(directFeed());
-            expect(request).not.toHaveBeenCalled();
+            expect(present).not.toHaveBeenCalled();
         });
 
         it('stays silent for the channel on screen when the toggle is on', () => {
@@ -286,7 +281,7 @@ describe('useDesktopNotifications', () => {
                 useSelectedChannelStore.setState({ selectedChannelId: 'ch-1' });
                 quietWith({ mentionBreaksQuietHours: true });
                 feedHandler?.(directFeed());
-                expect(request).not.toHaveBeenCalled();
+                expect(present).not.toHaveBeenCalled();
             } finally {
                 hasFocus.mockRestore();
                 Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'prerender' });

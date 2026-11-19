@@ -6,6 +6,7 @@ const sendImages = vi.fn();
 const retryImages = vi.fn();
 const canRetryImages = vi.fn();
 const discardImages = vi.fn();
+const filesPut = vi.hoisted(() => vi.fn());
 const useSendImages = vi.fn((_input: unknown) => ({
     sendImages,
     retry: retryImages,
@@ -15,6 +16,7 @@ const useSendImages = vi.fn((_input: unknown) => ({
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useSendImages: (input: unknown) => useSendImages(input) },
+        files: { put: filesPut },
     })
 );
 
@@ -31,7 +33,6 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 
 import { type DomainChat } from '@chatic/runtime';
 
-import { pageUploadPut } from '../../../../config/upload';
 import { useComposerSend } from './useComposerSend';
 
 const picked = () => [new File(['a'], 'a.png', { type: 'image/png' })];
@@ -43,14 +44,14 @@ beforeEach(() => {
 });
 
 describe('useComposerSend', () => {
-    it("binds the runtime's image send to the room's cloud and the page's own PUT", () => {
+    it("binds the runtime's image send to the room's cloud and the files port's PUT", () => {
         renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
 
         expect(useSendImages).toHaveBeenCalledWith({
             cid: 'cloud-a',
             channelId: 'ch-1',
             parentId: 'root-1',
-            put: pageUploadPut,
+            put: filesPut,
         });
     });
 

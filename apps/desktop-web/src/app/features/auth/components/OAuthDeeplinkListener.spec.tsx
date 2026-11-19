@@ -2,7 +2,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const session = vi.hoisted(() => ({
-    handler: null as null | ((message: unknown) => void),
+    handler: null as null | ((deeplink: string) => void),
     isAuthenticated: false,
     createCredentialsByProvider: vi.fn(),
     loginGuest: vi.fn(),
@@ -13,19 +13,10 @@ const session = vi.hoisted(() => ({
 vi.mock('react-router-dom', () => ({ useNavigate: () => session.navigate }));
 
 vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
-vi.mock('@chatic/bridges', () => ({
-    logger: { error: vi.fn(), warn: vi.fn() },
-    webClient: {
-        onEvent: (_name: string, handler: (message: unknown) => void) => {
-            session.handler = handler;
-            return () => {
-                session.handler = null;
-            };
-        },
-    },
-}));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock('@chatic/runtime', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),
@@ -37,10 +28,26 @@ vi.mock('@chatic/runtime', async () =>
         settings: {
             get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined),
         },
-        // Who signs a person in, as the host's `signIn` port says.
-        signIn: { kind: 'shell', os: null },
-    })
-);
+        // The desktop app's relay sign-in: the system browser out, the deeplinks it forwards back in.
+        signIn: {
+            ...browserSignIn(),
+            relayOAuth: {
+                openAuthorize: url => {
+                    window.open(url, '_blank');
+                },
+                returnedCode: 'complete',
+                handoffLinks: {
+                    subscribe: listener => {
+                        session.handler = listener;
+                        return () => {
+                            session.handler = null;
+                        };
+                    },
+                },
+            },
+        },
+    });
+});
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: session.toast }));
 
 import { WebStore } from '@chatic/storage';
@@ -56,7 +63,7 @@ const NOW = new Date('2026-10-06T00:00:00Z').getTime();
 
 const deliver = async (deeplink: string) => {
     await act(async () => {
-        session.handler?.({ data: { notification: { data: { deeplink } } } });
+        session.handler?.(deeplink);
     });
 };
 

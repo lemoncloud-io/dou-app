@@ -8,14 +8,11 @@ const ACCOUNT_UID = 'acct-1';
 const CLOUD_UID = 'cloud-user-9';
 
 let feedHandler: ((feed: unknown) => void) | null = null;
-const request = vi.hoisted(() => vi.fn());
+const present = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: { request },
-}));
-
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: { observeList: () => () => undefined },
@@ -24,10 +21,10 @@ vi.mock('@chatic/runtime', async () =>
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-        // The desktop shell delivers notifications, as the `push` port says there.
-        push: { kind: 'shell' },
-    })
-);
+        // Inside the desktop shell: the page can raise an OS banner.
+        push: { ...browserPush(), localBanner: { present } },
+    });
+});
 
 vi.mock('./usePlaces', () => ({ usePlaces: () => ({ places: [] }) }));
 
@@ -54,7 +51,6 @@ const feed = (chat: Record<string, unknown>, joinUserId: string | null = CLOUD_U
 
 beforeEach(() => {
     vi.clearAllMocks();
-    request.mockResolvedValue(undefined);
     feedHandler = null;
     useReadCursorStore.setState({ cursors: {} });
     useSelectedChannelStore.setState({ selectedChannelId: null });
@@ -73,7 +69,7 @@ beforeEach(() => {
 // `owner$.name`, a snapshot the server took when the row was written that can carry another name.
 describe('banner sender name', () => {
     const banner = (): { title?: string; body?: string } =>
-        (request.mock.calls[0]?.[0] as { data?: { title?: string; body?: string } } | undefined)?.data ?? {};
+        (present.mock.calls[0]?.[0] as { title?: string; body?: string } | undefined) ?? {};
 
     beforeEach(() => {
         usePlaceProfilesStore.setState({ bySid: { 'place-1': { 'u-alice': { nick: 'Alice' } } } });

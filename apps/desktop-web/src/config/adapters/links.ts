@@ -49,6 +49,7 @@ export const desktopLinks: ShellOrBrowserImplementations<'links'> = {
                 if (!viewId) throw new Error('OpenSubWebView answered without a viewId');
                 return viewId;
             },
+            onClosed: listener => webClient.onEvent('OnSubWebViewClosed', message => listener(message.data)),
         },
     }),
     browser: (base): LinksPort => ({

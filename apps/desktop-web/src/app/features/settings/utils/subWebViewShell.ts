@@ -1,6 +1,5 @@
 import { runtime } from '@chatic/runtime';
 import type { OnSubWebViewClosedPayload, SubWebViewOpenScope, SubWebViewParams } from '@chatic/bridge-messages';
-import { webClient } from '@chatic/bridges';
 
 /**
  * How far the shell opens sub views, from its handshake, or `null` when it says nothing: a host with no
@@ -21,6 +20,9 @@ export const openShellSubWebView = async (url: string, params: SubWebViewParams)
     return subWebView.open(url, { params });
 };
 
-/** Hear every sub view that closes, with the page's `result`. Returns the unsubscribe. */
+/**
+ * Hear every sub view that closes, with the page's `result`. Returns the unsubscribe. A host with no
+ * sub view has none to close, so there is nothing to hear and the unsubscribe does nothing.
+ */
 export const onShellSubWebViewClosed = (listener: (closed: OnSubWebViewClosedPayload) => void): (() => void) =>
-    webClient.onEvent('OnSubWebViewClosed', message => listener(message.data));
+    runtime.links.subWebView?.onClosed(listener) ?? (() => undefined);
