@@ -15,9 +15,10 @@ native alert at boot, and a web dialog that can appear anywhere in the app.
 - **The web never guesses ahead of a check.** `CHATIC_APP_SHOULD_UPDATE`, the boot-time WebView
   injection, is always `false` on a cold start because the App Store lookup only resolves after the
   WebView exists — so the shared `useAppUpdateStatus` store treats the bridge round trip
-  (`appBridge.checkAppUpdate()`) as the only source of truth, not the injected value.
-- **Non-native never asks.** In a plain browser (`isNative()` false) the web skips the bridge call
-  entirely and stays on "no update".
+  (`runtime.appShell.storeUpdate.check()`, `appBridge.checkAppUpdate()` underneath) as the only source
+  of truth, not the injected value.
+- **Non-native never asks.** In a plain browser the web's `appShell` port has no `storeUpdate`, so the
+  web skips the bridge call entirely and stays on "no update".
 
 ## Two independent paths to the same service
 
@@ -28,8 +29,9 @@ native alert at boot, and a web dialog that can appear anywhere in the app.
    (update opens the store URL directly via `Linking.openURL`). The result is also cached in a
    module-level singleton and pushed to the web as `OnUpdateDeviceInfo`
    (`useVersionCheckHandler.ts`), independently of the dialog below.
-2. **Web dialog, on demand** — `useAppUpdateStatus` (web) calls `appBridge.checkAppUpdate()` on
-   mount and on every foreground return (`useAppForeground`). The mobile handler
+2. **Web dialog, on demand** — `useAppUpdateStatus` (web) calls `runtime.appShell.storeUpdate.check()`
+   (`appBridge.checkAppUpdate()` underneath) on mount and on every foreground return
+   (`useAppForeground`). The mobile handler
    (`useAppUpdateHandler.ts`) answers with the same `VersionService.checkForUpdate()` result,
    `OnCheckAppUpdate`. `VersionService` caches a **successful** lookup for 30 minutes
    (`CACHE_TTL_MS`) so repeated calls in a long-lived session are cheap; a failed or unavailable
@@ -81,7 +83,8 @@ sequenceDiagram
 | mobile | `src/app/hooks/useAppVersionCheck.ts`                                    | Boot-time check → native `Alert`, module singleton for consumers  |
 | mobile | `src/app/webview/hooks/useVersionCheckHandler.ts`                        | Pushes the boot-time result to web as `OnUpdateDeviceInfo`        |
 | mobile | `src/app/webview/hooks/useAppUpdateHandler.ts`                           | Answers `CheckAppUpdate` / `OpenStore` bridge messages            |
-| web    | `apps/web/src/app/bridge/appBridge.ts` (`checkAppUpdate`, `openStore`)   | Bridge facade the web calls                                       |
+| web    | `apps/web/src/app/bridge/appBridge.ts` (`checkAppUpdate`, `openStore`)   | Bridge facade underneath the web's port                           |
+| web    | `apps/web/src/config/adapters/appShell.ts` (`storeUpdate`)               | The `appShell` port's store update the web calls, over the facade |
 | web    | `apps/web/src/app/features/appUpdate/hooks/useAppUpdateStatus.ts`        | Shared zustand store; runs the check on mount and on foreground   |
 | web    | `apps/web/src/app/features/appUpdate/hooks/useAppUpdatePrompt.ts`        | Dismissal logic against `config` lane `ui.dismissedUpdateVersion` |
 | web    | `apps/web/src/app/features/appUpdate/components/AppUpdatePromptHost.tsx` | Mounted once at the app root — route-independent                  |

@@ -34,8 +34,9 @@ independent by design, and neither suppresses the other.
 There is a boot-time injection, `CHATIC_APP_SHOULD_UPDATE`, and this feature deliberately ignores
 it. On a cold start the store lookup resolves _after_ the WebView is created, so the injected value
 is always `false`; the follow-up `OnUpdateDeviceInfo` push that would correct it is dropped whenever
-it lands before `GlobalBridgeListener` has populated the device-info store on mount. Only
-`appBridge.checkAppUpdate()` is correct at the moment it is asked.
+it lands before `GlobalBridgeListener` has populated the device-info store on mount. Only the
+round trip — `runtime.appShell.storeUpdate.check()`, which the web's `appShell` port implements over
+`appBridge.checkAppUpdate()` (`src/config/adapters/appShell.ts`) — is correct at the moment it is asked.
 
 `useAppUpdateStatus` runs that call on mount and on every foreground return, and publishes the
 result into a module-level zustand store. Sharing the store is what keeps the dialog and the my-page
@@ -46,8 +47,9 @@ cheap.
 **A failed check keeps the previous status.** The bridge rejects in a browser and on an older shell,
 and treating that as "no update" would be a guess in the wrong direction.
 
-**Non-native never asks.** The host's `appShell` port answering `'browser'` means no call and the "no update" default — a browser
-has no store build to compare against.
+**Non-native never asks.** Where the frame has no store update to check — `runtime.appShell.storeUpdate`
+is `null`, as in a browser — there is no call and the "no update" default: a browser has no store build
+to compare against.
 
 ### The dialog opens on a derivation, not on an event
 
@@ -163,7 +165,8 @@ npx jest --config apps/web/jest.config.js features/appUpdate
 
 - [`apps/mobile`](../../../../mobile/docs/release/app-update.md) — the shell half: the live-version
   lookup, the boot alert, and why Android never reports an update.
-- [bridge/](../../bridge/README.md) — the seam `checkAppUpdate` and `openStore` cross.
+- [bridge/](../../bridge/README.md) — the seam `checkAppUpdate` and `openStore` cross, behind the
+  `appShell` port's `storeUpdate` ([host ports](../../bridge/host-ports.md)).
 - [mypage](../mypage/README.md) — the settings version row.
 - [`@chatic/config`](../../../../../libs/config/README.md) — the registry, the lanes, and what
   `persist: 'local'` means.
