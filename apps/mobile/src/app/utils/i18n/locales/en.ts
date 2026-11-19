@@ -40,6 +40,17 @@ export const en = {
             readAndSend:
                 "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms.",
             sendOnly: "{0} wants to send messages in your name to this place's chat rooms in DoU.",
+            titleWithReact: 'Allow this page to react to messages?',
+            readAndReact:
+                "{0} wants to read this cloud in DoU: {1}, and to add and remove reactions in your name on messages in this place's chat rooms.",
+            reactOnly:
+                "{0} wants to add and remove reactions in your name on messages in this place's chat rooms in DoU.",
+            titleWithSendAndReact: 'Allow this page to send messages and react?',
+            readAndSendAndReact:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages and add and remove reactions in your name in this place's chat rooms.",
+            sendAndReactOnly:
+                "{0} wants to send messages and add and remove reactions in your name in this place's chat rooms in DoU.",
+            reactRemovesOwn: 'That includes removing reactions you added yourself.',
             thisPlaceOnly:
                 "Chat rooms, messages and members are read from this place only, and no longer once you move to another place. You'll be asked again in another place.",
             memberAccounts: "Member details include what their accounts hold, such as each member's sign-in ID.",

@@ -403,10 +403,12 @@ that safe is which methods can be reached at all, and two rules decide every one
   whatever their arguments, `channel.fetchList` and `place.isPlaceDeleted`, and under guards (below)
   the member list and `cloud.getCloud`, which writes nothing once the page passes `{ cache: false }`.
 
-    One write is the exception, and it is written down as one: `chat.sendChat`, under a permission no
-    read carries (`chatSend`), of plain text to a room of the place the view opened on — a line the user
-    could have typed into that room. A page that runs a game in a room needs its own player to call
-    into the room and the page to announce the result; nothing else a message can carry is open.
+    Two writes are the exception, each written down as one under a permission no read carries:
+    `chat.sendChat` (`chatSend`), of plain text to a room of the place the view opened on — a line the
+    user could have typed into that room — and `chat.setReaction` (`chatReact`), one emoji on or off a
+    message of such a room — a tap the user could have made. A page that runs a game in a room needs
+    its own player to call into the room and the page to announce the result, and a poll needs a vote;
+    nothing else a message can carry is open.
 
 - **The current cloud, and no switching.** Only `data` is open, which is the live scope. `session` is
   closed — the cloud and place switches are session commands — and so are `connection`, `sync`,
@@ -436,20 +438,29 @@ server's page size. `chat.sendChat` passes only one argument (`argCount`), a pla
 most `SUB_WEB_VIEW_MESSAGE_LIMIT` (1,000) long (`text`) — no attachments, mention, reply, content type,
 system or webhook row. Its room has to be one of the place the view opened on, with the session still there, which only the
 shell and the device cache can say: the entry carries `roomInCurrentPlace`, and the shell reads the room
-before the message goes. Table lookups read only a table's own keys: a page names them, and `__proto__`
+before the message goes. `chat.setReaction` passes only one argument, a plain object holding `chatId`,
+`emoji` and `action` and nothing else: `chatId` a string of at most 200, `emoji` one character as a person
+sees it (`reaction`, `isOneReactionCharacter`: one emoji however many code points build it — joiners only
+between pictographs, tags only after a black flag — or one precomposed letter with at most two combining
+marks, never an invisible or direction character, at most `SUB_WEB_VIEW_REACTION_LIMIT` (16) long —
+written out, since Hermes has no `Intl.Segmenter`), `action` `on` or `off` (`oneOf`). It names no room, so the entry carries
+`messageInCurrentPlace`: the shell reads the message from the cache, refuses it when the cache does not
+hold it or holds it deleted, unsent, failed or as an edit or reaction record, and checks its room as a
+message's. Table lookups read only a table's own keys: a page names them, and `__proto__`
 names nothing.
 
 Each allowed method sits under one permission a page's manifest declares (`session`, `cloud`, `place`,
-`channel`, `chat`, `user`, `chatSend`) with its cost — `local` for the device cache and its streams,
-`server` for a read that asks the server, `send` for the message, each of the last two budgeted by the
-shell on its own. Each closed one names its reason (`write`,
+`channel`, `chat`, `user`, `chatSend`, `chatReact`) with its cost — `local` for the device cache and its
+streams, `server` for a read that asks the server, `send` for the message, `react` for the reaction, each
+of the last three budgeted by the shell on its own. Each closed one names its reason (`write`,
 `cacheWrite`, `cursor`, `serverSideEffect`, `otherCloud`, `account`, `device`, `admin`, `internal`), and
 whole repositories are closed with one: `auth`, `pairing`, `invite`, `subscription`, `device`, `report`,
 `syncMeta`, `webhook`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
 of `RuntimeData`, so **a method added to the runtime does not compile until it is decided here** — the
 moment to ask the two questions above. The spec typecheck also refuses allowing a name that writes
-(`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than
-`chat.sendChat`, an entry budgeted as a send other than that one, anything `…InCloud`, a server read
+(`create…`, `send…`, `set…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than
+exactly `chat.sendChat` and `chat.setReaction`, an entry budgeted as a send other than the first or as a
+reaction other than the second, anything `…InCloud`, a server read
 other than the four above, and a stream that is not an `observe…`; and the test lists the
 allowed methods by name, so a flipped entry shows as a diff.
 

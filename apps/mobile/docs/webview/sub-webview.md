@@ -81,7 +81,8 @@ something every page gets by default.
 **The runtime reads (2.26.0).** A reviewed page whose manifest declares a runtime permission —
 `session`, `cloud`, `place`, `channel`, `chat`, `user` — may read the current cloud through the four
 runtime requests, on a launch whose session the app's runtime holds; with `chatSend` (2.27.0) it may
-also post plain text in the user's name to a room of the place the view opened on. Three pieces decide
+also post plain text in the user's name to a room of the place the view opened on, and with `chatReact`
+(2.32.0) set or remove one emoji reaction on a message of such a room. Three pieces decide
 it:
 
 - **The gate, once as the view opens** (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`): the
@@ -106,25 +107,29 @@ it:
   of a place is held to the place the view opened on, while the session is still there: a list by its
   query's `sid`, a place profile by its `<place>@` key, a room's reads by the room (checked by the
   bridge, below), a message by its id by the room it answers with; a user row by its id is closed
-  (`otherPlace`), since it is the cloud's, not a place's. The one
-  write, `chat.sendChat` under `chatSend`, passes only `{ channelId, content }` with text in both, the
-  content at most 1,000 characters — no attachment, mention, reply or system row.
+  (`otherPlace`), since it is the cloud's, not a place's. The two
+  writes: `chat.sendChat` under `chatSend` passes only `{ channelId, content }` with text in both, the
+  content at most 1,000 characters — no attachment, mention, reply or system row; `chat.setReaction`
+  under `chatReact` passes only `{ chatId, emoji, action }`, the emoji one character and the action
+  `on` or `off`.
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
   app's engine, so the page's streams are apart from the main web's and end with the load. It checks,
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
   (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page, cloud and place in
   its own MMKV file, every permission in one question; the text says what is read, that a place's
   rooms, messages and members come from this place only and another place asks again, with `user` that members come with what their accounts carry, and with `cloud`
-  that an owned cloud comes with its owner, account, subscription and server; with `chatSend` the
-  alert's title and text say the page sends messages, and an earlier yes without it does not count; a yes is kept with the wording's revision, and one given before the
+  that an owned cloud comes with its owner, account, subscription and server; with `chatSend` or
+  `chatReact` the alert's title and text say the page sends messages or adds and removes reactions —
+  the user's own included — and an earlier yes without it does not count; a yes is kept with the wording's revision, and one given before the
   text said what members or an owned cloud carry is asked again if it covered `user` or `cloud`), for
-  a message and for every read of a
+  a reaction that the message is one the device holds (read from the cache, since the reaction names
+  no room), for a message, a reaction and every read of a
   room that the room is one the device holds in the view's cloud and the place the view opened on, with
   the session still there (read from the cache through the page load's host, a failed read answering
   its own error; for `chat.cacheRead`, the room of the message it answered), and the view's
   budget
   (`subWebViewReadBudget.ts`: server reads at one per 250 ms and 60 a minute, messages apart at one per
-  500 ms and 30 a minute, both per view so a reload cannot reset them). Then the request goes to the
+  500 ms and 30 a minute, reactions apart at one per 250 ms and 60 a minute, both per view so a reload cannot reset them). Then the request goes to the
   runtime unchanged — unless the view closed or its cloud changed while the checks waited, which
   nothing is sent past. A
   page with `session` gets the current cloud's part of the session (`sessionForPage`), never the
@@ -135,8 +140,8 @@ answers again — the page cannot cause that, but a deep link handled under the 
 read the user's data at all, and why the boundary is which requests rather than which fields, is the
 decision recorded in ADR-0320. In short: a page's purpose is the cloud's data, so it gets the rows DoU's
 own screens get, and what keeps it safe is that every method it can reach only reads, only this cloud
-— but for `chatSend`'s text message, which goes only to a room of the place the view opened on
-(ADR-0325).
+— but for `chatSend`'s text message and `chatReact`'s reaction, which reach only a room of the place
+the view opened on (ADR-0325, ADR-0357).
 
 Everything else — cache, preferences, push tokens, purchases, files, `SendLog` — answers `NOT_FOUND`.
 The handshake reply also carries the page's context as `subWebView`, and a message over 64 KiB is

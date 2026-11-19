@@ -58,10 +58,10 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
 
 /**
  * (2.26.0) What a page may read of the app's runtime, by area, declared in its manifest beside the
- * capabilities above. Each opens a fixed set of the runtime's own read methods (`chatSend`, its one
- * text send) — the table is the
- * runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`) — and answers them exactly
- * as it answers the main web:
+ * capabilities above. Each opens a fixed set of the runtime's own read methods (`chatSend` its one
+ * text send, `chatReact` its one reaction) — the table is the runtime's
+ * (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`) — and answers them exactly as it
+ * answers the main web:
  *
  * - `session` — the session snapshot in the hello's answer, and its change pushes;
  * - `cloud` — the current cloud's own row;
@@ -72,15 +72,27 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
  * - `chatSend` (2.27.0) — the one write: a plain text message, in the user's name, to a room of the
  *   place the view opened on. Nothing else a message can carry — attachments, mentions, a reply, a
  *   system or webhook row — and it is asked for apart from the reads, by name.
+ * - `chatReact` (2.32.0) — the second write: a reaction, one emoji, added to or removed from a message
+ *   of a room of the place the view opened on, in the user's name. It opens no read, and neither
+ *   `chat` nor `chatSend` opens it.
  *
  * Any one of them registers the four runtime requests (`RuntimeHello`, `RuntimeCall`,
  * `RuntimeSubscribe`, `RuntimeUnsubscribe`) on the page's host — on the phone only, on a launch whose
  * session the app's runtime holds, for a `reviewed` page, opened while a cloud (Home included) was
  * selected, where the WebView reports a frame's message under the frame's own origin (always on iOS;
- * on Android, a WebView with web message listeners). Apart from `chatSend`'s message, nothing they
- * open writes, moves a cursor, switches the cloud or the place, or reads another cloud.
+ * on Android, a WebView with web message listeners). Apart from `chatSend`'s message and `chatReact`'s
+ * reaction, nothing they open writes, moves a cursor, switches the cloud or the place, or reads another
+ * cloud.
  */
-export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
+export type SubWebViewRuntimePermission =
+    | 'session'
+    | 'cloud'
+    | 'place'
+    | 'channel'
+    | 'chat'
+    | 'user'
+    | 'chatSend'
+    | 'chatReact';
 
 /** Every name a manifest's `permissions` may hold. A shell drops the names it does not know. */
 export type SubWebViewManifestPermission = SubWebViewPermission | SubWebViewRuntimePermission;
