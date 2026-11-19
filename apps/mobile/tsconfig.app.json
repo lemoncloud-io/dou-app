@@ -31,9 +31,6 @@
             "path": "../../libs/config/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/chatic-apps-devtools/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/chatic-apps-sdk/tsconfig.lib.json"
         },
         {

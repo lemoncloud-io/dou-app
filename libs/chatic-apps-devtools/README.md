@@ -15,8 +15,12 @@ node dist/libs/chatic-apps-devtools/cli.js check     --root <page> --dist <built
 node dist/libs/chatic-apps-devtools/cli.js scenarios --root <page> --dist <built folder> [--mock <module>]
 ```
 
-Both exit `1` when something fails, `0` when it passes, and print `--json` on request. The reference
-mini-app (`apps/chatic-apps-example`) runs both as its `check` and `scenarios` targets.
+Both exit `1` when something fails, `0` when it passes, and print `--json` on request.
+
+The tools are proven on a reference mini-app that is kept outside this repository, as a page author's own
+project would be: it installs this package and the SDK as packages, passes both commands, and its tests
+break it on purpose — once per checker rule, and for each scenario a page commonly gets wrong — to show
+each check catches its case. This repository holds no page of its own.
 
 ## `check`
 
@@ -118,24 +122,23 @@ export default {
 
 The permissions come from the bundle's manifest. The mock is imported from the project's own installed
 SDK (`@lemoncloud/chatic-apps-sdk/mock`); `--mock` names another module, as this repository does with
-`@chatic/chatic-apps-sdk/mock`.
+`@chatic/chatic-apps-sdk/mock`, the SDK's name inside this workspace.
 
 ## The API
 
 `check`, `runScenarios`, `loadDist`, `loadEntry`, `openPage` and `loadScenarioConfig` are exported for
 tests. `loadEntry` bundles a page from its sources as a production build would (`import.meta.env.DEV`
-false) with an optional source transform, which is how this package's tests make broken variants of the
-reference mini-app; `openPage` opens it with a hook to put a host in place first. The app's host
-conversation test (`apps/mobile/src/app/subWebView/chaticAppsSdkRuntime.contract.test.ts`) uses the same
-two to run the reference mini-app against the app's real page host.
+false) with an optional source transform, which is how a page's own tests make broken copies of it;
+`openPage` opens a page with a hook to put a host — the mock, or a real one — in place first.
+
+The build writes one declaration file for this API, `index.d.ts`, beside `index.js` and `cli.js`.
 
 ## Tests
 
-`check.test.ts` passes the reference mini-app, then breaks it once per rule — every rule has a variant,
-and a test fails when a rule is added without one. `scenarios.test.ts` passes it through every scenario,
-then breaks it for each: screens without back, a stream left open, a listener and an interval left
-behind, a whole list drawn, no save on hide, no theme, asking again after a refusal, ignoring a cloud
-change, no retry, back taken at the root.
+The tests here hold the parts that need no page: the comment stripping the code rules read through, and
+the permission table against the SDK's methods. The checks themselves are tried on the reference mini-app,
+outside this repository.
 
-Jest replaces `process` inside a test, so an unhandled rejection from the page fails the jest test
-itself rather than reaching the runner; the command, in plain Node, reports it as a problem.
+A test runner (jest, `node --test`) takes an unhandled rejection from the page for itself and fails the
+test, so that case is never seen by the runner under one; the command, in plain Node, reports it as a
+problem.

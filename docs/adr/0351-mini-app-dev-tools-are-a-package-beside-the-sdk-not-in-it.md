@@ -1,8 +1,7 @@
 # ADR-0351: Mini-app dev tools are a package beside the SDK, not in it
 
 > Status: Accepted · Decided: 2026-11-19 · Implemented: `feat/chatic-apps-sdk-devtools`
-> · Scope: `libs/chatic-apps-devtools` (new) · `apps/chatic-apps-example` (new)
-> · `apps/mobile/src/app/subWebView/chaticAppsSdkRuntime.contract.test.ts`
+> · Scope: `libs/chatic-apps-devtools` (new)
 > · The tools' own documentation is [libs/chatic-apps-devtools/README.md](../../libs/chatic-apps-devtools/README.md)
 > · Related: [ADR-0281](./0281-sub-webview-pages-talk-through-chatic-apps-sdk-kept-beside-the-app.md),
 > which rejected a CLI for the SDK; this record reopens that part and keeps the rest
@@ -20,13 +19,13 @@ compared instead of a capability asked, an error's message branched on, a stream
 left in the production bundle, a permission asked for and never used — and the only check today is a
 person, or the assistant, rereading the rules. Neither the author nor the SDK's maintainers can run a
 page through what the app will do to it (back, a close, a theme change, hiding, a refused consent, a
-cloud change) without a phone, and the SDK has no test that runs a real page against the app's real host.
+cloud change) without a phone.
 
 ## Decision
 
 **A development package, `libs/chatic-apps-devtools`, with one command and two subcommands — `check`
-and `scenarios` — kept apart from the SDK. A reference mini-app, `apps/chatic-apps-example`, is what
-both are proven on, and what the app's host conversation test runs.**
+and `scenarios` — kept apart from the SDK. The reference mini-app they are proven on lives outside this
+repository.**
 
 - **Outside the SDK.** The SDK keeps no runtime dependencies and exports only `.` and `./mock`. The tools
   need a bundler and a DOM (esbuild, jsdom), so they live in their own package that a page installs as a
@@ -39,12 +38,14 @@ both are proven on, and what the app's host conversation test runs.**
   script with esbuild. It cannot see layout or the safe area; it can see every request on the wire, every
   error, and every listener and stream left behind, which is what breaks on phones. A browser engine
   would add a large download to every author's install for what this runner checks.
-- **The reference mini-app is the fixture.** It uses each SDK feature once. The tools' tests break it on
-  purpose — once per checker rule, and for each scenario a page commonly gets wrong — so a check that stops catching its case fails a
-  test. The app's runtime contract suite builds it from its sources and runs it against the real page
-  host and runtime bridge: a request the SDK renames breaks that test before a page on a phone does.
-- **The bundle stops at a zip.** The reference mini-app builds to a zip of its build output. Uploading,
-  review and hosting are not part of this decision.
+- **The reference mini-app is a project of its own, outside this repository.** It uses each SDK feature
+  once and installs the SDK and the tools as packages, as an author's page does — so it shows the tools
+  working from the outside, not through the workspace's paths. Its tests break it on purpose, once per
+  checker rule and for each scenario a page commonly gets wrong, so a check that stops catching its case
+  fails there. It builds to a zip of its build output; uploading, review and hosting are not part of this
+  decision.
+- **No page in this repository.** The SDK's contract suites in `apps/mobile` keep testing the library
+  against the app's real host directly; running a whole page against that host is left out with the page.
 
 ## Alternatives
 
@@ -55,18 +56,20 @@ both are proven on, and what the app's host conversation test runs.**
   for checks that do not need layout. A preview with a phone frame, which does, is a separate tool for later.
 - **Rules as documentation only.** That is the state this replaces: the assistant that wrote the page
   is the one rereading the rules.
-- **A host conversation test against a hand-written page.** Rejected: it would prove the SDK talks to the
-  host, not that a page written to the guide does; the reference mini-app is that page.
+- **Keep the reference mini-app in this repository**, as an app the tools' tests and a host
+  conversation test in `apps/mobile` read by path. Tried first, then moved out by the maintainers'
+  decision: a page inside the workspace imports the SDK by the workspace's name and leans on its build
+  setup, which is not what an author's page looks like.
 
 ## Consequences
 
-- Two new projects. CI lints and typechecks both with the rest and tests the dev package; the example's `check` and
-  `scenarios` targets build it and run the tools.
-- `apps/mobile`'s runtime contract suite now depends on the dev package and reads the example's sources
-  by path. A change to the example that breaks the host conversation shows there.
+- One new project. CI lints, typechecks and tests it with the rest; its own tests cover what needs no page.
+- A change to the tools is proven on the reference mini-app only when that project takes the new build:
+  CI here does not run it. A change to the SDK's request names is still caught by the existing contract
+  suites, not by a page.
 - The checker's code rules are patterns, not a parser: they can miss a violation written unusually, and
   they are the rules' second line, after the SDK's own guide.
 - Publishing the dev package waits on the SDK's release path moving to CI publishing with provenance. A
   command run on authors' machines is a stronger target than a library if the publishing token leaks.
-- Jest replaces `process` inside a test, so an unhandled rejection from a page fails the jest test
-  itself; the command reports it as a scenario problem in plain Node.
+- A test runner takes an unhandled rejection from a page for itself, so that case is shown through the
+  command in plain Node, not through a test.

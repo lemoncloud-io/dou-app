@@ -113,9 +113,6 @@
         },
         {
             "path": "./libs/chatic-apps-devtools"
-        },
-        {
-            "path": "./apps/chatic-apps-example"
         }
     ]
 }
