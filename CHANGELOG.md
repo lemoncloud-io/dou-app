@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.6, @chatic/web@0.96.2
+
+### Bug Fixes
+
+- (web) save through the share sheet on ios, not a blob download
+
 ## [2026-11-19] - No version updates
 
 ### Features
