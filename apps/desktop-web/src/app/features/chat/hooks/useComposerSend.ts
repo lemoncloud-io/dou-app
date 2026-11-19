@@ -6,7 +6,6 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { ChatMentionBody, DomainChat } from '@chatic/runtime';
 
-import { pageUploadPut } from '../../../../config/upload';
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { isUnsentImageMessage } from '../utils';
 import { toastFailure } from '../../../shared';
@@ -28,7 +27,8 @@ export interface ComposerSendTarget {
  * fail apart: a picture send that fails keeps its own Failed row, and the text is already out.
  *
  * Both are addressed to the room as it was at the press, whichever room is on screen when they land.
- * The desktop shell has no native transfer, so the bytes go through the page's own PUT.
+ * The bytes go through the host's files port, which on desktop is the page's own PUT: the desktop shell
+ * has no native transfer.
  *
  * Retry, Delete and whether Retry is offered also start here, because a failed picture message is
  * not a failed text message: it is retried with the pictures this page still holds, on the same
@@ -43,7 +43,7 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         canRetry: canRetryImages,
         discard: discardImages,
         cancel: cancelImages,
-    } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: pageUploadPut });
+    } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: runtime.files.put });
 
     const failed = useCallback((error: unknown) => toastFailure(t('toast.messageFailed'), error), [t]);
 

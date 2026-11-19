@@ -196,7 +196,8 @@ Selection caps at the seats the room has left ([the tab shell](#the-tab-shell)).
 that number, or the clipboard on web — the toast says which actually happened) and **several** as a
 batch the server fans out over SMS itself.
 
-When permission is refused, `PermissionDeniedBanner` explains and offers `appBridge.openSettings()`.
+When permission is refused, `PermissionDeniedBanner` explains and offers the app's page in the OS
+settings (`runtime.appShell.systemSettings`; a host without one leaves the button doing nothing).
 The page believes the permission the app reports, so a granted but empty address book shows the
 empty-list message rather than the banner. A failed or timed-out request lands on the banner too,
 which an app only produces when something is actually broken.

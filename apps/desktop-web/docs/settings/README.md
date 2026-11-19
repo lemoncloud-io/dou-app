@@ -134,7 +134,9 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
   remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
   person's yes does not send another's names. DoU's own pages are not asked about.
-- **Back from the hub.** When the hub view this screen opened closes with
+- **Back from the hub.** Every sub view's close is heard through the same port
+  (`runtime.links.subWebView.onClosed`, in `utils/subWebViewShell.ts`), and the screen matches the
+  view id it opened. When the hub view this screen opened closes with
   `result: { action: 'openMiniAppLinkSettings' }`, the link dialog opens, and only for the owner — a
   member's request is dropped then, not kept for the day the catalog names them the owner. Any other
   view's result, and any other result (an `openMiniApp` from an older hub included), is ignored.

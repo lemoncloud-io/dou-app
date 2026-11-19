@@ -104,17 +104,23 @@ Files whose contents the name does not give away:
   questions about a join row that nothing else can answer.
 - `utils/displayName.ts` — the one chain that turns a user id into a name.
 
-Nine native bridge calls are made from this feature directly: `getContacts`, `openShareSheet`,
-`openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, the viewer's `saveToPhotoLibrary`
-and `shareFile`, and `readVideoFrame` for a received video's first frame (`hooks/useVideoFrames`).
-Attachments reach the shell through the page's `bridge/` modules rather than from the
-feature itself ([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`
-(`ListPhotos`, `ReadPhoto`, and `KeepLibraryVideo` for a picked video), the
-app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `PrepareVideo` and
-`ReadAttachment`; in a browser the page opens its own file input instead), the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages), and
-the camera entry's permission check through `bridge/cameraAccess.ts` (`RequestPermission`), and a
-voice message through `bridge/audioRecorder.ts` (`StartAudioRecording`, `StopAudioRecording`; the
-attach panel's voice entry is drawn only where the handshake lists them).
+Three native bridge calls are made from this feature directly: `openSettings` (the attach panel's
+and the voice recorder's permission prompts, and a refused save), and the viewer's and the file card's
+`saveToPhotoLibrary` and `shareFile`. The rest go through the host's ports
+([host-ports.md](../../bridge/host-ports.md)): contacts, the share sheet, external links, the clipboard
+and link previews through `runtime.links`; a document's open and save and a received video's first
+frame (`hooks/useFileDownloads`, `hooks/useVideoFrames`) through the app's transfer module,
+`runtime.files.transfers`; the contact invite's permission banner through
+`runtime.appShell.systemSettings`. Attachments reach the shell through the page's `bridge/` modules,
+which call the `media` and `files` ports, rather than from the feature itself
+([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`
+(`media.photoLibrary`: the albums, a page of photos, a photo's bytes, and keeping a picked video), the
+app's own picker through `bridge/attachmentPicker.ts` (`media.picker` and `media.videoConverter`; where
+they are `null` the page opens its own file input instead), the uploads through `bridge/shellUpload.ts`
+(`files.put` and the transfer module), the camera entry's permission check through
+`bridge/cameraAccess.ts` (`media.cameraPermission`), and a voice message through
+`bridge/audioRecorder.ts` (`StartAudioRecording`, `StopAudioRecording`; the attach panel's voice entry
+is drawn only where the handshake lists them).
 The viewer's save and share download through `bridge/shellDownload.ts`, and show only when the app's
 handshake lists both messages ([image-export.md](./image-export.md)).
 

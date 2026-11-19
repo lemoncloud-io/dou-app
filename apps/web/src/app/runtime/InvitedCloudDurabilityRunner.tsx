@@ -1,9 +1,7 @@
-import { useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { pushCloudIdOf, RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
-import type { AppMessageData } from '@chatic/bridge-messages';
 
-import { useOnReceiveNotification } from '../bridge';
 import { extractPushContext } from '../utils/resolveInAppPushRoute';
 
 /**
@@ -29,30 +27,31 @@ export const InvitedCloudDurabilityRunner = (): null => {
 
     runtime.data.useInvitedCloudNameSync();
 
-    const handleReceiveNotification = useCallback((message: AppMessageData<'OnReceiveNotification'>) => {
-        // A delivery is the `push` port's: only where the app receives notifications, which is the
-        // native WebView, the one place the native store exists too (the boot hook's guard).
-        if (runtime.push.kind !== 'shell') return;
-        const data = message.data?.notification?.data;
-        if (!data) return;
-        // cid usually lives inside the `payload` JSON string, with a top-level fallback —
-        // reuse the same extraction as push routing (do not read data.cid directly).
-        const cloudId = pushCloudIdOf(extractPushContext(data).cid);
-        if (!cloudId || cloudId === RELAY_CLOUD_ID) return;
+    useEffect(() => {
+        // Deliveries come only where the app hands the page its notifications, which is the native
+        // WebView, the one place the native store exists too (the boot hook's guard).
+        const notifications = runtime.push.notifications;
+        if (!notifications) return;
+        return notifications.onReceive(({ notification }) => {
+            const data = notification?.data;
+            if (!data) return;
+            // cid usually lives inside the `payload` JSON string, with a top-level fallback —
+            // reuse the same extraction as push routing (do not read data.cid directly).
+            const cloudId = pushCloudIdOf(extractPushContext(data).cid);
+            if (!cloudId || cloudId === RELAY_CLOUD_ID) return;
 
-        const inflight = inflightRef.current;
-        if (inflight.has(cloudId)) return;
-        inflight.add(cloudId);
-        void runtime.data
-            .recoverInvitedCloudIfMissing(cloudId)
-            // Best-effort: the cache read ahead of the relay call can still reject.
-            .catch(() => undefined)
-            .finally(() => {
-                inflight.delete(cloudId);
-            });
+            const inflight = inflightRef.current;
+            if (inflight.has(cloudId)) return;
+            inflight.add(cloudId);
+            void runtime.data
+                .recoverInvitedCloudIfMissing(cloudId)
+                // Best-effort: the cache read ahead of the relay call can still reject.
+                .catch(() => undefined)
+                .finally(() => {
+                    inflight.delete(cloudId);
+                });
+        });
     }, []);
-
-    useOnReceiveNotification(handleReceiveNotification);
 
     return null;
 };

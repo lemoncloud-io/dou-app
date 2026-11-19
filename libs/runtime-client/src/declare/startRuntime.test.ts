@@ -206,20 +206,20 @@ const hostDeclarations = (built: string[]): HostPortDeclarations<Facts> => {
         });
     return {
         checkout: { default: browser('checkout', { kind: 'none' }) },
-        media: { default: browser('media', { kind: 'browser' }) },
-        files: { default: browser('files', { kind: 'browser' }) },
+        media: { default: browser('media', { kind: 'browser' } as HostPorts['media']) },
+        files: { default: browser('files', { kind: 'browser' } as HostPorts['files']) },
         links: { default: browser('links', { kind: 'browser' } as HostPorts['links']) },
         appShell: { default: browser('appShell', { kind: 'browser', os: null } as HostPorts['appShell']) },
-        signIn: { default: browser('signIn', { kind: 'browser', os: null }) },
+        signIn: { default: browser('signIn', { kind: 'browser', os: null } as HostPorts['signIn']) },
         diagnostics: { default: browser('diagnostics', { kind: 'browser' } as HostPorts['diagnostics']) },
         push: {
-            default: browser('push', { kind: 'browser' }),
+            default: browser('push', { kind: 'browser' } as HostPorts['push']),
             alternatives: [
                 defineHostAdapter<'push', Facts>({
                     id: 'push.shell',
                     port: 'push',
                     supports: facts => facts.shell,
-                    create: () => ({ kind: 'shell' }),
+                    create: () => ({ kind: 'shell' }) as HostPorts['push'],
                 }),
             ],
         },

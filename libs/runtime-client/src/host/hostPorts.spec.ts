@@ -9,14 +9,30 @@ const { HostFacade, host } = bindings;
 // port is its choice alone, cast to the whole port.
 const none = (): HostPorts => ({
     checkout: { kind: 'none' },
-    media: { kind: 'browser' },
-    files: { kind: 'browser' },
+    media: { kind: 'browser' } as HostPorts['media'],
+    files: { kind: 'browser' } as HostPorts['files'],
     links: { kind: 'browser' } as HostPorts['links'],
     appShell: { kind: 'browser', os: null } as HostPorts['appShell'],
-    signIn: { kind: 'browser', os: null },
+    signIn: { kind: 'browser', os: null } as HostPorts['signIn'],
     diagnostics: { kind: 'browser' } as HostPorts['diagnostics'],
-    push: { kind: 'browser' },
+    push: { kind: 'browser', notifications: null, deviceToken: null, tokenRenewal: null, localBanner: null },
 });
+
+// The push members with something in them, so a test can tell a published member from a reset one.
+const shellPush = (): HostPorts['push'] => ({
+    kind: 'shell',
+    notifications: { onReceive: () => () => undefined },
+    deviceToken: { fetch: async () => 'token' },
+    tokenRenewal: { onRenew: () => () => undefined },
+    localBanner: { present: () => undefined },
+});
+
+const pushMembers = {
+    notifications: () => bindings.pushNotifications,
+    deviceToken: () => bindings.pushDeviceToken,
+    tokenRenewal: () => bindings.pushTokenRenewal,
+    localBanner: () => bindings.pushLocalBanner,
+} as const;
 
 describe('host', () => {
     it('refuses a read before the entry point publishes', () => {
@@ -69,7 +85,7 @@ describe('the port bindings runtime.<port> re-exports', () => {
         diagnostics: () => bindings.diagnosticsPort,
     } as const;
 
-    it('names every port: seven objects and the push kind', () => {
+    it('names every port: seven objects and the push fields', () => {
         expect([...Object.keys(objectBindings), 'push'].sort()).toEqual([...HOST_PORT_NAMES].sort());
     });
 
@@ -81,6 +97,15 @@ describe('the port bindings runtime.<port> re-exports', () => {
         expect(bindings.pushKind).toBeUndefined();
     });
 
+    it.each(Object.entries(pushMembers))(
+        'push.%s throws on use before the publish, naming the member',
+        (name, read) => {
+            expect(() => (read() as unknown as { anything: unknown }).anything).toThrow(
+                `published them (host.publish): push.${name}.anything`
+            );
+        }
+    );
+
     it.each(Object.entries(objectBindings))('%s is the very object host.ports holds once published', (name, read) => {
         host.publish(none());
 
@@ -88,17 +113,31 @@ describe('the port bindings runtime.<port> re-exports', () => {
     });
 
     it('carries the published push kind', () => {
-        host.publish({ ...none(), push: { kind: 'shell' } });
+        host.publish({ ...none(), push: shellPush() });
 
         expect(bindings.pushKind).toBe('shell');
     });
 
+    it.each(Object.entries(pushMembers))('push.%s is the very member host.ports holds once published', (name, read) => {
+        host.publish({ ...none(), push: shellPush() });
+
+        expect(read()).not.toBeNull();
+        expect(read()).toBe(host.ports.push[name as keyof typeof pushMembers]);
+    });
+
+    it.each(Object.entries(pushMembers))("push.%s carries a host's null as null", (_name, read) => {
+        host.publish(none());
+
+        expect(read()).toBeNull();
+    });
+
     it('returns to unpublished on a test reset', () => {
-        host.publish({ ...none(), push: { kind: 'shell' } });
+        host.publish({ ...none(), push: shellPush() });
         host.resetForTests();
 
         expect(() => bindings.signInPort.kind).toThrow('before the app');
         expect(bindings.pushKind).toBeUndefined();
+        expect(() => bindings.pushDeviceToken?.fetch).toThrow('before the app');
     });
 
     it('stays printable before the publish', () => {
@@ -113,9 +152,10 @@ describe('the port bindings runtime.<port> re-exports', () => {
 
     it('is left alone by a holder a test makes for itself', () => {
         const own = new HostFacade();
-        own.publish({ ...none(), push: { kind: 'shell' } });
+        own.publish({ ...none(), push: shellPush() });
 
         expect(bindings.pushKind).toBeUndefined();
+        expect(() => bindings.pushNotifications?.onReceive).toThrow('before the app');
         expect(() => bindings.mediaPort.kind).toThrow('before the app');
     });
 });

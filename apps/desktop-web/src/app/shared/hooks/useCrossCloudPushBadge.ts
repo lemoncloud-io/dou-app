@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 
-import { webClient } from '@chatic/bridges';
 import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
@@ -9,7 +8,7 @@ import { resolvePushCloudId } from '../utils';
 /**
  * Cross-cloud push → rail badge. The live socket only covers the active cloud,
  * so a message in another cloud is invisible in-app even though its FCM push
- * arrives (the shell forwards every push as `OnReceiveNotification`). Mark that
+ * arrives (the shell forwards every push through the push port's `notifications`). Mark that
  * push's source cloud so its rail tile shows a dot; the flag clears once that
  * cloud becomes the verified active one (covers switch, boot auto-select, and
  * invite entry alike).
@@ -26,7 +25,7 @@ import { resolvePushCloudId } from '../utils';
  * `data.cid` short-circuits when a backend finally stamps it; a relay push's `'#'` is the
  * Home tile, `RELAY_CLOUD_ID`, which is also what the relay counts as when it is the active
  * server. Deeplink-only events carry no channelId and resolve to nothing. No-op in a plain
- * browser.
+ * browser, whose push port has no `notifications`.
  */
 export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
@@ -37,9 +36,8 @@ export const useCrossCloudPushBadge = (): void => {
     const clear = useCloudPushBadgeStore(s => s.clear);
 
     useEffect(() => {
-        return webClient.onEvent('OnReceiveNotification', message => {
-            const notification = (message?.data as { notification?: { data?: Record<string, string> } })?.notification;
-            const data = notification?.data;
+        return runtime.push.notifications?.onReceive(payload => {
+            const data = (payload.notification as { data?: Record<string, string> } | undefined)?.data;
             if (!data) return;
             const apply = (cid: string | null | undefined) => {
                 if (!cid) return;

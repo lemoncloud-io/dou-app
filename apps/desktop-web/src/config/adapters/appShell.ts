@@ -8,8 +8,9 @@ import type { ShellOrBrowserImplementations } from '@chatic/runtime-web';
  *
  * The desktop app owns the window the page fills, paints the unread count on its dock or taskbar icon,
  * and downloads and installs its own updates once the person agrees. It has no haptics, no soft
- * keyboard, no back gesture, no preference store of its own, no readable icon badge, no alternate icons
- * and no store to check. A browser tab has none of it, and the tab is the person's, not the page's.
+ * keyboard, no back gesture, no preference store of its own, no readable icon badge, no alternate icons,
+ * no store to check and no page of its own in the OS settings to open. A browser tab has none of it,
+ * and the tab is the person's, not the page's.
  */
 export const desktopAppShell: ShellOrBrowserImplementations<'appShell'> = {
     shell: base => ({
@@ -38,6 +39,7 @@ export const desktopAppShell: ShellOrBrowserImplementations<'appShell'> = {
             startDownload: () => webClient.post({ type: 'StartUpdateDownload', data: {} }),
             restart: () => webClient.post({ type: 'RestartToUpdate', data: {} }),
         },
+        systemSettings: null,
     }),
     browser: base => ({
         ...base,
@@ -51,6 +53,7 @@ export const desktopAppShell: ShellOrBrowserImplementations<'appShell'> = {
         appIcon: null,
         storeUpdate: null,
         selfUpdate: null,
+        systemSettings: null,
     }),
 };
 

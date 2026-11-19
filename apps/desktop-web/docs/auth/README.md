@@ -24,6 +24,12 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
+The host-specific steps are the `signIn` port's `relayOAuth` (`src/config/adapters/signIn.ts`):
+`openAuthorize` sends the person to the relay — the system browser from the app, the tab itself in a
+browser — `returnedCode` tells the hand-off page whether to exchange the code where it landed (`complete`,
+the app window) or hand it back through the deeplink (`handoff`, the system browser), and
+`handoffLinks` delivers the deeplinks the app receives (`OAuthDeeplinkListener`).
+
 "Continue with Apple" sits after Google wherever Google is offered — the Welcome page, the Profile
 page and the account hub's guest card — and takes the same round trip through the relay's
 `/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on

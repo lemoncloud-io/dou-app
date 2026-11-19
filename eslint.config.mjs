@@ -611,8 +611,8 @@ export default [
     },
     {
         // A feature calls a host port's members; it does not ask which side (`kind`) does the work. The
-        // declaration part (`src/config/`) builds the ports and may read it; tests play a host. The list
-        // grows as each port's work moves behind its members.
+        // declaration part (`src/config/`) builds the ports and may read it; tests play a host. Every
+        // port with a choice is listed (checkout's `kind` names its method, not a side).
         files: ['**/*.ts', '**/*.tsx'],
         ignores: [
             '**/*.spec.ts',
@@ -625,7 +625,10 @@ export default [
         ],
         rules: {
             // tools/eslint-rules/host-port-kind.js
-            '@nx/workspace-host-port-kind': ['error', { ports: ['links', 'appShell', 'diagnostics'] }],
+            '@nx/workspace-host-port-kind': [
+                'error',
+                { ports: ['media', 'files', 'links', 'appShell', 'signIn', 'diagnostics', 'push'] },
+            ],
         },
     },
     {

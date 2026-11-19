@@ -18,8 +18,8 @@ let mockSocialState: LinkedState = 'absent';
 let mockLinkedProvider: SocialProvider | null = null;
 let mockIsLinking = false;
 const mockIsNative = jest.fn((): boolean => true);
-/** The phone platform the app signs in on, as the port reports it where the app signs in. */
-let mockPlatform: 'ios' | 'android' = 'android';
+/** The providers the app's own sign-in lists, as the port reports them: Apple's only on iOS. */
+let mockProviders: SocialProvider[] = ['google'];
 const isLinked = jest.fn((provider: SocialProvider) => mockLinkedProvider === provider);
 
 jest.mock('react-i18next', () => ({
@@ -31,9 +31,11 @@ jest.mock('@chatic/runtime', () =>
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-        // Who signs a person in, as the host's `signIn` port says.
+        // The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
         get signIn() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: mockIsNative() ? mockPlatform : null };
+            const tab = require('@chatic/runtime/testing').browserSignIn();
+            if (!mockIsNative()) return tab;
+            return { ...tab, providerSignIn: { providers: mockProviders, credential: jest.fn() } };
         },
     })
 );
@@ -77,7 +79,7 @@ beforeEach(() => {
     mockSocialState = 'absent';
     mockLinkedProvider = null;
     mockIsLinking = false;
-    mockPlatform = 'android';
+    mockProviders = ['google'];
 });
 
 describe('AccountLinkSection — 서버가 말하기 전에는 침묵한다 (ADR-0042 §5)', () => {
@@ -224,7 +226,7 @@ describe('AccountLinkSection — 소셜 행', () => {
     });
 
     it('Apple 행은 iOS 앱에서만 나온다 (LoginPage와 같은 조건)', () => {
-        mockPlatform = 'ios';
+        mockProviders = ['google', 'apple'];
 
         render(<AccountLinkSection />);
 
@@ -233,7 +235,7 @@ describe('AccountLinkSection — 소셜 행', () => {
 
     it('네이티브가 아니면 Apple 행이 없다', () => {
         mockIsNative.mockReturnValue(false);
-        mockPlatform = 'ios';
+        mockProviders = ['google', 'apple'];
 
         render(<AccountLinkSection />);
 

@@ -7,8 +7,8 @@ import type * as UtilsModule from '../utils';
 const ACCOUNT_UID = 'acct-1';
 const CLOUD_UID = 'cloud-user-9';
 
-let pushHandler: ((message: unknown) => void) | null = null;
-const request = vi.hoisted(() => vi.fn());
+let pushHandler: ((payload: unknown) => void) | null = null;
+const present = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
 const readRecords = vi.hoisted(() => vi.fn());
 // The channel cache the push is looked up in; a test fills it to give the channel a server notify mode.
@@ -16,28 +16,31 @@ let cacheRecords: unknown[] = [];
 // The server the session is on; a test moves it into a cloud.
 let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: {
-        request,
-        onEvent: (_type: string, handler: (message: unknown) => void) => {
-            pushHandler = handler;
-            return () => undefined;
-        },
-    },
-}));
-
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+// The desktop shell's push port: the notifications it hands the page, and the OS banner it raises.
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({
                 identity: { userId: ACCOUNT_UID },
                 activeServer,
             }),
         },
-    })
-);
+        push: {
+            ...browserPush(),
+            kind: 'shell',
+            notifications: {
+                onReceive: (listener: (payload: unknown) => void) => {
+                    pushHandler = listener;
+                    return () => undefined;
+                },
+            },
+            localBanner: { present },
+        },
+    });
+});
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),
@@ -50,20 +53,17 @@ import { useNotificationPrefsStore, usePendingOpenStore } from '../stores';
 import { useCrossCloudPushNotifications } from './useCrossCloudPushNotifications';
 
 const push = (data: Record<string, string>) => ({
-    data: {
-        notification: {
-            title: 'general',
-            body: 'hello',
-            data: { channelId: 'ch-1', channelName: 'general', ownerId: 'someone-else', uid: CLOUD_UID, ...data },
-        },
+    notification: {
+        title: 'general',
+        body: 'hello',
+        data: { channelId: 'ch-1', channelName: 'general', ownerId: 'someone-else', uid: CLOUD_UID, ...data },
     },
 });
 
-const shown = () => toast.mock.calls.length + request.mock.calls.length;
+const shown = () => toast.mock.calls.length + present.mock.calls.length;
 
 beforeEach(() => {
     vi.clearAllMocks();
-    request.mockResolvedValue(undefined);
     readRecords.mockImplementation(async () => cacheRecords);
     pushHandler = null;
     cacheRecords = [];
@@ -127,8 +127,8 @@ describe('useCrossCloudPushNotifications', () => {
             vi.spyOn(document, 'hasFocus').mockReturnValue(false);
             pushHandler?.(dmPush());
 
-            await waitFor(() => expect(request).toHaveBeenCalled());
-            const deeplink = request.mock.calls[0][0].data.deeplink as string;
+            await waitFor(() => expect(present).toHaveBeenCalled());
+            const deeplink = present.mock.calls[0][0].deeplink as string;
             expect(parsePushDeeplink(deeplink)).toMatchObject({ placeId: 'P2', channelId: 'P2@me@peer' });
         });
 
@@ -236,9 +236,9 @@ describe('useCrossCloudPushNotifications', () => {
         it('banners with a link to the relay while another cloud is open', async () => {
             activeServer = { kind: 'cloud', cloudId: 'cloud-9' };
             pushHandler?.(relayPush());
-            await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(present).toHaveBeenCalledTimes(1));
 
-            expect(parsePushDeeplink(request.mock.calls[0][0].data.deeplink)).toMatchObject({
+            expect(parsePushDeeplink(present.mock.calls[0][0].deeplink)).toMatchObject({
                 cloudId: 'default',
                 placeId: '',
                 channelId: 'ch-1',
@@ -263,7 +263,7 @@ describe('useCrossCloudPushNotifications', () => {
         it('banners a push only guessed to be from the open relay', async () => {
             cacheRecords = [{ type: 'channel', cid: 'default', data: { id: 'ch-1', $join: { userId: CLOUD_UID } } }];
             pushHandler?.(push({}));
-            await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+            await waitFor(() => expect(present).toHaveBeenCalledTimes(1));
         });
 
         it("honours the server's mute for a relay channel", async () => {

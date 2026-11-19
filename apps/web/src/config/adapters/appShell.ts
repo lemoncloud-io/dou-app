@@ -10,7 +10,8 @@ import { appBridge } from '../../app/bridge/appBridge';
  *
  * The phone app plays haptics, keeps its own preference store for its native surfaces, takes the back
  * gesture, reports the keyboard's height, shows an icon badge the page reads, offers alternate icons,
- * and is updated from its store. It paints no dock badge and does not update itself. A browser tab has
+ * is updated from its store, and opens its own page in the OS settings. It paints no dock badge and
+ * does not update itself. A browser tab has
  * none of that: every member it lacks is `null`, and the tab is the person's, not the page's.
  */
 export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
@@ -74,6 +75,7 @@ export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
             openStore: () => appBridge.openStore(),
         },
         selfUpdate: null,
+        systemSettings: { open: () => appBridge.openSettings() },
     }),
     browser: base => ({
         ...base,
@@ -87,6 +89,7 @@ export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
         appIcon: null,
         storeUpdate: null,
         selfUpdate: null,
+        systemSettings: null,
     }),
 };
 

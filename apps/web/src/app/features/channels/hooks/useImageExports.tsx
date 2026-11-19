@@ -64,16 +64,17 @@ const isReady = (item: ExportableMedia): item is ExportableMedia & { url: string
  * done; a share is cancelled on close — and when the row itself goes away — so its sheet never
  * appears over whatever the user went to next; a "save all" finishes the item it is on and stops.
  *
- * Photos and videos alike follow the handshake inside the app. In a browser tab (the host's `files`
- * port is `browser`) the page fetches the original itself and hands it to the browser — a download for
- * save, the Web Share sheet for share, offered only where the browser shares files (`canShare`).
+ * Photos and videos alike follow the handshake inside the app. Where the page moves files (the host's
+ * `files` port has no app transfer module) the page fetches the original itself and hands it to the
+ * browser — a download for save, the Web Share sheet for share, offered only where the browser shares
+ * files (`canShare`).
  * "Save all" stays an app feature (`canSaveAll`): a browser asks before letting a page start several
  * downloads, and a run of them reads as a pile of prompts.
  */
 export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
     const shellExports = useCanExportImages();
-    const inBrowser = !shellExports && runtime.files.kind === 'browser';
+    const inBrowser = !shellExports && runtime.files.transfers === null;
     const canExport = shellExports || inBrowser;
     const [browserShares] = useState(() => inBrowser && canShareFilesInBrowser());
     const canShare = shellExports || browserShares;

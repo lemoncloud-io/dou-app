@@ -15,7 +15,15 @@ jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),
     logger: { info: (...args: unknown[]) => mockInfo(...args), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../../../bridge', () => ({ appBridge: { openStore: () => mockOpenStore() } }));
+// The phone app's store listing, as the host's `appShell` port offers it.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
+        get appShell() {
+            return { ...browserAppShell(), storeUpdate: { check: jest.fn(), openStore: () => mockOpenStore() } };
+        },
+    });
+});
 jest.mock('../../../runtime/bootSplash', () => ({ bootSplash: { release: (reason: string) => mockRelease(reason) } }));
 
 const shell = (platform: string | undefined, version: string | undefined) => {

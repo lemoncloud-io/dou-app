@@ -197,7 +197,8 @@ export const appBridge = {
 
     /**
      * Start a native OAuth login flow. The credential arrives separately, as an `OnOAuthLogin` push
-     * event — subscribe with `useOnOAuthLogin` (see `features/mypage/pages/LoginPage.tsx`).
+     * event, which the `signIn` port hands on (`runtime.signIn.providerSignIn.onResult`, built in
+     * `src/config/adapters/signIn.ts`).
      *
      * Deliberately NOT a request/response pair. That shape carries the bridge's default 15s budget,
      * and this flow waits on a HUMAN inside the provider's own UI (account chooser, password, 2FA,

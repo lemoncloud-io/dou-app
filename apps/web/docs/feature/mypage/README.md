@@ -116,9 +116,10 @@ someone who is plainly signed in.
 - **Subscription.** Always the subscription list — it has a state for everyone, and its empty
   state is what leads to the guide. Branching here on `isValid` sent a scheduled cancellation,
   still paid for, to the pitch.
-  The row shows for an account, and for a guest in a browser: a browser guest is handed to the
-  website, which signs the buyer in itself, whereas a guest app signs in here first and so waits for an
-  account. The list and the guide still open there; the hand-off to the website starts at the plan picker.
+  The row shows for an account, and for a guest where the host hands the buyer to the website
+  (`runtime.checkout.kind === 'web'`, a browser tab): the website signs the buyer in itself, whereas
+  where the host sells in its app store a guest signs in here first and so waits for an account. The
+  list and the guide still open there; the hand-off to the website starts at the plan picker.
 - **Version.** It goes to the store **only when an update is actually pending**, and the
   up-to-date / update-available label shows on iOS only, because Android has no live-version source
   and a label there would be a guess. Otherwise the row is inert — it is informational and carries
@@ -126,10 +127,11 @@ someone who is plainly signed in.
 
 ### The cloud row shows for every signed-in account
 
-Cloud management has a state for everyone: an empty card that starts a subscription, the list, and
-the lapsed list whose leftover clouds still need releasing. It used to be gated on owning a cloud,
-which hid the first of those — and gating on `isCloudActive` ("currently switched into a non-default
-cloud") would be worse still, hiding the only release path from exactly the people who need it: a
+Cloud management has a state for everyone: an empty card that starts a subscription (where the host
+sells in its app store, `runtime.checkout.kind === 'store'`; elsewhere the card says a subscription
+takes the app), the list, and the lapsed list whose leftover clouds still need releasing. It used to
+be gated on owning a cloud, which hid the first of those — and gating on `isCloudActive` ("currently
+switched into a non-default cloud") would be worse still, hiding the only release path from exactly the people who need it: a
 user over their allowance after a downgrade, or a lapsed subscriber, both sitting on DoU Home.
 
 Invited clouds never appear in it. The list is the relay catalog (`view: 'mine'`), and you cannot
@@ -371,7 +373,9 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 - **`useDevicePushMute` has no read endpoint behind it.** The displayed state is the `ui.pushMuted`
   config key ([`@chatic/config`](../../../../../libs/config/README.md)); each toggle writes
   optimistically, sends `device.update-remote`, then reconciles to the server's echo or rolls back
-  with a toast. Outside a native shell the toggle is disabled rather than allowed to 404.
+  with a toast. The toggle is supported only under the push-registration gate — the push port has a
+  `deviceToken` and the shell injected its platform — and is disabled anywhere else, where the device
+  was never registered and the write would 404.
 - **There is no unlink control and no withdrawal screen.** Neither has a server call behind it, and a
   control that cannot do what it says is left out rather than drawn disabled, answered with a "coming
   soon" toast, or — as the old withdrawal screen did — answered by signing out while the warning

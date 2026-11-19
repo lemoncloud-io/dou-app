@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime, isPendingUploadSlot, type ChatFileSlot, type DomainChat } from '@chatic/runtime';
-import { logger, webClient } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { messageFileKind, type MessageFileDownloadState } from '@chatic/web-ui-kit';
@@ -12,12 +12,6 @@ import { getShellDownloads } from '../../../bridge/shellDownload';
 import { downloadInBrowser } from '../lib/fileDownload';
 import { exportFile, type FileExportDeps, type FileExportOutcome, type FileUse } from '../lib/fileExport';
 import { useImageAddressRefresh } from './useImageAddressRefresh';
-
-/**
- * How long an open, save or share may wait for the shell: on iOS each answers only when its sheet or
- * preview closes, however long the user keeps it up. A shorter clock would drop that answer.
- */
-const SHELL_USE_TIMEOUT_MS = 10 * 60_000;
 
 interface Downloading {
     controller: AbortController;
@@ -68,6 +62,14 @@ interface Context {
     t: Translate;
 }
 
+/** The app's transfer module, as the host's `files` port holds it where the app moves files. */
+type AppTransfers = NonNullable<(typeof runtime.files)['transfers']>;
+
+/** A card's context inside the app: the transfer module that opens and keeps its file. */
+interface AppContext extends Context {
+    transfers: AppTransfers;
+}
+
 /** Reads the message again and returns this upload's fresh address, if it has one. */
 export const freshFileUrl = async (
     cid: string,
@@ -81,7 +83,11 @@ export const freshFileUrl = async (
 };
 
 /** The shell and the data layer, for one card. */
-const depsFor = ({ cid, chatId }: Context, file: ChatFileSlot, controller: AbortController): FileExportDeps => {
+const depsFor = (
+    { cid, chatId, transfers }: AppContext,
+    file: ChatFileSlot,
+    controller: AbortController
+): FileExportDeps => {
     const downloads = getShellDownloads();
     return {
         download: input => {
@@ -90,9 +96,8 @@ const depsFor = ({ cid, chatId }: Context, file: ChatFileSlot, controller: Abort
             return downloads.start({ ...input, title: file.name });
         },
         acknowledge: ids => downloads.acknowledge(ids),
-        open: uri => webClient.request({ type: 'OpenFile', data: { uri } }, { timeoutMs: SHELL_USE_TIMEOUT_MS }),
-        save: (uri, name) =>
-            webClient.request({ type: 'SaveFile', data: { uri, name } }, { timeoutMs: SHELL_USE_TIMEOUT_MS }),
+        open: uri => transfers.openFile(uri),
+        save: async (uri, name) => ({ data: await transfers.saveFile(uri, name) }),
         share: (uri, title) => appBridge.shareFile(uri, title),
         freshUrl: () => freshFileUrl(cid, chatId, file),
         kept: () => kept.get(file.key),
@@ -117,7 +122,7 @@ const actionButton = (label: string, onClick: () => void) => (
 );
 
 /** Speaks for an outcome. */
-const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome): void => {
+const report = (context: AppContext, file: ChatFileSlot, outcome: FileExportOutcome): void => {
     const { t } = context;
     switch (outcome.kind) {
         case 'saved': {
@@ -156,7 +161,7 @@ const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome
  * `quiet`, in which case the caller reports — a batch says once what happened to all of them.
  */
 const perform = async (
-    context: Context,
+    context: AppContext,
     use: FileUse,
     file: ChatFileSlot,
     quiet = false
@@ -197,7 +202,7 @@ const perform = async (
  * A batch that needs the app updated or a storage permission says that instead, once.
  */
 const reportBatch = (
-    context: Context,
+    context: AppContext,
     outcomes: readonly (FileExportOutcome | undefined)[],
     retry: () => void
 ): void => {
@@ -255,8 +260,11 @@ export interface BatchFile {
     chatId?: string;
 }
 
-/** Whether the app downloads and keeps files on this host, as the host's `files` port says. */
-const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
+/**
+ * The app's transfer module where the app downloads and keeps files on this host, as the host's `files`
+ * port says; `null` where the page downloads them itself.
+ */
+const appTransfers = (): AppTransfers | null => runtime.files.transfers;
 
 /**
  * Whether pressing a card opens the page's own document viewer instead of downloading: a sent PDF, in
@@ -265,7 +273,7 @@ const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
  * downloaded PDF in place of the page, with no way back to the room.
  */
 export const opensInPageViewer = (file: ChatFileSlot): boolean =>
-    !appMovesFiles() &&
+    appTransfers() === null &&
     file.state === 'ready' &&
     !!file.url &&
     !file.audio &&
@@ -273,21 +281,23 @@ export const opensInPageViewer = (file: ChatFileSlot): boolean =>
 
 /** A batch save: each file in turn, one report at the end whose retry runs the failed ones again. */
 const saveFiles = async (context: Context, list: readonly BatchFile[], refresh: Refresh): Promise<void> => {
-    if (!appMovesFiles()) {
+    const transfers = appTransfers();
+    if (!transfers) {
         for (const { file, chatId } of list) await downloadHere({ ...context, chatId }, file, refresh);
         return;
     }
+    const inApp = { ...context, transfers };
     const outcomes: (FileExportOutcome | undefined)[] = [];
-    for (const { file, chatId } of list) outcomes.push(await perform({ ...context, chatId }, 'save', file, true));
+    for (const { file, chatId } of list) outcomes.push(await perform({ ...inApp, chatId }, 'save', file, true));
     const failed = list.filter((_, at) => outcomes[at]?.kind === 'failed');
-    reportBatch(context, outcomes, () => void saveFiles(context, failed, refresh));
+    reportBatch(inApp, outcomes, () => void saveFiles(context, failed, refresh));
 };
 
 /**
  * A message's document cards: what each download button shows, and what pressing a card does.
  *
- * The host's `files` port says which of the two ways below applies: `browser` is a browser's, `shell`
- * the app's.
+ * The host's `files` port says which of the two ways below applies: with no app transfer module the
+ * page downloads the file as a browser does; with one, the app does.
  *
  * In a browser the button and the card body both fetch the file and save it under its own name. A
  * signed address that has expired (403) has the message read again for fresh ones, and the user
@@ -320,7 +330,7 @@ export const useFileDownloads = ({
 
     const stateOf = useCallback(
         (file: ChatFileSlot): MessageFileDownloadState => {
-            if (!appMovesFiles()) return downloading.has(file.key) ? 'downloading' : 'idle';
+            if (appTransfers() === null) return downloading.has(file.key) ? 'downloading' : 'idle';
             if (downloading.has(file.key)) return 'downloading';
             return kept.has(file.key) ? 'done' : 'idle';
         },
@@ -337,8 +347,9 @@ export const useFileDownloads = ({
     const download = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
             const context = { cid, chatId: fromChatId ?? chatId, t };
-            if (!appMovesFiles()) return downloadHere(context, file, refresh);
-            await perform(context, 'save', file);
+            const transfers = appTransfers();
+            if (!transfers) return downloadHere(context, file, refresh);
+            await perform({ ...context, transfers }, 'save', file);
         },
         [chatId, cid, refresh, t]
     );
@@ -354,8 +365,9 @@ export const useFileDownloads = ({
                 onPreview(file, context.chatId);
                 return;
             }
-            if (!appMovesFiles()) return downloadHere(context, file, refresh);
-            await perform(context, 'open', file);
+            const transfers = appTransfers();
+            if (!transfers) return downloadHere(context, file, refresh);
+            await perform({ ...context, transfers }, 'open', file);
         },
         [chatId, cid, onPreview, refresh, t]
     );
@@ -363,8 +375,9 @@ export const useFileDownloads = ({
     /** The action sheet's "Share file": in the app only, download if needed and put it on the share sheet. */
     const share = useCallback(
         async (file: ChatFileSlot, fromChatId?: string) => {
-            if (!appMovesFiles()) return;
-            await perform({ cid, chatId: fromChatId ?? chatId, t }, 'share', file);
+            const transfers = appTransfers();
+            if (!transfers) return;
+            await perform({ cid, chatId: fromChatId ?? chatId, t, transfers }, 'share', file);
         },
         [chatId, cid, t]
     );

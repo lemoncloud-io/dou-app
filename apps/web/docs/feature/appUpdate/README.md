@@ -91,7 +91,10 @@ and why the row carries no hidden gesture any more, belongs to [mypage](../mypag
 `APP_VERSION_FLOOR`, the oldest phone app version the web runs in. `AppVersionFloorGate` wraps
 everything under the app root except the debug overlay: for an iOS or Android shell whose injected
 `CHATIC_APP_CURRENT_VERSION` is below the floor it renders `RequiredUpdateScreen` instead — the reason,
-and an Update button that sends `OpenStore` — and nothing else mounts, no runtime, no socket.
+and an Update button that opens the store listing through the `appShell` port's `storeUpdate` — and
+nothing else mounts, no runtime, no socket. Every app below the floor predates its own declaration of
+who runs the frame, so the port reads it as the shell and `storeUpdate` is there; only a toggle that
+moves `appShell` to the page takes it away, and then the button does nothing.
 
 **Why a floor exists.** The web is deployed on its own schedule, and every installed app keeps
 loading the newest web. Without a floor the web had to carry a fallback for every shell ever shipped —

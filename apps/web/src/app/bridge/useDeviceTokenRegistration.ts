@@ -33,31 +33,30 @@ const nativeRecordMirror: runtime.push.DeviceTokenDelegate['nativeRecordMirror']
 /**
  * Bridge-side adapter for the runtime's push registration.
  *
- * Only the native app shell can resolve an FCM token, so this wires
- * `appBridge.fetchFcmToken()` into the runtime's runtime.push.DeviceTokenDelegate. All
- * registration policy (auth gating, once-per-install dedup, retry) lives in runtime-core's
- * `PushRegistration`, started through `runtime.push` — this file
- * only supplies the shell-specific pieces: the token fetch, the platform identifier the shell injected,
- * and the native mirror for the registration record. Device identity (deviceId / firebase
- * installation id) is resolved inside the runtime via useDynamicDeviceId, the single source shared
- * with the socket side.
+ * All registration policy (auth gating, once-per-install dedup, retry) lives in runtime-core's
+ * `PushRegistration`, started through `runtime.push` — this file only supplies the shell-specific
+ * pieces: the token, the platform identifier the shell injected, and the native mirror for the
+ * registration record. Device identity (deviceId / firebase installation id) is resolved inside the
+ * runtime via useDynamicDeviceId, the single source shared with the socket side.
+ *
+ * The token comes from the `push` port, the same member the debug page reads, so the two cannot
+ * disagree about whether this device has one. Where the port has none (a browser) the delegate is
+ * null and the runtime hook is a no-op. A shell that injected no platform registers nothing either:
+ * the broker needs one, and the phone app has always injected it.
  *
  * `stage` is deliberately NOT sent: mobile builds carry their stage in the flavor's
  * google-services.json, and the app has always registered without it.
- *
- * Outside the native shell (no CHATIC_APP_PLATFORM in the host profile) the delegate is null and
- * the runtime hook is a no-op.
  */
 export const useDeviceTokenRegistration = (): void => {
     // Shell globals are injected before the web app boots, so the profile's boot value is the one to use.
     const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
+        const deviceToken = runtime.push.deviceToken;
         const platform = hostProfile().globals.CHATIC_APP_PLATFORM;
-        if (!platform) return null;
+        if (!deviceToken || !platform) return null;
         return {
             fetchDeviceToken: () =>
-                appBridge
-                    .fetchFcmToken()
-                    .then(response => response.data?.token ?? null)
+                deviceToken
+                    .fetch()
                     // Token fetch can fail (e.g. permission denied); the runtime retries later.
                     .catch(() => null),
             platform,

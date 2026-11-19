@@ -54,15 +54,28 @@ jest.mock('../../../bridge/shellDownload', () => ({
 }));
 
 const getChat = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+/**
+ * The app's transfer module as the `files` port holds it, opening and keeping a file with the same
+ * `OpenFile` and `SaveFile` requests the app adapter sends, so a test reads them off `request`.
+ */
+const mockAppTransfers = {
+    openFile: async (uri: string) => {
+        await request({ type: 'OpenFile', data: { uri } }, undefined);
+    },
+    saveFile: async (uri: string, name: string) =>
+        ((await request({ type: 'SaveFile', data: { uri, name } }, undefined)) as { data?: unknown } | undefined)?.data,
+};
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
-        // Who moves files, as the host's `files` port says.
+        // Who moves files, as the host's `files` port says: the app's transfer module, or none.
         get files() {
-            return { kind: native ? 'shell' : 'browser' };
+            const files = testing.browserFiles();
+            return native ? { ...files, kind: 'shell', transfers: mockAppTransfers } : files;
         },
-    })
-);
+    });
+});
 
 const downloadInBrowser = jest.fn();
 jest.mock('../lib/fileDownload', () => ({

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AppMessageData } from '@chatic/bridge-messages';
 import { runtime } from '@chatic/runtime';
 import {
     buildMiniAppLaunchParams,
@@ -15,7 +14,6 @@ import {
 
 import { openSubWebView, type SubWebViewOpening } from '../../../bridge/subWebView';
 import { miniAppHubUrl } from '../../../bridge/subWebViewApps';
-import { useOnSubWebViewClosed } from '../../../bridge/useHandleAppMessage';
 import { useActiveCloudPlaces, useInvitedClouds, useMyProfile } from '../../../hooks';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { deviceStore } from '../../../storage';
@@ -152,14 +150,16 @@ export const useMiniAppLauncher = ({ onOpened }: { onOpened?: (outcome: MiniAppO
     // again on every change.
     const answerHub = useRef<(hubCloudId: string, request: HubRequest) => void>(() => undefined);
 
-    useOnSubWebViewClosed(
-        useCallback((message: AppMessageData<'OnSubWebViewClosed'>) => {
-            const closed = message.data;
-            const hub = openedHub.current;
-            if (!closed || closed.viewId !== hub?.viewId) return;
-            openedHub.current = null;
-            answerHub.current(hub.cloudId, hubRequestOf(closed.result));
-        }, [])
+    // A host with no sub web view opens the hub in a tab instead, which never reports a close: nothing to hear.
+    useEffect(
+        () =>
+            runtime.links.subWebView?.onClosed(closed => {
+                const hub = openedHub.current;
+                if (!closed || closed.viewId !== hub?.viewId) return;
+                openedHub.current = null;
+                answerHub.current(hub.cloudId, hubRequestOf(closed.result));
+            }),
+        []
     );
 
     const launch = useCallback(

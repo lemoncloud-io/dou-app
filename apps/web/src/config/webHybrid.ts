@@ -4,19 +4,7 @@ import {
     checkoutStore,
     checkoutWeb,
     defineRuntime,
-    filesBrowser,
-    filesHost,
-    filesShell,
     foregroundVisibility,
-    mediaBrowser,
-    mediaHost,
-    mediaShell,
-    pushBrowser,
-    pushHost,
-    pushShell,
-    signInBrowser,
-    signInHost,
-    signInShell,
     transportBrowser,
     webHostFacts,
 } from '@chatic/runtime-web';
@@ -26,7 +14,11 @@ import { cacheWebLocal } from './adapters/cache';
 import { appShellBrowser, appShellHost, appShellShell } from './adapters/appShell';
 import { checkoutAsDeclared, storeCheckout, webCheckout } from './adapters/checkout';
 import { diagnosticsBrowser, diagnosticsHost, diagnosticsShell } from './adapters/diagnostics';
+import { filesBrowser, filesHost, filesShell } from './adapters/files';
 import { linksBrowser, linksHost, linksShell } from './adapters/links';
+import { mediaBrowser, mediaHost, mediaShell } from './adapters/media';
+import { pushBrowser, pushHost, pushShell } from './adapters/push';
+import { signInBrowser, signInHost, signInShell } from './adapters/signIn';
 import { engineMirrorRecorded } from './adapters/engine';
 import { storageResolved } from './adapters/storage';
 import { createWebConfigPorts } from './configPorts';

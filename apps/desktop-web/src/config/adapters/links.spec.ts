@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WebHostFacts } from '@chatic/runtime-web';
 
-const bridges = vi.hoisted(() => ({ request: vi.fn(), warn: vi.fn() }));
+const bridges = vi.hoisted(() => ({ request: vi.fn(), onEvent: vi.fn(), warn: vi.fn() }));
 vi.mock('@chatic/bridges', () => ({
-    webClient: { request: bridges.request },
+    webClient: { request: bridges.request, onEvent: bridges.onEvent },
     logger: { warn: bridges.warn, info: vi.fn(), error: vi.fn() },
 }));
 
@@ -23,6 +23,7 @@ const setClipboard = (writeText: ReturnType<typeof vi.fn> | undefined) =>
 
 beforeEach(() => {
     bridges.request.mockReset();
+    bridges.onEvent.mockReset();
     bridges.warn.mockReset();
 });
 
@@ -105,6 +106,22 @@ describe('desktopLinks — the desktop app', () => {
         await expect(shell().subWebView?.open('https://shop.example/')).rejects.toThrow(
             'OpenSubWebView answered without a viewId'
         );
+    });
+
+    it('hears every sub view the app closes, with what its page left, until unsubscribed', () => {
+        const unsubscribe = vi.fn();
+        bridges.onEvent.mockReturnValue(unsubscribe);
+        const listener = vi.fn();
+
+        const stop = shell().subWebView?.onClosed(listener);
+
+        expect(bridges.onEvent).toHaveBeenCalledWith('OnSubWebViewClosed', expect.any(Function));
+        const closed = { viewId: 'view-1', reason: 'page', result: { score: 3 } };
+        bridges.onEvent.mock.calls[0][1]({ type: 'OnSubWebViewClosed', success: true, data: closed });
+        expect(listener).toHaveBeenCalledWith(closed);
+
+        stop?.();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 });
 

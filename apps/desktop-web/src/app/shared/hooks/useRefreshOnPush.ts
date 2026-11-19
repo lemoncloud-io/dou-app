@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 
-import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
 import { parsePushDeeplink } from '../utils/parsePushDeeplink';
@@ -28,7 +27,7 @@ const MAX_TARGETED_PER_FIRE = 10;
  * record, and the badge stays stale until the 60s background poll. Two activity signals are wired
  * here, since one alone misses cases:
  *
- *  - the shell-forwarded FCM push (`OnReceiveNotification`) — covers cross-cloud and any push the
+ *  - the shell-forwarded FCM push (the push port's `notifications`) — covers cross-cloud and any push the
  *    backend also fans out for the active cloud; and
  *  - the raw socket chat broadcast — the active cloud's socket covers all of its places, so even
  *    though the sync plan ignores a background channel's chat frame, the frame still reaches
@@ -86,9 +85,9 @@ export const useRefreshOnPush = (): void => {
             timerRef.current = setTimeout(fire, 300);
         };
 
-        const offPush = webClient.onEvent('OnReceiveNotification', message => {
-            const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
-                ?.deeplink;
+        // A browser's push port has no `notifications`; there only the socket frames below count.
+        const offPush = runtime.push.notifications?.onReceive(payload => {
+            const deeplink = (payload.notification as { data?: { deeplink?: string } } | undefined)?.data?.deeplink;
             const target = parsePushDeeplink(deeplink);
             // Unparseable links name no channel, but the push itself still says something
             // arrived — fall back to the whole-list refresh rather than ignore the signal.
@@ -112,7 +111,7 @@ export const useRefreshOnPush = (): void => {
         });
 
         return () => {
-            offPush();
+            offPush?.();
             offMessage();
             if (timerRef.current) clearTimeout(timerRef.current);
         };

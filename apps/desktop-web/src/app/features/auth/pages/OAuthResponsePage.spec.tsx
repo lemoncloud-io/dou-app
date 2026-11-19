@@ -6,16 +6,24 @@ let isError = false;
 let native = true;
 const completeFromHandoff = vi.fn();
 
-// Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs.
-// Who signs a person in, as the host's `signIn` port says.
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+// Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs; in a browser
+// it hands the code back to the app — as the relay sign-in's `returnedCode` says.
+vi.mock('@chatic/runtime', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         settings: { get: () => 'chatic-dev' },
         get signIn() {
-            return { kind: native ? 'shell' : 'browser', os: null };
+            return {
+                ...browserSignIn(),
+                relayOAuth: {
+                    openAuthorize: vi.fn(),
+                    returnedCode: native ? ('complete' as const) : ('handoff' as const),
+                    handoffLinks: null,
+                },
+            };
         },
-    })
-);
+    });
+});
 vi.mock('../hooks', () => ({
     useSocialLogin: () => ({ completeFromHandoff, isError }),
 }));

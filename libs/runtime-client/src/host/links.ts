@@ -3,6 +3,7 @@ import type {
     OnFetchUrlMetadataPayload,
     OnGetContactsPayload,
     OnSendSmsPayload,
+    OnSubWebViewClosedPayload,
     SubWebViewOpenScope,
     SubWebViewParams,
 } from '@chatic/bridge-messages';
@@ -123,4 +124,10 @@ export interface SubWebViewOpener {
      * `window.ChaticSubWebView.params`; `appId` names the app `url` was resolved from.
      */
     open(url: string, options?: { title?: string; params?: SubWebViewParams; appId?: string }): Promise<string>;
+    /**
+     * Calls `listener` each time a sub web view closes, with its view id, why it closed and the `result`
+     * its page left. Every close is heard, not only those of views this caller opened, so a caller
+     * matches the view id it holds. Returns the unsubscribe.
+     */
+    onClosed(listener: (closed: OnSubWebViewClosedPayload) => void): () => void;
 }

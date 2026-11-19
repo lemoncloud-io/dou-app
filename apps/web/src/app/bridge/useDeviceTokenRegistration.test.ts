@@ -1,9 +1,15 @@
 import { renderHook } from '@testing-library/react';
 
+// The push port's token member as each test plays it: `null` is a browser's port, which has none.
+let mockDeviceToken: { fetch: () => Promise<string | null> } | null = null;
+
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useDeviceTokenRegistration: jest.fn(),
+            get deviceToken() {
+                return mockDeviceToken;
+            },
         },
     })
 );
@@ -21,29 +27,39 @@ import { appBridge } from './appBridge';
 import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 
 const mockRuntimeHook = runtime.push.useDeviceTokenRegistration as jest.Mock;
-const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
+const mockFetch = jest.fn<Promise<string | null>, []>();
 
 // The adapter's job is delegate construction only; registration policy is
 // covered by the runtime's own tests.
 const lastDelegate = () => mockRuntimeHook.mock.calls[mockRuntimeHook.mock.calls.length - 1][0];
 
-describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', () => {
+describe('useDeviceTokenRegistration, the delegate built from the push port', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
         // Each test plays a shell that injects its platform before the page boots: the host profile
         // is built from `window` at the first read, which is the render below.
         resetHostProfileForTests();
-        mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
+        mockDeviceToken = { fetch: mockFetch };
+        mockFetch.mockResolvedValue('tok-123');
     });
 
-    it('네이티브 셸 밖(플랫폼 없음)에서는 null 델리게이트를 넘긴다', () => {
+    it('hands over no delegate where the port has no device token', () => {
+        window.CHATIC_APP_PLATFORM = 'ios';
+        mockDeviceToken = null;
+
         renderHook(() => useDeviceTokenRegistration());
 
         expect(mockRuntimeHook).toHaveBeenLastCalledWith(null);
     });
 
-    it('앱 환경에서는 platform/application을 담은 델리게이트를 넘긴다', () => {
+    it('hands over no delegate where the shell injected no platform', () => {
+        renderHook(() => useDeviceTokenRegistration());
+
+        expect(mockRuntimeHook).toHaveBeenLastCalledWith(null);
+    });
+
+    it('hands over a delegate with the platform and application in the app', () => {
         window.CHATIC_APP_PLATFORM = 'ios';
 
         renderHook(() => useDeviceTokenRegistration());
@@ -59,27 +75,29 @@ describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', (
         expect(lastDelegate().installId).toBeUndefined();
     });
 
-    it('델리게이트의 fetchDeviceToken은 브리지 응답의 토큰을 반환한다', async () => {
+    it("resolves the delegate's token from the port", async () => {
         window.CHATIC_APP_PLATFORM = 'android';
 
         renderHook(() => useDeviceTokenRegistration());
 
         await expect(lastDelegate().fetchDeviceToken()).resolves.toBe('tok-123');
-        expect(mockFetchFcmToken).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        // The bridge is the port's business, not this adapter's.
+        expect(appBridge.fetchFcmToken).not.toHaveBeenCalled();
     });
 
-    it('브리지 응답에 토큰이 없으면 null을 반환한다', async () => {
+    it('resolves null when the port has no token', async () => {
         window.CHATIC_APP_PLATFORM = 'android';
-        mockFetchFcmToken.mockResolvedValue({ data: {} });
+        mockFetch.mockResolvedValue(null);
 
         renderHook(() => useDeviceTokenRegistration());
 
         await expect(lastDelegate().fetchDeviceToken()).resolves.toBeNull();
     });
 
-    it('브리지 호출이 실패하면 null을 반환한다 (런타임이 재시도)', async () => {
+    it('resolves null when the token request fails, leaving the retry to the runtime', async () => {
         window.CHATIC_APP_PLATFORM = 'android';
-        mockFetchFcmToken.mockRejectedValue(new Error('permission denied'));
+        mockFetch.mockRejectedValue(new Error('permission denied'));
 
         renderHook(() => useDeviceTokenRegistration());
 

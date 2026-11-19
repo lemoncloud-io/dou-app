@@ -8,15 +8,26 @@ import { setDebugLanguageForTests } from '../../i18n';
 
 const openSubWebView = jest.fn();
 const closeSubWebView = jest.fn();
-let closedHandler: ((message: { data: Record<string, unknown> }) => void) | undefined;
+let mockClosedHandler: ((closed: Record<string, unknown>) => void) | undefined;
 
 jest.mock('../../../../bridge', () => ({
     openSubWebView: (...args: unknown[]) => openSubWebView(...args),
     appBridge: { closeSubWebView: (...args: unknown[]) => closeSubWebView(...args) },
-    useOnSubWebViewClosed: (handler: (message: { data: Record<string, unknown> }) => void) => {
-        closedHandler = handler;
-    },
 }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        links: {
+            subWebView: {
+                onClosed: (listener: (closed: Record<string, unknown>) => void) => {
+                    mockClosedHandler = listener;
+                    return () => {
+                        if (mockClosedHandler === listener) mockClosedHandler = undefined;
+                    };
+                },
+            },
+        },
+    })
+);
 jest.mock('../../../../bridge/shellCapabilities', () => ({
     shellCapabilities: { subscribe: () => () => undefined, supports: () => true },
 }));
@@ -42,7 +53,7 @@ describe('SubWebViewScreen', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        closedHandler = undefined;
+        mockClosedHandler = undefined;
         restoreLanguage = setDebugLanguageForTests('en');
     });
 
@@ -95,7 +106,7 @@ describe('SubWebViewScreen', () => {
     it('logs the close with its reason and the result the page handed back', () => {
         render(<SubWebViewScreen />);
 
-        act(() => closedHandler?.({ data: { viewId: 'view-1', reason: 'page', result: { paid: true } } }));
+        act(() => mockClosedHandler?.({ viewId: 'view-1', reason: 'page', result: { paid: true } }));
 
         expect(screen.getByText('closed view-1: page')).toBeInTheDocument();
         expect(screen.getByText('result: {"paid":true}')).toBeInTheDocument();

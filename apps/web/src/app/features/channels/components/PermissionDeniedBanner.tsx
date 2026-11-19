@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { runtime } from '@chatic/runtime';
 import { IconChevronRight, IconDangerCircle } from '@chatic/web-ui-kit';
 
-import { appBridge } from '../../../bridge';
-
 /**
  * Contacts-permission guidance for the friend picker — shown when the device returned no contacts
  * at all. The heading row itself is the call to action (Figma node 3263:29626): the standalone
@@ -16,12 +14,9 @@ import { appBridge } from '../../../bridge';
 export const PermissionDeniedBanner = () => {
     const { t } = useTranslation();
 
-    const handleOpenSettings = () => {
-        // The permission was the app's to ask for, so its settings are where it is granted.
-        if (runtime.media.kind === 'shell') {
-            appBridge.openSettings();
-        }
-    };
+    // The permission was the app's to ask for, so its page in the OS settings is where it is granted.
+    // A host with no such page (a browser) has nothing to open, and the tap does nothing.
+    const handleOpenSettings = () => runtime.appShell.systemSettings?.open();
 
     return (
         <div className="flex flex-col gap-3 px-5 pt-5">

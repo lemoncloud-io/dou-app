@@ -37,9 +37,9 @@ jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), 
 // The page picks, as the host's media port says in a browser — the same answer as `isNative` above —
 // and no frame reports the keyboard to it (the `appShell` port).
 jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
-        media: { kind: 'browser' },
+        media: browserMedia(),
         appShell: browserAppShell(),
     });
 });

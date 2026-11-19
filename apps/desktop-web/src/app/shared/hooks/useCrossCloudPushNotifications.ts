@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 
-import { webClient } from '@chatic/bridges';
 import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -144,22 +143,17 @@ const presentPush = async (
         // cloud. Unresolved source (null) → show: a duplicate beats a missed cross-cloud one.
         if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
         if (isFromOpenRelay) return;
-        void webClient
-            .request({
-                type: 'ShowNotification',
-                data: {
-                    // Cross-cloud pushes show channel + message only: the sender name
-                    // baked by the backend is unreliable and the sender's per-place nick
-                    // can't be resolved across clouds (id-space partitioning), so omit it.
-                    title: headline(data.channelName, 'DoU'),
-                    body: body ?? '',
-                    channelId: data.channelId,
-                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data, openPlaceId),
-                },
-            })
-            // Degrade gracefully on older shells / transient bridge errors — a
-            // dropped OS banner must never break the renderer.
-            .catch(() => undefined);
+        // Fire-and-forget: the port drops a banner the app could not show (an older shell, a
+        // transient bridge error) rather than throw, so a missed banner never breaks the renderer.
+        runtime.push.localBanner?.present({
+            // Cross-cloud pushes show channel + message only: the sender name
+            // baked by the backend is unreliable and the sender's per-place nick
+            // can't be resolved across clouds (id-space partitioning), so omit it.
+            title: headline(data.channelName, 'DoU'),
+            body: body ?? '',
+            channelId: data.channelId,
+            deeplink: buildCrossCloudDeeplink(sourceCloudId, data, openPlaceId),
+        });
         return;
     }
 
@@ -189,18 +183,18 @@ const presentPush = async (
 
 /**
  * Cross-cloud push presenter. The shell raises no banner for FCM pushes itself; it
- * forwards every push as `OnReceiveNotification` and this hook owns the whole
+ * forwards every push through the push port's `notifications` and this hook owns the whole
  * decision (DND, global switch, own-message, focus) — exactly as
  * useDesktopNotifications owns it for same-cloud live-WS messages — so DND lives in
  * one place, ships with the web (no shell reinstall), and focus is judged from a
  * single source (document.hasFocus()). Focused → toast (macOS drops focused-app OS
- * banners); unfocused → OS banner via the same ShowNotification bridge. No-op in a
- * plain browser (the shell never emits the event).
+ * banners); unfocused → OS banner through the port's `localBanner`. No-op in a
+ * plain browser, whose push port has neither.
  */
 export const useCrossCloudPushNotifications = (): void => {
     useEffect(() => {
-        return webClient.onEvent('OnReceiveNotification', message => {
-            void presentPush(message.data?.notification);
+        return runtime.push.notifications?.onReceive(payload => {
+            void presentPush(payload.notification);
         });
     }, []);
 };

@@ -2,11 +2,7 @@ import {
     authLocation,
     checkoutNone,
     defineRuntime,
-    filesBrowser,
     foregroundVisibility,
-    mediaBrowser,
-    pushHost,
-    signInHost,
     transportBrowser,
     webHostFacts,
 } from '@chatic/runtime-web';
@@ -14,7 +10,11 @@ import {
 import { cacheDesktopWebStorage, createWebConfigPorts, desktopStores, storageDesktop } from './adapters';
 import { appShellHost } from './adapters/appShell';
 import { diagnosticsHost } from './adapters/diagnostics';
+import { filesBrowser } from './adapters/files';
 import { linksHost } from './adapters/links';
+import { mediaBrowser } from './adapters/media';
+import { pushHost } from './adapters/push';
+import { signInHost } from './adapters/signIn';
 
 /**
  * The desktop page's runtime, declared: one adapter per port and no alternatives, so every port is

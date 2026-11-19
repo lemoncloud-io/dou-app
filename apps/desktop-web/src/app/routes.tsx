@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
-import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
@@ -49,12 +48,12 @@ const NotificationOpenListener = () => {
         navigate('/');
     }, [pendingNonce, navigate]);
     useEffect(() => {
-        // Notification taps, and the menu bar's links that ride the same event, arrive only where the
-        // `push` port says the app delivers them.
-        if (runtime.push.kind !== 'shell') return;
-        return webClient.onEvent('OnReceiveNotification', message => {
-            const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
-                ?.deeplink;
+        // Notification taps, and the menu bar's links that ride the same message, arrive only where the
+        // app hands the page its notifications.
+        const notifications = runtime.push.notifications;
+        if (!notifications) return;
+        return notifications.onReceive(({ notification }) => {
+            const deeplink: string | undefined = notification?.data?.deeplink;
             // The shell's menu bar (Settings, Go, Help → Keyboard Shortcuts) rides the same
             // event with a `chatic-ui:` link rather than an open target.
             if (deeplink === 'chatic-ui:settings') {

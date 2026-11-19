@@ -34,16 +34,18 @@ jest.mock('../../../bridge/shellDownload', () => ({
     }),
 }));
 const getChat = jest.fn();
-/** Who moves files, as the host's `files` port says: the app unless a test is in a browser. */
+/** Who moves files, as the host's `files` port says: the app's transfer module unless a test is in a browser. */
 let filesKind: 'shell' | 'browser' = 'shell';
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
         get files() {
-            return { kind: filesKind };
+            const files = testing.browserFiles();
+            return filesKind === 'shell' ? { ...files, kind: 'shell', transfers: {} } : files;
         },
-    })
-);
+    });
+});
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
 const fetchInBrowser = jest.fn();

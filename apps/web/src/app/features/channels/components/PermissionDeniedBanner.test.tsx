@@ -2,19 +2,22 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
-const openSettings = jest.fn();
+const mockOpenSettings = jest.fn();
 let isNativeValue = true;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// Who picks, as the host's media port says: the app when the case runs in the app.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
-        get media() {
-            return { kind: isNativeValue ? 'shell' : 'browser' };
+// The app's own page in the OS settings, as the host's `appShell` port offers it; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
+        get appShell() {
+            return {
+                ...browserAppShell(),
+                systemSettings: isNativeValue ? { open: () => mockOpenSettings() } : null,
+            };
         },
-    })
-);
-jest.mock('../../../bridge', () => ({ appBridge: { openSettings } }));
+    });
+});
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => <span />,
     IconDangerCircle: () => <span />,
@@ -38,13 +41,13 @@ describe('PermissionDeniedBanner', () => {
     it('opens the OS settings when the heading row is tapped', () => {
         render(<PermissionDeniedBanner />);
         fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.permissionDenied.action' }));
-        expect(openSettings).toHaveBeenCalledTimes(1);
+        expect(mockOpenSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('does not reach the bridge off-device', () => {
+    it('opens nothing where the host has no settings page of its own', () => {
         isNativeValue = false;
         render(<PermissionDeniedBanner />);
         fireEvent.click(screen.getByRole('button', { name: 'inviteFriends.permissionDenied.action' }));
-        expect(openSettings).not.toHaveBeenCalled();
+        expect(mockOpenSettings).not.toHaveBeenCalled();
     });
 });

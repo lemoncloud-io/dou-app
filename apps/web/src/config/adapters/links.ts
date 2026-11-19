@@ -54,6 +54,7 @@ export const webLinks: ShellOrBrowserImplementations<'links'> = {
             openScope: async () => shellCapabilities.subWebViewOpenScope(),
             open: async (url, { title, params, appId } = {}) =>
                 (await appBridge.openSubWebView(url, title, params, appId)).data.viewId,
+            onClosed: listener => webClient.onEvent('OnSubWebViewClosed', message => listener(message.data)),
         },
     }),
     browser: (base): LinksPort => ({

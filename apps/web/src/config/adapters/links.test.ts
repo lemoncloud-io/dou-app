@@ -8,7 +8,7 @@ import { SHARE_INTAKE_FETCH_TIMEOUT_MS, webLinks } from './links';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
-    webClient: { request: jest.fn() },
+    webClient: { request: jest.fn(), onEvent: jest.fn() },
 }));
 jest.mock('../../app/bridge/appBridge', () => ({
     appBridge: {
@@ -28,6 +28,7 @@ const shell = () => webLinks.shell({ kind: 'shell' }, facts);
 const browser = () => webLinks.browser({ kind: 'browser' }, facts);
 
 const request = webClient.request as jest.Mock;
+const onEvent = webClient.onEvent as jest.Mock;
 const mocked = <K extends keyof typeof appBridge>(name: K) => appBridge[name] as unknown as jest.Mock;
 
 const setClipboard = (writeText: jest.Mock | undefined) =>
@@ -146,6 +147,22 @@ describe('webLinks — the phone app takes the links', () => {
         } as OnWebAppReadyPayload);
 
         await expect(subWebView?.openScope()).resolves.toBe('anyHttps');
+    });
+
+    it('hears every sub web view the app closes, until unsubscribed', () => {
+        const unsubscribe = jest.fn();
+        onEvent.mockReturnValue(unsubscribe);
+        const listener = jest.fn();
+
+        const stop = shell().subWebView?.onClosed(listener);
+
+        expect(onEvent).toHaveBeenCalledWith('OnSubWebViewClosed', expect.any(Function));
+        const closed = { viewId: 'view-1', reason: 'page', result: { score: 3 } };
+        onEvent.mock.calls[0][1]({ type: 'OnSubWebViewClosed', success: true, data: closed });
+        expect(listener).toHaveBeenCalledWith(closed);
+
+        stop?.();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 });
 

@@ -7,11 +7,9 @@ import type {
     PhotoLibraryMediaType,
 } from '@chatic/bridge-messages';
 
-import { appBridge } from './appBridge';
-
 /**
- * The device photo library, as the in-app picker reads it — or `null` where the page picks
- * (`runtime.media`), which the picker takes as "use the page's own file input".
+ * The device photo library, as the in-app picker reads it — or `null` where the host has none
+ * (`runtime.media.photoLibrary`), which the picker takes as "use the page's own file input".
  *
  * Every phone app this page runs in answers these messages, lists videos beside photos when asked
  * (`mediaTypes`), keeps a picked video, and pages by `offset`, echoing it. `thumbSize` sizes the
@@ -58,35 +56,38 @@ const withoutUndefined = <T extends object>(input: T): T =>
 
 const MEDIA_TYPES: PhotoLibraryMediaType[] = ['image', 'video'];
 
+/** The library as the host's `media` port carries it: the app's answers, unmapped. */
+type HostPhotoLibrary = NonNullable<typeof runtime.media.photoLibrary>;
+
 class ShellPhotoLibrary implements PhotoLibrary {
     isUnsupported(): boolean {
-        return runtime.media.kind !== 'shell';
+        return runtime.media.photoLibrary === null;
     }
 
-    /** Runs a request in the app; `null` in a browser. Failures surface to the caller. */
-    private async ask<T>(request: () => Promise<{ data: T }>): Promise<T | null> {
-        if (this.isUnsupported()) return null;
-        const response = await request();
-        return response.data;
+    /** Runs a request in the app; `null` where there is no library. Failures surface to the caller. */
+    private async ask<T>(request: (library: HostPhotoLibrary) => Promise<T>): Promise<T | null> {
+        const library = runtime.media.photoLibrary;
+        if (!library) return null;
+        return request(library);
     }
 
     albums(input: { thumbSize?: number } = {}): Promise<OnListPhotoAlbumsPayload | null> {
-        return this.ask(() => appBridge.listPhotoAlbums({ ...withoutUndefined(input), mediaTypes: MEDIA_TYPES }));
+        return this.ask(library => library.albums({ ...withoutUndefined(input), mediaTypes: MEDIA_TYPES }));
     }
 
     photos(input: PhotoPageRequest): Promise<OnListPhotosPayload | null> {
-        return this.ask(() => appBridge.listPhotos({ ...withoutUndefined(input), mediaTypes: MEDIA_TYPES }));
+        return this.ask(library => library.photos({ ...withoutUndefined(input), mediaTypes: MEDIA_TYPES }));
     }
 
     async read(item: Pick<PhotoLibraryItem, 'id'>): Promise<File> {
-        const photo = await this.ask(() => appBridge.readPhoto(item.id));
+        const photo = await this.ask(library => library.read(item.id));
         if (!photo) throw new Error('photo library unavailable');
         return base64ToFile(photo.base64, photo.fileName, photo.mimeType);
     }
 
     async keepVideo(item: Pick<PhotoLibraryItem, 'id'>): Promise<ShellFileRef> {
-        if (this.isUnsupported()) throw new Error('photo library unavailable');
-        const { data } = await appBridge.keepLibraryVideo(item.id);
+        const data = await this.ask(library => library.keepVideo(item.id));
+        if (!data) throw new Error('photo library unavailable');
         return {
             uri: data.uri,
             name: data.name,
@@ -98,7 +99,7 @@ class ShellPhotoLibrary implements PhotoLibrary {
     }
 
     async manageSelection(): Promise<PhotoLibraryAccess | null> {
-        const result = await this.ask(() => appBridge.managePhotoSelection());
+        const result = await this.ask(library => library.manageSelection());
         return result?.access ?? null;
     }
 }

@@ -69,8 +69,9 @@ export const AccountLinkSection = () => {
     // Both slots ride on the same read, so one unknown means the whole section is guessing.
     if (socialState === 'unknown' || linked.phone === 'unknown') return null;
 
-    // Apple is offered where the app signs in on iOS (`runtime.signIn`), as on the login screen.
-    const isIOS = runtime.signIn.os === 'ios';
+    // Apple is offered where the app's own provider sign-in lists it (`runtime.signIn`) — on iOS — as on
+    // the login screen.
+    const offersApple = runtime.signIn.providerSignIn?.providers.includes('apple') ?? false;
     // Server truth now, not a per-device guess: an account with neither credential is one device wipe
     // away from being unrecoverable, which is what the nudge is about.
     const hasNoCredential = linked.phone === 'absent' && linked.social === 'absent';
@@ -103,7 +104,7 @@ export const AccountLinkSection = () => {
                     isBusy={isLinking}
                     onLink={() => void linkProvider('google')}
                 />
-                {isIOS && (
+                {offersApple && (
                     <CredentialRow
                         label="Apple"
                         icon={<AppleIcon />}

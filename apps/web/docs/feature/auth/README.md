@@ -94,14 +94,17 @@ Open verification by rendering a shell with the `mode` the caller derived (`'log
 The feature's two routes are plumbing: `/auth/login` forwards to the root route, `/auth/logout`
 runs the logout, and anything else falls back to the first.
 
-There is no OAuth callback route. Social login on the web goes through the native app
-(`appBridge.startOAuthLogin`, then `verify-native-token`), and nothing here sends a browser to the
-relay's authorize page, so the `/auth/oauth-response` page and its code exchange were removed.
+There is no OAuth callback route. Social login on the web goes through the native app — the login
+page calls the sign-in port's `runtime.signIn.providerSignIn.start(provider)` and hears the outcome
+through its `onResult`, then posts to `verify-native-token` — and nothing here sends a browser to the
+relay's authorize page, so the `/auth/oauth-response` page and its code exchange were removed. Where
+`providerSignIn` is `null` (a browser) the social buttons are not drawn.
 
-The shell decides what comes back on `OnOAuthLogin`. A native app answers with the provider's token.
-The virtual mobile shell, when its sign-in goes through the OAuth relay, answers with the relay's
-code instead (`{ provider, platform, code }`) — it holds no provider token to give. The login screen
-tells the two apart by `code` and exchanges a code the way the desktop app does:
+The shell decides what comes back on `OnOAuthLogin`, which `onResult` hands on. A native app
+answers with the provider's token. The virtual mobile shell, when its sign-in goes through the OAuth
+relay, answers with the relay's code instead (`{ provider, platform, code }`) — it holds no provider
+token to give. The login screen tells the two apart by `code` and exchanges a code the way the
+desktop app does:
 `runtime.session.createCredentialsByProvider(provider, code, { linkCurrentSession: true })`, which
 posts to `verify-oauth-code` signed with the guest session already on the device, so the backend links
 that guest to the account exactly as the native login does. The rest — the log line, leaving for

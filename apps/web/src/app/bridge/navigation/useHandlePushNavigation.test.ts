@@ -37,13 +37,11 @@ jest.mock('@chatic/runtime', () =>
             useSwitchCloudSession: jest.fn(),
         },
         // The invited-cloud recovery step added to usePushNavigate pulls more runtime exports, and asks the
-        // `push` port whether the app receives notifications. The port must be mocked and answer `browser` by
-        // default: an unpublished host throws inside the switch block, which the best-effort catch swallows
-        // into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery
-        // itself runs only where the app receives notifications, so it never runs here unless a test says so.
+        // `push` port whether the app hands the page its notifications. The recovery runs only where it
+        // does, so it never runs here unless a test plays the app; a browser has no notifications.
         push: {
-            get kind() {
-                return mockIsNativeApp() ? 'shell' : 'browser';
+            get notifications() {
+                return mockIsNativeApp() ? { onReceive: jest.fn(() => () => undefined) } : null;
             },
         },
     })

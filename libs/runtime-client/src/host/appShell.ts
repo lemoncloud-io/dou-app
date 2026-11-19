@@ -63,6 +63,12 @@ export interface AppShellPort {
      * agrees. `null` where the app does not update itself.
      */
     readonly selfUpdate: SelfUpdate | null;
+    /**
+     * The app's own page in the OS settings, where the person grants a permission the OS will no
+     * longer ask for. `null` where the frame has no such page to open: a browser, whose permissions are
+     * the browser's, and the desktop app, whose OS keeps no per-app settings page the app can open.
+     */
+    readonly systemSettings: SystemSettingsPage | null;
 }
 
 /** The frame's haptics. */
@@ -123,6 +129,15 @@ export interface StoreUpdate {
     check(): Promise<{ updateAvailable: boolean; latestVersion: string }>;
     /** Opens the app's listing in the store. */
     openStore(): void;
+}
+
+/** The app's own page in the OS settings. */
+export interface SystemSettingsPage {
+    /**
+     * Opens it. One-way: the OS reports nothing back, and the page learns of a granted permission only by
+     * asking again.
+     */
+    open(): void;
 }
 
 /** The app's own updater. */

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 vi.mock('@chatic/bridges', () => ({
-    webClient: { onEvent: vi.fn(() => () => undefined) },
     isNative: vi.fn(() => false),
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -14,8 +13,12 @@ const channelMocks = {
     refreshOneInCloud: vi.fn(() => Promise.resolve({})),
 };
 
-type PushHandler = (message: any) => void;
+type PushListener = (payload: unknown) => void;
 type MessageHandler = (message: unknown) => void;
+
+// The desktop shell's notifications; every listener a hook subscribed is in its calls until the next
+// clearAllMocks, as the bridge's own handlers were.
+const notifications = vi.hoisted(() => ({ onReceive: vi.fn((_listener: PushListener) => () => undefined) }));
 
 // `onServerMessage` hears every frame on the active slot; the runtime keeps it attached across
 // reconnects, so the mock just keeps the latest listener.
@@ -27,26 +30,21 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
         connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) },
-    })
-);
-
-import { webClient } from '@chatic/bridges';
+        push: { ...browserPush(), kind: 'shell', notifications },
+    });
+});
 
 import { chatFrameChannelIdOf, useRefreshOnPush } from './useRefreshOnPush';
 
-const pushHandlers = (): PushHandler[] =>
-    (webClient.onEvent as ReturnType<typeof vi.fn>).mock.calls
-        .filter(([event]) => event === 'OnReceiveNotification')
-        .map(([, handler]) => handler);
-
 const emitPush = (deeplink: string | undefined) => {
-    for (const handler of pushHandlers()) {
-        handler({ data: { notification: { data: { deeplink } } } });
+    for (const [listener] of notifications.onReceive.mock.calls) {
+        listener({ notification: { data: { deeplink } } });
     }
 };
 

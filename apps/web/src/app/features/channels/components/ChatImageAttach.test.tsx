@@ -27,13 +27,30 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
-// Who picks, as the host's media port says, and whether the frame reports the keyboard's height, as
-// its `appShell` port says: the app for both when the case runs in the app.
+// What the host's media port has — the app's picker, photo library, video conversion and camera prompt
+// when the case runs in the app, none of them in a browser — and whether the frame reports the keyboard's
+// height, as its `appShell` port says. The pieces themselves are the injected seams below; the component
+// only asks whether they are there.
 jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
         get media() {
-            return { kind: mockNative ? 'shell' : 'browser' };
+            return mockNative
+                ? {
+                      ...browserMedia(),
+                      kind: 'shell',
+                      picker: { pick: jest.fn(), read: jest.fn() },
+                      photoLibrary: {
+                          albums: jest.fn(),
+                          photos: jest.fn(),
+                          read: jest.fn(),
+                          keepVideo: jest.fn(),
+                          manageSelection: jest.fn(),
+                      },
+                      videoConverter: { prepare: jest.fn() },
+                      cameraPermission: { request: jest.fn() },
+                  }
+                : browserMedia();
         },
         get appShell() {
             return { ...browserAppShell(), reportsKeyboardHeight: mockNative };

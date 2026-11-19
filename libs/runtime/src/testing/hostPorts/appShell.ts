@@ -18,4 +18,5 @@ export const browserAppShell = (): AppShellPort => ({
     appIcon: null,
     storeUpdate: null,
     selfUpdate: null,
+    systemSettings: null,
 });

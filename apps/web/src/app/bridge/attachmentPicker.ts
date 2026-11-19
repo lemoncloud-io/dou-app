@@ -1,4 +1,3 @@
-import { webClient } from '@chatic/bridges';
 import {
     runtime,
     CHAT_ATTACHMENT_MAX_BYTES,
@@ -13,8 +12,8 @@ import { base64ToFile } from './photoLibrary';
 
 /**
  * The app's own picker for chat videos and documents, and its video conversion — or `null` from
- * `pick` where the page picks (`runtime.media`), which the attach panel takes as "use the page's
- * own input".
+ * `pick` where the host has no picker (`runtime.media.picker`), which the attach panel takes as "use
+ * the page's own input".
  *
  * Videos and documents stay in the shell: it copies what was picked into its own folder and answers
  * with addresses, which the upload then sends from there. Photos are kept there too, already prepared,
@@ -44,7 +43,10 @@ export interface AttachmentPicker {
      * cannot be read is left out and refused, as `unreadable`.
      */
     readPhotos(items: ChatAttachmentSource[]): Promise<AttachmentPick>;
-    /** The send's `prepareVideo` port: converts a picked video in the shell and makes its poster. */
+    /**
+     * The send's `prepareVideo` port: converts a picked video in the shell and makes its poster. Only
+     * for a host with the conversion (`runtime.media.videoConverter`); it rejects anywhere else.
+     */
     prepareVideo: runtime.data.PrepareVideoPort;
     /** Whether there is no picker here — a browser. */
     isUnsupported(): boolean;
@@ -55,18 +57,6 @@ export interface AttachmentPick {
     /** What the shell would not copy, or could not hand over. Reported the way the page reports its own refusals. */
     refused: RefusedAttachment[];
 }
-
-/**
- * The picker stays open for as long as the person browses, and the answer waits for every copy: ten
- * videos are copied after the picker closes. The bound only has to outlast that, not to be tight.
- */
-const PICK_TIMEOUT_MS = 30 * 60_000;
-
-/** One prepared photo, the same bound as the grid's `ReadPhoto`. */
-const READ_ATTACHMENT_TIMEOUT_MS = 2 * 60_000;
-
-/** A 4K minute converts in tens of seconds on a phone; a few minutes of it in several. */
-const PREPARE_VIDEO_TIMEOUT_MS = 10 * 60_000;
 
 /** A shell-kept item as the send takes it. The share page hands what another app shared over the same way. */
 export const toShellFile = (item: PickedShellAttachment): ShellFileRef => {
@@ -104,7 +94,7 @@ const isPhotoFormat = (name: string, type: string): boolean => chatAttachmentFor
 
 class ShellAttachmentPicker implements AttachmentPicker {
     isUnsupported(): boolean {
-        return runtime.media.kind !== 'shell';
+        return runtime.media.picker === null;
     }
 
     async pick({
@@ -114,14 +104,9 @@ class ShellAttachmentPicker implements AttachmentPicker {
         source: AttachmentPickSource;
         selectionLimit: number;
     }): Promise<AttachmentPick | null> {
-        if (this.isUnsupported()) return null;
-        const { data } = await webClient.request(
-            {
-                type: 'PickAttachments',
-                data: { source, selectionLimit, maxBytes: { ...CHAT_ATTACHMENT_MAX_BYTES } },
-            },
-            { timeoutMs: PICK_TIMEOUT_MS }
-        );
+        const picker = runtime.media.picker;
+        if (!picker) return null;
+        const data = await picker.pick({ source, selectionLimit, maxBytes: { ...CHAT_ATTACHMENT_MAX_BYTES } });
         const items: ChatAttachmentSource[] = [];
         const refused: RefusedAttachment[] = [...data.refused];
         // In pick order, and one at a time: at most one photo is ever on the bridge. The album's pick
@@ -157,11 +142,10 @@ class ShellAttachmentPicker implements AttachmentPicker {
 
     /** One picked photo's prepared bytes as a page file, or `null` when the shell cannot read it. */
     private async readPhoto(uri: string, pickedType: string): Promise<File | null> {
+        const picker = runtime.media.picker;
+        if (!picker) return null;
         try {
-            const { data: photo } = await webClient.request(
-                { type: 'ReadAttachment', data: { uri } },
-                { timeoutMs: READ_ATTACHMENT_TIMEOUT_MS }
-            );
+            const photo = await picker.read(uri);
             return base64ToFile(photo.base64, photo.fileName, photoType(pickedType, photo.mimeType));
         } catch {
             return null;
@@ -169,11 +153,9 @@ class ShellAttachmentPicker implements AttachmentPicker {
     }
 
     prepareVideo: runtime.data.PrepareVideoPort = async video => {
-        const { data } = await webClient.request(
-            { type: 'PrepareVideo', data: { uri: video.uri } },
-            { timeoutMs: PREPARE_VIDEO_TIMEOUT_MS }
-        );
-        const { file, poster } = data;
+        const converter = runtime.media.videoConverter;
+        if (!converter) throw new Error('video conversion unavailable');
+        const { file, poster } = await converter.prepare(video.uri);
         return {
             file: { uri: file.uri, name: file.name, type: file.contentType, size: file.size, kind: 'video' },
             width: file.width,

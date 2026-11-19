@@ -87,7 +87,8 @@ a phone. A desktop app has no code screen; it already signs in by phone or Googl
 ## The approval screen
 
 `/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require
-the flag, the host's `signIn` port answering `'shell'` (this device holds the account), an **account** (not a guest) and a session that is **not** itself a secondary
+the flag, the host's `signIn` port saying this device approves pairings (`approvesPairing`: an app,
+which holds the account), an **account** (not a guest) and a session that is **not** itself a secondary
 device (`runtime.session.useIsPairedSession`). Approving hands on a sign-in, so the approving device has
 to hold one: the server would take an approval from a browser's phone login, and a guest app's approval
 of its invited clouds, as well — keeping approvals in signed-in apps is this screen's rule, not the

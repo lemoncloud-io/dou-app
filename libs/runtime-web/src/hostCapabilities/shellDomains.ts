@@ -17,7 +17,7 @@ export const resolveAppShell = (profile: DeclaredHost = hostProfile()): Pick<App
 };
 
 /** Who signs a person in, and with which phone platform's own sign-in where the shell does. */
-export const resolveSignIn = (profile: DeclaredHost = hostProfile()): SignInPort => {
+export const resolveSignIn = (profile: DeclaredHost = hostProfile()): Pick<SignInPort, 'kind' | 'os'> => {
     const kind = resolveShellOrBrowser(profile, 'signIn', SHELL_DOMAINS_INTRODUCED_IN);
     return { kind, os: hostOsOf(profile, kind) };
 };

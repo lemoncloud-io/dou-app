@@ -4,29 +4,32 @@ import { act, renderHook } from '@testing-library/react';
 
 import type * as UtilsModule from '../utils';
 
-let pushHandler: ((message: unknown) => void) | null = null;
+let pushHandler: ((payload: unknown) => void) | null = null;
 // The server the session is on; a test moves it into a cloud.
 let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 let isVerified = false;
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: {
-        onEvent: (_type: string, handler: (message: unknown) => void) => {
-            pushHandler = handler;
-            return () => undefined;
-        },
-    },
-}));
-
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+// The desktop shell's push port, handing the page its notifications.
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         session: {
             useGlobalSession: () => ({ activeServer }),
             getGlobalSessionContext: () => ({ activeServer }),
         },
         connection: { useRuntimeSocketState: () => ({ isVerified }) },
-    })
-);
+        push: {
+            ...browserPush(),
+            kind: 'shell',
+            notifications: {
+                onReceive: (listener: (payload: unknown) => void) => {
+                    pushHandler = listener;
+                    return () => undefined;
+                },
+            },
+        },
+    });
+});
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),
@@ -37,7 +40,7 @@ import { useCloudPushBadgeStore } from '../stores';
 import { useCrossCloudPushBadge } from './useCrossCloudPushBadge';
 
 const receive = (data: Record<string, string>) =>
-    act(() => pushHandler?.({ data: { notification: { data: { channelId: 'ch-1', ...data } } } }));
+    act(() => pushHandler?.({ notification: { data: { channelId: 'ch-1', ...data } } }));
 
 const badged = () => useCloudPushBadgeStore.getState().badged;
 

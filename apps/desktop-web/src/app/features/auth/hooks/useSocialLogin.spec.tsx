@@ -17,8 +17,9 @@ const session = vi.hoisted(() => ({
 vi.mock('@chatic/bridges', () => ({
     logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
 }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 auth: {
@@ -38,10 +39,19 @@ vi.mock('@chatic/runtime', async () =>
         settings: {
             get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined),
         },
-        // Who signs a person in, as the host's `signIn` port says.
-        signIn: { kind: 'shell', os: null },
-    })
-);
+        // The desktop app's relay sign-in, which sends the authorize page to the system browser.
+        signIn: {
+            ...browserSignIn(),
+            relayOAuth: {
+                openAuthorize: url => {
+                    window.open(url, '_blank');
+                },
+                returnedCode: 'complete',
+                handoffLinks: null,
+            },
+        },
+    });
+});
 vi.mock('./useSignOutGuest', () => ({ useSignOutGuest: () => session.signOutGuest }));
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: session.toast }));
 

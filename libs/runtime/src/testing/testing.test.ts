@@ -2,7 +2,16 @@ import { host } from '@chatic/runtime-client';
 
 import * as facade from '../facade';
 
-import { browserHostPorts, fakeRuntime, fakeRuntimeModule, publishTestHostPorts, resetTestHostPorts } from '.';
+import {
+    browserHostPorts,
+    browserMedia,
+    browserPush,
+    browserSignIn,
+    fakeRuntime,
+    fakeRuntimeModule,
+    publishTestHostPorts,
+    resetTestHostPorts,
+} from '.';
 
 afterEach(() => resetTestHostPorts());
 
@@ -45,10 +54,13 @@ describe('fakeRuntime', () => {
         expect(runtime.signIn.kind).toBe('shell');
     });
 
-    it('lays a push kind on the push hooks', () => {
-        const runtime = fakeRuntime({ push: { kind: 'shell' } });
+    it("lays push members on the push hooks, the rest of the port staying a browser's", () => {
+        const deviceToken = { fetch: async () => 'token' };
+        const runtime = fakeRuntime({ push: { kind: 'shell', deviceToken } });
 
         expect(runtime.push.kind).toBe('shell');
+        expect(runtime.push.deviceToken).toBe(deviceToken);
+        expect(runtime.push.notifications).toBeNull();
         expect(runtime.push.useDeviceTokenRegistration).toBe(facade.push.useDeviceTokenRegistration);
     });
 
@@ -56,16 +68,22 @@ describe('fakeRuntime', () => {
         const runtime = fakeRuntime();
 
         expect(runtime.checkout).toEqual({ kind: 'none' });
-        expect(runtime.signIn).toEqual({ kind: 'browser', os: null });
+        expect(runtime.signIn).toEqual(browserSignIn());
         expect(runtime.push.kind).toBe('browser');
+        expect(runtime.push).toMatchObject(browserPush());
     });
 
     it('reads the published ports once a test publishes them', () => {
         const runtime = fakeRuntime();
-        const published = publishTestHostPorts({ media: { kind: 'shell' }, push: { kind: 'shell' } });
+        const localBanner = { present: () => undefined };
+        const published = publishTestHostPorts({
+            media: { ...browserMedia(), kind: 'shell' },
+            push: { ...browserPush(), kind: 'shell', localBanner },
+        });
 
         expect(runtime.media).toBe(published.media);
         expect(runtime.push.kind).toBe('shell');
+        expect(runtime.push.localBanner).toBe(localBanner);
     });
 });
 
@@ -81,7 +99,7 @@ describe('fakeRuntimeModule', () => {
 
 describe('publishTestHostPorts', () => {
     it("publishes a browser's ports with the test's on top, replacing an earlier publish", () => {
-        publishTestHostPorts({ signIn: { kind: 'shell', os: 'ios' } });
+        publishTestHostPorts({ signIn: { ...browserSignIn(), kind: 'shell', os: 'ios' } });
         const ports = publishTestHostPorts({ checkout: { kind: 'web', open: jest.fn() } });
 
         expect(ports.signIn).toEqual(browserHostPorts().signIn);

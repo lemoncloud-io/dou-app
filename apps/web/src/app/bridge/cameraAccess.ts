@@ -1,4 +1,4 @@
-import { appBridge } from './appBridge';
+import { runtime } from '@chatic/runtime';
 
 /**
  * The app's answer about the camera:
@@ -37,9 +37,11 @@ const createCameraAccess = (): CameraAccessGate => {
     return {
         isGranted: () => granted,
         async request() {
+            // Only an app that asks for the camera itself has the permission to give (`media.cameraPermission`).
+            const permission = runtime.media.cameraPermission;
+            if (!permission) return 'unknown';
             try {
-                const response = await appBridge.requestPermission('CAMERA');
-                const status = response.data?.status;
+                const status = await permission.request();
                 if (status === 'GRANTED') {
                     granted = true;
                     return 'granted';

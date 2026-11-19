@@ -54,22 +54,27 @@ is an implementation that says so rather than a check scattered across screens.
 
 This package holds the two halves that are not a page's:
 
-- **The contracts** (`host/ports.ts`, and a file of its own for each port that carries work —
-  `host/checkout.ts`, `host/links.ts`, `host/appShell.ts`, `host/diagnostics.ts`): `HostPorts`, one
-  field per port, and each port's type. `checkout` is a union — `store` (an app store, with
-  `products()`, `purchase()`, `finish()`, `currentPurchases()`, `openManagement()`), `web` (`open(url)`,
-  the website sells) or `none`. `links`, `appShell` and `diagnostics` keep their choice,
-  `kind: 'shell' | 'browser'` (`ShellOrBrowser`, with `os` on `appShell`, the phone platform behind a
-  `'shell'` answer), and carry the work as members: `LinksPort` (`openUrl`, `copyText`, and the share
-  sheet, share intake, contacts, SMS, link preview and sub web view), `AppShellPort` (`ownsWindow`,
+- **The contracts** (`host/ports.ts`, and a file of its own for each port — `host/checkout.ts`,
+  `host/media.ts`, `host/files.ts`, `host/links.ts`, `host/appShell.ts`, `host/signIn.ts`,
+  `host/diagnostics.ts`, `host/push.ts`): `HostPorts`, one field per port, and each port's type.
+  `checkout` is a union — `store` (an app store, with `products()`, `purchase()`, `finish()`,
+  `currentPurchases()`, `openManagement()`), `web` (`open(url)`, the website sells) or `none`. Every
+  other port keeps its choice, `kind: 'shell' | 'browser'` (`ShellOrBrowser`, with `os` on `appShell`
+  and `signIn`, the phone platform behind a `'shell'` answer), and carries the work as members:
+  `MediaPort` (the app's picker, photo library, video conversion and camera permission), `FilesPort`
+  (`put`, and the app's transfer module: a kept file's put, the upload catch-up, opening and saving a
+  downloaded file, reading a video's frame), `LinksPort` (`openUrl`, `copyText`, and the share sheet,
+  share intake, contacts, SMS, link preview and sub web view), `AppShellPort` (`ownsWindow`,
   `reportsKeyboardHeight`, and haptics, the frame's preference store, the back gesture, the icon and
-  dock badges, alternate icons, the store update and the app's own updater) and `DiagnosticsPort`
-  (`entry`, and the app's debug switch, boot metrics sink and pending-report queue). A member every
-  host does is a method; a capability only some hosts have is a member that is `null` where the host
-  lacks it, so a feature asks for the member, never for `kind` — `@nx/workspace-host-port-kind`
+  dock badges, alternate icons, the store update, the app's own updater and its page in the OS
+  settings), `SignInPort` (`sessionScope`, `approvesPairing`, `requestsPairing`, and the app's own
+  provider sign-in and a sign-in through the OAuth relay), `DiagnosticsPort` (`entry`, and the app's
+  debug switch, boot metrics sink and pending-report queue) and `PushPort` (the app's notification
+  feed, device token, token renewal and local banner). A member every host does is a method or a field;
+  a capability only some hosts have is a member that is `null` where the host lacks it, so a feature
+  asks for the member, never for `kind` — `@nx/workspace-host-port-kind`
   ([`tools/eslint-rules/host-port-kind.js`](../../tools/eslint-rules/host-port-kind.js)) reports a read
-  of their `kind` outside an app's `src/config/` and tests. `media`, `files`, `signIn` and `push` still
-  carry the choice only, `{ kind: 'shell' | 'browser' }`, and `signIn` adds `os`.
+  of `kind` (and of `os`) off any of these ports outside an app's `src/config/` and tests.
 - **The holder** (`host/hostPorts.ts`): `host`, published once by the entry point
   (`host.publish(ports)`) and refused a second time, since a replacement would leave every caller that
   already read a port holding the old one. `host.ports` throws before the publish, naming the missed
@@ -77,20 +82,24 @@ This package holds the two halves that are not a page's:
   `host.resetForTests()` is for tests.
 
 Beside the holder sit the bindings `@chatic/runtime` sells as `runtime.<port>`: `checkoutPort`,
-`mediaPort`, `filesPort`, `linksPort`, `appShellPort`, `signInPort`, `diagnosticsPort` and `pushKind`.
+`mediaPort`, `filesPort`, `linksPort`, `appShellPort`, `signInPort`, `diagnosticsPort`, and push's
+fields one by one — `pushKind`, `pushNotifications`, `pushDeviceToken`, `pushTokenRenewal` and
+`pushLocalBanner`.
 They are module-level `let`s the process's `host` reassigns on every publish and reset, and a
 re-export of a `let` is live — so `runtime.checkout` _is_ `host.ports.checkout`, with no getter of the
 facade's own. Before the publish each port binding is a stand-in whose every property read throws the
 same error `host.ports` does (`then`, `toJSON` and the probes a test runner makes answer `undefined`,
-so printing one does not throw over the failure being printed). `pushKind` is a string and cannot
-throw, so it is `undefined` until the publish; it joins the push hooks as `runtime.push.kind` because
-`runtime.push` was already their group. A `HostFacade` a test makes for itself binds nothing.
+so printing one does not throw over the failure being printed). Push's fields join the push hooks
+as `runtime.push.kind`, `runtime.push.notifications`, … because `runtime.push` was already their group.
+`pushKind` is a string and cannot throw, so it is `undefined` until the publish; each push member is a
+stand-in that throws on use until then, rather than reading as `null` — the browser's answer — off a
+port that was never chosen. A `HostFacade` a test makes for itself binds nothing.
 
 The rules the ports keep:
 
 - **Every port field is required.** A host that cannot do something gets an implementation that says so
-  (`checkout.kind === 'none'`, a picker that answers `unavailable`, a `null` member such as
-  `links.contacts`), never a missing field a feature then fills with a browser's answer.
+  (`checkout.kind === 'none'`, a `null` member such as `links.contacts` or `media.picker`), never a
+  missing field a feature then fills with a browser's answer.
 - **Published once, read at the point of use.** A module that read a port at module scope would throw
   before the publish, or keep what it read first after it.
 - **Product rules stay out.** What a membership allows, which tier sits next to which, who bills a

@@ -6,11 +6,10 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
-import { appBridge } from '../../../bridge';
 import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
 import { getSocketErrorCode, toError } from '../../../utils/errors';
 
-/** Providers this screen offers. Apple is further gated to iOS by the caller (mirrors LoginPage). */
+/** Providers this screen offers. Apple only where the app's provider sign-in lists it (mirrors LoginPage). */
 export type SocialProvider = 'google' | 'apple';
 
 /**
@@ -47,9 +46,10 @@ export const useSocialLinks = () => {
 
     const linkProvider = useCallback(
         async (provider: SocialProvider) => {
-            if (runtime.signIn.kind !== 'shell') {
-                // Where the page signs in (`runtime.signIn`) there is no native bridge, so no way to
-                // obtain the provider's raw token (the existing browser OAuth relay only yields our own
+            const providerSignIn = runtime.signIn.providerSignIn;
+            if (!providerSignIn) {
+                // Without the app's own provider sign-in (`runtime.signIn`) there is no way to obtain
+                // the provider's raw token (the existing browser OAuth relay only yields our own
                 // session token, not a native id/identity token — see social-links.md "non-native OAuth
                 // relay reuse investigation").
                 toast({ title: t('mypage.accountInfo.social.mobileOnly') });
@@ -57,8 +57,7 @@ export const useSocialLinks = () => {
             }
 
             try {
-                const response = await appBridge.oauthLogin(provider);
-                const result = response.data.result;
+                const result = await providerSignIn.credential(provider);
 
                 // null result means the user cancelled the native OAuth flow — not an error, so no
                 // toast and no state change.

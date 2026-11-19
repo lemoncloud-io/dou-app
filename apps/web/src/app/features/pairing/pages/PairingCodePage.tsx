@@ -101,7 +101,7 @@ const PairingCodeScreen = () => {
                       // and that is worth saying once, now. A browser tab's sign-in ends with the tab.
                       // Which of the two this is, `runtime.signIn` says.
                       description:
-                          runtime.signIn.kind === 'shell'
+                          runtime.signIn.sessionScope === 'device'
                               ? t('pairing.code.doneSecondaryBody')
                               : t('pairing.code.doneRelayBody'),
                   }

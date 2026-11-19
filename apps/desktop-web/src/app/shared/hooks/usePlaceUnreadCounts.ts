@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DomainChannel, DomainChannelListPayload } from '@chatic/runtime';
-import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
 import { channelsByPlace, placeUnreadCounts, roomPlaces } from '../utils';
@@ -89,8 +88,9 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
 
     // Refetch on inbound activity — an FCM push or a raw socket chat frame both mean a channel's
     // unread may have changed. The frame listener stays attached across reconnects and slot changes.
+    // A browser's push port has no `notifications`, so there only the frames count.
     useEffect(() => {
-        const offPush = webClient.onEvent('OnReceiveNotification', schedule);
+        const offPush = runtime.push.notifications?.onReceive(() => schedule());
         const offMessage = runtime.connection.onServerMessage(message => {
             const type = (message as { type?: string })?.type ?? '';
             if (!type.startsWith('chat')) return;
@@ -103,7 +103,7 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
             schedule();
         });
         return () => {
-            offPush();
+            offPush?.();
             offMessage();
             if (timerRef.current) clearTimeout(timerRef.current);
         };

@@ -11,47 +11,50 @@ const cloudRepository = { id: 'cloud-repo' };
 let isNativeShell = true;
 let ownedClouds: Array<{ id: string }> = [];
 
-vi.mock('@chatic/bridges', () => ({
-    webClient: { onEvent: vi.fn(() => () => undefined) },
-    logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
-}));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+type PushListener = (payload: {
+    notification: { title?: string; body?: string; data?: Record<string, string> };
+}) => void;
+
+// What the desktop shell hands the page: every listener the hook subscribed, until it unsubscribes.
+const listeners = new Set<PushListener>();
+const notifications = {
+    onReceive: vi.fn((listener: PushListener) => {
+        listeners.add(listener);
+        return () => {
+            listeners.delete(listener);
+        };
+    }),
+};
+
+vi.mock('@chatic/runtime', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         data: {
             recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),
             useRuntimeRepositories: () => ({ cloud: cloudRepository }),
         },
         get push() {
-            return { kind: isNativeShell ? 'shell' : 'browser' };
+            return { ...browserPush(), notifications: isNativeShell ? notifications : null };
         },
-    })
-);
+    });
+});
 
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
     useOwnedCloudIds: () => new Set(ownedClouds.map((c: { id: string }) => c.id)),
 }));
 
-import { webClient } from '@chatic/bridges';
-
 import { usePushInvitedCloudRecovery } from './usePushInvitedCloudRecovery';
 
-type PushHandler = (message: any) => void;
-
-const pushHandlers = (): PushHandler[] =>
-    (webClient.onEvent as ReturnType<typeof vi.fn>).mock.calls
-        .filter(([event]) => event === 'OnReceiveNotification')
-        .map(([, handler]) => handler);
-
 const emitPushData = (data: Record<string, string>) => {
-    for (const handler of pushHandlers()) {
-        handler({ data: { notification: { title: 'DoU', body: 'hello', data } } });
+    for (const listener of listeners) {
+        listener({ notification: { title: 'DoU', body: 'hello', data } });
     }
 };
 
 const emitSilentPushData = (data: Record<string, string>) => {
-    for (const handler of pushHandlers()) {
-        handler({ data: { notification: { data } } });
+    for (const listener of listeners) {
+        listener({ notification: { data } });
     }
 };
 
@@ -63,6 +66,7 @@ const flush = () =>
 describe('usePushInvitedCloudRecovery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        listeners.clear();
         isNativeShell = true;
         ownedClouds = [];
     });
@@ -117,7 +121,7 @@ describe('usePushInvitedCloudRecovery', () => {
         expect(recoverInvitedCloudIfMissing).toHaveBeenCalledTimes(2);
     });
 
-    it('stays quiet in a plain browser — the shell never emits there', async () => {
+    it('stays quiet in a plain browser — nothing hands the page a notification there', async () => {
         isNativeShell = false;
 
         renderHook(() => usePushInvitedCloudRecovery());

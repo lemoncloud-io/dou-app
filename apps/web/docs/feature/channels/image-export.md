@@ -30,9 +30,9 @@ reply, the answer is false.
 
 Every phone app this page runs in lists both, and takes videos as well as photos, so the handshake is
 what tells the app from a browser rather than one app version from another. Without it, a page whose
-host `files` port is `browser` takes the browser path below; one that is neither shows no buttons. It arrives
-asynchronously, which races nothing here: the buttons start hidden, and the viewer opens long after
-boot.
+host `files` port has no app transfer module (`runtime.files.transfers` is `null`) takes the browser
+path below; one that is neither shows no buttons. It arrives asynchronously, which races nothing here:
+the buttons start hidden, and the viewer opens long after boot.
 
 **Where they sit.** Share at the left end and save at the right end of a bar along the viewer's
 bottom edge (`renderFooter`); the top bar keeps only the position and the close button. The
@@ -157,7 +157,7 @@ shows which item it is on between the two buttons ("3 / 5 저장 중", a `status
 ## In a browser tab
 
 The same two buttons, at the same two ends of the bar, but the page moves the file
-(`lib/browserMediaExport.ts`, driven by `useImageExports` when `runtime.files.kind` is `browser`):
+(`lib/browserMediaExport.ts`, driven by `useImageExports` when `runtime.files.transfers` is `null`):
 
 1. **Fetch the original** (`fetchInBrowser`, `lib/fileDownload.ts`) with `mode: 'cors'`, no credentials
    and `cache: 'no-store'`. The tile or the viewer has usually loaded this very address through `<img>`,

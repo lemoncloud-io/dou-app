@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 
+import { runtime } from '@chatic/runtime';
+
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
-import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 
 /**
  * App-global unread badge. Mounted once under AppRuntime (not the home page) so the native
@@ -48,13 +49,14 @@ export const UnreadBadgeRunner = (): null => {
      * the background push handler left there, which is the mismatch users report as "the badge did
      * not clear when I read everything".
      *
-     * `nativeBadgeReader` answers `null` on a plain browser, on a shell that cannot report its
-     * badge, and on any platform whose real value is unreadable — and the reporter treats `null` as
-     * "skip" rather than zero.
+     * The icon is read from the frame (the host's `appShell` port, `iconBadge`). The value is `null`
+     * where it cannot be known — a browser has no icon badge to read, and a read the device cannot
+     * answer or that fails is `null` for that read — never 0, which is a real badge. The reporter
+     * treats `null` as "skip": a 0 for "unknown" would mark every such device as diverged forever.
      */
     const checkBadge = useCallback(async () => {
         const expected = lastPushedRef.current ?? total + otherTotal;
-        const native = await nativeBadgeReader.read();
+        const native = (await runtime.appShell.iconBadge?.read()) ?? null;
         divergenceReporter.badge({ web: expected, native, active: total, others: otherTotal });
     }, [total, otherTotal]);
 

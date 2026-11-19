@@ -2,15 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false, guest: false }));
 
-// The registry key, and who signs a person in, as the host's `signIn` port says.
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+// The registry key, and which side of a pairing this client takes, as the host's `signIn` port says:
+// the desktop app approves and never asks, a browser tab asks and never approves.
+vi.mock('@chatic/runtime', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         settings: { get: () => env.flag },
         get signIn() {
-            return { kind: env.native ? 'shell' : 'browser', os: null };
+            return { ...browserSignIn(), approvesPairing: env.native, requestsPairing: !env.native };
         },
-    })
-);
+    });
+});
 vi.mock('../../../shared/hooks/useRelayAccount', () => ({ isRelayGuest: () => env.guest }));
 
 import { canApprovePairing, canRequestPairing, isDevicePairingEnabled } from './devicePairing';

@@ -11,7 +11,7 @@
 //           require('@chatic/runtime/testing').fakeRuntimeModule({ data: { useRuntimeRepositories: () => repos } })
 //       );
 //       vi.mock('@chatic/runtime', async () =>
-//           (await import('@chatic/runtime/testing')).fakeRuntimeModule({ signIn: { kind: 'shell', os: null } })
+//           (await import('@chatic/runtime/testing')).fakeRuntimeModule({ links: { kind: 'shell', openUrl: vi.fn() } })
 //       );
 //
 // - The host's ports, when a test leaves the module real: `publishTestHostPorts(overrides)` publishes a
@@ -28,7 +28,11 @@ import * as facade from '../facade';
 
 import { browserAppShell } from './hostPorts/appShell';
 import { browserDiagnostics } from './hostPorts/diagnostics';
+import { browserFiles } from './hostPorts/files';
 import { browserLinks } from './hostPorts/links';
+import { browserMedia } from './hostPorts/media';
+import { browserPush } from './hostPorts/push';
+import { browserSignIn } from './hostPorts/signIn';
 
 import type * as RuntimeModule from '../index';
 
@@ -48,18 +52,18 @@ const PORT_GROUPS = HOST_PORT_NAMES.filter((name): name is PortGroup => name !==
 export type RuntimeOverrides = { [G in keyof Runtime]?: Record<string, unknown> };
 
 // Each port's browser value on its own, for a test that lays its own members on one.
-export { browserAppShell, browserDiagnostics, browserLinks };
+export { browserAppShell, browserDiagnostics, browserFiles, browserLinks, browserMedia, browserPush, browserSignIn };
 
 /** A browser tab's ports: nothing sold, and the page does everything itself. */
 export const browserHostPorts = (): HostPorts => ({
     checkout: { kind: 'none' },
-    media: { kind: 'browser' },
-    files: { kind: 'browser' },
+    media: browserMedia(),
+    files: browserFiles(),
     links: browserLinks(),
     appShell: browserAppShell(),
-    signIn: { kind: 'browser', os: null },
+    signIn: browserSignIn(),
     diagnostics: browserDiagnostics(),
-    push: { kind: 'browser' },
+    push: browserPush(),
 });
 
 /**
@@ -79,12 +83,15 @@ export const resetTestHostPorts = (): void => host.resetForTests();
 const groupView = (group: (typeof NAMESPACE_GROUPS)[number], over: object | undefined, fallback: HostPorts) => {
     const view: Record<string, unknown> = { ...facade[group] };
     if (group === 'push') {
-        // Live, like the real binding, with the browser's answer while nothing is published.
-        Object.defineProperty(view, 'kind', {
-            enumerable: true,
-            configurable: true,
-            get: () => (host.isPublished ? facade.push.kind : fallback.push.kind),
-        });
+        // The port's fields join the hooks one by one, live like the real bindings, with the browser's
+        // answer while nothing is published. Read off the browser's port, so a new field joins too.
+        for (const field of Object.keys(fallback.push) as (keyof HostPorts['push'])[]) {
+            Object.defineProperty(view, field, {
+                enumerable: true,
+                configurable: true,
+                get: () => (host.isPublished ? facade.push[field] : fallback.push[field]),
+            });
+        }
     }
     if (over) Object.defineProperties(view, Object.getOwnPropertyDescriptors(over));
     return view;
