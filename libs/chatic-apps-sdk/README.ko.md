@@ -23,7 +23,7 @@ npm install @lemoncloud/chatic-apps-sdk
 파일에 들어 있지 않다):
 
 ```html
-<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
+<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/chatic-apps-sdk.global.js"></script>
 ```
 
 ## 시작
@@ -56,7 +56,7 @@ try {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Quiz</title>
-        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
+        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/chatic-apps-sdk.global.js"></script>
     </head>
     <body>
         <h1 id="score">0</h1>
@@ -526,11 +526,22 @@ mock은 앱처럼 응답하고 — 기본 호출과 넘겨준 `permissions`에 �
 실패하므로, 버전 번호가 아니라 `apps.supports(...)`로 정한다. 버그 리포트를 읽을 때 쓰는 라이브러리 자체의
 번호:
 
-| 라이브러리        | 빌드 기준 bridge (`SDK_BRIDGE_VERSION`) | 데이터 계약 (`SDK_DATA_CONTRACTS`) | 추가된 것                                                                                                                                                                                                                                                                                                                                           |
-| ----------------- | --------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0             | 2.19.0                                  | —                                  | 기본 호출, 저장소, 공유, 사용자 키                                                                                                                                                                                                                                                                                                                  |
-| 0.2.0             | 2.20.0                                  | —                                  | 카메라와 마이크 권한, 패키지의 `GUIDE.md`와 `AGENTS.md`                                                                                                                                                                                                                                                                                             |
-| next (unreleased) | 2.33.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`); `react`(`chatReact`); `context.display`와 `context.safeArea`; mock의 `display`, `rotate()`, `reactions` |
+| 라이브러리 | 빌드 기준 bridge (`SDK_BRIDGE_VERSION`) | 데이터 계약 (`SDK_DATA_CONTRACTS`) | 추가된 것                                                                                                                                                                                                                                                                                                                                           |
+| ---------- | --------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0      | 2.19.0                                  | —                                  | 기본 호출, 저장소, 공유, 사용자 키                                                                                                                                                                                                                                                                                                                  |
+| 0.2.0      | 2.20.0                                  | —                                  | 카메라와 마이크 권한, 패키지의 `GUIDE.md`와 `AGENTS.md`                                                                                                                                                                                                                                                                                             |
+| 0.3.0      | 2.33.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`); `react`(`chatReact`); `context.display`와 `context.safeArea`; mock의 `display`, `rotate()`, `reactions` |
+
+0.3.0이 앱에 요구하는 것이다. 버그 리포트를 읽을 때 쓴다(브리지 버전이며, 페이지는 여전히
+`apps.supports(...)`로 판단하고, 오래된 앱은 페이지를 깨뜨리는 대신 `false`나 `NOT_SUPPORTED`로 답한다):
+
+- `apps.data` 읽기: 브리지 2.26.0, `sendMessage`: 2.27.0.
+- `context.display`와 `context.safeArea`: 2.30.0(그 전에는 없다).
+- 캐시 예산과 숨겨진 동안의 이벤트 병합: 2.31.0.
+- `react`(`chatReact`): 2.32.0.
+- 2.33.0은 이 빌드가 기준으로 삼은 브리지이며, 더 요구하는 호출은 없다.
+
+    0.2.0용으로 만든 페이지는 고칠 필요가 없다. 호출하던 것 중 지워지거나 이름이 바뀐 것은 없다.
 
 데이터 계약은 `apps.data`가 읽는 것에 대한 앱 자신의 버전이다. 앱은 양쪽이 모두 지원하는 가장 새로운 계약으로
 페이지에 응답한다. 앱이 지원하는 계약을 하나도 지원하지 않는 라이브러리는 `NOT_SUPPORTED`로 응답받는다.

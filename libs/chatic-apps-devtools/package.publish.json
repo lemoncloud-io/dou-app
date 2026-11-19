@@ -1,6 +1,6 @@
 {
     "name": "@lemoncloud/chatic-apps-devtools",
-    "version": "0.0.0",
+    "version": "0.1.0",
     "description": "Check and try a Chatic app page before it is handed over",
     "license": "Apache-2.0",
     "repository": {

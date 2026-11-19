@@ -53,10 +53,10 @@ Bundle: 4 files, 23.0 KB.
   limit, and a turn of the phone for an `immersive` page) and says that a scenario file adds the screen checks. Not built yet, it says to build first.
 - Exits `0` when there is nothing to fix, `1` when there is.
 
-The package is not published yet. Its publish manifest is `package.publish.json` (as
-`@lemoncloud/chatic-apps-devtools`, command `chatic-apps`); it ships once the SDK's release path moves to
-CI publishing with provenance, because a command that runs on authors' machines is worth more to an
-attacker than a library.
+It is published as `@lemoncloud/chatic-apps-devtools` (command `chatic-apps`), from the manifest
+`package.publish.json`, and needs `@lemoncloud/chatic-apps-sdk` 0.3.0 or later beside it. The first release
+(0.1.0) was published by hand, not from CI with provenance; the command runs on authors' machines, which
+makes it a worthwhile target, so moving its release to CI is still open.
 
 ## `bundle`
 
