@@ -1,6 +1,6 @@
 # The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. This document states the protocol as it stands. Which
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.32.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.
@@ -65,9 +65,10 @@ desktop column is the [desktop shell](#the-desktop-shell); the last column is wh
 | Links to the page          | The context's `appLink` ([Links to a page](#links-to-a-page))                                         | base                                                       | Not in the context                              | `link`                        |
 | Reading the cloud's data   | The four [runtime](#runtime-reads) requests, pushes `OnRuntimeEvent`, `OnRuntimeSessionChanged`       | A runtime permission, and [six conditions](#runtime-reads) | `NOT_FOUND`                                     | `data`                        |
 | Sending a text message     | `RuntimeCall` of `chat.sendChat`                                                                      | `chatSend`, and the same six conditions                    | `NOT_FOUND`                                     | `data.sendMessage`            |
+| Reacting to a message      | `RuntimeCall` of `chat.setReaction`                                                                   | `chatReact`, and the same six conditions                   | `NOT_FOUND`                                     | `data.call` (not yet typed)   |
 
 **Every other write is closed** — editing or deleting a message, attachments, mentions, replies,
-reactions, making a room. Whatever a page reaches through the runtime is listed in
+making a room. Whatever a page reaches through the runtime is listed in
 [What each permission hands over](#what-each-permission-hands-over).
 
 ## Versions
@@ -288,13 +289,13 @@ set, the bar, and its host as the bar's title whatever it sets (the tiers are in
 }
 ```
 
-| Field             | Values                                                                                                                                                                | Without it                 |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `manifestVersion` | `1`                                                                                                                                                                   | No manifest at all         |
-| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                    | No title from the manifest |
-| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; the runtime's `session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend` ([Runtime reads](#runtime-reads)) | The base set only          |
-| `display`         | `titled` (the bar), `clean` (no bar) or `immersive` (no bar, no safe-area padding); see [Layout](#layout) for the older names                                         | `clean` (no bar)           |
-| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                        | `any`                      |
+| Field             | Values                                                                                                                                                                             | Without it                 |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `manifestVersion` | `1`                                                                                                                                                                                | No manifest at all         |
+| `name`            | 1–100 characters; the bar's title when nothing else names the page                                                                                                                 | No title from the manifest |
+| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`; the runtime's `session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`, `chatReact` ([Runtime reads](#runtime-reads)) | The base set only          |
+| `display`         | `titled` (the bar), `clean` (no bar) or `immersive` (no bar, no safe-area padding); see [Layout](#layout) for the older names                                                      | `clean` (no bar)           |
+| `orientation`     | `any`, `portrait`, `landscape`                                                                                                                                                     | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
 `TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, the five
@@ -401,6 +402,8 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | Server reads per view                        | One per 250 ms, 60 a minute     | `RATE_LIMITED`          |
 | Messages sent per view                       | One per 500 ms, 30 a minute     | `RATE_LIMITED`          |
 | A message's text / its room id               | 1–1,000 / 1–200 characters      | `RUNTIME_NOT_ALLOWED`   |
+| Reactions set per view                       | One per 250 ms, 60 a minute     | `RATE_LIMITED`          |
+| A reaction's emoji / its message id          | One character, ≤ 16 / 1–200     | `RUNTIME_NOT_ALLOWED`   |
 
 Lengths are string lengths (UTF-16 code units), not bytes.
 
@@ -426,7 +429,7 @@ A page MUST treat a code it does not know as a failure of that request and nothi
 | `RUNTIME_NOT_ALLOWED`   | the runtime requests                                              | Not a method this page may use, a cloud id that is not the current cloud's, or a message's shape or room; `details` says why               |
 | `CLOUD_CHANGED`         | the runtime requests                                              | The session's cloud is no longer the one the view opened on; final for the view                                                            |
 | `CONSENT_REFUSED`       | the runtime requests                                              | The user did not allow this page to read this cloud                                                                                        |
-| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                 | Over the view's budget of server reads, or of messages sent; `details.retryAfterMs`                                                        |
+| `RATE_LIMITED`          | `RuntimeCall`, `RuntimeSubscribe`                                 | Over the view's budget of server reads, of messages sent, or of reactions set; `details.retryAfterMs`                                      |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages`. The runtime requests
@@ -622,26 +625,28 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
 
 A page may read the app's own data — the current cloud's places, rooms, messages and members — through
 the app's runtime, exactly as DoU's own screens read it. It speaks the main web's four runtime
-requests to its own host, which passes only a whitelist of the runtime's **read** methods — and, with
-`chatSend`, one text send — by the runtime permissions its manifest declares. What an allowed method
+requests to its own host, which passes only a whitelist of the runtime's **read** methods — and two
+writes: with `chatSend` one text send, with `chatReact` one reaction — by the runtime permissions its
+manifest declares. What an allowed method
 answers crosses unchanged: a page granted `channel` gets the whole channel row.
 
-| Permission | Opens                                                                                                                              |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `session`  | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                       |
-| `cloud`    | `cloud.observeItem`, `cloud.cacheRead`, `cloud.getCloud` — the current cloud's id only; `getCloud` as `({ id }, { cache: false })` |
-| `place`    | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                              |
-| `channel`  | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`          |
-| `chat`     | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                |
-| `user`     | `user.observeList`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList`        |
-| `chatSend` | `chat.sendChat` — the one write: plain text to a room of the place the view opened on                                              |
+| Permission  | Opens                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `session`   | The current cloud's part of the session in the hello's answer, and `OnRuntimeSessionChanged`                                       |
+| `cloud`     | `cloud.observeItem`, `cloud.cacheRead`, `cloud.getCloud` — the current cloud's id only; `getCloud` as `({ id }, { cache: false })` |
+| `place`     | `place.observeList`, `observeItem`, `cacheReadList`, `isPlaceDeleted`                                                              |
+| `channel`   | `channel.observeList`, `observeItem`, `cacheRead`, `cacheReadList`, `fetchList`; `join.observeList`, `join.cacheReadList`          |
+| `chat`      | `chat.observeList`, `observeLastList`, `observeFeedCoverage`, `cacheRead`, `cacheReadList`, `listPendingImageChats`                |
+| `user`      | `user.observeList`, `cacheReadList`, `listPlaceMembers`; `profile.observeList`, `observeItem`, `cacheRead`, `cacheReadList`        |
+| `chatSend`  | `chat.sendChat` — a write: plain text to a room of the place the view opened on                                                    |
+| `chatReact` | `chat.setReaction` — a write: one emoji added to or removed from a message of a room of that place                                 |
 
 The table is the runtime's (`SUB_WEB_VIEW_REPOSITORY_WHITELIST` in `@chatic/runtime-core`, which says
 why each other method is closed). Nothing else is open: no method that writes on the server or in the
 device cache — a refresh that writes what it fetched included, since the page's arguments would decide
 where the rows land — none that moves a sync or read cursor, none that reaches another cloud, and no
 target but `data`: the cloud and place switches are session commands, and `session` is closed. The one
-exception is `chatSend`'s message, below. So a page reads what the app has cached, the server's room
+exceptions are `chatSend`'s message and `chatReact`'s reaction, below. So a page reads what the app has cached, the server's room
 list (`channel.fetchList`), the member list and the server's view of the current cloud
 (`cloud.getCloud`, which writes nothing with `{ cache: false }`), and fetches nothing into the cache on
 its own.
@@ -724,12 +729,33 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   unmarked, and the reply is the sent message's row. A send that fails leaves what the composer's
   failed send leaves: a failed row in the room, in the user's name, on this device. None of the read
   permissions opens it, and it opens no read: a page that needs a room's id reads it with `channel`.
+- **Reacting to a message.** With `chatReact`, `chat.setReaction` answers only for
+  `[{ chatId, emoji, action }]` — one argument, a plain object with those three fields and no other:
+  `chatId` a message id of at most 200 characters, `emoji` one character as a person sees it, at most
+  16 UTF-16 code units, `action` `on` or `off`. One character is one emoji however many code points it
+  is built of — a pictograph with its variation selector and skin tone, pictographs joined by zero-width
+  joiners, a flag of two regional indicators or a black flag spelled in tags, a keycap — or one
+  precomposed letter with at most two combining marks. Two emoji, a word (letters joined by zero-width
+  joiners included), and invisible, direction, filler, surrogate and private-use characters are refused
+  (`guard`), as is anything else. The message names no room, so the shell reads the message from the
+  device cache first and checks its room as a send's: a message the device does not hold, one in another
+  place, or any message once the user moved, is refused (`guard`) before anything is set — and so is a
+  message the user's own screen offers no reaction on: one deleted, still sending or failed, or a row
+  that records an edit or a reaction. The emoji is not held to the ones DoU's own picker offers. `off`
+  removes the user's reaction with that emoji whoever set it — a reaction the user added by hand
+  included, since nothing tells the two apart. The reaction goes out exactly as the user's own tap sends
+  it, in the user's name and unmarked, and the reply is the message's row with the reaction applied. It
+  has a budget of its own, one per 250 ms and 60 a minute (`RATE_LIMITED`), apart from the reads' and
+  the messages', spent before the message is read, so a refused reaction counts too. None of the other
+  permissions opens it, and it opens no read: a page reads the message ids it reacts to with `chat`.
 - **Consent.** Before the first answer, the app asks the user whether this page may read this cloud,
-  naming what it reads — and, with `chatSend`, saying in the title and the text that the page sends
-  messages in the user's name; a yes given before a page asked for `chatSend` does not cover it. The
+  naming what it reads — and, with `chatSend` or `chatReact`, saying in the title and the text that the
+  page sends messages, or adds and removes reactions (the user's own included), in the user's name; a
+  yes given before a page asked for either does not cover it. The
   hello's reply waits for that answer, so a page MUST NOT time it out (see [Timing](#timing)) and
   SHOULD send it before any `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same
-  question. A yes is kept per user, page and cloud — and, for a page with `chatSend`, per place — with
+  question. A yes is kept per user, page and cloud — and, for a page with `chatSend` or `chatReact`, per
+  place — with
   the permissions it covered; a page that later asks for more is asked again. A no is kept for the
   view only, so the next open asks again.
 - **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
@@ -746,15 +772,16 @@ carry, and its names and arguments are the runtime contract's. A page's permissi
 whoever approves them, and the user is asked before the first answer; this table is what they are
 weighing. It names what a row carries beyond the obvious, not every field.
 
-| Permission | What reaches the page                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `session`  | The current cloud's part of the session: its `cloudId` and `siteId`, the user's id in that cloud, whether the user is signed in, and later changes of the same. Never the account's other clouds, the relay, a token or a guest id                                                                                                                                                                                                                                                   |
-| `cloud`    | The current cloud's row from the cache — for a cloud the user owns, often nothing, and at most its name. With `cloud.getCloud`, the relay's view of it: for a cloud the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
-| `place`    | Every place of the cloud the device has cached, and whether one was deleted                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `channel`  | The rooms the device holds in the place the view opened on, that place's room list from the server, and the joins of those rooms: who is in which room                                                                                                                                                                                                                                                                                                                               |
-| `chat`     | The messages the device holds in the rooms of the place the view opened on, with their authors' ids, and those rooms' image messages still waiting to upload                                                                                                                                                                                                                                                                                                                         |
-| `user`     | The users of a room of the opened place and that place's profiles, as cached, and its member list from the server. A user row carries the account's `loginId` and `identityId`, and any field the server adds to it                                                                                                                                                                                                                                                                  |
-| `chatSend` | Nothing to read: the reply is the sent message's row                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Permission  | What reaches the page                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `session`   | The current cloud's part of the session: its `cloudId` and `siteId`, the user's id in that cloud, whether the user is signed in, and later changes of the same. Never the account's other clouds, the relay, a token or a guest id                                                                                                                                                                                                                                                   |
+| `cloud`     | The current cloud's row from the cache — for a cloud the user owns, often nothing, and at most its name. With `cloud.getCloud`, the relay's view of it: for a cloud the user owns, its name and status, its owner (`ownerId`, `owner$`), the verified email, the linked account (`accountId`, `account$`), the subscription id, the cloud server's AWS account id (`accountNo`) and its service endpoints (`$envs`); for any other cloud, the relay's minimal `{ id, name, status }` |
+| `place`     | Every place of the cloud the device has cached, and whether one was deleted                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `channel`   | The rooms the device holds in the place the view opened on, that place's room list from the server, and the joins of those rooms: who is in which room                                                                                                                                                                                                                                                                                                                               |
+| `chat`      | The messages the device holds in the rooms of the place the view opened on, with their authors' ids, and those rooms' image messages still waiting to upload                                                                                                                                                                                                                                                                                                                         |
+| `user`      | The users of a room of the opened place and that place's profiles, as cached, and its member list from the server. A user row carries the account's `loginId` and `identityId`, and any field the server adds to it                                                                                                                                                                                                                                                                  |
+| `chatReact` | Nothing to read: the reply is the reacted message's row, which `chat` reads anyway                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `chatSend`  | Nothing to read: the reply is the sent message's row                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 **The rows are a public surface.** Their shape is the runtime contract's, which the hello negotiates
 as `contract`: a field added to a row does not break a page, and a field removed or given another
@@ -906,8 +933,9 @@ feature, and needs its own decision — as the runtime reads did, which changed 
   account, subscription and server details (see
   [What each permission hands over](#what-each-permission-hands-over)) — and never a token, a guest id
   or the device id. With `chatSend` and the user's yes, a page also posts plain text in the user's
-  name to the rooms of the place the user is on — the one change to the app's data a page can make,
-  and other members cannot tell it from a typed message. The device id is treated as a credential, not
+  name to the rooms of the place the user is on, and with `chatReact` adds and removes reactions on
+  their messages — the two changes to the app's data a page can make, and other members cannot tell
+  either from the user's own. The device id is treated as a credential, not
   only as an identifier: DoU's own sign-in relies on it. The one identifier a page gets, the user key,
   is an HMAC over the page's origin keyed by the device id: one-way, different on every origin, and
   only for a page whose manifest declares `userKey`.
@@ -1005,3 +1033,4 @@ for the rest, the section that describes it says how a page copes.
 | 2.26.0           | Runtime reads: the permissions `session`, `cloud`, `place`, `channel`, `chat`, `user`; the four runtime requests and their two pushes; `RUNTIME_NOT_ALLOWED`, `CLOUD_CHANGED`, `CONSENT_REFUSED`, `RATE_LIMITED`; the stream and server-read limits; the security invariant about the user amended                                                                       |
 | 2.27.0           | `chatSend` and `chat.sendChat`; the send limit and the message length limits; `RUNTIME_NOT_ALLOWED` and `RATE_LIMITED` extended to a message; consent kept per place with `chatSend`; the security invariant about the user amended again                                                                                                                                |
 | 2.29.0           | The displays renamed `titled` and `clean` (`standard` and `fullscreen` still read); `immersive` and the `--chatic-safe-area-inset-*` properties; the desktop showing `immersive` as `clean`                                                                                                                                                                              |
+| 2.32.0           | `chatReact` and `chat.setReaction`: one emoji on or off a message of the opened place, checked through the message's cached room; the reaction limit; consent kept per place with `chatReact`; the security invariant about the user amended again                                                                                                                       |

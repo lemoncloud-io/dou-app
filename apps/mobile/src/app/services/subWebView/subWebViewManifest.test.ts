@@ -65,12 +65,12 @@ describe('parseSubWebViewManifest', () => {
         const manifest = parseSubWebViewManifest(
             JSON.stringify({
                 manifestVersion: 1,
-                permissions: ['share', 'channel', 'chat', 'messages', 'session', 'chatSend'],
+                permissions: ['share', 'channel', 'chat', 'messages', 'session', 'chatSend', 'chatReact'],
             })
         );
 
         expect(manifest?.permissions).toEqual(new Set(['share']));
-        expect(manifest?.runtimePermissions).toEqual(new Set(['channel', 'chat', 'session', 'chatSend']));
+        expect(manifest?.runtimePermissions).toEqual(new Set(['channel', 'chat', 'session', 'chatSend', 'chatReact']));
     });
 
     it('gives a page with no readable manifest the base set, no bar and any orientation', () => {

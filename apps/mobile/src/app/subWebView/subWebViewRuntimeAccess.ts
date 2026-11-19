@@ -6,6 +6,7 @@ import type * as NativeRuntimeModule from '../services/runtime/nativeRuntime';
 import {
     createSubWebViewReadBudget,
     SUB_WEBVIEW_MESSAGE_SENDS,
+    SUB_WEBVIEW_REACTIONS,
     type SubWebViewReadBudget,
 } from './subWebViewReadBudget';
 import { subWebViewReportsFrameOrigin } from './subWebViewFrameOrigin';
@@ -26,6 +27,8 @@ export interface SubWebViewRuntimeAccess {
     budget: SubWebViewReadBudget;
     /** The messages it may send, per view as well. */
     sends: SubWebViewReadBudget;
+    /** The reactions it may set, per view as well. */
+    reactions: SubWebViewReadBudget;
     consent: SubWebViewRuntimeConsent;
 }
 
@@ -61,6 +64,7 @@ export const openSubWebViewRuntime = ({
         granted,
         budget: createSubWebViewReadBudget(),
         sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),
+        reactions: createSubWebViewReadBudget(SUB_WEBVIEW_REACTIONS),
         consent: createAppSubWebViewRuntimeConsent(),
     };
 };

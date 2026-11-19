@@ -81,7 +81,10 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
-export const BRIDGE_VERSION = '2.29.0' as const;
+// 2.32.0: a sub WebView page's runtime permissions add `chatReact` — `chat.setReaction` of one emoji,
+//         on or off, on a message of a room of the place the view opened on, budgeted apart from the
+//         reads and the sends. (2.30.0 and 2.31.0 are the display context and the resource limits.)
+export const BRIDGE_VERSION = '2.32.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

@@ -40,7 +40,7 @@ const hostOf = (origin: string) => origin.replace(/^https:\/\//, '');
 /**
  * The user's answer to "may this page read this cloud", before a page's first runtime request is
  * answered. Per user, page and cloud: the data is the cloud's, so allowing a page in one says nothing
- * about another. A page that may send messages is asked per place as well (`placeId`).
+ * about another. A page that may send messages or react is asked per place as well (`placeId`).
  *
  * - **Allowed** is kept, with the permissions it covered. A page whose manifest later asks for more is
  *   asked again.

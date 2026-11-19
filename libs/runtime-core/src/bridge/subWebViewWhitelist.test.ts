@@ -81,12 +81,22 @@ type Send = {
         ? { [M in keyof Ms & string]: Ms[M] extends { cost: 'send' } ? `${R & string}.${M}` : never }[keyof Ms & string]
         : never;
 }[keyof W];
+type React = {
+    [R in keyof W]: W[R] extends { methods: infer Ms }
+        ? { [M in keyof Ms & string]: Ms[M] extends { cost: 'react' } ? `${R & string}.${M}` : never }[keyof Ms &
+              string]
+        : never;
+}[keyof W];
+/** The two writes a page may ask for, by name: a third one fails here until it is argued for. */
+type Write = 'chat.sendChat' | 'chat.setReaction';
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 const compileTime: [
-    // Nothing allowed is named like a write, but the one text send `chatSend` opens.
-    IsNever<Exclude<Extract<AllowedName, `${string}.${WritingPrefix}${string}`>, 'chat.sendChat'>>,
-    // The one write is budgeted as a send, never as a read.
-    IsNever<Exclude<Send, 'chat.sendChat'>>,
+    // Nothing allowed is named like a write but the two writes: exactly these two, by name.
+    Equal<Extract<AllowedName, `${string}.${WritingPrefix}${string}`>, Write>,
+    // The text send is budgeted as a send and the reaction as a reaction, never as a read.
+    Equal<Send, 'chat.sendChat'>,
+    Equal<React, 'chat.setReaction'>,
     // Nothing allowed reaches another cloud.
     IsNever<Extract<AllowedName, `${string}InCloud`>>,
     // Every allowed server read is one of these, which write nothing of the page's choosing — and
@@ -96,7 +106,7 @@ const compileTime: [
     >,
     // Every allowed stream is an `observe…`.
     IsNever<Exclude<AllowedStream, `${string}.observe${string}`>>,
-] = [true, true, true, true, true];
+] = [true, true, true, true, true, true];
 
 const grant = (...permissions: SubWebViewRuntimePermission[]) => new Set(permissions);
 const ALL = grant('session', 'cloud', 'place', 'channel', 'chat', 'user');
@@ -143,6 +153,7 @@ describe('the sub WebView runtime whitelist', () => {
             'chat.observeLastList',
             'chat.observeList',
             'chat.sendChat',
+            'chat.setReaction',
             'cloud.cacheRead',
             'cloud.getCloud',
             'cloud.observeItem',
@@ -449,6 +460,100 @@ describe("checkSubWebViewRuntimeRequest — the current cloud's server view", ()
             ok: false,
             reason: 'notGranted',
         });
+    });
+});
+
+describe('checkSubWebViewRuntimeRequest — a reaction', () => {
+    const REACT = grant('chatReact');
+    const react = (...args: SubWebViewRuntimeRequest['args']) =>
+        checkSubWebViewRuntimeRequest(call('chat.setReaction', args), REACT, HERE);
+
+    it('lets one emoji on or off through as a reaction, with the message for the shell to check', () => {
+        for (const action of ['on', 'off']) {
+            const check = react({ chatId: 'r1:42', emoji: '👍', action });
+            expect(check.ok).toBe(true);
+            if (check.ok) {
+                expect(check.entry.cost).toBe('react');
+                expect(check.entry.messageInCurrentPlace).toEqual({ arg: 0, field: 'chatId' });
+            }
+        }
+    });
+
+    it.each([
+        ['a skin tone', '👍🏽'],
+        ['a family joined by zero-width joiners', '👨‍👩‍👧‍👦'],
+        ['a flag', '🇰🇷'],
+        ['a subdivision flag built of tags', '🏴󠁧󠁢󠁳󠁣󠁴󠁿'],
+        ['a keycap', '1️⃣'],
+        ['a heart with its variation selector', '❤️'],
+        ['one letter', '가'],
+        ['a letter with a combining mark', 'e\u0301'],
+        ['a hash keycap', '#️⃣'],
+        ['a skin-toned person joined to an object', '👩🏽\u200d💻'],
+        ['a symbol with its variation selector', '☀️'],
+    ])('takes %s as one character', (_case, emoji) => {
+        expect(react({ chatId: 'r1:42', emoji, action: 'on' }).ok).toBe(true);
+    });
+
+    it.each([
+        ['two emoji', '👍👍'],
+        ['a word', 'nice'],
+        ['text after an emoji', '👍 great'],
+        ['white space', ' '],
+        ['an empty string', ''],
+        ['a lone joiner', '\u200d'],
+        ['a lone variation selector', '\ufe0f'],
+        ['three regional indicators', '🇰🇷🇰'],
+        ['a joiner at the end', '👍\u200d'],
+        ['a long run of modifiers', '👍' + '\ufe0f'.repeat(20)],
+        ['a control character', '\u0007'],
+        ['letters joined by zero-width joiners', 'a\u200db\u200dc\u200dd\u200de'],
+        ['Hangul jamo joined by a zero-width joiner', 'ㅅ\u200dㅂ'],
+        ['emoji and a letter joined', '👍\u200da'],
+        ['a zero-width space', '\u200b'],
+        ['a word joiner', '\u2060'],
+        ['a soft hyphen', '\u00ad'],
+        ['a right-to-left override', '\u202e'],
+        ['a direction isolate', '\u2066'],
+        ['a Hangul filler', '\u3164'],
+        ['a half-width Hangul filler', '\uffa0'],
+        ['a lone surrogate', '\ud800'],
+        ['a private-use character', '\ue000'],
+        ['a letter carrying tags', 'a\u{e0061}\u{e0062}'],
+        ['a letter under three combining marks', 'a\u0301\u0302\u0303'],
+        ['a lone skin tone', '🏽'],
+        ['two digits', '12'],
+        ['a number', 1],
+    ])('refuses %s as the emoji', (_case, emoji) => {
+        expect(react({ chatId: 'r1:42', emoji, action: 'on' } as never)).toEqual({ ok: false, reason: 'guard' });
+    });
+
+    it.each([
+        ['an action that is neither on nor off', { chatId: 'r1:42', emoji: '👍', action: 'toggle' }],
+        ['no action', { chatId: 'r1:42', emoji: '👍' }],
+        ['no message', { emoji: '👍', action: 'on' }],
+        ['an empty message id', { chatId: '', emoji: '👍', action: 'on' }],
+        ['a field beside the three', { chatId: 'r1:42', emoji: '👍', action: 'on', channelId: 'r1' }],
+    ])('refuses a reaction with %s', (_case, payload) => {
+        expect(react(payload as SubWebViewRuntimeRequest['args'][number])).toEqual({ ok: false, reason: 'guard' });
+    });
+
+    it('refuses an argument past the reaction', () => {
+        expect(react({ chatId: 'r1:42', emoji: '👍', action: 'on' }, {})).toEqual({ ok: false, reason: 'guard' });
+    });
+
+    it('needs chatReact: the reads and the text send do not open it', () => {
+        expect(
+            checkSubWebViewRuntimeRequest(
+                call('chat.setReaction', [{ chatId: 'r1:42', emoji: '👍', action: 'on' }]),
+                grant('session', 'cloud', 'place', 'channel', 'chat', 'user', 'chatSend'),
+                HERE
+            )
+        ).toEqual({ ok: false, reason: 'notGranted' });
+    });
+
+    it('opens nothing else: chatReact alone reads nothing and sends nothing', () => {
+        expect(subWebViewAllowedFor(REACT)).toEqual({ calls: ['chat.setReaction'], streams: [] });
     });
 });
 

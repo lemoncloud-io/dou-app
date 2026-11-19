@@ -7,6 +7,12 @@ export const SUB_WEBVIEW_SERVER_READS = { minIntervalMs: 250, perMinute: 60 } as
  */
 export const SUB_WEBVIEW_MESSAGE_SENDS = { minIntervalMs: 500, perMinute: 30 } as const;
 
+/**
+ * How often one view may set a reaction: a person tapping, as with a message. Every member of the room
+ * sees each one, but it adds no row to read, so it is allowed twice as often as a message.
+ */
+export const SUB_WEBVIEW_REACTIONS = { minIntervalMs: 250, perMinute: 60 } as const;
+
 const MINUTE_MS = 60_000;
 
 export interface SubWebViewReadBudget {

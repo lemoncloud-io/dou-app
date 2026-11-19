@@ -41,6 +41,16 @@ export const en = {
                 "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms. It cannot change anything else.",
             messageSendOnly:
                 "{0} wants to send messages in your name to this place's chat rooms in DoU. It cannot read or change anything else.",
+            titleWithReact: 'Allow this page to react to messages?',
+            messageWithReact:
+                "{0} wants to read this cloud in DoU: {1}, and to add and remove reactions in your name on messages in this place's chat rooms, including ones you added yourself. It cannot change anything else.",
+            messageReactOnly:
+                "{0} wants to add and remove reactions in your name on messages in this place's chat rooms in DoU, including ones you added yourself. It cannot read or change anything else.",
+            titleWithSendAndReact: 'Allow this page to send messages and react?',
+            messageWithSendAndReact:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages and add and remove reactions in your name in this place's chat rooms, including reactions you added yourself. It cannot change anything else.",
+            messageSendAndReactOnly:
+                "{0} wants to send messages and add and remove reactions in your name in this place's chat rooms in DoU, including reactions you added yourself. It cannot read or change anything else.",
             allow: 'Allow',
             deny: "Don't allow",
         },

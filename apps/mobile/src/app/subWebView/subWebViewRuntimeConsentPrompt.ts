@@ -28,28 +28,35 @@ const openStore = (): SubWebViewConsentStore => {
     return store;
 };
 
+/** The writes, named on their own in the question, never listed among the reads. */
+const WRITES: readonly SubWebViewRuntimePermission[] = ['chatSend', 'chatReact'];
+
 /**
- * The words of the question. Sending is named on its own, never listed among the reads: a page that may
- * post in the user's name says so in the title, and the "cannot change anything" line is dropped.
+ * The words of the question. Each write is named on its own, never listed among the reads: a page that
+ * may post or react in the user's name says so in the title, and the "cannot change anything" line
+ * gives way to "anything else". Removing a reaction is said as well as adding one: the page can remove
+ * one the user set by hand, and nothing tells the two apart.
  */
 export const consentQuestion = (
     host: string,
     permissions: readonly SubWebViewRuntimePermission[]
 ): { title: string; message: string } => {
-    const reads = permissions.filter(permission => permission !== 'chatSend');
+    const reads = permissions.filter(permission => !WRITES.includes(permission));
     const what = reads.map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey)).join(', ');
-    if (!permissions.includes('chatSend')) {
-        return {
-            title: t('webview.subRuntimeConsent.title'),
-            message: t('webview.subRuntimeConsent.message').replace('{0}', host).replace('{1}', what),
-        };
+    const sends = permissions.includes('chatSend');
+    const reacts = permissions.includes('chatReact');
+    const fill = (key: TranslationKey) => t(key).replace('{0}', host).replace('{1}', what);
+    if (!sends && !reacts) {
+        return { title: t('webview.subRuntimeConsent.title'), message: fill('webview.subRuntimeConsent.message') };
     }
+    const writes = sends && reacts ? 'SendAndReact' : sends ? 'Send' : 'React';
     return {
-        title: t('webview.subRuntimeConsent.titleWithSend'),
-        message:
-            reads.length === 0
-                ? t('webview.subRuntimeConsent.messageSendOnly').replace('{0}', host)
-                : t('webview.subRuntimeConsent.messageWithSend').replace('{0}', host).replace('{1}', what),
+        title: t(`webview.subRuntimeConsent.titleWith${writes}` as TranslationKey),
+        message: fill(
+            (reads.length === 0
+                ? `webview.subRuntimeConsent.message${writes}Only`
+                : `webview.subRuntimeConsent.messageWith${writes}`) as TranslationKey
+        ),
     };
 };
 
