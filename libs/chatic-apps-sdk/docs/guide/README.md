@@ -1,3 +1,5 @@
+> Korean: `GUIDE.ko.md` in the package (`README.ko.md` beside this file). This English version is the canonical one.
+
 # Building a page with chatic-apps-sdk
 
 A Chatic app is a web page that opens inside the DoU app, over everything else, at
