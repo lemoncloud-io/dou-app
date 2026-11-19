@@ -50,7 +50,10 @@ export const setAllConsents = (value: boolean): Consents => ({ terms: value, pri
 export const canContinueCheckout = (input: {
     /** Empty until the reader picks one: nothing is chosen for them. */
     country: string;
-    /** The address the card company is given: the verified billing email, or the account's own. */
+    /**
+     * The address the card company is given: the verified billing email, the account's own, or the one
+     * typed in with the payer.
+     */
     email?: string;
     payer: PayerDraft;
     consents: Consents;

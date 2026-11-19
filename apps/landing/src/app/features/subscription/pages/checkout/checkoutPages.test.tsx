@@ -497,6 +497,8 @@ describe('checkout with the card and billing-email screens hidden', () => {
         expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
         await pickCountry('KR');
         expect(screen.getByText("Receipts and notices go to your account's email address.")).toBeTruthy();
+        // The account has an address, so the payer is not asked for one.
+        expect(screen.queryByLabelText('Email')).toBeNull();
     });
 
     it('hands the card company the account address, and carries no billing email on', async () => {
@@ -521,15 +523,28 @@ describe('checkout with the card and billing-email screens hidden', () => {
         expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
     });
 
-    it('says an account with no address cannot subscribe, instead of asking for one', async () => {
+    it('asks an account with no address for one, and hands the card company what was typed', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new-apple'), hidden);
+        const next = () => screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement;
 
         await fillPayer();
-        expect(await screen.findByText('Your account has no email address')).toBeTruthy();
         await consentAll();
-        expect(
-            (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
-        ).toBe(true);
+        expect(screen.queryByText("Receipts and notices go to your account's email address.")).toBeNull();
+        // Name, number and consents are all in: only the address holds the way on.
+        expect(next().disabled).toBe(true);
+        const email = screen.getByLabelText('Email');
+        fireEvent.change(email, { target: { value: 'minji@' } });
+        fireEvent.blur(email);
+        expect(screen.getByText('Enter an email address such as name@example.com.')).toBeTruthy();
+        expect(next().disabled).toBe(true);
+        fireEvent.change(email, { target: { value: ' minji@example.com ' } });
+        expect(next().disabled).toBe(false);
+        fireEvent.click(next());
+
+        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
+            checkout: { country: 'KR', payer: { ...PAYER, email: 'minji@example.com' } },
+        });
     });
 });
 

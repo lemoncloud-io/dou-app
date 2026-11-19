@@ -10,6 +10,7 @@ import { SubscriptionPortError } from '../../lib/port';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
+import type { ManagementScreens } from '../../lib/screens';
 
 // The pages are rendered through the real routes, so they sit in the account shell with the port,
 // the query client, the toasts and the stand-in payment window exactly as a reader meets them.
@@ -32,11 +33,16 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-const renderAt = (url: string, search: string, setup: PortSetup = mockSetup(search)) =>
+const renderAt = (
+    url: string,
+    search: string,
+    setup: PortSetup = mockSetup(search),
+    management: boolean | ManagementScreens = true
+) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management={management} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -186,6 +192,37 @@ describe('W-12 payment methods', () => {
         expect(await screen.findByText(/···· \d{4} added$/)).toBeTruthy();
         const list = screen.getByRole('list', { name: 'Payment methods' });
         await waitFor(() => expect(within(list).getAllByRole('listitem')).toHaveLength(3));
+    });
+
+    it('asks for an address with the payer when the account has none to give the card company', async () => {
+        const setup = mockSetup('?mock=active');
+        // An account the server holds no address for, with the billing-email screens hidden as in production.
+        const getSession = setup.port.getSession.bind(setup.port);
+        setup.port.getSession = async () => {
+            const account = await getSession();
+            return account && { ...account, email: undefined };
+        };
+        const started = vi.spyOn(setup.port, 'startPaymentMethodRegistration');
+        renderAt(url, '?mock=active', setup, { cards: true, emails: false });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Add card' });
+        fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '김민지' } });
+        fireEvent.change(within(dialog).getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
+        const open = within(dialog).getByRole('button', { name: 'Open card entry' }) as HTMLButtonElement;
+        expect(open.disabled).toBe(true);
+        fireEvent.change(within(dialog).getByLabelText('Email'), { target: { value: 'minji@example.com' } });
+        expect(open.disabled).toBe(false);
+        fireEvent.click(open);
+
+        await waitFor(() =>
+            expect(started).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    purpose: 'addCard',
+                    payer: { name: '김민지', phone: '01012345678', email: 'minji@example.com' },
+                })
+            )
+        );
     });
 
     it('says why a card was not added when the issuer declines it', async () => {

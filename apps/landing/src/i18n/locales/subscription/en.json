@@ -113,7 +113,10 @@
                 "phonePlaceholder": "01012345678",
                 "note": "The card company asks for these with every card. They are not stored: a card added later asks again.",
                 "nameInvalid": "Enter the name: up to 10 Korean or 30 Latin characters.",
-                "phoneInvalid": "Enter a mobile number such as 01012345678."
+                "phoneInvalid": "Enter a mobile number such as 01012345678.",
+                "email": "Email",
+                "emailPlaceholder": "name@example.com",
+                "emailInvalid": "Enter an email address such as name@example.com."
             },
             "cardEntry": {
                 "title": "Add a card",
@@ -317,10 +320,6 @@
                     "OTHER": "Another country"
                 },
                 "countryNote": "The billing country decides the currency you pay in: Korean won in South Korea, US dollars everywhere else. It cannot be changed after you subscribe.",
-                "noAccountEmail": {
-                    "title": "Your account has no email address",
-                    "body": "The card company needs an email address with every card, and this account has none to give. Sign in with an account that has one to subscribe."
-                },
                 "noticeEmail": "Receipts and notices go to your account's email address.",
                 "countryPlaceholder": "Choose a country",
                 "countryMissing": "Choose your billing country first.",
