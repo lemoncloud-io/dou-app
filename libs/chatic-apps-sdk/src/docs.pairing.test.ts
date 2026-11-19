@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { POINTER_LINES, shapeOf } from './docsPairing';
+
 /**
  * The author documents ship in English and in Korean (`.ko.md` beside each). The English file is the
  * canonical one; this keeps the two from drifting apart in shape: the same headings, the same code
@@ -18,17 +20,6 @@ const PAIRS = [
     { english: 'docs/guide/agent-rules.md', korean: 'docs/guide/agent-rules.ko.md' },
 ];
 
-const FENCE = /^ *```[\s\S]*?^ *```/gm;
-
-/** The shape both files must share: headings (outside code) by level, and the number of code blocks. */
-const shapeOf = (markdown: string) => {
-    const prose = markdown.replace(FENCE, '');
-    return {
-        headings: (prose.match(/^#{1,6} /gm) ?? []).map(heading => heading.trim()),
-        codeBlocks: (markdown.match(FENCE) ?? []).length,
-    };
-};
-
 const read = (file: string) => readFileSync(join(PACKAGE, file), 'utf8');
 
 describe('the Korean author documents', () => {
@@ -41,8 +32,8 @@ describe('the Korean author documents', () => {
     });
 
     it.each(PAIRS)('$english and $korean point at each other on their first line', ({ english, korean }) => {
-        expect(read(english).split('\n')[0]).toMatch(/^> Korean: /);
-        expect(read(korean).split('\n')[0]).toMatch(/^> English: /);
+        expect(read(english).split('\n')[0]).toMatch(POINTER_LINES.english);
+        expect(read(korean).split('\n')[0]).toMatch(POINTER_LINES.korean);
     });
 
     it('notices a section missing from one side', () => {

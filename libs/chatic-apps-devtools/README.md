@@ -1,3 +1,5 @@
+> Korean: [README.ko.md](./README.ko.md). This English version is the canonical one.
+
 # chatic-apps-devtools
 
 The verifier for a Chatic app page (a mini-app built with `chatic-apps-sdk`). An author runs one command,
@@ -192,8 +194,10 @@ The build writes one declaration file for this API, `index.d.ts`, beside `index.
 
 The tests here hold the parts that need no page: the comment stripping the code rules read through, the
 permission table against the SDK's methods, every message in both languages, the language choice, the
-scenarios run without a scenario file, the printed format, and `verify` on an empty folder. The checks themselves are tried on the reference mini-app,
-outside this repository.
+scenarios run without a scenario file, the printed format, `verify` on an empty folder, and this README
+against its Korean pair (`README.ko.md`: the same headings and code blocks, each pointing at the other —
+the SDK's own pairing check). The checks themselves are tried on the reference mini-app, outside this
+repository.
 
 A test runner (jest, `node --test`) takes an unhandled rejection from the page for itself and fails the
 test, so that case is never seen by the runner under one; the command, in plain Node, reports it as a

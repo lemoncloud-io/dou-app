@@ -53,6 +53,7 @@ export default defineConfig({
                 );
                 copyFileSync(join(__dirname, 'package.publish.json'), join(__dirname, outDir, 'package.json'));
                 copyFileSync(join(__dirname, 'README.md'), join(__dirname, outDir, 'README.md'));
+                copyFileSync(join(__dirname, 'README.ko.md'), join(__dirname, outDir, 'README.ko.md'));
             },
         },
     ],

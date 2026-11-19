@@ -16,18 +16,18 @@ neither needs a judgement call:
 
 - **Translation resources** — `**/locales/**` and `**/i18n/**`. The Korean in those files is not
   writing about the product, and translating it breaks the feature rather than following the rule.
-- **The mini app SDK's Korean author documents** — a `.ko.md` inside `libs/chatic-apps-sdk/`, the
-  translation shipped on npm beside each English document for the people building mini apps. The
-  English file stays the canonical one and changes in the same PR as its pair; the SDK's own test
-  holds each pair to the same headings and code blocks. A `.ko.md` anywhere else is still a
-  violation.
+- **The mini app packages' Korean author documents** — a `.ko.md` inside `libs/chatic-apps-sdk/` or
+  `libs/chatic-apps-devtools/`, the translation shipped on npm beside each English document for the
+  people building mini apps. The English file stays the canonical one and changes in the same PR as
+  its pair; each package's own test holds every pair to the same headings and code blocks. A `.ko.md`
+  anywhere else is still a violation.
 
 Test names are not an exception. A name goes into CI logs and failure reports, which is exactly
 the surface this rule keeps in one language, and unlike a translation resource nothing breaks when
 it is in English. Names written before this was settled are left alone; new ones are English.
 
 - `yarn check:doc-korean` gates this for every tracked markdown file, `CHANGELOG.md` excepted (its
-  entries are a record of what a release said at the time) and the SDK's `.ko.md` files above. `yarn check:code-korean` gates the same
+  entries are a record of what a release said at the time) and the two packages' `.ko.md` files above. `yarn check:code-korean` gates the same
   rule for `//` and `/* */` source comments (TS/TSX/JS/JSX/Kotlin/Swift/Objective-C). Neither flags
   a Korean UI string quoted as data — `` `나와의 채팅` `` or `"두유 홈"` — only Korean prose.
 

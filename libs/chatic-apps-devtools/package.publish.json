@@ -21,7 +21,7 @@
         },
         "./package.json": "./package.json"
     },
-    "files": ["*.js", "*.d.ts", "README.md"],
+    "files": ["*.js", "*.d.ts", "README.md", "README.ko.md"],
     "engines": {
         "node": ">=18"
     },
