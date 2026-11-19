@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Linking, Platform, StyleSheet } from 'react-native';
+import { AppState, Linking, Platform, StyleSheet } from 'react-native';
 import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
@@ -279,6 +279,27 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         onTitleRequestRef.current?.(undefined);
     }, []);
 
+    // The page's process died — the OS reclaimed its memory (a heavy game), or it crashed. The view
+    // would stay blank, and on Android a WebView whose renderer is gone cannot be used again, so it is
+    // closed as the shell's own close and the opener hears `system`. The page is not reloaded: one
+    // that runs the device out of memory would only do it again. The one exception is iOS ending the
+    // process while the app is in the background, which WebKit does to any page for the system's
+    // memory: the page is reloaded once instead, so the user comes back to it rather than to nothing.
+    const reloadedAfterBackgroundKill = useRef(false);
+    const closeForProcessGone = useCallback(() => {
+        logger.warn('WEBVIEW', '[sub] page process gone; closing the view', { viewId });
+        subWebViewService.close(viewId, 'system');
+    }, [viewId]);
+    const onContentProcessDidTerminate = useCallback(() => {
+        if (AppState.currentState === 'background' && !reloadedAfterBackgroundKill.current) {
+            reloadedAfterBackgroundKill.current = true;
+            logger.warn('WEBVIEW', '[sub] page process ended in the background; reloading once', { viewId });
+            webViewRef.current?.reload();
+            return;
+        }
+        closeForProcessGone();
+    }, [viewId, closeForProcessGone]);
+
     const onNavigationStateChange = useCallback(
         (state: WebViewNavigation) => {
             setCanGoBack(state.canGoBack);
@@ -311,6 +332,8 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             webviewDebuggingEnabled={__DEV__}
             onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
             onNavigationStateChange={onNavigationStateChange}
+            onContentProcessDidTerminate={onContentProcessDidTerminate}
+            onRenderProcessGone={closeForProcessGone}
             // `target=_blank` and `window.open` load in this view, through the same check, instead
             // of opening a window this screen does not manage.
             setSupportMultipleWindows={false}

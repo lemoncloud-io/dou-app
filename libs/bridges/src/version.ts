@@ -81,7 +81,11 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
-export const BRIDGE_VERSION = '2.29.0' as const;
+// 2.31.0: a sub WebView page's reads of the device cache are limited to 600 a minute per view, past
+//         which they answer RATE_LIMITED; while the app is in the background, each of its runtime streams
+//         keeps only its latest event, delivered on return; and a page whose process died closes the
+//         view as `system`. (2.30.0 is the context's `display` and `safeArea`.)
+export const BRIDGE_VERSION = '2.31.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

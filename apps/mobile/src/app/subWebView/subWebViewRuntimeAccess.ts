@@ -5,6 +5,7 @@ import { settledSessionOwner } from '../services/runtime/launchSessionOwner';
 import type * as NativeRuntimeModule from '../services/runtime/nativeRuntime';
 import {
     createSubWebViewReadBudget,
+    SUB_WEBVIEW_CACHE_READS,
     SUB_WEBVIEW_MESSAGE_SENDS,
     type SubWebViewReadBudget,
 } from './subWebViewReadBudget';
@@ -26,6 +27,8 @@ export interface SubWebViewRuntimeAccess {
     budget: SubWebViewReadBudget;
     /** The messages it may send, per view as well. */
     sends: SubWebViewReadBudget;
+    /** Its reads of the device cache, per view as well. */
+    cacheReads: SubWebViewReadBudget;
     consent: SubWebViewRuntimeConsent;
 }
 
@@ -61,6 +64,7 @@ export const openSubWebViewRuntime = ({
         granted,
         budget: createSubWebViewReadBudget(),
         sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),
+        cacheReads: createSubWebViewReadBudget(SUB_WEBVIEW_CACHE_READS),
         consent: createAppSubWebViewRuntimeConsent(),
     };
 };

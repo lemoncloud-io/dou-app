@@ -140,6 +140,7 @@ const setup = ({
         consent: { ensure: async () => 'allowed' },
         budget,
         sends: { take: () => ({ ok: true }) },
+        cacheReads: { take: () => ({ ok: true }) },
     });
     host = createSubBridgeHost(
         // Asynchronous, as the WebView is.

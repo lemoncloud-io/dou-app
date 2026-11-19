@@ -8,7 +8,13 @@ import { RUNTIME_CONTRACTS, createRuntimeBridgeHost } from '@chatic/runtime-mobi
 import type { RuntimeEngine } from '@chatic/runtime-mobile';
 
 import { pushedEventErrors, pushedEvents } from '../webview/hooks/appEventContract';
-import { createSubWebViewRuntimeBridge, sessionForPage, SUB_WEBVIEW_STREAMS_PER_LOAD } from './subWebViewRuntimeBridge';
+import {
+    createSubWebViewRuntimeBridge,
+    sessionForPage,
+    SUB_WEBVIEW_STREAMS_PER_LOAD,
+    type SubWebViewVisibility,
+} from './subWebViewRuntimeBridge';
+import { createSubWebViewReadBudget, SUB_WEBVIEW_CACHE_READS } from './subWebViewReadBudget';
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 
@@ -99,11 +105,15 @@ const build = ({
     consent = allow,
     budget = plenty,
     sends = plenty,
+    cacheReads = plenty,
+    visibility,
 }: {
     granted?: SubWebViewRuntimePermission[];
     consent?: SubWebViewRuntimeConsent;
     budget?: SubWebViewReadBudget;
     sends?: SubWebViewReadBudget;
+    cacheReads?: SubWebViewReadBudget;
+    visibility?: SubWebViewVisibility;
 } = {}) => {
     const fake = fakeEngine();
     const bridge = { pushEvent: jest.fn() } as unknown as IAppBridgeHost & { pushEvent: jest.Mock };
@@ -120,6 +130,8 @@ const build = ({
         consent,
         budget,
         sends,
+        cacheReads,
+        visibility,
         onRefused,
     });
     const hello = () =>
@@ -468,6 +480,168 @@ describe('createSubWebViewRuntimeBridge', () => {
             error: { code: 'RATE_LIMITED', details: { retryAfterMs: 120 } },
         });
         expect(repositories.channel.fetchList).not.toHaveBeenCalled();
+    });
+
+    it('refuses a cache read over the view’s cache budget, before its room is read', async () => {
+        const take = jest.fn(() => ({ ok: false as const, retryAfterMs: 40 }));
+        const { hello, call, repositories, onRefused } = build({ cacheReads: { take } });
+        await hello();
+
+        await expect(call('data', 'channel.cacheRead', ['ch1'])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RATE_LIMITED', details: { retryAfterMs: 40 } },
+        });
+        // Neither the room check nor the read itself reached the cache.
+        expect(repositories.channel.cacheRead).not.toHaveBeenCalled();
+        expect(onRefused).toHaveBeenCalledWith({ target: 'data', method: 'channel.cacheRead', code: 'RATE_LIMITED' });
+
+        // A server read spends nothing of it.
+        await expect(call('data', 'channel.fetchList', [{ sid: 's1' }])).resolves.toMatchObject({ success: true });
+        expect(take).toHaveBeenCalledTimes(1);
+    });
+
+    it(`answers a page reading its cache in a loop RATE_LIMITED past ${SUB_WEBVIEW_CACHE_READS.perMinute} a minute`, async () => {
+        let clock = 0;
+        const cacheReads = createSubWebViewReadBudget(SUB_WEBVIEW_CACHE_READS);
+        const { hello, call } = build({ cacheReads: { take: () => cacheReads.take(clock) } });
+        await hello();
+
+        for (let i = 0; i < SUB_WEBVIEW_CACHE_READS.perMinute; i += 1) {
+            await expect(call('data', 'channel.cacheReadList', [{ sid: 's1' }])).resolves.toMatchObject({
+                success: true,
+            });
+        }
+        await expect(call('data', 'channel.cacheReadList', [{ sid: 's1' }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RATE_LIMITED', details: { retryAfterMs: 60_000 } },
+        });
+        clock = 60_000;
+        await expect(call('data', 'channel.cacheReadList', [{ sid: 's1' }])).resolves.toMatchObject({ success: true });
+    });
+
+    it('spends the cache budget on each room it checks, for a send and for a list of rooms', async () => {
+        const take = jest.fn(() => ({ ok: true as const }));
+        const { hello, call, subscribe } = build({ granted: ['chat', 'chatSend'], cacheReads: { take } });
+        await hello();
+
+        // A send to a room the device does not hold: refused, but its room was read, and counted.
+        await expect(call('data', 'chat.sendChat', [{ channelId: 'nowhere', content: 'hi' }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RUNTIME_NOT_ALLOWED' },
+        });
+        expect(take).toHaveBeenCalledTimes(1);
+
+        take.mockClear();
+        await subscribe('last', 'chat.observeLastList', [['ch1', 'ch2', 'ch3'], { $listener: true }]);
+        // The stream itself, and each of its three rooms.
+        expect(take.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(take.mock.calls.length).toBeLessThanOrEqual(4);
+    });
+
+    it('refuses a long list of rooms once their checks run past the cache budget', async () => {
+        let left = 3;
+        const take = jest.fn(() => (left-- > 0 ? { ok: true as const } : { ok: false as const, retryAfterMs: 10 }));
+        const { hello, subscribe, repositories } = build({ granted: ['chat'], cacheReads: { take } });
+        await hello();
+        repositories.channel.cacheRead.mockClear();
+
+        const ids = Array.from({ length: 1000 }, () => 'ch1');
+        await expect(subscribe('last', 'chat.observeLastList', [ids, { $listener: true }])).resolves.toMatchObject({
+            success: false,
+            error: { code: 'RATE_LIMITED' },
+        });
+        expect(repositories.channel.cacheRead.mock.calls.length).toBeLessThanOrEqual(3);
+    });
+
+    describe('while the page cannot be reached', () => {
+        const switchable = () => {
+            let hidden = false;
+            const listeners = new Set<() => void>();
+            const visibility: SubWebViewVisibility = {
+                hidden: () => hidden,
+                onChange: listener => {
+                    listeners.add(listener);
+                    return () => listeners.delete(listener);
+                },
+            };
+            return {
+                visibility,
+                set: (next: boolean) => {
+                    hidden = next;
+                    listeners.forEach(listener => listener());
+                },
+                listenerCount: () => listeners.size,
+            };
+        };
+        const eventsOf = (pushEvent: jest.Mock) =>
+            pushEvent.mock.calls
+                .map(([message]) => message)
+                .filter(message => message.type === 'OnRuntimeEvent')
+                .map(message => message.data);
+
+        it('keeps one event per stream, the latest, and delivers them on return in the order they changed', async () => {
+            const app = switchable();
+            const { hello, subscribe, bridge, emitChannels } = build({ visibility: app.visibility });
+            await hello();
+            await subscribe('a', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
+            await subscribe('b', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
+            bridge.pushEvent.mockClear();
+
+            app.set(true);
+            emitChannels({ list: [{ id: 'ch1' }] });
+            emitChannels({ list: [{ id: 'ch1' }, { id: 'ch2' }] });
+            emitChannels({ list: [{ id: 'ch2' }] });
+            expect(eventsOf(bridge.pushEvent)).toEqual([]);
+
+            app.set(false);
+            expect(eventsOf(bridge.pushEvent)).toEqual([
+                { subscriptionId: 'a', seq: 3, event: [{ list: [{ id: 'ch2' }] }] },
+                { subscriptionId: 'b', seq: 3, event: [{ list: [{ id: 'ch2' }] }] },
+            ]);
+            expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
+
+            // Once in front, events go out as they come.
+            emitChannels({ list: [] });
+            expect(eventsOf(bridge.pushEvent)).toHaveLength(4);
+        });
+
+        it('lets a stream’s end replace what it held, and drops a stream the page closed', async () => {
+            const app = switchable();
+            const { hello, subscribe, runtime, bridge, emitChannels, moveTo } = build({ visibility: app.visibility });
+            await hello();
+            await subscribe('a', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
+            await subscribe('b', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
+            bridge.pushEvent.mockClear();
+
+            app.set(true);
+            emitChannels({ list: [{ id: 'ch1' }] });
+            await runtime.handlers.RuntimeUnsubscribe({
+                type: 'RuntimeUnsubscribe',
+                data: { subscriptionId: 'b' },
+            } as never);
+            moveTo('c2');
+            app.set(false);
+
+            expect(eventsOf(bridge.pushEvent)).toEqual([
+                { subscriptionId: 'a', seq: 2, event: { $ended: expect.objectContaining({ code: 'CLOUD_CHANGED' }) } },
+            ]);
+        });
+
+        it('delivers nothing held once the page load is over, and stops listening', async () => {
+            const app = switchable();
+            const { hello, subscribe, runtime, bridge, emitChannels } = build({ visibility: app.visibility });
+            await hello();
+            await subscribe('a', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
+            bridge.pushEvent.mockClear();
+
+            app.set(true);
+            emitChannels({ list: [{ id: 'ch1' }] });
+            runtime.dispose();
+            expect(app.listenerCount()).toBe(0);
+            app.set(false);
+
+            expect(eventsOf(bridge.pushEvent)).toEqual([]);
+        });
     });
 
     it('answers a malformed request INVALID', async () => {

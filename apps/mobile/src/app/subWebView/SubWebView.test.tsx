@@ -9,6 +9,7 @@ import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 let mockWebViewProps: Record<string, any> = {};
 const mockPostMessage = jest.fn();
 const mockGoBack = jest.fn();
+const mockReload = jest.fn();
 const mockInjectJavaScript = jest.fn();
 let mockBackListener: (() => boolean) | undefined;
 const mockOpenURL = jest.fn(() => Promise.resolve());
@@ -22,6 +23,7 @@ jest.mock('react-native-webview', () => {
             useImperativeHandle(ref, () => ({
                 postMessage: mockPostMessage,
                 goBack: mockGoBack,
+                reload: mockReload,
                 injectJavaScript: mockInjectJavaScript,
             }));
             return null;
@@ -38,7 +40,13 @@ jest.mock('react-native', () => ({
     Linking: { openURL: (url: string) => mockOpenURL(url) },
     Platform: { OS: 'android' },
     StyleSheet: { create: (styles: unknown) => styles },
+    AppState: {
+        get currentState() {
+            return mockAppState;
+        },
+    },
 }));
+let mockAppState = 'active';
 const MOCK_DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 jest.mock('react-native-device-info', () => ({
     __esModule: true,
@@ -442,6 +450,53 @@ describe('SubWebView', () => {
         mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
         await settle();
         expect(sentTypes()).toEqual(['OnSubWebViewContextChanged', 'OnWebAppReady']);
+    });
+
+    describe('when the page’s process is gone', () => {
+        const closeMock = () =>
+            (jest.requireMock('../services') as { subWebViewService: { close: jest.Mock } }).subWebViewService.close;
+
+        beforeEach(() => {
+            closeMock().mockClear();
+            mockReload.mockClear();
+            mockAppState = 'active';
+        });
+
+        it.each(['onContentProcessDidTerminate', 'onRenderProcessGone'])(
+            'closes the view as the shell while the app is in front (%s)',
+            callback => {
+                renderView();
+
+                act(() => mockWebViewProps[callback]({ nativeEvent: {} }));
+
+                expect(closeMock()).toHaveBeenCalledWith('view-1', 'system');
+                expect(mockReload).not.toHaveBeenCalled();
+            }
+        );
+
+        // WebKit ends a background page's process for the system's memory, whatever the page did.
+        it('reloads an iOS page once when its process ended in the background, then closes', () => {
+            renderView();
+            mockAppState = 'background';
+
+            act(() => mockWebViewProps.onContentProcessDidTerminate({ nativeEvent: {} }));
+            expect(mockReload).toHaveBeenCalledTimes(1);
+            expect(closeMock()).not.toHaveBeenCalled();
+
+            act(() => mockWebViewProps.onContentProcessDidTerminate({ nativeEvent: {} }));
+            expect(mockReload).toHaveBeenCalledTimes(1);
+            expect(closeMock()).toHaveBeenCalledWith('view-1', 'system');
+        });
+
+        it('closes an Android page whose renderer is gone even in the background: it cannot be used again', () => {
+            renderView();
+            mockAppState = 'background';
+
+            act(() => mockWebViewProps.onRenderProcessGone({ nativeEvent: {} }));
+
+            expect(mockReload).not.toHaveBeenCalled();
+            expect(closeMock()).toHaveBeenCalledWith('view-1', 'system');
+        });
     });
 
     it("drops the last page's requested title when a new page starts loading", () => {
