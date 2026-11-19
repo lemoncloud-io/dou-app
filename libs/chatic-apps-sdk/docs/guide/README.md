@@ -349,16 +349,24 @@ your development server an https address and add it to a cloud you own as a mini
     export default defineConfig({ server: { allowedHosts: ['.trycloudflare.com'] } });
     ```
 
-2. In DoU, in a cloud you own, add a mini app with that address (`https://…`, no port), and open it
-   from the cloud's mini app home. The first time, DoU asks before it hands the page your name and the
-   cloud's.
-3. The tunnel's address changes each time it starts: edit the mini app's address when it does.
+2. In the DoU app on the phone, with a cloud you own selected, go to **My → Settings → Lab → Mini
+   apps** and tap **Add mini app**: a name, and that address (`https://…`, no port). The list is kept
+   on that phone only. Then tap **Open mini apps** and choose it on the mini app home. The first time,
+   DoU asks before it hands the page your name, your id in the cloud, the cloud and the place you have
+   open.
+3. The tunnel's address changes each time it starts: tap the mini app in the same list to edit its
+   address.
+
+A tunnel's address lasts as long as the tunnel. For one that stays, put a build on any static host
+with https (a preview deployment on Vercel, Netlify or the like) and add that address instead: it opens
+the same way, with the same limits below, but each change needs a new deployment.
 
 Such a page is opened as an outside site, not a reviewed page, and gets less than it will once
 deployed to `apps.chatic.io`:
 
-- **Only the base requests.** Closing, the title, haptics, Android back, the close guard, error
-  reports, storage, and the camera and microphone permissions work. `getUserKey`, `copy`, `share` and
+- **Only the base requests.** Closing, haptics, Android back, the close guard, error reports,
+  storage, and the camera and microphone permissions work. `setTitle` answers, but the bar keeps the
+  host. `getUserKey`, `copy`, `share` and
   `openUrl` fail with `NOT_SUPPORTED`. The desktop app answers fewer still: closing, the title and
   error reports.
 - **No manifest.** The app does not read the page's `/.well-known/chatic-app.json`: the bar is always
