@@ -6,14 +6,23 @@ Everything this app keeps between loads goes through a store from `@chatic/stora
 
 ## Who decides
 
-`main.tsx` calls `resolveStorageStores()` (`@chatic/runtime-web`) once and hands the result out:
+`src/config/adapters/stores.ts` calls `resolveStorageStores()` (`@chatic/runtime-web`) once, as
+`desktopStores`, and that one set is handed out:
 
 | To                  | What                                                                                                                                                                                                                |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | the session         | `secret` — the shell's `safeStorage` vault when it says it keeps one, else `localStorage` in the shell, `sessionStorage` in a browser tab; `plain` — `localStorage` in the shell, `sessionStorage` in a browser tab |
-| `@chatic/config`    | its `local`/`session` ports, through `createWebConfigPorts(stores)`                                                                                                                                                 |
+| `@chatic/config`    | its `local`/`session` ports, through `createWebConfigPorts(desktopStores)`                                                                                                                                          |
 | the runtime         | `device` for the sync cursor watermark, the raw `webSession` for a window's invited-cloud cache                                                                                                                     |
-| this app's features | `deviceStore`, `tabStore` and `plainStore` from `src/app/storage/`                                                                                                                                                  |
+| this app's features | `deviceStore`, `tabStore` and `plainStore` from `src/app/storage/`, pointed at the set by `main.tsx`                                                                                                                |
+
+The runtime takes its share through the page's runtime declaration (`src/config/desktop-web.ts`): its
+`storage.desktop` adapter hands the session the set's `secret`, `plain` and `device` — loading the vault
+first when there is one — and `cache.desktop-web-storage` keeps the invited-cloud rows in its
+`webSession`. They are the app's own adapters, not `@chatic/runtime-web`'s `storage.*` and
+`cache.web-storage`, because those build store objects of their own: where site data is blocked every
+store is page memory, and a second set would hide the session from the features and from config. Every
+port is fixed to that one adapter, so a `port.*` setting cannot move the session elsewhere.
 
 `deviceStore` and `tabStore` are the same in the shell and in a browser tab; `plainStore` is the
 session's `plain` and follows it.

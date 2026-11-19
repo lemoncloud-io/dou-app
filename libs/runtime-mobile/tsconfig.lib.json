@@ -25,22 +25,22 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
-            "path": "../db/tsconfig.lib.json"
+            "path": "../bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../data/tsconfig.lib.json"
         },
         {
-            "path": "../bridge-messages/tsconfig.lib.json"
+            "path": "../db/tsconfig.lib.json"
         },
         {
-            "path": "../config/tsconfig.lib.json"
-        },
-        {
-            "path": "../runtime-core/tsconfig.lib.json"
+            "path": "../runtime-client/tsconfig.lib.json"
         },
         {
             "path": "../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../runtime-core/tsconfig.lib.json"
         }
     ]
 }

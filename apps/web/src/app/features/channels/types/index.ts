@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat, DomainJoin, DomainUser } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin, DomainUser } from '@chatic/runtime';
 
 // Re-export the domain models so feature code pulls view + model types from one place.
 export type { DomainChannel, DomainChat, DomainJoin, DomainUser };

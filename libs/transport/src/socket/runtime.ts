@@ -11,7 +11,7 @@ import type { ISocketManager } from './types';
  *
  * **Sync is NOT built here** — `@chatic/sync`'s `runtime.ts` owns that, and the reason is
  * an import ring rather than taste (see its comment). Keeping this file free of sync is what lets
- * app-runtime's `data/**` reach the socket without closing a cycle back through the sync plans. Sync
+ * @chatic/runtime's `data/**` reach the socket without closing a cycle back through the sync plans. Sync
  * is a package above this one, so the package graph refuses that import outright.
  *
  * The SDK's `gateSyncOnAuth` default (`true`) is kept: user-scope (requiresAuth) sync activates only

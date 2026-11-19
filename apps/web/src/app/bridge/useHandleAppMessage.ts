@@ -50,12 +50,6 @@ export const useOnSetCanGoBack = (handler: (message: AppMessageData<'OnSetCanGoB
 export const useOnFileTransferState = (handler: (message: AppMessageData<'OnFileTransferState'>) => void) =>
     useHandleAppMessage('OnFileTransferState', handler);
 
-export const useOnPurchaseSuccess = (handler: (message: AppMessageData<'OnPurchaseSuccess'>) => void) =>
-    useHandleAppMessage('OnPurchaseSuccess', handler);
-
-export const useOnPurchaseError = (handler: (message: AppMessageData<'OnPurchaseError'>) => void) =>
-    useHandleAppMessage('OnPurchaseError', handler);
-
 export const useOnFinishPurchaseTransaction = (
     handler: (message: AppMessageData<'OnFinishPurchaseTransaction'>) => void
 ) => useHandleAppMessage('OnFinishPurchaseTransaction', handler);

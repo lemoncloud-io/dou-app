@@ -1,4 +1,4 @@
-import type { DomainCloud } from '@chatic/data';
+import type { DomainCloud } from '@chatic/runtime';
 
 /**
  * Who an invited cloud belongs to on this device.

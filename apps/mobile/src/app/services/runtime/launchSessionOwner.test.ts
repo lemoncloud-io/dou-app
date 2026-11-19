@@ -1,5 +1,5 @@
 import type * as LaunchSessionOwnerModule from './launchSessionOwner';
-import { SESSION_OWNER_KEY } from './sessionOwner';
+import { DEFAULT_SESSION_OWNER_KEY, SESSION_OWNER_KEY } from './sessionOwner';
 
 const mockOpen = jest.fn();
 jest.mock('./runtimeStorageFiles', () => ({ openSessionOwnerFile: () => mockOpen() }));
@@ -34,7 +34,7 @@ describe('launchSessionOwner', () => {
 
     it.each([
         ['DEV', 'native'],
-        ['PROD', 'web'],
+        ['PROD', 'native'],
         [undefined, 'web'],
     ])('runs an install nobody switched, on a %p build, on %p', (stage, owner) => {
         mockConfig.VITE_ENV = stage;
@@ -45,6 +45,46 @@ describe('launchSessionOwner', () => {
     it('keeps a recorded page choice on a dev build', () => {
         mockConfig.VITE_ENV = 'DEV';
         mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? 'web' : undefined) });
+        expect(load()()).toBe('web');
+    });
+
+    it("lets the page's default send a production build back to the page", () => {
+        mockConfig.VITE_ENV = 'PROD';
+        mockOpen.mockReturnValue({
+            getString: (key: string) => (key === DEFAULT_SESSION_OWNER_KEY ? 'web' : undefined),
+        });
+        expect(load()()).toBe('web');
+    });
+
+    it("keeps a recorded switch choice over the page's default", () => {
+        mockConfig.VITE_ENV = 'PROD';
+        const entries: Record<string, string> = { [SESSION_OWNER_KEY]: 'native', [DEFAULT_SESSION_OWNER_KEY]: 'web' };
+        mockOpen.mockReturnValue({ getString: (key: string) => entries[key] });
+        expect(load()()).toBe('native');
+    });
+
+    it("lets the page's default send a dev build back to the page", () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockOpen.mockReturnValue({
+            getString: (key: string) => (key === DEFAULT_SESSION_OWNER_KEY ? 'web' : undefined),
+        });
+        expect(load()()).toBe('web');
+    });
+
+    it("ignores a page default this build does not know and uses the build's", () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockOpen.mockReturnValue({
+            getString: (key: string) => (key === DEFAULT_SESSION_OWNER_KEY ? 'shell' : undefined),
+        });
+        expect(load()()).toBe('native');
+    });
+
+    it("keeps the build's pin over the page's default", () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockConfig.VITE_SESSION_OWNER_DEFAULT = 'web';
+        mockOpen.mockReturnValue({
+            getString: (key: string) => (key === DEFAULT_SESSION_OWNER_KEY ? 'native' : undefined),
+        });
         expect(load()()).toBe('web');
     });
 
@@ -61,6 +101,43 @@ describe('launchSessionOwner', () => {
             throw new Error('mmkv');
         });
         expect(load()()).toBe('web');
+    });
+});
+
+describe('launchSessionOwnerChoice', () => {
+    beforeEach(() => mockOpen.mockReset());
+
+    const loadModule = (): typeof LaunchSessionOwnerModule => {
+        let module: typeof LaunchSessionOwnerModule | undefined;
+        jest.isolateModules(() => {
+            module = require('./launchSessionOwner') as typeof LaunchSessionOwnerModule;
+        });
+        return module as typeof LaunchSessionOwnerModule;
+    };
+
+    it('reads the owner and its row together, once, and launchSessionOwner hears the same answer', () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockConfig.VITE_SESSION_OWNER_DEFAULT = 'web';
+        mockOpen.mockReturnValue({ getString: () => undefined });
+        const { launchSessionOwner, launchSessionOwnerChoice } = loadModule();
+
+        expect(launchSessionOwnerChoice()).toEqual({ owner: 'web', source: 'build' });
+        expect(launchSessionOwner()).toBe('web');
+        expect(mockOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the switch for a recorded choice', () => {
+        mockConfig.VITE_ENV = 'PROD';
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? 'native' : undefined) });
+        expect(loadModule().launchSessionOwnerChoice()).toEqual({ owner: 'native', source: 'switch' });
+    });
+
+    it('names an unreadable file, read as the page', () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockOpen.mockImplementation(() => {
+            throw new Error('mmkv');
+        });
+        expect(loadModule().launchSessionOwnerChoice()).toEqual({ owner: 'web', source: 'unreadable' });
     });
 });
 

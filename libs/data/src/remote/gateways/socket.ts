@@ -12,6 +12,7 @@ import type {
     ProfileGateway,
     UploadGateway,
     UserGateway,
+    WebhookGateway,
 } from '@lemoncloud/chatic-sockets-lib';
 import type { ChannelGetRequestData } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 
@@ -29,7 +30,7 @@ import type { ChannelGetRequestData } from '@lemoncloud/chatic-sockets-api/dist/
  * socket handshake, owned end to end by the SDK's AuthController. A second sender would authenticate
  * a connection the controller does not know it authenticated, so the controller's own state machine
  * (refresh scheduling, failure counting, terminal `expired`) would be reasoning about a session it
- * did not open. Nothing outside the SDK may send it — see app-runtime's `authUpdateAbsence.test.ts`.
+ * did not open. Nothing outside the SDK may send it — see @chatic/runtime's `authUpdateAbsence.test.ts`.
  */
 export type AuthSocketDomainGateway = Pick<AuthGateway, 'linkAccount'>;
 export type ChatSocketDomainGateway = Pick<ChatGateway, 'send' | 'feed' | 'get' | 'update' | 'delete' | 'reaction'>;
@@ -99,6 +100,13 @@ export type InviteSocketDomainGateway = Pick<InviteGateway, 'create' | 'get' | '
  */
 export type UploadSocketDomainGateway = Pick<UploadGateway, 'start' | 'complete'>;
 
+/**
+ * `webhook.*` — channel webhook management for the channel owner. All five actions come from the SDK;
+ * the app uses list/make-token/update/delete (the root `get` is not needed: `make-token` returns the
+ * endpoint as `Location`).
+ */
+export type WebhookSocketDomainGateway = WebhookGateway;
+
 export interface SocketGatewayBundle {
     auth: AuthSocketDomainGateway;
     channel: ChannelSocketDomainGateway;
@@ -114,4 +122,5 @@ export interface SocketGatewayBundle {
     cloud: CloudSocketDomainGateway;
     profile: ProfileSocketDomainGateway;
     upload: UploadSocketDomainGateway;
+    webhook: WebhookSocketDomainGateway;
 }

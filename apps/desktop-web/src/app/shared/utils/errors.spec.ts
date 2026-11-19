@@ -53,6 +53,24 @@ describe('serverErrorText', () => {
         expect(serverErrorText({})).toBe('');
     });
 
+    it("appends a wrapped error's cause, so a stage name carries the server's reason", () => {
+        const wrapped = new Error('auth.switch failed: server', {
+            cause: new Error('403 NOT ALLOWED - device unlinked @auth.switch(-)'),
+        });
+        expect(serverErrorText(wrapped)).toBe(
+            'auth.switch failed: server — 403 NOT ALLOWED - device unlinked @auth.switch(-)'
+        );
+    });
+
+    it('does not repeat a cause the message already carries, and stops on a cyclic cause', () => {
+        expect(serverErrorText(new Error('403 FORBIDDEN', { cause: new Error('403 FORBIDDEN') }))).toBe(
+            '403 FORBIDDEN'
+        );
+        const loop: { message: string; cause?: unknown } = { message: 'a' };
+        loop.cause = loop;
+        expect(serverErrorText(loop)).toBe('a');
+    });
+
     it("drops a proxy's error page and cuts a dump", () => {
         const page = Object.assign(new Error('Request failed with status code 502'), {
             response: { data: '<html><body>Bad Gateway</body></html>' },

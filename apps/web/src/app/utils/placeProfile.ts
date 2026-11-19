@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 /**
  * The one repository method this judgement needs. Structural rather than the full

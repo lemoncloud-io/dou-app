@@ -4,41 +4,41 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { resetHostProfileForTests } from '@chatic/bridges';
+
 const updateRemotePushMute = vi.fn();
 
-// The hook's only collaborator is the device repository; faking the runtime lets the
-// test drive what the server "answered" without standing up a socket.
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        data: {
-            useRuntimeRepositories: () => ({ device: { updateRemotePushMute } }),
-        },
-    },
-}));
-
 // A minimal, synchronously-reactive fake of `ui.pushMuted` — real `useConfigValue` notifies
-// subscribers on `config.set` within the same tick (useSyncExternalStore), which the optimistic
-// same-tick-flip test below depends on. A plain closure return value would only pick up the new
-// value on whatever later re-render another state change happens to cause.
+// subscribers on `runtime.settings.set` within the same tick (useSyncExternalStore), which the
+// optimistic same-tick-flip test below depends on. A plain closure return value would only pick up the
+// new value on whatever later re-render another state change happens to cause.
 let mutedState = false;
 const listeners = new Set<() => void>();
 const setPushMutedMock = vi.fn((value: boolean) => {
     mutedState = value;
     listeners.forEach(listener => listener());
 });
-vi.mock('@chatic/config', () => ({
-    config: { set: (_key: string, value: boolean) => setPushMutedMock(value) },
-}));
-vi.mock('@chatic/config/react', () => ({
-    useConfigValue: () =>
-        useSyncExternalStore(
-            listener => {
-                listeners.add(listener);
-                return () => listeners.delete(listener);
-            },
-            () => mutedState
-        ),
-}));
+
+// The hook's other collaborator is the device repository; faking the runtime lets the
+// test drive what the server "answered" without standing up a socket.
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: {
+            useRuntimeRepositories: () => ({ device: { updateRemotePushMute } }),
+        },
+        settings: {
+            set: (_key: string, value: boolean) => setPushMutedMock(value),
+            useConfigValue: () =>
+                useSyncExternalStore(
+                    listener => {
+                        listeners.add(listener);
+                        return () => listeners.delete(listener);
+                    },
+                    () => mutedState
+                ),
+        },
+    })
+);
 
 import { useDevicePushMute } from './useDevicePushMute';
 
@@ -55,6 +55,9 @@ describe('useDevicePushMute', () => {
         mutedState = false;
         listeners.clear();
         window.CHATIC_APP_PLATFORM = 'desktop';
+        // The shell injects its platform before the page boots; the host profile is built from `window`
+        // at its first read, in the render.
+        resetHostProfileForTests();
     });
 
     it('is unsupported outside the shell, where no device is registered to address', () => {
@@ -62,6 +65,12 @@ describe('useDevicePushMute', () => {
         const { result } = renderHook(() => useDevicePushMute(), { wrapper });
 
         expect(result.current.isSupported).toBe(false);
+    });
+
+    it('is supported inside the shell, which injected its platform', () => {
+        const { result } = renderHook(() => useDevicePushMute(), { wrapper });
+
+        expect(result.current.isSupported).toBe(true);
     });
 
     it('flips before the request lands, so the switch does not lag the click', async () => {

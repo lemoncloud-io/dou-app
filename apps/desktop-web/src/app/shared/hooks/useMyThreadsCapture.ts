@@ -1,19 +1,27 @@
 import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID, isEventChat, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
+import {
+    runtime,
+    RELAY_CLOUD_ID,
+    isEventChat,
+    isInJoinWindow,
+    type DomainChannel,
+    type DomainChat,
+} from '@chatic/runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import { captureInboxReply } from './useInboxCapture';
 import {
     cachedThreads,
+    chatSenderName,
     isNotifiableChat,
     isOwnChat,
     messagePreview,
     myThreadKey,
     threadChannel,
     threadRootNo,
+    type MessageViewer,
     type ThreadReply,
 } from '../utils';
 import { useMyThreadsStore, useNotificationsPanelStore } from '../stores';
@@ -21,13 +29,15 @@ import { useMyThreadsStore, useNotificationsPanelStore } from '../stores';
 /** Newest cached messages read per channel on the first launch — enough for recent threads. */
 const BACKFILL_PAGE = 200;
 
+/** Who is reading in a channel: my account id and my cloud user id there. */
+const viewerIn = (channel: Pick<DomainChannel, '$join'>): MessageViewer => ({
+    uid: runtime.session.getGlobalSessionContext().identity.userId,
+    name: '',
+    cloudUid: channel.$join?.userId ?? null,
+});
+
 /** Whether a chat is the user's, by account id or by their cloud user id in that channel. */
-const isMineIn = (channel: Pick<DomainChannel, '$join'>) => {
-    const viewer = {
-        uid: runtime.session.getGlobalSessionContext().identity.userId,
-        name: '',
-        cloudUid: channel.$join?.userId ?? null,
-    };
+const isMineIn = (viewer: MessageViewer) => {
     return (chat: Pick<DomainChat, 'owner$' | 'ownerId' | 'stereo'>): boolean =>
         isOwnChat({ ownerId: chat.owner$?.id ?? chat.ownerId, stereo: chat.stereo }, viewer);
 };
@@ -80,6 +90,7 @@ export const useMyThreadsCapture = (): void => {
                 channels.map(async channel => {
                     if (!channel.id) return [];
                     try {
+                        const viewer = viewerIn(channel);
                         const page = await chatRepository.cacheReadList({
                             channelId: channel.id,
                             limit: BACKFILL_PAGE,
@@ -87,12 +98,17 @@ export const useMyThreadsCapture = (): void => {
                         // Rows from an earlier membership outlive a leave in the cache; the room hides them, so must this.
                         const joinedNo = channel.$join?.joinedNo;
                         const rows = (page?.list ?? []).filter(row => isInJoinWindow(row, joinedNo));
-                        return cachedThreads(rows, isMineIn(channel), {
-                            cid: cloudId,
-                            channelId: channel.id,
-                            placeId: channel.sid,
-                            ...threadChannel(channel),
-                        });
+                        return cachedThreads(
+                            rows,
+                            isMineIn(viewer),
+                            {
+                                cid: cloudId,
+                                channelId: channel.id,
+                                placeId: channel.sid,
+                                ...threadChannel(channel),
+                            },
+                            viewer
+                        );
                     } catch (error) {
                         // One unreadable channel leaves its threads out; the rest are still worth listing.
                         logger.warn('CHAT', '[MyThreadsCapture] backfill skipped a channel', {
@@ -133,7 +149,8 @@ export const useMyThreadsCapture = (): void => {
         if (!isInJoinWindow({ chatNo: Number(rootNo) }, channel.$join?.joinedNo)) return;
         // Outside the relay a persisted message's owner is my per-channel cloud user id, not my
         // account id, so "mine" is both ids — the same rule the message list uses.
-        const isMine = isMineIn(channel);
+        const viewer = viewerIn(channel);
+        const isMine = isMineIn(viewer);
         const reply: ThreadReply = {
             cid,
             channelId: channel.id,
@@ -142,7 +159,7 @@ export const useMyThreadsCapture = (): void => {
             rootNo,
             replyNo: chat.chatNo ?? 0,
             preview: messagePreview(chat),
-            ownerName: chat.owner$?.name ?? '',
+            ownerName: chatSenderName(chat, placeId, viewer),
             at: chat.createdAt ?? Date.now(),
             mine: isMine(chat),
         };
@@ -172,7 +189,10 @@ export const useMyThreadsCapture = (): void => {
                     foreign.current.add(key);
                     return;
                 }
-                const threadRoot = { preview: messagePreview(root), ownerName: root.owner$?.name ?? '' };
+                const threadRoot = {
+                    preview: messagePreview(root),
+                    ownerName: chatSenderName(root, placeId, viewer),
+                };
                 record(reply, { root: threadRoot });
                 if (myLaterReply && myLaterReply !== reply) record(myLaterReply, { root: threadRoot });
                 // After the thread is recorded, so the list keeps the thread whatever the inbox does.

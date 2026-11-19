@@ -2,9 +2,8 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, RELAY_ORIGIN_CID } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
-import { RELAY_ORIGIN_CID } from '@chatic/data';
 import { readSubWebViewLinkPath, subWebViewPageUrlOfNavigatePath } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -17,10 +16,8 @@ import { pushRoomPlace } from './pushRoomPlace';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
-import { isDevBuild } from '../../utils/buildEnv';
 import { shellCapabilities } from '../shellCapabilities';
-import { openSubWebView } from '../subWebView';
-import { resolveSubWebViewAppUrl } from '../subWebViewApps';
+import { openSubWebViewTarget } from '../subWebViewLink';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -184,7 +181,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             // unknown app or a refusal leaves the screen as it is.
             const link = readSubWebViewLinkPath(rawPath);
             const handedPageUrl = link ? null : subWebViewPageUrlOfNavigatePath(rawPath);
-            if (link || handedPageUrl) {
+            const subWebViewTarget = link ? { link } : handedPageUrl ? { pageUrl: handedPageUrl } : null;
+            if (subWebViewTarget) {
                 // A page link opens in the app or not at all: `openSubWebView` would hand it to the OS
                 // browser in an app without the sub WebView, which is the one place it must not go.
                 if (!shellCapabilities.supports('OpenSubWebView')) {
@@ -193,21 +191,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     });
                     return;
                 }
-                const pageUrl = link
-                    ? await resolveSubWebViewAppUrl(link, isDevBuild() ? 'dev' : 'prod')
-                    : handedPageUrl;
-                if (!pageUrl) {
-                    logger.warn('router.sub_webview_app_unknown', 'Sub WebView link names no known app', {
-                        appId: link?.appId,
-                    });
-                    return;
-                }
-                await openSubWebView({ url: pageUrl, ...(link ? { appId: link.appId } : {}) }).catch(error =>
-                    logger.warn('router.sub_webview_link_refused', 'Sub WebView link not opened', {
-                        pageUrl,
-                        error,
-                    })
-                );
+                await openSubWebViewTarget(subWebViewTarget);
                 return;
             }
 
@@ -292,8 +276,9 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // deep-link / push-tap into it would have nothing to switch to. Re-derive and
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
-                    // points behave identically. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && runtime.boot.isNativeApp()) {
+                    // points behave identically, behind the same `push` port check: only where the app
+                    // receives notifications. Relay-backed, so it runs after the handshake gate.
+                    if (cid && !isRelayPush && runtime.push.kind === 'shell') {
                         await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }

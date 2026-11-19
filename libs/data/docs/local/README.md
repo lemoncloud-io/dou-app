@@ -35,10 +35,10 @@ apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
               database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
 ```
 
-Which of them a domain gets is decided by none of them — `resolveCacheBackend` in
+Which of them a domain gets is decided by none of them — `resolveCacheBackendFor` in
 `@chatic/runtime-web` owns that, as the page's answer to `LocalCachePorts.route()`.
 
-**Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in
+**Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackendFor` in
 `@chatic/runtime-web` decides environment, type pins and native capability in one place — see
 [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
 
@@ -284,7 +284,7 @@ only the middle of it is type-checked. Work top to bottom.
 | 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                                   | **nothing**                                                                                           |
 | 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                           | that test                                                                                             |
 
-**Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackend` sends a type
+**Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackendFor` sends a type
 the installed shell cannot hold to web storage instead (ADR-0053) — that is the deliberate fallback
 for a shell that predates the domain, because the web deploys ahead of the app. The app end agrees:
 `CacheCrudService.getDataSource` answers `null` for a type it does not know rather than throwing,

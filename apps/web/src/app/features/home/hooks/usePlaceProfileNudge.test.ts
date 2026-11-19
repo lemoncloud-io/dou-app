@@ -12,8 +12,8 @@ jest.mock('@tanstack/react-query', () => ({
     useIsMutating: ({ mutationKey }: { mutationKey: string[] }) => mockSwitches[mutationKey.join('/')] ?? 0,
 }));
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: { useRuntimeSocketState: () => ({ isVerified: mockIsVerified }) },
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
@@ -21,8 +21,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedSiteId: mockSid }),
             useSessionIdentity: () => ({ userId: mockUid }),
         },
-    },
-}));
+    })
+);
 // The read itself is covered by usePlaceProfileAbsent's own suite; here it is the verdict it gives.
 jest.mock('../../../hooks/usePlaceProfileAbsent', () => ({
     usePlaceProfileAbsent: (options: { enabled?: boolean }) => mockUsePlaceProfileAbsent(options),

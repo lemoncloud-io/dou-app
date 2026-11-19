@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChat } from '@chatic/data';
+import { runtime, type DomainChat } from '@chatic/runtime';
 
 /**
  * One message of a room by its number, for a screen opened on it: the cached row at once, then the

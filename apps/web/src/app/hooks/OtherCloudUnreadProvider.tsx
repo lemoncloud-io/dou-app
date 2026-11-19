@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { OtherCloudUnreadContext, type OtherCloudUnreadValue } from './otherCloudUnreadContext';
 import { useCloudChannelsSource } from './useActiveCloudChannels';

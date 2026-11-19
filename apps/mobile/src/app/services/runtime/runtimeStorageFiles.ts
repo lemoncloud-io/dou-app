@@ -15,8 +15,8 @@ export const RUNTIME_STORAGE_IDS = {
 } as const;
 
 /**
- * Opens the runtime's plain and device files. Kept apart from `runtimePorts.ts` so that file and its
- * tests never load the native module.
+ * Opens the runtime's plain and device files. Kept apart from the declaration (`config/mobile.ts`) so
+ * that file and its tests never load the native module.
  */
 export const openRuntimeStorageFiles = (): { plain: KeyValueFile; device: KeyValueFile } => ({
     plain: createMMKV({ id: RUNTIME_STORAGE_IDS.plain }),

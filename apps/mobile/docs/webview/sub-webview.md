@@ -5,7 +5,7 @@ it with `OpenSubWebView`; the shell shows the page full screen under a small flo
 control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
 in `@chatic/bridge-messages` (`model/sub-webview.ts`). What a page and the shell say to each other —
 the envelope, versions, errors, timing, every request and push — is specified in
-[sub-webview-protocol.md](./sub-webview-protocol.md); this document is how the shell behaves.
+[mini-app-protocol.md](./mini-app-protocol.md); this document is how the shell behaves.
 
 It exists so the app can host pages it does not own the code of — a service of its own, a notice —
 without
@@ -67,7 +67,10 @@ always gets the base set and the bar (see [Where it may go](#where-it-may-go)) (
 declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
 one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
 the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
-page, and sets its display (`standard` asks for the bar; the default, `fullscreen`, has none) and orientation. It is fetched with a
+page, and sets its display (`titled` asks for the bar; the default, `clean`, has none; `immersive` is
+`clean` without the safe-area padding, see below) and orientation. The display names say what the user
+sees; the first apps called `titled` `standard` and `clean` `fullscreen`, and those names are still read
+(`subWebViewDisplayOf` in `@chatic/shared`, which the desktop reads with too). It is fetched with a
 3-second limit, kept in memory per origin for the run of the app, and refreshed behind each later
 open; failures fall back to the defaults and are logged. The strict default is deliberate: pages
 are written by people outside the app's team, who submit a bundle and ask for permissions in its
@@ -82,8 +85,15 @@ also post plain text in the user's name to a room of the place the view opened o
 it:
 
 - **The gate, once as the view opens** (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`): the
-  session owner must be `native`, the page `reviewed`, a cloud other than Home selected, and the
-  manifest must declare one of the seven. Otherwise the four requests are not registered at all. The
+  session owner must be `native`, the page `reviewed`, a cloud selected (Home included: the session reports Home as no cloud on the relay's place, which
+  `cloudOfSession` and `placeOfSession` read as the cloud `default` on that place), the
+  manifest must declare one of the seven, and the WebView must report a frame's message under the
+  frame's own origin (`subWebViewFrameOrigin.ts`). Otherwise the four requests are not registered at all.
+  That last one is the Android module `SubWebViewFrames`, which answers with the check
+  react-native-webview itself makes before it picks its messaging channel: without web message
+  listeners the library reports the top-level page's URL for a message from any frame, so a frame of
+  another site would pass the origin check. iOS reports the posting frame's own URL (`WKScriptMessage.frameInfo`) and needs no module; an
+  app without the module, or a WebView that cannot be asked, counts as no. The
   cloud selected then is the one the view is bound to, for every page load in it. The runtime module
   is required only past the cheap checks, so a launch the page owns never loads it.
 - **The whitelist** (`checkSubWebViewRuntimeRequest` in `@chatic/runtime-core`): methods that only
@@ -92,7 +102,11 @@ it:
   nothing that moves a cursor or reaches another cloud, and nothing that switches the cloud or the
   place: those are session commands, and `session` is closed. Three cloud reads pass only for the
   current cloud's id, `cloud.getCloud` only with `{ cache: false }`, the one form of it that writes
-  nothing; the member list only for the place the session is on, in the server's page size. The one
+  nothing; the member list only for the place the session is on, in the server's page size. Everything
+  of a place is held to the place the view opened on, while the session is still there: a list by its
+  query's `sid`, a place profile by its `<place>@` key, a room's reads by the room (checked by the
+  bridge, below), a message by its id by the room it answers with; a user row by its id is closed
+  (`otherPlace`), since it is the cloud's, not a place's. The one
   write, `chat.sendChat` under `chatSend`, passes only `{ channelId, content }` with text in both, the
   content at most 1,000 characters — no attachment, mention, reply or system row.
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
@@ -100,9 +114,10 @@ it:
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
   (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page and cloud in its own
   MMKV file; with `chatSend` the alert's title and text say the page sends messages, the yes is kept
-  per place too, and an earlier yes without it does not count), for a message that its room is one the
-  device holds in the view's cloud and the place the view opened on, with the session still there (read
-  from the cache through the page load's host, a failed read answering its own error), and the view's
+  per place too, and an earlier yes without it does not count), for a message and for every read of a
+  room that the room is one the device holds in the view's cloud and the place the view opened on, with
+  the session still there (read from the cache through the page load's host, a failed read answering
+  its own error; for `chat.cacheRead`, the room of the message it answered), and the view's
   budget
   (`subWebViewReadBudget.ts`: server reads at one per 250 ms and 60 a minute, messages apart at one per
   500 ms and 30 a minute, both per view so a reload cannot reset them). Then the request goes to the
@@ -241,7 +256,9 @@ so nothing finer is needed.
 before the host sees it; a page the view navigated to, or a frame elsewhere, gets no answer at all.
 One caveat: on an Android System WebView too old for web message listeners, react-native-webview
 reports a frame's message under the top-level URL, so a cross-origin frame inside the opened page
-would pass. Current WebViews report the frame's own origin.
+passes. There the runtime requests are not registered (the gate below), so such a frame reaches only
+the base set and the manifest's four capabilities — the page's own storage, key, clipboard and share
+sheet — and none of the user's DoU data. Current WebViews report the frame's own origin.
 
 **Each page load gets a fresh host.** A host stays ready after its page's first message, so a
 reloaded
@@ -292,7 +309,7 @@ limit per page would need patching the library (see [ADR-0289](../../../../docs/
 
 Pages talk to the shell through [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md)
 (`libs/chatic-apps-sdk`, published as `@lemoncloud/chatic-apps-sdk`), or by hand following
-[sub-webview-protocol.md](./sub-webview-protocol.md), which is the contract either way: the envelope,
+[mini-app-protocol.md](./mini-app-protocol.md), which is the contract either way: the envelope,
 the handshake, every request and push, errors, timeouts and limits. Three things from it that a page
 most often gets wrong:
 
@@ -307,7 +324,8 @@ most often gets wrong:
 
 A page's context carries `appLink`, `https://app.chatic.io/apps/<appId>` for the app id the web
 opened it as (`OpenSubWebView`'s `appId`), on the link host of this build — never from the page, so a
-page cannot point it elsewhere. Opened without an id, by an older web, the page's label stands in. A
+page cannot point it elsewhere. Opened without an id — by an older web, or from a page's own address tapped in a chat — the page's
+label stands in. A
 page shares `appLink` plus a query of its own; a tap opens the page in the app, at its root with that
 query, through the main web, which resolves the id — see
 [../system/deeplink.md](../system/deeplink.md#sub-webview-page-links). The shell only checks the link's
@@ -342,7 +360,7 @@ granted to the page without a prompt of its own once DoU holds the permission; t
 user sees is the OS's first one, under DoU's name). That is a decision, not an oversight: the cloud's
 owner chose the link and answers for it, as a page's author does. The desktop shell refuses every
 device request instead, so the two shells differ here. Its
-display is `standard`: the bar is always there and shows the site's host, ahead of any title the
+display is `titled`: the bar is always there and shows the site's host, ahead of any title the
 page sets or the web passes, so a third party under DoU's chrome cannot name itself DoU or draw a
 full-screen copy of it. It loads at once, with no manifest to wait for.
 
@@ -350,7 +368,7 @@ The main WebView's handshake says `subWebViewOpenScope: 'anyHttps'`. The web shi
 shell, so it offers an owner's own link only where the handshake says so; an app that predates this
 says nothing and opens the reviewed pages alone. A push or a deep link still reaches only the
 reviewed pages — the wider scope is for a link the owner saved, opened by the web. How the desktop
-shows the same tiers is [the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell-2220).
+shows the same tiers is [the protocol's desktop section](./mini-app-protocol.md#the-desktop-shell).
 
 It is a subtree on purpose, not `*.chatic.io`. That would take in the web app itself
 (`dou.chatic.io` boots a second copy of the app in the view, and the storage the two WebViews share
@@ -436,16 +454,30 @@ push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWe
 second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
 that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
 
-**A `fullscreen` page — the default — has no bar but keeps a close control**, floating over its top-right corner,
+**A `clean` page — the default — has no bar but keeps a close control**, floating over its top-right corner,
 so a page cannot leave the user without a way out. Until the manifest is in the screen shows that
 control alone and no page, so even a manifest that never answers leaves the user a way out. The
 manifest's orientation is applied with react-native-screens' `orientation` screen option once the
 manifest is in (not yet checked on a device for a full-screen modal).
 
-**The screen pads every edge by the safe area.** The page lies wholly inside it and needs no insets
+**The screen pads every edge by the safe area**, unless the page asked for `immersive`. The page lies
+wholly inside it and needs no insets
 (that `env(safe-area-inset-*)` then reads 0 is not yet checked on a device):
 top and bottom under the status bar (and the page's bar, if it asked for one) and above the home indicator, and the sides too, for the notch in
 landscape. The padding takes the theme background.
+
+**An `immersive` page gets no padding at all** and draws under the system bars, which stay visible,
+with the floating close control where `clean` has it. The theme background was the problem: a page with its own full-screen
+scenery showed it as a band above and below, and a single colour for the padding would only have moved
+the seam, since a page's own edge is rarely one flat colour. Such a page is told the insets instead, so
+it can keep its own controls clear: the screen hands them to `SubWebView`, which sets
+`--chatic-safe-area-inset-*` on the page's `<html>` with every load and again on each change
+(`subWebViewInsetScript.ts`). `env(safe-area-inset-*)` cannot carry this alone — WKWebView reports it
+only under `viewport-fit=cover`, and an Android WebView before M136 not at all — which is also why the
+main WebView is told its insets as custom properties. `SubWebView` pins `contentInsetAdjustmentBehavior`
+to `never`, react-native-webview's default: an inset the scroll view applied itself would be one WebKit
+then stopped reporting to `env()`. The desktop has no system bars and shows `immersive` as
+`clean`.
 
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
 goes through the close control or Android back, and the web always hears of it. If the screen leaves

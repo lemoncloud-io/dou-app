@@ -261,6 +261,8 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         releaseCloud: jest.fn(),
         retryCloudSetup: jest.fn(),
         verifyEmail: jest.fn(),
+        fetchMiniAppUrl: jest.fn(),
+        saveMiniAppUrl: jest.fn(),
     });
 
     it('throws a clear error when ICloudHttpDataSource is not injected', async () => {
@@ -275,6 +277,8 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         await expect(repository.releaseCloud('c1')).rejects.toThrow('not injected');
         await expect(repository.retryCloudSetup('c1')).rejects.toThrow('not injected');
         await expect(repository.verifyCloudEmail({} as any)).rejects.toThrow('not injected');
+        await expect(repository.fetchMiniAppUrl('c1')).rejects.toThrow('not injected');
+        await expect(repository.saveMiniAppUrl('c1', '')).rejects.toThrow('not injected');
     });
 
     it('delegates to the injected http data source and never touches the local cache', async () => {
@@ -310,6 +314,25 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         await expect(repository.retryCloudSetup('c1')).resolves.toEqual({ id: 'c1', status: 'reserved' });
 
         expect(http.retryCloudSetup).toHaveBeenCalledWith('c1', expect.anything());
+        expect(local.cacheWrite).not.toHaveBeenCalled();
+    });
+    it('mini app link — read and saved over http, never through the local cache', async () => {
+        const http = createHttpDataSource();
+        http.fetchMiniAppUrl.mockResolvedValue('https://shop.example/');
+        http.saveMiniAppUrl.mockResolvedValue('');
+        const local = createLocalDataSource();
+        const repository = new CloudRepository(
+            createSocketDataSource() as any,
+            local as any,
+            contextProvider,
+            http as any
+        );
+
+        await expect(repository.fetchMiniAppUrl('c1')).resolves.toBe('https://shop.example/');
+        await expect(repository.saveMiniAppUrl('c1', '')).resolves.toBe('');
+
+        expect(http.fetchMiniAppUrl).toHaveBeenCalledWith('c1');
+        expect(http.saveMiniAppUrl).toHaveBeenCalledWith('c1', '');
         expect(local.cacheWrite).not.toHaveBeenCalled();
     });
 });

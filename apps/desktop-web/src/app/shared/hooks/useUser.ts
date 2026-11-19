@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainUser } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import type { DomainUser } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Reactive single-user lookup for the profile card. `observeItem` emits the

@@ -1,4 +1,4 @@
-import { isEventChat, type DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/runtime';
 
 import { compareByChatNo } from '../../../utils';
 
@@ -59,20 +59,28 @@ export interface ThreadMeta {
      * So the host filters this list against its own cursor (see ChannelRoomPage).
      */
     entries: ThreadEntry[];
+    /** The newest loaded reply by chatNo — the footer previews it as "Name: text". */
+    lastReply?: DomainChat;
 }
 
 export interface ThreadEntry {
     /** 0 for an optimistic reply that has not been assigned one yet. */
     chatNo: number;
     ownerId?: string;
+    /** Whom the reply calls, so the footer can say an unseen reply mentions the reader. */
+    mention$?: DomainChat['mention$'];
 }
 
 /**
  * Replies in `meta` that the viewer has not seen: newer than their read baseline and not
  * their own. My own reply must never dot my own thread — I was there when it was written.
  */
+export const unseenReplies = (meta: ThreadMeta, baselineReadNo: number, userId: string | null): ThreadEntry[] =>
+    meta.entries.filter(entry => entry.chatNo > baselineReadNo && entry.ownerId !== userId);
+
+/** How many of `meta`'s replies the viewer has not seen — see {@link unseenReplies}. */
 export const countUnseenReplies = (meta: ThreadMeta, baselineReadNo: number, userId: string | null): number =>
-    meta.entries.filter(entry => entry.chatNo > baselineReadNo && entry.ownerId !== userId).length;
+    unseenReplies(meta, baselineReadNo, userId).length;
 
 /**
  * Aggregate, per thread root, the replies present in the loaded message set.
@@ -102,11 +110,12 @@ export const buildThreadIndex = (messages: DomainChat[]): Map<string, ThreadMeta
         const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, lastReplyNo: 0, repliers: [], entries: [] };
         if (prev.count === 0) index.set(key, prev);
         prev.count += 1;
-        prev.entries.push({ chatNo: message.chatNo ?? 0, ownerId: message.ownerId });
+        prev.entries.push({ chatNo: message.chatNo ?? 0, ownerId: message.ownerId, mention$: message.mention$ });
         if (at > prev.lastReplyAt) prev.lastReplyAt = at;
         if ((message.chatNo ?? 0) > prev.lastReplyNo) {
             prev.lastReplyNo = message.chatNo ?? 0;
             prev.lastReplyOwnerId = message.ownerId;
+            prev.lastReply = message;
         }
         if (message.ownerId) {
             const seen = prev.repliers.find(r => r.id === message.ownerId);

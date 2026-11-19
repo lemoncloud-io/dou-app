@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { displayName, resolveDisplay, useSiteProfileMap } from '../../../shared';
 import type { ChannelMember } from '../../channels';

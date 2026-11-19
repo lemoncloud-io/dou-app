@@ -2,34 +2,31 @@ import { StrictMode } from 'react';
 
 import * as ReactDOM from 'react-dom/client';
 
-import { config } from '@chatic/config';
-import { runtime } from '@chatic/app-runtime';
-import { createWebRuntime } from '@chatic/runtime-web';
+import { runtime } from '@chatic/runtime';
+import { logger } from '@chatic/bridges';
+import { startRuntime } from '@chatic/runtime-web';
 
-import { webConfigPorts } from './app/config/adapters';
-import { deviceStore, tabStore } from './app/storage';
+import { admin } from './config/admin';
 
 import App from './app/app';
 import { authFailureNotice } from './app/session/authFailureNotice';
 
-// Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
-// `@chatic/web-config`'s import-time self-init with an explicit call.
-config.init(webConfigPorts);
-
-// admin never runs inside a native or desktop shell, so its session lives in this tab's
-// sessionStorage, both ports.
-const sessionStore = tabStore;
-
-// Boot the runtime before render. The console reads the session (its admin gate asks for the relay
-// profile), and the session store refuses to resolve endpoints until this call wires them —
-// previously it happened as a side effect of importing the session barrel (a follow-up to ADR-0070 step 5).
-// No data policies: the console uses the default repository and cache assembly.
-runtime.boot.initAppRuntime(
-    createWebRuntime({
-        storage: { secret: sessionStore, plain: sessionStore, device: deviceStore },
-        cacheTab: tabStore,
-    })
-);
+// Start the runtime the console declares (`config/admin.ts`) before render. The start initialises
+// `@chatic/config` from the declaration's ports first — synchronously, at the point the explicit
+// `config.init` used to run — then settles and builds each port and boots the runtime. The console
+// reads the session (its admin gate asks for the relay profile), and the session store refuses to
+// resolve endpoints until the runtime is booted.
+//
+// A failed start is logged under its own tag and thrown on, so it stays the uncaught error a
+// synchronous boot failure always was, and the console does not render on a runtime that never came up.
+try {
+    await startRuntime(admin);
+} catch (error) {
+    logger.error('app.runtime_start_failed', '[admin] the runtime did not start; the console is not rendered', {
+        error,
+    });
+    throw error;
+}
 
 // What this console does when the server CONFIRMS the session is over (the credential was re-minted
 // and the request replayed once, and it was refused again): raise a banner and leave the screen

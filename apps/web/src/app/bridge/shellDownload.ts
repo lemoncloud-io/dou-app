@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import { createNativeDownloads, type NativeDownloads } from '../runtime/transfer';
-import { useCanExportImages } from './shellCapabilities';
+import { shellCapabilities, useCanExportImages } from './shellCapabilities';
 import { useAppForeground } from './useAppForeground';
 
 // One per page, like the upload registry: every waiting download has to be reachable from the one
 // event listener, and the catch-up after a return has to see all of them.
 let nativeDownloads: NativeDownloads | null = null;
 
-/** The shell's download registry for this page. Only meaningful inside the app. */
+/** The shell's download registry for this page. Only meaningful where the app moves files. */
 export const getShellDownloads = (): NativeDownloads => {
     nativeDownloads ??= createNativeDownloads({
         bridge: webClient,
@@ -22,11 +23,18 @@ export const getShellDownloads = (): NativeDownloads => {
 let syncing: Promise<void> | null = null;
 
 /**
- * Catches up with downloads the shell finished while this page was away. A browser has none.
- * Calls that overlap share one list request.
+ * Whether the shell can hold a download for this page. Two features start them through the one
+ * registry: a document download where the app moves files (the host's `files` port), and saving or
+ * sharing a photo or video wherever the handshake allows image export. Either is reason to catch up.
+ */
+const shellMayHoldDownloads = (): boolean => runtime.files.kind === 'shell' || shellCapabilities.canExportImages();
+
+/**
+ * Catches up with downloads the shell finished while this page was away. Where the shell can hold none
+ * there are none. Calls that overlap share one list request.
  */
 export const syncShellDownloads = (): Promise<void> => {
-    if (!isNative()) return Promise.resolve();
+    if (!shellMayHoldDownloads()) return Promise.resolve();
     syncing ??= getShellDownloads()
         .sync()
         .finally(() => {

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ImagePlus } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';

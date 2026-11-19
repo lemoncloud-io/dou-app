@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
 
 import { IS_DEV } from '../consts';
+import { isEmailAlreadyRegistered } from '../lib';
 
 import type { CloudVerifyEmailBody, CloudVerifyEmailView } from '@lemoncloud/chatic-backend-api';
 
@@ -30,7 +31,7 @@ export interface EmailVerifyRequest {
  * address before a code is sent.
  */
 /**
- * Cloud email-ownership check. Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts` to sit
+ * Cloud email-ownership check. Moved down from `@chatic/runtime`'s `data/hooks/cloud.ts` to sit
  * with its only caller (ADR-0070 decision 5, direction ②) — the `dryRun` policy below is this feature's,
  * not the runtime's.
  *
@@ -56,10 +57,16 @@ export const useVerifyEmailCode = (): ((request: EmailVerifyRequest) => Promise<
                 // The step is the whole point of this entry: all four legs share one hook and one
                 // endpoint, so without it a failure says only "email verification broke" and not
                 // which leg — send, resend, check or confirm. The address is not recorded (ADR-0099).
-                logger.error('ACCOUNT', `email verification failed at step=${request.step}`, {
+                // An address someone else registered is an answer, not a breakage, so it is a warn —
+                // on `send`/`resend` only, where the relay raises it; a failed bind stays an error.
+                const entry = {
                     error,
                     data: { step: request.step, hasCode: !!request.code, hasCloudId: !!request.cloudId },
-                });
+                };
+                const message = `email verification failed at step=${request.step}`;
+                const sending = request.step === 'send' || request.step === 'resend';
+                if (sending && isEmailAlreadyRegistered(error)) logger.warn('ACCOUNT', message, entry);
+                else logger.error('ACCOUNT', message, entry);
                 throw error;
             }
         },

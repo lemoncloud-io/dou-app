@@ -1,33 +1,48 @@
 import Config from 'react-native-config';
 
 import { openSessionOwnerFile } from './runtimeStorageFiles';
-import { defaultSessionOwner, readSessionOwner } from './sessionOwner';
-import type { SessionOwner } from './sessionOwner';
+import { readDefaultSessionOwner, readSessionOwnerChoice, unswitchedSessionOwnerChoice } from './sessionOwner';
+import type { SessionOwner, SessionOwnerChoice, SessionOwnerFile } from './sessionOwner';
 
-/** This build's owner for an install nobody has switched: the app's runtime on a dev stage build. */
-export const buildDefaultSessionOwner = (): SessionOwner =>
-    defaultSessionOwner(Config.VITE_ENV, Config.VITE_SESSION_OWNER_DEFAULT);
+const unswitchedSessionOwnerChoiceOf = (file: SessionOwnerFile): SessionOwnerChoice =>
+    unswitchedSessionOwnerChoice(Config.VITE_ENV, Config.VITE_SESSION_OWNER_DEFAULT, readDefaultSessionOwner(file));
 
-let owner: SessionOwner | null = null;
+/**
+ * The owner of an install nobody switched: the build's pin, else the page's default when the web build
+ * named one, else the stage's own. The page's word counts on a production build too — that is its
+ * purpose: which side real installs run on is decided by a web deploy, not by an app release.
+ */
+export const unswitchedSessionOwner = (file: SessionOwnerFile): SessionOwner =>
+    unswitchedSessionOwnerChoiceOf(file).owner;
+
+let choice: SessionOwnerChoice | null = null;
 
 /**
  * The session owner of this launch, read once from its file and kept for the process: the owner is
  * settled per launch, and everything that asks — the logs, the runtime host — has to hear the same
- * answer. With nothing recorded it is the build's default (`buildDefaultSessionOwner`). A file that
+ * answer. With no switch choice recorded it is the page's default, or else the build's
+ * (`unswitchedSessionOwner`). A file that
  * cannot be opened reads as the page's, on any build: an unreadable setting must not move the session.
  *
  * Kept apart from the runtime host so reading it costs one MMKV read: the host's module loads the
  * whole runtime, which a launch the page owns never needs.
  */
-export const launchSessionOwner = (): SessionOwner => {
-    if (owner === null) {
+export const launchSessionOwner = (): SessionOwner => launchSessionOwnerChoice().owner;
+
+/**
+ * `launchSessionOwner`, with the row that settled it (`SessionOwnerSource`) — read once with it, so the
+ * owner and the reason the boot logs for it are the same answer.
+ */
+export const launchSessionOwnerChoice = (): SessionOwnerChoice => {
+    if (choice === null) {
         try {
-            owner = readSessionOwner(openSessionOwnerFile(), buildDefaultSessionOwner());
+            const file = openSessionOwnerFile();
+            choice = readSessionOwnerChoice(file, unswitchedSessionOwnerChoiceOf(file));
         } catch {
-            owner = 'web';
+            choice = { owner: 'web', source: 'unreadable' };
         }
     }
-    return owner;
+    return choice;
 };
 
 let answered: SessionOwner | null = null;

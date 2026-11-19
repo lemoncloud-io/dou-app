@@ -5,7 +5,7 @@
 // the auth-id registry, the cloud-identity reader, the revoked-session reader, the site alignment,
 // the cloud renewal step the renewers call — stays inside. Apps never import it: the root eslint
 // config closes it, and they reach these through `runtime.session` and `runtime.connection` from
-// @chatic/app-runtime.
+// @chatic/runtime.
 
 // session — the relay and cloud sessions, and the use cases over them.
 export * from './session/authActions';

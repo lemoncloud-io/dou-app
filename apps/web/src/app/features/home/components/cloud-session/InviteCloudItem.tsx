@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
 import { CloudAvatar, IconCheckCircleSolid } from '@chatic/web-ui-kit';
-import type { DomainCloud } from '@chatic/data';
+import type { DomainCloud } from '@chatic/runtime';
 
 import { CloudUnreadBadge } from './CloudUnreadBadge';
 import { SELECTED_HIGHLIGHT } from './shared';

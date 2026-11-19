@@ -1,6 +1,8 @@
-import { isEventChat, type DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/runtime';
 
 import { messagePreview } from './messagePreview';
+import { chatSenderName } from './senderName';
+import type { MessageViewer } from './viewer';
 import { threadRootNo, type ThreadReply, type ThreadRoot } from './myThreads';
 import { isNotifiableChat } from './notifiableChat';
 
@@ -13,7 +15,8 @@ import { isNotifiableChat } from './notifiableChat';
 export const cachedThreads = (
     rows: DomainChat[],
     isMine: (row: DomainChat) => boolean,
-    scope: Pick<ThreadReply, 'cid' | 'channelId' | 'placeId' | 'channelKind' | 'channelName'>
+    scope: Pick<ThreadReply, 'cid' | 'channelId' | 'placeId' | 'channelKind' | 'channelName'>,
+    viewer?: MessageViewer
 ): Array<{ reply: ThreadReply; root: ThreadRoot }> => {
     const roots = new Map<string, DomainChat>();
     const replies = new Map<string, DomainChat[]>();
@@ -40,11 +43,11 @@ export const cachedThreads = (
                 rootNo,
                 replyNo: newest.chatNo ?? 0,
                 preview: messagePreview(newest),
-                ownerName: newest.owner$?.name ?? '',
+                ownerName: chatSenderName(newest, scope.placeId, viewer),
                 at: newest.createdAt ?? 0,
                 mine: isMine(newest),
             },
-            root: { preview: messagePreview(root), ownerName: root.owner$?.name ?? '' },
+            root: { preview: messagePreview(root), ownerName: chatSenderName(root, scope.placeId, viewer) },
         });
     }
     return found;

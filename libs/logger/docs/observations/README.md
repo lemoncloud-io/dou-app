@@ -43,18 +43,18 @@ two tags. The domain tag stays; `observation` is the split.
 
 ## The ten families
 
-| Kind                        | Level · tag                    | Produced by                                | Carries                                          |
-| --------------------------- | ------------------------------ | ------------------------------------------ | ------------------------------------------------ |
-| `badge-divergence`          | warn · `NOTIFICATION`          | `apps/web` divergence reporter             | `web`, `native`, `delta`, `breakdown`            |
-| `unread-divergence`         | warn · `CHAT`                  | `apps/web` divergence reporter             | the two cursors, the drawn count, `cursorLanded` |
-| `member-divergence`         | warn · `CHANNEL`               | `apps/web` divergence reporter             | `rosterOnly`, `joinOnly`, `joinCount`            |
-| `cloud-name-divergence`     | warn · `CLOUD`                 | `apps/web` divergence reporter             | `cid` and the two **lengths**, never the names   |
-| `foreign-drop`              | warn · `CACHE`                 | **this package** — the aggregator below    | `source`, `cid`, `socketCid`, `count`            |
-| `sync-streak`               | warn → error → info · `SYNC`   | `apps/web` sync streak reporter            | `path`, `streak` / `afterFailures`               |
-| `socket-unavailable-streak` | warn → error → info · `SOCKET` | `libs/app-runtime` socket failure reporter | `kind`, `type`, `code`, `afterFailures`          |
-| `sync-cursor-retired`       | warn · `SYNC`                  | `libs/data` `SyncMetaLocalDataSource`      | `cursorKind`, `reason`                           |
-| `queue-loss`                | warn · `LOG_BUFFER`            | `apps/web` queue loss observer             | `dropped` (the delta) and `droppedTotal`         |
-| `contacts-shape`            | info / warn · `DEVICE`         | `apps/mobile` device service               | `total`, `named`, `nameless`                     |
+| Kind                        | Level · tag                    | Produced by                             | Carries                                          |
+| --------------------------- | ------------------------------ | --------------------------------------- | ------------------------------------------------ |
+| `badge-divergence`          | warn · `NOTIFICATION`          | `apps/web` divergence reporter          | `web`, `native`, `delta`, `breakdown`            |
+| `unread-divergence`         | warn · `CHAT`                  | `apps/web` divergence reporter          | the two cursors, the drawn count, `cursorLanded` |
+| `member-divergence`         | warn · `CHANNEL`               | `apps/web` divergence reporter          | `rosterOnly`, `joinOnly`, `joinCount`            |
+| `cloud-name-divergence`     | warn · `CLOUD`                 | `apps/web` divergence reporter          | `cid` and the two **lengths**, never the names   |
+| `foreign-drop`              | warn · `CACHE`                 | **this package** — the aggregator below | `source`, `cid`, `socketCid`, `count`            |
+| `sync-streak`               | warn → error → info · `SYNC`   | `apps/web` sync streak reporter         | `path`, `streak` / `afterFailures`               |
+| `socket-unavailable-streak` | warn → error → info · `SOCKET` | `libs/runtime` socket failure reporter  | `kind`, `type`, `code`, `afterFailures`          |
+| `sync-cursor-retired`       | warn · `SYNC`                  | `libs/data` `SyncMetaLocalDataSource`   | `cursorKind`, `reason`                           |
+| `queue-loss`                | warn · `LOG_BUFFER`            | `apps/web` queue loss observer          | `dropped` (the delta) and `droppedTotal`         |
+| `contacts-shape`            | info / warn · `DEVICE`         | `apps/mobile` device service            | `total`, `named`, `nameless`                     |
 
 ```bash
 grep -rn "observation: '" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
@@ -145,7 +145,7 @@ cloud — correct behaviour that leaves the following screen stale with no recor
 foreignDropAggregator.record({ source, cid, socketCid });
 ```
 
-- **It lives here because its consumer already sees this package** — `libs/data`'s repositories already import `@chatic/logger`, so the home costs no new dependency. `libs/app-runtime`'s sync plans used to be a second consumer; a sync target now runs only on its own cloud's socket, so a plan has no foreign frame left to drop, and that label is gone. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
+- **It lives here because its consumer already sees this package** — `libs/data`'s repositories already import `@chatic/logger`, so the home costs no new dependency. `libs/runtime`'s sync plans used to be a second consumer; a sync target now runs only on its own cloud's socket, so a plan has no foreign frame left to drop, and that label is gone. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
 - **The window is 5 seconds.** A switch's optimistic window is short, so a longer window separates the entry from the switch that caused it and a shorter one splits one switch across several lines.
 - **Drops are grouped by `source|cid|socketCid`** and reported one `warn`/`CACHE` per group. `source` is a plain label naming the skip site — `channel-refresh`, `channel-sync`, `channel-self`, `channel-start-dm`, `place-refresh` — so the aggregate says _which_ site produced the count.
 - **The timer exists only while drops do.** The first drop opens the window; closing it reports and clears. An always-on interval would charge an idle device for something that is not happening.

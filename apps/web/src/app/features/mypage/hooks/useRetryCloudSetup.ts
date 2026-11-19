@@ -1,9 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
-
-import type { DomainCloud } from '@chatic/data';
 
 /**
  * Asks the relay to set up a cloud whose setup failed, again.

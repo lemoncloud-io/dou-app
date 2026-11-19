@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -22,6 +22,7 @@ import { useHomeChannels } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { PageHeader } from '../../../ui';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { HOME_PLACE_ID, resolvePlaceDisplayName } from '../../../utils/resolvePlaceDisplayName';
 import { channelKindOf, resolveChannelTitle } from '../../channels/lib';
 import { PlaceConfirmDialog } from '../components/PlaceConfirmDialog';
@@ -263,6 +264,7 @@ export const PlaceDetailPage = () => {
                         </>
                     )}
                 </div>
+                <SafeAreaBottomSpacer />
             </div>
 
             <PlaceConfirmDialog

@@ -37,7 +37,8 @@ stores in `src/app/shared/`.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded
   window, what it shows while it cannot, and how a root in the feed marks replies the reader has not seen.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
-  key, focus on open and close, and the next-unread shortcut.
+  key, focus on open and close, the next-unread, Back and Forward and number shortcuts, and the line of
+  hints a held modifier shows.
 - [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no
   escapes.
 - [webhook-messages.md](./webhook-messages.md): how a message posted by an integration looks (the

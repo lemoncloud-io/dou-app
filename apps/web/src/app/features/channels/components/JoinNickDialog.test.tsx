@@ -8,18 +8,19 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn() } }));
 const mockPrepareImage = jest.fn();
 jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
     AVATAR_IMAGE: {},
     prepareImage: (...args: unknown[]) => mockPrepareImage(...args),
 }));
 const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'session-me' }),
         },
-    },
-}));
+    })
+);
 
 const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 // Stable channel reference so the prefill effect (`useEffect([open, channel])`) runs once.
@@ -33,7 +34,7 @@ jest.mock('../hooks', () => ({
     useChannelMutations: () => ({ updateChannel, isPending: { update: false } }),
 }));
 // The dialog surfaces my place-profile nick as the placeholder. Mock the app-level hooks barrel
-// so the test doesn't pull in the real app-runtime (socket lib) transitively.
+// so the test doesn't pull in the real runtime (socket lib) transitively.
 jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '플레이스닉' } }) }));
 
 describe('JoinNickDialog', () => {

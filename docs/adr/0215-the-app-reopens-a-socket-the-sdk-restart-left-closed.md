@@ -1,13 +1,13 @@
 # ADR-0215: The app reopens a socket the SDK restart left closed
 
 > Status: Accepted · Decided: 2026-10-20 · Implemented: `fix/socket-rotation-reconnect`
-> · Scope: `libs/app-runtime/src/socket/SocketManager.ts` (`reopenAfterRestart`) ·
-> `libs/app-runtime/src/socket/auth/socketVerifyTrace.ts` (`hasResumeKick`)
+> · Scope: `libs/runtime/src/socket/SocketManager.ts` (`reopenAfterRestart`) ·
+> `libs/runtime/src/socket/auth/socketVerifyTrace.ts` (`hasResumeKick`)
 > · Related: [ADR-0194](./0194-the-app-recovers-a-socket-refusals-error-code.md) — the same
 > stance: the app works around an SDK gap and pins the SDK behaviour in a test ·
 > [ADR-0213](./0213-a-socket-that-reads-verified-is-pinged-on-resume.md) — the close reasons this
 > reads and the wake recovery it yields to
-> · The module doc is [libs/app-runtime socket](../../libs/transport/docs/socket/README.md#why-a-socket-closed-closereason)
+> · The module doc is [libs/runtime socket](../../libs/transport/docs/socket/README.md#why-a-socket-closed-closereason)
 
 ## Context
 

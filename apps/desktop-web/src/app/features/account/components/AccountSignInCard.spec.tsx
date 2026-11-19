@@ -36,9 +36,11 @@ vi.mock('../../auth', () => ({
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
 // The card never links by itself — it starts the browser round trip: these would be the calls if it did.
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => ({ auth: { verifySocialAccount, confirmSocialAccount } }) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => ({ auth: { verifySocialAccount, confirmSocialAccount } }) },
+    })
+);
 
 import i18n from '../../../../i18n';
 

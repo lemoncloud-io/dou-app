@@ -15,4 +15,3 @@ export * from './PrivacyPage';
 export * from './ProfileEditPage';
 export * from './SettingsPage';
 export * from './TermsPage';
-export * from './WithdrawalPage';

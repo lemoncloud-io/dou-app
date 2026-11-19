@@ -1,12 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, type DomainChannel } from '@chatic/runtime';
 
 import { useChannel } from './useChannel';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -18,8 +17,8 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeItem = jest.fn();
 const unsubscribe = jest.fn();
@@ -210,6 +209,53 @@ describe('useChannel', () => {
         act(() => emit(null));
         expect(result.current.isLoading).toBe(true);
         expect(result.current.isError).toBe(false);
+    });
+
+    it("never answers a new id with the previous room's row, not even in the render that carries it", async () => {
+        // The room screen stays mounted across a room-to-room move. The render that brings the new
+        // id runs before the hook's effect resets its state, and anything read in it — the roster
+        // above all — was registered as join targets of the new room.
+        const renders: Array<{ id: string; channelId: string | undefined; isLoading: boolean }> = [];
+        const { result, rerender } = renderHook(
+            ({ id }) => {
+                const value = useChannel(id);
+                renders.push({ id, channelId: value.channel?.id, isLoading: value.isLoading });
+                return value;
+            },
+            { initialProps: { id: 'ch-1' } }
+        );
+
+        act(() => emit(channelRow({ id: 'ch-1', memberIds: ['me', 'old-member'] })));
+        await waitFor(() => expect(result.current.channel?.id).toBe('ch-1'));
+        renders.length = 0;
+
+        rerender({ id: 'ch-2' });
+
+        const underNewId = renders.filter(render => render.id === 'ch-2');
+        expect(underNewId.length).toBeGreaterThan(0);
+        expect(underNewId.every(render => render.channelId === undefined)).toBe(true);
+        // Still loading, not "resolved to nothing": the room would read that as a removal and leave.
+        expect(underNewId.every(render => render.isLoading)).toBe(true);
+    });
+
+    it('keeps a matching seed on screen through the move, from the first render under the new id', () => {
+        const renders: Array<{ id: string; channelId: string | undefined; isLoading: boolean }> = [];
+        const { rerender } = renderHook(
+            ({ id, seed }) => {
+                const value = useChannel(id, { seed });
+                renders.push({ id, channelId: value.channel?.id, isLoading: value.isLoading });
+                return value;
+            },
+            { initialProps: { id: 'ch-1', seed: null as DomainChannel | null } }
+        );
+        act(() => emit(channelRow({ id: 'ch-1' })));
+        renders.length = 0;
+
+        rerender({ id: 'ch-2', seed: channelRow({ id: 'ch-2', name: 'seeded' }) });
+
+        const underNewId = renders.filter(render => render.id === 'ch-2');
+        expect(underNewId.length).toBeGreaterThan(0);
+        expect(underNewId.every(render => render.channelId === 'ch-2' && !render.isLoading)).toBe(true);
     });
 
     it('구독과 타이머를 언마운트에서 정리한다', () => {

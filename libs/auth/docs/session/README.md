@@ -2,8 +2,8 @@
 
 Login, token exchange, cloud entry, site selection and teardown: the use cases that write the stores
 in [`@chatic/session`](../../../session/README.md). They are the only writers of those stores. What
-reads them for React — the hooks — is app-runtime's
-([its session doc](../../../app-runtime/docs/session/README.md)).
+reads them for React — the hooks — is @chatic/runtime's
+([its session doc](../../../runtime/docs/session/README.md)).
 
 ## Responsibilities
 
@@ -11,7 +11,7 @@ reads them for React — the hooks — is app-runtime's
 site selection and teardown all go through the `AuthRepository` (ADR-0036). No file here holds a
 gateway. It is not React, so it reads the repository through a synchronous accessor rather than the
 `useRuntimeRepositories` hook — `authRepositorySource.get()`, which `createRuntime()` wires. The
-graph that holds the repository is assembled in app-runtime's `data/`, a package above this one, so it
+graph that holds the repository is assembled in @chatic/runtime's `data/`, a package above this one, so it
 is handed down at boot rather than imported; unwired, `get()` throws a message naming
 `createRuntime()`.
 
@@ -34,7 +34,7 @@ Each is a class with a single exported singleton; the class itself stays private
 **No login hands a screen its token.** The app-facing logins answer with the account's fields
 (`SessionAccountView`, the token view without `Token` — `withoutToken` in
 [`accountView.ts`](../../src/session/accountView.ts)), or less: `createCredentialsByProvider` and the
-app-runtime login hooks. On the phone the session can belong to another process, and the page then
+@chatic/runtime login hooks. On the phone the session can belong to another process, and the page then
 must not hold a credential. An invite login's answer is the invitee's own cloud token, so
 `registerUserWithInviteCode` keeps it ([`inviteLogins.ts`](../../src/session/inviteLogins.ts)) and
 answers with an `InviteLogin` — a handle (with a random part, so a stale one names nothing) and the
@@ -108,8 +108,8 @@ this order, and only then leaves the page:
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
 2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
-   keys declare them, and the app hands them to `createWebRuntime({ signedOutKeyPrefixes })`, whose `createRuntime`
-   registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
+   keys declare them, and the app's runtime declaration hands them over (`signedOutKeyPrefixes`), whose
+   `createRuntime` registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
 3. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
@@ -142,7 +142,8 @@ lived before, deleting the web copy only once the shell confirmed the vault hold
 | (a logout, or its marker set) | any      | empty the vault, then read it; delete the web copy; drop marker |
 | unavailable                   | yes      | this run signs in from the copy, held in the tab; keep the copy |
 | unavailable                   | no       | this run keeps the session in the tab                           |
-| values                        | any      | the vault is the truth; delete the web copy                     |
+| values                        | no       | the vault is the truth                                          |
+| values                        | yes      | the copy replaces the vault's tokens; delete it once confirmed  |
 | empty                         | yes      | write the copy to the vault; delete it once confirmed           |
 | empty                         | no       | signed out                                                      |
 
@@ -154,15 +155,34 @@ device key that was invalidated, data from another device): it empties it and th
 again. Every row is decided from what the vault and web storage hold, so a boot that dies half-way does
 the move again next time.
 
+**A web copy next to vault tokens wins**, when it holds the relay token (without it the copy is a
+leftover and is deleted as before). Every boot that reads the vault deletes the web copy, and
+nothing writes the tokens to `localStorage` while a vault is in use, so a copy still there means no page has booted on
+this vault and its tokens were written by something else. The phone app's own runtime is that something:
+on app 0.32.1, an install that updated straight from an app without a vault started the runtime on an
+empty vault, which signed the device in as a guest while the person's session was still in
+`localStorage`. From 0.32.2 the runtime declines a launch whose vault holds no session, and the page
+moves the copy itself; this row is what recovers the installs 0.32.1 already reached. The copy replaces
+the vault's whole token set (a token it lacks is removed, so nothing of the other session is left) and
+the device guest's id from the plain store is written over the vault's in the same write, since the plain
+id is the one the page accepted invites under. The web copy is deleted once the shell confirms; a refused
+write is `migration-refused`, as for an empty vault. Taking the vault as the truth here would delete the
+last copy of the person's session. Because the copy wins, a copy the person has moved on from must not
+survive to the next boot: `discardWebCopy` (app-facing as `runtime.boot.discardWebSessionCopy`) deletes
+it, and `hasWebCopy` (`runtime.boot.hasWebSessionCopy`) says whether one is there. `apps/web` calls the
+first at a sign-out on a launch the phone app's runtime owns, and before it reloads onto a vault it found
+only after booting without one, unless the copy was there when it started.
+
 **The rows are decided by the tokens alone.** The vault may also hold the device guest's id (below),
 and a vault holding only that id is not a signed-in one: it takes the `empty` rows, so a web copy of
 the tokens is still moved rather than deleted.
 
 **The device guest's id is copied, never moved.** In three rows the boot copies `chatic-delegator-id`
 from the plain store into the vault if the vault lacks it, and leaves the plain copy where it is:
-`values`; `empty` with no web copy; and `empty` with a web copy, once the move is confirmed. It does not
-overwrite an id the vault already holds. It does not run in the logout row, in the unavailable rows, or
-after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
+`values` with no web copy; `empty` with no web copy; and `empty` with a web copy, once the move is
+confirmed. It does not overwrite an id the vault already holds, except in the `values` row with a web
+copy, above, where it goes over the vault's with the tokens. It does not run in the logout row, in the
+unavailable rows, or after a move the vault refused. The copy goes as the store's `offer`, not a `set`: a refused or
 unanswered offer leaves the store on the vault with the session's tokens, where a refused `set` would
 switch the whole run to the tab. The boot does not wait for it either, so a shell that never answers
 does not hold every launch for the full timeout. A copy that does not land is logged, the reader
@@ -198,7 +218,7 @@ runtime-core's `RelayCredentialGuard` reads both. They used to be asked of lemon
 bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: its callers
-(runtime-core's `loginWithInviteCode` command, app-runtime's `fetchInviteInfoWithCode`) pass positional
+(runtime-core's `loginWithInviteCode` command, @chatic/runtime's `fetchInviteInfoWithCode`) pass positional
 arguments and the repository takes an object. Keeping that translation in one place is its entire reason to exist.
 
 [`clearSiteSelection.ts`](../../src/session/clearSiteSelection.ts) empties the active cloud's place

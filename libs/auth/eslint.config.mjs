@@ -1,4 +1,4 @@
-import baseConfig, { noBridgesImport } from '../../eslint.config.mjs';
+import baseConfig from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
@@ -7,8 +7,6 @@ export default [
         // Override or add rules here
         rules: {},
     },
-    // No `@chatic/bridges` in this package — the root config holds the pattern and says why.
-    noBridgesImport,
     // ---------------------------------------------------------------------------------------------
     // `@chatic/session` and `@chatic/transport` are open to this package, through their barrels.
     //
@@ -40,8 +38,8 @@ export default [
                             message: 'Import @chatic/transport through its barrel. Deep paths are for test mocks only.',
                         },
                         {
-                            group: ['@chatic/sync', '@chatic/sync/*', '@chatic/app-runtime'],
-                            message: 'Sync sits beside this package and app-runtime above it — import neither.',
+                            group: ['@chatic/sync', '@chatic/sync/*', '@chatic/runtime'],
+                            message: 'Sync sits beside this package and @chatic/runtime above it — import neither.',
                         },
                         {
                             group: ['@chatic/auth', '@chatic/auth/*'],
@@ -66,8 +64,8 @@ export default [
                                 'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                         {
-                            group: ['@chatic/sync', '@chatic/sync/*', '@chatic/app-runtime'],
-                            message: 'Sync sits beside this package and app-runtime above it — import neither.',
+                            group: ['@chatic/sync', '@chatic/sync/*', '@chatic/runtime'],
+                            message: 'Sync sits beside this package and @chatic/runtime above it — import neither.',
                         },
                         {
                             group: ['@chatic/auth', '@chatic/auth/*'],

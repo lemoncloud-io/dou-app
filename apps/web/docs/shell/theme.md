@@ -36,8 +36,8 @@ type Theme = 'dark' | 'light' | 'system';
 | DOM application     | `runtime/ThemeApplier`        | The `light`/`dark` class on `<html>` and `meta[theme-color]`. Renders nothing.           |
 
 `ThemeApplier` mounts in `app.tsx` **outside** `AppRuntime`, because the theme has to be correct
-before a session exists (the login screen, for instance). `useTheme` subscribes to `@chatic/config`'s
-global singleton, so no Context is needed.
+before a session exists (the login screen, for instance). `useTheme` subscribes through
+`runtime.settings` to `@chatic/config`'s global singleton, so no Context is needed.
 
 `ThemeApplier` also updates `meta[theme-color]` because `index.html`'s pre-paint script only runs
 once, at boot — without this, an in-app theme change would leave the mobile status bar color stale
@@ -55,15 +55,15 @@ means changing all of them together.
 
 ## Storage flow — three channels, one write
 
-`ui.theme` is `persist: 'shell'`, so `config.set('ui.theme', theme, { lane: 'shell' })` already
+`ui.theme` is `persist: 'shell'`, so `runtime.settings.set('ui.theme', theme, { lane: 'shell' })` already
 handles the bridge round-trip (`SaveConfigValue`), one retry, and the local mirror — canon in the
 [`@chatic/config` README](../../../../libs/config/README.md). That alone is not enough, though:
 the native shell's own status bar, root background and `window.CHATIC_APP_THEME` pre-injection
 read the native's own legacy `themeStore` (updated by the mobile `usePreferenceCacheHandler`'s
 `'theme'` case), not `ConfigKvService`. So `hooks/useTheme.ts`'s `setTheme` writes **twice**:
 
-1. `config.set('ui.theme', theme, { lane: 'shell' })` — the storage `config.get('ui.theme')`
-   resolves from on the next boot.
+1. `runtime.settings.set('ui.theme', theme, { lane: 'shell' })` — the storage
+   `runtime.settings.get('ui.theme')` resolves from on the next boot.
 2. `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` (native only, confirmed
    with one retry) — the storage native's own UI reads.
 
@@ -74,7 +74,7 @@ channels can fail independently without breaking the others: only the second has
 path, which is why it alone gets confirmation + retry — if native owns the status bar and this
 write is lost, the two layers stay wrong until the next full app restart.
 
-**Reading** is just `useConfigValue('ui.theme')` (`@chatic/config/react`) — local cache, native
+**Reading** is just `runtime.settings.useConfigValue('ui.theme')` — local cache, native
 injection and default-value ordering are decided by `@chatic/config`'s lane resolver and are not
 re-explained here.
 
@@ -89,7 +89,7 @@ reason `setTheme` has to keep that store current.
 
 [`PreferenceLoader`](../../src/app/runtime/PreferenceLoader.tsx)'s legacy bridge fallback remains
 as a secondary path for a shell old enough to lack the boot injection
-(`CHATIC_APP_CONFIG_BAG`): only when `config.snapshot('ui.theme')?.isOverridden` is false does it
+(`CHATIC_APP_CONFIG_BAG`): only when `runtime.settings.snapshot('ui.theme')?.isOverridden` is false does it
 fetch the value via `FetchPreference` and write it with `{ lane: 'shell' }`.
 
 ### Parsing bridge values

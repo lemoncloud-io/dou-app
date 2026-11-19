@@ -1,5 +1,6 @@
-import { ingestLogEntry, isNative, logger } from '@chatic/bridges';
+import { ingestLogEntry, logger } from '@chatic/bridges';
 import type { PendingReportInfo } from '@chatic/bridge-messages';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../bridge';
 
@@ -49,10 +50,12 @@ const relayReport = (report: PendingReportInfo): void => {
  * Drains the native side's deferred report queue into the log pipeline: WebView
  * crashes / RN exceptions / native crashes are detected while the web is gone
  * or dying, so they queue in MMKV and flush here once the web boots. Relayed
- * ids are acknowledged so the queue never re-sends them.
+ * ids are acknowledged so the queue never re-sends them. Only where the
+ * `diagnostics` port says the app queues the reports; a page that sends its own
+ * has no such queue.
  */
 export const schedulePendingReportFlush = (): void => {
-    if (!isNative()) return;
+    if (runtime.diagnostics.kind !== 'shell') return;
 
     const flush = async (): Promise<void> => {
         try {

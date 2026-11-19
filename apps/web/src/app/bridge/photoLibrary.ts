@@ -1,4 +1,4 @@
-import { isNative } from '@chatic/bridges';
+import { runtime, type ShellFileRef } from '@chatic/runtime';
 import type {
     OnListPhotoAlbumsPayload,
     OnListPhotosPayload,
@@ -6,13 +6,12 @@ import type {
     PhotoLibraryItem,
     PhotoLibraryMediaType,
 } from '@chatic/bridge-messages';
-import type { ShellFileRef } from '@chatic/data';
 
 import { appBridge } from './appBridge';
 
 /**
- * The device photo library, as the in-app picker reads it — or `null` in a browser, which the picker
- * takes as "use the page's own file input".
+ * The device photo library, as the in-app picker reads it — or `null` where the page picks
+ * (`runtime.media`), which the picker takes as "use the page's own file input".
  *
  * Every phone app this page runs in answers these messages, lists videos beside photos when asked
  * (`mediaTypes`), keeps a picked video, and pages by `offset`, echoing it. `thumbSize` sizes the
@@ -61,7 +60,7 @@ const MEDIA_TYPES: PhotoLibraryMediaType[] = ['image', 'video'];
 
 class ShellPhotoLibrary implements PhotoLibrary {
     isUnsupported(): boolean {
-        return !isNative();
+        return runtime.media.kind !== 'shell';
     }
 
     /** Runs a request in the app; `null` in a browser. Failures surface to the caller. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 interface ReadCount {
     readCount: number;
@@ -81,5 +81,11 @@ export const useJoinPositions = (
         [activeMemberIds, cursorByUser, memberCount]
     );
 
-    return { getReadCount, isReady };
+    /** The active members whose cursor has reached `chatNo` — the faces the group receipt shows. */
+    const getReaders = useCallback(
+        (chatNo: number): string[] => activeMemberIds.filter(userId => (cursorByUser.get(userId) ?? 0) >= chatNo),
+        [activeMemberIds, cursorByUser]
+    );
+
+    return { getReadCount, getReaders, isReady };
 };

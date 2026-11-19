@@ -76,8 +76,20 @@ export const createNativeRuntimeHost = ({
         try {
             booted = await boot(leaveToHome);
         } catch (error) {
-            // Nothing was created: the build lacked a value, or the runtime could not be assembled.
-            const missing = (error as { missing?: unknown }).missing;
+            // Nothing was created. A vault with no session is a decision, not a failure: the page moves a
+            // session the runtime cannot see, or signs a guest in, and the next launch is the runtime's.
+            if ((error as { code?: unknown } | null)?.code === 'NATIVE_RUNTIME_NO_SESSION') {
+                logService.info(
+                    'session.native_runtime_declined',
+                    'The vault holds no session; the page takes this launch',
+                    {
+                        secretStorage: (error as { secretStorage?: unknown }).secretStorage,
+                    }
+                );
+                return null;
+            }
+            // Otherwise the build lacked a value, or the runtime could not be assembled.
+            const missing = (error as { missing?: unknown } | null)?.missing;
             logService.error(
                 'session.native_runtime_failed',
                 'Native runtime failed to boot; the page keeps the session',

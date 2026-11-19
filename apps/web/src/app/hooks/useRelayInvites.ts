@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { InviteState } from '@lemoncloud/chatic-sockets-lib';
 

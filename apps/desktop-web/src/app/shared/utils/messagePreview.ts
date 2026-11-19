@@ -7,7 +7,7 @@ import {
     uploadSlotKind,
     type ChatAttachmentKind,
     type DomainChat,
-} from '@chatic/data';
+} from '@chatic/runtime';
 
 import { messagePlainText } from './messagePlainText';
 

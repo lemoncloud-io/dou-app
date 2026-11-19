@@ -47,7 +47,7 @@ export interface SetOptions {
 /**
  * The one public surface.
  *
- * Shaped like `runtime.<group>.*` in `@chatic/app-runtime`: a facade over classes, not a bag of
+ * Shaped like `runtime.<group>.*` in `@chatic/runtime`: a facade over classes, not a bag of
  * loose exported functions. The internals stay off the barrel on purpose — a consumer holding
  * `ConfigResolver` directly could sidestep the lane policy (ADR-0079 decision 12).
  */
@@ -80,6 +80,14 @@ export class ConfigFacade {
         });
         this.hydrateShell();
         this.hydrateStorage();
+    }
+
+    /**
+     * Whether `init` has run. Asked by a caller that must not initialise twice and cannot tell from a
+     * key — a facade made over its own modules may hold none of the keys the caller knows.
+     */
+    isInitialized(): boolean {
+        return this.resolver !== null;
     }
 
     /** Combinations the registry cannot satisfy. A test asserts this is empty. */

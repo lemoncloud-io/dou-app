@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Hash, Search, User } from 'lucide-react';
 import { create } from 'zustand';
 
-import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
-import { xhrPut } from '@chatic/runtime-web';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
+import { pageUploadPut } from '../../../../../config/upload';
 import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';
 import { channelKind, toastFailure, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../../shared';
@@ -20,6 +19,8 @@ export interface ForwardRequest {
     url: string;
     name: string;
     contentType?: string;
+    /** A fresh address for the file, asked once when the first one no longer loads. */
+    refreshUrl?: () => Promise<string | undefined>;
 }
 
 /** One forward under way: the file, and the channel it goes to. */
@@ -175,7 +176,7 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
     const { sendImages } = runtime.data.useSendImages({
         cid: job.cid,
         channelId: job.channelId,
-        put: xhrPut,
+        put: pageUploadPut,
         attach: false,
     });
     useEffect(() => {
@@ -186,7 +187,12 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
         const { file } = job;
         void (async () => {
             try {
-                const bytes = await fetchFileBytes(file.url);
+                const bytes = await fetchFileBytes(file.url).catch(async (error: unknown) => {
+                    // The signed address may have expired while the file sat in the feed.
+                    const fresh = await file.refreshUrl?.();
+                    if (!fresh || fresh === file.url) throw error;
+                    return fetchFileBytes(fresh);
+                });
                 // Said as it starts, not as it ends: an upload that fails still settles, and shows as a
                 // failed message in that channel rather than here.
                 toast({ description: t('chat.file.forwarding', { channel: job.label }) });

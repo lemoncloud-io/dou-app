@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { render, screen } from '@testing-library/react';
 
-import type { DomainCloud } from '@chatic/data';
+import type { DomainCloud } from '@chatic/runtime';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({

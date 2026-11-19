@@ -3,7 +3,9 @@
 An integration — an alerting service, a deploy bot — can post into a group channel without being a
 person in it. The server stores that post as a chat with `stereo: 'webhook'` and turns the card the
 sender described into Block Kit blocks (`blocks$`). Desktop only reads these; nothing in the app can
-create one, and the sender's token never reaches the client. This page is about how such a message
+create one, and the sender's token never reaches the client. The channel owner issues and
+manages the tokens in the settings panel ([Webhooks](./channel-settings.md#webhooks)); a token is shown
+once, when it is issued, and kept nowhere. This page is about how such a message
 looks and behaves on the reader's side.
 
 ## The card
@@ -98,7 +100,7 @@ and saved like a person's message.
 ## The sender
 
 The sender is a system user, not a channel member, so none of the person-shaped lookups apply. The
-row knows it is one from the message itself (`isWebhookChat`, `@chatic/data`, shared with apps/web).
+row knows it is one from the message itself (`isWebhookChat`, `@chatic/runtime`, shared with apps/web).
 The account's own record (`stereo: 'system'`, looked up by `ownerId`) would be the better source, and
 the one per-integration bots will need, but the client cannot read it yet: the account is not a
 member, so the member sync never brings it into the user cache, and the server has no call that

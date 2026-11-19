@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel, IChatRepository } from '@chatic/data';
+import { runtime, type DomainChannel, type IChatRepository } from '@chatic/runtime';
 
 import {
     CATCH_UP_LIMIT,

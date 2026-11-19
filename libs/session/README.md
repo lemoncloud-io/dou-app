@@ -3,7 +3,7 @@
 **The session's state, and nothing that acts on it.** Three stores hold the tokens, the selected
 cloud and site, and who the user is; a typed signal announces every write; derived contexts answer
 the common questions; and the scope gives the three views of "which cloud are we operating as". It
-was cut out of `@chatic/app-runtime` as the bottom layer of that package (ADR-0253): everything
+was cut out of `@chatic/runtime` as the bottom layer of that package (ADR-0253): everything
 there reads from it, and it reads nothing there.
 
 Logging in, switching cloud, renewing a credential and ending a session are not here. Those are the
@@ -12,13 +12,13 @@ they are the only writers of these stores.
 
 ## Who imports it
 
-`@chatic/app-runtime` and the modules cut from it that sit above this one — `@chatic/transport`,
+`@chatic/runtime` and the modules cut from it that sit above this one — `@chatic/transport`,
 `@chatic/sync` and `@chatic/auth`. **Apps do not**: they read the session through
 `runtime.session`, which publishes readers and no writers. The barrel sells the raw stores
 (`cloudStore`, `relayStore`, `identityStore`) because the use cases above have to write them; keeping
 apps off this package is what keeps those writers out of reach.
 
-Production code imports the barrel only. A test in app-runtime, transport, sync or auth may name a file —
+Production code imports the barrel only. A test in @chatic/runtime, transport, sync or auth may name a file —
 `jest.mock('@chatic/session/store/stores', …)` — because mocking the barrel would leave this
 package's own internal imports on the real module. The root eslint config closes both forms to
 everything else, and each importing package's own config re-opens the barrel and, in tests only,
@@ -64,9 +64,9 @@ be needed here, comes from `@chatic/logger`.
 in `tsconfig.lib.json`) and the root lint refuses the page's globals: the session runs in the native
 process too, and the media behind its ports are handed in.
 
-**`credentialFreshness` sits in `store/`, not with the use cases in app-runtime.** It answers "how long is left on this
+**`credentialFreshness` sits in `store/`, not with the use cases in @chatic/runtime.** It answers "how long is left on this
 server's credential" by reading the stores and nothing else, and the HTTP transport and the socket
-auth status both ask it. Both sit below the use cases in app-runtime, so the reader lives here,
+auth status both ask it. Both sit below the use cases in @chatic/runtime, so the reader lives here,
 beside `expiry.ts`.
 
 **`scope/` owns the answer to "which cloud/site/user are we operating as"** and implements
@@ -93,7 +93,7 @@ The keys stay in the file of the store that reads and writes them rather than mo
 `constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.
 
 `IIdentityStore` has four members — `getDelegatorId`, `setDelegatorId`, `getDeviceId`,
-`setDeviceId`. `getDeviceId` is the page's own id, which app-runtime's `useDynamicDeviceId` reads and
+`setDeviceId`. `getDeviceId` is the page's own id, which @chatic/runtime's `useDynamicDeviceId` reads and
 makes on first use; an app or desktop shell injects an id of its own that wins over it.
 
 `chatic-delegator-id` is the one key kept in **both** ports (below): `setDelegatorId` writes and clears
@@ -107,16 +107,19 @@ the invited clouds it accepted were hidden from it there and a new invite could 
 
 The plain copy is kept rather than moved, for three readers: a web build from before this reads only
 it, a run whose vault cannot be read falls back to it, and the vault boot copies it into a vault that
-lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies only ever hold this device's guest
+lacks the id (`@chatic/auth`'s `secretStorageMigration`). Both copies normally hold this device's guest
 — the server registers one per device id — so when they differ, because the other side ended a session
-and wrote only its own copies, either one names the same user.
+and wrote only its own copies, either one names the same user. The exception is a vault the page never
+booted on: the app's runtime may have signed in as a guest there while the person's session was still in
+`localStorage`. When that web copy replaces the vault's tokens, the boot writes the plain id over the
+vault's, because the plain one is the id the page accepted invites under.
 
 ### Two ports: secret and plain
 
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
-[`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which `KeyValueStore`
-([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
-`createWebRuntime({ storage })` in a page, whose `createRuntime` calls `sessionStores.configure`.
+[`store/ports/`](./src/store/ports/index.ts), and each app's runtime declaration decides which
+`KeyValueStore` ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, through
+its `storage` adapter; `startRuntime` hands them to `createRuntime`, which calls `sessionStores.configure`.
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -252,7 +255,7 @@ every cloud but the committed one.
 `getUidsInClouds()` is the same answer for every cloud at once — the relay, the committed cloud, every
 cloud the token cache holds tokens for (`cloudStore.getCachedCloudIds()`) and every recorded identity.
 It is how the session goes into a single value for a reader that cannot ask per cloud: runtime-core's
-session view, which app-runtime's readers go through.
+session view, which @chatic/runtime's readers go through.
 
 Two of its sources change without a session signal — the token cache and the recorded identities are
 caches, not session state. `cloudStore.subscribeUidSources(listener)` hears every write to them, so a
@@ -308,7 +311,7 @@ switch — tagged for one site, sent under another's session.
 
 - Each store takes its storage in the constructor, so a test builds one over a fake `StorageLike` rather than mocking a module. That is what `writeSignals.test.ts` and `contextStore.test.ts` do.
 - `sessionSignal` is a process singleton. A test that asserts fan-out counts must unsubscribe, because listeners survive between cases.
-- `msUntilExpiration` lives in `store/expiry.ts`, not with the use cases in app-runtime, because the store needs it too and cannot import anything above it. Its `null` means "unmeasurable", which is explicitly **not** stale.
+- `msUntilExpiration` lives in `store/expiry.ts`, not with the use cases in @chatic/runtime, because the store needs it too and cannot import anything above it. Its `null` means "unmeasurable", which is explicitly **not** stale.
 - The identity context is seeded lazily. A test that asserts the initial state must read it once before asserting no signal fired.
 - `relayStore.getBackend()` throws until `configureSessionStore()` has run, so any test touching relay endpoints has to call it (or inject resolvers) first.
 
@@ -320,6 +323,6 @@ npx jest --config libs/session/jest.config.js
 cd libs/session && npx eslint src
 ```
 
-The two absence gates in app-runtime (`refreshAbsence.test.ts`, `authUpdateAbsence.test.ts`) scan this
-package too, and app-runtime's suite is the real consumer test: it drives these stores through every
+The two absence gates in @chatic/runtime (`refreshAbsence.test.ts`, `authUpdateAbsence.test.ts`) scan this
+package too, and @chatic/runtime's suite is the real consumer test: it drives these stores through every
 use case.

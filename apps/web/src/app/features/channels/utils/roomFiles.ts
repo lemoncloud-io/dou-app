@@ -1,4 +1,10 @@
-import { chatMediaItems, type ChatFileSlot, type DomainChat, type MediaItem, type RoomMediaItem } from '@chatic/data';
+import {
+    chatMediaItems,
+    type ChatFileSlot,
+    type DomainChat,
+    type MediaItem,
+    type RoomMediaItem,
+} from '@chatic/runtime';
 
 import { hiddenMediaKey } from '../lib/localMediaPrefs';
 

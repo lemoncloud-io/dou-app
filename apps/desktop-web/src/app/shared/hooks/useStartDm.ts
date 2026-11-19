@@ -2,8 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID, type DomainChannel, runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 import { usePendingOpenStore } from '../stores';

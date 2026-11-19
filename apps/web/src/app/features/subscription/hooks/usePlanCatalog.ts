@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
@@ -9,6 +9,7 @@ import {
     findPlanById,
     findResubscribePlan,
     isHeldByWeb,
+    isTrialEligible,
     selectSellablePlans,
     summarizeMembership,
     webPlanPlatform,
@@ -17,10 +18,11 @@ import {
 import type { SubscriptionSummary } from '../lib';
 
 export interface PlanCatalog {
-    /** Running inside the native shell — the only context where IAP (and a real store price) exists. */
-    isOnMobileApp: boolean;
+    /** This host sells through an app store — the only case where IAP (and a real store price) exists. */
+    sellsInStore: boolean;
+    /** The store this host sells through is Apple's. */
     isIOS: boolean;
-    /** Store platform for this build; `undefined` off-native. */
+    /** The store this host sells through; `undefined` where none does. */
     platform: StorePlatform | undefined;
     /** Tier 1~5 for the current store, ascending by `sort`. Empty off-native. */
     sellablePlans: ProductView[];
@@ -51,6 +53,11 @@ export interface PlanCatalog {
     pendingPlan: ProductView | undefined;
     /** Four-state view of the membership, entitlement included. */
     summary: SubscriptionSummary;
+    /**
+     * Whether a first subscription would start with a trial — the server's `trialEligible`, or for a
+     * server that omits it `!trialUsed` (`isTrialEligible`). Gates every trial badge and CTA.
+     */
+    trialEligible: boolean;
     isLoading: boolean;
 }
 
@@ -69,9 +76,10 @@ export interface PlanCatalog {
  * pending plan, allowance and trial resolve from it like a store's.
  */
 export const usePlanCatalog = (): PlanCatalog => {
-    const isOnMobileApp = isNative();
-    const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
-    const platform: StorePlatform | undefined = isOnMobileApp ? (isIOS ? 'apple' : 'google') : undefined;
+    const checkout = runtime.checkout;
+    const platform: StorePlatform | undefined = checkout.kind === 'store' ? checkout.store : undefined;
+    const sellsInStore = platform !== undefined;
+    const isIOS = platform === 'apple';
 
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans({ limit: -1 });
     const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
@@ -109,7 +117,7 @@ export const usePlanCatalog = (): PlanCatalog => {
     const resubscribePlan = summary.state === 'expired' ? findResubscribePlan(receiptPlan, sellablePlans) : undefined;
 
     return {
-        isOnMobileApp,
+        sellsInStore,
         isIOS,
         platform,
         sellablePlans,
@@ -129,6 +137,7 @@ export const usePlanCatalog = (): PlanCatalog => {
                 isHeldByWeb(summary, membership?.platform)),
         pendingPlan,
         summary,
+        trialEligible: isTrialEligible(membership),
         isLoading: isPlansLoading || isMembershipLoading || isWebPlansLoading,
     };
 };

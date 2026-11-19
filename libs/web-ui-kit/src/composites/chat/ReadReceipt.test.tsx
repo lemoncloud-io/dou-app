@@ -61,4 +61,38 @@ describe('ReadReceipt', () => {
             expect(screen.getByLabelText('미확인 1')).toBeTruthy();
         });
     });
+
+    describe('readers mode', () => {
+        const faces = (n: number) => Array.from({ length: n }, (_, i) => <span key={i} data-testid="face" />);
+        const readerLabels = { readLabel: 'Read', unreadLabel: 'Unconfirmed', allReadLabel: 'Read by all' };
+
+        it('says how many read and shows up to three of them, then a +N pill', () => {
+            render(<ReadReceipt mode="readers" readCount={6} unreadCount={2} readers={faces(6)} {...readerLabels} />);
+
+            expect(screen.getByText('Read 6')).toBeInTheDocument();
+            expect(screen.getAllByTestId('face')).toHaveLength(3);
+            expect(screen.getByText('+3')).toBeInTheDocument();
+        });
+
+        it('draws no pill when three or fewer read', () => {
+            render(<ReadReceipt mode="readers" readCount={2} unreadCount={1} readers={faces(2)} {...readerLabels} />);
+
+            expect(screen.getAllByTestId('face')).toHaveLength(2);
+            expect(screen.queryByText(/^\+/)).toBeNull();
+        });
+
+        it('says how many have not seen it while nobody has read yet', () => {
+            render(<ReadReceipt mode="readers" readCount={0} unreadCount={49} {...readerLabels} />);
+
+            expect(screen.getByText('Unconfirmed 49')).toBeInTheDocument();
+            expect(screen.queryByTestId('face')).toBeNull();
+        });
+
+        it('collapses to the all-read label once everyone has read', () => {
+            render(<ReadReceipt mode="readers" readCount={4} unreadCount={0} readers={faces(4)} {...readerLabels} />);
+
+            expect(screen.getByText('Read by all')).toBeInTheDocument();
+            expect(screen.queryByTestId('face')).toBeNull();
+        });
+    });
 });

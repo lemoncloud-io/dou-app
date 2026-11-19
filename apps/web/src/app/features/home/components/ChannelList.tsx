@@ -3,8 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { AtSign } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
-import { type DomainChannel, type DomainChat, type DomainJoin, isMentioningViewer, toPlainPreview } from '@chatic/data';
+import {
+    runtime,
+    isMentioningViewer,
+    toPlainPreview,
+    type DomainChannel,
+    type DomainChat,
+    type DomainJoin,
+} from '@chatic/runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -318,7 +324,8 @@ const ChannelItem = ({
             // after the room mounts. The trace has to exist first: the fetch takes it.
             onClick={() => {
                 roomOpenTrace.begin(channel.id, 'list');
-                void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
+                // Not for somebody else's self-chat: its feed is refused, and the room bounces out of it.
+                if (!isForeignSelfChat) void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
                 navigate(ROUTES.channels.room(channel.id), { state: { channel } });
             }}
         />

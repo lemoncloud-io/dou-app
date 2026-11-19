@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 /**
  * The channel a trailing panel is drawn for, kept through the moments the list cannot resolve it.

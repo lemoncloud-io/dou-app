@@ -18,7 +18,7 @@ grep -rn "@chatic/data/" --include='*.ts' --include='*.tsx' apps libs | grep -v 
 ```
 
 This lib **does not own the socket connection's lifecycle.** Connecting, re-authenticating and sync
-timing belong to the sync orchestrator in `libs/app-runtime`. When the orchestrator calls a
+timing belong to the sync orchestrator in `libs/runtime`. When the orchestrator calls a
 repository's `refresh*` / `cacheWrite*`, the repository writes the result to local and re-emits it on
 the stream. From the repository's side, whether that call came from the UI or from the orchestrator
 makes no difference.
@@ -31,7 +31,7 @@ makes no difference.
 4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
 5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
-7. **This lib does not choose a cache adapter.** It declares the platform's side as `LocalCachePorts` (`local/ports/platform.ts`): where each domain's rows live, the storage for it, the search across clouds and the metrics. Which domain uses IndexedDB, native SQLite or the tab's sessionStorage in a page is `@chatic/runtime-web`'s answer (`resolveCacheBackend`); the runtime's assembly asks once per domain per session.
+7. **This lib does not choose a cache adapter.** It declares the platform's side as `LocalCachePorts` (`local/ports/platform.ts`): where each domain's rows live, the storage for it, the search across clouds and the metrics. Which domain uses IndexedDB, native SQLite or the tab's sessionStorage in a page is `@chatic/runtime-web`'s answer (`resolveCacheBackendFor`); the runtime's assembly asks once per domain per session.
 8. **This lib does not import `@chatic/bridges`.** Its eslint config refuses the package, type-only imports included, and `logger` comes from `@chatic/logger`. Repositories and their storage ports have to be able to run in a runtime with no WebView bridge; a storage adapter that does talk to the bridge is handed in through a port by whoever assembles the graph, as principle 7 already has it.
 9. **This lib reads no page.** The root lint refuses the page's globals here (`window`, `navigator`, `indexedDB`, `XMLHttpRequest`, …), because the data layer runs in the native process too. The page's own upload, `xhrPut`, lives in `@chatic/runtime-web` as an implementation of this lib's `PutPort`. Unlike session, transport, sync and auth, this lib still compiles with the DOM's types: its IndexedDB port is declared in them (`local/ports/indexeddb.ts`), until the IndexedDB assembly moves out of the core.
 
@@ -44,7 +44,7 @@ outbox (`outbox/`) with its port, its machine and the state definitions.
 
 **Out** — the socket transport runtime (`@lemoncloud/chatic-sockets-lib`), storage engine
 implementations (`@chatic/db`'s `IndexedDBAdapter`, `NativeDBAdapter`, `ChatQueryExecutor`), the HTTP
-client (`@chatic/http`), sync timing, connection lifecycle and cache routing (`libs/app-runtime`), and
+client (`@chatic/http`), sync timing, connection lifecycle and cache routing (`libs/runtime`), and
 the server-side socket spec.
 
 ## Structure
@@ -58,7 +58,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     UI["UI (React hooks)"]:::ext
-    Sync["sync orchestrator<br/>libs/app-runtime"]:::ext
+    Sync["sync orchestrator<br/>libs/runtime"]:::ext
 
     Repo["Repository × 14<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
@@ -160,7 +160,7 @@ the subscription to the target cloud regardless of the provider's commit lag rig
 ### Wiring
 
 This lib assembles nothing. Gateway instances, storage engines and sync timing are all decided by
-`DataManager` in `libs/app-runtime`.
+`DataManager` in `libs/runtime`.
 
 ```text
 DataManager
@@ -272,7 +272,7 @@ npx jest --config libs/data/jest.config.js
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
 - All 27 data sources have a matching test, and so do all 14 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches seven projects — `apps/web`, `apps/desktop-web`,
-  `libs/app-runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
+  `libs/runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and
   `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.

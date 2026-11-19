@@ -13,17 +13,16 @@ const repos = Object.fromEntries(
 );
 // The account's role, from the relay token — what decides whether invited clouds stay.
 const relayUser = vi.hoisted(() => ({ current: null as { userRole: string } | null }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        data: { useRuntimeRepositories: () => repos },
-        session: { getRelaySessionUser: () => relayUser.current },
-    },
-}));
-
-// Verify via the Facade's clear, not the registry: this is the one method that sweeps both the
+// Verify via the settings' clear, not the registry: this is the one method that sweeps both the
 // lane entry (in-memory) and the persisted `@chatic/config.ui.*` key in one go.
 const clearConfigKey = vi.fn().mockReturnValue({ ok: true });
-vi.mock('@chatic/config', () => ({ config: { clear: (...args: unknown[]) => clearConfigKey(...args) } }));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repos },
+        session: { getRelaySessionUser: () => relayUser.current },
+        settings: { clear: (...args: unknown[]) => clearConfigKey(...args) },
+    })
+);
 
 beforeEach(() => {
     vi.clearAllMocks();

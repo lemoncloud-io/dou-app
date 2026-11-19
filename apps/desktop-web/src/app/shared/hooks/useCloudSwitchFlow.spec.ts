@@ -19,8 +19,8 @@ const catalog = vi.hoisted(() => ({
     ownedClouds: [] as Array<{ id: string }>,
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSwitchCloudSession: () => ({ switchCloud: session.switchCloud, isPending: false }),
             useLogoutCloudSession: () => ({ logoutCloudSession: session.logoutCloudSession }),
@@ -30,8 +30,8 @@ vi.mock('@chatic/app-runtime', () => ({
             recoverInvitedCloudIfMissing: (...args: unknown[]) => data.recover(...(args as [])),
             useRuntimeRepositories: () => ({ cloud: data.cloudRepository }),
         },
-    },
-}));
+    })
+);
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: catalog.ownedClouds }),
     useOwnedCloudIds: () => new Set(catalog.ownedClouds.map((c: { id: string }) => c.id)),

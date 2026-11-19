@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChat, RoomMediaItem } from '@chatic/data';
+import type { DomainChat, RoomMediaItem } from '@chatic/runtime';
 import { MemoryStore } from '@chatic/storage';
 
 import { hideMedia, setLocalMediaPrefsStorage } from '../lib/localMediaPrefs';
@@ -20,8 +20,8 @@ const mockObserveList = jest.fn((_input: unknown, callback: () => void) => {
         if (at >= 0) mockObservers.splice(at, 1);
     };
 });
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             // One graph object, as the runtime hands out: a new one per render would resubscribe forever.
             useRuntimeRepositories: (() => {
@@ -38,8 +38,8 @@ jest.mock('@chatic/app-runtime', () => ({
                     });
             })(),
         },
-    },
-}));
+    })
+);
 
 type Kind = RoomMediaItem['kind'];
 

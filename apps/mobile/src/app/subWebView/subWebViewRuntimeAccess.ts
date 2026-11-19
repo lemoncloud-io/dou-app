@@ -8,9 +8,10 @@ import {
     SUB_WEBVIEW_MESSAGE_SENDS,
     type SubWebViewReadBudget,
 } from './subWebViewReadBudget';
+import { subWebViewReportsFrameOrigin } from './subWebViewFrameOrigin';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 import type * as ConsentPromptModule from './subWebViewRuntimeConsentPrompt';
-import { cloudOfSession, grantedSubWebViewRuntime } from './subWebViewRuntimeGate';
+import { cloudOfSession, grantedSubWebViewRuntime, placeOfSession } from './subWebViewRuntimeGate';
 
 type Engine = NonNullable<ReturnType<(typeof NativeRuntimeModule)['nativeRuntimeHost']['engine']>>;
 
@@ -43,19 +44,20 @@ export const openSubWebViewRuntime = ({
     permissions: ReadonlySet<SubWebViewRuntimePermission>;
 }): SubWebViewRuntimeAccess | null => {
     const owner = settledSessionOwner();
-    if (owner !== 'native' || trust !== 'reviewed' || permissions.size === 0) return null;
+    const reportsFrameOrigin = subWebViewReportsFrameOrigin();
+    if (owner !== 'native' || trust !== 'reviewed' || !reportsFrameOrigin || permissions.size === 0) return null;
     const { nativeRuntimeHost } = require('../services/runtime/nativeRuntime') as typeof NativeRuntimeModule;
     const engine = nativeRuntimeHost.engine();
     if (!engine) return null;
     const openedCloudId = cloudOfSession(engine.session.snapshot());
-    const granted = grantedSubWebViewRuntime({ owner, trust, permissions, openedCloudId });
+    const granted = grantedSubWebViewRuntime({ owner, trust, permissions, openedCloudId, reportsFrameOrigin });
     if (granted.size === 0 || openedCloudId === null) return null;
     const { createAppSubWebViewRuntimeConsent } =
         require('./subWebViewRuntimeConsentPrompt') as typeof ConsentPromptModule;
     return {
         engine,
         openedCloudId,
-        openedPlaceId: engine.session.snapshot().committedSiteId,
+        openedPlaceId: placeOfSession(engine.session.snapshot()),
         granted,
         budget: createSubWebViewReadBudget(),
         sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),

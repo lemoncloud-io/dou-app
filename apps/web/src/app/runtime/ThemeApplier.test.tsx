@@ -1,16 +1,17 @@
 import { act, render } from '@testing-library/react';
 
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { ThemeApplier } from './ThemeApplier';
 
-jest.mock('@chatic/config', () => ({
-    config: { set: jest.fn() },
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: jest.fn(),
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        settings: { set: jest.fn(), useConfigValue: jest.fn() },
+    })
+);
 
-const mockUseConfigValue = useConfigValue as jest.MockedFunction<typeof useConfigValue>;
+const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunction<
+    typeof runtime.settings.useConfigValue
+>;
 
 // ---------------------------------------------------------------------------
 // matchMedia mock — jsdom does not implement it. setOsPrefersDark() simulates

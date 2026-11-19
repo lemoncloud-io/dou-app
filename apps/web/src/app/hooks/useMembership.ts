@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, type MembershipDropsResult } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';
 import { useIsAccountGuest } from './useMyUser';
 
-import type { MembershipDropsResult } from '@chatic/data';
 import type { CreateMembershipBody, MembershipDropsBody, MembershipView } from '@lemoncloud/chatic-backend-api';
 /** Query parameters for a relay request. */
 type Params = Record<string, unknown>;
@@ -15,7 +14,7 @@ type Params = Record<string, unknown>;
 const GUEST_MEMBERSHIP: MembershipView = { isValid: false };
 
 /**
- * Membership + product-plan reads, moved down from `@chatic/app-runtime`'s
+ * Membership + product-plan reads, moved down from `@chatic/runtime`'s
  * `data/hooks/subscription.ts`. Nothing here is a cacheable entity (there is no local data source
  * behind `SubscriptionRepository`), so react-query is the only cache these reads have — and a
  * cache policy belongs to the app that renders it.

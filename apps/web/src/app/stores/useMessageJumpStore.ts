@@ -14,13 +14,28 @@ export interface MessageJumpTarget {
      * page handles only the targets naming its own root.
      */
     threadRootNo?: string;
+    /**
+     * How the jump lands. A person's jump (a search hit, a notification, a mention pill) centres the
+     * row and highlights it, and says so when it cannot get there. The room's own landing on entry —
+     * at the first unread message — puts the row at the top, highlights nothing and gives up silently.
+     */
+    highlight?: boolean;
+    block?: 'center' | 'start';
+    quiet?: boolean;
     /** Bumped on each request so a repeat jump to the same message still fires. */
     nonce: number;
 }
 
+export interface MessageJumpOptions {
+    threadRootNo?: string;
+    highlight?: boolean;
+    block?: 'center' | 'start';
+    quiet?: boolean;
+}
+
 interface MessageJumpState {
     target: MessageJumpTarget | null;
-    request: (channelId: string, chatNo: number, options?: { threadRootNo?: string }) => void;
+    request: (channelId: string, chatNo: number, options?: MessageJumpOptions) => void;
     clear: () => void;
 }
 
@@ -34,7 +49,7 @@ export const useMessageJumpStore = create<MessageJumpState>(set => ({
     target: null,
     request: (channelId, chatNo, options) => {
         nonceCounter += 1;
-        set({ target: { channelId, chatNo, threadRootNo: options?.threadRootNo, nonce: nonceCounter } });
+        set({ target: { channelId, chatNo, threadRootNo: options?.threadRootNo, ...options, nonce: nonceCounter } });
     },
     clear: () => set({ target: null }),
 }));

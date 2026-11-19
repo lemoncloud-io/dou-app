@@ -1,19 +1,28 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 
-import { useAppIcon } from './useAppIcon';
+import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
+import { isDefaultAppIcon, useAppIcon } from './useAppIcon';
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key }),
 }));
 
 jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
     webClient: { request: jest.fn() },
 }));
+jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
+const mockIsNative = jest.fn((): boolean => false);
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 
-const isNativeMock = isNative as jest.Mock;
 const requestMock = webClient.request as jest.Mock;
 
 // Resolve each bridge request based on its message type.
@@ -40,7 +49,7 @@ beforeEach(() => {
 
 describe('useAppIcon — 네이티브 앱 아이콘', () => {
     it('비네이티브에서는 브릿지를 호출하지 않고 기본값을 유지한다', () => {
-        isNativeMock.mockReturnValue(false);
+        mockIsNative.mockReturnValue(false);
         const { result } = renderHook(() => useAppIcon());
 
         expect(requestMock).not.toHaveBeenCalled();
@@ -49,7 +58,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('네이티브에서는 마운트 시 아이콘 상태와 목록을 불러온다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         mockBridge();
         const { result } = renderHook(() => useAppIcon());
 
@@ -59,7 +68,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('selectIcon이 성공하면 현재 아이콘을 갱신하고 true를 반환한다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         mockBridge();
         const { result } = renderHook(() => useAppIcon());
 
@@ -73,7 +82,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
     });
 
     it('selectIcon이 실패하면 false를 반환한다', async () => {
-        isNativeMock.mockReturnValue(true);
+        mockIsNative.mockReturnValue(true);
         requestMock.mockResolvedValue({ success: false });
         const { result } = renderHook(() => useAppIcon());
 
@@ -83,5 +92,75 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
         });
 
         expect(changed).toBe(false);
+    });
+});
+
+describe('isDefaultAppIcon', () => {
+    it('treats every name the primary icon goes by as the default', () => {
+        expect(isDefaultAppIcon(null)).toBe(true);
+        expect(isDefaultAppIcon('default')).toBe(true);
+        expect(isDefaultAppIcon('DefaultIcon')).toBe(true);
+    });
+
+    it('does not treat an alternate as the default', () => {
+        expect(isDefaultAppIcon('WhiteIcon')).toBe(false);
+    });
+});
+
+describe('useAppIcon — the primary icon reported by its stored name', () => {
+    it('labels DefaultIcon as the default icon', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) =>
+            Promise.resolve(
+                type === 'FetchAppIcon'
+                    ? { success: true, data: { supported: true, iconName: 'DefaultIcon' } }
+                    : { success: true, data: { availableIcons: [{ id: null, label: 'Default' }] } }
+            )
+        );
+        const { result } = renderHook(() => useAppIcon());
+
+        await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
+        expect(result.current.currentIconLabel).toBe('mypage.appIcon.default');
+    });
+});
+
+describe('useAppIcon — the change statistic', () => {
+    it('records a successful change from the icon in use to the one the app applied', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) => {
+            if (type === 'FetchAppIcon') {
+                return Promise.resolve({ success: true, data: { supported: true, iconName: 'DefaultIcon' } });
+            }
+            if (type === 'ChangeAppIcon') {
+                return Promise.resolve({ success: true, data: { success: true, iconName: 'MidnightIcon' } });
+            }
+            return Promise.resolve({ success: true, data: { availableIcons: [] } });
+        });
+        const { result } = renderHook(() => useAppIcon());
+        await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
+
+        await act(async () => {
+            await result.current.selectIcon('MidnightIcon');
+        });
+
+        expect(recordAppIconChange).toHaveBeenCalledWith('DefaultIcon', 'MidnightIcon');
+    });
+
+    it('records nothing when the app did not apply the change', async () => {
+        mockIsNative.mockReturnValue(true);
+        requestMock.mockImplementation(({ type }: { type: string }) =>
+            Promise.resolve(
+                type === 'ChangeAppIcon'
+                    ? { success: true, data: { success: false } }
+                    : { success: true, data: { supported: true, iconName: 'DefaultIcon', availableIcons: [] } }
+            )
+        );
+        const { result } = renderHook(() => useAppIcon());
+
+        await act(async () => {
+            await result.current.selectIcon('MidnightIcon');
+        });
+
+        expect(recordAppIconChange).not.toHaveBeenCalled();
     });
 });

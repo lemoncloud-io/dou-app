@@ -1,14 +1,14 @@
 # ADR-0213: A socket that reads verified is pinged on resume
 
 > Status: Accepted · Decided: 2026-10-19 · Implemented: `fix/socket-resume-zombie-probe`
-> · Scope: `libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts` (`recoverSocketsOnResume`) ·
-> `libs/app-runtime/src/socket/SocketManager.ts` (close reasons) ·
+> · Scope: `libs/runtime/src/socket/auth/recoverUnverifiedSockets.ts` (`recoverSocketsOnResume`) ·
+> `libs/runtime/src/socket/SocketManager.ts` (close reasons) ·
 > `apps/web/src/app/runtime/useSocketWakeRecovery.ts` · `apps/web/src/app/runtime/perf/socketRequestTrace.ts`
 > · Related: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) — the
 > `needsSocketKick` verdict this sits beside · [ADR-0181](./0181-requests-and-attachment-sends-are-measured-by-type.md)
 > — the `socket_request` samples that measure it
 > · Amends ADR-0181 decision 1 (the `socket_request` attributes gain `close_reason`)
-> · The module docs are [`libs/app-runtime` socket](../../libs/transport/docs/socket/README.md) and
+> · The module docs are [`libs/runtime` socket](../../libs/transport/docs/socket/README.md) and
 > [auth § Waking a wedged socket](../../libs/auth/docs/socket/README.md#waking-a-wedged-socket),
 > and [apps/web observability/performance.md](../../apps/web/docs/observability/performance.md#close_reason)
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { isCloudDm, type DomainChannel } from '@chatic/data';
+import { isCloudDm, type DomainChannel } from '@chatic/runtime';
 
 // The file, not the barrel: the utils barrel reaches back into the stores.
 import { dmCounterpartId } from '../utils/dmDisplay';

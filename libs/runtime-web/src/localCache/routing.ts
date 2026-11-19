@@ -1,12 +1,23 @@
 import type { CacheType } from '@chatic/bridge-messages';
-import { hostProfile } from '@chatic/bridges';
-import { isNativeCacheTypeUsable } from './nativeCacheSupport';
+import type { BridgeChannel } from '@chatic/bridges';
+
+import { isCacheTypeUsableBy } from './nativeCacheSupport';
+import type { NativeCacheSupport } from './nativeCacheSupport';
 
 /**
- * The page runs inside the phone app's WebView — the one shell with SQLite behind its bridge. Its
+ * Whether `bridge` is the phone app's channel — the one shell with SQLite behind its bridge. Its
  * channel is `ReactNativeWebView`, which the host profile names apart from the other shells'.
  */
-export const isInPhoneApp = (): boolean => hostProfile().bridge === 'react-native-webview';
+export const isPhoneAppBridge = (bridge: BridgeChannel | null): boolean => bridge === 'react-native-webview';
+
+/**
+ * What the routing decision reads about the host: the bridge channel the page found at boot, and the
+ * shell's cache report (`null` until the handshake reply lands, and on a shell that predates it).
+ */
+export interface CacheRoutingHost {
+    bridge: BridgeChannel | null;
+    support: NativeCacheSupport | null;
+}
 
 /**
  * Which physical store a cache type lands in.
@@ -34,7 +45,8 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
 
 /**
  * THE routing decision: answers "where is this cache type stored" in one place, so the ports'
- * `storage()` (`index.ts`) stays a pure assembler. Checks, in order:
+ * `storage()` (`routedCachePorts.ts`) stays a pure assembler. The host is handed in rather than read,
+ * so a cache assembled from its own host facts routes by the same table. Checks, in order:
  *
  * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
  *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
@@ -53,10 +65,10 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  *    docs/cache/README.md).
  * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
  */
-export const resolveCacheBackend = (type: CacheType): CacheBackend => {
-    if (type === 'invitecloud' && hostProfile().bridge === null) return 'session';
-    if (!isInPhoneApp()) return 'web';
+export const resolveCacheBackendFor = (type: CacheType, host: CacheRoutingHost): CacheBackend => {
+    if (type === 'invitecloud' && host.bridge === null) return 'session';
+    if (!isPhoneAppBridge(host.bridge)) return 'web';
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web';
-    if (!isNativeCacheTypeUsable(type)) return 'web';
+    if (!isCacheTypeUsableBy(host.support, type)) return 'web';
     return 'native';
 };

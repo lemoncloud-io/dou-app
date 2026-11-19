@@ -66,13 +66,13 @@ export interface BridgedRuntimeOptions {
 }
 
 /**
- * Builds the engine of a page that mirrors its shell's runtime, for `initAppRuntime(engine)` — the
- * counterpart of `createWebRuntime` for a launch whose shell owns the session.
+ * Builds the engine of a page that mirrors its shell's runtime — the counterpart of the core engine for
+ * a launch whose shell owns the session. `engine.mirror` builds it.
  *
  * Nothing is wired in the page: no stores, no sockets, no cache. Every member reaches the shell's
  * runtime across the bridge as runtime-core's contract says (`createMirrorEngine`). The entry point
  * makes the port, says hello, and calls this once the shell has answered `native` — never alongside
- * `createWebRuntime`: one launch has one owner.
+ * the core engine: one launch has one owner.
  */
 export const createBridgedRuntime = ({ hello, port }: BridgedRuntimeOptions): MirrorEngine =>
     createMirrorEngine({ port, hello });

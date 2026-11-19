@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import type { DomainPlace } from '@chatic/data';
+import { runtime, type DomainPlace } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
@@ -45,6 +44,7 @@ import {
     resolveChannelAvatar,
 } from '../lib';
 import { RoomFilesEntry } from '../components/RoomFilesEntry';
+import { ChannelWebhooksSection } from '../components/ChannelWebhooksSection';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel, notifyLevelOf, notifyLevelsFor } from '../utils/notifyLevel';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
@@ -555,6 +555,9 @@ export const ChannelSettingsPage = () => {
                             />
                         )}
                         {memberList}
+
+                        {/* Owner-only. A 1:1 has no webhook (a self chat never reaches this branch). */}
+                        {isOwner && !isDmChat && channelId && <ChannelWebhooksSection channelId={channelId} />}
 
                         {/* Destructive action — owner deletes the room, members leave it. A DM has no
                             delete at ALL, not even for the inviter: re-inviting needs the room to

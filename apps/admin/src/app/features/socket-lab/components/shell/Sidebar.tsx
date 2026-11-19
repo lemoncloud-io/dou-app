@@ -1,8 +1,8 @@
 import { LogOut } from 'lucide-react';
 
-// runtime.session.useSessionLogout from app-runtime (not web-core): notifies the socket (`auth.logout`) before the
+// runtime.session.useSessionLogout from @chatic/runtime (not web-core): notifies the socket (`auth.logout`) before the
 // local teardown, so the RuntimeAuthHost relay session does not linger server-side.
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { ACCENT, hexToRgba } from '../../lib/stats';
 

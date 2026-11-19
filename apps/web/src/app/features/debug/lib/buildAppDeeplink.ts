@@ -1,4 +1,4 @@
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Turns what a tester typed into a deeplink this build's app will actually answer.
@@ -21,6 +21,6 @@ export const buildAppDeeplink = (input: string): string => {
     // Any `scheme://` prefix means the caller chose a target channel; respect it.
     if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return trimmed;
 
-    const scheme = config.get<string>('net.deeplink.scheme') ?? 'chatic';
+    const scheme = runtime.settings.get<string>('net.deeplink.scheme') ?? 'chatic';
     return `${scheme}://${trimmed.replace(/^\/+/, '')}`;
 };

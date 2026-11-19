@@ -13,7 +13,7 @@
  *
  * @see chatic-backend-api — `GET /clouds/0/list`, `CloudView`.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { collectPages, type ListPage } from '../lib/listPaging';
 import { asRequestError } from '../lib/requestError';

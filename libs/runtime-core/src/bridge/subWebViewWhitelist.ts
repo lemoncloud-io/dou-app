@@ -20,6 +20,11 @@ import { DATA_CLOUD_TARGET, DATA_TARGET, REPOSITORY_METHODS } from './repositori
  *   a room of the place the page's view opened on, which the user's own composer could have sent.
  * - **The current cloud, and no switching.** Only the `data` target (the live scope) is open — the
  *   switches are session commands, and nothing that reaches another cloud is allowed.
+ * - **The place the view opened on.** What belongs to a place — its rooms, their members and
+ *   messages, its profiles — is read only in that place, while the session is still on it: a list
+ *   names the place (`sid`) or one of its rooms, an item is checked against its room, and a user row,
+ *   which belongs to the cloud rather than to a place, is not read by id at all. The places themselves
+ *   and the cloud's own row stay open: they are the cloud's, not a place's.
  *
  * The tables below are keyed by every repository and method the runtime contract names, so a method
  * added to the runtime does not compile until it is decided here.
@@ -45,7 +50,8 @@ export const SUB_WEB_VIEW_MESSAGE_LIMIT = 1000;
  * `onlyFields` — the argument must be a plain object with no field but these; `text` — the argument's
  * `field` must be a string with something besides white space in it, at most `maxLength` long;
  * `argCount` — the request carries at most `max` arguments, so a parameter the method gains later is
- * not open until it is decided here.
+ * not open until it is decided here; `currentPlaceKey` — the argument is a key `<place id>@…` of the
+ * current place, as a place profile's id is.
  */
 export type SubWebViewArgGuard =
     | { arg: number; field?: string; is: 'currentCloud' | 'currentPlace' }
@@ -53,19 +59,27 @@ export type SubWebViewArgGuard =
     | { arg: number; field: string; is: 'false' }
     | { arg: number; is: 'onlyFields'; fields: readonly string[] }
     | { arg: number; field: string; is: 'text'; maxLength: number }
-    | { is: 'argCount'; max: number };
+    | { is: 'argCount'; max: number }
+    | { arg: number; is: 'currentPlaceKey' };
 
 export interface SubWebViewAllow {
     allow: SubWebViewRuntimePermission;
     cost: SubWebViewRequestCost;
     guards?: readonly SubWebViewArgGuard[];
     /**
-     * The argument's `field` names a room that must be one of the place the page is held to — the one
+     * The argument (or its `field`; with `each`, every id of the array) names a room that must be one of
+     * the place the page is held to — the one
      * its view opened on. A room is known only from the device cache, and the view only to the shell,
      * neither of which this pure check reads: the shell reads the room before it lets the request go,
      * and refuses it as a `guard` when the room is not there.
      */
-    roomInCurrentPlace?: { arg: number; field: string };
+    roomInCurrentPlace?: { arg: number; field?: string; each?: boolean };
+    /**
+     * The answer's `field` names a room that must be one of the place the page is held to: for a read by
+     * an id that names no room (a message by its id). Checked by the shell once the runtime answered;
+     * an answer of a room elsewhere is refused as a `guard`, and `null` passes.
+     */
+    answerRoomInCurrentPlace?: { field: string };
 }
 
 /** Where the session is, as the argument checks read it. */
@@ -92,16 +106,41 @@ type RepositoryDecision<R extends RepositoryName> =
 const local = (allow: SubWebViewRuntimePermission) => ({ allow, cost: 'local' }) as const;
 const server = (allow: SubWebViewRuntimePermission) => ({ allow, cost: 'server' }) as const;
 const deny = (reason: SubWebViewDenyReason) => ({ deny: reason }) as const;
+/**
+ * A list stream whose repository method takes a third parameter after its callback, `contextOverride`
+ * (`{ cid, uid }`): the cache partition it observes. The page's arguments would decide it — another
+ * cloud's rows, held on this device — so the stream answers only its query and its listener.
+ */
+const localListStream = (allow: SubWebViewRuntimePermission) =>
+    ({ allow, cost: 'local', guards: [{ is: 'argCount', max: 2 }] }) as const;
+/** A list read of one place, named by its query's `sid`: only the place the view opened on. */
+const placeList = (allow: SubWebViewRuntimePermission, cost: 'local' | 'server' = 'local') =>
+    ({ allow, cost, guards: [{ arg: 0, field: 'sid', is: 'currentPlace' }] }) as const;
+/** As `placeList`, for a stream, which also takes no `contextOverride` (`localListStream`). */
+const placeListStream = (allow: SubWebViewRuntimePermission) =>
+    ({
+        allow,
+        cost: 'local',
+        guards: [
+            { is: 'argCount', max: 2 },
+            { arg: 0, field: 'sid', is: 'currentPlace' },
+        ],
+    }) as const;
+/** A read of one room, or of what is in it: the room (argument `arg`, or its `field`) must be of the place. */
+const inRoom = (allow: SubWebViewRuntimePermission, at: { arg: number; field?: string; each?: boolean }) =>
+    ({ allow, cost: 'local', roomInCurrentPlace: at }) as const;
+/** A place profile, by its `<place id>@<user id>` key: only one of the place the view opened on. */
+const placeProfile = { allow: 'user', cost: 'local', guards: [{ arg: 0, is: 'currentPlaceKey' }] } as const;
 
 export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     channel: {
         methods: {
-            observeList: local('channel'),
-            observeItem: local('channel'),
-            cacheRead: local('channel'),
-            cacheReadList: local('channel'),
+            observeList: placeListStream('channel'),
+            observeItem: inRoom('channel', { arg: 0 }),
+            cacheRead: inRoom('channel', { arg: 0 }),
+            cacheReadList: placeList('channel'),
             // Answers the server's list and leaves the cache alone.
-            fetchList: server('channel'),
+            fetchList: placeList('channel', 'server'),
             // Each writes what it fetched, tagged with the place the caller names.
             refreshList: deny('cacheWrite'),
             refreshOne: deny('cacheWrite'),
@@ -124,8 +163,8 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     join: {
         methods: {
-            observeList: local('channel'),
-            cacheReadList: local('channel'),
+            observeList: { ...inRoom('channel', { arg: 0, field: 'channelId' }), guards: [{ is: 'argCount', max: 2 }] },
+            cacheReadList: inRoom('channel', { arg: 0, field: 'channelId' }),
             readChat: deny('cursor'),
             sendRead: deny('cursor'),
             updateJoin: deny('write'),
@@ -138,12 +177,13 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     chat: {
         methods: {
-            observeList: local('chat'),
-            observeLastList: local('chat'),
-            observeFeedCoverage: local('chat'),
-            cacheRead: local('chat'),
-            cacheReadList: local('chat'),
-            listPendingImageChats: local('chat'),
+            observeList: inRoom('chat', { arg: 0, field: 'channelId' }),
+            observeLastList: inRoom('chat', { arg: 0, each: true }),
+            observeFeedCoverage: inRoom('chat', { arg: 0 }),
+            // A message by its id names no room: its answer's room is checked instead.
+            cacheRead: { allow: 'chat', cost: 'local', answerRoomInCurrentPlace: { field: 'channelId' } },
+            cacheReadList: inRoom('chat', { arg: 0, field: 'channelId' }),
+            listPendingImageChats: inRoom('chat', { arg: 0 }),
             // The first read of a room fills its media index from the cached rows.
             listRoomMedia: deny('cacheWrite'),
             countRoomMedia: deny('cacheWrite'),
@@ -205,6 +245,9 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
             makeCloud: deny('write'),
             releaseCloud: deny('write'),
             retryCloudSetup: deny('write'),
+            // The cloud's mini app link is the settings' and the rail's to read and its owner's to set, not a page's.
+            fetchMiniAppUrl: deny('otherCloud'),
+            saveMiniAppUrl: deny('write'),
             verifyCloudEmail: deny('account'),
             cacheWrite: deny('cacheWrite'),
             cacheDelete: deny('cacheWrite'),
@@ -213,7 +256,7 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     place: {
         methods: {
-            observeList: local('place'),
+            observeList: localListStream('place'),
             observeItem: local('place'),
             cacheReadList: local('place'),
             // Writes the list it fetched.
@@ -231,10 +274,13 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     user: {
         methods: {
-            observeList: local('user'),
-            observeItem: local('user'),
-            cacheRead: local('user'),
-            cacheReadList: local('user'),
+            // A room's users, by the room's id.
+            observeList: inRoom('user', { arg: 0, field: 'channelId' }),
+            cacheReadList: inRoom('user', { arg: 0, field: 'channelId' }),
+            // A user row is the cloud's, not a place's: by its id it would name anyone in the cloud. A
+            // place names its members by their place profile (`profile`) and lists them here.
+            observeItem: deny('otherPlace'),
+            cacheRead: deny('otherPlace'),
             // Loads the members' place profiles into the cache — so only for the place the session is
             // on, which is the place the server answers profiles for, and in the server's own page size
             // so one call stays a bounded number of requests.
@@ -266,10 +312,10 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     },
     profile: {
         methods: {
-            observeList: local('user'),
-            observeItem: local('user'),
-            cacheRead: local('user'),
-            cacheReadList: local('user'),
+            observeList: placeListStream('user'),
+            observeItem: placeProfile,
+            cacheRead: placeProfile,
+            cacheReadList: placeList('user'),
             // Each writes what it fetched, tagged with the place the caller names.
             refreshItem: deny('cacheWrite'),
             syncProfilesOf: deny('cacheWrite'),
@@ -384,6 +430,9 @@ const isRecord = (value: unknown): value is Record<string, RuntimeWireValue> =>
 const meets = (args: readonly RuntimeWireValue[], guard: SubWebViewArgGuard, scope: SubWebViewRuntimeScope) => {
     if (guard.is === 'argCount') return args.length <= guard.max;
     const argument = args[guard.arg];
+    if (guard.is === 'currentPlaceKey') {
+        return scope.placeId !== null && typeof argument === 'string' && argument.startsWith(`${scope.placeId}@`);
+    }
     if (guard.is === 'absent') {
         return !isRecord(argument) || !Object.prototype.hasOwnProperty.call(argument, guard.field);
     }

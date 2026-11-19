@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 vi.mock('../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
@@ -16,6 +16,9 @@ vi.mock('../../../shared/hooks/useChannelMutations', () => ({
 vi.mock('../hooks', () => ({
     useChannelActions: () => ({ openDialog: vi.fn(), openKick: vi.fn(), kickTarget: null }),
 }));
+
+// The webhook section reaches the runtime for its list; the gate that mounts it is what these tests check.
+vi.mock('./ChannelWebhooksSection', () => ({ ChannelWebhooksSection: () => <div>webhooks-section</div> }));
 
 // The dialogs are not what these tests are about, and they reach for hooks of their own.
 vi.mock('./ChannelActionDialogs', () => ({ ChannelActionDialogs: () => null }));
@@ -97,5 +100,30 @@ describe('ChannelSettingsPanel notification level', () => {
         renderPanel({ stereo: 'dm', memberNo: 2 } as Partial<DomainChannel>);
 
         expect(levels()).toEqual(['All messages', 'Off']);
+    });
+});
+
+describe('ChannelSettingsPanel webhooks', () => {
+    const owned = { name: 'general', stereo: 'public', memberNo: 3, ownerId: 'me' } as Partial<DomainChannel>;
+
+    it('shows the webhook section to the owner of a group channel', () => {
+        renderPanel(owned);
+
+        expect(screen.getByText('webhooks-section')).toBeDefined();
+    });
+
+    it('hides it from a member who is not the owner', () => {
+        renderPanel({ ...owned, ownerId: 'someone-else' });
+
+        expect(screen.queryByText('webhooks-section')).toBeNull();
+    });
+
+    it.each([
+        ['a 1:1', { stereo: 'dm', memberNo: 2, ownerId: 'me' }],
+        ['my self channel', { stereo: 'self', memberNo: 1, ownerId: 'me' }],
+    ])('hides it in %s even for the owner', (_kind, channel) => {
+        renderPanel(channel as Partial<DomainChannel>);
+
+        expect(screen.queryByText('webhooks-section')).toBeNull();
     });
 });

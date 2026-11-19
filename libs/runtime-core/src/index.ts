@@ -1,9 +1,9 @@
 // @chatic/runtime-core — the runtime's assembly, and the ports it is assembled from.
 //
-// What the React surface (`@chatic/app-runtime`) reads: the assembly entry, the data graph's
+// What the React surface (`@chatic/runtime`) reads: the assembly entry, the data graph's
 // accessors, and the non-React halves of the data facade. The adapters (`@chatic/runtime-web`, the
 // native one) read the assembly entry and the bridge contract. Apps do not import this package; they
-// reach it through `runtime` from @chatic/app-runtime.
+// reach it through `runtime` from @chatic/runtime.
 
 // assembly
 export { createRuntime } from './createRuntime';
@@ -77,7 +77,12 @@ export type { SessionCommands } from './session/commands';
 
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
-export { prepareSecretStorage } from './session/secretStorage';
+export {
+    discardWebSessionCopy,
+    hasWebSessionCopy,
+    prepareSecretStorage,
+    setSecretLogoutPending,
+} from './session/secretStorage';
 export type { SecretStorageBoot, SecretStorageOutcome } from './session/secretStorage';
 
 // the credential guards an app starts with its own policy

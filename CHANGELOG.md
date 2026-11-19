@@ -1,5 +1,409 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.4, @chatic/web@0.96.1, @chatic/desktop-web@0.60.4
+
+### Features
+
+- (runtime-client,runtime-web,config) declare host ports and the engine with the runtime
+
+### Documentation
+
+- (adr) every app starts from a declaration and its call part sees only the runtime (ADR-0346)
+- (runtime,config,eslint) point docs and lint at the declarations, not publishHostPorts
+
+### Refactor
+
+- (desktop-web) read the image address refresh's runtime from the facade
+- (host,runtime-web,runtime-mobile,eslint) delete @chatic/host and hold the parts by tags
+- (mobile) assemble the native runtime from a declaration, with the owner logged
+- (landing,admin) declare landing's runtime and import both apps' runtime from the facade
+- (desktop-web) start the runtime from a declaration and import it only from the facade
+- (web) start the runtime from a browser or hybrid declaration, not hand wiring
+- (web,desktop-web,admin,landing) import the runtime as @chatic/runtime, not app-runtime
+- (runtime,runtime-client,runtime-web,host) rename app-runtime to runtime, the facade
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (mobile,runtime-core,chatic-apps-sdk) hold a mini app's reads to the place its view opened on
+
+### Bug Fixes
+
+- (mobile) read home as the cloud default on the relay's place, as the session reports it
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) answer mini apps on home too, and read place profiles by member
+
+### Bug Fixes
+
+- (mobile) read home as the cloud default on the relay's place, as the session reports it
+- (mobile,runtime-core) close the runtime to old android webview frames and other clouds' cache
+
+### Documentation
+
+- (adr) renumber the frame gate adr to 0345, 0341 is taken by the sdk's typed runtime
+
+## [2026-11-18] - root@0.168.3, @chatic/desktop-web@0.60.3
+
+### Bug Fixes
+
+- (desktop-web) refresh an expired image address, not a broken tile
+- (desktop-web) refresh expired addresses beyond the feed tile
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (chatic-apps-sdk,mobile) type the mini app runtime by the app's own names (ADR-0341)
+
+### Documentation
+
+- (chatic-apps-sdk,adr) say what the types catch, and mark adr-0320's sdk decision superseded
+
+### Refactor
+
+- (chatic-apps-sdk,mobile) name the page api apps.data, not apps.runtime
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (web-ui-kit,web/home) fold place chips to their icon, unfold only the current one
+
+## [2026-11-18] - root@0.168.2, @chatic/desktop-web@0.60.2
+
+### Bug Fixes
+
+- (desktop-web) show the server's reason in a failed switch toast
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (config) add port choice keys and an isInitialized read
+
+### Documentation
+
+- (adr) each app declares its runtime and libraries never choose (ADR-0343)
+
+### Refactor
+
+- (admin) start the runtime from a declaration, not createWebRuntime
+- (runtime-web,runtime-mobile) build each port on its own and offer adapter values
+- (app-runtime,runtime-client) move the core side into runtime-client and add the declaration
+
+## [2026-11-18] - root@0.168.1, @chatic/desktop-web@0.60.1
+
+### Bug Fixes
+
+- (desktop-web) show the shortcut hints after 300 ms
+
+## [2026-11-18] - root@0.168.0, @chatic/desktop-web@0.60.0
+
+### Features
+
+- (desktop-web) show the shortcuts a held modifier starts
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (desktop-web,desktop) step back and forward through visited rooms
+
+## [2026-11-18] - No version updates
+
+### Features
+
+- (desktop-web,desktop) go back with Mod+[, mouse, swipe and menu
+
+## [2026-11-18] - No version updates
+
+### Refactor
+
+- (host,web,desktop-web,mobile) name capability values shell and browser, not app and page
+
+## [2026-11-18] - root@0.167.0, @chatic/web@0.96.0
+
+### Features
+
+- (web) record app icon changes and the icon in use as usage events
+
+## [2026-11-17] - root@0.166.3, @chatic/desktop-web@0.59.2
+
+### Bug Fixes
+
+- (desktop-web) name search match senders by place nick
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (mobile,desktop,shared) name sub webview displays titled, clean and immersive (ADR-0338)
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) open room settings straight from the header's ⋯, not a one-item menu
+
+## [2026-11-17] - root@0.166.2, @chatic/web@0.95.1
+
+### Bug Fixes
+
+- (web) clear the bottom safe-area inset at the end of scrolling sub-pages
+
+## [2026-11-17] - root@0.166.1, @chatic/desktop-web@0.59.1
+
+### Features
+
+- (web,desktop-web) move links, appShell, signIn, diagnostics and push onto ports (ADR-0324)
+- (host) add the links, appShell, signIn, diagnostics and push ports (ADR-0324 v4)
+
+### Other
+
+- test: (desktop-web) drive the sender-name spec through the push port
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/mypage) scroll the MY tab under a header like the other tabs, with haptics
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) move files through the files port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/home) show the home banners under the chat tabs, above the rooms
+- (web/home) put the missing-profile banner under a cloud's place chips, not above them
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/channels) stop a room jump from reading the previous room's channel, joins and chats
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) open a room at my first unread message, below an unread divider
+- (web-ui-kit) add the unread divider, a red label between light-red rules
+
+### Bug Fixes
+
+- (web/channels) land on the first unread message for real, below the header
+
+### Chores
+
+- (block-kit-builder) restore a spec file the merge's lint hook reformatted
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) pick attachments through the media port, not isNative() (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/channels) hold an older page's retry wait for a scroll handled before the failure renders
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) show a group room's read receipt under my newest message only, with its readers
+- (web-ui-kit) add a readers mode to the read receipt, with who read it
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/channels) highlight a message jumped to as the design does, not as a flat tint
+- (web-ui-kit) outline a light bubble in lime under a highlighted row
+
+## [2026-11-17] - root@0.166.0, @chatic/web@0.95.0
+
+### Features
+
+- (web) slide android screens in and out like ios, not a 30px fade-through (ADR-0337)
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) draw a reaction row as the design does, with my message as its body
+
+## [2026-11-17] - root@0.165.0, @chatic/web@0.94.0
+
+### Features
+
+- (web) pin the home chat tabs under the header and step the inbox title down on scroll
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) open the find-me sheet at its full height, not at its content's
+- (web/notifications) count reactions to my messages in the find-me list, and rename it
+
+## [2026-11-17] - root@0.164.0, @chatic/web@0.93.0
+
+### Features
+
+- (web) move android screens on a horizontal shared axis and animate its system back (ADR-0336)
+
+### Bug Fixes
+
+- (shared) capture a page transition's destination after it renders, not before
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (mobile,desktop) declare the app's checkout to the web (ADR-0324)
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (web/notifications) keep picks after mark-read and give the find-me sheet a selection mode
+- (web-ui-kit) let the selection action bar sit in a sheet footer, not only fixed to the screen
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/notifications) show the author's profile photo in the inbox, not the default glyph
+
+## [2026-11-17] - root@0.163.0, @chatic/desktop-web@0.59.0
+
+### Features
+
+- (desktop-web) open the cloud's one server mini app link from settings and the nav rail
+- (data,http) read and save a cloud mini app link on the relay
+- (desktop-web,shared) set one server mini app link from settings
+- (desktop-web) open the mini app from the nav rail under DM
+
+### Bug Fixes
+
+- (desktop-web) read the mini app link fresh on every open
+
+## [2026-11-17] - root@0.162.0, @chatic/web@0.92.0
+
+### Features
+
+- (web) manage channel webhooks from the room settings
+- (data) add the channel webhook data layer
+- (desktop-web) manage channel webhooks from the settings panel
+- (web) manage channel webhooks from the room settings
+
+## [2026-11-17] - root@0.161.3, @chatic/web@0.91.2
+
+### Refactor
+
+- (web) remove mock-only controls instead of drawing them disabled (ADR-0334)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (web/subscription) say an email is already registered, not that the code failed to send
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (mobile) load the logout marker through a local module, not the runtime library
+- (runtime-mobile,mobile) let the page own a launch whose vault holds no session (ADR-0332)
+
+## [2026-11-17] - root@0.161.2, @chatic/landing@0.19.1
+
+### Bug Fixes
+
+- (landing) publish the server's web prices, not the app stores' (ADR-0333)
+
+## [2026-11-17] - No version updates
+
+### Bug Fixes
+
+- (auth,web) restore a session no page moved into the vault, not the runtime's guest (ADR-0331)
+
+## [2026-11-17] - root@0.161.1, @chatic/web@0.91.1
+
+### Bug Fixes
+
+- (web) stop fetching someone else's notes-to-self room after an account change
+
+## [2026-11-17] - No version updates
+
+### Features
+
+- (host,web) sell through the checkout port, not isNative() and the platform global (ADR-0324)
+
+## [2026-11-16] - No version updates
+
+### Features
+
+- (mobile,web,bridge-messages) start production on the app runtime, web names the default
+
+## [2026-11-16] - root@0.161.0, @chatic/web@0.91.0
+
+### Features
+
+- (web/subscription) trialEligible and web-subscription refusal notice
+- (web) trialEligible and web-subscription refusal notice
+
+### Bug Fixes
+
+- (web) keep restore cache refresh on web-active refusal
+
+### Other
+
+- test: (web) cover cache refresh before web-active refusal
+
+## [2026-11-16] - root@0.160.0, @chatic/desktop-web@0.58.0
+
+### Features
+
+- (data,desktop-web) manage channel webhooks from the desktop channel settings
+- (data) add the channel webhook data layer
+- (desktop-web) manage channel webhooks from the settings panel
+
+## [2026-11-16] - No version updates
+
+### Features
+
+- (data,desktop-web) accept csv, md, json, doc, xls, ppt uploads
+- (data,desktop-web) accept csv, md, json, doc, xls, ppt uploads
+
+### Bug Fixes
+
+- (data) keep reading an OOXML name under a legacy Office type
+
+## [2026-11-16] - root@0.159.2, @chatic/web@0.90.3
+
+### Bug Fixes
+
+- (web) land a back press on the notifications list where it was left, not at the top
+
+## [2026-11-16] - root@0.159.1, @chatic/web@0.90.2
+
+### Bug Fixes
+
+- (web) open a mini app link tapped in a chat in the sub WebView, not the OS (ADR-0329)
+
 ## [2026-11-16] - No version updates
 
 ### Features

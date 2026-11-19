@@ -75,9 +75,10 @@ export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey'
  *
  * Any one of them registers the four runtime requests (`RuntimeHello`, `RuntimeCall`,
  * `RuntimeSubscribe`, `RuntimeUnsubscribe`) on the page's host — on the phone only, on a launch whose
- * session the app's runtime holds, for a `reviewed` page, opened while a cloud other than Home was
- * selected. Apart from `chatSend`'s message, nothing they open writes, moves a cursor, switches the
- * cloud or the place, or reads another cloud.
+ * session the app's runtime holds, for a `reviewed` page, opened while a cloud (Home included) was
+ * selected, where the WebView reports a frame's message under the frame's own origin (always on iOS;
+ * on Android, a WebView with web message listeners). Apart from `chatSend`'s message, nothing they
+ * open writes, moves a cursor, switches the cloud or the place, or reads another cloud.
  */
 export type SubWebViewRuntimePermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
 
@@ -96,10 +97,17 @@ export type SubWebViewDeviceKind = 'camera' | 'microphone';
 export type SubWebViewDevicePermissionState = 'granted' | 'prompt' | 'blocked';
 
 /**
- * `fullscreen`, the default, shows no bar and keeps a floating close control; `standard` shows the
- * shell's bar with the page's title and a close control.
+ * How the shell shows a page, named by what the user sees:
+ * - `titled` — the shell's bar above the page, with its title and a close control.
+ * - `clean` — the page alone under a floating close control, inside the safe area. The phone's default.
+ * - `immersive` — `clean` drawn under the status bar and the home indicator as well: the shell pads no
+ *   edge, and the page keeps its own controls clear with the safe-area insets. The system bars stay.
+ *
+ * The first apps named `titled` `standard` and `clean` `fullscreen`; a manifest may still say so
+ * (`subWebViewDisplayOf` in `@chatic/shared`). An app that predates the rename shows any of the three
+ * new names with its own default: `fullscreen` on the phone, `standard` on the desktop.
  */
-export type SubWebViewDisplay = 'standard' | 'fullscreen';
+export type SubWebViewDisplay = 'titled' | 'clean' | 'immersive';
 
 /** The orientation the view is held in; `any` follows the device. */
 export type SubWebViewOrientation = 'any' | 'portrait' | 'landscape';
@@ -107,7 +115,7 @@ export type SubWebViewOrientation = 'any' | 'portrait' | 'landscape';
 /**
  * A page's manifest, served from its own origin at `/.well-known/chatic-app.json`. The shell reads it
  * before it shows the page. With none, or one it cannot read, the page gets the base set only and
- * the standard display. Unknown fields are ignored; a known field with a wrong value is ignored too.
+ * the default display: `clean` on the phone, `titled` on the desktop. Unknown fields are ignored; a known field with a wrong value is ignored too.
  */
 export type SubWebViewManifest = {
     manifestVersion: 1;
@@ -168,6 +176,8 @@ export type SubWebViewRuntimeErrorCode = 'RUNTIME_NOT_ALLOWED' | 'CLOUD_CHANGED'
  * for an open method whose permission the manifest does not hold, `guard` for arguments an entry holds
  * the page to and it did not meet — a cloud or place that is not the current one, a message that is not
  * plain text, a room outside the current place — and `unknown` for a name the whitelist does not have.
+ * `otherPlace` closes a read that would reach past the place the view opened on (a user row by its id,
+ * which is the cloud's, not a place's).
  */
 export type SubWebViewRuntimeRefusalReason =
     | 'write'
@@ -175,6 +185,7 @@ export type SubWebViewRuntimeRefusalReason =
     | 'cursor'
     | 'serverSideEffect'
     | 'otherCloud'
+    | 'otherPlace'
     | 'account'
     | 'device'
     | 'admin'

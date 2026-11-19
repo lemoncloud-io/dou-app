@@ -2,14 +2,14 @@ import { renderHook } from '@testing-library/react';
 
 import { matchDestinations, useShareDestinations, type ShareDestination } from './useShareDestinations';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'place-1' }),
             useSessionIdentity: () => ({ userId: 'me' }),
         },
-    },
-}));
+    })
+);
 let mockPlaceChannels: Array<Record<string, unknown>>;
 let mockSelfChannels: Array<Record<string, unknown>>;
 jest.mock('../../../hooks', () => ({

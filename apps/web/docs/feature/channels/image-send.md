@@ -6,7 +6,7 @@
 > [`components/ChatImageAttach.tsx`](../../../src/app/features/channels/components/ChatImageAttach.tsx)
 > (the picking). The send itself — pending row, thumbnail previews, file memory, retry, leftovers —
 > is the runtime's `data.useSendImages`, documented in
-> [libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md),
+> [libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md),
 > and the sequence it runs is `@chatic/data`'s
 > ([libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md)).
 
@@ -125,10 +125,10 @@ all, and the sheet says so: that videos can be sent from the DoU app (`chat.atta
 The files input asks for every format the server takes — a ZIP archive and the four audio formats
 (M4A, MP3, WAV, Ogg) included; photos and `mp4` kept among files can go from there too — by type and by
 extension, and for the generic `application/octet-stream` as well (`documentAccept`). On iOS and iPadOS
-WebKit it names the twelve file formats only (the seven documents, ZIP and the four audio formats),
+WebKit it names the eighteen file formats only (the thirteen documents, ZIP and the four audio formats),
 since an image or video type there makes the system offer the photo library and the camera first. iOS
 WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx` against the type the Files app gives such a
-file, so the twelve alone grey HWP and HWPX out of its
+file, so the eighteen alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
 page judges every pick itself (`chatAttachmentFormat`, which reads the extension of an untyped file, or
 of an office file typed as a ZIP or as a type the server does not know) and
@@ -229,7 +229,7 @@ edit — with whatever is typed as its caption, then clears the field and closes
 open. The caption is the photo message's own text (`sendImages`'s
 `content`): one message carrying the words and the photos, which the mobile and the desktop feed both
 already draw. With "묶어 보내기" off it rides on the first message only
-([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+([libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md)).
 The caption's mention — whoever was picked from the `@` list ([chat-room.md § Mentions](./chat-room.md#mentions))
 — goes with it (`sendPicked(text, mention)`), on the message that carries the text.
 The grid's and the editor's "N장 보내기" send the photos alone and leave the text in the composer;
@@ -323,7 +323,7 @@ did. Off, every item that passes the judge goes as a message of its own, in pick
 sends them one after another, so the feed shows the whole pick at the press and the server numbers the
 messages in pick order. Nothing sent in the room meanwhile lands between them: a camera photo or another
 pick sent before the last of them has gone waits for it. A message that fails is retried or deleted on
-its own ([libs/app-runtime docs/data/image-send.md](../../../../../libs/app-runtime/docs/data/image-send.md)).
+its own ([libs/runtime docs/data/image-send.md](../../../../../libs/runtime/docs/data/image-send.md)).
 The pick is judged whole first, so the one-notice rule and the ten-item cap still hold — off, a pick is
 at most ten messages. A pick where one item passes is sent the usual way either way. The choice is kept
 in `ui.photoSendGrouped` (local, `usePhotoSendGrouping`) and is how the grid opens next time, the way
@@ -413,7 +413,7 @@ panel at the press, and its row appears the same way, once the pick is read; mea
 thumbnails above the field stays, faded.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the seventeen formats
+entry's file input and the camera use its image-only form, `judgeChatImages`): the twenty-three formats
 the phone sends (a ZIP archive and the four audio formats included, an audio file under the type alias a system
 gives it as well; AAC and WebM are not among them), each kind's own limit (20MB a photo, 300MB a video,
 50MB a document, archive or audio file), the same item picked twice, and ten a message

@@ -7,7 +7,7 @@ import {
     type PutResult,
     type ShellFilePutPort,
     type UploadPutTarget,
-} from '@chatic/data';
+} from '@chatic/runtime';
 
 export type TransferBridge = Pick<IWebBridgeClient, 'request' | 'onEvent'>;
 

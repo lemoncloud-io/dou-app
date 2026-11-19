@@ -4,6 +4,7 @@ import type {
     SubWebViewPermission,
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
+import { subWebViewDisplayOf } from '@chatic/shared/subWebViewTrust';
 
 import type { ILogService } from '../log';
 import { originOf } from '../../utils/url';
@@ -35,7 +36,7 @@ export interface ResolvedSubWebViewManifest {
 export const DEFAULT_SUB_WEBVIEW_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
     permissions: new Set<SubWebViewPermission>(),
     runtimePermissions: new Set<SubWebViewRuntimePermission>(),
-    display: 'fullscreen',
+    display: 'clean',
     orientation: 'any',
 });
 
@@ -49,7 +50,6 @@ const RUNTIME_PERMISSIONS: readonly SubWebViewRuntimePermission[] = [
     'user',
     'chatSend',
 ];
-const DISPLAYS: readonly SubWebViewDisplay[] = ['standard', 'fullscreen'];
 const ORIENTATIONS: readonly SubWebViewOrientation[] = ['any', 'portrait', 'landscape'];
 const NAME_LIMIT = 100;
 
@@ -82,7 +82,7 @@ export const parseSubWebViewManifest = (text: string): ResolvedSubWebViewManifes
         ...(name && name.length <= NAME_LIMIT ? { name } : {}),
         permissions: new Set(permissions),
         runtimePermissions: new Set(runtimePermissions),
-        display: oneOf(DISPLAYS, manifest.display, 'fullscreen'),
+        display: subWebViewDisplayOf(manifest.display) ?? 'clean',
         orientation: oneOf(ORIENTATIONS, manifest.orientation, 'any'),
     };
 };

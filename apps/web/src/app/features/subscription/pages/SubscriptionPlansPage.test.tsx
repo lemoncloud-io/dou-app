@@ -14,9 +14,11 @@ jest.mock('react-i18next', () => ({
 }));
 
 let mockGuest = false;
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) },
+    })
+);
 const navigateMock = jest.fn();
 const loginMock = jest.fn();
 jest.mock('@chatic/shared', () => ({
@@ -48,12 +50,14 @@ const show = ({
     options,
     replaceable = current,
     resubscribe,
+    trialEligible = true,
 }: {
     state: string;
     current?: typeof tier1;
     options: unknown[];
     replaceable?: Record<string, unknown>;
     resubscribe?: typeof tier1;
+    trialEligible?: boolean;
 }) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({
         sellablePlans: [tier1, tier2, tier3],
@@ -61,7 +65,8 @@ const show = ({
         currentPlan: current,
         replaceablePlan: replaceable,
         resubscribePlan: resubscribe,
-        isOnMobileApp: true,
+        trialEligible,
+        sellsInStore: true,
         isIOS: true,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({ options, isLoading: false });
@@ -76,6 +81,12 @@ beforeEach(() => {
 });
 
 describe('Subscription picker — scenarios', () => {
+    it('first subscription the server says is not trial-eligible: no trial badge', () => {
+        show({ state: 'none', trialEligible: false, options: [option(tier1, 'new')] });
+
+        expect(screen.queryByText(`${K}.trialBadge:7`)).not.toBeInTheDocument();
+    });
+
     it('first subscription: only the entry tier is pickable, with its trial; continue opens the confirm step', () => {
         show({
             state: 'none',

@@ -8,6 +8,7 @@ import { DefaultAvatar, IconImageSolid, ImageAvatar, SearchInput, UnreadBadge } 
 
 import { resolveThreadTarget } from '../../../bridge/navigation/resolveThreadTarget';
 import { ROUTES } from '../../../routes/paths';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { HighlightText } from '../components/HighlightText';
 import { RecentSearchList } from '../components/RecentSearchList';
 import { ResultRow, ResultRowSkeleton } from '../components/ResultRow';
@@ -283,6 +284,7 @@ export const SearchPage = () => {
                         )}
                     </div>
                 )}
+                <SafeAreaBottomSpacer />
             </div>
         </div>
     );

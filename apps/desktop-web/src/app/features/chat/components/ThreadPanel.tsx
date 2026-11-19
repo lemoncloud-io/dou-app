@@ -3,12 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { isEventChat, RELAY_CLOUD_ID } from '@chatic/data';
-import type { ChatMentionBody, DomainChannel } from '@chatic/data';
+import { isEventChat, RELAY_CLOUD_ID } from '@chatic/runtime';
+import type { ChatMentionBody, DomainChannel } from '@chatic/runtime';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     Hint,
+    chatSenderName,
     lastChatNoOf,
     messagePreview,
     outgoingMessagePreview,
@@ -174,7 +175,7 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
             {
                 root: {
                     preview: messagePreview(root),
-                    ownerName: root.owner$?.name || names.get(root.ownerId ?? '') || '',
+                    ownerName: chatSenderName(root, channel.sid, viewer) || names.get(root.ownerId ?? '') || '',
                 },
             }
         );

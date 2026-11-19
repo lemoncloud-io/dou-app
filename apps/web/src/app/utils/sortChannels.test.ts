@@ -1,6 +1,6 @@
 import { sortChannels, toTime } from './sortChannels';
 
-import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/data';
+import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/runtime';
 
 // Minimal channel factory — only the fields sortChannels reads.
 const channel = (id: string, updatedAt: number): DomainChannel => ({ id, updatedAt }) as unknown as DomainChannel;

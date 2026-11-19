@@ -1,4 +1,4 @@
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import type { LanguagePreference } from '../../i18n/languagePreference';
 import { appBridge } from './appBridge';
@@ -15,10 +15,11 @@ import { appBridge } from './appBridge';
  *
  * Sent on every change (the Settings sheet) and once per native boot (`PreferenceLoader`), so a choice
  * made while an older shell was installed — one that kept it in a format the new shell discards —
- * still reaches it.
+ * still reaches it. Only where the app runs the frame around the page (the host's `appShell` port); a
+ * browser has no shell store to tell.
  */
 export const syncLanguageChoiceToShell = async (preference: LanguagePreference): Promise<void> => {
-    if (!isNative()) return;
+    if (runtime.appShell.kind !== 'shell') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'language', value: preference });
     try {
         await attempt();

@@ -6,7 +6,8 @@ type AuthPorts = RuntimePorts['auth'];
 export type PageLocation = Pick<Location, 'search' | 'origin' | 'replace'>;
 
 /**
- * The auth's ports for a web page: its address, and the navigation home at the end of a session.
+ * The auth's ports for a web page (`auth.location`): its address, and the navigation home at the end
+ * of a session.
  *
  * Ending a session replaces the document with the home page — `replace`, not `assign`, so the history
  * keeps no signed-in entry to go back to — and the next document's boot reads the `logout=1` it

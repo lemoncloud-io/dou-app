@@ -252,7 +252,12 @@ boot already depended on the shell having set its channel and globals by then; t
 one moment the source for every reader. Globals a shell writes again while the page runs — the log
 upload hold, the theme, the config bag — are not host facts and are not in it. The phone also runs
 its boot script once more after load, which can rewrite the device ids and the version check; the
-profile keeps the first values, and `apps/web`'s device store reads those four off `window` live. `buildHostProfile`
+profile keeps the first values. Two readers here serve the code that has to see the later ones:
+`liveShellGlobals()` reads the same names off `window` now (the device store, the version floor and
+the language preference in `apps/web`, and the session's device id), and `liveShellValue(name)` reads a value the shell writes while the page runs —
+the config bag, the debug switch, the log upload hold, the run id — untyped, for its reader to check.
+With them, this package is the only code outside the debug overlay and the two entry points that reads
+a `CHATIC_APP_*` global. `buildHostProfile`
 is the pure half, from any object, for tests; `resetHostProfileForTests` forgets the built one.
 
 **A shell that declares nothing is described exactly as before.** `bridge` is found with the same
@@ -274,7 +279,9 @@ WebView (`react-native-webview`, the one shell with SQLite behind its bridge) fr
 `resolveCapability` applies that table. Keys the page does not know, from a newer version, are
 ignored. Every capability has a legacy rule, and where nothing the page did before declarations
 existed can be reproduced its legacy rule answers "unavailable", so a new key never needs a guess
-written for it. No capability is defined yet; each arrives with the port that uses it.
+written for it. The keys and their versions — `checkout` 1, `media` 2, `files` 3, and `links`,
+`appShell`, `signIn`, `diagnostics`, `push` 4 — are read into the host ports by
+[`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes).
 
 ### Directories
 
@@ -420,7 +427,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.27.0')
+       ├─ version  BRIDGE_VERSION ('2.29.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -506,8 +513,8 @@ that its handshake advertises exactly the registered ones — the vocabulary min
 `isNative()` is false, nothing is ever injected, and after 10 seconds every request rejects
 `NATIVE_NOT_SUPPORTED`. Callers are expected to branch on `isNative()` first rather than pay the
 deadline; `useDesktopNotifications` in `apps/desktop-web` does exactly that, and skips the round trip
-entirely. That branch is now the entry point's to make: a feature asks a port of
-[`@chatic/host`](../host/README.md), and `@nx/workspace-host-facts` reports `isNative()` outside the
+entirely. That branch is now the entry point's to make: a feature asks a host port
+([`@chatic/runtime-client`](../runtime-client/README.md#the-host-ports), read as `runtime.<port>`), and `@nx/workspace-host-facts` reports `isNative()` outside the
 entry point and the files on its allow-list.
 
 ### 6. A web log crossing to the native console
@@ -607,7 +614,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
   timer, so fake timers are load-bearing rather than an optimisation.
 - `setupBridgeLogger` keeps module state — a `handle` that makes it idempotent. A spec that does not
   call `teardown()` leaves the forwarder subscribed to the hub for the next one.
-- Downstream: 260 files across `apps/web`, `libs/app-runtime`, `apps/desktop-web`, `apps/mobile`,
+- Downstream: 260 files across `apps/web`, `libs/runtime`, `apps/desktop-web`, `apps/mobile`,
   `libs/db`, `libs/data`, `apps/admin`, `apps/desktop`, `libs/shared` and `libs/theme` import this
   barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile`,
   and excludes `web` from the test run — those are the ones to check by hand.
@@ -618,7 +625,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.27.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.29.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

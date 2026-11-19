@@ -1,17 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: { fetchRoomFeed: jest.fn() },
         connection: { useRuntimeSocketState: jest.fn() },
         session: { getGlobalSessionContext: jest.fn() },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useChannelHeadRefresh, type ChannelHeadRefreshParams } from './useChannelHeadRefresh';
 

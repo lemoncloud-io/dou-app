@@ -1,7 +1,7 @@
 # ADR-0109: One rule for a move into history I can no longer see, and what "the peer is gone" is read from
 
 > Status: Accepted · Decided: 2026-09-21 · Implemented: `feat/dm-leave-rejoin-fix`
-> · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx` · `apps/web/src/app/hooks/useRelayInvites.ts` · `apps/web/public/locales/**` · `libs/app-runtime/src/socket/sync/**`
+> · Scope: `apps/web/src/app/features/channels/**` · `apps/web/src/app/features/invite/pages/ContactInvitePage.tsx` · `apps/web/src/app/hooks/useRelayInvites.ts` · `apps/web/public/locales/**` · `libs/runtime/src/socket/sync/**`
 > · Builds on [ADR-0067](./0067-rejoin-hides-prior-messages.md) (the re-join display gate) ·
 > [ADR-0068](./0068-dm-peer-departure-and-reinvite.md) (departure and re-invite) ·
 > [ADR-0039](./0039-dm-display-name-chain-and-invite-profile-release.md) (the name chain)

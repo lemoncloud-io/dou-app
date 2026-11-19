@@ -68,7 +68,7 @@ class CloudSession implements ICloudSession {
     /**
      * Switches the active cloud session by exchanging a delegation token for a cloud token.
      *
-     * The cid is pre-applied optimistically before the exchange so app-runtime's cid-scoped
+     * The cid is pre-applied optimistically before the exchange so @chatic/runtime's cid-scoped
      * cache observers re-subscribe to the target cloud immediately (mirrors the optimistic sid
      * in `applySelectedSite`). Tokens are persisted only on success, so a failed exchange rolls
      * cid/sid back to the previous cloud and the previous cloud's tokens stay valid.
@@ -171,9 +171,9 @@ class CloudSession implements ICloudSession {
     }
 
     /**
-     * Optimistically applies (or rolls back) the selected site for the app-runtime socket-driven site
+     * Optimistically applies (or rolls back) the selected site for the @chatic/runtime socket-driven site
      * switch (SDK `auth.switch`, multi-socket-design.md §8-2). Moves only the selected-site read model so
-     * cid/sid-scoped caches swap immediately; app-runtime reuses it to roll the sid back if the socket
+     * cid/sid-scoped caches swap immediately; @chatic/runtime reuses it to roll the sid back if the socket
      * switch fails. `setSelectedSiteId` routes to relay/cloud store by active cloud; notify re-renders
      * `activeServer.siteId` observers.
      *

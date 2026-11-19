@@ -12,14 +12,15 @@ goes through this folder's hooks.
 grep -rln "from '@chatic/bridges'" apps/web/src/app/features --include='*.ts' --include='*.tsx'
 ```
 
-This document is also the index for the category. Two subjects are large enough to own their own
-file, and both are bridge code rather than feature code — there is no `features/notifications/`
-folder:
+This document is also the index for the category. Three subjects are large enough to own their own
+file. Two are bridge code rather than feature code — there is no `features/notifications/` folder —
+and the third is the host ports this app's declarations choose (`src/config/`):
 
 | Document                                   | Owns                                                                               |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- |
 | [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack       |
 | [device-token.md](./device-token.md)       | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
+| [host-ports.md](./host-ports.md)           | The host's ports the declarations choose at boot, and checkout's implementations   |
 
 ## Outbound: `appBridge`
 
@@ -52,8 +53,8 @@ of routing through this component.
 ## File transfers: `shellUpload`
 
 `shellUpload.ts` picks the PUT an image message uses and owns the one per-page native transfer
-registry behind it: `getShellPut()` returns the native sender inside the app and the page's own
-`xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
+registry behind it: `getShellPut()` returns the native sender where the app moves files (the
+host's `files` port) and the page's own `xhrPut` otherwise, and `syncShellTransfers()` catches up with transfers the shell finished while
 the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
 through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
 from `@chatic/runtime-web`, and the native sender also uses it for a page video or document.
@@ -79,7 +80,8 @@ features newer than the oldest app this page runs in (the sub WebView, the voice
 
 `haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. Every
 call is a one-way `post`, which the shell plays without answering. A browser is never asked. What home uses it for →
-[feature/home/README.md](../feature/home/README.md#haptics).
+[feature/home/README.md](../feature/home/README.md#haptics); the MY tab and its settings →
+[feature/mypage/README.md](../feature/mypage/README.md#the-hubs-header-follows-the-other-tabs-and-the-screens-answer-by-touch).
 
 ## Voice messages: `audioRecorder`
 
@@ -105,7 +107,9 @@ as the app it runs in allows, and says where it went:
 
 `appId` names the app `url` was resolved from (`bridge/subWebViewApps.ts`); the shell builds the
 page's share link from it, so a link the page shares names the app rather than where it is hosted.
-A page link (below) never takes the two fallbacks above: it opens in the sub WebView or not at all.
+A page link the shell hands over (below) never takes the two fallbacks above: it opens in the sub
+WebView or not at all. A page link tapped in a chat message is the user asking for a link, so in an
+app without the sub WebView it goes to the OS as any other link does.
 
 The handshake is read through `shellCapabilities.supports('OpenSubWebView')`, so an older app is
 never asked something it would answer `NOT_FOUND`. A refusal from an app that does have it
@@ -128,7 +132,9 @@ handshake says `anyHttps`. A push or a page link still reaches only the reviewed
 only to a host of its own with a few messages, and has none of this app's state; the shell's side,
 and what it allows, is [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
 An app link to a page (`app.chatic.io/apps/<appId>?…`) opens one too, through `OnNavigate` — see
-[push-navigation.md](./push-navigation.md). The Lab opens one for its pages and its mini app card. The debug panel's
+[push-navigation.md](./push-navigation.md). So does a tap on such a link, or on a page's own address,
+in a chat message (`openExternalUrl`); `bridge/subWebViewLink.ts` reads and opens both, for either
+caller. The Lab opens one for its pages and its mini app card. The debug panel's
 **Sub WebView (app)** screen opens one and logs how
 it closed; the Bridge screen's `OpenSubWebView` preset sends the same request but shows no close event.
 
@@ -160,15 +166,20 @@ the runtime hook is a no-op.
 
 ## Who holds the session: the hello at boot
 
-On the phone the session can belong to the shell's own runtime instead of the page. `main.tsx`
-settles which before anything boots, with `settleSessionOwner` from `@chatic/runtime-web`:
+On the phone the session can belong to the shell's own runtime instead of the page. Inside a shell
+`main.tsx` starts the `web-hybrid` declaration, whose engine (`engine.mirror` from `@chatic/runtime-web`)
+settles which before any port is built (`settleSessionOwner`); a plain tab's `web-browser` settles
+nothing, as no shell can offer there:
 
 - **No offer** in `CHATIC_APP_RUNTIME`, as the host profile took it at boot (a browser, a shell that does not run its runtime) — the
   page holds the session, as it always has, and nothing is said to the shell.
 - **An offer** — the page says `RuntimeHello` and waits. On `native` it builds the mirror
-  (`createBridgedRuntime`) in place of `createWebRuntime` and never opens the device vault: no
+  (`createBridgedRuntime`) in place of the page's own runtime, builds none of the declared ports and never opens the device vault: no
   `prepareSecretStorage`, no late-vault reload, no watch for a vault that was locked at launch. The
-  vault is the shell's for that launch.
+  vault is the shell's for that launch. At a sign-out it deletes, besides its own signed-out keys, any
+  copy of the session's tokens still in `localStorage` (`runtime.boot.discardWebSessionCopy`): such a
+  copy is from an app without a vault, and the next launch the page owns would otherwise let it replace
+  the vault's session (`libs/auth` docs/session, "The device vault at boot").
 - **No settled answer** — it asks again for 30 s of the page being shown, behind the boot cover, then
   shows the error screen (`runtime/sessionOwnerUnsettled.tsx`) in place of the app. Its button reloads,
   and so does the app coming back to the foreground — a shell that could not answer while the device
@@ -177,28 +188,44 @@ settles which before anything boots, with `settleSessionOwner` from `@chatic/run
 
 On a `native` launch the shell's runtime cannot reach the page's storage, so the page takes its own
 signed-out keys (`runtime/signedOutKeys.ts` — the log pipeline's and the telemetry policy's) at each
-sign-out and at the `?logout=1` boot that follows one, as `createWebRuntime({ signedOutKeyPrefixes })`
-does on the page's own launches. Every log entry made inside the app after the settle carries
+sign-out and at the `?logout=1` boot that follows one, as the page's own runtime does on its launches
+(the declarations' `signedOutKeyPrefixes`). Every log entry made inside the app after the settle carries
 `sessionOwner` (`web` or `native`).
 
 **The switch.** `VITE_SESSION_MIRROR_DISABLED=true` in a build makes the page never ask, so launches are
 the page's again whatever the installed app offers — the rollback for the shell owning the session. Two
 limits:
 
-- **It needs the variable in the build.** The deploy workflows write `.env` from a fixed list of
-  variables, so the line has to be added there (or to `.env.prod` for a local `web:build:prod`); it is
-  listed, commented out, in `.env.example`.
+- **It needs the variable in the build.** The deploy workflows fill it from the
+  `WEB_DEV_SESSION_MIRROR_DISABLED` / `WEB_PROD_SESSION_MIRROR_DISABLED` repository variables (`true`
+  turns it on; unset or anything else leaves the page asking), so setting one does nothing until the
+  next web deploy of that stage. A local `web:build:prod` reads it from `.env.prod`; it is listed,
+  commented out, in `.env.example`. It is the rollback that reaches a launch the shell's runtime cannot
+  survive: an app that dies while starting its runtime dies before `WebAppReady`, so the default owner
+  below never reaches it, while a page that never asks never starts that runtime at all.
 - **It takes effect from the next app process.** The shell's offer reads the same whether or not it
   already holds the session, so a page that does not ask cannot tell. A page reloaded into a process
   whose shell already answered `native` would boot a second session beside it; a page in a fresh
   process is the page's alone, and the shell, never asked, keeps its runtime off. The same holds for a
   page that shares no contract with the shell.
 
+**The default owner.** The switch above stops this page from asking; it does not tell the app where to
+start. That is `VITE_APP_SESSION_OWNER` (`web` or `native`): once the app's `WebAppReady` reply lists
+`SetDefaultSessionOwner`, the page sends the value on every boot (`runtime/sessionOwnerDefault.ts`), and
+the app records it for installs nobody switched, from their next start. A production app from 0.32.1
+starts those installs on its runtime by default, so naming `web` here is the rollback that needs no app
+release. A launch left on the unsettled screen sends it too, without the handshake, since that is the
+launch a rollback must reach. Unset sends `null`, which clears an earlier value; with `VITE_SESSION_MIRROR_DISABLED=true` the
+page names `web`. The deploy workflows fill it from the `WEB_DEV_APP_SESSION_OWNER` /
+`WEB_PROD_APP_SESSION_OWNER` repository variables, so a change needs a web deploy to land
+(apps/mobile `docs/runtime` README, "The page's default").
+
 ## Without a native shell
 
-`isNative()` (from `@chatic/bridges`) is false in a plain browser tab, and every `appBridge` request
-call rejects `NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid
-paying that wait branches on `isNative()` first rather than calling through and catching.
+In a plain browser tab there is no bridge, and every `appBridge` request call rejects
+`NATIVE_NOT_SUPPORTED` after its timeout instead of resolving. A caller that can avoid paying that wait
+asks its domain's host port first ([host-ports.md](./host-ports.md)) — `'browser'` there means no
+bridge to ask — rather than calling through and catching.
 
 ## Related
 

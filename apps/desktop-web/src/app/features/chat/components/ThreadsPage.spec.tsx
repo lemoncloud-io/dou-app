@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
@@ -24,8 +24,8 @@ const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainCha
 });
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat, observeList } }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),
@@ -34,8 +34,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ userName: 'Me', photo: '' }),
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', () => ({ logger: { warn: vi.fn() } }));
 
 const sendMessage = vi.fn();

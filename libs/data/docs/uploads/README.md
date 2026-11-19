@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (both apps send through `useSendImages` in `@chatic/app-runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (both apps send through `useSendImages` in `@chatic/runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -96,12 +96,11 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the eighteen formats
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the twenty-four formats
 of `domain/chatAttachments.ts` (less the ones an app or a picker does not send, through the optional
 filter argument — the photos entry's image-only form, `judgeChatImages`, is one, and the phone app's
 `PHONE_SENDS` leaves out HTML, which only desktop sends; the four audio formats are judged as `file`).
-HTML is listed ahead of the server: until the server takes `text/html`, an HTML upload is refused with a
-415 and the message shows the failed file. The rest of the judgement is
+The server takes every format listed, HTML included; the phone leaves HTML out because it has no viewer for a page. The rest of the judgement is
 each kind's own limit, the same item twice (a page file by name, size and time, a
 shell file by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
@@ -203,7 +202,7 @@ quote the request it failed on.
 - **The rows survive a reload.** The web cache never evicts unsent rows (`chatNo: 0`), and the native
   cache keeps the whole row. The files do not survive: a `File` cannot be stored. That is why the app
   sweeps the leftovers when it attaches to a channel — see
-  [the image send hook](../../../app-runtime/docs/data/image-send.md).
+  [the image send hook](../../../runtime/docs/data/image-send.md).
 - **Reaching unsent rows takes two flags.** The web store appends them when asked with
   `includeUnsent`. The native store ignores that flag but honours `sort`, and ascending order puts
   `0` first. `listPendingImageChats` asks for both.

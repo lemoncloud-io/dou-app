@@ -11,7 +11,7 @@ vi.mock('./portOneWindow', () => ({ portOneWindow }));
 vi.mock('./stripeWindow', () => ({ createStripeWindow: () => stripeWindow }));
 vi.mock('./createHttpPort', () => ({ createHttpPort }));
 vi.mock('./runtime', () => ({
-    bootSessionRuntime: vi.fn(),
+    startSessionRuntime: vi.fn(async () => undefined),
     subscriptionApi: vi.fn(() => ({})),
     relaySession: {},
 }));
@@ -45,10 +45,10 @@ describe('createLiveHttpPort', () => {
 
     it('opens the stand-in window for sandbox payments and calls neither provider SDK', async () => {
         const sandboxWindow = vi.fn<PaymentWindow>(async () => ({ outcome: 'registered', billingKey: 'sandbox-1' }));
-        const options = createLiveHttpPort(SERVER, createCardEntryChannel(), {
+        const options = (await createLiveHttpPort(SERVER, createCardEntryChannel(), {
             interval: () => '10m',
             paymentWindow: sandboxWindow,
-        }) as unknown as HttpPortOptions;
+        })) as unknown as HttpPortOptions;
 
         await options.paymentWindow(request('portone'));
         await options.paymentWindow(request('stripe'));
@@ -60,7 +60,7 @@ describe('createLiveHttpPort', () => {
     });
 
     it('opens the provider window the issue answer names without sandbox payments', async () => {
-        const options = createLiveHttpPort(SERVER, createCardEntryChannel()) as unknown as HttpPortOptions;
+        const options = (await createLiveHttpPort(SERVER, createCardEntryChannel())) as unknown as HttpPortOptions;
 
         await options.paymentWindow(request('portone'));
         await options.paymentWindow(request('stripe'));

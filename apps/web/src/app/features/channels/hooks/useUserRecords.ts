@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainUser } from '@chatic/data';
+import { runtime, type DomainUser } from '@chatic/runtime';
 
 /**
  * Cached user rows for a set of ids, as the middle rung of the display-name chain.

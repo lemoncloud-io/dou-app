@@ -24,29 +24,35 @@ jest.mock('react-i18next', () => ({
     ),
 }));
 jest.mock('react-router-dom', () => ({ useLocation: () => currentLocation }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const loginRelaySocial = jest.fn();
 const createCredentialsByProvider = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
             createCredentialsByProvider: (...a: unknown[]) => createCredentialsByProvider(...a),
         },
-    },
-}));
+        // Who signs a person in, as the host's `signIn` port says.
+        get signIn() {
+            return { kind: mockIsNative ? 'shell' : 'browser', os: null };
+        },
+        settings: {
+            useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
+        },
+    })
+);
 
 let mockPairingEnabled = false;
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
-}));
 
-// Native by default so the social buttons render; the browser tests flip it.
+// The app signs in by default so the social buttons render; the browser tests flip it.
 let mockIsNative = true;
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => mockIsNative,
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 

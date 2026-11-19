@@ -1,7 +1,14 @@
 import { haptics } from './haptics';
 
 let mockNative = true;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockNative ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 
 const postHaptic = jest.fn();
 jest.mock('./appBridge', () => ({

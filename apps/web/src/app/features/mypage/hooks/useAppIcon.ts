@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, logger, webClient } from '@chatic/bridges';
+import { logger, webClient } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/bridge-messages';
+import { runtime } from '@chatic/runtime';
+
+import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
+
+/**
+ * Whether an icon id names the primary icon. The app reports it as `DefaultIcon` (its stored
+ * name), lists it with a `null` id, and this hook starts from `'default'` before the app has
+ * answered — all three are the same icon, and comparing against only some of them left the
+ * picker with no row checked while the primary icon was in use.
+ */
+export const isDefaultAppIcon = (id: string | null): boolean => id === null || id === 'default' || id === 'DefaultIcon';
 
 /**
  * Encapsulates native app-icon support: fetching the current icon and the
  * available icon list on mount, changing the icon, and resolving the
- * localized label for the current icon. No-ops on non-native platforms.
+ * localized label for the current icon. No-ops unless the app runs the frame
+ * around the page (the host's `appShell` port).
  */
 export const useAppIcon = () => {
     const { t } = useTranslation();
@@ -16,7 +28,7 @@ export const useAppIcon = () => {
     const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
 
     useEffect(() => {
-        if (!isNative()) return;
+        if (runtime.appShell.kind !== 'shell') return;
 
         webClient
             .request({ type: 'FetchAppIcon', data: {} })
@@ -46,6 +58,8 @@ export const useAppIcon = () => {
         try {
             const res = await webClient.request({ type: 'ChangeAppIcon', data: { iconName: iconId } });
             if (res.success && res.data?.success) {
+                // The icon the app says it applied, not the one asked for: that is what the user now has.
+                recordAppIconChange(currentIcon, res.data.iconName ?? iconId);
                 setCurrentIcon(res.data.iconName ?? 'default');
                 return true;
             }
@@ -56,8 +70,7 @@ export const useAppIcon = () => {
     };
 
     const currentIconLabel = (() => {
-        const isDefault = currentIcon === null || currentIcon === 'default';
-        if (isDefault) return t('mypage.appIcon.default');
+        if (isDefaultAppIcon(currentIcon)) return t('mypage.appIcon.default');
 
         const found = availableIcons.find(icon => icon.id === currentIcon);
         if (!found) return t('mypage.appIcon.default');

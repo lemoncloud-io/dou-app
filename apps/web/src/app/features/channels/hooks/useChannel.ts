@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, type DomainChannel } from '@chatic/runtime';
 
 import { isRoomOwner } from '../lib/channelStereoPolicy';
 import type { ClientChannelView } from '../types';
@@ -63,6 +62,18 @@ export const useChannel = (channelId: string | null, options?: { seed?: DomainCh
     const [channel, setChannel] = useState<DomainChannel | null>(null);
     const [isLoading, setIsLoading] = useState(!!channelId);
     const [isError, setIsError] = useState(false);
+    /**
+     * The channelId the three states above were last reset for.
+     *
+     * The effect below resets them when the id changes, but an effect runs after the render that
+     * carries the new id. In that render the states still describe the PREVIOUS room, so a screen
+     * that stays mounted across a room-to-room move (a push toast, a search jump) read the old
+     * channel under the new id: the room registered `<new channelId>@<old member>` join targets,
+     * each one 404'd, and the sync engine logged it as a removal. Comparing against this id lets
+     * that render answer for the room it was asked about instead.
+     */
+    const [stateFor, setStateFor] = useState(channelId);
+    const isStale = stateFor !== channelId;
     /** Whether a row has ever arrived for the CURRENT channelId — tells a miss from a removal. */
     const hasResolvedRef = useRef(false);
     /** Read inside the timeout without re-arming the effect when only the seed identity changes. */
@@ -74,6 +85,7 @@ export const useChannel = (channelId: string | null, options?: { seed?: DomainCh
 
     useEffect(() => {
         hasResolvedRef.current = false;
+        setStateFor(channelId);
         setIsError(false);
         if (!channelId) {
             setChannel(null);
@@ -134,13 +146,22 @@ export const useChannel = (channelId: string | null, options?: { seed?: DomainCh
 
     // The observer's answer always wins; the seed only fills the gap until it lands. A resolved
     // REMOVAL must still win over the seed, so the fallback applies only while unresolved.
-    const effective = channel ?? (!hasResolvedRef.current ? seed : null);
+    // While stale, nothing has resolved for THIS id yet: no row, no removal, no error — the same
+    // answer the first render of a fresh mount gives.
+    const hasResolved = !isStale && hasResolvedRef.current;
+    const effective = (isStale ? null : channel) ?? (!hasResolved ? seed : null);
     const clientChannel = useMemo(() => (effective ? toClientChannel(effective, myUid) : null), [effective, myUid]);
 
     // A refusal only speaks while there is nothing to show. A cached row that the server has since
     // stopped serving is a different situation — the screen has content, and the removal path owns
     // what happens to it.
     const isForbidden = isRefused && !effective;
+    const loading = isStale ? !!channelId : isLoading;
 
-    return { channel: clientChannel, isLoading: isLoading && !seed && !isForbidden, isError, isForbidden };
+    return {
+        channel: clientChannel,
+        isLoading: loading && !seed && !isForbidden,
+        isError: !isStale && isError,
+        isForbidden,
+    };
 };

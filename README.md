@@ -111,7 +111,8 @@ graph TB
     end
 
     subgraph Runtime["Runtime Libraries"]
-        RUNTIME["app-runtime<br/>React Surface & Facade"]
+        RUNTIME["runtime<br/>Facade & React Surface"]
+        RCLIENT["runtime-client<br/>Declaration, Engine Holder & Host Ports"]
         RCORE["runtime-core<br/>Runtime Assembly & Ports"]
         RWEB["runtime-web<br/>Web Adapter"]
         RMOBILE["runtime-mobile<br/>Native Adapter"]
@@ -127,19 +128,20 @@ graph TB
 
     MOBILE --> BRIDGES & APPMSG
     DESKTOP --> DESKWEB
-    WEB --> DATA & UIKIT & WEBUIKIT & SHARED & CONFIG
+    WEB --> UIKIT & WEBUIKIT & SHARED
     WEBUIKIT --> UIKIT
     WEB & DESKWEB & BKB --> BLOCKKIT
     WEB --> RUNTIME & BRIDGES
-    DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
+    DESKWEB --> UIKIT & SHARED & THEME & RUNTIME
     ADMIN --> UIKIT & SHARED & RUNTIME
     LANDING & BKB --> THEME
-    RUNTIME --> RCORE
+    RUNTIME --> RCLIENT
+    RCLIENT --> RCORE & CONFIG
     RCORE --> LAYERS
     LAYERS --> DATA & HTTP
     WEB & DESKWEB & ADMIN & LANDING --> RWEB
     MOBILE --> RMOBILE
-    RWEB & RMOBILE --> RCORE
+    RWEB & RMOBILE --> RCLIENT
     DATA --> HTTP
     RWEB & RMOBILE --> DB
     DB --> DATA
@@ -166,7 +168,6 @@ dou-app/
 ├── libs/
 │   ├── data/                # Headless data layer (models, cache, repositories)
 │   ├── db/                  # Cache storage engines (IndexedDB / native SQLite)
-│   ├── host/                # The host's capability ports, chosen at each app's entry point
 │   ├── http/                # Request execution, retry & logging policy
 │   ├── config/              # Runtime settings facade
 │   ├── storage/             # Key-value stores split by where a value lives
@@ -178,7 +179,8 @@ dou-app/
 │   ├── runtime-core/        # The runtime's assembly and the ports a platform fills
 │   ├── runtime-web/         # Web adapter for the runtime
 │   ├── runtime-mobile/      # Native adapter for the runtime (React Native)
-│   ├── app-runtime/         # The runtime an app mounts: facade, hooks, repository graph
+│   ├── runtime-client/      # The declaration API, the engine holder and the host port contracts
+│   ├── runtime/             # The facade an app's call part imports: domain names, settings, hooks
 │   ├── bridges/             # WebView transport between web and native shell; the host profile
 │   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
 │   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
@@ -216,11 +218,17 @@ The mobile app uses a **WebView + Native Bridge** pattern:
 All apps share code through `@chatic/*` path aliases:
 
 ```typescript
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { Button } from '@chatic/ui-kit';
-import { config } from '@chatic/config';
 import { ThemeProvider } from '@chatic/theme';
 ```
+
+An app reaches the runtime in two parts. Its declaration — `src/config/` and the entry point — names
+one adapter per port from `@chatic/runtime-web` or `@chatic/runtime-mobile` and starts the runtime. In
+the web apps everything else imports only `@chatic/runtime`: the domain names, `runtime.settings` for
+config, `runtime.<port>` for what the host can do, and the hooks; lint keeps `@chatic/config`,
+`@chatic/data`, `@chatic/db` and the adapter packages out of it. See
+[`libs/runtime-client`](libs/runtime-client/README.md#the-runtime-declaration).
 
 Before editing a lib, read its own `README.md` — each one documents what it owns and, where a
 decision's reasoning matters, links back to the ADR that made it (see [`docs/adr/`](docs/adr/)).

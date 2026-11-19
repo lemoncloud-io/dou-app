@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainPlaceMember } from '@chatic/data';
+import type { DomainPlaceMember } from '@chatic/runtime';
 
 import type { PlaceMembersStatus } from '../../place/hooks/usePlaceMembers';
 
@@ -19,17 +19,20 @@ let mockIsStarting = false;
 let mockIsAvailable = true;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'p1' }),
             // My session id and my id in this cloud differ on purpose: both have to be left out.
             useSessionIdentity: () => ({ userId: 'me-session' }),
             useUidInCloud: () => 'me-cloud',
         },
-    },
+    })
+);
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('../../../hooks', () => ({ useSelectedCloudId: () => 'cloud-a' }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <div>{title}</div> }));

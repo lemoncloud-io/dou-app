@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 
 import type { ChannelSortMethod } from '../stores/preferenceKeys';
 

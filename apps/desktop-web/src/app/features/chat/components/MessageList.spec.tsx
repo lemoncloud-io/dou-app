@@ -5,15 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { $getRoot, $getSelection, $isRangeSelection, type LexicalEditor } from 'lexical';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 // The row's action controls reach for the chat repository and the active place at
 // module scope; neither is available outside the app shell. Nothing here asserts on
 // them — this file is about whether the list renders at all.
 const updateChat = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat, deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -23,8 +23,8 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
-    },
-}));
+    })
+);
 
 // The feed reports a failed jump through a toast; the spy is how a test sees it.
 const toast = vi.hoisted(() => vi.fn());

@@ -23,6 +23,7 @@ pixel between layers.
 | Back → foreground (iOS)                    | `ResumeOverlay` (background) → screen                                               |
 | Back → foreground (Android)                | nothing covers it — Android does not flash                                          |
 | WebView content process died               | `ResumeOverlay` (background) → first screen                                         |
+| …and kept dying, or the page never came up | retry view ("Try again" remounts the WebView)                                       |
 | WebView remount (debug reload, custom zip) | web cover (background) → first screen                                               |
 | Plain browser                              | web cover (background) → first screen                                               |
 
@@ -90,6 +91,38 @@ at launch. `AppWebView` calls `useResumeOverlay().coverReload()`, and the cover 
 reveal (`bootSplashService.subscribe`) or after `RELOAD_COVER_CAP_MS`. It shares `ResumeOverlay` with
 the iOS resume cover; the two causes are separate flags, so one clearing does not lift the other.
 
+### When reloading stops
+
+Reloading is the right answer to one death — the OS reclaiming a backgrounded page is ordinary — and
+the wrong one to a page that dies every time it loads. `useWebViewCrashRecovery` owns both callbacks
+and stops in two cases, replacing the WebView with the retry view (`WebViewErrorView`, `kind="crash"`,
+whose message does not blame the network):
+
+- **Crash loop.** `CRASH_LOOP_LIMIT` (3) terminations inside `CRASH_LOOP_WINDOW_MS` (60s). The first
+  two are reloaded; the third is not. A first screen in between does not reset the count: the case
+  that prompted this booted, reported its first screen, and died a moment later.
+- **No first screen.** A page that has not reported a first screen (or, from an older web build,
+  the handshake) within `FIRST_SCREEN_CAP_MS` (30s) — on every mount, and again after every crash
+  reload. WebKit does not report every death: on an iOS simulator a content process that died while
+  launching produced no `onContentProcessDidTerminate` at all, once for the process launched by a
+  reload (the cover lifted at its cap onto the dead page's last frame, a loading spinner) and once
+  for a fresh mount after "Try again" (a blank screen). The web lifts its own cover and reports at
+  its 10s cap once its script runs, so the remaining 20s is for the page and its bundle to arrive.
+  Only foreground time counts: a page loading while the app is in the background cannot paint, so
+  the wait pauses there and starts over on return.
+
+On Android the reload itself is suspect: Android documents that a WebView whose render process is
+gone cannot be reused, so `reload()` is not expected to bring it back, and the first-screen rule is
+what hands it to the retry — about 30s of a dead view rather than one that never recovers.
+Recovering there by remounting instead needs the count and the watchdog to outlive the remount, and
+has not been done.
+
+"Try again" remounts the WebView by key (the same path a failed page load uses), so the retry gets a
+new WebView and a new content process, and a fresh count. Every termination still goes into the
+pending-report queue as `webview-crash`, and giving up adds one more entry naming the reason, so the
+next page that boots relays both. Giving up also lifts the launch splash (`onLoadFailed`), which is
+still up when the page died before its first screen.
+
 ## Theme
 
 The splash background is `#FFFFFF` / `#121212` with a night variant on both platforms. Which variant
@@ -114,16 +147,17 @@ this go — every iOS app with an in-app theme has the same first frame.
 
 ## Code
 
-| Piece                 | Location                                                                                   |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| JS bridge             | [`bridge/BootSplashBridge.ts`](../../src/app/bridge/BootSplashBridge.ts)                   |
-| Reveal decisions      | [`services/bootSplash/`](../../src/app/services/bootSplash/)                               |
-| `FirstScreenReady`    | [`webview/hooks/bootSplashHandlers.ts`](../../src/app/webview/hooks/bootSplashHandlers.ts) |
-| Crash-reload cover    | [`webview/hooks/useResumeOverlay.ts`](../../src/app/webview/hooks/useResumeOverlay.ts)     |
-| Android hold and exit | `android/.../MainActivity.kt`, `splash/BootSplashState.kt`, `module/BootSplashModule.kt`   |
-| Android assets        | `res/drawable/splash_icon.xml`, `res/drawable-*dpi/splash_logo.png`, `values(-night)/`     |
-| iOS hold and exit     | `ios/Bridges/BootSplashOverlay.swift`, `BootSplashModule.swift`/`.m`, `AppDelegate.swift`  |
-| iOS assets            | `LaunchScreen.storyboard`, `BootSplashLogo-f09e2a`, `BootSplashBackground-f09e2a`          |
+| Piece                 | Location                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| JS bridge             | [`bridge/BootSplashBridge.ts`](../../src/app/bridge/BootSplashBridge.ts)                             |
+| Reveal decisions      | [`services/bootSplash/`](../../src/app/services/bootSplash/)                                         |
+| `FirstScreenReady`    | [`webview/hooks/bootSplashHandlers.ts`](../../src/app/webview/hooks/bootSplashHandlers.ts)           |
+| Crash-reload cover    | [`webview/hooks/useResumeOverlay.ts`](../../src/app/webview/hooks/useResumeOverlay.ts)               |
+| Crash reload, give-up | [`webview/hooks/useWebViewCrashRecovery.ts`](../../src/app/webview/hooks/useWebViewCrashRecovery.ts) |
+| Android hold and exit | `android/.../MainActivity.kt`, `splash/BootSplashState.kt`, `module/BootSplashModule.kt`             |
+| Android assets        | `res/drawable/splash_icon.xml`, `res/drawable-*dpi/splash_logo.png`, `values(-night)/`               |
+| iOS hold and exit     | `ios/Bridges/BootSplashOverlay.swift`, `BootSplashModule.swift`/`.m`, `AppDelegate.swift`            |
+| iOS assets            | `LaunchScreen.storyboard`, `BootSplashLogo-f09e2a`, `BootSplashBackground-f09e2a`                    |
 
 The logo is `assets/src/logo/logo.png` (1115×983) drawn at 96×85 pt/dp, centred on the full window.
 The splash PNGs are generated from it; regenerate them when the logo changes. On Android the icon
@@ -139,7 +173,8 @@ yarn nx test @chatic/mobile && yarn nx test web
 ```
 
 Unit tests cover the reveal rules (`BootSplashService.test.ts`), the handler, the crash-reload cover
-(`useResumeOverlay.test.ts`) and the web side (`apps/web/src/app/runtime/bootSplash.test.ts`). The
+(`useResumeOverlay.test.ts`), when reloading stops (`useWebViewCrashRecovery.test.ts`, and the
+retry view in `MainScreen.test.tsx`) and the web side (`apps/web/src/app/runtime/bootSplash.test.ts`). The
 handoff itself is only visible on a device: record the boot (`xcrun simctl io <udid> recordVideo`,
 `adb shell screenrecord`) and step through the frames — no frame without the logo before the first
 screen, and no frame where the logo moves. Do it for cold, Android warm (Developer options → "Don't

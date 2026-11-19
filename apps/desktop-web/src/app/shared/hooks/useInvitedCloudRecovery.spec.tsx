@@ -14,8 +14,8 @@ let isRelayVerified = true;
 let selectedCloudId: string | null = '1000001';
 let ownedClouds: Array<{ id: string }> = [];
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             recoverInvitedCloudIfMissing: (...args: unknown[]) => recoverInvitedCloudIfMissing(...(args as [])),
             syncInvitedCloudName: (...args: unknown[]) => syncInvitedCloudName(...(args as [])),
@@ -29,8 +29,8 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionSelection: () => ({ selectedCloudId }),
         },
-    },
-}));
+    })
+);
 
 // See the note in useClouds.spec.tsx: ADR-0070 moved this hook out of the runtime
 // and into this folder.

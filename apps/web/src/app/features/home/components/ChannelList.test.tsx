@@ -9,7 +9,7 @@ import type { NotificationItem } from '../../../utils/notifications';
 import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
-// Partial mock: the rest is left real. The `@chatic/app-runtime` barrel reaches all the way to
+// Partial mock: the rest is left real. The `@chatic/runtime` barrel reaches all the way to
 // `createQueryKeys` at import time, so swapping out the whole module would make that disappear.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
@@ -18,8 +18,8 @@ jest.mock('@chatic/shared', () => ({
 // `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: {
             useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),
             prefetchRoomFeed: (...args: unknown[]) => mockPrefetchRoomFeed(...args),
@@ -28,8 +28,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             getGlobalSessionContext: () => ({ cloud: { cloudId: 'cloud-a' } }),
         },
-    },
-}));
+    })
+);
 
 // My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
 
@@ -1000,6 +1000,29 @@ describe('ChannelList — room-open trace', () => {
 
         expect(mockPrefetchRoomFeed).toHaveBeenCalledWith('cloud-a', 'g1');
         expect(traceAtFetch).toBeDefined();
+    });
+
+    // A stale row of the previous account's notes-to-self room: its feed is refused to anyone else.
+    it("does not fetch somebody else's notes-to-self room on the tap", () => {
+        mockPrefetchRoomFeed.mockClear();
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({
+                        id: 'U:1000124',
+                        name: 'old notes',
+                        stereo: 'self',
+                        ownerId: '1000124',
+                        memberNo: 1,
+                    }),
+                ]}
+                isLoading={false}
+            />
+        );
+
+        fireEvent.click(screen.getByTestId('row-title'));
+
+        expect(mockPrefetchRoomFeed).not.toHaveBeenCalled();
     });
 });
 

@@ -1,6 +1,7 @@
+import { runtime } from '@chatic/runtime';
 import { useEffect } from 'react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 
 /**
  * Render a small unread-count badge to a PNG data URL. Windows has no dock badge,
@@ -31,12 +32,13 @@ const renderBadgePng = (count: number): string | undefined => {
 
 /**
  * Mirror the unread total onto the OS dock/taskbar badge via the desktop shell's
- * SetBadgeCount handler. No-op in a plain browser (isNative() false) and on
- * shells that don't support it (the request is best-effort).
+ * SetBadgeCount handler. No-op unless the app runs the frame around the page
+ * (the host's `appShell` port; not in a plain browser) and on shells that don't
+ * support it (the request is best-effort).
  */
 export const useDesktopBadge = (count: number): void => {
     useEffect(() => {
-        if (!isNative()) return;
+        if (runtime.appShell.kind !== 'shell') return;
         void webClient
             .request({ type: 'SetBadgeCount', data: { count, overlayIconDataUrl: renderBadgePng(count) } })
             .catch(() => undefined);

@@ -13,7 +13,7 @@ value.
 ```text
 libs/config/src/registry/
 ├── index.ts       ConfigRegistry (merge · get · has · keys) + findPolicyViolations
-├── modules.ts     ALL_MODULES — the 12 domain modules, in merge order
+├── modules.ts     ALL_MODULES — the 13 domain modules, in merge order
 ├── system.ts   2  the two keys the lane machinery itself needs
 ├── env.ts     13  read-only build facts
 ├── net.ts     12  endpoints, deeplink schemes, HTTP retry
@@ -25,14 +25,15 @@ libs/config/src/registry/
 ├── sync.ts     6  socket and sync cadence
 ├── limit.ts    4  operational guardrails
 ├── cache.ts    3  cache TTLs
-└── bridge.ts   2  bridge request and handshake timeouts
+├── bridge.ts   2  bridge request and handshake timeouts
+└── port.ts    15  which adapter fills each port, and which engine runs
 ```
 
-95 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
+110 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
 what proves it:
 
 ```bash
-grep -chE "^    '" libs/config/src/registry/{system,env,net,ui,log,debug,feature,limit,bridge,auth,sync,cache}.ts
+grep -chE "^    '" libs/config/src/registry/{system,env,net,ui,log,debug,feature,limit,bridge,auth,sync,cache,port}.ts
 ```
 
 The split is by domain because one file past eighty keys stops being readable, not because the
@@ -45,7 +46,7 @@ refuses to stop the boot.
 
 **A duplicate key does not throw.** `merge` keeps the **first** declaration, drops the later one, and
 calls `onDuplicateKey`. The reason to reject one is real — two domains reading the same key
-differently is a genuine bug — but 69 of 95 keys are developer-facing, and one mistake among those
+differently is a genuine bug — but 84 of 110 keys are developer-facing, and one mistake among those
 must not keep every user's app from starting. The check moved to a test instead. Merge order is fixed
 in `modules.ts`, so two devices never disagree about which declaration survived.
 
@@ -54,7 +55,7 @@ returns a list of strings; `allModules.spec.ts` asserts it is empty. At runtime 
 
 ## The shared contract
 
-Every entry is a `ConfigEntry` (`src/types.ts`). Thirteen fields, seven of them required.
+Every entry is a `ConfigEntry` (`src/types.ts`). Fourteen fields, seven of them required.
 
 | Field           | Required | What it settles                                                                                                                      |
 | --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
@@ -63,6 +64,7 @@ Every entry is a `ConfigEntry` (`src/types.ts`). Thirteen fields, seven of them 
 | `type`          | yes      | `boolean` · `string` · `number` · `enum` · `json`. Every lane's value is checked against it                                          |
 | `defaultValue`  | yes      | The floor. This is why `get` can be synchronous and never fail                                                                       |
 | `values`        | enum     | The allowed list. An `enum` without one is a policy violation                                                                        |
+| `pattern`       | no       | A `RegExp` a `string` value must match, for an open set of values this lib cannot list. Checked on every row, like `values`          |
 | `byStage`       | no       | Per-stage default. Row 5                                                                                                             |
 | `byPlatform`    | no       | Per-platform default, also row 5                                                                                                     |
 | `envDefaultKey` | no       | The raw build value this key's default comes from. Row 6 — below a declared rule, above the literal                                  |
@@ -84,7 +86,7 @@ Measured from the source, and asserted in `allModules.spec.ts`.
 | ---------- | ---: | ------------------------------------------------------------------------------------------------------------------------- |
 | `user`     |    4 | Settings and its notification sub-page. A hand-built row per key, not a generated one                                     |
 | `labs`     |    2 | The Lab page's Experiments card. A hand-built row per key, like `user`; `feature.placeInvite` and `feature.chatInputLock` |
-| `dev`      |   69 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
+| `dev`      |   84 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
 | `internal` |   20 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                                 |
 
 **Declaring a surface does not create a screen.** There is no renderer that walks the registry and
@@ -112,20 +114,20 @@ lists keys is copyable.
 
 ### Distribution, and what it tells you
 
-| Axis            | Counts                                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `writableBy`    | `['local','server']` 33 · `[]` 21 · `['local']` 20 · `['shell','local']` 9 · `['shell']` 6 · `['shell','local','server']` 1 |
-| `persist`       | `session` 41 · `none` 25 · `local` 15 · `shell` 9                                                                           |
-| `appliesAt`     | absent 57 · `live` 25 · `restart` 5 · `reconnect` 3                                                                         |
-| Declared rules  | `byStage` 14 · `byPlatform` **0** · `envDefaultKey` 16                                                                      |
-| Server-writable | 34 of 90                                                                                                                    |
+| Axis            | Counts                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `writableBy`    | `['local','server']` 35 · `[]` 22 · `['local']` 22 · `['shell','local','server']` 15 · `['shell','local']` 9 · `['shell']` 6 |
+| `persist`       | `session` 43 · `local` 31 · `none` 26 · `shell` 9                                                                            |
+| `appliesAt`     | absent 61 · `live` 26 · `restart` 19 · `reconnect` 3                                                                         |
+| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 32 · `pattern` 15                                                        |
+| Server-writable | 50 of 109                                                                                                                    |
 
 Two readings worth carrying.
 
-**`byPlatform` has no user.** The field is declared, the resolver folds it, and not one of the 90
+**`byPlatform` has no user.** The field is declared, the resolver folds it, and not one of the 109
 entries sets it. It is live code with no exercise outside `ConfigResolver.spec.ts`.
 
-**21 keys have no writer at all.** `writableBy: []` means the build is the only source — every
+**22 keys have no writer at all.** `writableBy: []` means the build is the only source — every
 `env.*` key, most endpoints, and `debug.entryCode`. A panel must render these read-only, and
 `ConfigSnapshot.canWrite` already says so.
 
@@ -146,6 +148,7 @@ either.
 | `user` and `labs` cannot be `meta`                     | A lock key on a user screen is the recursion the `meta` flag exists to stop |
 | `labs` must include `server` in `writableBy`           | An experiment nobody can turn off remotely does not go out to users         |
 | `enum` must have a non-empty `values`                  | A choice without options cannot be rendered or validated                    |
+| `pattern` only on a `string`, and the default matches  | A floor its own pattern rejects leaves the key with no acceptable row       |
 | `title` and `description` must be non-blank            | A nameless key shows up in the panel as a dotted string                     |
 
 ## Usage
@@ -178,21 +181,57 @@ Three keys bypass this mechanism entirely. `env.stage`, `env.buildStage` and `en
 straight off the adapter's dedicated methods, so their `defaultValue` and `writableBy` exist for
 shape only and are never reached.
 
+### Port choices — `port.*`
+
+One `string` key per runtime port says which adapter fills it: `port.storage`, `port.transport`,
+`port.auth`, `port.foreground`, `port.cache`, `port.checkout`, `port.media`, `port.files`,
+`port.links`, `port.appShell`, `port.signIn`, `port.diagnostics`, `port.push` and `port.logSink`.
+The value is an adapter id — `<port>.<adapter>`, the port name exactly as in the key and the adapter
+in lower case with dashes (`cache.memory`, `appShell.native-ios`). The empty string is the floor and
+means "use the default the app declared for this port".
+
+This lib stores and resolves the choice and nothing more. Which adapters exist, which one is a port's
+default, and whether the host can run the one chosen are the app's declaration; the code that builds
+the port — `startRuntime` in [`@chatic/runtime-client`](../../../runtime-client/README.md#resolution) —
+checks the resolved id against it and falls back to the declared default. This lib is what almost every
+package depends on and imports nothing, so it must not learn a port's meaning, an adapter or a host. The `pattern` only
+rejects an id that cannot be anybody's — a wrong shape, or another port's id — so it is demoted to the
+next row before it reaches that check.
+
+All fifteen — one per port, plus `port.engine` — are declared alike, as developer levers:
+
+| Field           | Value                        | Why                                                                                   |
+| --------------- | ---------------------------- | ------------------------------------------------------------------------------------- |
+| `surface`       | `dev`                        | On a PROD build the local lane takes a value only after the override unlock           |
+| `writableBy`    | `['shell','local','server']` | Every lane may supply one: the point is to switch an adapter without a release        |
+| `persist`       | `local`                      | The choice applies at the next boot, so it has to survive the restart that applies it |
+| `appliesAt`     | `restart`                    | An adapter is built once, at boot                                                     |
+| `envDefaultKey` | `VITE_PORT_<PORT>`           | A build may name one (`VITE_PORT_APP_SHELL`); below every lane, above the empty floor |
+
+The shell lane is not behind the unlock — that gate covers the local lane only, as for every key —
+so a value the native app stored is honoured on PROD too.
+
+To read the choice **with the row it came from**, use `config.snapshot(key)`: its `value` is the id
+and its `origin` is the row that won (`serverEnforced` · `shell` · `local` · `serverDefault` ·
+`stageRule` · `default`). A build value and the empty floor both report `default`; tell them apart by
+the value. `isOverridden` is true for rows 1 to 4 only, so the boot-time state log
+(`overriddenSnapshots()`) shows a lane's choice and not a build value's.
+
 ### What not to do
 
 - **Do not put a product entitlement here.** Place and channel counts belong to the server's product catalogue. `feature.limits.enforced` is a bypass gate, not a limit value, and `limit.*` holds only guardrails with no tier meaning — image size, resend attempts, result caps.
 - **Do not declare a `labs` key without `server` in `writableBy`.** The test catches it, but by then the design is already wrong.
 - **Do not declare a user setting as `dev`.** The unlock gate applies to `dev` and nothing else, so on a PROD build the local lane is shut and the feature has no other writer. That was a real outage shape: six `writableBy: ['local']` keys — pin, sort, recent searches, push mute, promo and update dismissal — would have been permanently dead in PROD.
-- **Do not store a setting under a key of your own.** Bypassing the registry loses the lanes, the lock and the snapshot. The `@chatic/config.` prefix is also an exception in `libs/app-runtime`'s logout storage sweep, so settings survive logout — a value that must not survive it is session state, not a setting.
+- **Do not store a setting under a key of your own.** Bypassing the registry loses the lanes, the lock and the snapshot. The `@chatic/config.` prefix is also an exception in `libs/runtime`'s logout storage sweep, so settings survive logout — a value that must not survive it is session state, not a setting.
 - **Do not expect a duplicate key to fail loudly.** It logs and the first declaration wins. The test is the gate.
 
 ## Notes for implementers and tests
 
-- **`ConfigRegistry` has no public constructor.** `merge` is the only way in, and it takes the module array plus an optional `onDuplicateKey`. `createConfig(modules)` exists so a test can build a registry from fixtures instead of the real 93 keys; nothing in the apps calls it.
+- **`ConfigRegistry` has no public constructor.** `merge` is the only way in, and it takes the module array plus an optional `onDuplicateKey`. `createConfig(modules)` exists so a test can build a registry from fixtures instead of the real 109 keys; nothing in the apps calls it.
 - **`testing/fixtures.ts` is the intended seam.** `entry()` gives a minimal `ConfigEntry` so a test states only the field it is about; its default `surface` is `'dev'`, which means a test about the unlock gate gets the gated behaviour for free and a test about user settings must override it.
 - **`UNLOCK_ENTRY` is a fixture, not the registry's own declaration.** It mirrors `system.overridesUnlocked` closely but is a separate object — changing one does not change the other.
 - **`isPersisted` in `utils/serialize.ts` has no caller,** inside this lib or outside it, and it is not on the barrel.
-- The registry's own tests are `registry/merge.spec.ts` (merge behaviour and each policy rule against fixtures) and `registry/allModules.spec.ts` (the same rules against the real 93 keys, plus the counts).
+- The registry's own tests are `registry/merge.spec.ts` (merge behaviour and each policy rule against fixtures) and `registry/allModules.spec.ts` (the same rules against the real 109 keys, plus the counts), and `registry/port.spec.ts` pins the `port.*` declarations end to end through the facade.
 
 ## Further reading
 

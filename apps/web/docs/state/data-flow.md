@@ -27,13 +27,13 @@ Re-authentication is automatic and the app never sends `auth.update` itself: exp
 refresh and reconnect re-auth are the SDK's `ClientSocketAuth`, and an identity change on a live
 socket (guest → social promotion) is `SocketReauthBinder`.
 
-Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md),
-[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md),
+Further reading: [libs/runtime/docs/session/](../../../../libs/runtime/docs/session/README.md),
+[libs/runtime/docs/connection/](../../../../libs/runtime/docs/connection/README.md),
 [libs/runtime-core/docs/connection/](../../../../libs/runtime-core/docs/connection/README.md).
 
 ## 2. Reading connection and session state
 
-Both socket state and session/selection state come from one library, `@chatic/app-runtime`:
+Both socket state and session/selection state come from one library, `@chatic/runtime`:
 
 | Value                                | Source                                                  |
 | ------------------------------------ | ------------------------------------------------------- |
@@ -233,4 +233,4 @@ the shell to confirm it. On the next boot the vault is emptied once more before 
 code that can safely clear storage run in two different page lifetimes. The order and the reasons are
 in [libs/auth docs/session](../../../../libs/auth/docs/session/README.md).
 
-Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md).
+Further reading: [libs/runtime/docs/session/](../../../../libs/runtime/docs/session/README.md).

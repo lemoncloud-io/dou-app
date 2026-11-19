@@ -1,10 +1,10 @@
 # ADR-0223: An owned cloud also cached as invited is re-issued once per account
 
 > Status: Accepted · Decided: 2026-10-21 · Implemented: `fix/owned-cloud-guest-token`
-> · Scope: `libs/app-runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
-> `libs/app-runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
-> `libs/app-runtime/src/session/auth/cloudTokens.ts` (`reissueCloudTokens`, `lastIssuedForOf`) ·
-> `libs/app-runtime/src/session/store/cloudStore.ts` (`chatic-reclaimed-clouds`) ·
+> · Scope: `libs/runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
+> `libs/runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
+> `libs/runtime/src/session/auth/cloudTokens.ts` (`reissueCloudTokens`, `lastIssuedForOf`) ·
+> `libs/runtime/src/session/store/cloudStore.ts` (`chatic-reclaimed-clouds`) ·
 > `apps/web/src/app/hooks/useInvitedClouds.ts` · `apps/web/src/app/runtime/BackgroundCloudsRunner.tsx` ·
 > `apps/desktop-web/src/app/shared/hooks/useClouds.ts` · `apps/desktop-web/src/app/runtime/BackgroundCloudsRunner.tsx`
 > · Amends: [ADR-0169](./0169-an-owned-cloud-is-never-held-as-its-invitee.md) decisions 2 and 3

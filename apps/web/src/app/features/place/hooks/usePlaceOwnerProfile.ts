@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime, type DomainProfile } from '@chatic/runtime';
 
 /**
  * The place owner's display profile (nick + photo), addressed the way a profile is: the place plus

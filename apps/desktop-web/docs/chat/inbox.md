@@ -75,7 +75,8 @@ sidebar column. What it lists is one pure function, `inboxView`.
   first, and unread first, which lifts each day's unread items above its read ones rather than
   pulling all of them to the top, so a day heading is never drawn twice.
 - **Date groups.** Today, Yesterday, then the weekday and date.
-- **A card** shows who, when and a red dot while unread; the source chip, the channel (`# name`, or
+- **A card** shows who (named when the item is captured, by `chatSenderName` —
+  [notifications.md § Who the sender is](./notifications.md#who-the-sender-is)), when and a red dot while unread; the source chip, the channel (`# name`, or
   the person for a 1:1) and why it is here; for a reply, the thread's root as this device recorded it
   ([my-threads.md](./my-threads.md)); then the text, with `@names` accented in a mention. An unread
   card is raised, a read one sits on the panel, and the one opened last has the accent border.

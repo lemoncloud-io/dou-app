@@ -23,20 +23,20 @@ libs/runtime-core/src/
 ├── session/            the session controller, the two credential guards, the foreground port, the session view, the commands and the secret-storage boot step (`prepareSecretStorage`) — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors, the shell's host, the page's mirror engine — see docs/bridge/
-└── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (app-runtime docs/sync/)
+└── sync/               the sync engine as screens drive it (docs/connection/), `primeChatRoom` among it — a chat room's baseline and first page (@chatic/runtime docs/sync/)
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
-app builds the runtime through `createWebRuntime(...)` in `@chatic/runtime-web`, which fills the
-page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/app-runtime`'s
-`initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
-app-runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
-through `createNativeRuntime(...)` in `@chatic/runtime-mobile`, which fills React Native's ports the
-same way; the mobile app can boot it (its `docs/runtime/`), and nothing starts it yet.
+app starts the runtime from its declaration through `startRuntime(...)` in `@chatic/runtime-web`, whose
+adapters fill the page's ports and whose start calls `createRuntime` and hands the engine it returns to
+`@chatic/runtime`'s `initAppRuntime(engine)`; the app reads the runtime through `runtime`. The graph's React hooks stay in
+@chatic/runtime; [docs/data](./docs/data/README.md) covers the graph itself. The native process builds it
+the same way, from the mobile app's own declaration over `@chatic/runtime-mobile`'s adapters, which fill
+React Native's ports (its `docs/runtime/`).
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without
-React, and app-runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
+React, and @chatic/runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
 So does the relay session's own lifecycle: `createSessionController` brings the session up at boot
 and keeps a session-less visitor signed in as a guest ([docs/session](./docs/session/README.md)).
 
@@ -58,23 +58,23 @@ surface starts its lifecycle work from, instead of making it itself:
 | `pushRegistration(options)`                                     | push device-token registration                                   |
 
 The engine `createRuntime` returns is the **core engine**: each member makes the core implementation, in
-this process. The classes behind it are not on the barrel — only their types are — so app-runtime can
+this process. The classes behind it are not on the barrel — only their types are — so @chatic/runtime can
 reach them only through the engine it was handed. A runtime that runs elsewhere (the native process,
 with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
 do not know which engine they were given.
 
 `session`, `commands`, `connection`, `sync` and `data` are the members that are not factories: the core engine
 keeps one session view over this process's stores ([docs/session](./docs/session/README.md#the-session-view)),
-and every session reader app-runtime publishes reads through it; `commands` run this process's use cases
-([docs/session](./docs/session/README.md#the-commands)), and every session command app-runtime
+and every session reader @chatic/runtime publishes reads through it; `commands` run this process's use cases
+([docs/session](./docs/session/README.md#the-commands)), and every session command @chatic/runtime
 publishes runs through them; `connection` reads and drives this process's socket manager
 ([docs/connection](./docs/connection/README.md#the-sockets-as-screens-read-them)) and `sync` its sync
-manager, and app-runtime reaches neither manager any other way; `data` hands over the page's view of
+manager, and @chatic/runtime reaches neither manager any other way; `data` hands over the page's view of
 this process's repository graphs, without the token issuers ([docs/data](./docs/data/README.md#the-pages-graph)).
 
 Everything the React surface reads or drives goes through the engine, sending media included: the page
 holds the cloud (`data.holdCloud`) and makes the upload and send calls through the engine, and uploads
-the bytes itself — see [app-runtime docs/data](../app-runtime/docs/data/README.md).
+the bytes itself — see [@chatic/runtime docs/data](../runtime/docs/data/README.md).
 
 ## The runtime across the bridge
 
@@ -123,14 +123,16 @@ adapter that forgot it, not a fallback discovered on a device.
 
 ## Layers
 
-Each runtime package carries a layer tag in its `package.json` (`"nx": { "tags": [...] }`), and
+Each runtime package carries a layer tag (`"nx": { "tags": [...] }` in its `package.json`, or `tags` in
+its `project.json`), and
 `@nx/enforce-module-boundaries` in the root `eslint.config.mjs` refuses an import that goes the wrong
 way:
 
 ```mermaid
 flowchart TD
     Apps["apps/* entry points"]
-    Surface["@chatic/app-runtime<br/><i>layer:react-surface</i>"]
+    Surface["@chatic/runtime<br/><i>layer:react-surface</i>"]
+    Client["@chatic/runtime-client<br/><i>layer:client</i>"]
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
     Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:native</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
@@ -140,8 +142,12 @@ flowchart TD
     Apps --> Surface
     Apps --> Web
     Apps --> Native
-    Surface --> Core
+    Surface --> Client
     Surface --> Libs
+    Web --> Client
+    Native --> Client
+    Client --> Core
+    Client --> Libs
     Web --> Core
     Native --> Core
     Core --> Libs
@@ -149,18 +155,33 @@ flowchart TD
     Libs --> Found
 ```
 
-| Tag                   | May not depend on                                                                                         |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `layer:core-lib`      | runtime-core, an adapter or the React surface, directly or through another package; React or React Native |
-| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`; React or React Native                         |
-| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                         |
-| `layer:adapter`       | the React surface; React                                                                                  |
-| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                   |
-| `platform:web`        | React Native                                                                                              |
-| `platform:native`     | a `platform:web` package                                                                                  |
+| Tag                   | May not depend on                                                                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layer:core-lib`      | runtime-core, an adapter, the React surface, the bridge or a UI library, directly or through another package; React or React Native                                                 |
+| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`, and the bridge or a UI library through one that is; React or React Native                                               |
+| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                                                                                                   |
+| `layer:client`        | anything not tagged `layer:core-lib`, `layer:runtime-core` or `layer:foundation`, and the bridge or a UI library through one that is; React, React Native, `@tanstack/*` or zustand |
+| `layer:adapter`       | the React surface or a UI library; React                                                                                                                                            |
+| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                                                                                             |
+| `platform:web`        | React Native                                                                                                                                                                        |
+| `platform:native`     | a `platform:web` package                                                                                                                                                            |
+| `layer:bridge`        | — (`@chatic/bridges`, the WebView transport; tagged so the layers above can refuse it)                                                                                              |
+| `layer:ui`            | — (`@chatic/ui-kit`, `@chatic/web-ui-kit`, `@chatic/block-kit`, `@chatic/theme`; tagged so the runtime side can refuse them)                                                        |
+
+`layer:client` is [`@chatic/runtime-client`](../runtime-client/README.md): the half of the React
+surface that calls this package, with no UI library, and the runtime declaration an app starts from
+(`defineRuntime`, `startRuntime`). An adapter reaches it to hand that declaration API on beside its own
+adapters; it never reaches an adapter.
 
 An adapter is not banned React Native by its layer: the native adapter, `@chatic/runtime-mobile`, is
-made of React Native modules, so that is its platform tag's decision.
+made of React Native modules, so that is its platform tag's decision. `@chatic/db`, the cache engines
+the adapters build on, is tagged `layer:adapter` too: nothing in the runtime may reach it, and the
+React surface's one integration test that builds an IndexedDB engine says so where it imports it.
+
+`@chatic/bridges` is refused by tag, not by a lint pattern in each package: the core libs, runtime-core
+and runtime-client hold nothing specific to a WebView, and what a page's bridge answers reaches them
+through a port an adapter fills. The message vocabulary (`@chatic/bridge-messages`) carries no
+transport and stays `layer:foundation`.
 
 **No page in the core packages either.** session, transport, sync and auth compile without the DOM's
 types, as this package does (Node's stay, for timers, `URL` and `TextEncoder`), and a root lint block
@@ -172,8 +193,10 @@ Native also declares (`WebSocket`, `XMLHttpRequest`, `File`, `fetch`) arrive thr
 `@chatic/bridge-messages` and type-check, so for those the lint list is the check.
 
 Not enforced yet, because today's code still does it: the core packages import `@chatic/storage` and
-`@chatic/http`, `@chatic/app-runtime` imports the core packages directly, and an app may import an
-adapter from any file rather than its entry point. Each goes when the code it describes moves.
+`@chatic/http`, `@chatic/runtime` imports the core packages directly, and `apps/mobile` may import an
+adapter from any file rather than its declaration and entry point (the four web apps may not — a root
+lint block keeps the adapters, config, data and db to their `src/config/` and `main.tsx`). Each goes when
+the code it describes moves.
 
 ## The wiring calls
 

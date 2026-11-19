@@ -2,7 +2,7 @@
 // signal, the contexts derived from them, and the scope views over them.
 //
 // This barrel serves the runtime modules above it, so it sells the raw stores too: the use cases in
-// app-runtime write them, and only they should. Apps never import this package — they read the
+// @chatic/runtime write them, and only they should. Apps never import this package — they read the
 // session through `runtime.session`, which publishes readers and no writers.
 
 // The contexts, the signal, and the store's own types — what a reader of the session needs.

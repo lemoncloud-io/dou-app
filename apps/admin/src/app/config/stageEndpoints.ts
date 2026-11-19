@@ -10,7 +10,7 @@
  * The same values go into every `.env` of this app — what differs between builds is the stage the
  * session signs in to (`VITE_DOU_ENDPOINT`), not where each stage lives.
  */
-import { webConfigPorts } from './adapters';
+import { webConfigPorts } from '../../config/adapters/config';
 
 export type ServiceStage = 'd1' | 'v1';
 

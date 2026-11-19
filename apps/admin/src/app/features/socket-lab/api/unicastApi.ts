@@ -2,7 +2,7 @@
  * `api/unicastApi.ts`
  * - Unicast sends from the Observe tab — for verifying push delivery per device state.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import type { PushPayload, UnicastEvent, UnicastResult, ViewingTarget } from '@lemoncloud/chatic-sockets-api';
 

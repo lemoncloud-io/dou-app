@@ -1,4 +1,4 @@
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 import type { PushDeeplinkTarget } from '../../../shared/utils/parsePushDeeplink';
 
@@ -10,7 +10,7 @@ export type MessageLinkTarget = PushDeeplinkTarget & { chatNo: number };
  * registry key the sign-in hand-off launches by, so a link copied in one opens that one. Read per call:
  * the registry answers nothing until boot.
  */
-const linkScheme = (): string => config.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
+const linkScheme = (): string => runtime.settings.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
 
 /**
  * A link to one message that opens the app on it: `chatic://message/<cloud>/<place>/<channel>/<chatNo>`,

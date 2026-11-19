@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 
 /**
  * Lengths of picked audio files, read from the files themselves before anything is uploaded: the send

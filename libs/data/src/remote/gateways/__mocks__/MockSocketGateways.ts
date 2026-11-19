@@ -102,4 +102,11 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         start: jest.fn(),
         complete: jest.fn(),
     },
+    webhook: {
+        get: jest.fn(),
+        list: jest.fn(),
+        makeToken: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
 });

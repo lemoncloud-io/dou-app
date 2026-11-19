@@ -201,14 +201,14 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 
 ### Adding a port to an app
 
-1. Create `src/app/config/adapters.ts` exporting a `ConfigRuntimePorts`. Keep the `import.meta.env` read in that file and nowhere else — it is the one file per Vite app allowed to touch it.
+1. Create the app's config adapter in its runtime declaration, under `src/config/`, exporting a `ConfigRuntimePorts` — `apps/admin/src/config/adapters/config.ts`, `apps/desktop-web/src/config/adapters/configPorts.ts`, `apps/web/src/config/configPorts.ts` and `apps/landing/src/config/adapters/config.ts` are the ones today. Keep the `import.meta.env` read in one file and nowhere else — the adapter itself, or one module beside it (`apps/web`'s `src/config/viteEnv.ts`); `apps/landing` takes the reader its account surface already holds.
 2. Build `env` with `createWebEnvAdapter(read)`. Do not reimplement stage validation or the lowercasing.
 3. Put anything testable in a **separate** file. A module that reads `import.meta.env` is unloadable under the CommonJS test transform, and so is anything importing it — which is why `apps/web` keeps its two callbacks in `configPortCallbacks.ts`.
-4. Call `config.init(ports)` in `main.tsx`, after anything that seeds a local-lane value and before the runtime boot.
+4. Hand the ports to the declaration as its `config`; `startRuntime` calls `config.init(ports)` as its first step, so anything that seeds a local-lane value runs in `main.tsx` before `startRuntime`.
 
 ### What not to do
 
-- **Do not read `import.meta` anywhere but the adapter file.** It is the boundary the no-dependency rule is enforced at, and a second reader is a second source of truth for the same fact.
+- **Do not read `import.meta` anywhere but that one file.** It is the boundary the no-dependency rule is enforced at, and a second reader is a second source of truth for the same fact.
 - **Do not migrate an identity value into the registry.** `CHATIC_APP_PLATFORM` and `CHATIC_APP_INSTALLATION_ID` are read as injected — straight off `window` by device-token registration, push mute and the IAP screens, and through `@chatic/bridges`' host profile by `apps/web`'s device store — on purpose. They feed contracts whose vocabulary is not `Stage`'s or `Platform`'s — a push broker wants lowercase `dev`/`prod`, and Electron's preload injects a platform (`desktop`) that the shared bridge union does not contain — so routing them through the registry would change the value that arrives.
 - **Do not wire the shell port "just in case".** A port that is present and always fails produces a visible error for every write; a port that is absent produces a quiet no-op, which is the correct behaviour when there is no shell.
 - **Do not build a bridge message with no caller.** The shell lane deliberately has no `FetchConfigBag` message: the boot envelope is synchronous and nothing needs an async fallback, so the message and its native handler have not been written.

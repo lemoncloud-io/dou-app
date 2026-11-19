@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { canModifyMessage } from './messagePermissions';
 

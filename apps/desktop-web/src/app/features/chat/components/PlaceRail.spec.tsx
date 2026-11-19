@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18next from 'i18next';
 
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type * as DndCore from '@dnd-kit/core';

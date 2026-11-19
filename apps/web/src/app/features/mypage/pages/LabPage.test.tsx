@@ -5,20 +5,54 @@ import { LabPage } from './LabPage';
 const openSubWebView = jest.fn();
 const toast = jest.fn();
 let mockDebugMode = false;
+const mockHaptic = jest.fn();
+const setPlaceInvite = jest.fn();
+const setChatInputLock = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/config', () => ({ config: { get: () => 'code' } }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: () => 'code' } })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => null,
-    Switch: () => null,
+    Switch: ({
+        checked,
+        onCheckedChange,
+        label,
+    }: {
+        checked: boolean;
+        onCheckedChange: (on: boolean) => void;
+        label: string;
+    }) => (
+        <button
+            type="button"
+            role="switch"
+            aria-label={label}
+            aria-checked={checked}
+            onClick={() => onCheckedChange(!checked)}
+        />
+    ),
     MenuCard: ({ title, children }: { title?: string; children: React.ReactNode }) => (
         <section aria-label={title}>{children}</section>
     ),
-    ListRow: ({ title, subtitle, onClick }: { title: string; subtitle?: string; onClick?: () => void }) => (
-        <button type="button" onClick={onClick}>
-            {title} {subtitle}
-        </button>
+    ListRow: ({
+        title,
+        subtitle,
+        trailing,
+        onClick,
+    }: {
+        title: string;
+        subtitle?: string;
+        trailing?: React.ReactNode;
+        onClick?: () => void;
+    }) => (
+        <>
+            <button type="button" onClick={onClick}>
+                {title} {subtitle}
+            </button>
+            {trailing}
+        </>
     ),
 }));
 // The real app list, through the barrel's own name for it.
@@ -29,10 +63,11 @@ jest.mock('../../../bridge', () => ({
 // `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../../../hooks', () => ({
-    useChatInputLockExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
-    usePlaceInviteExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
+    useChatInputLockExperiment: () => ({ isEnabled: false, setEnabled: setChatInputLock }),
+    usePlaceInviteExperiment: () => ({ isEnabled: false, setEnabled: setPlaceInvite }),
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 // The card's own behaviour is MiniAppCard.test.tsx's; here it only has to be placed.
 jest.mock('../components/MiniAppCard', () => ({ MiniAppCard: () => <section aria-label="mini app card" /> }));
 // The real list, without the policy content the barrel also carries.
@@ -117,5 +152,20 @@ describe('LabPage — sub WebView pages', () => {
         render(<LabPage />);
 
         expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
+    });
+});
+
+describe('LabPage — experiment switches', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it.each([
+        ['mypage.lab.placeInvite', setPlaceInvite],
+        ['mypage.lab.chatInputLock', setChatInputLock],
+    ])('ticks as %s flips, and turns it on', (label, setEnabled) => {
+        render(<LabPage />);
+        fireEvent.click(screen.getByRole('switch', { name: label }));
+
+        expect(setEnabled).toHaveBeenCalledWith(true);
+        expect(mockHaptic.mock.calls).toEqual([['selection']]);
     });
 });

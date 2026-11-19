@@ -6,7 +6,7 @@ the files. In the feed images are tiles that open a full-image viewer; a video a
 in place, and a document is a card that saves it.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
-[`libs/app-runtime/docs/data/image-send.md`](../../../../libs/app-runtime/docs/data/image-send.md).
+[`libs/runtime/docs/data/image-send.md`](../../../../libs/runtime/docs/data/image-send.md).
 ADR-0135 records why desktop uses it. This document covers the screens. ADR-0129 records where they
 depart from the Figma frames.
 
@@ -16,7 +16,7 @@ Components are in `features/chat/components/images/`, and the tray state is in
 ## Adding files
 
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
-  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/data`: every type and every
+  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/runtime`: every type and every
   extension, because a picker that does not know HWP's type only offers the file by its extension.
 - **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it: "Drop images and
   files here to upload", the ten-per-message limit, and a line saying voice files (the extensions and
@@ -31,18 +31,21 @@ each refused file its reason, checked in this order:
 - `folder`: a dropped folder. It arrives among the files as an empty, typeless file named like the
   folder; `useFileDrop` reads the drop's entries to tell it apart (only a drop can carry one).
 - `empty`: a file of zero bytes, of any kind. The server refuses one when its upload completes.
-- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
-  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX, TXT and HTML
-  (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. HTML is the one format
-  listed ahead of the server: desktop sends it, the phone app does not, and until the server takes
-  `text/html` the upload is refused with a 415 and the message shows the failed file. Audio goes as a document (kind `file`):
+- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/runtime` decides:
+  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, DOC, XLS, PPT, HWP, HWPX, TXT, CSV, Markdown (`.md`), JSON and HTML
+  (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. The server takes all
+  of them; HTML is the one the phone app does not send, as it has no viewer for a page. DOC, XLS and
+  PPT are OLE2 files, not ZIP containers, so they are never read from the extension of a ZIP-typed
+  file. A CSV that Windows types `application/vnd.ms-excel` is refused: the server has no alias for
+  it either. Audio goes as a document (kind `file`):
   the message shows a file card that plays it in place (see below), and the web app does not send it at all. AAC
   and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
   extension. So is an office file's: DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types
   them by whichever app owns the extension on that machine — as a ZIP where none does, or under another
-  suite's own name for them. Typed as a ZIP or as anything the server does not know, a file with one of
-  those four extensions goes up as that document, never as an archive. A video or document whose
+  suite's own name for them. Typed as a ZIP, as a legacy Office type (`application/vnd.ms-excel` on a
+  `.xlsx`) or as anything the server does not know, a file with one of those four extensions goes up
+  as that document, never as an archive. A video or document whose
   extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
   saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
   it is sent as `application/zip`. Nothing reads an archive's bytes here; an empty one is refused
@@ -108,6 +111,25 @@ fourth tile counts the rest ("+n"). `ImageTile` states:
 | uploading | blurred, with spinner                                     | "Uploading {name}", `aria-busy` |
 | failed    | an image-off glyph                                        | "This image couldn't be loaded" |
 | overflow  | dimmed, with "+n"                                         | "n more images"                 |
+
+### Expired addresses
+
+Every sent file is loaded from a signed address that expires a couple of hours after the message was
+read, and a cached message keeps the old one: a message from yesterday holds addresses that no longer
+load. Two things mend it, and both start from `useImageAddressRefresh` / `useFreshAddress`, which read
+the message again from the cloud the reader is in.
+
+- **Something drawn from the address fails** (a tile, the viewer's stage and thumbnail strip, a video, a
+  voice card, a document the viewer fetches). It reports the dead address once. The message is read again
+  once per dead address, the fresh address lands in the cache and the feed redraws with it. A dead address
+  is remembered by its string, not by the thing that drew it, so the fresh one is tried without a reset.
+  A tile first falls back from a dead thumbnail to the original, and a dead original draws the failed tile.
+- **An action fails on an address it already holds** (save, copy, "Download all", forward). It reads the
+  message again, finds the file in it by id, and goes once more on the address it finds. When there is none,
+  or it is the same one, the first failure is shown as before, so an offline failure still reads as offline.
+
+If the fresh address fails as well, or the read fails offline, the file stays failed rather than asking in
+a loop. The voice detail dialog opened on an address keeps it until it is reopened.
 
 An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in the tab order and a
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no
@@ -305,8 +327,8 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 `FileViewer` opens a sent PDF, text file or HTML page in the app, in the same frame as the image viewer:
 a header with the sender, the time and the file name, a save button and a close button. `canPreview`
-decides which cards open it: PDF, TXT and HTML are drawn, and M4A, MP3, WAV and OGG are `audio`, which
-plays in its own card instead. Nothing in the page draws a DOCX, XLSX, PPTX or Hancom file without
+decides which cards open it: PDF, TXT, CSV, Markdown, JSON and HTML are drawn, and M4A, MP3, WAV and OGG are `audio`, which
+plays in its own card instead. Nothing in the page draws a DOC, XLS, PPT, DOCX, XLSX, PPTX or Hancom file without
 handing it, and its signed address, to a third party, so those stay save cards. A video already
 plays in place.
 
@@ -335,7 +357,8 @@ the bytes are read from the picked file instead of fetched.
   refuses two drawings on one canvas. A window drag redraws once it settles. The thumbnail of the page most in view is marked, and a
   thumbnail jumps to its page. Closing destroys the document and its worker, and so does a file
   that fails to open.
-- **A text file** shows its first 1 MB in a wrapping monospaced block, with a line saying so when
+- **A text file** (TXT, CSV, Markdown or JSON, all as plain text — nothing is rendered) shows its first
+  1 MB in a wrapping monospaced block, with a line saying so when
   the file is longer; the save still writes the whole file. Only that first 1 MB is fetched (a
   `Range` request; if storage answers with the whole file, reading stops at 1 MB), and the card's
   size says whether there is more. A UTF-16 byte-order mark picks
@@ -389,7 +412,7 @@ A deleted message reads "Message deleted" in all of these (`sidebar.deletedPrevi
 records deletes empties the body, which would leave a blank line, and an older one keeps it, which would
 quote words the author took back.
 
-The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
+The kind and count come from `chatAttachmentSummary` in `@chatic/runtime`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
 `audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video,
 document or voice file is read from the content type its slot kept (a voice file as `audio`, the kind

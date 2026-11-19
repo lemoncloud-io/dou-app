@@ -12,6 +12,12 @@ export interface SelectionActionBarProps {
     secondary: SelectionActionBarAction;
     /** The right, red button — "delete". */
     destructive: SelectionActionBarAction;
+    /**
+     * `screen` (default) pins the bar to the bottom of the screen in the bottom nav's place, above the
+     * safe-area inset. `inline` lays it out where the host puts it — a sheet's pinned footer, which
+     * already sits above the inset and would otherwise be covered by a bar fixed to the screen.
+     */
+    placement?: 'screen' | 'inline';
     className?: string;
 }
 
@@ -22,15 +28,24 @@ export interface SelectionActionBarProps {
  *
  * Stateless: labels (with their counts) and enabled state come from the host.
  */
-export const SelectionActionBar = ({ secondary, destructive, className }: SelectionActionBarProps) => (
+export const SelectionActionBar = ({
+    secondary,
+    destructive,
+    placement = 'screen',
+    className,
+}: SelectionActionBarProps) => (
     <div
+        data-placement={placement}
         className={cn(
-            'fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-[var(--app-width,430px)] gap-2 border-t border-input-border bg-background px-4 pt-3',
-            // It takes the bottom nav's place, so it rises from where the nav was.
+            'flex gap-2 border-t border-input-border bg-background px-4 pt-3',
+            placement === 'screen'
+                ? 'fixed inset-x-0 bottom-0 z-10 mx-auto max-w-[var(--app-width,430px)]'
+                : 'w-full bg-surface pb-3',
+            // It takes the bottom nav's place (or the sheet's foot), so it rises from there.
             'duration-200 ease-out animate-in fade-in-0 slide-in-from-bottom-4 motion-reduce:animate-none',
             className
         )}
-        style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 12px)' }}
+        style={placement === 'screen' ? { paddingBottom: 'calc(var(--safe-bottom, 0px) + 12px)' } : undefined}
     >
         <button
             type="button"

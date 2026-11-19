@@ -19,6 +19,7 @@ export * from './SystemNotice';
 export * from './Composer';
 export * from './OnboardingDialog';
 export * from './ShortcutsDialog';
+export * from './ShortcutHintBar';
 export * from './CreatePlaceDialog';
 export * from './EditPlaceDialog';
 export * from './EmojiPicker';

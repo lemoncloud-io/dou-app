@@ -1,4 +1,4 @@
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 import { getBootSnapshot } from './bootMarks';
@@ -10,11 +10,12 @@ let scheduled = false;
 /**
  * Send the web boot snapshot to the native shell exactly once per page load.
  * Called when the router unblocks; the delay lets late resource entries
- * (lazy chunks, fonts) land so the asset cache table is complete. Browser
- * sessions skip this — there is no shell to persist the record.
+ * (lazy chunks, fonts) land so the asset cache table is complete. Only where the
+ * `diagnostics` port sends through the app: a page that sends its own (a browser
+ * session) has no shell to persist the record.
  */
 export const scheduleBootMetricsReport = (): void => {
-    if (scheduled || !isNative()) return;
+    if (scheduled || runtime.diagnostics.kind !== 'shell') return;
     scheduled = true;
 
     setTimeout(() => {

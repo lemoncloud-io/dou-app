@@ -94,7 +94,7 @@ tree — they rely on `useNavigate`.
 **One kind of path is not a route.** A sub WebView page's app link reaches the web as its own path,
 `/apps/<appId>?<query>`, which names an app rather than a page. `usePushNavigate` checks for it first
 (`@chatic/shared`'s `readSubWebViewLinkPath`), resolves the id with `bridge/subWebViewApps.ts` for this
-build's stage, and opens `<the app's origin>/?<query>` with `openSubWebView` — passing the id, which
+build's stage (through `bridge/subWebViewLink.ts`, which a tapped link in a chat message shares), and opens `<the app's origin>/?<query>` with `openSubWebView` — passing the id, which
 the page's share link is built from — over whatever the router shows instead of navigating, so closing
 it returns the user to where they were. The list there is static for now and asynchronous already, so
 the server's list replaces it behind the same call; an id it does not know is logged and nothing opens.

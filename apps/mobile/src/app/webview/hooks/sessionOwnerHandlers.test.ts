@@ -1,5 +1,5 @@
 import type { SessionOwnerSwitch } from '../../services/runtime/sessionOwnerSwitch';
-import { createSessionOwnerHandlers } from './sessionOwnerHandlers';
+import { createDefaultSessionOwnerHandler, createSessionOwnerHandlers } from './sessionOwnerHandlers';
 
 const fakeSwitch = (): jest.Mocked<SessionOwnerSwitch> => ({
     read: jest.fn().mockReturnValue({ current: 'web', next: 'web' }),
@@ -63,5 +63,82 @@ describe('createSessionOwnerHandlers', () => {
 
         expect(res).toMatchObject({ success: false, error: { code: 'INVALID_OWNER' } });
         expect(ownerSwitch.set).not.toHaveBeenCalled();
+    });
+});
+
+describe('createDefaultSessionOwnerHandler', () => {
+    const fakeFile = () => {
+        const entries = new Map<string, string>();
+        return {
+            entries,
+            getString: (key: string) => entries.get(key),
+            set: (key: string, value: string) => void entries.set(key, value),
+            remove: (key: string) => entries.delete(key),
+        };
+    };
+
+    it('records the default and answers it with the next owner', async () => {
+        const file = fakeFile();
+        const next = jest.fn().mockReturnValue('native');
+        const { handleSetDefaultSessionOwner } = createDefaultSessionOwnerHandler({ file: () => file, next });
+
+        const res = await handleSetDefaultSessionOwner({
+            type: 'SetDefaultSessionOwner',
+            data: { owner: 'native' },
+        } as any);
+
+        expect(file.entries.get('defaultSessionOwner')).toBe('native');
+        expect(next).toHaveBeenCalledWith(file);
+        expect(res).toEqual({
+            type: 'OnSetDefaultSessionOwner',
+            success: true,
+            data: { default: 'native', next: 'native' },
+        });
+    });
+
+    it('clears the default on null', async () => {
+        const file = fakeFile();
+        file.entries.set('defaultSessionOwner', 'native');
+        const { handleSetDefaultSessionOwner } = createDefaultSessionOwnerHandler({
+            file: () => file,
+            next: () => 'web',
+        });
+
+        const res = await handleSetDefaultSessionOwner({
+            type: 'SetDefaultSessionOwner',
+            data: { owner: null },
+        } as any);
+
+        expect(file.entries.has('defaultSessionOwner')).toBe(false);
+        expect(res).toMatchObject({ success: true, data: { default: null, next: 'web' } });
+    });
+
+    it.each([['cloud'], [undefined]])('refuses %p and records nothing', async owner => {
+        const file = fakeFile();
+        const { handleSetDefaultSessionOwner } = createDefaultSessionOwnerHandler({
+            file: () => file,
+            next: () => 'web',
+        });
+
+        const res = await handleSetDefaultSessionOwner({ type: 'SetDefaultSessionOwner', data: { owner } } as any);
+
+        expect(res).toMatchObject({ success: false, error: { code: 'INVALID_OWNER' } });
+        expect(file.entries.size).toBe(0);
+    });
+
+    it('answers a file that cannot be opened as a failure', async () => {
+        const { handleSetDefaultSessionOwner } = createDefaultSessionOwnerHandler({
+            file: () => {
+                throw new Error('mmkv');
+            },
+            next: () => 'web',
+        });
+
+        const res = await handleSetDefaultSessionOwner({
+            type: 'SetDefaultSessionOwner',
+            data: { owner: 'native' },
+        } as any);
+
+        expect(res).toMatchObject({ success: false, error: { code: 'INTERNAL', message: 'mmkv' } });
     });
 });

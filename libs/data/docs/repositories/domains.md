@@ -58,13 +58,14 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Cloud
 
 `observeList` · `observeItem` · `getCloud` · `updateCloud` · `fetchCloudCatalog` ·
-`verifyCloudEmail` · `makeCloud` · `releaseCloud` · `retryCloudSetup` · `cache*`
+`verifyCloudEmail` · `makeCloud` · `releaseCloud` · `retryCloudSetup` · `fetchMiniAppUrl` · `saveMiniAppUrl` · `cache*`
 
 - The socket axis is based on `CloudGateway`'s `get` / `update`. **Neither `cloud.create` nor `cloud.delete` is in the socket bundle** — a cloud is made and removed over HTTP (`makeCloud` / `releaseCloud`).
 - `getCloud` and `updateCloud` go to the **relay** whichever cloud is active. The name lives on the catalog row the relay's backend owns; a cloud server keeps its own copy of the row, and nothing syncs the two, so reading or writing there would split the name. A rename therefore never needs the renamed cloud's own session, and an invited member reads the name its owner set.
 - A get or update result writes only its `name` into the cache, and the row keeps its own `cid`. The relay's view carries the owner's head and email, which would overwrite the inviter an invited row keeps; and the mapper fills `cid` from the request context — the active cloud — which is a different cloud whenever another one is read or renamed from there.
 - `getCloud(payload, { cache: false })` reads without writing anything — for a sub WebView page, which the runtime whitelist opens only this way, and for a paired cloud, which must not get a cache row: every row there is listed as owned or invited, and a get would create an `owner` row for a cloud the cache has never seen.
 - The HTTP axis handles the catalogue (`list`) plus `make` / `release` / `retryCloudSetup` / `verifyEmail`. `retryCloudSetup` asks the relay's workspace route for a slot again, for a cloud whose setup failed — the relay takes it only while the cloud is `init` or `error`, from its owner, and refuses a cloud that already holds a slot. **HTTP results are not written to local** — the catalogue's cache owner is a react-query adapter.
+- `fetchMiniAppUrl` / `saveMiniAppUrl` are the cloud's mini app link — one address its owner sets, `''` for none — and they go over HTTP, not the socket: the relay route that lets an owner set it is `PUT /clouds/:id`, which takes `miniAppUrl` alone from the owner and refuses anyone else, and `GET /clouds/:id` hands the link to members in its minimal view too. The relay stores the string as sent, so the caller checks the address. Neither is cached; react-query owns it.
 - Cloud is the top-level organizational unit (`cid`); unlike place/site it acts as the scope root.
 
 ### Join
@@ -151,7 +152,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 - **Remote-only.** Lookup signals and push settings, so there is nothing to cache.
 - Only the socket gateway is routed — `save`/`read`/`sync` go to the `active` slot, while `updateRemote`, the relay-owned push setting, goes to relay (ADR-0027).
-- Push-token registration is **not** here: `libs/app-runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
+- Push-token registration is **not** here: `libs/runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
 
 ### Pairing
 
@@ -162,7 +163,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
   cloud is active → [http.md's pairing lane](../remote/http.md#the-pairing-lane).
 - `checkPairing` sends the code's digits alone: people paste it as it is shown (`0734-4168`).
 - `claimPairing` returns the server's answer exactly as it came. The session in a relay approval's first
-  `approved` answer is applied by `app-runtime`, never here.
+  `approved` answer is applied by `@chatic/runtime`, never here.
 
 ### Report
 
@@ -191,6 +192,6 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - **The scope is its graph's, named on every call.** The local data sources are shared by the app graph and every scoped graph, and on their own they fall back to the selected cloud. A cursor written through cloud A's scoped graph while cloud B is on screen therefore has to carry A's `cid`/`uid` down, or it lands in B's partition — and the next time A is entered, the app graph reads A's partition, finds no cursor, and pulls the whole list again.
 - In other words, this repository is the answer to "where does the next `since` get stored".
 - A cursor points at another domain's data, so when that data moves storage the cursor starts lying that it has "already synced". `routingFingerprint` catches that mismatch (ADR-0053).
-- The same lie follows from clearing that data while the cursor stays. `cacheClear()` exists for the caller that clears a partition's data, and it runs **after** the data, so a sync landing mid-clear cannot leave a fresh cursor over an empty store. A sync that answers after the cursor clear still can, which is what the data source's `cursorsValidAfter` is for: a cursor saved before that instant reads as 0 (reason `cache-cleared`). The assembler supplies it — `libs/app-runtime` moves it to the first boot after a cache clear.
+- The same lie follows from clearing that data while the cursor stays. `cacheClear()` exists for the caller that clears a partition's data, and it runs **after** the data, so a sync landing mid-clear cannot leave a fresh cursor over an empty store. A sync that answers after the cursor clear still can, which is what the data source's `cursorsValidAfter` is for: a cursor saved before that instant reads as 0 (reason `cache-cleared`). The assembler supplies it — `libs/runtime` moves it to the first boot after a cache clear.
 
 ---

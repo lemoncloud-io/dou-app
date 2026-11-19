@@ -72,7 +72,16 @@
 //         `SubWebViewRuntimePermission` names; only where the app's runtime holds the session.
 // 2.27.0: a sub WebView page's runtime permissions add `chatSend` — `chat.sendChat` of a plain text
 //         message to a room of the place the view opened on, budgeted apart from the server reads.
-export const BRIDGE_VERSION = '2.27.0' as const;
+// 2.28.0: added SetDefaultSessionOwner (web -> app) — the page names the owner of an install nobody
+//         switched, recorded for the next start and answered by every build, production included; a
+//         shell from before it leaves it unregistered.
+// 2.29.0: a sub WebView page's displays are named `titled`, `clean` and `immersive`; `standard` and
+//         `fullscreen`, the first two's earlier names, are still read. `immersive` is new — no bar and
+//         no safe-area padding on any edge: the page draws under the status bar and the home indicator
+//         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
+//         properties the shell sets on its root element. A shell from before it shows any new name with
+//         its default: no bar on the phone, the bar on the desktop.
+export const BRIDGE_VERSION = '2.29.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

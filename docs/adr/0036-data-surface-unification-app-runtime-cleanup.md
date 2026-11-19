@@ -12,7 +12,7 @@
 
 This is not preparation for one feature but **general preparation**. There was a sense that violations
 of the principle "every data call goes through a repository" had piled up, and a full review of the
-tangled logic in `libs/data` and `libs/app-runtime/src/runtime` was wanted. What the review found:
+tangled logic in `libs/data` and `libs/runtime/src/runtime` was wanted. What the review found:
 
 **Bypass inventory** — the app imports `@chatic/data` internals (gateway/data-source/storage) in zero
 places. The encapsulation of libs/data itself holds. The real bypasses are:

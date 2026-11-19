@@ -11,11 +11,12 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { CloudAvatar, FloatingButton, TextField } from '@chatic/web-ui-kit';
 
 import { useUpdateCloudProfile } from '../../../hooks';
+import { haptics } from '../../../bridge/haptics';
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
@@ -85,10 +86,12 @@ export const CloudEditPage = () => {
                 return { ...old, list: old.list.map(c => (c.id === cloudId ? { ...c, name: trimmedName } : c)) };
             });
 
+            haptics.play('success');
             toast({ title: t('profileEdit.cloudSaveSuccess') });
             navigate(-1);
         } catch (error) {
             logger.error('PROFILE', 'Failed to update cloud name', { error });
+            haptics.play('error');
             toast({ title: t('profileEdit.cloudSaveError'), variant: 'destructive' });
         }
     };

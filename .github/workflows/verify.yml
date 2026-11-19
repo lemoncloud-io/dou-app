@@ -167,7 +167,8 @@ jobs:
                   npx nx $NX_SCOPE -t typecheck
                   --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 
-            # `libs/db` and `libs/app-runtime` ran through a separate step until the root
+            # `libs/db` and the runtime package (then `libs/app-runtime`, now `libs/runtime`) ran
+            # through a separate step until the root
             # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
             # `libs/socket`, neither of which exists, so nx inferred no `test` target for them and
             # `run-many` skipped them silently. They are covered by the line below now, and so is

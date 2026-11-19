@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../../i18n';

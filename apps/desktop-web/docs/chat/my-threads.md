@@ -60,6 +60,10 @@ The rules are pure functions in `shared/utils/myThreads.ts`; everything else onl
   every channel are read and the threads found there are added as read — history is not news. While
   that runs, the inbox's Threads tab says it is still looking (`scanningCid`).
 
+Each source stores the reply's and the root's author by name, named as the feed names them with
+`chatSenderName` ([notifications.md § Who the sender is](./notifications.md#who-the-sender-is)): the
+author's nick in the thread's place, then the message's own `owner$.name`.
+
 Neither the cache read nor the root lookup takes a message from before my current join
 (`isInJoinWindow`): the room hides that history after a leave and rejoin, so the list does too.
 

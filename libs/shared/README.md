@@ -18,7 +18,7 @@ grep -rn "@chatic/shared/" --include='*.ts' --include='*.tsx' apps libs | grep -
 ```
 
 The consumer list is worth knowing because it is not all browsers — `apps/web`, `apps/desktop-web`,
-`apps/admin`, `libs/app-runtime` and `apps/mobile`, which is React Native.
+`apps/admin`, `libs/runtime` and `apps/mobile`, which is React Native.
 
 ```bash
 grep -rln "@chatic/shared" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
@@ -132,7 +132,7 @@ flowchart TD
     classDef pure fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    App["apps/web · desktop-web · admin<br/>libs/app-runtime"]:::ext
+    App["apps/web · desktop-web · admin<br/>libs/runtime"]:::ext
     RN["apps/mobile<br/><i>React Native — consts and two link helpers</i>"]:::ext
 
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
@@ -228,8 +228,11 @@ Seven things the filenames do not tell you.
   userinfo, a port, a backslash, whitespace, an IP literal — and the limits on what crosses with it
   (`params` and `result` at most 16 KiB, a title 100 characters). Both shells check a request against it and
   both webs check a link an owner saves against it, so the web never stores a link the shell would
-  refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
-  than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the
+  refuse. It also reads a page manifest's `display` for both shells (`subWebViewDisplayOf`): `titled`,
+  `clean`, `immersive`, and `standard` and `fullscreen`, the earlier names for the first two, so the
+  phone and the desktop cannot read a name differently. It imports nothing, on purpose: the desktop
+  shell's main bundle aliases this one file rather than pulling the whole barrel into Electron's main
+  process. `utils/miniAppLaunchParams.ts` builds the
   `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
   and the cloud's mini app list (`miniApps`, name and host) for a `firstParty` page only. `utils/miniAppLinks.ts` holds the rules for the mini apps an owner adds
   to a cloud, so both webs keep the same list: `checkMiniAppLink` (a name of 1–30 characters, an
@@ -259,17 +262,36 @@ Seven things the filenames do not tell you.
   land that metadata in the initial chunk. Its consumers (the web phone-verification screens, the desktop
   phone sign-in) are behind lazy routes and import the subpath. The alias is in `tsconfig.base.json`'s
   `paths`, and `apps/web/jest.config.js` maps it ahead of its generic `@chatic/*` rule.
-- **`usePageTransition.ts` exports `useNavigateWithTransition`,** a thin wrapper that feeds
-  `@lemoncloud/react-page-transition` the platform the shell injected, read from `@chatic/bridges`'
-  host profile. It is by far the
-  most-imported symbol in the lib, and the file also holds the private `usePageTransitionConfig` that
-  builds that platform. The wrapper also puts `data-page-transition` on `<html>` for as long as a
-  navigation runs, cleared when the last overlapping one settles. That attribute is a DOM contract, not
-  an import: WebKit paints no `backdrop-filter` inside a view transition's snapshots, and web-ui-kit's
-  `HeaderGlass` reads it to keep a glass header opaque through the slide instead of frosting in one
-  frame at its end. The name is spelled out in both libs and pinned by both libs' tests. It is not set
-  on Android — the WebView there is Blink, which paints the frost inside the snapshots (measured in
-  Chrome 154), so holding a header opaque there would only delay its glass.
+- **`usePageTransition.ts` exports `useNavigateWithTransition`,** `navigate` with a platform page
+  transition. It is by far the most-imported symbol in the lib. It takes the same options and returns
+  the same promise as `@lemoncloud/react-page-transition`'s hook, but starts the transition itself
+  through `@lemoncloud/page-transition-core`'s `executePageTransition`, feeding it the platform the
+  shell injected (read from `@chatic/bridges`' host profile).
+    - **It does not use the React package's hook, because that hook let the browser capture the
+      incoming screen before it existed.** A view transition captures the new screen as soon as its
+      update callback settles; the package's callback settled as soon as `navigate` returned. React
+      renders a route change in a later task, and `navigate(-1)` does not reach the router until the
+      browser has moved entries, so for every back arrow the capture was the screen being left: the
+      first frames slid the room out over a copy of the room. For a push it depended on React's task
+      beating the next frame. `waitForDestination.ts` makes the callback wait for the first DOM change
+      after the navigation — for a history delta, after `history.state` shows the other entry — capped
+      at 300ms; the page does not paint while it waits, so the cap bounds a freeze, and only a
+      navigation that renders nothing reaches it. A lazy screen whose code has not loaded commits its
+      Suspense fallback first, and that fallback is what is captured, as before.
+    - **A navigation made while one of its transitions is running goes through without a second
+      transition,** after the running one has navigated. The package clears every class it set when a
+      transition finishes, a newer running transition's included, so overlapping two would drop the
+      second one's motion midway. `animation: 'none'` also skips the transition and the wait.
+    - **It puts `data-page-transition` on `<html>` for as long as a navigation runs,** cleared when the
+      last overlapping one settles. That attribute is a DOM contract, not an import: WebKit paints no
+      `backdrop-filter` inside a view transition's snapshots, and web-ui-kit's `HeaderGlass` reads it to
+      keep a glass header opaque through the slide instead of frosting in one frame at its end. The name
+      is spelled out in both libs and pinned by both libs' tests. It is not set on Android — the WebView
+      there is Blink, which paints the frost inside the snapshots (measured in Chrome 154), so holding a
+      header opaque there would only delay its glass.
+    - **The animations themselves are CSS the app loads,** not this lib: the package's stylesheet, and
+      apps/web's own Android override after it
+      ([apps/web page transitions](../../apps/web/docs/shell/page-transitions.md)).
 
 ## Usage
 
@@ -414,8 +436,8 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both —
   `rm -rf libs/shared/out-tsc dist/out-tsc` — and look again.
 - Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin`,
-  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin`,
-  `desktop-web` and `@chatic/app-runtime`; `@chatic/mobile` is on its exclusion list, so that one
+  `apps/mobile` and `libs/runtime`. `.github/workflows/verify.yml` type checks `web`, `admin`,
+  `desktop-web` and `@chatic/runtime`; `@chatic/mobile` is on its exclusion list, so that one
   is for you to run by hand. Its test step excludes `web` alone of this lib's consumers.
 - **`@chatic/mobile` fails its type check either way.** Remember that it reports a
   `TS6053` for `@nx/react-native/typings/svg.d.ts` when it runs from a git worktree, because the

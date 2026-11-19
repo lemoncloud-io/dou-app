@@ -39,6 +39,32 @@ describe('createCloudHttpGateway', () => {
         });
     });
 
+    it('get — GET {relay}/clouds/{cloudId}, and the view keeps the mini app link', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ id: 'c1', miniAppUrl: 'https://shop.example/' });
+        const gateway = createCloudHttpGateway(exec);
+
+        const view = await gateway.get('c1');
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'GET',
+            baseURL: 'https://relay.test/clouds/c1',
+        });
+        expect(view.miniAppUrl).toBe('https://shop.example/');
+    });
+
+    it('update — sends the mini app link as given', async () => {
+        executeSignedRelayRequest.mockResolvedValue({});
+        const gateway = createCloudHttpGateway(exec);
+
+        await gateway.update('c1', { miniAppUrl: '' });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'PUT',
+            baseURL: 'https://relay.test/clouds/c1',
+            body: { miniAppUrl: '' },
+        });
+    });
+
     it('make — auto: 1 is fixed', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createCloudHttpGateway(exec);

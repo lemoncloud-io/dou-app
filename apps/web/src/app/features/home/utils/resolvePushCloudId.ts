@@ -1,9 +1,9 @@
-import { pushCloudIdOf, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/data';
+import { pushCloudIdOf, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/runtime';
 
 import type { PushCloudHint } from '../../../utils/resolveInAppPushRoute';
 
 /** Relay mode reads as this cloud id everywhere else in the app (see useSessionSelection). */
-export { RELAY_CLOUD_ID } from '@chatic/data';
+export { RELAY_CLOUD_ID } from '@chatic/runtime';
 
 /** Injected so the resolver stays a pure function — no hook, no module-level cache access. */
 export interface ResolvePushCloudIdDeps {

@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import type { IapProductSubscription } from '@chatic/bridge-messages';
-
-import { appBridge } from '../../../bridge';
 
 /**
  * The store's own product catalog.
@@ -12,20 +10,19 @@ import { appBridge } from '../../../bridge';
  * Needed for the price. The server's `product.price` is a USD reference value, but what a plan card
  * must show is the store's localized, tax-inclusive price for this user's storefront — that only
  * exists on the store entry (`displayPrice`), and both stores require the displayed price to be
- * theirs. Off-native there is no store, so this stays empty and callers fall back.
+ * theirs. Where this host sells through no store there is none to ask, so this stays empty and callers
+ * fall back.
  *
  * Fetched on mount rather than at purchase time (which is when `useTierPurchase` asks for it again,
  * through the same bridge call) because a price has to be on screen before the user decides.
  */
 export const useNativeCatalog = () => {
-    const enabled = isNative();
+    const checkout = runtime.checkout;
+    const enabled = checkout.kind === 'store';
 
     const { data, isLoading } = useQuery({
         queryKey: ['nativeProducts'],
-        queryFn: async (): Promise<IapProductSubscription[]> => {
-            const { data: payload } = await appBridge.fetchProducts();
-            return payload.products;
-        },
+        queryFn: async (): Promise<IapProductSubscription[]> => (checkout.kind === 'store' ? checkout.products() : []),
         enabled,
         refetchOnWindowFocus: false,
         staleTime: 5 * 60 * 1000,

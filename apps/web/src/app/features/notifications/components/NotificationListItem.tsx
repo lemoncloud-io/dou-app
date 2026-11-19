@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { DefaultAvatar, NotificationRow, NotificationTypeChip } from '@chatic/web-ui-kit';
+import { DefaultAvatar, ImageAvatar, NotificationRow, NotificationTypeChip } from '@chatic/web-ui-kit';
 
 import type { NotificationItem } from '../../../utils/notifications';
 import { notificationRowParts, splitMentions } from '../utils/rowParts';
@@ -9,6 +9,8 @@ export interface NotificationListItemProps {
     item: NotificationItem;
     /** "Now", for the time column — one value per render of the list, so every row agrees. */
     now: number;
+    /** The author's photo, resolved by the list (`useNotificationAvatars`); the default glyph without one. */
+    avatarUrl?: string;
     selectable?: boolean;
     selected?: boolean;
     onPress: (item: NotificationItem) => void;
@@ -19,6 +21,7 @@ export interface NotificationListItemProps {
 export const NotificationListItem = ({
     item,
     now,
+    avatarUrl,
     selectable,
     selected,
     onPress,
@@ -27,8 +30,7 @@ export const NotificationListItem = ({
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
     const parts = notificationRowParts(item, t, now, locale);
-    // A reaction's line is the emoji; the message reacted to is the quote above it.
-    const body = splitMentions(item.content).map((part, index) =>
+    const body = splitMentions(parts.body).map((part, index) =>
         part.mention ? (
             <b key={index} className="font-semibold text-foreground">
                 {part.text}
@@ -39,7 +41,7 @@ export const NotificationListItem = ({
     );
     return (
         <NotificationRow
-            avatar={<DefaultAvatar size={42} />}
+            avatar={avatarUrl ? <ImageAvatar src={avatarUrl} alt="" size={42} /> : <DefaultAvatar size={42} />}
             sender={item.ownerName || t('notifications.inbox.unknownSender')}
             time={parts.time}
             unread={!item.read}

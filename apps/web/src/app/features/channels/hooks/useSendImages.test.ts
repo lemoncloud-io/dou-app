@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -9,9 +9,15 @@ import { useAppForeground } from '../../../bridge/useAppForeground';
 import { getShellPut, syncShellTransfers } from '../../../bridge/shellUpload';
 import { useSendImages } from './useSendImages';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() },
+        // Who picks, as the host's media port says: the app when the case runs in the app.
+        get media() {
+            return { kind: mockNative ? 'shell' : 'browser' };
+        },
+    })
+);
 const shellPut = jest.fn();
 const shellFilePut = jest.fn();
 jest.mock('../../../bridge/shellUpload', () => ({

@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, IconBack, IconButton, IconSpinner, KeyValueRows, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
 
@@ -28,14 +27,14 @@ export const SubscriptionPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
-    const isOnMobileApp = isNative();
+    const sellsInStore = runtime.checkout.kind === 'store';
     const isKo = i18n.language.startsWith('ko');
 
     const { data: membership, isLoading } = useMembershipInfo();
     const { summary, currentPlan, pendingPlan } = usePlanCatalog();
     const priceOf = usePlanPrice();
     const { isGuest } = runtime.session.useRuntimeProfile();
-    const { restore, isRestoring, canRestore } = useRestorePurchases();
+    const { restore, isRestoring, canRestore, notice: webActiveNotice } = useRestorePurchases();
     const observe = useRestoredSignal(s => s.observe);
 
     // Feeds the restored banner on the detail screen. Only settled states count — a half-loaded
@@ -69,9 +68,9 @@ export const SubscriptionPage = () => {
     })();
     const statusLineTone = summary.state === 'active' ? 'text-point-blue' : 'text-destructive';
 
-    // In the app a purchase attaches to the account signed in here, so a guest signs in first. In a
-    // browser the website sells and signs the buyer in itself, so the guide leads straight there.
-    const asksLogin = isGuest && isOnMobileApp;
+    // A store purchase attaches to the account signed in here, so a guest signs in first. Where the
+    // website sells, it signs the buyer in itself, so the guide leads straight there.
+    const asksLogin = isGuest && sellsInStore;
     const handleStart = () => (asksLogin ? goToLogin() : navigate(ROUTES.subscription.guide));
 
     return (
@@ -166,6 +165,7 @@ export const SubscriptionPage = () => {
                     </button>
                 )}
             </div>
+            {webActiveNotice}
         </ScreenLayout>
     );
 };

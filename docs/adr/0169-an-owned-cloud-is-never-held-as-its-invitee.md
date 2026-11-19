@@ -2,9 +2,9 @@
 
 > Status: Accepted, decisions 2 and 3 amended by [ADR-0223](./0223-an-owned-cloud-also-cached-as-invited-is-re-issued-once-per-account.md)
 > · Decided: 2026-10-06 · Implemented: `fix/self-invited-cloud-token`
-> · Scope: `libs/app-runtime/src/session/auth/cloudTokens.ts` (`isInviteLoginEntry`, `reissueCloudTokens`) ·
-> `libs/app-runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
-> `libs/app-runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
+> · Scope: `libs/runtime/src/session/auth/cloudTokens.ts` (`isInviteLoginEntry`, `reissueCloudTokens`) ·
+> `libs/runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
+> `libs/runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
 > `apps/web/src/app/runtime/BackgroundCloudsRunner.tsx` ·
 > `apps/web/src/app/features/invite/accept/hooks/useInviteAccept.ts`
 > · Amends: [ADR-0156](./0156-an-invited-cloud-is-entered-with-the-invite-login-answer.md) decision 1 —

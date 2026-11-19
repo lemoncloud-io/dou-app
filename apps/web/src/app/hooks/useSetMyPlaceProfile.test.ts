@@ -1,14 +1,14 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useSetMyPlaceProfile } from './useSetMyPlaceProfile';
 
 const isMutatingMock = jest.fn();
 
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ isMutating: isMutatingMock }) }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -16,8 +16,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionSelection: jest.fn(),
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
         },
-    },
-}));
+    })
+);
 
 const setMyProfileMock = jest.fn();
 

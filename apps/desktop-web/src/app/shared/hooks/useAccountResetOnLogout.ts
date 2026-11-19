@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { config } from '@chatic/config';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { deviceStore, plainStore } from '../../storage';
 
 import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';
@@ -73,13 +72,13 @@ export const useAccountResetOnLogout = () => {
             deviceStore.remove(key);
             plainStore.remove(key);
         });
-        // Favorites/ordering now live as @chatic/config records — config.clear sweeps both the lane
+        // Favorites/ordering now live as @chatic/config records — `runtime.settings.clear` sweeps both the lane
         // entry (in-memory) and the persisted `@chatic/config.ui.*` key together. removeItem alone
         // would leave the in-memory value alive right up until the reload.
-        config.clear('ui.pinnedChannels', { lane: 'local' });
-        config.clear('ui.channelOrder', { lane: 'local' });
+        runtime.settings.clear('ui.pinnedChannels', { lane: 'local' });
+        runtime.settings.clear('ui.channelOrder', { lane: 'local' });
         // The rail order names this account's clouds and places.
-        config.clear('ui.railOrder', { lane: 'local' });
+        runtime.settings.clear('ui.railOrder', { lane: 'local' });
         // Channel and chat caches are uid-isolated, so clearing them is hygiene. The cloud cache is
         // not: it is one global partition shared by every account on this profile, so this clear is
         // what keeps one account's cloud names from showing for the next — less the invited rows the

@@ -1,17 +1,24 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { t } from '../../../utils';
 
+/**
+ * `load` — the page failed to load (usually the network). `crash` — the page loaded, but its
+ * WebView process kept dying, so checking the connection is not the advice to give.
+ */
+export type WebViewErrorKind = 'load' | 'crash';
+
 interface WebViewErrorViewProps {
     onRetry: () => void;
     reason?: string | null;
+    kind?: WebViewErrorKind;
 }
 
-export const WebViewErrorView = ({ onRetry, reason }: WebViewErrorViewProps) => {
+export const WebViewErrorView = ({ onRetry, reason, kind = 'load' }: WebViewErrorViewProps) => {
     return (
         <View style={styles.container}>
             <Image source={require('../../../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
             <Text style={styles.title}>{t('webview.loadTitle')}</Text>
-            <Text style={styles.message}>{t('webview.loadMessage')}</Text>
+            <Text style={styles.message}>{t(kind === 'crash' ? 'webview.crashMessage' : 'webview.loadMessage')}</Text>
             {reason && <Text style={styles.reason}>{reason}</Text>}
             <TouchableOpacity style={styles.button} onPress={onRetry}>
                 <Text style={styles.buttonText}>{t('webview.retry')}</Text>

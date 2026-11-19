@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useClouds } from '../shared';
 

@@ -13,7 +13,11 @@ import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigate = jest.fn();
-jest.mock('@chatic/shared', () => ({ useInterval: () => undefined, useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useInterval: () => undefined,
+    useNavigateWithTransition: () => navigate,
+}));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
@@ -42,8 +46,8 @@ let pairingEnabled = false;
 const forgetRefusedPairedCloud = jest.fn((_id: string, _e: unknown) => false);
 const isRefusedForEndedPairing = jest.fn((_e: unknown) => false);
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId }),
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
@@ -52,8 +56,11 @@ jest.mock('@chatic/app-runtime', () => ({
             forgetRefusedPairedCloud: (id: string, e: unknown) => forgetRefusedPairedCloud(id, e),
             isRefusedForEndedPairing: (e: unknown) => isRefusedForEndedPairing(e),
         },
-    },
-}));
+        settings: {
+            useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? pairingEnabled : undefined),
+        },
+    })
+);
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ ...catalog, refetchClouds: jest.fn() }),
 }));
@@ -66,9 +73,6 @@ jest.mock('../../../hooks', () => ({
     useCachedCloudNames: () => ({}),
     useInvitedClouds: () => ({ invitedClouds: invited }),
     useIsAccountGuest: () => accountGuest,
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? pairingEnabled : undefined),
 }));
 // The real CloudPromoBanner is kept (so the 0-cloud branch is exercised); only its decision hook,
 // which reaches into the preference store and thus the app bridge, is stubbed.

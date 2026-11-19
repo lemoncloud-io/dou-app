@@ -12,8 +12,8 @@ const sent: SentRequest[] = [];
 /** One entry per `execute()`: a reply, or an error to throw. */
 const replies: ({ data: unknown } | { error: unknown })[] = [];
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         boot: {
             webTransport: {
                 buildSignedRequest: (config: SentRequest['config']) => {
@@ -35,8 +35,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             },
         },
-    },
-}));
+    })
+);
 
 import { buildDouCloudListParams, DOU_CLOUD_PAGE_SIZE, fetchDouClouds } from './douCloudsApi';
 

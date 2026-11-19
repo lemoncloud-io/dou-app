@@ -4,12 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 const updateChat = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat, deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -19,8 +19,8 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
-    },
-}));
+    })
+);
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({

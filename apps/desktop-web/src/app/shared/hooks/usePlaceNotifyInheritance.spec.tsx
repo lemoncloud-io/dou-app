@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 const updateJoin = vi.fn(async (_payload: unknown) => ({}));
 
@@ -14,8 +14,8 @@ const cache = vi.hoisted(() => ({
 }));
 const emit = (list: DomainChannel[]) => act(() => cache.listener?.({ list }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: {
@@ -33,8 +33,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => ({ selectedCloudId: 'c1', selectedSiteId: 'p1' }),
             useSessionIdentity: () => ({ userId: 'me' }),
         },
-    },
-}));
+    })
+);
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({

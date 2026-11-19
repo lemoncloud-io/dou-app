@@ -119,4 +119,22 @@ describe('useScrollRestoration', () => {
 
         expect(second.container.scrollTop).toBe(-300);
     });
+
+    // The claim stays unspent while the list is too short to scroll; once it grows (with `ready`
+    // already true, so no retry) the reader scrolls it. That position is newer than the claim and
+    // must be what the next visit gets.
+    it('keeps a position scrolled during the visit over a claim that was never applied', () => {
+        stashScroll('r-newer', 640);
+        const first = mount('r-newer', 200, 500); // too short: the claim stays pending
+        first.becomeReady();
+        expect(first.container.scrollTop).toBe(0);
+
+        first.container.scrollTop = 300;
+        first.view.result.current.onScroll();
+        first.view.unmount();
+
+        const second = mount('r-newer');
+        second.becomeReady();
+        expect(second.container.scrollTop).toBe(300);
+    });
 });

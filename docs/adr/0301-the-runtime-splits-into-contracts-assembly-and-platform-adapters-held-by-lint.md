@@ -4,9 +4,9 @@
 > · Scope: new `libs/runtime-core`, `libs/runtime-web`, `tools/eslint-rules`; root `eslint.config.mjs`,
 > `tsconfig.base.json` (paths) and `tsconfig.json` (references);
 > `nx.tags` in `libs/{session,transport,sync,auth,data,app-runtime}/package.json`;
-> `libs/app-runtime` (`boot.ts`, `sessionStorageBoot.ts`, `public-surface.test.ts`)
+> `libs/runtime` (`boot.ts`, `sessionStorageBoot.ts`, `public-surface.test.ts`)
 > · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md),
-> [libs/app-runtime § Wiring](../../libs/app-runtime/README.md#wiring) and
+> [libs/runtime § Wiring](../../libs/runtime/README.md#wiring) and
 > [tools/eslint-rules](../../tools/eslint-rules/README.md)
 
 ## Context
@@ -58,7 +58,7 @@ than a convention.**
    field for each wiring that becomes a port.
 4. **The wiring calls are made in one file.** A workspace ESLint rule,
    `@nx/workspace-runtime-wiring-call` (`tools/eslint-rules/`), reports any of the eight wiring calls
-   outside the assembly point, which today is `libs/app-runtime/src/init.ts`; tests are exempt. The
+   outside the assembly point, which today is `libs/runtime/src/init.ts`; tests are exempt. The
    catalogue and the allowed file are options in the root config, so moving the assembly into
    `@chatic/runtime-core` later changes one path. `setSessionStorage` is removed from the `boot`
    group: nothing called it, and as a public setter it was a wiring call any file could make through

@@ -1,12 +1,12 @@
 # App Runtime extracted to a shared lib; presentation rebuilt per platform
 
-The platform-agnostic chat engine — data repositories, real-time sync (`ChatSyncScheduler`), socket connection, auth bootstrap, and core data hooks — currently lives inside `apps/web/src/app`. We are extracting it into `libs/app-runtime` so every client (web, desktop-web, later others) boots the same engine. Presentation — pages and layouts — is NOT shared: each client rebuilds it natively for its form factor.
+The platform-agnostic chat engine — data repositories, real-time sync (`ChatSyncScheduler`), socket connection, auth bootstrap, and core data hooks — currently lives inside `apps/web/src/app`. We are extracting it into `libs/runtime` so every client (web, desktop-web, later others) boots the same engine. Presentation — pages and layouts — is NOT shared: each client rebuilds it natively for its form factor.
 
 ## Considered Options
 
 - **Fork the engine** into `apps/desktop-web`: fast start, but two copies of sync/socket logic diverge — double the bugs. Rejected (violates "replace, don't deprecate").
 - **Feature-library-ize everything**: extract all `apps/web` feature pages into `libs/feature-*` and share UI too. Cleanest reuse, but a large, risky refactor of the live production app, and desktop's multi-panel layout reuses little mobile-shaped UI anyway. Rejected for now.
-- **Engine-only sharing** (chosen): share `libs/app-runtime` + `ui-kit` + logic hooks; rebuild presentation per platform.
+- **Engine-only sharing** (chosen): share `libs/runtime` + `ui-kit` + logic hooks; rebuild presentation per platform.
 
 ## Consequences
 

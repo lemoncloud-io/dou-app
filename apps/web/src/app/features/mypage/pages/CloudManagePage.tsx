@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, Divider, IconPlus, IconSpinner, PromoBanner } from '@chatic/web-ui-kit';
 
 import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { CloudManageBanner, CurrentPlanCard, useCloudManageScene, useCloudQuota } from '../../subscription';
 import { CloudManageRow } from '../components/CloudManageRow';
 import { SectionLabel } from '../components/SectionLabel';
@@ -29,7 +30,9 @@ import { useOwnedClouds } from '../hooks/useOwnedClouds';
 export const CloudManagePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    const isOnMobileApp = isNative();
+    // Subscribing is offered where the app signs a person in (`runtime.signIn`): a subscription
+    // follows the social account, which only the app signs in with. Elsewhere the empty state says so.
+    const isOnMobileApp = runtime.signIn.kind === 'shell';
 
     const { clouds, isPendingClouds } = useOwnedClouds();
     const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();
@@ -132,6 +135,7 @@ export const CloudManagePage = () => {
                 <PageHeader title={t('mypage.cloudManage.title')} />
             </div>
             {body}
+            <SafeAreaBottomSpacer />
         </div>
     );
 };

@@ -5,8 +5,8 @@ classifying what came back. This folder owns everything that executor cannot kno
 host a route resolves to, which transport signs it, whether the signing credential has already
 lapsed, and what the app should do when the server refuses for good.
 
-It sits in `@chatic/transport`, below everything in app-runtime, which is what lets
-`@chatic/auth` and app-runtime's `data/` both depend on it without closing a cycle.
+It sits in `@chatic/transport`, below everything in @chatic/runtime, which is what lets
+`@chatic/auth` and @chatic/runtime's `data/` both depend on it without closing a cycle.
 
 ## Layout
 
@@ -20,10 +20,10 @@ http/                              6 source files, 5 tests
 └── authFailureReaction.ts        registry: "the server refused for good"
 ```
 
-There is **no `http/index.ts`**. The package barrel sells the four modules app-runtime reads —
+There is **no `http/index.ts`**. The package barrel sells the four modules @chatic/runtime reads —
 `transport`, `gateways`, `credentialRecovery`, `authFailureReaction` — and keeps `HttpManager` and
 `factory` inside. The two symbols apps do see (`webTransport`, `authFailureReaction`) are re-exported by
-app-runtime's `boot` and `session` groups.
+@chatic/runtime's `boot` and `session` groups.
 
 `transport.ts` is the one source file here with no test of its own.
 
@@ -51,7 +51,7 @@ match the interface, and the mapping lives in one class.
 
 ### Nothing here refreshes
 
-[`refreshAbsence.test.ts`](../../../app-runtime/src/refreshAbsence.test.ts) walks app-runtime and every
+[`refreshAbsence.test.ts`](../../../runtime/src/refreshAbsence.test.ts) walks @chatic/runtime and every
 package cut from it, this one included, and fails if any code names a refresh endpoint. It replaced an ESLint `no-restricted-imports` rule that
 was keyed to a path string and stopped matching — silently — the moment the symbols moved, letting a
 violating file pass lint. The absence test has no path to go stale against.
@@ -163,7 +163,7 @@ of a run are over-represented. The log batch upload bypasses this sink, so measu
 
 ## Usage
 
-Apps do not call into this package. app-runtime's `data/factories/httpFactory.ts` builds its data
+Apps do not call into this package. @chatic/runtime's `data/factories/httpFactory.ts` builds its data
 sources over the gateways, and `@chatic/auth`'s HTTP-side use of this folder is `legacyLemonKeyPrefix()`, for the clean-up of
 lemon-web-core's old keys.
 
@@ -185,7 +185,7 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 ## Notes for implementers and tests
 
 - `getHttpManager()` and `resetHttpManager()` are the lazy-singleton pair; `resetGateways()` is the second half of the same teardown.
-- `credentialRecoveryWiring.test.ts` (in app-runtime's `src/`, where the boot wiring lives) is the contract for the boot wiring: recovery answers `false` before boot, and all three routes reach the relay renewer after it.
+- `credentialRecoveryWiring.test.ts` (in @chatic/runtime's `src/`, where the boot wiring lives) is the contract for the boot wiring: recovery answers `false` before boot, and all three routes reach the relay renewer after it.
 - `SessionCredentialAdapter` is not exported. Test it through `getHttpManager()` with a fake freshness, or through `credentialRecovery` directly.
 - Redaction lives in [`libs/logger`](../../../logger/README.md) (`redactSensitive`, `truncate`); this file only decides which fields to pass through it.
 

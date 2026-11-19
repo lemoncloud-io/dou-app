@@ -13,11 +13,10 @@ const joinEmitters = new Map<string, Emit>();
 let native = true;
 
 vi.mock('@chatic/bridges', () => ({
-    isNative: () => native,
     webClient: { request: vi.fn() },
 }));
 
-vi.mock('@chatic/app-runtime', () => {
+vi.mock('@chatic/runtime', async () => {
     // One object for every render: the hook's effect depends on the repositories' identity.
     const repositories = {
         channel: {
@@ -33,13 +32,14 @@ vi.mock('@chatic/app-runtime', () => {
             },
         },
     };
-    return {
-        runtime: {
-            data: { useRuntimeRepositories: () => repositories },
-            connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
-            session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repositories },
+        connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
+        session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
+        get push() {
+            return { kind: native ? 'shell' : 'browser' };
         },
-    };
+    });
 });
 
 vi.mock('./usePlaces', () => {

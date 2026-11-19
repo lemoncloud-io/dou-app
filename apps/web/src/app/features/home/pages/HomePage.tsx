@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, X } from 'lucide-react';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
+import { cn } from '@chatic/ui-kit';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 import { useMembershipInfo } from '../../../hooks/useMembership';
@@ -35,6 +36,7 @@ import {
     useMyProfile,
     useOnboarding,
     useScopedNotifications,
+    useScrollChrome,
     useScrollRestoration,
     useUserPermissions,
 } from '../../../hooks';
@@ -81,6 +83,9 @@ import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { resolveHeaderProfile } from '../lib';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
+
+/** The chat tabs' sticky `top`, in px — minus the tab row's own top padding (see the tabs below). */
+const TABS_PIN_TOP = -8;
 
 export const HomePage = () => {
     const { t } = useTranslation();
@@ -284,6 +289,15 @@ export const HomePage = () => {
     // against a still-loading (short) list.
     const isListReady = !isPlacesLoading && (!selectedPlaceId || !isChannelSectionLoading);
     const { containerRef: scrollContainerRef, onScroll: handleListScroll } = useScrollRestoration('home', isListReady);
+    // The place chips scroll away and the chat tabs pin under the header, so the tabs stay in reach
+    // down a long list. One divider marks the edge content passes under: the header's while the
+    // chips are sliding beneath it, then the tabs' own underline once they pin.
+    const {
+        scrolled,
+        pinned: tabsPinned,
+        anchorRef: tabsAnchorRef,
+        track: trackScroll,
+    } = useScrollChrome(TABS_PIN_TOP);
 
     // Pull-to-refresh re-asks everything this screen draws: the background sync's lists (places,
     // channel delta — which carries the cloud 1:1s too — profiles, sent invites, the relay self
@@ -432,7 +446,6 @@ export const HomePage = () => {
         !isChannelSectionLoading;
     const handleStartCloudDm = () => navigate(ROUTES.channels.startDm);
 
-    // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
 
     // Right-side profile → dropdown. The header shows my place profile; the entries are the place
@@ -510,6 +523,28 @@ export const HomePage = () => {
                 <p className="text-sm">{t('homePage.loadingCloud')}</p>
             </div>
         );
+    // The home's banners sit under the chat tabs, above the rooms. A missing profile is the same gap
+    // on the relay and in a cloud, so both homes show that one; on the relay the cloud promo takes
+    // its turn otherwise — one banner at a time, naming yourself before an upsell. Each owns its own
+    // gutter and renders nothing when hidden, so no ghost box remains. The promo is off until the
+    // catalog has actually answered: before that `clouds` is an empty stand-in that reads as "owns
+    // no cloud", so an owner saw the pitch appear on every cold start and vanish a beat later. Hiding
+    // is the safe default for a promo — a missed beat costs nothing, a wrong one tells a paying user
+    // to go subscribe.
+    const homeBanners = (
+        <>
+            <PlaceProfileBanner
+                visible={profileNudge.isVisible}
+                onDismiss={profileNudge.dismiss}
+                onSaved={profileNudge.markPresent}
+                className="py-2"
+            />
+            {isDefaultCloud && hasCloudCatalog && !profileNudge.isVisible && (
+                <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="py-2" />
+            )}
+        </>
+    );
+    const hasChatTabs = !!selectedPlaceId || cloudSelfChannels.length > 0;
     // A tab's count is unknown, not zero, while its rooms are still arriving.
     const tabCount = (rooms: readonly unknown[]): number | undefined =>
         isChannelSectionLoading || isCloudSelfLoading ? undefined : rooms.length;
@@ -530,6 +565,11 @@ export const HomePage = () => {
                 switcherLabel={t('homePage.switchCloud')}
                 avatar={profileMenu}
                 profileLabel={t('homePage.profile')}
+                // The border is always there, only its colour changes, so the bar never moves by a pixel.
+                className={cn(
+                    'border-b transition-colors duration-200 motion-reduce:transition-none',
+                    scrolled && !tabsPinned ? 'border-input-border' : 'border-transparent'
+                )}
             />
 
             {/* Place + Chat scroll together under the fixed header (accordion sections). Trailing
@@ -537,39 +577,25 @@ export const HomePage = () => {
                 not from padding on this container — see BottomNavSpacer for why. */}
             <PullToRefresh
                 ref={scrollContainerRef}
-                onScroll={handleListScroll}
+                onScroll={event => {
+                    handleListScroll();
+                    trackScroll(event.currentTarget);
+                }}
                 onRefresh={handleRefresh}
                 // A light tick for each step of the gauge short of full, and the stronger tap when it
                 // fills and the refresh starts — so a pull is felt filling up, not only at its end.
                 onTick={() => haptics.play('selection')}
                 onFill={() => haptics.play('impact')}
                 refreshingLabel={t('homePage.refreshing')}
-                className="min-h-0 flex-1 overflow-y-auto pt-2"
-                contentClassName="flex flex-col"
+                className="min-h-0 flex-1 overflow-y-auto"
+                // The top gap is the content's, not the scroller's: a sticky row stops at the
+                // scroller's padding edge, so padding there would leave a strip of rows showing
+                // between the header and the pinned tabs.
+                contentClassName="flex flex-col pt-2"
             >
-                {/* Relay: no Place section — the single relay place is auto-connected, so the list
-                    carries no information. Its slot goes to the cloud upsell instead. The banner
-                    owns its own gutter and renders nothing when hidden, so no ghost box remains.
-                    It is off until the catalog has actually answered: before that `clouds` is an
-                    empty stand-in that reads as "owns no cloud", so an owner saw the pitch appear
-                    on every cold start and vanish a beat later. Hiding is the safe default for a
-                    promo — a missed beat costs nothing, a wrong one tells a paying user to go
-                    subscribe. */}
-                {/* Above both homes' first section: a missing profile is the same gap on the relay
-                    and in a cloud. One banner at a time, so on the relay it takes the cloud
-                    promo's turn — naming yourself comes before an upsell. */}
-                <PlaceProfileBanner
-                    visible={profileNudge.isVisible}
-                    onDismiss={profileNudge.dismiss}
-                    onSaved={profileNudge.markPresent}
-                    className="pb-2"
-                />
-                {isDefaultCloud ? (
-                    hasCloudCatalog &&
-                    !profileNudge.isVisible && (
-                        <CloudPromoBanner hasOwnedCloud={hasOwnedCloud} onAddCloud={openCloudGuide} className="pb-2" />
-                    )
-                ) : (
+                {/* Relay: no place chips — the single relay place is auto-connected, so the row would
+                    carry no information. */}
+                {!isDefaultCloud && (
                     <PlaceChipRow
                         places={places}
                         selectedPlaceId={selectedPlaceId}
@@ -582,12 +608,20 @@ export const HomePage = () => {
                     />
                 )}
 
+                {/* With no tabs to sit under (no place yet), the banners lead the guidance instead. */}
+                {!hasChatTabs && homeBanners}
                 {/* No place yet: the guidance (or the loading state) leads. A cloud's notes-to-self room
                     still lists below it — it belongs to no place. */}
                 {!selectedPlaceId && noPlaceBody}
-                {(selectedPlaceId || cloudSelfChannels.length > 0) && (
+                {hasChatTabs && (
                     <>
+                        <div ref={tabsAnchorRef} aria-hidden />
                         <SegmentedTabs
+                            // Above the rows: each row is positioned (`relative`), and a later
+                            // positioned sibling paints over a sticky row that has no z-index.
+                            // Pinned 8px up: the row's own top padding tucks under the header, so the
+                            // labels sit right below it instead of a blank strip further down.
+                            className="sticky top-[-8px] z-10 bg-background"
                             variant="inline"
                             items={
                                 isDefaultCloud
@@ -626,6 +660,7 @@ export const HomePage = () => {
                                 )
                             }
                         />
+                        {homeBanners}
                         {findMeCount > 0 && (
                             <button
                                 type="button"

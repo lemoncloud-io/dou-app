@@ -3,9 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
-import type { DataRepositories, DomainChat } from '@chatic/data';
-import type * as AppRuntimeModule from '@chatic/app-runtime';
-import { runtime } from '@chatic/app-runtime';
+import type { DataRepositories, DomainChat } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime';
 
 // The engine outbox stays real — it is the contract these tests wire against. Only what the hook
 // reads per cloud is faked: each cloud's repository graph, its send, the uid in it, and which
@@ -17,21 +16,16 @@ const clouds = vi.hoisted(() => ({
     sendInCloud: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', async () => {
-    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/app-runtime');
+vi.mock('@chatic/runtime', async () => {
     const uidOf = (cid: string) => clouds.uids[cid] ?? null;
-    return {
-        runtime: {
-            ...actual.runtime,
-            data: {
-                ...actual.runtime.data,
-                getCloudRepositories: (cid: string) => clouds.graphs[cid],
-                sendChatInCloud: (cid: string, payload: unknown) => clouds.sendInCloud(cid, payload),
-            },
-            session: { ...actual.runtime.session, useUidInCloud: uidOf, getUidInCloud: uidOf },
-            connection: { ...actual.runtime.connection, useVerifiedClouds: () => clouds.verified },
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        data: {
+            getCloudRepositories: (cid: string) => clouds.graphs[cid],
+            sendChatInCloud: (cid: string, payload: unknown) => clouds.sendInCloud(cid, payload),
         },
-    };
+        session: { useUidInCloud: uidOf, getUidInCloud: uidOf },
+        connection: { useVerifiedClouds: () => clouds.verified },
+    });
 });
 
 import {

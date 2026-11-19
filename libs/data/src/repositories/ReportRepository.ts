@@ -15,7 +15,7 @@ export interface IReportRepository extends DisposableRepository {
  * Remote-only and HTTP-only, same shape as `SubscriptionRepository`: there is no cacheable entity
  * behind a report, so there is no local data source to compose and no socket lane either.
  *
- * **It composes the call, not the payload.** The report body is assembled in `app-runtime`, which
+ * **It composes the call, not the payload.** The report body is assembled in `@chatic/runtime`, which
  * owns the session facts a report describes (uid, role, active cloud) — this repository is the
  * boundary the call crosses, so that the last two data calls in the repo that built their own signed
  * request stop being exceptions to ADR-0036.

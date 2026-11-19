@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
 import { resetAudioTypeProbe } from '../utils/audioPlayback';
@@ -14,25 +14,22 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 let mockNative = false;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 const mockDownload = jest.fn();
 jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]) => mockDownload(...args) }));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 const mockSendProgress = new Map<string, (number | undefined)[]>();
-jest.mock('@chatic/app-runtime', () => {
-    const actual = jest.requireActual('@chatic/app-runtime');
-    return {
-        ...actual,
-        runtime: {
-            ...actual.runtime,
-            data: {
-                ...actual.runtime.data,
-                useImageSendProgress: (pendingId?: string) => (pendingId ? mockSendProgress.get(pendingId) : undefined),
-            },
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: {
+            useImageSendProgress: (pendingId?: string) => (pendingId ? mockSendProgress.get(pendingId) : undefined),
         },
-    };
-});
+        // Who moves files, as the host's `files` port says: the app when the case runs in the app.
+        get files() {
+            return { kind: mockNative ? 'shell' : 'browser' };
+        },
+    })
+);
 const mockNavigate = jest.fn();
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),

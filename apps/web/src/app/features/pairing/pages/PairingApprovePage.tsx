@@ -3,8 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
-import { isNative } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/ui-kit';
@@ -21,6 +20,7 @@ import {
 } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { QrScannerSheet } from '../components/QrScannerSheet';
 import { useNow, usePairingApproval } from '../hooks';
 import { canScanLive, type LiveQrOpenFailure } from '../lib/liveQrScanner';
@@ -32,16 +32,17 @@ import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
  * The approving device's screen: a code from a browser (or another phone) typed or scanned in, its
  * requester shown, and an approval for one target.
  *
- * Only inside the app, signed in to an account, on a session that is not itself a secondary device.
- * The server would accept an approval from a browser's phone login, and a guest app's approval of its
- * invited clouds, too — the rule that approvals come from signed-in apps is the screen's, so the entry
- * and this page are where it is kept.
+ * Only inside the app (`runtime.signIn` says the app signs in here), signed in to an account, on a
+ * session that is not itself a secondary device. The server would accept an approval from a browser's
+ * phone login, and a guest app's approval of its invited clouds, too — the rule that approvals come
+ * from signed-in apps is the screen's, so the entry and this page are where it is kept.
  */
 export const PairingApprovePage = () => {
     const enabled = useDevicePairingEnabled();
     const paired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
-    if (!enabled || !isNative() || isGuest || paired) return <Navigate to={ROUTES.mypage.root} replace />;
+    const appSignsIn = runtime.signIn.kind === 'shell';
+    if (!enabled || !appSignsIn || isGuest || paired) return <Navigate to={ROUTES.mypage.root} replace />;
     return <PairingApproveScreen />;
 };
 
@@ -204,6 +205,7 @@ const PairingApproveScreen = () => {
                         onCancel={reset}
                     />
                 )}
+                <SafeAreaBottomSpacer />
             </div>
         </div>
     );

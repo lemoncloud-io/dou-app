@@ -1,7 +1,7 @@
 # ADR-0221: `cloud.get` and `cloud.update` go to the relay
 
 > Status: Accepted · Decided: 2026-10-22 · Implemented: `fix/cloud-update-on-relay`
-> · Scope: `libs/app-runtime/src/data/factories/socketFactory.ts` · `libs/data/src/repositories/CloudRepository.ts`
+> · Scope: `libs/runtime/src/data/factories/socketFactory.ts` · `libs/data/src/repositories/CloudRepository.ts`
 > · `apps/web/src/app/features/mypage/pages/CloudEditPage.tsx`
 > · The module doc is [libs/data remote/socket](../../libs/data/docs/remote/socket.md#routing--where-a-call-is-sent)
 

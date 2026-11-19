@@ -129,7 +129,6 @@ export const ROUTES = {
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',
-            withdrawal: '/mypage/withdrawal',
         },
         /**
          * Owned clouds (workspaces), not login credentials — see `account` above for those. One

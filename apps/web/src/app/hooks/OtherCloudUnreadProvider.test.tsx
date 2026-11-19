@@ -47,7 +47,7 @@ let mockUids: Record<string, string | null> = {};
 let mockOwned: { id?: string }[] = [];
 const uidSubscribers = new Set<() => void>();
 
-jest.mock('@chatic/app-runtime', () => {
+jest.mock('@chatic/runtime', () => {
     const { useSyncExternalStore } = jest.requireActual('react');
     // One graph for the whole run, as the real one is: the observers' effects are keyed on it. The
     // calls go through lazily because this factory is hoisted above the fake cache it reads.
@@ -56,24 +56,22 @@ jest.mock('@chatic/app-runtime', () => {
         place: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('site')(...args) },
         join: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('join')(...args) },
     };
-    return {
-        runtime: {
-            session: {
-                useSessionSelection: () => ({ selectedCloudId: mockSelected }),
-                useUidInCloud: (cid: string) =>
-                    useSyncExternalStore(
-                        (listener: () => void) => {
-                            uidSubscribers.add(listener);
-                            return () => uidSubscribers.delete(listener);
-                        },
-                        () => mockUids[cid] ?? null
-                    ),
-            },
-            data: {
-                useRuntimeRepositories: () => repositories,
-            },
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        session: {
+            useSessionSelection: () => ({ selectedCloudId: mockSelected }),
+            useUidInCloud: (cid: string) =>
+                useSyncExternalStore(
+                    (listener: () => void) => {
+                        uidSubscribers.add(listener);
+                        return () => uidSubscribers.delete(listener);
+                    },
+                    () => mockUids[cid] ?? null
+                ),
         },
-    };
+        data: {
+            useRuntimeRepositories: () => repositories,
+        },
+    });
 });
 jest.mock('./useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: mockOwned }) }));
 jest.mock('./useInvitedClouds', () => ({ useInvitedClouds: () => ({ invitedClouds: [] }) }));

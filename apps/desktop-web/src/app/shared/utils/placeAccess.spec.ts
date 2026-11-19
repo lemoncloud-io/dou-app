@@ -4,15 +4,15 @@ const state = vi.hoisted(() => ({
     relayUser: null as Record<string, unknown> | null,
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getRelaySessionUser: () => state.relayUser,
             // The user of the cloud the session is in. The rule must not read it.
             getActiveSessionUser: () => ({ userRole: 'admin', email: 'developer@lemoncloud.io' }),
         },
-    },
-}));
+    })
+);
 
 import { canManagePlaces, readPlaceManageAccess } from './placeAccess';
 

@@ -51,6 +51,34 @@ describe('notificationRowParts', () => {
         expect(notificationRowParts(item({ kind: 'dmMessage' }), t, NOW, 'en-US').chip).toBeUndefined();
     });
 
+    it('draws a reaction as the design does: my message as the body, with no quote line', () => {
+        const parts = notificationRowParts(
+            item({ kind: 'reaction', emoji: '❤️', content: '❤️', quote: '@Sis pizza tonight' }),
+            t,
+            NOW,
+            'en-US'
+        );
+        expect(parts.quote).toBeUndefined();
+        expect(parts.body).toBe('@Sis pizza tonight');
+    });
+
+    it('falls back to the emoji for a reaction whose message is not cached', () => {
+        expect(notificationRowParts(item({ kind: 'reaction', emoji: '❤️', content: '❤️' }), t, NOW, 'en-US').body).toBe(
+            '❤️'
+        );
+    });
+
+    it('keeps the message as the body and the quote above it for every other kind', () => {
+        const parts = notificationRowParts(
+            item({ kind: 'replyToMine', content: 'sure', quote: 'trip?' }),
+            t,
+            NOW,
+            'en-US'
+        );
+        expect(parts.body).toBe('sure');
+        expect(parts.quote).toContain('trip?');
+    });
+
     it('prefixes a quote and leaves none when the item has none', () => {
         expect(notificationRowParts(item({ quote: 'old' }), t, NOW, 'en-US').quote).toContain('old');
         expect(notificationRowParts(item({}), t, NOW, 'en-US').quote).toBeUndefined();

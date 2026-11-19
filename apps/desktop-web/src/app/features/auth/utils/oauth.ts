@@ -1,4 +1,4 @@
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Social Login URL plumbing. The OAuth Relay fronts every provider: we send the browser to its
@@ -14,20 +14,20 @@ import { config } from '@chatic/config';
  * OAuth hand-off never (re)launches the other channel's app. The registry resolves the scheme
  * from the stage — the same axis the shell picks its own scheme by — so no build variable is involved.
  *
- * Read per call rather than once at module load. `config.get()` answers `undefined` until
- * `config.init()` runs (main.tsx), so a module-scope read that landed before boot would fall
- * back to the registry default and hand a dev build off to the PROD channel's app — silently,
+ * Read per call rather than once at module load. `runtime.settings.get()` answers `undefined`
+ * until the runtime's start initialises config (main.tsx), so a module-scope read that landed
+ * before boot would fall back to the registry default and hand a dev build off to the PROD channel's app — silently,
  * and in exactly the direction this scheme exists to prevent. Every caller here runs from a
  * rendered component, which is always after boot.
  */
-const protocolScheme = (): string => config.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
+const protocolScheme = (): string => runtime.settings.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
 
 /**
  * Social sign-in: on in every build. A registry key rather than a constant so it can be turned off
- * without a release once a server lane writes it. Read per call — `config.get()` answers nothing
- * until boot has run `config.init()`.
+ * without a release once a server lane writes it. Read per call — `runtime.settings.get()` answers
+ * nothing until the runtime's start has initialised config.
  */
-export const isSocialLoginEnabled = (): boolean => config.get<boolean>('feature.auth.socialLogin') !== false;
+export const isSocialLoginEnabled = (): boolean => runtime.settings.get<boolean>('feature.auth.socialLogin') !== false;
 /** Both channels' schemes parse — receiving is harmless, launching is what must not cross. */
 const OAUTH_DEEPLINK_SCHEMES = ['chatic:', 'chatic-dev:'];
 const OAUTH_DEEPLINK_HOST = 'oauth';
@@ -55,7 +55,7 @@ export const oauthProviderName = (provider: string): string =>
 // this raw name — see `webEnvAdapter.ts`'s `LOWERED_RAW_NAMES`), matching what
 // `@chatic/web-config`'s `WEB_SOCIAL_OAUTH_ENDPOINT` always did. Read per call, for the same
 // boot-order reason as the scheme above.
-const socialOauthEndpoint = (): string => config.get<string>('net.socialOauth.endpoint') ?? '';
+const socialOauthEndpoint = (): string => runtime.settings.get<string>('net.socialOauth.endpoint') ?? '';
 
 /**
  * Relay authorize URL returning to this origin's hand-off page. The `nonce` rides the `redirect`

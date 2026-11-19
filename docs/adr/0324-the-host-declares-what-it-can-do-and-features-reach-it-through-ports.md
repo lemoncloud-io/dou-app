@@ -1,9 +1,15 @@
 # ADR-0324: The host declares what it can do, and features reach it through ports chosen at the entry point
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
-> `refactor/host-ports-frame` (step 1); steps 2–7 follow
+> Status: Accepted (§ 2 Capability ports and § 3 One entry point chooses are Superseded by
+> [ADR-0346](./0346-every-app-starts-from-a-declaration-and-its-call-part-sees-only-the-runtime.md), which
+> moves the ports into each app's runtime declaration and removes `@chatic/host`; the host profile of § 1
+> stands) · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
+> `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
+> (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`), `feat/host-files-port` (step 3, `files`),
+> `feat/host-ports-rest` (steps 4–7, together), `refactor/host-shell-browser-methods` (the values' names)
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
-> the ports and the lint rule in [libs/host](../../libs/host/README.md)
+> the ports in `libs/host` until ADR-0346 removed it (now
+> [libs/runtime-client § The host ports](../../libs/runtime-client/README.md#the-host-ports))
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
 > `libs/runtime-web`, `libs/shared`; the config adapters of `apps/web`, `apps/desktop-web` and
 > `apps/admin`; `apps/web` (the device store, the runtime offer)
@@ -85,11 +91,11 @@ profile from inside the page. Every profile therefore traces back to one stateme
 
 ```ts
 window.CHATIC_APP_CAPABILITIES = {
-    version: 1,
+    version: 4,
     checkout: ['apple'],
-    media: [
-        /* … */
-    ] /* … */,
+    media: 'shell',
+    files: 'shell',
+    links: 'shell' /* … appShell, signIn, diagnostics, push */,
 };
 ```
 
@@ -109,7 +115,39 @@ list is silently given the legacy guess. With one object:
 So every capability has a legacy rule, including one added long after the first shells declared.
 Where nothing the page did before declarations existed can be reproduced — the capability is new —
 its legacy rule answers "unavailable", so a new key never needs a guess written for it. The first key,
-`checkout`, is version 1 and arrives with step 2; step 0 ships the reader with no keys.
+`checkout`, is version 1 and arrived with step 2: a list of `'apple' | 'google' | 'web'`, preferred
+first, of which the page takes the first it knows; `[]` sells nothing. Its legacy rule is the one the
+screens used: a bridge means a store, Apple's on `ios`, and no bridge means the website.
+
+`media` is version 2 and arrived with step 3: `'shell'` or `'browser'`. A version-1 declaration — the
+first builds that declared `checkout` — never knew it, so its legacy rule answers: a bridge means the
+shell picks. The `media` port carries that choice and nothing more. The picker and photo library it chooses
+between take their types from the data layer and the runtime, which `layer:host` keeps out of reach, so
+they stay in `apps/web` and read the port — a narrower port than § 2 describes, for a domain only one app
+has.
+
+`files` is version 3, the rest of step 3: `'shell'` or `'browser'`, for uploads, downloads and a video's first
+frame. It is not version 2 because version-2 declarations were already being built without it: had the
+key joined version 2, those builds would read as declaring it missing and move files through the page.
+Declarations of version 1 or 2 get the legacy rule — a bridge means the shell — and the port is as narrow
+as `media`'s, for the same reason.
+
+`links`, `appShell`, `signIn`, `diagnostics` and `push` are version 4, all five together, and arrived
+with steps 4–7 in one change. Each is `'shell'` or `'browser'` like `media` and `files`; the ports for
+`appShell` and `signIn` add `os`, the phone platform where the app does the work, because the badge and
+Apple's sign-in differ by platform. They share one version so that no build can declare some without
+the others: had the steps landed apart with a version each, a build cut between two merges would have
+declared a version whose earlier key was missing, and been answered `'browser'` for it. Declarations of
+version 1 to 3 get the legacy rule for all five.
+
+**The values name who does the work.** `'shell'` is the app around the page, through its bridge — the
+word the workspace already uses for the phone, desktop and virtual shells. `'browser'` is what any
+browser engine offers the page, the means every host has, which is why every fallback lands on it. The
+values were first written `'app' | 'page'` — for `media`, `files` and then the five version-4 keys — and
+renamed afterwards, because "app" already named every project under `apps/` and the mini apps, and
+"page" named screens, pages of a feed and a mini app's page. A shell that still
+declares an old value names something the web does not know, so that key is logged and answered
+`'browser'`, like any other value a shell gets wrong.
 
 `CHATIC_APP_STORAGE_MEDIA` and `CHATIC_APP_RUNTIME` stay where they are. Shipped shells inject them,
 and the profile reads them alongside the new object; they are not moved into it.
@@ -128,7 +166,9 @@ no store — so `@chatic/bridges` stays free of both. It sits low enough for eve
 platform `@chatic/config`'s `env` port answers, which the adapters used to read off `window`, and
 whether the shell lane is wired at all) and `@chatic/host`. Apart from the entry-point file (§ 3) and
 the debug overlay (§ 4), `@chatic/bridges` becomes the only code that reads a `CHATIC_APP_*` global,
-as the lint rule's allow-list empties.
+as the lint rule's allow-list empties. For the readers that must see a value after boot it offers two
+live reads — `liveShellGlobals()` for the boot globals as they stand now, and `liveShellValue()` for the
+values a shell writes while the page runs — so they too go through it.
 
 The profile holds what a shell states once per page load: the bridge channel, by kind; the identity
 and version globals, exactly as injected; the storage media; the session-owner offer; and the
@@ -231,6 +271,16 @@ What the virtual shell declares is read from that store, so a handler or a scena
 `checkout: ['web']` to check the website hand-off, a store to check the purchase path against the
 fake implementation — takes effect at the next relaunch, the way a real host's declaration does.
 
+As built for `checkout`: a person picks the method with `DOU_SHELL_CHECKOUT` when starting the shell,
+and a choice under `dou.checkout` in the store wins over it (the shell offers no tool to write the store
+yet, so nothing does). Unset, the shell declares nothing and the web takes the legacy store path, as
+before; the shell itself now refuses the store's calls at once rather than leaving them to its panel. The fake store is the shell's, not the web's: its handlers answer the store's bridge messages
+with a fake catalog and a fake receipt, on dev only, and the web's real store port drives them — so the
+web's own purchase code runs, up to the dev server refusing the receipt. Two things the decision
+assumed did not hold: Vite's `define` does not reach the shell page in dev (a transform plugin writes
+the values in instead), and the shell's handler context does not say which backend it runs against
+(the wrapped preset's `globals` records it, since it is told).
+
 ## Migration
 
 One domain per pull request, each with no change in behaviour on a shell that declares nothing:
@@ -250,8 +300,23 @@ One domain per pull request, each with no change in behaviour on a shell that de
 6. `signIn`.
 7. `diagnostics` and `push`.
 
+Steps 4–7 landed as one change, for the declaration's sake (§ 1: one version for all five keys). Two
+things were decided there that this section did not foresee:
+
+- **Libraries read the profile, not the ports.** `@chatic/app-runtime` and `@chatic/theme` are rendered
+  by apps that publish no ports (`apps/admin`, `apps/landing`), so their few host questions — is there a
+  bridge, which platform — read `hostProfile()` from `@chatic/bridges`, which answers what the ports'
+  legacy rule answers.
+- **Domains the port list does not name went to the nearest port**: device pairing to `signIn` (the
+  device that holds the account approves), the app's return to the foreground to `appShell`, who held
+  the session (stamped on logs) to `diagnostics`, and notification-driven recovery to `push`.
+
+With that, the allow-list holds only its permanent entries: the reader, the two entry points and the
+debug overlay.
+
 `apps/desktop-web` adopts each port as its domain moves. The phone and desktop shells start
-declaring capabilities in their next releases. The legacy rule is deleted when the version floor
+declaring capabilities in their next releases (`feat/shells-declare-checkout`: the phone its store,
+the desktop `checkout: []`). The legacy rule is deleted when the version floor
 ([ADR-0292](./0292-a-phone-app-below-the-version-floor-sees-only-the-update-screen.md)) is raised past the first builds that declare.
 
 ## Alternatives

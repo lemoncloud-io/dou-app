@@ -17,11 +17,11 @@ The rest: `pairingRequestFlow.ts` is the code screen's request-and-poll loop, `p
 relay approval's session token out of the claim's answer, `pairingErrors.ts` names the approval side's
 failures.
 
-- **`PairingRequestFlow`**, a class with no React in it, is the code screen's loop (app-runtime's
+- **`PairingRequestFlow`**, a class with no React in it, is the code screen's loop (@chatic/runtime's
   `usePairingRequest` drives it): request a code, poll `claim` every `interval` seconds, then sign in. The
   claim it is handed answers token-free (`PairingClaimAnswer`): a relay approval's session is a
   `sessionHandle`, and `applySession(sessionHandle)` signs in with it. A cloud approval enters that cloud
-  as a guest (`enterCloud`; app-runtime readies it with `pairedCloudSessions.prepareEntry`, below, and
+  as a guest (`enterCloud`; @chatic/runtime readies it with `pairedCloudSessions.prepareEntry`, below, and
   then switches with the screen's own switch).
 - **`pairingClaims.ts`** is where a relay approval's session waits between the claim and the sign-in.
   `holdPairingClaim(view)` takes the relay's answer, keeps the session and answers with a handle in its
@@ -44,7 +44,7 @@ failures.
   the switch sheet. It is a plain store with no other dependency, so `isPairedSession` and the relay
   logout can read and clear it without pulling the socket runtime in.
     - It also keeps each listed cloud's name (`setName`, `names`, `subscribeNames`), read from the relay
-      once the browser is inside the cloud (app-runtime's `syncPairedCloudName`). A paired cloud has no
+      once the browser is inside the cloud (@chatic/runtime's `syncPairedCloudName`). A paired cloud has no
       row in the cloud cache — a row there is either owned or invited — so this is the only place its
       name is kept. A name is kept only for a cloud on the list, and `remove` and `clear` drop it with
       the cloud.
@@ -77,7 +77,7 @@ failures.
   a change of user; otherwise
   `checkAll`, answering the clouds that ended. **`endPairedCloud(cloudId)`** ends a paired cloud whose
   refusal the caller has already read (`isRefusedForEndedPairing`), and answers whether it was one —
-  the engine's `endPairedCloud`, behind app-runtime's `forgetRefusedPairedCloud`.
+  the engine's `endPairedCloud`, behind @chatic/runtime's `forgetRefusedPairedCloud`.
 - **`isInOwnCloudSession`** — is this guest signed in to a cloud on its own (the committed cloud is
   neither the relay nor a paired cloud)? A device asks for a pairing only while signed out, so the code
   screens ask such a guest to sign out of the cloud first.
@@ -100,8 +100,8 @@ failures.
   App-runtime passes it the page's own platform and user agent, so it needs no transport configured.
 
 The hooks over these — `usePairingRequest`, `useIsPairedSession`, `usePairedCloudIds`,
-`usePairedCloudNames`, `usePairingAwareLogout`, `usePairedCloudCheck` — are app-runtime's
-([its session doc](../../../app-runtime/docs/session/README.md#the-pairing-hooks)).
+`usePairedCloudNames`, `usePairingAwareLogout`, `usePairedCloudCheck` — are @chatic/runtime's
+([its session doc](../../../runtime/docs/session/README.md#the-pairing-hooks)).
 
 ## Further reading
 

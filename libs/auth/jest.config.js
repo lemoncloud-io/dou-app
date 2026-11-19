@@ -6,7 +6,7 @@ module.exports = {
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     // The `@chatic/session` stores read `storage` from the `@chatic/shared` barrel, which carries
     // React components and their assets and styles. These entries are the ones
-    // libs/app-runtime/jest.config.js uses for the same reach.
+    // libs/runtime/jest.config.js uses for the same reach.
     moduleNameMapper: {
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',

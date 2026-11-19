@@ -11,7 +11,9 @@ const openURL = jest.fn();
 jest.mock('../../../../bridge', () => ({ appBridge: { openURL: (u: string) => openURL(u) } }));
 jest.mock('@chatic/bridges', () => ({ isNative: () => true }));
 // Assumes a DEV build — a hardcoded 'chatic' would show up here.
-jest.mock('@chatic/config', () => ({ config: { get: () => 'chatic-dev' } }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: () => 'chatic-dev' } })
+);
 
 describe('DeeplinkScreen', () => {
     let restoreLanguage: () => void;

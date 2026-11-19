@@ -6,13 +6,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 const setReaction = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ chat: { setReaction } }),
         },
-    },
-}));
+    })
+);
 
 import { useReactions } from './useReactions';
 

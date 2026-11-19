@@ -5,8 +5,8 @@ import { renderHook } from '@testing-library/react';
 const mockObserveList = vi.fn();
 let mockCloudId = 'cloud-A';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ place: { observeList: mockObserveList } }) },
         session: {
             useGlobalSession: () => ({
@@ -14,8 +14,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 identity: { userId: 'u1' },
             }),
         },
-    },
-}));
+    })
+);
 
 import { usePlaces } from './usePlaces';
 

@@ -26,15 +26,21 @@ jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
     useSearchParams: () => [new URLSearchParams(), jest.fn()],
     useLocation: () => ({ state: null }),
+    useNavigationType: () => 'PUSH',
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), info: jest.fn() }, isNative: () => false }));
+jest.mock('@chatic/bridges', () => ({
+    logger: { error: jest.fn(), info: jest.fn() },
+    isNative: () => false,
+    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
+    liveShellValue: () => undefined,
+}));
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => mockNavigate,
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useUidInCloud: () => 'me',
@@ -49,10 +55,9 @@ jest.mock('@chatic/app-runtime', () => ({
                 join: { readChat: () => Promise.resolve({ delivered: Promise.resolve() }) },
             }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
-jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({ DropdownMenuItem: () => null }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AvatarGroup: () => null,
     // Records what the page hands the header — the click hooks are what these cases are about.
@@ -69,7 +74,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 }));
 jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../runtime/logging/pushEntryRegistry', () => ({ pushEntryRegistry: { consume: () => null } }));
-jest.mock('../../../hooks/useMenuNavigate', () => ({ useMenuNavigate: () => jest.fn() }));
 jest.mock('../../../navigation', () => ({ useStackNavigate: () => jest.fn() }));
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     useChromeInsets: () => ({
@@ -170,7 +174,7 @@ jest.mock('../hooks', () => ({
     }),
     // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
     useRoomJumpPills: () => ({ pill: null, checkInView: jest.fn() }),
-    useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn() }),
+    useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn(), hasPendingRestore: () => false }),
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
     useDmPeer: () => mockDmPeer,
     useJoinPositions: () => ({ getReadCount: () => ({ readCount: 0, unreadCount: 0 }), isReady: false }),
@@ -330,7 +334,25 @@ describe('ChannelRoomPage — the header', () => {
         expect(mockHeaderProps.onIdentityClick).toBeUndefined();
     });
 
-    it("opens settings from a group's participant stack, as the ⋯ menu does", () => {
+    it.each<[string, NonNullable<typeof mockChannel>]>([
+        ['group', { id: 'ch1', cid: 'cloud-a', stereo: 'private', ownerId: 'me', memberIds: ['me', 'peer', 'p3'] }],
+        ['1:1', { id: 'ch1', cid: 'cloud-a', stereo: 'dm', ownerId: 'me', memberIds: ['me', 'peer'] }],
+        [
+            'self chat',
+            { id: 'ch1', cid: 'cloud-a', stereo: 'self', isSelfChat: true, ownerId: 'me', memberIds: ['me'] },
+        ],
+    ])('opens settings straight from the ⋯ button in a %s, with no menu', (_kind, channel) => {
+        mockChannel = channel;
+
+        render(<ChannelRoomPage />);
+        expect(mockHeaderProps.moreMenu).toBeUndefined();
+        expect(mockHeaderProps.moreLabel).toBe('chat.room.openSettings');
+        mockHeaderProps.onMore();
+
+        expect(mockNavigate).toHaveBeenCalledWith('/channels/ch1/settings', { state: { roomDistance: 1 } });
+    });
+
+    it("opens settings from a group's participant stack, as the ⋯ button does", () => {
         render(<ChannelRoomPage />);
         expect(mockHeaderProps.onIdentityClick).toBeUndefined();
         expect(mockHeaderProps.metaLabel).toBe('chat.room.openMembers');

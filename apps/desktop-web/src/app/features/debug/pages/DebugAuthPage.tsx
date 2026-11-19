@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { cn } from '@chatic/ui-kit';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useDebugLogin } from '../../auth/hooks';
 

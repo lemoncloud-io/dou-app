@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { chatMediaEntries, type DomainChat } from '@chatic/data';
+import { chatMediaEntries, type DomainChat } from '@chatic/runtime';
 import type { KeyValueStore } from '@chatic/storage';
 
 import { deviceStore } from '../../../storage';

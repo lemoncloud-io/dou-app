@@ -1,6 +1,8 @@
 # ADR-0320: A sub WebView page reads the current cloud through a whitelist of the runtime's requests
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `feat/sub-webview-runtime-whitelist`
+> Status: Accepted; decision 11 (the SDK's untyped `apps.runtime`) superseded in part by
+> [ADR-0341](./0341-chatic-apps-sdk-types-a-pages-cloud-data-by-the-apps-own-names.md)
+> · Decided: 2026-11-16 · Implemented: `feat/sub-webview-runtime-whitelist`
 > · Scope: `libs/runtime-core/src/bridge/subWebViewWhitelist.ts` (the whitelist and its derived lists,
 > re-exported by `libs/runtime-mobile`) · `libs/bridge-messages` (`model/sub-webview.ts` — the
 > permissions, the hello's answer on the sub host, the error codes; `web-message.ts` — the subset;
@@ -8,7 +10,7 @@
 > `apps/mobile/src/app/subWebView/` (`subWebViewRuntimeAccess.ts`, `subWebViewRuntimeGate.ts`,
 > `subWebViewRuntimeBridge.ts`, `subWebViewRuntimeConsent.ts`, `subWebViewReadBudget.ts`) and
 > `services/subWebView/subWebViewManifest.ts` · `libs/chatic-apps-sdk` (`apps.runtime`, the mock)
-> · The specification is [apps/mobile docs/webview/sub-webview-protocol.md](../../apps/mobile/docs/webview/sub-webview-protocol.md#runtime-reads-2260);
+> · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads);
 > the whitelist's rules are in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md#a-sub-webview-page-a-whitelist-of-reads)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > whose "nothing that identifies the user" this amends;

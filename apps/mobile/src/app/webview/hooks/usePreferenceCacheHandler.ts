@@ -14,7 +14,7 @@ import { useServices } from '../../hooks';
 // single crafted bridge message could silently hijack the app origin (persistent
 // MITM). theme/language are handled by their own cases below, and both validate the value
 // before it reaches native storage; every other key falls through to this allowlist.
-// 'pushRegistration' carries app-runtime's push-token registration record (ADR-0077). It is inert
+// 'pushRegistration' carries the web runtime's push-token registration record. It is inert
 // data — an opaque JSON blob the web writes and reads back — and decides nothing on the native side,
 // so it does not widen the origin-hijack surface the way a system key would. It lives here rather
 // than in the webview's own storage so a cache clear does not silently re-trigger registration.

@@ -4,9 +4,10 @@ import type { TFunction } from 'i18next';
 
 import { Hash } from 'lucide-react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime';
 
-import { bareChannelName, messagePreview } from '../../../../shared';
+import { bareChannelName, messagePreview, senderNameIn, usePlaceProfilesStore } from '../../../../shared';
 import { useLastChats } from '../../hooks';
 import { isDmBucket, sortByRecency } from '../../utils';
 import {
@@ -36,10 +37,9 @@ const CHANNEL_TILE = (
 );
 
 /** A channel's preview line: who said the last message and what, or that there is none. */
-const previewOf = (lastChat: DomainChat | undefined, t: TFunction): string => {
+const previewOf = (lastChat: DomainChat | undefined, sender: string, t: TFunction): string => {
     const preview = lastChat ? messagePreview(lastChat) : '';
     if (!lastChat || !preview) return t('lists.noMessages');
-    const sender = lastChat.owner$?.name;
     return markThreadReply(lastChat, sender ? t('lists.previewFrom', { name: sender, text: preview }) : preview, t);
 };
 
@@ -56,6 +56,8 @@ export const ChannelListPanel = ({
     isLoading = false,
 }: ChannelListPanelProps) => {
     const { t } = useTranslation();
+    const { userId: myUid } = runtime.session.useSessionIdentity();
+    const profilesBySid = usePlaceProfilesStore(s => s.bySid);
     const [query, setQuery] = useState('');
     const rooms = useMemo(() => channels.filter(channel => channel.id && !isDmBucket(channel)), [channels]);
     const lastByChannel = useLastChats(rooms);
@@ -89,7 +91,17 @@ export const ChannelListPanel = ({
                         leading={CHANNEL_TILE}
                         label={bareChannelName(channel.name)}
                         time={lastChat ? Number(lastChat.createdAtMs ?? lastChat.createdAt) : undefined}
-                        preview={previewOf(lastChat, t)}
+                        preview={previewOf(
+                            lastChat,
+                            lastChat
+                                ? senderNameIn(lastChat, profilesBySid[channel.sid ?? ''], {
+                                      uid: myUid,
+                                      name: '',
+                                      cloudUid: channel.$join?.userId ?? null,
+                                  })
+                                : '',
+                            t
+                        )}
                         unread={channel.unreadCount ?? 0}
                         isActive={channel.id === selectedChannelId}
                         onSelect={pick}

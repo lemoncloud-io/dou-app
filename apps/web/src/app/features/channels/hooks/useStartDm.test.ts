@@ -22,7 +22,10 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
 let mockLive: { cloudId: string | null; siteId: string | null } = { cloudId: 'cloud-a', siteId: 'p1' };
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/bridges', () => ({
     logger: {
         debug: jest.fn(),
@@ -37,8 +40,8 @@ jest.mock('../../../runtime/backgroundRefresh', () => ({
 }));
 // One object, not a fresh one per render: the hook lists the repository in a dependency array.
 const repositories = { channel: { startDm: (...args: unknown[]) => startDmRequest(...args) } };
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
@@ -46,8 +49,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionSelection: () => mockSelection,
             getGlobalSessionContext: () => ({ cloud: { ...mockLive } }),
         },
-    },
-}));
+    })
+);
 
 import { useStartDm } from './useStartDm';
 

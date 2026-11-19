@@ -7,8 +7,8 @@ How a person gets signed in on desktop, and what the app refuses to take as a si
 
 The session's four tokens are in the desktop shell's vault — Electron `safeStorage`, one encrypted
 file under the app's `userData` — once the shell lists `nativeSecure` in
-`window.CHATIC_APP_STORAGE_MEDIA`. `main.tsx` loads the vault before the runtime boots, and moves tokens
-an older build left in `localStorage` into it, deleting that copy only once the shell confirmed the
+`window.CHATIC_APP_STORAGE_MEDIA`. The runtime's start (`src/config/desktop-web.ts`, from `main.tsx`)
+loads the vault before the runtime boots, and moves tokens an older build left in `localStorage` into it, deleting that copy only once the shell confirmed the
 write. The rest of the session (the selection, the ids) stays in `localStorage`; the device guest's id
 is kept there and copied into the vault as well, as on the phone (`libs/session` README). There is no second copy of
 the credential: signed HTTP reads it from the relay token on every request. A desktop shell from before the

@@ -1,4 +1,5 @@
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 import { appBridge } from '../../../bridge';
 
 const writeWithBrowserClipboard = async (text: string) => {
@@ -12,7 +13,8 @@ const writeWithBrowserClipboard = async (text: string) => {
 export const copyMessageToClipboard = async (text: string) => {
     if (!text) return false;
 
-    if (!isNative()) {
+    // The clipboard is the app's where it takes the page's links (`runtime.links`).
+    if (runtime.links.kind !== 'shell') {
         await writeWithBrowserClipboard(text);
         return true;
     }

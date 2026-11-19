@@ -1,4 +1,4 @@
-import { isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 
 import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import type { MentionItem } from '../stores/useMentionsStore';

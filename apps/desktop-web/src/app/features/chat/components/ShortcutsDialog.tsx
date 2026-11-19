@@ -95,6 +95,14 @@ export const ShortcutsDialog = () => {
         {
             keys: (
                 <>
+                    <Kbd>{MOD} [</Kbd> <Kbd>{MOD} ]</Kbd>
+                </>
+            ),
+            label: t('shortcuts.history'),
+        },
+        {
+            keys: (
+                <>
                     <Kbd>?</Kbd> <Kbd>{MOD} /</Kbd>
                 </>
             ),

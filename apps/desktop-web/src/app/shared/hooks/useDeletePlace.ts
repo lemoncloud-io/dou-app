@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Deletes a place of the active cloud. The repository asks the server first and drops the row from

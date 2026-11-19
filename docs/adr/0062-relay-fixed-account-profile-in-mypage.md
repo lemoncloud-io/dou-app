@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-19
 - Supersedes: [ADR-0094](0094-relay-default-place-scoping-profile-step-and-avatar-unification.md) decision 5 (reverted 2026-08-06)
-- Related: [ADR-0091](0091-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-unified-path-migration.md), [ADR-0052](0052-invite-local-cache-and-native-table.md), `libs/app-runtime/docs/socket/kind-scoped-routing.md`
+- Related: [ADR-0091](0091-relay-home-cloud-sheet-and-cloud-guide-redesign.md), [ADR-0042](0042-account-linking-unified-path-migration.md), [ADR-0052](0052-invite-local-cache-and-native-table.md), `libs/runtime/docs/socket/kind-scoped-routing.md`
 
 > **Naming note (2026-09-01):** `*RemoteDataSource` · `RemoteGatewayBundle` · `*DomainGateway` ·
 > `remoteFactory` · `remote/data-sources/`, as used in this document, are **names from that time**. Once

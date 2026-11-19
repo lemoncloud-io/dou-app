@@ -21,12 +21,21 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
 }));
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => isNativeValue,
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/app-runtime', () => ({}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        // Who takes the page's links, as the host's `links` port says.
+        get links() {
+            return { kind: isNativeValue ? 'shell' : 'browser' };
+        },
+    })
+);
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
 jest.mock('../hooks', () => ({

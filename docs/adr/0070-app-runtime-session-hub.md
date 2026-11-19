@@ -199,7 +199,7 @@ a discipline `data` already follows (details in decision 5, rules 1-4):
   `transport/authRuntime.ts` (OAuth code exchange) are migrated here.
 
 ```
-libs/app-runtime/src/
+libs/runtime/src/
 ├── session/                  ← session SSoT (new, web-core session and hooks migrated in)
 │   ├── store/                relay, cloud, identity tokens and selection state (from web-core/session/core)
 │   ├── auth/                 login, issuance, switch, logout use cases (refresh is performed only by ClientSocketAuth)
@@ -568,7 +568,7 @@ just the finished shape.
 ### Directory structure
 
 ```
-libs/app-runtime/src/                  ← the one runtime hub
+libs/runtime/src/                  ← the one runtime hub
 ├── session/                             session SSoT (decisions 1, 2, 7)
 │   ├── store/      relay/cloud/identity tokens and selection (cid/sid/uid)   [sole writer, passivity via eslint]
 │   ├── auth/       login, issuance, switch, logout                          [refresh performed only by ClientSocketAuth]
@@ -709,7 +709,7 @@ checking at that point, still holds.
 > now says the policy.
 
 > **2026-09-02: that separate piece of work got done.**
-> [`initAppRuntime(config)`](../../libs/app-runtime/src/init.ts) now exists, and all four apps (`web`,
+> [`initAppRuntime(config)`](../../libs/runtime-client/src/init.ts) now exists, and all four apps (`web`,
 > `desktop-web`, `admin-v2`, `testbed`) call it in their entry point before render. Two side effects
 > (`session/store` barrel's `configureSessionStore()`, and `connection` barrel's
 > `configureCredentialRecovery()`) were removed, and `configureDataRuntime` dropped out of the public

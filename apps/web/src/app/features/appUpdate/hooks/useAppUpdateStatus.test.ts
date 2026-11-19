@@ -4,8 +4,15 @@ const mockIsNative = jest.fn();
 // Every level, not just what the hook happened to use before: a partial logger mock turns a new
 // entry into a TypeError inside the effect.
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 jest.mock('@chatic/bridges', () => ({
-    isNative: (...args: unknown[]) => mockIsNative(...args),
     logger: mockLogger,
 }));
 

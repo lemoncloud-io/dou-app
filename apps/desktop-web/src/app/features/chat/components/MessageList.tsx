@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
 
-import { isMentioningViewer } from '@chatic/data';
-import type { DomainChat } from '@chatic/data';
+import { isMentioningViewer } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 

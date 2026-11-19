@@ -23,13 +23,16 @@ const session = (() => {
     };
 })();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+// A plain browser tab, as `isNative()` false says: the fake runtime's ports are a browser's while
+// nothing is published, so every port the routes reach answers the page, and no notification tap or
+// menu-bar link is listened for.
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionAuth: () => useSyncExternalStore(session.subscribe, session.get, session.get),
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/bridges', async () => ({
     ...(await vi.importActual<typeof BridgesModule>('@chatic/bridges')),
     isNative: () => false,
@@ -37,6 +40,7 @@ vi.mock('@chatic/bridges', async () => ({
 vi.mock('./features/chat', () => ({
     HomePage: () => <p>home page</p>,
     ShortcutsDialog: () => null,
+    ShortcutHintBar: () => null,
 }));
 vi.mock('./features/account', () => ({
     AccountHubPage: () => <p>account page</p>,

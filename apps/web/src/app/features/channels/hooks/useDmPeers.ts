@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { dmLineageOf } from '../lib';
 import { pickDmPeerId } from '../utils/dmPeer';

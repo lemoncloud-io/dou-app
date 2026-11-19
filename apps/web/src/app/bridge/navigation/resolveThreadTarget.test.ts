@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { ROUTES } from '../../routes/paths';
 import { resolveThreadTarget } from './resolveThreadTarget';

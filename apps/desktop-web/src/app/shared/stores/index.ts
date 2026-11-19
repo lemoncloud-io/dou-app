@@ -5,6 +5,7 @@ export * from './useAppearancePrefsStore';
 export * from './useComposerDraftStore';
 export * from './useJoinedCloudsStore';
 export * from './useSiteProfilesStore';
+export * from './usePlaceProfilesStore';
 export * from './useUnreadStore';
 export * from './usePendingOpenStore';
 export * from './useOpenAtBottomStore';

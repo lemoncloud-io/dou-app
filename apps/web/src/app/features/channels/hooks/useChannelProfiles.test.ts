@@ -1,12 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime, type DomainProfile } from '@chatic/runtime';
 
 import { useChannelProfiles } from './useChannelProfiles';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -21,8 +20,8 @@ jest.mock('@chatic/app-runtime', () => ({
             getGlobalSessionContext: jest.fn(),
             useUidInCloud: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeList = jest.fn();
 const cacheReadList = jest.fn();

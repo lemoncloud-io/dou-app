@@ -141,6 +141,33 @@
 				<key>UIPrerenderedIcon</key>
 				<false/>
 			</dict>
+			<key>MidnightIcon</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>MidnightIcon</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>AuroraIcon</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AuroraIcon</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>SkyIcon</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>SkyIcon</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
 		</dict>
 		<key>CFBundlePrimaryIcon</key>
 		<dict>

@@ -3,7 +3,6 @@ import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 
 import { WebCheckoutHandoff } from './WebCheckoutHandoff';
-import { leaveForWeb } from './leaveForWeb';
 import { WEB_SUBSCRIPTION_URL } from '../consts';
 import { usePlanCatalog } from '../hooks';
 import { useMembershipInfo } from '../../../hooks/useMembership';
@@ -11,13 +10,22 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 let mockNative = false;
-jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
+const mockWeb = { kind: 'web', open: jest.fn() };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
+        // in a browser.
+        get checkout() {
+            return mockNative ? mockStore : mockWeb;
+        },
+    })
+);
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn() }));
 jest.mock('../consts', () => ({
     WEB_SUBSCRIPTION_URL: { plans: 'https://web.example/subscription/plans', list: 'https://web.example/subscription' },
 }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
-jest.mock('./leaveForWeb', () => ({ leaveForWeb: jest.fn() }));
 
 type Read = 'success' | 'pending' | 'error';
 
@@ -54,13 +62,13 @@ describe('WebCheckoutHandoff', () => {
         show({});
 
         expect(screen.getByText('store screen')).toBeInTheDocument();
-        expect(leaveForWeb).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
     });
 
     it("in a browser with no subscription: replaces this entry with the website's plans page", () => {
         show({});
 
-        expect(leaveForWeb).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
+        expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
         expect(screen.queryByText('store screen')).not.toBeInTheDocument();
         expect(screen.getByText('mypage.subscription.toWebCheckout')).toBeInTheDocument();
     });
@@ -68,14 +76,14 @@ describe('WebCheckoutHandoff', () => {
     it('in a browser with a subscription the website bills: hands over too', () => {
         show({ hasLiveReceipt: true, platform: 'stripe' });
 
-        expect(leaveForWeb).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
+        expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
     });
 
     it('in a browser with a running store subscription: stays on the screen that says where to change it', () => {
         show({ hasLiveReceipt: true, platform: 'apple' });
 
         expect(screen.getByText('store screen')).toBeInTheDocument();
-        expect(leaveForWeb).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
     });
 
     it('in a browser while the membership is still being read: waits, neither leaving nor showing the store screen', () => {
@@ -83,13 +91,13 @@ describe('WebCheckoutHandoff', () => {
 
         expect(screen.getByRole('status')).toBeInTheDocument();
         expect(screen.queryByText('store screen')).not.toBeInTheDocument();
-        expect(leaveForWeb).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
     });
 
     it('in a browser when the membership could not be read: stays, since it may be a store subscriber', () => {
         show({ read: 'error' });
 
         expect(screen.getByText('store screen')).toBeInTheDocument();
-        expect(leaveForWeb).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
     });
 });

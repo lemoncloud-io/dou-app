@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 type PairingRequestState = runtime.session.PairingRequestState;
 
@@ -28,20 +28,26 @@ jest.mock('react-router-dom', () => ({
 jest.mock('qrcode.react', () => ({
     QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="pairing-qr" data-value={value} />,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 let mockNative = false;
-jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             usePairingRequest: () => ({ state: mockState, restart }),
             isInOwnCloudSession: () => mockInOwnCloud,
             pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
         },
-    },
-}));
+        // Who signs a person in, as the host's `signIn` port says.
+        get signIn() {
+            return { kind: mockNative ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 jest.mock('../../../hooks', () => ({ useDevicePairingEnabled: () => mockEnabled, useIsAccountGuest: () => mockGuest }));
 let mockCanGoBack = false;
 jest.mock('../../../navigation', () => ({ canGoBackInApp: () => mockCanGoBack }));

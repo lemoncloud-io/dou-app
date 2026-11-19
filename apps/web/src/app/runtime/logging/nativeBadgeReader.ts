@@ -1,4 +1,4 @@
-import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../bridge/appBridge';
 
@@ -16,6 +16,9 @@ import { appBridge } from '../../bridge/appBridge';
  *   by anything queryable. The real count lives in a native shared counter, reached by a separate
  *   bridge message.
  *
+ * Which source applies is the host's `appShell` port: none unless the app runs the frame, the icon
+ * badge where its `os` is iOS, and the shared counter for any other app.
+ *
  * A failed round trip is `null` for that read only; the next read asks again.
  */
 export interface INativeBadgeReader {
@@ -25,11 +28,10 @@ export interface INativeBadgeReader {
 
 class NativeBadgeReader implements INativeBadgeReader {
     async read(): Promise<number | null> {
-        if (!isNative()) return null;
+        const appShell = runtime.appShell;
+        if (appShell.kind !== 'shell') return null;
 
-        const platform = typeof window !== 'undefined' ? window.CHATIC_APP_PLATFORM?.toLowerCase() : undefined;
-
-        if (platform === 'ios') {
+        if (appShell.os === 'ios') {
             try {
                 const response = await appBridge.fetchBadgeCount();
                 // The bridge facade answers the raw response, so a refused round trip can arrive as

@@ -1,25 +1,27 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { appBridge } from '../bridge';
 import { useTheme } from './useTheme';
 
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn(() => false) }));
-jest.mock('@chatic/config', () => ({
-    config: { set: jest.fn() },
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: jest.fn(),
-}));
+const mockIsNative = jest.fn(() => false);
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+        },
+        settings: { set: jest.fn(), useConfigValue: jest.fn() },
+    })
+);
 jest.mock('../bridge', () => ({
     appBridge: { savePreferenceConfirmed: jest.fn().mockResolvedValue({ success: true }) },
 }));
 
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
-const mockUseConfigValue = useConfigValue as jest.MockedFunction<typeof useConfigValue>;
-const mockSet = config.set as jest.Mock;
+const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunction<
+    typeof runtime.settings.useConfigValue
+>;
+const mockSet = runtime.settings.set as jest.Mock;
 const mockSavePreferenceConfirmed = appBridge.savePreferenceConfirmed as jest.MockedFunction<
     typeof appBridge.savePreferenceConfirmed
 >;
@@ -95,7 +97,7 @@ describe('useTheme — 테마 해석', () => {
 });
 
 describe('useTheme — setTheme', () => {
-    it('shell 레인으로 config.set을 호출한다 — local은 셸 값에 가려질 수 있다', () => {
+    it('shell 레인으로 runtime.settings.set을 호출한다 — local은 셸 값에 가려질 수 있다', () => {
         const { result } = renderHook(() => useTheme());
 
         act(() => result.current.setTheme('dark'));

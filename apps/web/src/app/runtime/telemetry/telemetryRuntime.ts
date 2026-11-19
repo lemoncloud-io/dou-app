@@ -3,9 +3,9 @@ import {
     TelemetrySampler,
     createLogId,
     ingestLogEntry,
-    isNative,
     setTelemetryRecorder,
 } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import { getLongTaskStats } from '../../features/debug/metrics/longTasks';
 import { setPerfTelemetryRecorder } from '../perf';
@@ -42,6 +42,7 @@ interface ActiveTelemetry {
 }
 
 let active: ActiveTelemetry | undefined;
+const sessionStartListeners = new Set<() => void>();
 let pendingDrops = 0;
 let dropTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -75,10 +76,20 @@ export const startTelemetry = (options: StartTelemetryOptions): (() => void) => 
     const session = new TelemetrySession({
         now,
         createId: createLogId,
-        entry: isNative() ? 'icon' : 'browser',
+        // The entry point the `diagnostics` port reports: the app's icon, or a browser.
+        entry: runtime.diagnostics.kind === 'shell' ? 'icon' : 'browser',
         recordEvent: (name, fields) => recorder.event(name, fields),
         // The tracker is declared below; this only runs on a later rollover.
-        onNewSession: () => tracker.restart(),
+        onNewSession: () => {
+            tracker.restart();
+            sessionStartListeners.forEach(listener => {
+                try {
+                    listener();
+                } catch {
+                    // One listener's failure must not keep the others, or the session, from going on.
+                }
+            });
+        },
     });
     const tracker = createScreenViewTracker({
         now,
@@ -141,6 +152,22 @@ const safeContext = (provider: LogContextProvider) => {
     } catch {
         return {};
     }
+};
+
+/**
+ * Calls `listener` each time a later usage session starts in this run — a return after 30+ minutes
+ * away — right after its `session_start`, so what the listener records carries the new session's id.
+ * The run's first session has started before anything can subscribe, so it is not replayed: a caller
+ * that wants it records it itself.
+ *
+ * A subscription belongs to the page, not to one `startTelemetry`: stopping telemetry silences it (no
+ * session can start), but does not remove it, and a later start runs it again. Unsubscribe to end it.
+ */
+export const onUsageSessionStart = (listener: () => void): (() => void) => {
+    sessionStartListeners.add(listener);
+    return () => {
+        sessionStartListeners.delete(listener);
+    };
 };
 
 /** This page's usage session id, for the log context. Absent before telemetry starts. */

@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
-import { xhrPut } from '@chatic/runtime-web';
+import { runtime } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import type { ChatMentionBody, DomainChat } from '@chatic/data';
+import type { ChatMentionBody, DomainChat } from '@chatic/runtime';
 
+import { pageUploadPut } from '../../../../config/upload';
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { isUnsentImageMessage } from '../utils';
 import { toastFailure } from '../../../shared';
@@ -43,7 +43,7 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         canRetry: canRetryImages,
         discard: discardImages,
         cancel: cancelImages,
-    } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
+    } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: pageUploadPut });
 
     const failed = useCallback((error: unknown) => toastFailure(t('toast.messageFailed'), error), [t]);
 

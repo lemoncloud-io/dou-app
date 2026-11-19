@@ -2,11 +2,11 @@
 
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `refactor/connection-controller`
 > · Scope: `libs/runtime-core/src/connection/` (the controller, the slot derivation, `SocketBinder`,
-> `SocketReauthBinder`, the background reads, moved from `libs/app-runtime/src/connection/` with their
-> tests); `libs/app-runtime/src/connection/` (`RuntimeConnectionHost`, `useConnectionController`);
+> `SocketReauthBinder`, the background reads, moved from `libs/runtime/src/connection/` with their
+> tests); `libs/runtime/src/connection/` (`RuntimeConnectionHost`, `useConnectionController`);
 > `resolveDeviceIds` beside `useDynamicDeviceId`
 > · The behaviour is documented in [libs/runtime-core docs/connection](../../libs/runtime-core/docs/connection/README.md)
-> and [libs/app-runtime docs/connection](../../libs/app-runtime/docs/connection/README.md)
+> and [libs/runtime docs/connection](../../libs/runtime/docs/connection/README.md)
 
 ## Context
 

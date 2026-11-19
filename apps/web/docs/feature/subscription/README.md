@@ -4,8 +4,9 @@
 where the tier number is the number of clouds the account may hold at once.** Around that it owns
 four decisions — which tiers may be sold, which state the membership is in, whether another cloud
 may be created, and what a tier change sends to the store — plus the in-app purchase flow that
-executes them through the native bridge, and, in a browser, the hand-over to the website's checkout
-(§ 6).
+executes them through the store, and, where the website sells, the hand-over to its checkout (§ 6).
+Which of those this host does is its `checkout` port (`runtime.checkout`), chosen at boot
+([bridge/host-ports.md](../../bridge/host-ports.md)); no file here asks the host what it is.
 
 Every one of those decisions is a pure function in `lib/` with a hook in `hooks/` that feeds it
 server data. Screens branch on the result; they never re-derive it, and no other feature derives it
@@ -25,7 +26,7 @@ the server does, and it is the only party that can:
   nothing — a tax-inclusive local price is not something the app may compute. The server's USD
   reference value is never a fallback: with no `displayPrice` the price line is dropped, and the
   confirm screen refuses to proceed ("store unavailable") rather than sell at a price it cannot show.
-  Off-native that is expected, since nothing can be bought there; in the app it means the shell
+  Where no store sells that is expected, since nothing can be bought there; in the app it means the shell
   handed over a product without its store price, so look at the shell's catalog mapping first.
 
 It also refuses to execute anything irreversible. Clouds past the allowance are detected and named;
@@ -105,6 +106,13 @@ Entitlement and the store also come apart, which is why `SubscriptionSummary` ca
 `hasLiveReceipt` next to `isEntitled`. A grant is entitled with nothing at the store; a block leaves
 the store charging with entitlement gone. Anything that talks to the store — replacing a plan,
 naming an `oldPlanId` — follows `hasLiveReceipt`.
+
+Whether a trial is **offered** is a separate question from how long one is: `usePlanCatalog.trialEligible`
+is the server's `trialEligible` from `memberships/mine` (what the website's own `start` judges), or
+`!trialUsed` for a server that omits it (`isTrialEligible`, the website's fallback too). The plan picker, the
+confirm screen and the cloud guide show a trial badge or CTA only when it is true — and the confirm
+screen freezes it with the rest of the purchase terms, because buying spends the trial. The backend
+package's `MembershipView` does not list the field yet, so it is read through `TrialFields`.
 
 `trialDaysLeft` is reported only when `validFrom + trialDays` measured against now lands inside
 `(0, trialDays]`. The stores disagree subtly about what the receipt's start timestamp means, and a
@@ -215,9 +223,20 @@ store has taken the money — failing there would leave a paid subscription with
    landed or the server never built the `link$` slot, and refusing on that would stop paying
    customers from renewing.
 
+A third refusal comes **from the server, after the store charged or on restore**: while a website
+subscription (portone/stripe) is running, the relay answers a store receipt with
+`409 CONFLICT - <provider> subscription is active`, restores and re-sent receipts included. It is not a
+payment failure, so `useSubscriptionIap.validate` turns it into `WebSubscriptionActiveError`
+(`lib/webSubscriptionActive`, matched on the 409 _and_ the message — a bare 409 is not claimed).
+`SubscriptionConfirmPage` and `useRestorePurchases` then raise the "you have a subscription paid on the
+web" dialog (`useWebSubscriptionNotice`) whose button opens the website's subscription list through the
+shell, instead of `purchaseFailed` / `restoreFailed`. A restore stops at the first such refusal — it
+covers the whole account, so skipping receipts one by one would only repeat it.
+
 ### 6. Outside the app, the website sells
 
-A browser tab (`isNative()` false) has no store, so it sells nothing itself: the website's checkout
+Where the website sells (`runtime.checkout.kind === 'web'` — a browser tab, unless its host
+declares otherwise) there is no store, so this feature sells nothing itself: the website's checkout
 (the landing app's `/subscription`, on the policy host — `WEB_SUBSCRIPTION_URL`) does. The relay
 writes a subscription bought there into the same membership, with `platform` set to the website's
 payment provider (`portone` or `stripe`, `isWebBilled`), so everything above reads it unchanged once
@@ -259,7 +278,7 @@ else: the website signs the buyer in itself, and the purchase attaches to that a
 tab's session. This tab learns of it only once it is signed in to the same account — a buyer who
 picks another account on the website, or a guest who stays one, sees no subscription here.
 
-**Inside the app the website is never offered.** The stores do not allow pointing a buyer at another
+**Where a store sells, the website is never offered.** The stores do not allow pointing a buyer at another
 way to pay, so a website subscription opened in the app gets a note (`detail.webBilled`) with no link
 and no "manage it at …" line, and the tier picker refuses every tier as `otherStore`. `isOtherStore`
 counts a running website subscription as another store's whether or not the catalog lists its plan,
@@ -335,13 +354,20 @@ so skipping leaves one to register later (`EmailRequiredBanner`, `findUnboundClo
 blocking creation. What is not optional is uniqueness: `useCloudEmailGuard` refuses a reused address
 on `send`/`resend`, before a code goes out, because the backend does not error — it silently
 overwrites the first cloud's `verify$.cloudId` pointer and breaks that cloud's release cascade. A
-released (`expired`) cloud frees its address again.
+released (`expired`) cloud frees its address again. An address **another user** registered is the
+relay's to refuse, since the app cannot see other users' clouds: `send`/`resend` answer
+`409 CONFLICT - alias[…] is already registered`, and the guard turns that into its own refusal
+(`addAccount.emailAlreadyRegistered`) rather than the generic "failed to send", and
+`useVerifyEmailCode` files it as a `warn`, since it is an answer rather than a breakage. Both apply to
+`send`/`resend` only, where the relay raises it. `isEmailAlreadyRegistered` matches the leading
+`409 CONFLICT` alone — the only conflict those steps raise — and anchors it at the start of the
+message, because the rest echoes the address.
 
 **`Purchase` is the bridge's one push-result command.** The store answers with `OnPurchaseSuccess` /
-`OnPurchaseError` rather than a reply, and a resolver ref turns that back into a promise. Every
-store failure passes through that one handler, so it is the only place that logs them — and a
-`user-cancelled` code is logged as `info`, because a cancellation is an ordinary outcome and filing
-it as an error misreads the funnel. See [bridge/](../../bridge/README.md) for the seam itself.
+`OnPurchaseError` rather than a reply. The `checkout` port turns that back into a promise and is the
+only place that logs a store failure — a `user-cancelled` code as `info`, because a cancellation is an
+ordinary outcome and filing it as an error misreads the funnel. See
+[bridge/host-ports.md](../../bridge/host-ports.md) for how it settles a purchase.
 `useRestorePurchases` is the recovery path for the gap in the middle — the store charged, the
 validation never landed — and is a hook because two screens reach it.
 
@@ -353,8 +379,8 @@ validation never landed — and is a hook because two screens reach it.
   from `autoRenewing`, `status` or `canceledAt`.
 - **Do not treat `limit === null` as zero.** It means unresolved; let the server refuse.
 - **Do not call `useTierPurchase` to learn what the current plan is.** A second instance stands up a
-  second `useSubscriptionIap`, and therefore a duplicate `OnPurchaseSuccess` subscription. Read
-  `usePlanCatalog` directly — that is why `usePlanOptions` does.
+  second `useSubscriptionIap` for nothing. Read `usePlanCatalog` directly — that is why
+  `usePlanOptions` does.
 - **Do not import this feature from another one.** Raise a request through `stores/useAddCloudRequest`
   or `stores/useEmailBindRequest`; for a read-only view of the membership, compose what the barrel
   exports for cloud management (`CloudManageBanner`, `CurrentPlanCard`, `useCloudManageScene`,

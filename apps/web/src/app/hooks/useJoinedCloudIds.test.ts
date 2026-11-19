@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainCloud } from '@chatic/data';
+import type { DomainCloud } from '@chatic/runtime';
 
 import { useJoinedCloudIds } from './useJoinedCloudIds';
 

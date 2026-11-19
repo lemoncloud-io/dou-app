@@ -21,7 +21,7 @@ import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
  * (`sessionDelegate.onAuthExpired` · `configureCredentialRecovery` · `credentialFreshness` · the two
  * guards · `SessionCredentialAdapter` · `requestRelaySessionRefresh` · `renewCloudSession`).
  * `libs/http` had already solved the same shape with types (`ICredentialRecoverer` +
- * `NoCredentialRecovery` / `PortCredentialRecoverer`); app-runtime had no such layer.
+ * `NoCredentialRecovery` / `PortCredentialRecoverer`); @chatic/runtime had no such layer.
  *
  * | | relay | cloud |
  * | --- | --- | --- |

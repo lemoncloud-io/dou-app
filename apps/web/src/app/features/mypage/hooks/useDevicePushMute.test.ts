@@ -3,17 +3,19 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
+import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+        settings: { set: (_key: string, value: boolean) => setPushMutedMock(value), useConfigValue: () => mutedState },
+    })
+);
 
 const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
@@ -23,12 +25,9 @@ let mutedState = false;
 const setPushMutedMock = jest.fn((value: boolean) => {
     mutedState = value;
 });
-jest.mock('@chatic/config', () => ({
-    config: { set: (_key: string, value: boolean) => setPushMutedMock(value) },
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: () => mutedState,
-}));
+
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 
 const updateRemotePushMuteMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>
@@ -61,6 +60,7 @@ describe('useDevicePushMute', () => {
         // The relay destination is pinned inside the data layer (DeviceSocketDataSource), so the
         // hook passes only the value.
         expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true);
+        expect(mockHaptic).not.toHaveBeenCalled();
     });
 
     it('네이티브 셸이 아니면 isSupported=false, 셸이면 true (push 디바이스 존재 여부와 동일 신호)', () => {
@@ -68,12 +68,15 @@ describe('useDevicePushMute', () => {
         expect(result.current.isSupported).toBe(false); // jsdom: no shell global
         unmount();
 
+        // A shell that injects its platform before the page boots, when the host profile is built.
         window.CHATIC_APP_PLATFORM = 'ios';
+        resetHostProfileForTests();
         try {
             const { result: shellResult } = renderHook(() => useDevicePushMute(), { wrapper });
             expect(shellResult.current.isSupported).toBe(true);
         } finally {
             delete window.CHATIC_APP_PLATFORM;
+            resetHostProfileForTests();
         }
     });
 
@@ -88,5 +91,6 @@ describe('useDevicePushMute', () => {
         expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
         expect(setPushMutedMock).toHaveBeenNthCalledWith(2, false);
         expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+        expect(mockHaptic.mock.calls).toEqual([['error']]);
     });
 });

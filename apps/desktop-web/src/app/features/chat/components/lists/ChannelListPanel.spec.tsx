@@ -2,23 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type * as AppRuntime from '@chatic/app-runtime';
-import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/data';
+import type * as AppRuntime from '@chatic/runtime';
+import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/runtime';
 
 import '../../../../../i18n';
 
+import { usePlaceProfilesStore } from '../../../../shared/stores/usePlaceProfilesStore';
 import { ChannelListPanel } from './ChannelListPanel';
 
 /** A fresh repository per test: the freshness queue is kept per repository, as the app keeps one per runtime. */
 const current = vi.hoisted(() => ({ repo: { observeLastList: vi.fn(), refreshList: vi.fn() } }));
 let repo = current.repo;
 
-vi.mock('@chatic/app-runtime', async importOriginal => {
+vi.mock('@chatic/runtime', async importOriginal => {
     const actual = await importOriginal<typeof AppRuntime>();
     return {
         ...actual,
         runtime: {
             ...actual.runtime,
+            session: { ...actual.runtime.session, useSessionIdentity: () => ({ userId: 'me' }) },
             data: { ...actual.runtime.data, useRuntimeRepositories: () => ({ chat: current.repo }) },
         },
     };
@@ -74,6 +76,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.useRealTimers();
+    usePlaceProfilesStore.setState({ bySid: {} });
 });
 
 describe('ChannelListPanel', () => {
@@ -94,6 +97,22 @@ describe('ChannelListPanel', () => {
         expect(general).toMatch(/(2|14):55/);
         expect(random).toContain('No messages yet');
         expect(rows()).toHaveLength(2);
+    });
+
+    // The message's `owner$.name` is a snapshot that can carry another name; the feed shows the nick.
+    it("names the last message's sender by their nick in the place, as the feed does", () => {
+        usePlaceProfilesStore.setState({ bySid: { 'place-1': { 'u-alice': { nick: 'Alice' } } } });
+        renderPanel([channel('general', { sid: 'place-1' })]);
+        act(() =>
+            emit([
+                {
+                    channelId: 'general',
+                    lastNo: 4,
+                    chat: { ...chat('general', 4, 'hello', NOW - 5 * MIN, 'Bob'), ownerId: 'u-alice' },
+                },
+            ])
+        );
+        expect(rows()[0]).toContain('Alice: hello');
     });
 
     it('orders the channels by their last activity', () => {

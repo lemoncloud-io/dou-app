@@ -2,7 +2,7 @@
  * `api/report-logs/reportLogApi.ts`
  * - Reads stored reports and log entries from the archive service's mocks list endpoint.
  *
- * Two writers land here. `reportIssue` (libs/app-runtime) POSTs a
+ * Two writers land here. `reportIssue` (`@chatic/runtime`) POSTs a
  * `SlackReportBody` to `{archive}/hello/report` with `save: true`, and the
  * log uploader POSTs batches to `{archive}/hello/report-bulk`. A third is now historical:
  * `reportError` filed automatic error reports until it was retired in 2026-09,
@@ -12,7 +12,7 @@
  * @see chatic-archive-api (deployed service, `MockListParam`) — GET /arc-v1/mocks/0/list, query:
  *   `type` (stereo filter), `from`/`to` (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
 

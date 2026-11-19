@@ -34,4 +34,20 @@ describe('SelectionActionBar', () => {
         expect(markRead).not.toHaveBeenCalled();
         expect(screen.getByRole('button', { name: 'Delete 1' })).toBeEnabled();
     });
+
+    it('pins itself to the screen by default and lays out in place when inline', () => {
+        const actions = {
+            secondary: { label: 'Mark as read', onClick: jest.fn() },
+            destructive: { label: 'Delete', onClick: jest.fn() },
+        };
+        const { container, rerender } = render(<SelectionActionBar {...actions} />);
+        const bar = container.firstElementChild as HTMLElement;
+        expect(bar).toHaveClass('fixed');
+        expect(bar.style.paddingBottom).toContain('--safe-bottom');
+
+        rerender(<SelectionActionBar {...actions} placement="inline" />);
+        const inline = container.firstElementChild as HTMLElement;
+        expect(inline).not.toHaveClass('fixed');
+        expect(inline.style.paddingBottom).toBe('');
+    });
 });

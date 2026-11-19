@@ -1,7 +1,8 @@
+import { runtime } from '@chatic/runtime';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 
 import { useSocialLogin } from '../hooks';
 import { parseOAuthDeeplink } from '../utils';
@@ -24,7 +25,8 @@ export const OAuthDeeplinkListener = () => {
     navigateRef.current = navigate;
 
     useEffect(() => {
-        if (!isNative()) return;
+        // Only the app receives the deeplink, where it signs a person in (`runtime.signIn`).
+        if (runtime.signIn.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;

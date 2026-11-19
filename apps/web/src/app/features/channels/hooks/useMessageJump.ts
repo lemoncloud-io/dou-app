@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isInJoinWindow } from '@chatic/data';
+import { isInJoinWindow } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
@@ -11,8 +11,38 @@ import type { LoadMoreOptions } from './useChats';
 
 /** Matches desktop-web's MessageList jump budget. */
 const MAX_JUMP_PAGES = 8;
-const HIGHLIGHT_MS = 1600;
-const HIGHLIGHT_CLASSNAMES = ['bg-primary/10', 'transition-colors'];
+const HIGHLIGHT_MS = 2000;
+// The design's highlight (Figma 6002:40741): a rounded light-lime box 8px in from either edge,
+// drawn as a pseudo-element behind the row so nothing in the row moves; the bubble reads the
+// `data-highlight` attribute set beside these and outlines itself in lime.
+const HIGHLIGHT_CLASSNAMES = [
+    'relative',
+    'isolate',
+    "before:content-['']",
+    'before:absolute',
+    'before:inset-x-2',
+    'before:-inset-y-1',
+    'before:-z-10',
+    'before:rounded-lg',
+    'before:bg-primary/[0.08]',
+    'before:pointer-events-none',
+];
+
+// What a highlight added, per node, so taking it off leaves any class the row already had —
+// `relative` above all — where it was.
+const added = new WeakMap<HTMLElement, string[]>();
+
+const highlight = (node: HTMLElement, on: boolean) => {
+    if (on) {
+        const names = HIGHLIGHT_CLASSNAMES.filter(name => !node.classList.contains(name));
+        node.classList.add(...names);
+        added.set(node, [...(added.get(node) ?? []), ...names]);
+    } else {
+        node.classList.remove(...(added.get(node) ?? []));
+        added.delete(node);
+    }
+    node.toggleAttribute('data-highlight', on);
+};
 
 interface UseMessageJumpParams {
     channelId: string;
@@ -115,7 +145,7 @@ export const useMessageJump = ({
         // other side erased their history.
         if (!isInJoinWindow({ chatNo: target.chatNo }, joinedNo)) {
             progressRef.current.done = true;
-            toast({ title: t('chat.jumpOutsideJoinWindow') });
+            if (!target.quiet) toast({ title: t('chat.jumpOutsideJoinWindow') });
             clear();
             onGiveUpRef.current?.();
             return;
@@ -123,10 +153,12 @@ export const useMessageJump = ({
 
         const node = container.querySelector<HTMLElement>(`[data-chat-no="${target.chatNo}"]`);
         if (node) {
-            node.scrollIntoView({ block: 'center' });
-            node.classList.add(...HIGHLIGHT_CLASSNAMES);
-            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-            highlightTimerRef.current = setTimeout(() => node.classList.remove(...HIGHLIGHT_CLASSNAMES), HIGHLIGHT_MS);
+            node.scrollIntoView({ block: target.block ?? 'center' });
+            if (target.highlight !== false) {
+                highlight(node, true);
+                if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+                highlightTimerRef.current = setTimeout(() => highlight(node, false), HIGHLIGHT_MS);
+            }
             progressRef.current.done = true;
             clear();
             return;
@@ -170,7 +202,7 @@ export const useMessageJump = ({
         // used to fail.
         if (!isLoadingMore && (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES)) {
             progressRef.current.done = true;
-            toast({ title: t('search.messageJumpFailed') });
+            if (!target.quiet) toast({ title: t('search.messageJumpFailed') });
             clear();
             onGiveUpRef.current?.();
         }

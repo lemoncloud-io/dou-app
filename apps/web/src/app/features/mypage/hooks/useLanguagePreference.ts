@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 
 import { syncLanguageChoiceToShell } from '../../../bridge';
 import {
@@ -22,10 +21,10 @@ import {
  */
 export const useLanguagePreference = () => {
     const { i18n } = useTranslation();
-    const preference = toLanguagePreference(useConfigValue<string>('ui.language'));
+    const preference = toLanguagePreference(runtime.settings.useConfigValue<string>('ui.language'));
 
     const setPreference = (next: LanguagePreference) => {
-        config.set('ui.language', next, { lane: 'shell' });
+        runtime.settings.set('ui.language', next, { lane: 'shell' });
         void syncLanguageChoiceToShell(next);
         void i18n.changeLanguage(resolveLanguage(next, deviceLanguageCandidates()));
     };

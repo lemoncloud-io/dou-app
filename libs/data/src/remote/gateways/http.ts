@@ -41,7 +41,7 @@ export type AuthHttpDomainGateway = Pick<
 export type UserHttpDomainGateway = Pick<UserHttpGateway, 'list' | 'tryProfile'>;
 export type CloudHttpDomainGateway = Pick<
     CloudHttpGateway,
-    'list' | 'update' | 'make' | 'release' | 'workspace' | 'verifyEmail'
+    'get' | 'list' | 'update' | 'make' | 'release' | 'workspace' | 'verifyEmail'
 >;
 export type SubscriptionHttpDomainGateway = Pick<
     SubscriptionHttpGateway,

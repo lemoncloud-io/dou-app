@@ -2,8 +2,15 @@ const isNativeMock = jest.fn();
 const sendSmsMock = jest.fn();
 const copyMessageToClipboardMock = jest.fn();
 
+// Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get links() {
+            return { kind: isNativeMock() ? 'shell' : 'browser' };
+        },
+    })
+);
 jest.mock('@chatic/bridges', () => ({
-    isNative: () => isNativeMock(),
     logger: { error: jest.fn() },
 }));
 jest.mock('../../../bridge', () => ({

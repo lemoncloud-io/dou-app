@@ -4,7 +4,7 @@ import { useRef } from 'react';
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 import { IDENTITY_PHOTO_EDIT, SLIDE_MS, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
@@ -27,6 +27,18 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
+// Who picks, as the host's media port says, and who runs the frame around the page, as its `appShell`
+// port says: the app for both when the case runs in the app.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get media() {
+            return { kind: mockNative ? 'shell' : 'browser' };
+        },
+        get appShell() {
+            return { kind: mockNative ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 let mockAppleTouch = false;
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),

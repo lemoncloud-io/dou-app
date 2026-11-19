@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 export interface EnsureCloudSession {
     /** The cloud in the URL is the live session — reads and writes that need its socket may go. */

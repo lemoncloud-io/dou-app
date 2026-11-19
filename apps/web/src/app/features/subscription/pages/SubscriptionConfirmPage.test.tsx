@@ -8,6 +8,7 @@ import { useClouds } from '../../../hooks/useCloudCatalog';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 import { ROUTES } from '../../../routes/paths';
+import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { PageState } from '../types';
 
 jest.mock('react-i18next', () => ({
@@ -37,6 +38,7 @@ jest.mock('react-router-dom', () => ({
         return <div data-testid="redirect">{to}</div>;
     },
 }));
+const showWebActive = jest.fn();
 jest.mock('../../../bridge', () => ({ appBridge: { openURL: jest.fn() } }));
 jest.mock('../consts', () => ({ POLICY_BASE_URL: 'https://policy.example' }));
 jest.mock('../hooks', () => ({
@@ -45,6 +47,7 @@ jest.mock('../hooks', () => ({
     usePlanPrice: jest.fn(),
     useRestorePurchases: jest.fn(),
     useTierPurchase: jest.fn(),
+    useWebSubscriptionNotice: () => ({ show: showWebActive, notice: null }),
 }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useClouds: jest.fn() }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
@@ -65,6 +68,7 @@ const show = ({
     current,
     price = '₩8,800',
     isIOS = true,
+    trialEligible = true,
     clouds = [],
     selectable = kind !== 'blocked',
 }: {
@@ -75,6 +79,7 @@ const show = ({
     current?: typeof tier1;
     price?: string;
     isIOS?: boolean;
+    trialEligible?: boolean;
     clouds?: unknown[];
 }) => {
     mockParams = new URLSearchParams({ plan: plan.id });
@@ -82,7 +87,8 @@ const show = ({
         summary: { state },
         replaceablePlan: current,
         isIOS,
-        isOnMobileApp: true,
+        sellsInStore: true,
+        trialEligible,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({
         options: [{ plan, kind, isSelectable: selectable, isCurrent: kind === 'current', displayPrice: price }],
@@ -110,7 +116,7 @@ const afterRefetch = (plan: typeof tier1) => {
         summary: { state: 'active' },
         replaceablePlan: plan,
         isIOS: true,
-        isOnMobileApp: true,
+        sellsInStore: true,
     });
     (usePlanOptions as jest.Mock).mockReturnValue({
         options: [{ plan, kind: 'current', isSelectable: false, isCurrent: true, displayPrice: '₩8,800' }],
@@ -206,6 +212,23 @@ describe('Subscription confirm — scenarios', () => {
 
         await waitFor(() => expect(restoreMock).toHaveBeenCalled());
         expect(toastMock).not.toHaveBeenCalled();
+    });
+
+    it('a refusal for a running web subscription gets its own notice, not a payment failure', async () => {
+        purchaseTier.mockRejectedValueOnce(new WebSubscriptionActiveError());
+        show({ plan: tier2, kind: 'upgrade', current: tier1 });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.subscribe` }));
+
+        await waitFor(() => expect(showWebActive).toHaveBeenCalledTimes(1));
+        expect(toastMock).not.toHaveBeenCalled();
+    });
+
+    it('a first subscription the server says is not trial-eligible: no trial CTA', () => {
+        show({ plan: tier1, kind: 'new', state: 'none', trialEligible: false });
+
+        expect(screen.queryByRole('button', { name: `${K}.cloudGuide.ctaWithTrial:7` })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `${K}.subscribe` })).toBeInTheDocument();
     });
 
     it('a failed purchase is reported', async () => {

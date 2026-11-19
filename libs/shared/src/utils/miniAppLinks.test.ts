@@ -1,4 +1,10 @@
-import { checkMiniAppLink, MINI_APP_LINK_LIMIT, MINI_APP_LINK_NAME_MAX, parseMiniAppLinks } from './miniAppLinks';
+import {
+    checkMiniAppLink,
+    checkMiniAppUrl,
+    MINI_APP_LINK_LIMIT,
+    MINI_APP_LINK_NAME_MAX,
+    parseMiniAppLinks,
+} from './miniAppLinks';
 
 describe('checkMiniAppLink', () => {
     it('accepts a named https page', () => {
@@ -30,6 +36,23 @@ describe('checkMiniAppLink', () => {
 
     it('accepts a reviewed page one label under the hub', () => {
         expect(checkMiniAppLink('Carrot', 'https://carrot.apps.chatic.io/')).toBeNull();
+    });
+});
+
+describe('checkMiniAppUrl', () => {
+    it('accepts an https page, spaces around it trimmed', () => {
+        expect(checkMiniAppUrl(' https://shop.example/app ')).toBeNull();
+    });
+
+    it.each([['http://shop.example/'], ['https://shop.example:8443/'], ['']])(
+        'refuses %j, which the shell would not open',
+        url => {
+            expect(checkMiniAppUrl(url)).toBe('invalidUrl');
+        }
+    );
+
+    it('refuses an address on the hub hosts', () => {
+        expect(checkMiniAppUrl('https://apps.chatic.io/other')).toBe('hubUrl');
     });
 });
 

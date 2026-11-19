@@ -256,8 +256,8 @@ concern is only the second channel that config write does not cover:
 | [`runtime/ThemeApplier.tsx`](../../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
 | [`runtime/PreferenceLoader.tsx`](../../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                          |
 
-**The bridge write exists only because native reads its own separate store.** `config.set(...,
-{ lane: 'shell' })` is what `config.get('ui.theme')` resolves from on the _next_ boot, and what
+**The bridge write exists only because native reads its own separate store.** `runtime.settings.set(...,
+{ lane: 'shell' })` is what `runtime.settings.get('ui.theme')` resolves from on the _next_ boot, and what
 `ConfigKvService`/`getConfigBagScript` inject for `@chatic/config` to hydrate from. But native's
 status bar, root background, resume overlay and its own `window.CHATIC_APP_THEME` pre-paint
 injection all read the older, separate `themeStore` this document owns — `ConfigKvService` never

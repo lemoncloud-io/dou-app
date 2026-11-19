@@ -7,13 +7,13 @@ import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
 import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }),
         },
-    },
-}));
+    })
+);
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
 jest.mock('../../runtime/logging/nativeBadgeReader', () => ({
     nativeBadgeReader: { read: jest.fn().mockResolvedValue(null) },

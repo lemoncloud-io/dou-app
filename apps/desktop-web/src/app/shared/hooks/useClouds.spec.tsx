@@ -14,8 +14,8 @@ let activeCloudId = '';
 let catalogFailed = false;
 const refetchClouds = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             getAcceptorId: () => signedInUid,
             // Real logic: it is the rule under test.
@@ -33,11 +33,11 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
         },
-    },
-}));
+    })
+);
 
 // The catalog hook lives in this folder, not in the runtime: ADR-0070 moved it
-// down so each app owns the read's cache policy. Mocking it on `@chatic/app-runtime`
+// down so each app owns the read's cache policy. Mocking it on `@chatic/runtime`
 // left the real one running against a mock that has no `useSessionAuth`.
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({

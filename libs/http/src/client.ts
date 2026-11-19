@@ -190,7 +190,7 @@ class HttpClientImpl implements HttpClient {
 }
 
 /**
- * Assembles the client. `HttpManager` (app-runtime) is the only intended caller — it owns the port
+ * Assembles the client. `HttpManager` (@chatic/runtime) is the only intended caller — it owns the port
  * implementations, this owns the request mechanics.
  */
 export const createHttpClient = (requestSurface: RequestSurface, ports: HttpRuntimePorts): HttpClient =>

@@ -1,6 +1,6 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
-import { buildThread, buildThreadIndex, threadRootId } from './buildThread';
+import { buildThread, buildThreadIndex, threadRootId, unseenReplies } from './buildThread';
 
 const chat = (over: Partial<DomainChat>): DomainChat => ({ channelId: 'C1', createdAt: 1, ...over }) as DomainChat;
 
@@ -93,6 +93,36 @@ describe('buildThreadIndex', () => {
         ]);
 
         expect(index.get('1')?.repliers.map(r => r.id)).toEqual(['ada', 'bob']);
+    });
+});
+
+describe('buildThreadIndex — what the footer previews', () => {
+    it("keeps the newest persisted reply for the preview, and each reply's mention record", () => {
+        const mention$ = { userIds: ['me'] } as DomainChat['mention$'];
+        const index = buildThreadIndex([
+            ROOT,
+            chat({ id: 'C1:2', chatNo: 2, parentId: '1', content: 'first', mention$ }),
+            chat({ id: 'C1:3', chatNo: 3, parentId: '1', content: 'newest', ownerId: 'bob' }),
+        ]);
+
+        const meta = index.get('1');
+        expect(meta?.lastReply?.content).toBe('newest');
+        expect(meta?.entries.map(entry => entry.mention$)).toEqual([mention$, undefined]);
+    });
+});
+
+describe('unseenReplies', () => {
+    it('lists the replies past the baseline that are not mine', () => {
+        const meta = buildThreadIndex([
+            ROOT,
+            chat({ id: 'C1:2', chatNo: 2, parentId: '1', ownerId: 'bob' }),
+            chat({ id: 'C1:3', chatNo: 3, parentId: '1', ownerId: 'me' }),
+            chat({ id: 'C1:4', chatNo: 4, parentId: '1', ownerId: 'bob' }),
+        ]).get('1');
+        if (!meta) throw new Error('no thread');
+
+        expect(unseenReplies(meta, 2, 'me').map(entry => entry.chatNo)).toEqual([4]);
+        expect(unseenReplies(meta, 4, 'me')).toEqual([]);
     });
 });
 

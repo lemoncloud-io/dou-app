@@ -1,15 +1,19 @@
+import { runtime } from '@chatic/runtime';
 import { useState } from 'react';
 
-import { isNative, webClient } from '@chatic/bridges';
+import { webClient } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const nowLabel = (): string => new Date().toLocaleTimeString();
 
-/** Dev-only OS badge tester — drives the shell's SetBadgeCount handler. */
+/**
+ * Dev-only OS badge tester — drives the shell's SetBadgeCount handler, where the app runs the frame
+ * around the page (the host's `appShell` port).
+ */
 export const DebugBadgeCountPage = () => {
     const [count, setCount] = useState('5');
     const [log, setLog] = useState<string[]>([]);
-    const native = isNative();
+    const native = runtime.appShell.kind === 'shell';
 
     const push = (message: string) => setLog(prev => [`[${nowLabel()}] ${message}`, ...prev].slice(0, 30));
 

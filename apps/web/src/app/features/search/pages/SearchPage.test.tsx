@@ -11,7 +11,10 @@ jest.mock('../hooks/useGlobalSearch', () => ({ useGlobalSearch: jest.fn() }));
 jest.mock('../hooks/useSearchContext', () => ({ useSearchContext: jest.fn() }));
 jest.mock('../hooks/useRecentSearches', () => ({ useRecentSearches: jest.fn() }));
 jest.mock('../hooks/useSearchNavigate', () => ({ useSearchNavigate: jest.fn() }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => jest.fn(),
+}));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
         // No resource bundle in this unit test, so `t` just echoes what it was called with — a

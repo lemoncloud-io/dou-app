@@ -69,13 +69,16 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 // One factory for the whole module: the page reads the session identity here, and the role gate too
 // (only a main user gets the re-invite CTA). Importing the real module would load the data layer,
 // whose IndexedDB open crashes outside a browser.
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
@@ -85,13 +88,13 @@ jest.mock('@chatic/app-runtime', () => ({
             useUidInCloud: () => uidInCloudValue,
         },
         data: { useRuntimeRepositories: () => ({ place: placeRepository }) },
-    },
-}));
+    })
+);
 
 // Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 
-// Shared hooks barrel + cross-feature dialog import both pull @chatic/app-runtime (socket lib
+// Shared hooks barrel + cross-feature dialog import both pull @chatic/runtime (socket lib
 // needs TextEncoder, unavailable in jsdom) — stub them to keep the suite runtime-free.
 jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => 'MyPlace',
@@ -154,6 +157,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ChatAvatar: () => <div data-testid="chat-avatar" />,
     DefaultAvatar: ({ variant }: any) => <div data-testid="default-avatar" data-variant={variant} />,
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
+}));
+
+// The webhook section reaches the runtime for its list; the gate that mounts it is what the page tests check.
+jest.mock('../components/ChannelWebhooksSection', () => ({
+    ChannelWebhooksSection: (p: any) => <div data-testid="webhooks" data-channel={p.channelId} />,
 }));
 
 // Prop-capturing stubs so we can assert wiring without deep dialog rendering.
@@ -1110,5 +1118,23 @@ describe('ChannelSettingsPage', () => {
 
         expect(deleteChannel).toHaveBeenCalledWith({ channelId: 'ch1' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+});
+
+describe('ChannelSettingsPage — webhooks', () => {
+    it('shows the webhook section to the owner of a group room', () => {
+        channelValue = OWNER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        expect(screen.getByTestId('webhooks')).toBeInTheDocument();
+    });
+
+    it('hides it from a member, from a 1:1 and from a self chat', () => {
+        for (const value of [MEMBER_CHANNEL, DM_CHANNEL, SELF_CHANNEL]) {
+            channelValue = value;
+            const { unmount } = render(<ChannelSettingsPage />);
+            expect(screen.queryByTestId('webhooks')).not.toBeInTheDocument();
+            unmount();
+        }
     });
 });

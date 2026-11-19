@@ -14,7 +14,7 @@ process after an invite is accepted really does split between the relay server a
 **The split itself is fine.** `InviteDialog` routes on the deep link's `relay` marker
 (`apps/web/src/app/features/home/components/InviteDialog.tsx:33`), and session handling splits as
 intended — a relay accept only refreshes the relay socket slot and keeps the cloud session
-(`libs/app-runtime/src/socket/auth/applySessionToken.ts`), while a cloud accept goes through
+(`libs/runtime/src/socket/auth/applySessionToken.ts`), while a cloud accept goes through
 `/oauth/login-invite` (`libs/web-core/src/api/auth.ts:208`) → `switchCloudSession` to rebuild the cloud
 slot.
 
@@ -120,8 +120,8 @@ hand, do not wait; only when it is missing, step down to progressively broader m
   is wide. **Left as a follow-up**, with the three-stage structure — which holds until then — going in
   first. If request 5 lands first, most of this alternative's value disappears.
 - **Replace the polling with a `getSocketManager().onType('channel.sync')` push fast path.** The hook
-  point already exists and nobody uses it (`libs/app-runtime/src/socket/SocketManager.ts:310`,
-  `libs/app-runtime/src/index.ts:60`). But it is unverified whether the backend actually emits to the
+  point already exists and nobody uses it (`libs/runtime/src/socket/SocketManager.ts:310`,
+  `libs/runtime/src/index.ts:60`). But it is unverified whether the backend actually emits to the
   accepting side (`emitSync` has no production caller, and the spec has a "not implemented" section),
   and replacing the polling without that verification carries a high regression risk. Excluded this
   time.

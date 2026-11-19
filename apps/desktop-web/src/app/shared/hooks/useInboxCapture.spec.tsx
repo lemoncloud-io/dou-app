@@ -14,8 +14,8 @@ const cache = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const cacheFails = vi.hoisted(() => ({ current: false }));
 const warn = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),
         },
@@ -29,8 +29,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 
 vi.mock('./useChannelChatFeeds', () => ({
     useChannelChatFeeds: (handler: (feed: unknown) => void) => {

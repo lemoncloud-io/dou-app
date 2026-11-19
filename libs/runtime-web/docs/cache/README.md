@@ -11,19 +11,22 @@ is the tab's `sessionStorage`, which ends with the tab. **One function decides w
 and nothing else may branch on it.**
 
 ```ts
-export const resolveCacheBackend = (type: CacheType): CacheBackend => {
-    if (type === 'invitecloud' && hostProfile().bridge === null) return 'session'; // 0. lives as long as the tab's guest
-    if (!isInPhoneApp()) return 'web'; // 1. no shell, no other store to reach
+export const resolveCacheBackendFor = (type: CacheType, host: CacheRoutingHost): CacheBackend => {
+    if (type === 'invitecloud' && host.bridge === null) return 'session'; // 0. lives as long as the tab's guest
+    if (!isPhoneAppBridge(host.bridge)) return 'web'; // 1. no shell, no other store to reach
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web'; // 2. pinned, with a reason
-    if (!isNativeCacheTypeUsable(type)) return 'web'; // 3. the shell cannot be trusted with it
+    if (!isCacheTypeUsableBy(host.support, type)) return 'web'; // 3. the shell cannot be trusted with it
     return 'native'; // 4. the durable one
 };
 ```
 
-[`webLocalCachePorts`](../../src/localCache/index.ts)' `storage()` materializes that verdict as an
-adapter and does nothing else: `web` builds an IndexedDB adapter (carrying the chat cap, which
-the adapter ignores for other types), `native` builds the bridge adapter, and `session` builds a
-`sessionStorage` adapter wrapped in the one-time import described below. Global cache search follows
+The host — the bridge channel and the shell's report — is handed in; a page's cache hands in its host
+profile's bridge and a reader of the report `setNativeCacheSupport` recorded, read at each decision.
+[`routedCachePorts`](../../src/localCache/routedCachePorts.ts)' `storage()` materializes that verdict
+with one of three stores and does nothing else: `web` asks `indexedDbCache` (an IndexedDB adapter
+carrying the chat cap, which the adapter ignores for other types), `native` asks `shellSqliteCache`
+(the bridge adapter), and `session` asks `webStorageCache` (a `sessionStorage` adapter wrapped in the
+one-time import described below). `webLocalCachePorts(tab)` is that composer over the page's own three. Global cache search follows
 the environment directly — on native it searches SQLite, because that is the source of truth and web
 storage there holds only the exceptions.
 
@@ -90,7 +93,7 @@ IndexedDB outlived it and reached every later tab's list, where only the `accept
 apps/web kept it out, and a row written before that field existed could not be kept out at all.
 
 So the row is stored where its only user is: `sessionStorage`, routed ahead of every other check. The
-test is whether `@chatic/bridges`' host profile found a bridge, not `isInPhoneApp()`, because it is the
+test is whether `@chatic/bridges`' host profile found a bridge, not whether it is the phone app's, because it is the
 same answer the app entry points use to choose `sessionStorage` for the session itself — the row and the guest share a
 lifetime by construction. Inside a desktop shell the session is in `localStorage`, so the shell's
 invited clouds stay in IndexedDB; inside the mobile shell they stay native. A reload keeps the tab's
@@ -146,9 +149,9 @@ storage on an older shell, and the index has to live wherever the chat rows live
 them.
 
 So the question goes to the handshake's request list instead. `setNativeCacheSupport` keeps the
-reply's `supportedWebMessages`, and `isNativeCacheMessageHandled(type)` answers from it.
-`webLocalCachePorts` hands that function to every `NativeDBAdapter` it builds, and the adapter asks it
-on each media read rather than once: the reply is asynchronous and the storage can exist before it
+reply's `supportedWebMessages`, and `isCacheMessageHandledBy(report, type)` answers from it.
+`webLocalCachePorts` hands every `NativeDBAdapter` it builds a check that asks it of the recorded
+report, and the adapter asks that check on each media read rather than once: the reply is asynchronous and the storage can exist before it
 lands, so a verdict fixed at construction would keep "not known yet" for the session. Until the reply
 — and on a shell that predates the list — the answer is no, and `@chatic/data` reads the room from
 plain chat rows, which gives the same page, only slower. `apps/web` needs no change: it already
@@ -171,10 +174,11 @@ deploy alone — and it is a stopgap with the durability cost above.
 ## Verifying a change here
 
 - `localCache/invitedCloudImport.spec.ts` fixes the import — only this guest's rows, once per tab, a held row wins, a failed read retries next boot.
+- `localCache/indexedDbCache.spec.ts`, `shellSqliteCache.spec.ts`, `webStorageCache.spec.ts` and `routedCachePorts.spec.ts` fix each store and the composer on their own, with the host handed in.
 - `localCache/routing.spec.ts` fixes the routing table as a full **type × environment** matrix (with a desktop-shell case for `invitecloud`), plus a **report-shape × type** matrix (nothing reported / names only / names and versions / a partial migration). That second matrix asserts the verdicts are unchanged for a shell that reports nothing, which is the safety condition of the whole design: an old app must route exactly as it did before the negotiation existed.
 - `localCache/mediaQuerySupport.spec.ts` fixes that the native chat storage asks the handshake per media read: no before the reply, yes once all three handlers are listed, no again if a later reply drops them.
 - `localCache/nativeCacheSupport.spec.ts` fixes the gate itself — the floor holds when a shell omits a legacy type, a reported version is honoured, a shortfall routes to web, and the local-authority domain stays native under every report shape.
-- The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and app-runtime's `data/factories/localFactory.test.ts` asserts the fingerprint follows the routes the port answered and is derived from the storages actually built rather than a hand-kept list. `localCache/fallbackReport.spec.ts` fixes the one-line fallback report `routed()` makes.
+- The fingerprint is checked from both ends: the cursor read drops to `0` on a mismatch (in `libs/data`), and @chatic/runtime's `data/factories/localFactory.test.ts` asserts the fingerprint follows the routes the port answered and is derived from the storages actually built rather than a hand-kept list. `localCache/fallbackReport.spec.ts` fixes the one-line fallback report `routed()` makes.
 
 ## Further reading
 

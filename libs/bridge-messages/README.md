@@ -43,7 +43,7 @@ timeouts ([`@chatic/bridges`](../bridges/README.md)); the handlers that answer t
 (`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`,
 `apps/desktop/src/main/bridgeHandlers.ts`); the storage engines behind the cache messages
 ([`@chatic/db`](../db/README.md)); which cache domain is routed to which engine
-([`@chatic/app-runtime`](../app-runtime/README.md)); the `LogEntry` contract that `AppLogInfo`
+([`@chatic/runtime`](../runtime/README.md)); the `LogEntry` contract that `AppLogInfo`
 mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 
 ## Design principles
@@ -98,7 +98,7 @@ the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessag
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
 `apps/desktop`). The cache engines the cache messages reach are [`@chatic/db`](../db/README.md), and
-the routing decision in front of them is [`@chatic/app-runtime`](../app-runtime/README.md).
+the routing decision in front of them is [`@chatic/runtime`](../runtime/README.md).
 
 ## Structure
 
@@ -214,7 +214,7 @@ The payload files, with what is in each:
 | `sub-webview.ts`       | 401   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `GetSubWebViewUserKey`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, the five storage requests, `GetSubWebViewPermission`, `RequestSubWebViewPermission`, `OpenSettings`, `OnSubWebViewContextChanged`, `OnSubWebViewCloseRequested`, `SubWebViewContext`; the page manifest (`SubWebViewManifest`, `SubWebViewPermission`); codes, `SubWebViewPageErrorCode` |
 | `storage.ts`           | 68    | A storage medium the shell keeps for the web — `StorageGet`, `StorageSave`, `StorageClear`, `StorageMedium` (`nativeSecure`, the device vault), `StorageUnavailableReason`                                                                                                                                                                                                                                                                                                                                                   |
 | `runtime.ts`           | 122   | The runtime across the bridge, for a shell that owns the session — `RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`, `RuntimeOffer` (`window.CHATIC_APP_RUNTIME`); bodies are JSON (`RuntimeWireValue`) whose meaning `@chatic/runtime-core` declares                                                                                                                                                                                                    |
-| `session-owner.ts`     | 37    | The owner switch for who holds the session on the phone — `FetchSessionOwner`, `SetSessionOwner` (records the owner and restarts the shell's JS); answered outside production, or by a production shell while its debug mode is on                                                                                                                                                                                                                                                                                           |
+| `session-owner.ts`     | 59    | The owner switch for who holds the session on the phone — `FetchSessionOwner`, `SetSessionOwner` (records the owner and restarts the shell's JS); answered outside production, or by a production shell while its debug mode is on. `SetDefaultSessionOwner` (2.28.0): the page's default for installs nobody switched, recorded for the next start on any build                                                                                                                                                             |
 | `index.ts`             | 28    | The barrel for the payload files                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,

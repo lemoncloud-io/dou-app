@@ -38,17 +38,20 @@ const mockRepositories = {
         },
     },
 };
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => mockRepositories },
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
             getCommittedSessionSiteId: () => sessionSiteId,
         },
-    },
+    })
+);
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'site-1' }) }));
 // The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));

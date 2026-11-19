@@ -1,10 +1,10 @@
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID, type DomainChat } from '@chatic/data';
+import { runtime, RELAY_CLOUD_ID, type DomainChat } from '@chatic/runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import {
     bareChannelName,
+    chatSenderName,
     inboxKindFor,
     isNotifiableChat,
     isOwnChat,
@@ -71,7 +71,7 @@ const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind
         ...whereOf(channel),
         chatNo: chat.chatNo,
         content: truncateMentionPreview(content),
-        ownerName: chat.owner$?.name ?? '',
+        ownerName: chatSenderName(chat, placeId),
         ownerId: authorId,
         // owner$ carries no avatar; key the fallback color off the author id.
         colorSeed: authorId,
@@ -109,7 +109,7 @@ const captureReaction = async ({ placeId, channel, chat }: ChannelChatFeed): Pro
         ...whereOf(channel),
         chatNo: chat.chatNo,
         content: truncateMentionPreview(messagePreview(target)),
-        ownerName: chat.owner$?.name ?? '',
+        ownerName: chatSenderName(chat, placeId),
         ownerId: authorId,
         colorSeed: authorId,
         placeId,

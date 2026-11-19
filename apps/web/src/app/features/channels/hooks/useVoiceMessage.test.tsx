@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { OnAudioRecordingEndedPayload } from '@chatic/bridge-messages';
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 
 import type { audioRecorder, StartRecordingResult } from '../../../bridge/audioRecorder';
 import { useVoiceMessage } from './useVoiceMessage';

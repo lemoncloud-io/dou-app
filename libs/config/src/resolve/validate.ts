@@ -16,7 +16,7 @@ export const isValidValue = (entry: ConfigEntry, value: unknown): boolean => {
         case 'boolean':
             return typeof value === 'boolean';
         case 'string':
-            return typeof value === 'string';
+            return typeof value === 'string' && (!entry.pattern || entry.pattern.test(value));
         case 'number':
             return typeof value === 'number' && Number.isFinite(value);
         case 'enum':

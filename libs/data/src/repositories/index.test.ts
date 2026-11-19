@@ -27,6 +27,7 @@ const DOMAIN_KEYS = [
     'subscription',
     'syncMeta',
     'user',
+    'webhook',
 ] as const;
 
 /** Data sources are only stored by the constructors, so an inert stub per domain is enough. */

@@ -13,8 +13,8 @@ const profile = vi.hoisted(() => ({ photo: undefined as string | undefined, isGu
 const identity = vi.hoisted(() => ({ userId: 'me', delegatorId: null as string | null }));
 // The account's role, from the relay token. Inside a cloud `profile` is the cloud user's instead.
 const relayUser = vi.hoisted(() => ({ userRole: 'user' }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => identity,
             getRelaySessionUser: () => relayUser,
@@ -29,8 +29,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 busy: false,
             }),
         },
-    },
-}));
+    })
+);
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     useAccountName: () => 'Me',

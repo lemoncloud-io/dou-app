@@ -7,7 +7,7 @@ import { AlertDialog, Text } from '@chatic/web-ui-kit';
 import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 // Direct file path, not the `channels/components` barrel: that barrel also exports
-// AddFriendSheet, which pulls channels/hooks -> @chatic/app-runtime -> chatic-sockets-lib ->
+// AddFriendSheet, which pulls channels/hooks -> @chatic/runtime -> chatic-sockets-lib ->
 // lemon-model (needs a TextEncoder global this test env doesn't polyfill). Same fix
 // InviteWaitingPage.test.tsx documents for the same reason.
 import { ConfirmDialog } from '../../../channels/components/ConfirmDialog';

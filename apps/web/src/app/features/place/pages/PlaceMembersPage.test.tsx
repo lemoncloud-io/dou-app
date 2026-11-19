@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainPlaceMember } from '@chatic/data';
+import type { DomainPlaceMember } from '@chatic/runtime';
 
 type MembersAnswer = { members: DomainPlaceMember[]; context: { cid: string; sid: string }; profiles: string };
 
@@ -28,11 +28,14 @@ jest.mock('react-i18next', () => ({
             options && 'name' in options ? `${key}:${options.name}` : key,
     }),
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'p1' }),
@@ -41,10 +44,9 @@ jest.mock('@chatic/app-runtime', () => ({
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
         connection: { useCloudVerified: () => mockVerified },
-        // One object for the session, as the runtime's is.
         data: { useRuntimeRepositories: () => repositories },
-    },
-}));
+    })
+);
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 jest.mock('../../../hooks', () => ({ useSelectedCloudId: () => 'cloud-a' }));

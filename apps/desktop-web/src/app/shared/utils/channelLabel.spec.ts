@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { bareChannelName, channelLabel, channelRef, cloudLabel } from './channelLabel';
 

@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import { isInPlaceList, type DomainChannel } from '@chatic/data';
+import { runtime, isInPlaceList, type DomainChannel } from '@chatic/runtime';
 
 /** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */
 export const CHANNEL_WAIT_TIMEOUT_MS = 20_000;

@@ -1,3 +1,4 @@
+import { isValidValue } from '../resolve/validate';
 import type { ConfigEntry, ConfigRegistryModule } from '../types';
 
 /**
@@ -68,6 +69,10 @@ export const findPolicyViolations = (registry: ConfigRegistry): readonly string[
         }
         if (entry.type === 'enum' && (!entry.values || entry.values.length === 0)) {
             problems.push(`${key}: enum without values`);
+        }
+        // A pattern the floor itself fails would leave the key with no value every row accepts.
+        if (entry.pattern && (entry.type !== 'string' || !isValidValue(entry, entry.defaultValue))) {
+            problems.push(`${key}: a pattern needs a string key whose defaultValue matches it`);
         }
         if (!entry.title.trim() || !entry.description.trim()) {
             problems.push(`${key}: title and description are required`);

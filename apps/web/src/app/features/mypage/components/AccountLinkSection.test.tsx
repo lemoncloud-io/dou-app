@@ -2,13 +2,10 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
-import { isNative } from '@chatic/bridges';
-
 import type { LinkedAccounts, LinkedState } from '../../../hooks';
 import type { SocialProvider } from '../hooks';
 
 const linkProvider = jest.fn();
-const requestUnlink = jest.fn();
 let mockIsGuest = false;
 /** What the server says this account has proved (`link$`), as `useLinkedAccounts` reads it. */
 let mockLinked: LinkedAccounts = { phone: 'linked', social: 'absent', phoneHint: '1234' };
@@ -20,32 +17,37 @@ let mockSocialState: LinkedState = 'absent';
 /** Which provider the single server-side social slot holds, or none. */
 let mockLinkedProvider: SocialProvider | null = null;
 let mockIsLinking = false;
+const mockIsNative = jest.fn((): boolean => true);
+/** The phone platform the app signs in on, as the port reports it where the app signs in. */
+let mockPlatform: 'ios' | 'android' = 'android';
 const isLinked = jest.fn((provider: SocialProvider) => mockLinkedProvider === provider);
 
 jest.mock('react-i18next', () => ({
     // Echo the key (with the masked tail appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { last4?: string }) => (o?.last4 ? `${k}|${o.last4}` : k) }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-    },
-}));
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+        // Who signs a person in, as the host's `signIn` port says.
+        get signIn() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: mockIsNative() ? mockPlatform : null };
+        },
+    })
+);
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: () => mockLinked }));
 jest.mock('../hooks', () => ({
     useSocialLinks: () => ({
         isLinked,
         linkProvider,
-        requestUnlink,
         isLinking: mockIsLinking,
         socialState: mockSocialState,
     }),
 }));
 // Stubbed like ContactInvitePage.test.tsx does: the sheet's own rendering is covered by
-// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/app-runtime's confirmPhoneLogin plus the
+// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/runtime's confirmPhoneLogin plus the
 // Radix Sheet primitives. `mode` is surfaced because it is this section's decision (ADR-0042 §3).
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     PhoneVerifySheet: ({ mode, onVerified, onClose }: any) => (
@@ -58,8 +60,6 @@ jest.mock('../../auth/components/PhoneVerifySheet', () => ({
 }));
 
 import { AccountLinkSection } from './AccountLinkSection';
-
-const mockIsNative = isNative as jest.MockedFunction<typeof isNative>;
 
 const PHONE = 'mypage.accountInfo.social.phone';
 const LINK = 'mypage.accountInfo.social.link';
@@ -77,7 +77,7 @@ beforeEach(() => {
     mockSocialState = 'absent';
     mockLinkedProvider = null;
     mockIsLinking = false;
-    window.CHATIC_APP_PLATFORM = 'android';
+    mockPlatform = 'android';
 });
 
 describe('AccountLinkSection — 서버가 말하기 전에는 침묵한다 (ADR-0042 §5)', () => {
@@ -180,14 +180,6 @@ describe('AccountLinkSection — 번호 행', () => {
 
         expect(screen.queryByText(/^phone-sheet:/)).not.toBeInTheDocument();
     });
-
-    it('번호 행에는 해제가 없다 — 뗄 엔드포인트도 없다', () => {
-        render(<AccountLinkSection />);
-
-        expect(
-            within(row(PHONE)).queryByRole('button', { name: 'mypage.accountInfo.social.unlink' })
-        ).not.toBeInTheDocument();
-    });
 });
 
 describe('AccountLinkSection — 소셜 행', () => {
@@ -219,19 +211,20 @@ describe('AccountLinkSection — 소셜 행', () => {
         expect(within(row('Google')).getByRole('button', { name: LINK })).toBeDisabled();
     });
 
-    it('해제 버튼은 비활성이다 — 엔드포인트가 없으니 성공을 흉내내지 않는다', () => {
+    it('renders a linked credential as a label alone, with no control to act on it', () => {
         mockLinked = { phone: 'linked', social: 'linked', socialProvider: 'google', phoneHint: '1234' };
         mockSocialState = 'linked';
         mockLinkedProvider = 'google';
 
         render(<AccountLinkSection />);
 
-        expect(within(row('Google')).getByRole('button', { name: 'mypage.accountInfo.social.unlink' })).toBeDisabled();
-        expect(requestUnlink).not.toHaveBeenCalled();
+        // There is no unlink endpoint, so a linked row offers nothing to press rather than a dead button.
+        expect(within(row('Google')).queryByRole('button')).not.toBeInTheDocument();
+        expect(within(row(PHONE)).queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('Apple 행은 iOS 앱에서만 나온다 (LoginPage와 같은 조건)', () => {
-        window.CHATIC_APP_PLATFORM = 'ios';
+        mockPlatform = 'ios';
 
         render(<AccountLinkSection />);
 
@@ -240,7 +233,7 @@ describe('AccountLinkSection — 소셜 행', () => {
 
     it('네이티브가 아니면 Apple 행이 없다', () => {
         mockIsNative.mockReturnValue(false);
-        window.CHATIC_APP_PLATFORM = 'ios';
+        mockPlatform = 'ios';
 
         render(<AccountLinkSection />);
 

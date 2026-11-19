@@ -11,18 +11,17 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import type { AttachmentPickSource } from '@chatic/bridge-messages';
-import type { runtime } from '@chatic/app-runtime';
-import { isNative } from '@chatic/bridges';
 import {
+    runtime,
     CHAT_IMAGE_TYPES,
     chatAttachmentStoredKind,
-    type ChatAttachmentJudgement,
-    type ChatAttachmentSource,
-    type ChatMentionBody,
     IMAGE_MESSAGE_SLOT_MAX,
     judgeChatAttachments,
     judgeChatImages,
-} from '@chatic/data';
+    type ChatAttachmentJudgement,
+    type ChatAttachmentSource,
+    type ChatMentionBody,
+} from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     AlertDialog,
@@ -610,7 +609,7 @@ export const useChatImageAttach = ({
      */
     const openCamera = () => {
         hidePanel();
-        if (!isNative() || cameraAccess.isGranted()) {
+        if (runtime.media.kind !== 'shell' || cameraAccess.isGranted()) {
             cameraRef.current?.click();
             return;
         }
@@ -842,7 +841,7 @@ export const useChatImageAttach = ({
     // Nothing to draw and nothing on its way: the library refused, cannot be read, or holds nothing.
     const recentKnownEmpty = !recentPending && recentItems.length === 0;
     const recent =
-        isNative() || inGrid ? (
+        runtime.media.kind === 'shell' || inGrid ? (
             <RecentPhotoStrip
                 title={t('chat.attach.recentTitle')}
                 seeAllLabel={t('chat.attach.seeAll')}

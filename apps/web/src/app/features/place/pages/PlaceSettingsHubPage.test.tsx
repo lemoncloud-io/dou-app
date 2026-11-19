@@ -11,17 +11,20 @@ const navigate = jest.fn();
 const observeItem = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem } }),
         },
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-    },
-}));
+    })
+);
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: mockPlaceId }) }));
 // The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
@@ -130,5 +133,16 @@ describe('PlaceSettingsHubPage — no leave row', () => {
         render(<PlaceSettingsHubPage />);
 
         expect(screen.queryByText('placeDetail.leave')).not.toBeInTheDocument();
+    });
+});
+
+// Place push has no backend, so the hub offers no switch that could never be turned on.
+describe('PlaceSettingsHubPage — no notification card', () => {
+    it('renders no notification section or switch', () => {
+        mockPlace = { id: 'p1', isOwner: true };
+        render(<PlaceSettingsHubPage />);
+
+        expect(screen.queryByText('placeSettings.sectionNotifications')).not.toBeInTheDocument();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     });
 });

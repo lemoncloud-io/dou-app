@@ -3,7 +3,9 @@
 A failure toast leads with a sentence the person can act on and puts the failure's own words under
 it: `toastFailure(title, error)` (`src/app/shared/utils/failureToast.ts`). The words come from
 `serverErrorText` (`src/app/shared/utils/errors.ts`) — the backend's body when it answered, else the
-error's message. A body that is markup (a proxy's error page) is dropped, and anything past 300
+error's message. An error that wraps another (the socket SDK's `AuthSwitchError`, whose message is
+only the stage, `auth.switch failed: server`) gets the wrapped error's text appended after a dash,
+so the server's refusal is on screen instead of hidden in `cause`. A body that is markup (a proxy's error page) is dropped, and anything past 300
 characters is cut.
 
 The raw text used to reach only the console. A refusal such as

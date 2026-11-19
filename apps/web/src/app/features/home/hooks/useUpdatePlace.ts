@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 interface UpdatePlacePayload {
     /** Backend requires `@id` on place.update; for a place, id === sid. */

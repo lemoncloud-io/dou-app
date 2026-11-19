@@ -1,3 +1,4 @@
+export * from './appIcon';
 export * from './catalog';
 export * from './policy';
 export * from './routeTemplate';

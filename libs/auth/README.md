@@ -4,22 +4,22 @@
 credential on every socket slot, signing a device in from another device, and tearing a session down
 — the use cases that write the stores in [`@chatic/session`](../session/README.md), and the wiring that
 authenticates the slots of [`@chatic/transport`](../transport/README.md). It was cut out of
-`@chatic/app-runtime` as the last layer below the app (ADR-0253), beside [`@chatic/sync`](../sync/README.md):
+`@chatic/runtime` as the last layer below the app (ADR-0253), beside [`@chatic/sync`](../sync/README.md):
 neither imports the other.
 
 What a screen mounts to use any of this is not here. The hooks — `useLogin`, `useSwitchCloudSession`,
-the two credential guards, the pairing hooks — are app-runtime's
-([its session doc](../app-runtime/docs/session/README.md)).
+the two credential guards, the pairing hooks — are @chatic/runtime's
+([its session doc](../runtime/docs/session/README.md)).
 
 ## Who imports it
 
-`@chatic/app-runtime`, whose `session` and `connection` facade groups and hooks are built on it. **Apps
+`@chatic/runtime`, whose `session` and `connection` facade groups and hooks are built on it. **Apps
 do not**: they reach the session through `runtime.session`. The barrel sells the session writers and
 the renewers, which an app must not reach around the use cases; the root eslint config closes the
 package to apps and to the libs outside the runtime stack, and the packages below it refuse it in
 their own configs.
 
-Production code imports the barrel only. A test in app-runtime may name a file —
+Production code imports the barrel only. A test in @chatic/runtime may name a file —
 `jest.mock('@chatic/auth/socket/bootstrapSocketConnection', …)` — because a mock has to replace the
 file every importer reaches, this package's own modules included. This package reads
 `@chatic/session` and `@chatic/transport` the same way.
@@ -38,7 +38,7 @@ libs/auth/src/
 └── utils/      2 files · 2 tests   Coalescer · Throttle — the concurrency guards the renewals use
 ```
 
-`Coalescer` and `Throttle` sit here because the guards they generalise were auth's; app-runtime's
+`Coalescer` and `Throttle` sit here because the guards they generalise were auth's; @chatic/runtime's
 hooks that share them depend on this package anyway.
 
 ## Rules
@@ -47,9 +47,9 @@ hooks that share them depend on this package anyway.
    stores so that this package can write them; nothing above writes a store directly.
 2. **No server call bypasses a repository.** Login, token exchange and site selection go through
    the `AuthRepository`, which `createRuntime()` hands down (`authRepositorySource`) because the
-   graph that holds it is assembled in app-runtime.
+   graph that holds it is assembled in @chatic/runtime.
 3. **Nothing here refreshes a credential or builds an `auth.update` packet.** The SDK's auth
-   controller owns both; app-runtime's `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` walk
+   controller owns both; @chatic/runtime's `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` walk
    this package's source and fail on the string.
 4. **Sync is beside this package, not below it.** The eslint config refuses `@chatic/sync`, and sync's
    refuses this package.
@@ -62,8 +62,8 @@ hooks that share them depend on this package anyway.
    process has neither. So `AuthPlatformPorts` ([`platform.ts`](./src/platform.ts)) has two:
    `currentSearch()` — the address's query string, which the boot sweep and `preserveUrl` read — and
    `leaveToHome(params)` — the navigation at the end of `clearAndRedirect`. In a page
-   (filled by `createWebRuntime` in `@chatic/runtime-web`) they are `location.search` and
-   `location.replace('/?<params>')`. In React Native (`createNativeRuntime` in
+   (`auth.location` in `@chatic/runtime-web`) they are `location.search` and
+   `location.replace('/?<params>')`. In React Native (`auth.mobile` in
    `@chatic/runtime-mobile`) there is no address: `leaveToHome` saves the parameters in the plain store
    and hands over to the app's own way home, and the next boot's `currentSearch` answers them — the
    second lifetime a page gets from its navigation. Used before it is configured, `authPlatform.ports()` throws and

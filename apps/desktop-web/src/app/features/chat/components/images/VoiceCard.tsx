@@ -1,9 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, AudioLines, LoaderCircle, Pause, Play } from 'lucide-react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 
 import { formatFileSize, formatPlaybackTime, type ChatFile } from '../../utils';
@@ -31,6 +31,8 @@ interface VoiceCardProps {
     onCopyLink?: () => void;
     /** Opens the channel picker to send the file again elsewhere. */
     onForward?: () => void;
+    /** The file's address could not be played; the owner re-reads the message for a fresh one. */
+    onLoadError?: (src: string) => void;
 }
 
 const CARD = 'flex items-center gap-3 rounded-xl border border-hairline bg-background px-3 py-2.5';
@@ -55,6 +57,7 @@ export const VoiceCard = ({
     onCancelUpload,
     onCopyLink,
     onForward,
+    onLoadError,
 }: VoiceCardProps) => {
     const { t } = useTranslation();
     const size = file.size !== undefined ? formatFileSize(file.size) : undefined;
@@ -87,6 +90,7 @@ export const VoiceCard = ({
             onOpen={onOpen}
             onCopyLink={onCopyLink}
             onForward={onForward}
+            onLoadError={onLoadError}
         />
     );
 };
@@ -134,6 +138,7 @@ const VoicePlayer = ({
     onOpen,
     onCopyLink,
     onForward,
+    onLoadError,
 }: {
     src: string;
     name: string;
@@ -144,10 +149,16 @@ const VoicePlayer = ({
     onOpen?: () => void;
     onCopyLink?: () => void;
     onForward?: () => void;
+    onLoadError?: (src: string) => void;
 }) => {
     const { t } = useTranslation();
     const voice = useVoicePlayback(src);
     const { playing, loading, time, duration, failed, rate } = voice;
+    // Past its signature, or a format the browser cannot decode: the owner reads the message again once, and
+    // a fresh address is a different `src`, so a card that could not play starts over on it.
+    useEffect(() => {
+        if (failed) onLoadError?.(src);
+    }, [failed, src, onLoadError]);
     const started = playing || time > 0;
 
     const actions = (

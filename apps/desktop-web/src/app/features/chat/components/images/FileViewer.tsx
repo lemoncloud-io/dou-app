@@ -28,6 +28,8 @@ interface FileViewerProps {
     onClose: () => void;
     /** The card's own save: the whole file, under its name. Absent where there is nothing to save to. */
     onSave?: () => void;
+    /** The file's address failed to load; the owner re-reads the message, and the fresh address comes back as `file.url`. */
+    onLoadError?: (src: string) => void;
     /** The file's bytes, when the page already holds them (a file still in the composer). Read instead of fetching `file.url`. */
     local?: Blob;
 }
@@ -58,7 +60,7 @@ type Body =
  *
  * A voice file never opens here: it plays in its own card or tray tile.
  */
-export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerProps) => {
+export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }: FileViewerProps) => {
     const { t } = useTranslation();
     const name = file.name ?? t('chat.attach.previewFile');
     const [body, setBody] = useState<Body>({ state: 'loading' });
@@ -93,12 +95,17 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
         };
         open()
             .then(next => (controller.signal.aborted ? doc?.destroy() : setBody(next)))
-            .catch(() => !controller.signal.aborted && setBody({ state: 'failed' }));
+            .catch(() => {
+                if (controller.signal.aborted) return;
+                setBody({ state: 'failed' });
+                // A file kept on this device has no address to blame.
+                if (!local) onLoadError?.(file.url);
+            });
         return () => {
             controller.abort();
             doc?.destroy();
         };
-    }, [file.url, file.size, preview, local]);
+    }, [file.url, file.size, preview, local, onLoadError]);
 
     const saveButton = onSave && (
         <Hint label={t('chat.file.save', { name })}>

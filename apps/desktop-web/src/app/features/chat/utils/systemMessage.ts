@@ -1,4 +1,4 @@
-import type { ChatSubType, DomainChat } from '@chatic/data';
+import type { ChatSubType, DomainChat } from '@chatic/runtime';
 
 /**
  * What a system row should print. Either a localized sentence built from the

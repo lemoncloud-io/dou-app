@@ -28,16 +28,16 @@ vi.mock('@chatic/bridges', () => ({
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({
                 identity: { userId: ACCOUNT_UID },
                 activeServer,
             }),
         },
-    },
-}));
+    })
+);
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),

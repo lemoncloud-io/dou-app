@@ -1,7 +1,7 @@
-import { isNative, logger, webClient } from '@chatic/bridges';
-import { type PutPort, type ShellFilePutPort } from '@chatic/data';
-import { xhrPut } from '@chatic/runtime-web';
+import { logger, webClient } from '@chatic/bridges';
+import { runtime, type PutPort, type ShellFilePutPort } from '@chatic/runtime';
 
+import { pageUploadPut } from '../../config/upload';
 import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../runtime/upload';
 
 // One per page, on purpose: every waiting upload has to be reachable from the one event listener.
@@ -10,22 +10,25 @@ let nativeTransfers: NativeTransfers | null = null;
 const getNativeTransfers = (): NativeTransfers => {
     nativeTransfers ??= createNativeTransfers({
         bridge: webClient,
-        fallback: xhrPut,
+        fallback: pageUploadPut,
         log: (message, data) => logger.info('UPLOAD', message, data),
     });
     return nativeTransfers;
 };
 
-/** The PUT this shell uses: the native transfer module inside the app, the page's own PUT in a browser. */
-export const getShellPut = (): PutPort => (isNative() ? getNativeTransfers().put : xhrPut);
+/** Whether the app moves files on this host, as the host's `files` port says. */
+const appMovesFiles = (): boolean => runtime.files.kind === 'shell';
+
+/** The PUT this host uses: the app's transfer module when the app moves files, the page's own PUT otherwise. */
+export const getShellPut = (): PutPort => (appMovesFiles() ? getNativeTransfers().put : pageUploadPut);
 
 /**
- * How this shell sends a file it keeps: through the transfer module, from the shell's own folder. A
- * browser never has shell files, so it has no such sender.
+ * How this shell sends a file it keeps: through the transfer module, from the shell's own folder. Where
+ * the page moves files it never has shell files, so it has no such sender.
  */
 export const getShellFilePut = (): ShellFilePutPort | undefined =>
-    isNative() ? getNativeTransfers().putShellFile : undefined;
+    appMovesFiles() ? getNativeTransfers().putShellFile : undefined;
 
-/** Catches up with transfers the shell finished while this page was away. A browser has none. */
+/** Catches up with transfers the shell finished while this page was away. Where the page moves files there are none. */
 export const syncShellTransfers = (): Promise<void> =>
-    isNative() ? syncFileTransfers(webClient, getNativeTransfers()) : Promise.resolve();
+    appMovesFiles() ? syncFileTransfers(webClient, getNativeTransfers()) : Promise.resolve();

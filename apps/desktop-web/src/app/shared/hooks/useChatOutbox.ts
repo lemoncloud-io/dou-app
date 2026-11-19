@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { RELAY_CLOUD_ID, toMentionBody } from '@chatic/data';
-import type { ChatSendPayload, DomainChat } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID, toMentionBody, runtime } from '@chatic/runtime';
+import type { ChatSendPayload, DomainChat } from '@chatic/runtime';
 
 /**
  * Desktop opt-in for the engine outbox: messages that failed to send go out on their own once

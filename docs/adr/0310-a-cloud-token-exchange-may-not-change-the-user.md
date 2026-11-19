@@ -4,7 +4,7 @@
 > · Scope: `libs/auth/src/session/cloudTokens.ts` (`CloudIdentityChangedError`, the check and the
 > refusal memo in `exchange`); `libs/auth/src/pairing/pairedCloudSessions.ts` (`prepareEntry`, once
 > `enter`, forgets the recorded uid first; `checkPairedClouds` — once in
-> `libs/app-runtime/src/session/hooks/pairing/usePairedCloudCheck.ts` — has a guest that signs in end
+> `libs/runtime/src/session/hooks/pairing/usePairedCloudCheck.ts` — has a guest that signs in end
 > its paired clouds); `libs/session/src/store/cloudStore.ts` and `expiry.ts`
 > (`getCachedCloudTokens` measures an entry by its identity token)
 > · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md),

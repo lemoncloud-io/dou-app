@@ -1,7 +1,14 @@
 import { syncLanguageChoiceToShell } from './languageChoice';
 
 let native = true;
-jest.mock('@chatic/bridges', () => ({ isNative: () => native }));
+// Whether the app runs the frame around the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: native ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 const savePreferenceConfirmed = jest.fn();
 jest.mock('./appBridge', () => ({
     appBridge: { savePreferenceConfirmed: (data: unknown) => savePreferenceConfirmed(data) },

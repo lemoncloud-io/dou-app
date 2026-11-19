@@ -7,6 +7,8 @@
 > (`main/secureStorage`), the entry points of `apps/web` · `apps/desktop-web` · `apps/admin`
 > · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md) and
 > [libs/storage](../../libs/storage/README.md)
+> · Amended by: [ADR-0331](./0331-a-web-copy-no-page-moved-wins-over-the-vault.md) — a web copy no page moved replaces the tokens
+> already in the vault, instead of being deleted
 
 ## Context
 

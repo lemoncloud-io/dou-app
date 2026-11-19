@@ -445,7 +445,7 @@ skips one failed attempt at most, but here it could log the user out over a dead
 - `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.
 - Close reasons are tested twice: `SocketManager.test.ts` drives each cause through a fake client that closes in the SDK's order, and `utils/closeReason.test.ts` builds the real client through the real manager, so the SDK behaviour they rest on is pinned — including a real `restart()` that leaves the socket closed until the manager reopens it.
 - The fake WebSocket those real-client tests use starts `CONNECTING` and turns `OPEN` on its `open` event, as a browser's does. One created already `OPEN` is taken as open while the transport is still storing its connect attempt, and the attempt is never cleared: every later `connect()` returns it without opening a socket.
-- No code here builds an `auth.update` packet, and nothing in the runtime may: [`authUpdateAbsence.test.ts`](../../../app-runtime/src/authUpdateAbsence.test.ts) walks app-runtime and every package cut from it, this one included, strips comments and fails on the string `'auth.update'`.
+- No code here builds an `auth.update` packet, and nothing in the runtime may: [`authUpdateAbsence.test.ts`](../../../runtime/src/authUpdateAbsence.test.ts) walks @chatic/runtime and every package cut from it, this one included, strips comments and fails on the string `'auth.update'`.
 
 ## Further reading
 

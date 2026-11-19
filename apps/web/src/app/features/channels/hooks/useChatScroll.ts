@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // Direct path, not the `../../../hooks` barrel: that barrel re-exports hooks which pull in
-// `@chatic/app-runtime` -> `@chatic/web-core`'s config module, which reads `import.meta.env` —
+// `@chatic/runtime` -> `@chatic/web-core`'s config module, which reads `import.meta.env` —
 // syntax the CommonJS jest transform cannot parse. Same reasoning as `PlaceProfileForm`'s direct
 // import of `PageHeader` (ADR-0046).
 import { stashScroll, useScrollRestoration } from '../../../hooks/useScrollRestoration';
@@ -330,7 +330,7 @@ export const useChatScroll = ({
         checkLoadMore();
     }, [restorationOnScroll, containerRef, captureView, checkLoadMore]);
 
-    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom };
+    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom, hasPendingRestore };
 };
 
 /** Whether `id` is in the list, scanned from the end — where a message that was the latest still sits. */

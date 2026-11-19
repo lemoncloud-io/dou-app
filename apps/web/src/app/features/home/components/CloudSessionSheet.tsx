@@ -6,7 +6,7 @@ import { Inbox } from 'lucide-react';
 import { logger } from '@chatic/bridges';
 import { useInterval, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 

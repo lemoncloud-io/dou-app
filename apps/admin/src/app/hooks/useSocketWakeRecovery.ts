@@ -16,7 +16,7 @@
  */
 import { useEffect, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /** One kick per window — rapid focus/online toggling must not churn the socket. */
 const KICK_THROTTLE_MS = 5_000;

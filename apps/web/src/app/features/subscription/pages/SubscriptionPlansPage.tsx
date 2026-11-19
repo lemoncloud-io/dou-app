@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { FloatingButton, IconBack, IconButton, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
@@ -42,8 +42,16 @@ export const SubscriptionPlansPage = () => {
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
 
-    const { sellablePlans, summary, currentPlan, replaceablePlan, resubscribePlan, isOnMobileApp, isIOS } =
-        usePlanCatalog();
+    const {
+        sellablePlans,
+        summary,
+        currentPlan,
+        replaceablePlan,
+        resubscribePlan,
+        sellsInStore,
+        isIOS,
+        trialEligible,
+    } = usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
@@ -57,7 +65,7 @@ export const SubscriptionPlansPage = () => {
     const isKo = i18n.language.startsWith('ko');
     const alternative = refused ? nearestSelectablePlan(options, refused.plan) : undefined;
     // The entry tier is the only one with a trial, and only for someone who never subscribed.
-    const trialDays = summary.state === 'none' ? (sellablePlans[0]?.trialDays ?? 0) : 0;
+    const trialDays = summary.state === 'none' && trialEligible ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const hasCurrent = summary.state !== 'none' && !!currentPlan;
     const currentWord = productStatusWord(summary.state);
     const billingStoreKey = platformLabelKey(replaceablePlan?.platform);
@@ -83,7 +91,7 @@ export const SubscriptionPlansPage = () => {
 
     const openPolicyUrl = (path: string) => {
         const url = `${POLICY_BASE_URL}${path}`;
-        if (isOnMobileApp) appBridge.openURL(url);
+        if (sellsInStore) appBridge.openURL(url);
         else window.open(url, '_blank');
     };
 
@@ -146,7 +154,7 @@ export const SubscriptionPlansPage = () => {
                             </div>
                         ) : options.length === 0 ? (
                             <span className="py-6 text-center text-[15px] text-muted-foreground">
-                                {isOnMobileApp
+                                {sellsInStore
                                     ? t('mypage.subscription.noProducts')
                                     : t('mypage.subscription.mobileOnly')}
                             </span>

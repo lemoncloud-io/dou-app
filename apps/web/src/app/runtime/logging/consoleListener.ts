@@ -1,4 +1,6 @@
-import { createConsoleListener, isNative, logHub } from '@chatic/bridges';
+import { createConsoleListener, logHub } from '@chatic/bridges';
+
+import { diagnosticsKind } from '../../../config/diagnosticsKind';
 
 /**
  * The listener that prints — one of the three `apps/web` attaches to the hub.
@@ -8,10 +10,11 @@ import { createConsoleListener, isNative, logHub } from '@chatic/bridges';
  * used to attach it as a side effect of wiring the native relay, which meant a
  * decision about console output was buried in a function about bridging.
  *
- * Exactly one console is live per run, and which one depends on the platform:
+ * Exactly one console is live per run, and which one depends on where the
+ * `diagnostics` port sends the page's logs:
  *
- * - **Web standalone** — this one. There is no other.
- * - **Hybrid** — the app's. Every web entry is relayed across, so the app's
+ * - **The page** (web standalone) — this one. There is no other.
+ * - **The app** (hybrid) — the app's. Every web entry is relayed across, so the app's
  *   console shows web and native logs on one timeline, which is the thing worth
  *   having. Printing on both sides would just double the cost.
  *
@@ -27,7 +30,7 @@ export interface ConsoleListenerOptions {
 }
 
 export const attachConsoleListener = ({ isDev }: ConsoleListenerOptions): (() => void) => {
-    if (isNative() && !isDev) return () => undefined;
+    if (diagnosticsKind() === 'shell' && !isDev) return () => undefined;
 
     return logHub.subscribe(createConsoleListener());
 };

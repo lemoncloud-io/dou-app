@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import { channelNotifyMode, isNotifyDm, useNotificationPrefsStore } from '../../../shared';
 import { useSidebarOrderStore } from '../stores';

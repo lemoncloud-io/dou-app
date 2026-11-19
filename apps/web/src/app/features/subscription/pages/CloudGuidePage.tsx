@@ -35,8 +35,8 @@ export const CloudGuidePage = () => {
     // Trial length comes from the store product so the CTA never promises a trial that isn't
     // configured. Only the entry tier carries one, and `sellablePlans` is empty off-native (no store
     // applies), so the web default is the label that makes no trial claim at all.
-    const { sellablePlans } = usePlanCatalog();
-    const trialDays = sellablePlans[0]?.trialDays ?? 0;
+    const { sellablePlans, trialEligible } = usePlanCatalog();
+    const trialDays = trialEligible ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const ctaLabel =
         trialDays > 0
             ? t('mypage.subscription.cloudGuide.ctaWithTrial', { days: trialDays })

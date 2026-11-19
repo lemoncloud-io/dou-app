@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -33,6 +33,7 @@ import {
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { ROUTES } from '../../../routes/paths';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { threadRootNo } from '../../../utils/notifications/notificationModel';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useChannel } from '../hooks/useChannel';
@@ -489,6 +490,7 @@ export const RoomFilesPage = () => {
                     </div>
                 )}
                 {selecting && <div aria-hidden className="h-32" />}
+                <SafeAreaBottomSpacer />
             </div>
             {selecting && (
                 <FileSelectionActionBar

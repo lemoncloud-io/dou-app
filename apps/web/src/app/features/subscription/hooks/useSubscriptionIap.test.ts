@@ -2,54 +2,52 @@ import { renderHook } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
 
+import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { useSubscriptionIap } from './useSubscriptionIap';
 import { useLinkedAccounts } from '../../../hooks';
-import { appBridge } from '../../../bridge';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: jest.fn() }) }));
+const mockInvalidate = jest.fn();
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries: mockInvalidate }) }));
 
 const membershipMutate = jest.fn().mockResolvedValue({ isValid: true });
 
 let mockIsGuest = false;
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
         data: {
             cloudsKeys: { all: ['clouds'] },
         },
-    },
-}));
+        get checkout() {
+            return mockCheckoutKind === 'store' ? mockStore : { kind: 'web', open: jest.fn() };
+        },
+    })
+);
 
 jest.mock('../../../hooks/queryKeys', () => ({ subscriptionKeys: { all: ['subscription'] } }));
 jest.mock('../../../hooks/useMembership', () => ({
     useValidateMembership: () => ({ mutateAsync: membershipMutate }),
 }));
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: jest.fn() }));
-jest.mock('../../../bridge', () => ({
-    appBridge: {
-        purchase: jest.fn(),
-        finishPurchaseTransaction: jest.fn().mockResolvedValue(undefined),
-        fetchCurrentPurchases: jest.fn().mockResolvedValue({ data: { purchases: [] } }),
-        fetchProducts: jest.fn().mockResolvedValue({ data: { products: [] } }),
-    },
-    // The purchase result arrives as a push event. Capture the handlers so a test can play the
-    // store's answer back — without that, nothing past `appBridge.purchase` is reachable.
-    useOnPurchaseSuccess: (cb: (message: unknown) => void) => {
-        mockPushHandlers.success = cb;
-    },
-    useOnPurchaseError: (cb: (message: unknown) => void) => {
-        mockPushHandlers.error = cb;
-    },
-}));
+// The host's store, as the `checkout` port offers it. Its purchase never settles unless a test says
+// how the store answered.
+const mockStore = {
+    kind: 'store' as const,
+    store: 'google' as 'google' | 'apple',
+    products: jest.fn(),
+    purchase: jest.fn(),
+    finish: jest.fn(),
+    currentPurchases: jest.fn(),
+    openManagement: jest.fn(),
+};
+let mockCheckoutKind: 'store' | 'web' = 'store';
 jest.mock('../consts', () => ({ APP_ID: 'app', IS_DEV: false }));
-
-const mockPushHandlers: { success?: (message: unknown) => void; error?: (message: unknown) => void } = {};
 
 const setSocial = (social: 'linked' | 'absent' | 'unknown') =>
     (useLinkedAccounts as jest.Mock).mockReturnValue({ phone: 'unknown', social });
@@ -59,6 +57,12 @@ const product = { id: 'plan-1' };
 beforeEach(() => {
     jest.clearAllMocks();
     mockIsGuest = false;
+    mockCheckoutKind = 'store';
+    mockStore.store = 'google';
+    mockStore.purchase.mockReturnValue(new Promise(() => undefined));
+    mockStore.finish.mockResolvedValue(undefined);
+    mockStore.currentPurchases.mockResolvedValue([]);
+    mockStore.products.mockResolvedValue([]);
 });
 
 describe('useSubscriptionIap — 로그인 가드', () => {
@@ -69,7 +73,7 @@ describe('useSubscriptionIap — 로그인 가드', () => {
 
         await expect(result.current.purchaseAndValidate(product)).rejects.toThrow('mypage.subscription.loginRequired');
 
-        expect(appBridge.purchase).not.toHaveBeenCalled();
+        expect(mockStore.purchase).not.toHaveBeenCalled();
         expect(membershipMutate).not.toHaveBeenCalled();
     });
 
@@ -87,7 +91,7 @@ describe('useSubscriptionIap — 로그인 가드', () => {
         const { result } = renderHook(() => useSubscriptionIap());
 
         await expect(result.current.restorePurchases()).resolves.toBe(0);
-        expect(appBridge.fetchCurrentPurchases).toHaveBeenCalled();
+        expect(mockStore.currentPurchases).toHaveBeenCalled();
     });
 });
 
@@ -102,7 +106,7 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
 
         // The purchase must not even start — validateMembership runs after the purchase, so if it
         // isn't blocked here, money leaves and there's nothing for the subscription to attach to.
-        expect(appBridge.purchase).not.toHaveBeenCalled();
+        expect(mockStore.purchase).not.toHaveBeenCalled();
         expect(membershipMutate).not.toHaveBeenCalled();
     });
 
@@ -114,7 +118,7 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
         // and got as far as the store call.
         void result.current.purchaseAndValidate(product);
 
-        expect(appBridge.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: 'plan-1' }));
+        expect(mockStore.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: 'plan-1' }));
     });
 
     it('연동이 확인되면 정상적으로 스토어를 연다', async () => {
@@ -123,7 +127,7 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
 
         void result.current.purchaseAndValidate(product);
 
-        expect(appBridge.purchase).toHaveBeenCalled();
+        expect(mockStore.purchase).toHaveBeenCalled();
     });
 
     it('복구(restore)는 막지 않는다 — 이미 존재하는 결제는 누군가의 것이다', async () => {
@@ -134,7 +138,7 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
 
         // Doesn't throw from the guard — it defers to the server's verdict and ends up with 0 restored.
         expect(restored).toBe(0);
-        expect(appBridge.fetchCurrentPurchases).toHaveBeenCalled();
+        expect(mockStore.currentPurchases).toHaveBeenCalled();
     });
 
     it('화면이 미리 안내할 수 있도록 판정을 내보낸다', () => {
@@ -148,43 +152,52 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
     });
 });
 
-describe('useSubscriptionIap — 등급 교체 페이로드', () => {
-    const tierChange = { id: 'dou_pro_subscription', newPlanId: 'pro-tier-02', offerToken: 'base-02' };
-
+describe('useSubscriptionIap — what reaches the store', () => {
     beforeEach(() => setSocial('linked'));
-    // Cleared here rather than at the end of the iOS case: a failing assertion would skip an
-    // inline delete and leak the platform into every suite that runs after this one.
-    afterEach(() => delete window.CHATIC_APP_PLATFORM);
 
-    it('Android 등급 변경은 oldPlanId를 스토어까지 실어 보낸다', () => {
-        // Without this value, native treats it as a new purchase instead of a plan change.
-        const { result } = renderHook(() => useSubscriptionIap());
-
-        void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro-tier-01' });
-
-        expect(appBridge.purchase).toHaveBeenCalledWith({
+    it('hands the product to the store unchanged; the store port shapes it for its own store', () => {
+        const tierChange = {
             id: 'dou_pro_subscription',
-            offerToken: 'base-02',
             newPlanId: 'pro-tier-02',
+            offerToken: 'base-02',
             oldPlanId: 'pro-tier-01',
-        });
-    });
-
-    it('신규 구독에는 oldPlanId 키 자체가 붙지 않는다', () => {
+        };
         const { result } = renderHook(() => useSubscriptionIap());
 
         void result.current.purchaseAndValidate(tierChange);
 
-        expect(appBridge.purchase).toHaveBeenCalledWith(expect.not.objectContaining({ oldPlanId: expect.anything() }));
+        expect(mockStore.purchase).toHaveBeenCalledWith(tierChange);
     });
 
-    it('iOS는 Android 전용 필드를 하나도 보내지 않는다', () => {
-        window.CHATIC_APP_PLATFORM = 'ios';
+    it.each([
+        ['apple', 'apple-inapp'],
+        ['google', 'google-inapp'],
+    ] as const)('validates a receipt from the %s store as %s', async (store, paymentType) => {
+        mockStore.store = store;
+        mockStore.purchase.mockResolvedValueOnce({ productId: 'plan-1', purchaseToken: 't' });
         const { result } = renderHook(() => useSubscriptionIap());
 
-        void result.current.purchaseAndValidate({ ...tierChange, oldPlanId: 'pro_tier_01' });
+        await result.current.purchaseAndValidate(product);
 
-        expect(appBridge.purchase).toHaveBeenCalledWith({ id: 'dou_pro_subscription' });
+        expect(membershipMutate).toHaveBeenCalledWith({ body: expect.objectContaining({ paymentType }) });
+    });
+
+    it('finishes the transaction once the relay has validated it', async () => {
+        const purchase = { productId: 'plan-1', purchaseToken: 't' };
+        mockStore.purchase.mockResolvedValueOnce(purchase);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await result.current.purchaseAndValidate(product);
+
+        expect(mockStore.finish).toHaveBeenCalledWith(purchase);
+    });
+
+    it('refuses at once where no store sells, rather than asking a shell that is not there', async () => {
+        mockCheckoutKind = 'web';
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.purchaseAndValidate(product)).rejects.toThrow('no store sells on this host');
+        await expect(result.current.restorePurchases()).rejects.toThrow('no store sells on this host');
     });
 });
 
@@ -195,9 +208,8 @@ describe('useSubscriptionIap — 결제 기록', () => {
         membershipMutate.mockResolvedValueOnce({ isValid: false });
         const { result } = renderHook(() => useSubscriptionIap());
 
-        const pending = result.current.purchaseAndValidate(product);
-        mockPushHandlers.success?.({ data: { purchase: { productId: 'plan-1', purchaseToken: 'RECEIPT-SECRET' } } });
-        await expect(pending).rejects.toThrow('Validation failed');
+        mockStore.purchase.mockResolvedValueOnce({ productId: 'plan-1', purchaseToken: 'RECEIPT-SECRET' });
+        await expect(result.current.purchaseAndValidate(product)).rejects.toThrow('Validation failed');
 
         expect(logger.error).toHaveBeenCalledWith('IAP', 'membership validation rejected receipt (isValid=false)', {
             data: { productId: 'plan-1' },
@@ -211,41 +223,44 @@ describe('useSubscriptionIap — 결제 기록', () => {
         membershipMutate.mockResolvedValueOnce(validated);
         const { result } = renderHook(() => useSubscriptionIap());
 
-        const pending = result.current.purchaseAndValidate(product);
-        mockPushHandlers.success?.({ data: { purchase: { productId: 'plan-1', purchaseToken: 't' } } });
+        mockStore.purchase.mockResolvedValueOnce({ productId: 'plan-1', purchaseToken: 't' });
 
-        await expect(pending).resolves.toBe(validated);
+        await expect(result.current.purchaseAndValidate(product)).resolves.toBe(validated);
+    });
+});
+
+describe('useSubscriptionIap — website subscription refusal', () => {
+    const refusal = new Error(
+        '409 CONFLICT - portone subscription is active - verifyMembershipPurchase(membership/MS1)'
+    );
+
+    it('restore stops with the typed error instead of skipping the receipt', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([{ productId: 'P', purchaseToken: 'T' }]);
+        membershipMutate.mockRejectedValueOnce(refusal);
+        const { result } = renderHook(() => useSubscriptionIap());
+
+        await expect(result.current.restorePurchases()).rejects.toBeInstanceOf(WebSubscriptionActiveError);
+        expect(mockStore.finish).not.toHaveBeenCalled();
     });
 
-    it('60초 안에 스토어 결과가 없으면 타임아웃을 에러로 남긴다', async () => {
-        jest.useFakeTimers();
-        try {
-            const { result } = renderHook(() => useSubscriptionIap());
+    it('receipts restored before the refusal still refresh the caches, and the refusal is rethrown', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([
+            { productId: 'P1', purchaseToken: 'T1' },
+            { productId: 'P2', purchaseToken: 'T2' },
+        ]);
+        membershipMutate.mockResolvedValueOnce({ isValid: true }).mockRejectedValueOnce(refusal);
+        const { result } = renderHook(() => useSubscriptionIap());
 
-            const caught = result.current.purchaseAndValidate(product).catch((e: unknown) => e);
-            jest.advanceTimersByTime(60_000);
-
-            await expect(caught).resolves.toMatchObject({ code: 'timeout' });
-            expect(logger.error).toHaveBeenCalledWith('IAP', 'purchase timed out after 60s', {
-                data: { productId: 'plan-1' },
-            });
-        } finally {
-            jest.useRealTimers();
-        }
+        await expect(result.current.restorePurchases()).rejects.toBeInstanceOf(WebSubscriptionActiveError);
+        expect(mockStore.finish).toHaveBeenCalledTimes(1);
+        expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['subscription'] });
     });
 
-    it('사용자 취소는 info, 그 밖의 스토어 실패는 error로 가른다', () => {
-        renderHook(() => useSubscriptionIap());
+    it('other validation failures stay skippable during restore', async () => {
+        mockStore.currentPurchases.mockResolvedValueOnce([{ productId: 'P', purchaseToken: 'T' }]);
+        membershipMutate.mockRejectedValueOnce(new Error('403 INVALID PAYMENT'));
+        const { result } = renderHook(() => useSubscriptionIap());
 
-        // Logging a cancellation as error misreads the funnel, and would also drag in the upload
-        // flush that error logging triggers early, for free.
-        mockPushHandlers.error?.({ data: { error: { code: 'user-cancelled' } } });
-        expect(logger.info).toHaveBeenCalledWith('IAP', 'native purchase cancelled by user');
-        expect(logger.error).not.toHaveBeenCalled();
-
-        mockPushHandlers.error?.({ data: { error: { code: 'billing-unavailable' } } });
-        expect(logger.error).toHaveBeenCalledWith('IAP', 'native purchase failed (code=billing-unavailable)', {
-            data: { code: 'billing-unavailable' },
-        });
+        await expect(result.current.restorePurchases()).resolves.toBe(0);
     });
 });

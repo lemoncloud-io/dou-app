@@ -18,7 +18,6 @@ import {
     ProfileEditPage,
     SettingsPage,
     TermsPage,
-    WithdrawalPage,
 } from '../pages';
 // Owned by the `feedback` feature; nested here only because its URL lives under the mypage hub.
 import { FeedbackPage } from '../../feedback';
@@ -44,7 +43,6 @@ export const MyPageRoutes = () => {
             <Route path="policy/terms" element={<TermsPage />} />
             <Route path="policy/licenses" element={<LicensesPage />} />
             <Route path="policy/privacy" element={<PrivacyPage />} />
-            <Route path="withdrawal" element={<WithdrawalPage />} />
             <Route path="feedback" element={<FeedbackPage />} />
         </Routes>
     );

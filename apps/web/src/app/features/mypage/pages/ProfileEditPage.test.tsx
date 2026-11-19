@@ -7,6 +7,7 @@ import { ProfileEditPage } from './ProfileEditPage';
 const navigate = jest.fn();
 const toast = jest.fn();
 const updateProfile = jest.fn();
+const mockHaptic = jest.fn();
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
@@ -22,6 +23,7 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../hooks', () => ({ useUpdateProfile: () => ({ mutateAsync: updateProfile, isPending: false }) }));
 jest.mock('../../../hooks', () => ({ useMyUser: () => ({ name: 'Raine', photo: '' }) }));
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 // The real layout reaches the keyboard bridge; the page's content and footer are what is under test.
 jest.mock('../../../ui/layouts', () => ({
@@ -54,6 +56,7 @@ describe('ProfileEditPage', () => {
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'profileEdit.saveSuccess' }));
         expect(updateProfile).toHaveBeenCalledWith({ name: 'Raine Lee', photo: undefined });
         expect(navigate).toHaveBeenCalledWith(-1);
+        expect(mockHaptic).toHaveBeenCalledWith('success');
     });
 
     it('stays put without the toast when the save fails', async () => {
@@ -66,5 +69,6 @@ describe('ProfileEditPage', () => {
         await waitFor(() => expect(updateProfile).toHaveBeenCalled());
         expect(toast).not.toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalled();
+        expect(mockHaptic).not.toHaveBeenCalled();
     });
 });

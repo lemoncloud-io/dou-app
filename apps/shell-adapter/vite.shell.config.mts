@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'fs';
 import * as path from 'path';
 
 import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
@@ -44,6 +45,54 @@ export const sharedInviteLinkForDeeplinks = (): Plugin => ({
     },
 });
 
+const listOf = (value: string | undefined): string[] =>
+    (value ?? '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean);
+
+/**
+ * The store SKUs the mobile app sells on dev, from the one file its dev build reads
+ * (`apps/mobile/.env.dev`), so the virtual store's catalog joins the server's plans the way the app's
+ * does. Only that file: falling back to another one could mix in production SKUs. A missing file is an
+ * empty catalog, which the virtual store logs. Dev only: the virtual store never answers on prod.
+ */
+const readEnvFile = (file: string): Record<string, string> => {
+    if (!existsSync(file)) return {};
+    return Object.fromEntries(
+        readFileSync(file, 'utf8')
+            .split(/\r?\n/)
+            .map(line => /^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line))
+            .filter((match): match is RegExpExecArray => !!match)
+            .map(([, key, value]) => [key, value.replace(/^(['"])(.*)\1$/, '$2')])
+    );
+};
+const mobileDevEnv = readEnvFile(path.join(ROOT, 'apps/mobile/.env.dev'));
+const STORE_SKUS = {
+    ios: listOf(mobileDevEnv['VITE_SUBSCRIPTION_IAP_SKUS_IOS']),
+    android: listOf(mobileDevEnv['VITE_SUBSCRIPTION_IAP_SKUS_ANDROID']),
+    androidPlans: listOf(mobileDevEnv['VITE_SUBSCRIPTION_IAP_PLANS_ANDROID']),
+};
+
+/**
+ * How this shell sells (`DOU_SHELL_CHECKOUT=web yarn local`, for one), who picks attachments
+ * (`DOU_SHELL_MEDIA=browser`), who moves files (`DOU_SHELL_FILES=browser`) and the store SKUs, written into
+ * `src/checkout.ts` where it names them. Not Vite's `define`: in dev that sets globals through Vite's
+ * client script, which the shell page never loads. The config also reads `checkout.ts` in Node, where
+ * the names stay undefined and the module answers "no choice".
+ */
+export const shellCheckoutValues = (): Plugin => ({
+    name: 'shell-adapter:checkout-values',
+    transform(code, id) {
+        if (!id.split('?')[0].endsWith('/apps/shell-adapter/src/checkout.ts')) return null;
+        return code
+            .replaceAll('__DOU_SHELL_CHECKOUT__', JSON.stringify(process.env['DOU_SHELL_CHECKOUT'] ?? ''))
+            .replaceAll('__DOU_SHELL_MEDIA__', JSON.stringify(process.env['DOU_SHELL_MEDIA'] ?? ''))
+            .replaceAll('__DOU_SHELL_FILES__', JSON.stringify(process.env['DOU_SHELL_FILES'] ?? ''))
+            .replaceAll('__DOU_SHELL_STORE_SKUS__', JSON.stringify(STORE_SKUS));
+    },
+});
+
 /**
  * What the virtual shell's server adds to its own Vite settings (`shell.viteConfig` in
  * `hybrid-shell.config.ts`), for the handler module and the route functions the shell page imports.
@@ -55,5 +104,5 @@ export default {
         global: 'window',
     },
     resolve: { alias: MOBILE_ALIASES },
-    plugins: [sharedInviteLinkForDeeplinks(), nxViteTsPaths()],
+    plugins: [sharedInviteLinkForDeeplinks(), shellCheckoutValues(), nxViteTsPaths()],
 } satisfies UserConfig;

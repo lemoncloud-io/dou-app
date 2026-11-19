@@ -1,13 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChat, DomainUser } from '@chatic/data';
+import { runtime, type DomainChat, type DomainUser } from '@chatic/runtime';
 
 import { useChannelHeadRefresh } from './useChannelHeadRefresh';
 import { useChats } from './useChats';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -22,8 +21,8 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             useRuntimeSocketState: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 // Covered by its own test file; isolate useChats from the foreground-refresh side effects.
 jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));
@@ -531,6 +530,31 @@ describe('useChats — older pages', () => {
         });
         expect(chatRefreshList).toHaveBeenCalledTimes(2);
         expect(result.current.hasMore).toBe(true);
+    });
+
+    it('holds the wait for a loadMore from before the failure, whose render never saw it', async () => {
+        jest.useFakeTimers();
+        seedChats([chat({ id: 'a', chatNo: 5, ownerId: 'u1' })]);
+        chatRefreshList.mockRejectedValueOnce(new Error('socket closed')).mockResolvedValue({ fetchedCount: 0 });
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        // A scroll handler the failure's own render has not replaced yet still calls this one.
+        const beforeFailure = result.current.loadMore;
+        await act(async () => {
+            await beforeFailure();
+        });
+        await act(async () => {
+            await beforeFailure();
+        });
+        expect(chatRefreshList).toHaveBeenCalledTimes(1);
+
+        act(() => {
+            jest.advanceTimersByTime(2000);
+        });
+        await act(async () => {
+            await result.current.loadMore();
+        });
+        expect(chatRefreshList).toHaveBeenCalledTimes(2);
     });
 
     it("sends a person's request at once, past a failed page's wait", async () => {
@@ -1143,6 +1167,39 @@ describe('useChats — catching up to the channel record', () => {
             .filter(p => p.channelId === 'c2');
         expect(forC2.length).toBeGreaterThan(0);
         expect(forC2.every(p => p.isCacheRead === false)).toBe(true);
+    });
+
+    it("never answers the next room with the previous room's rows, so nothing reads them as its own", () => {
+        // The room derives its read marker from the newest message. Read under the next room's id,
+        // the previous room's newest chatNo went out as the next room's read and the server refused
+        // it as an overflow.
+        chatObserveList.mockImplementation((query: { channelId: string }, cb: (result: unknown) => void) => {
+            if (query.channelId === 'c1') {
+                cb({ list: [chat({ id: 'a', chatNo: 118, ownerId: 'u1', createdAtMs: 400 })] });
+            }
+            return () => undefined;
+        });
+        const renders: Array<{ channelId: string; newest: number | undefined; isLoading: boolean }> = [];
+        const { rerender } = renderHook(
+            (props: { channelId: string }) => {
+                const value = useChats({ channelId: props.channelId, limit: 100 });
+                renders.push({
+                    channelId: props.channelId,
+                    newest: value.messages.at(-1)?.chatNo,
+                    isLoading: value.isLoading,
+                });
+                return value;
+            },
+            { initialProps: { channelId: 'c1' } }
+        );
+        expect(renders.at(-1)).toMatchObject({ channelId: 'c1', newest: 118 });
+        renders.length = 0;
+
+        rerender({ channelId: 'c2' });
+
+        const forC2 = renders.filter(render => render.channelId === 'c2');
+        expect(forC2.length).toBeGreaterThan(0);
+        expect(forC2.every(render => render.newest === undefined && render.isLoading)).toBe(true);
     });
 
     it('reports the cache as unread until the first emission', () => {

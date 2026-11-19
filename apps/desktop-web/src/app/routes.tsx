@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
-import { isNative, webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
+import { webClient } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
@@ -12,6 +12,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
+import { pressHistory, useHistoryNavigation } from './features/chat/hooks/useHistoryNavigation';
 import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenStore } from './shared';
 
 /**
@@ -25,6 +26,12 @@ import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenSto
  * Whenever a target is set it routes home; HomePage applies the cloud/place/
  * channel target once each loads.
  */
+/** Back and Forward from any page: the bracket chords, the mouse's side buttons, the shell's swipes and menu items. */
+const HistoryNavigation = () => {
+    useHistoryNavigation();
+    return null;
+};
+
 /** A save the shell finished: "Saved …" and the way to show it, on whichever page the reader is. */
 const DownloadNotices = () => {
     useDownloadNotices();
@@ -42,7 +49,9 @@ const NotificationOpenListener = () => {
         navigate('/');
     }, [pendingNonce, navigate]);
     useEffect(() => {
-        if (!isNative()) return;
+        // Notification taps, and the menu bar's links that ride the same event, arrive only where the
+        // `push` port says the app delivers them.
+        if (runtime.push.kind !== 'shell') return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const deeplink = (message?.data as { notification?: { data?: { deeplink?: string } } })?.notification?.data
                 ?.deeplink;
@@ -50,6 +59,11 @@ const NotificationOpenListener = () => {
             // event with a `chatic-ui:` link rather than an open target.
             if (deeplink === 'chatic-ui:settings') {
                 navigate('/settings');
+                return;
+            }
+            // Go → Back / Forward and the trackpad's swipes, the same presses as Mod+[ and Mod+].
+            if (deeplink === 'chatic-ui:back' || deeplink === 'chatic-ui:forward') {
+                pressHistory(deeplink === 'chatic-ui:back' ? 'back' : 'forward');
                 return;
             }
             if (deeplink === 'chatic-ui:shortcuts') {
@@ -75,6 +89,8 @@ const NotificationOpenListener = () => {
 // settings/profile/debug pages each become their own chunk, so the initial load
 // ships only what the current branch needs. (Named exports → default mapping.)
 const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutsDialog })));
+// The line of hints a held ⌘ or ⌥ shows; route-independent for the same reason.
+const ShortcutHintBar = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutHintBar })));
 // Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
 // where it used to be dead until the return to chat.
 const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
@@ -119,11 +135,13 @@ export const AppRouter = () => {
         <Router>
             {isAuthenticated && <NotificationOpenListener />}
             {isAuthenticated && <DownloadNotices />}
+            {isAuthenticated && <HistoryNavigation />}
             {/* Route-independent, so "?" and the menu entry work on every page. */}
             {isAuthenticated && (
                 // Its own boundary: the chat chunk loading must not blank the page.
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
+                    <ShortcutHintBar />
                     <JoinWithInviteDialog />
                     <AppearanceDialog />
                 </Suspense>

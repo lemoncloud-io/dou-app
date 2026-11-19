@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isNative, logger } from '@chatic/bridges';
+import { logger } from '@chatic/bridges';
+import { runtime } from '@chatic/runtime';
 import { Button, IconClose, InviteLinkCard } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -45,7 +46,8 @@ export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteL
             return;
         }
         try {
-            if (isNative()) {
+            // The app's share sheet where it takes the page's links (`runtime.links`); a copy otherwise.
+            if (runtime.links.kind === 'shell') {
                 appBridge.openShareSheet(inviteLink);
             } else {
                 await copyMessageToClipboard(inviteLink);

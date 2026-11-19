@@ -182,7 +182,7 @@ Pure functions over a list of items (`app/utils/notifications/selectors`); a scr
 - `unreadCounts(items)`, `unreadOnly(items, on)`, `hasUnreadInScope(items)`.
 - `groupByDay(items, now)` — local calendar days, newest first, `today` / `yesterday` / `date`; the
   screen formats a `date` from `dayStart`.
-- `findMe(items)` — unread `mention`, `threadMention` and `replyToMine`, newest first.
+- `findMe(items)` — unread `mention`, `threadMention`, `replyToMine` and `reaction`, newest first.
 - `channelBadges(items, channelId)` — one room's unread mention and thread counts.
 
 ## Screens
@@ -194,27 +194,77 @@ not:
 - five tabs (`SegmentedTabs`, inline) with their unread counts, a zero hidden;
 - "Unread only" (`FilterChip`) and "Mark all read", which covers the current tab only;
 - the items by day, newest first, each one the kit's `NotificationRow` through `NotificationListItem`.
-  The row's chip, location, context and quote come from `utils/rowParts` (pure, tested);
+  The row's chip, location, context, quote and body come from `utils/rowParts` (pure, tested). A
+  reaction's row is drawn as the design has it: the emoji in the context ("내 메시지에 반응 ❤️"), my
+  message reacted to as the body, and no quote line — the emoji if that message is not cached;
 - a tap reads the item and goes to its message (`?chatNo=` on the room or the thread; a reaction goes
   to the message reacted to);
-- **selection mode** — from "Select" or a long press, which starts with that row picked
-  (`useNotificationSelection`). The quick chips pick all / unread / read of what is visible, and a
-  chip pressed again on its own set clears it. The bottom bar (`SelectionActionBar`, drawn over the
-  nav) marks read — off when everything picked is already read — or deletes after a confirm. Both
-  close the mode and show a 3-second toast whose "Undo" puts back exactly what changed
-  (`useNotificationActions`). Deleting takes items off the inbox only; the messages stay;
+- **selection mode** — from "Select" or a long press, which starts with that row picked; "Cancel"
+  leaves it, and the action bar is drawn over the nav. The rules are the sheet's too (§ Selection
+  mode);
 - three empty states — nothing at all (no filter row, no "Select"), an empty tab (named), and nothing
-  unread under "Unread only" (with "Show all notifications").
+  unread under "Unread only" (with "Show all notifications");
+- **the title steps down once the list scrolls** — "Notifications" goes from 28px to 20px (eased,
+  none under reduced motion) and back at the top, so the header reads as a bar rather than a heading
+  over the rows. Only the type changes: the header keeps its height. A header that shrank would hand
+  its height to the list, and a list only just long enough to scroll would then fit, snap back to the
+  top and grow the header again, round and round. The tabs and the header stay fixed above the list,
+  and the tabs' underline is the divider, so nothing else changes with the scroll;
+- **coming back lands where the reader left.** Opening an item navigates away and unmounts the page,
+  so the tab and "Unread only" live outside it, in memory (`stores/useNotificationsViewStore`), and the
+  list's offset is kept by the app's `useScrollRestoration`. The two go together: an offset restored
+  onto a different list would land somewhere meaningless. Hence three rules:
+    - **Only a return restores.** The page reads how it was reached (`useNavigationType`): a back
+      press is `POP` and lands on the tab, filter and offset that were left. Any other way in — the
+      bottom nav's bell replaces rather than pops — starts on "All", filter off, at the top: the
+      bell's dot says something new arrived, and new items sort to the top. Home restores on every
+      entry; the inbox deliberately does not.
+    - **The offset is kept per place** (`notifications:<cloud>:<place>`), since each place lists other
+      items. The tab and filter are one setting for the whole inbox.
+    - **Changing the filter drops an offset still waiting for rows** — a return onto "nothing unread"
+      followed by "Show all" opens the full list at the top, not at a point the reader never saw.
+
+    Memory only — a relaunch starts fresh. Selection mode is not kept; a return always browses.
 
 **The find-me sheet** (`components/FindMeSheet`) — what is looking for the reader now: `findMe` of the
-scope (unread mentions, thread mentions and replies to my messages), narrowed by All / Mentions /
-Threads chips with counts, "Mark all read", and a tap that closes the sheet and opens the message.
+scope (unread mentions, thread mentions, replies to my messages and reactions to them), titled
+"나를 찾는 알림", narrowed by All / Mentions / Threads chips with counts, "Select", the close (X),
+and a tap that closes the sheet and opens the message. It always opens at its full height — the
+design's, its top just under home's header — and the list scrolls inside, so a filter change, an
+item read or selection mode never resizes it. A reaction has no chip of its own, so it
+shows, and counts, under "All" only; "Threads" is replies to my messages. Reactions joined the
+sheet with the 2026-11 design: being reacted to is someone answering me too, while a new 1:1
+message (the room list's badge already says it) and a reply in a thread I only joined stay in the
+tab.
 Reading an item anywhere takes it off the sheet; it stays in the tab. Home's row raises it through
 `app/stores/useFindMeSheetRequest`, and the private shell mounts `FindMeSheetHost` to answer, since
-home may not import this feature. The sheet has no selection mode.
+home may not import this feature. In selection mode the title becomes the count, the filter row gives
+way to "Select all", the footnote to the action bar (laid out in the sheet's footer), and the close
+(X) is the way out — closing the sheet ends the mode, and a sheet opened again starts browsing. The
+sheet drew "Mark all read" before it had a selection mode; "Select" took its place, as the design has
+it, and "Select all" then "Mark as read" does the same job.
 
-**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter and quick-select
-chips, a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
+### Selection mode
+
+The tab and the sheet share one set of rules (`useNotificationSelection`, `SelectionActionBar`):
+
+- **One quick pick, "Select all".** It picks every visible item — the tab and filter in force — and,
+  pressed again while that is exactly the selection, clears it. Rows toggle one by one. There is no
+  "unread" or "read" pick: what is picked is told apart by the bar instead.
+- **"Mark as read n" counts the unread among the picks**, and applies to those only. With only read
+  items picked it is off and drops its number; with nothing picked both buttons are off and
+  numberless. "Delete n" counts every pick.
+- **Marking read keeps the mode and the picks**, so the same items can be deleted next; "mark as
+  read" turns off, "delete" stays. A list that drops read items — the sheet, or the tab under
+  "Unread only" — would take them away at that moment, so they are held (`withHeld`) and stay listed
+  until the mode closes. A held item that is deleted, or leaves the scope, is gone all the same.
+- **Deleting closes the mode**, after a confirm. Deleting takes items off the inbox only; the messages
+  stay.
+- Both show a 3-second toast whose "Undo" puts back exactly what changed (`useNotificationActions`).
+  "Undo" on a mark-read while still selecting turns the held items unread again, still picked.
+
+**Haptics and motion.** A selection tick for every toggle and switch (tabs, filter chips and
+"Select all", a row picked or unpicked, entering or leaving selection mode from the header); a firmer impact
 as a long press commits to selection mode; a warning as the delete confirm opens; success once a mark
 read or a delete has gone through, and a tick for "Undo". Opening an item plays nothing — the page
 change is the feedback. Motion comes from the kit parts (the underline growing under a tab, the check
@@ -222,7 +272,13 @@ column sliding in, the action bar rising where the nav was, a row's ground easin
 read and picked) plus fades as the header and the chip rows swap with selection mode; every one of
 them is off under `prefers-reduced-motion`.
 
-Avatars are the default person glyph for now: an item keeps its author's id and name, not a photo.
+**Avatars.** An item keeps its author's id and name, not a photo — the cached row has none. The
+photo is the author's place profile, read for the whole list by `hooks/useNotificationAvatars`
+through the app-wide `useSenderProfiles` that search uses for its authors: the profile cache first,
+one fetch per author it does not hold, one subscription per place, and no poll, since the inbox
+covers rooms the reader has not opened and a profile sync per author would keep running for them.
+The find-me sheet reads only while it is open. An item with no place (a relay 1:1), an author with
+no profile in that place, or a profile with no photo draws the default person glyph.
 
 ## Limits
 

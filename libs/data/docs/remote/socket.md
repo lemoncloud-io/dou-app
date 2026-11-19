@@ -49,6 +49,7 @@ Design points:
 - **Connection**'s bundle key is `connection` while its wire module is `sockets` (action `sockets/find-connection`).
 - **Upload** exposes `start` / `complete` only → [upload](#upload).
 - **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `domain/mention.ts` imports it from `-lib` on purpose and wraps it in `ChatSendPayload`, which adds the `mention` the chats service takes on `chat.send` and the SDK type does not declare yet. `ChatSocketDataSource` and `ChatRepository` take that wrapper, and the payload goes to the socket as it is.
+- **Webhook** is the channel owner's management of the channel's webhooks → [webhook](#webhook).
 
 ### Upload
 
@@ -67,16 +68,34 @@ Two things differ from every other data source here:
   guard in `uploads/types.ts`. An answer that breaks the contract rejects the operation — see
   [the answer guard](../uploads/README.md#the-answer-guard).
 
+### Webhook
+
+`webhook.list` / `make-token` / `update` / `delete` manage the tokens a service uses to post into a
+channel. They go to the **active** slot: a webhook belongs to the cloud that owns the channel, like
+`channel.*`. The SDK's `webhook.get` (the channel root) is not used — `make-token` already returns
+the endpoint to post to as `Location`.
+
+- **The answers are SDK pass-through** (`unknown` on the gateway); `WebhookSocketDataSource` types
+  them as `WebhookWireView` and `WebhookRepository` maps them to `DomainWebhook`.
+- **The secret is returned once.** `make-token` answers with `Token` on that response only; later reads
+  never carry it. `WebhookRepository` has no cache and hands the token back on `DomainIssuedWebhook`
+  alone, so no store, cache or log in the data layer ever holds it — a screen keeps it in its own state
+  for as long as the issue dialog is open and drops it.
+- **`false` and `0` are meaningful.** `update` sends `disabled: false` to resume and `expiresAt: 0` for
+  "never", so the repository passes them through instead of dropping falsy values.
+- **Only owners are served.** A caller who is not the channel owner is refused by the server; the
+  screens hide the section for them rather than showing a failing control.
+
 ### Where absence is the contract
 
 The socket bundle uses the **absence** of a `Pick<>` entry as a seal. Actions that are alive on the wire
 are deliberately left out so that callers cannot reach them. The HTTP axis does not do this
 ([http.md's gateway Pick](./http.md#gateway-pick)).
 
-| Left out                                | Why                                                                                                                                                                                                                                            | What keeps it out                       |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `auth.update`                           | It is the socket handshake, owned end to end by the SDK's `AuthController`. A second sender would authenticate a connection the controller does not know it authenticated, leaving its state machine reasoning about a session it did not open | app-runtime `authUpdateAbsence.test.ts` |
-| `auth.verifyHashAlias` · `attachSocial` | `linkAccount` replaced them. They remain on the wire as `@deprecated`, and the backend deletes them once the app has no call sites (ADR-0042)                                                                                                  | the absence from this `Pick` itself     |
+| Left out                                | Why                                                                                                                                                                                                                                            | What keeps it out                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `auth.update`                           | It is the socket handshake, owned end to end by the SDK's `AuthController`. A second sender would authenticate a connection the controller does not know it authenticated, leaving its state machine reasoning about a session it did not open | @chatic/runtime `authUpdateAbsence.test.ts` |
+| `auth.verifyHashAlias` · `attachSocial` | `linkAccount` replaced them. They remain on the wire as `@deprecated`, and the backend deletes them once the app has no call sites (ADR-0042)                                                                                                  | the absence from this `Pick` itself         |
 
 Read this table before adding an action to the bundle. Reviving a name listed here unlocks something
 that was deliberately sealed.
@@ -129,6 +148,7 @@ The wiring itself belongs to
 | `CloudSocketDataSource`      | `getCloud()`, `updateCloud()` (both pinned to `relay`)                                                                                                                                                                                                                                                                                                                  |
 | `ProfileSocketDataSource`    | `get()`, `getMine()`, `set()`, `sync()`                                                                                                                                                                                                                                                                                                                                 |
 | `ConnectionSocketDataSource` | `findConnection()` → `request('find-connection', payload)`                                                                                                                                                                                                                                                                                                              |
+| `WebhookSocketDataSource`    | `list()` · `makeToken()` · `update()` · `delete()` (`webhook.*`, `active` slot)                                                                                                                                                                                                                                                                                         |
 
 `syncDevice()` is the only one that returns `void`. It is a fire-and-forget signal and does not wait for
 a response.

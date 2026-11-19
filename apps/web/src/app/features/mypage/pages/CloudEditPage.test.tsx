@@ -16,21 +16,24 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ cloudId: 'CL1' }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesData }) }));
 // The session hooks are here so that a screen which went back to switching into the cloud on entry
 // would reach `switchCloud` — the test below asserts it never does.
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'OTHER' }),
             useRuntimeProfile: () => ({ isCloudActive: false }),
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks', () => ({
     useUpdateCloudProfile: () => ({ mutateAsync: updateCloudName, isPending: false }),
 }));
@@ -39,6 +42,8 @@ jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: ()
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds, hasCloudCatalog: true }),
 }));
+const mockHaptic = jest.fn();
+jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../../../ui/layouts', () => ({
     fixedViewportScreen: '',
@@ -74,6 +79,7 @@ describe('CloudEditPage', () => {
         await waitFor(() => expect(updateCloudName).toHaveBeenCalledWith({ id: 'CL1', name: 'Orange' }));
         expect(switchCloud).not.toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith(-1);
+        expect(mockHaptic.mock.calls).toEqual([['success']]);
     });
 
     it('patches the new name into the relay catalog query after the save', async () => {
@@ -112,6 +118,7 @@ describe('CloudEditPage', () => {
         );
         expect(setQueriesData).not.toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalledWith(-1);
+        expect(mockHaptic.mock.calls).toEqual([['error']]);
     });
 
     it('starts from the just-saved name while the catalog still answers with the old one', () => {

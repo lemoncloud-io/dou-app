@@ -66,7 +66,6 @@ export const ROUTES = {
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',
-            withdrawal: '/mypage/withdrawal',
         },
         // cloud OWNERSHIP, distinct from `account` (login credentials); one cloud's tree below the list
         cloud: { manage: '/mypage/cloud-manage', hub: (id) => …, edit: (id) => …, detail: (id) => …, places: (id) => … },
@@ -111,15 +110,15 @@ question, and it belongs to `apps/web/src/app/navigation/`:
 Import it through `app/navigation` — `index.ts` is the module's public surface and its header
 carries the rest of this story. Inside:
 
-| File                  | Owns                                                                                      | Touches the router |
-| --------------------- | ----------------------------------------------------------------------------------------- | ------------------ |
-| `stackPolicy.ts`      | The entry rule table — how an arrival is placed on the stack                              | no                 |
-| `featureGraph.ts`     | Which feature graph a path belongs to, and how much of one is on the stack                | no                 |
-| `stackDepth.ts`       | How deep the app is, and `canGoBackInApp()` — the only answer to "can back go anywhere"   | no                 |
-| `stackTracker.ts`     | The reconstructed stack — read by the debug overlay AND by the graph and eviction rules   | no                 |
-| `stackObserver.ts`    | One router subscription feeding the tracker, `utils/routeTrail`, and transition listeners | no                 |
-| `useStackNavigate.ts` | Executes the rule table                                                                   | **yes**            |
-| `useStackBack.ts`     | Consumes a back press and reports which branch it took                                    | **yes**            |
+| File                  | Owns                                                                                                                     | Touches the router |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------ |
+| `stackPolicy.ts`      | The entry rule table — how an arrival is placed on the stack                                                             | no                 |
+| `featureGraph.ts`     | Which feature graph a path belongs to, and how much of one is on the stack                                               | no                 |
+| `stackDepth.ts`       | How deep the app is, rewinds not yet landed included, and `canGoBackInApp()` — the only answer to "can back go anywhere" | no                 |
+| `stackTracker.ts`     | The reconstructed stack — read by the debug overlay AND by the graph and eviction rules                                  | no                 |
+| `stackObserver.ts`    | One router subscription feeding the tracker, `utils/routeTrail`, and transition listeners                                | no                 |
+| `useStackNavigate.ts` | Executes the rule table                                                                                                  | **yes**            |
+| `useStackBack.ts`     | Consumes a back press and reports which branch it took                                                                   | **yes**            |
 
 Most rules read only the top of the stack. Two do not. The first: `channels` and `place` are each a GRAPH of
 screens about one instance, and arriving at channel B while standing in channel A's settings rewinds
@@ -147,6 +146,10 @@ is the app's first entry and nothing else, because the router back-fills `idx: 0
 `routes/index.tsx` mounts the observer, which is why the subscription is named here: `AppRuntime`
 and the debug overlay both sit above `RouterProvider`, so the component that creates the router is
 the only place that can subscribe to it.
+
+A rewind `useStackBack` takes plays the back page transition, the same one the header's back arrow
+plays — that is Android's system back; iOS goes back by the WebView's own swipe and never reaches it.
+[page-transitions.md](./page-transitions.md) has the per-platform table.
 
 Not to be confused with `app/bridge/navigation/`, which is the push-tap seam
 ([bridge/push-navigation.md](../bridge/push-navigation.md)).

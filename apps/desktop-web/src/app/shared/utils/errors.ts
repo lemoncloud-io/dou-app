@@ -68,7 +68,24 @@ export const serverErrorText = (error: unknown): string => {
     return text.length > RAW_TEXT_MAX ? `${text.slice(0, RAW_TEXT_MAX)}…` : text;
 };
 
-const rawErrorText = (error: unknown): string => {
+/** Deepest wrapper chain followed; a cyclic `cause` cannot loop past it. */
+const CAUSE_DEPTH_MAX = 3;
+
+/**
+ * An error that wraps another — the socket SDK's `AuthSwitchError` is `auth.switch failed: server`
+ * with the server's refusal in `cause` — names only the stage in its own message. The reason is the
+ * cause's text, so it is appended: `auth.switch failed: server — 403 NOT ALLOWED - device unlinked`.
+ */
+const rawErrorText = (error: unknown, depth = 0): string => {
+    const own = ownErrorText(error);
+    const cause = (error as { cause?: unknown } | null)?.cause;
+    if (!cause || depth >= CAUSE_DEPTH_MAX) return own;
+    const inner = rawErrorText(cause, depth + 1);
+    if (!inner || own.includes(inner)) return own;
+    return own ? `${own} — ${inner}` : inner;
+};
+
+const ownErrorText = (error: unknown): string => {
     if (!error) return '';
     const data = (error as { response?: { data?: unknown } }).response?.data;
     if (typeof data === 'string' && data.trim()) return data.trim();
@@ -121,14 +138,14 @@ export const classifyWireError = (raw: string): WireErrorKind => {
 /**
  * The status a rejected socket request carries, or `undefined` when it carries none. A numeric
  * `errorCode` on the Error comes first: the socket library drops the server's code when it rejects,
- * and `@chatic/app-runtime`'s socket manager puts it back on every request made through it — the only
+ * and `@chatic/runtime`'s socket manager puts it back on every request made through it — the only
  * source of a status for a refusal whose message does not lead with one (a parameter check is coded
  * 400 with nothing in front). Otherwise the status is read from the message prefix
  * (`403 FORBIDDEN - …`, and the client's own `503 …`/`408 …`) — never from the wording after it.
  * Prefer this over `classifyWireError` where one status means one thing and the wording is not a
  * contract: the phone sign-in's wrong code and expired code differ by status alone.
  *
- * The same rule is in `@chatic/app-runtime` (internal) and `apps/web`'s `getSocketErrorCode`; a change
+ * The same rule is in `@chatic/runtime` (internal) and `apps/web`'s `getSocketErrorCode`; a change
  * to the convention belongs in all three.
  */
 export const socketErrorStatus = (error: unknown): number | undefined => {

@@ -9,7 +9,7 @@ typed message, and a handler hook answers it through a service.
 > The second WebView the shell shows over this one, for a page on another origin, is in
 > [sub-webview.md](./sub-webview.md). It shares none of what follows: its own host, a subset of the
 > vocabulary, none of this injection. What a page in it and the shell say to each other is
-> [sub-webview-protocol.md](./sub-webview-protocol.md).
+> [mini-app-protocol.md](./mini-app-protocol.md).
 
 ## Key files
 
@@ -176,8 +176,8 @@ runtime requests (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`, `RuntimeUns
 launch the app's own runtime owns, so the suite, which mounts a launch the page owns, counts them
 among `MOBILE_UNSUPPORTED` — see [../runtime/README.md](../runtime/README.md). `useSessionOwnerHandler`
 registers the owner switch (`FetchSessionOwner`, `SetSessionOwner`) on every build, answered outside
-production or while the app's debug mode is on. The suite does not mount it, so it counts those two among
-`MOBILE_UNSUPPORTED` — see [The switch](../runtime/README.md#the-switch).
+production or while the app's debug mode is on, and the page's default (`SetDefaultSessionOwner`),
+answered on every build. The suite does not mount it, so it counts all three among `MOBILE_UNSUPPORTED` — see [The switch](../runtime/README.md#the-switch).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
@@ -324,6 +324,13 @@ instead of surfacing as an opaque "Script error.":
   decides from this list alone whether to ask for the device vault, so it is set before the page runs;
   a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
   the post-load injection, so the list is in both
+- `CHATIC_APP_CAPABILITIES` — what this build declares it can do (`utils/hostCapabilities.ts`): version
+  4, with `checkout: ['apple']` on iOS and `['google']` on Android — never the website, which a
+  store-distributed app may not point a buyer at — and `'shell'` for every other key (`media`, `files`,
+  `links`, `appShell`, `signIn`, `diagnostics`, `push`), since this app does each of those itself. The web chooses its host ports (`runtime.<port>`) from it
+  before its first render; a build without it gets the web's rule for an app that declares nothing,
+  which gives the same answer. Set early in the script, beside the storage media, so a later snippet
+  that throws cannot skip it
 - `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }`, only on
   a launch the app's own runtime owns; absent otherwise, so a page asks for the runtime handshake only
   when the app will answer it — see [../runtime/README.md](../runtime/README.md)

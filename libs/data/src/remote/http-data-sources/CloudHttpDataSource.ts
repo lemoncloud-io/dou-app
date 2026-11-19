@@ -24,6 +24,10 @@ export interface ICloudHttpDataSource {
     releaseCloud(cloudId: string, context: DataContext, opts?: CloudReleaseOptions): Promise<DomainCloud>;
     retryCloudSetup(cloudId: string, context: DataContext): Promise<DomainCloud>;
     verifyEmail(body: CloudVerifyEmailBody, opts?: { dryRun?: boolean }): Promise<CloudVerifyEmailView>;
+    /** The cloud's mini app link, `''` when it has none. */
+    fetchMiniAppUrl(cloudId: string): Promise<string>;
+    /** Store the cloud's mini app link (`''` clears it); resolves with what the relay stored. */
+    saveMiniAppUrl(cloudId: string, url: string): Promise<string>;
 }
 
 /**
@@ -68,5 +72,29 @@ export class CloudHttpDataSource implements ICloudHttpDataSource {
 
     verifyEmail(body: CloudVerifyEmailBody, opts?: { dryRun?: boolean }): Promise<CloudVerifyEmailView> {
         return this.gateway.verifyEmail(body, opts);
+    }
+
+    // The link is read off the cloud's own view, which every caller may read: the owner gets the full
+    // view, anyone else the minimal one, and both carry it. The relay does not check the address.
+    // An absent field is "no link" (the relay leaves undefined fields out of a view); no view at all is
+    // a broken answer, not an empty link, and is thrown so a screen never offers to overwrite a real one.
+    async fetchMiniAppUrl(cloudId: string): Promise<string> {
+        const view = await this.gateway.get(cloudId);
+        if (!view) throw new Error(`[CloudHttpDataSource] no cloud view for ${cloudId}`);
+        return view.miniAppUrl ?? '';
+    }
+
+    // The body names the link alone: the relay takes nothing else from an owner, and an admin's body
+    // would otherwise be written as sent.
+    // A save the answer does not carry back was not kept (a relay without the field, or a body it
+    // dropped): reported as a failure rather than as a cleared link.
+    async saveMiniAppUrl(cloudId: string, url: string): Promise<string> {
+        const view = await this.gateway.update(cloudId, { miniAppUrl: url });
+        if (!view) throw new Error(`[CloudHttpDataSource] no cloud view for ${cloudId}`);
+        const stored = view.miniAppUrl ?? '';
+        if (url !== '' && stored === '') {
+            throw new Error(`[CloudHttpDataSource] mini app link not stored for ${cloudId}`);
+        }
+        return stored;
     }
 }

@@ -11,12 +11,11 @@ let feedHandler: ((feed: unknown) => void) | null = null;
 const request = vi.hoisted(() => vi.fn());
 
 vi.mock('@chatic/bridges', () => ({
-    isNative: () => true,
     webClient: { request },
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: { observeList: () => () => undefined },
@@ -25,8 +24,10 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-    },
-}));
+        // Inside the desktop shell: the app delivers notifications, so banners are raised.
+        push: { kind: 'shell' },
+    })
+);
 
 vi.mock('./usePlaces', () => ({ usePlaces: () => ({ places: [] }) }));
 
@@ -128,9 +129,7 @@ describe('useDesktopNotifications', () => {
         };
 
         it('titles a message whose record names me as a mention of the channel', () => {
-            feedHandler?.(
-                feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } })
-            );
+            feedHandler?.(feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } }));
             expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: '#general' }));
         });
 
@@ -149,7 +148,7 @@ describe('useDesktopNotifications', () => {
                 feed({
                     content: 'hi',
                     mention$: { userIds: [CLOUD_UID], all: true },
-                    owner$: { name: 'Raine' }
+                    owner$: { name: 'Raine' },
                 })
             );
             expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: '#general' }));
@@ -166,7 +165,7 @@ describe('useDesktopNotifications', () => {
             const { channel, ...rest } = feed({
                 content: 'hello',
                 mention$: { userIds: [CLOUD_UID] },
-                owner$: { name: 'Raine' }
+                owner$: { name: 'Raine' },
             });
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined } });
             expect(titleOfFirstBanner()).toBe(i18n.t('notification.mentionTitle', { target: 'Raine' }));
@@ -176,7 +175,7 @@ describe('useDesktopNotifications', () => {
             const { channel, ...rest } = feed({
                 content: 'hello',
                 mention$: { userIds: [CLOUD_UID] },
-                owner$: { name: 'Raine' }
+                owner$: { name: 'Raine' },
             });
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
             expect(titleOfFirstBanner()).toBe('Raine');
@@ -187,16 +186,14 @@ describe('useDesktopNotifications', () => {
                 i18n.t('notification.everyoneTitle', {
                     lng: 'en',
                     word: i18n.t('chat.mention.everyoneWord', { lng: 'en' }),
-                    target: '#general'
+                    target: '#general',
                 })
             ).toBe('@all · #general');
         });
 
         it('stays silent for a mention in a channel turned off', () => {
             useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'none' } });
-            feedHandler?.(
-                feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } })
-            );
+            feedHandler?.(feed({ content: 'hello', mention$: { userIds: [CLOUD_UID] }, owner$: { name: 'Raine' } }));
             expect(request).not.toHaveBeenCalled();
         });
 

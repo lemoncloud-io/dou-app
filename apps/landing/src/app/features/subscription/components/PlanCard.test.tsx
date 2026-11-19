@@ -14,8 +14,8 @@ describe('PlanCard', () => {
         await i18n.changeLanguage('en');
         render(<PlanCard plan={MOCK_PLANS[4]} />);
 
-        const amount = screen.getByText('₩43,000');
-        expect(amount.parentElement?.textContent).toBe('₩43,000 / month(VAT included)');
+        const amount = screen.getByText('₩44,500');
+        expect(amount.parentElement?.textContent).toBe('₩44,500 / month(VAT included)');
         expect(screen.getByText('5 clouds')).toBeTruthy();
     });
 
@@ -23,7 +23,7 @@ describe('PlanCard', () => {
         await i18n.changeLanguage('ko');
         render(<PlanCard plan={MOCK_PLANS[0]} />);
 
-        expect(screen.getByText('₩8,600/월')).toBeTruthy();
+        expect(screen.getByText('₩8,900/월')).toBeTruthy();
         expect(screen.getByText('(VAT 포함)')).toBeTruthy();
         expect(screen.getByText('클라우드 1개')).toBeTruthy();
     });

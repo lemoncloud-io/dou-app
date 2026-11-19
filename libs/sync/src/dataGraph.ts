@@ -4,7 +4,7 @@ import type { DataContext, DataRepositories } from '@chatic/data';
  * The two reads sync makes of the repository graph: a cloud's repositories, and the scope they write
  * under.
  *
- * **Why it is handed in.** The graph is assembled in app-runtime's `data/`, a package above this one —
+ * **Why it is handed in.** The graph is assembled in @chatic/runtime's `data/`, a package above this one —
  * it builds its socket data sources from the socket manager this package runs on. Importing it from
  * here would be an upward edge, so `createRuntime()` hands the accessor down instead and this file
  * imports nothing at runtime. `DataManager` satisfies the interface as it is.

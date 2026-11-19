@@ -32,8 +32,25 @@ Every other request in `@chatic/bridge-messages` is deliberately unanswered (`NO
 its reason in `src/main/bridgeHandlers.contract.test.ts`. A new message fails that suite until it is
 handled or listed there.
 
+`RestartToUpdate` quits and hands over to the platform installer; on Windows that is the one-click
+installer with its own window, which starts the app again when it is done. The install runs after the
+app has exited, so the updater writes what it did up to that point — the version and executable of
+every run, each check, the installer it started and its arguments — to `updater.log` in the app's
+logs directory (`app.getPath('logs')`). A version that starts again after an install was started is
+an update that did not apply. The log starts over at a launch that finds it past 1 MiB, and a failed
+write is ignored: the log can never fail an update.
+
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
 `DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `index.ts` and the contract suite both use.
+
+## Back and Forward
+
+The Go menu's Back and Forward items (shown as ⌘[ / ⌘] and Ctrl+[ / Ctrl+], not registered, because
+the page binds those keys itself) and the three-finger trackpad swipes Electron reports as `left` and
+`right` send `chatic-ui:back` and `chatic-ui:forward` to the page, which decides where a step goes.
+The menu items do nothing while the window is hidden: they would otherwise raise the window and move a
+page the reader never saw. The mouse's side buttons are not handled here: Chromium delivers them to
+the page, which answers them along with the keys, and handling them here too would step twice.
 
 ## Downloads
 
@@ -51,7 +68,7 @@ itself saved. An image whose name matches its type still saves into Downloads wi
 it as a modal over the main window and tells the web `OnSubWebViewClosed` (with the page's `result`)
 when it goes. One at a time; a second open is `ALREADY_OPEN`. It is the desktop counterpart of the
 phone shell's sub WebView, and pages talk to it the same way: what a page and the shell say to each
-other is the protocol in `apps/mobile/docs/webview/sub-webview-protocol.md`, whose desktop section
+other is the protocol in `apps/mobile/docs/webview/mini-app-protocol.md`, whose desktop section
 lists what differs.
 
 **What opens** is the shared rule `libs/shared/src/utils/subWebViewTrust.ts` — the one file of
@@ -66,8 +83,9 @@ registered link only where it does.
 **Trust by tier.** An external site gets no manifest fetch — not even a request to its
 `/.well-known` — and is always shown with the bar, titled with its host whatever the page or the web
 asks: a third-party page under DoU's chrome must not be able to name itself DoU. A trusted page's
-manifest gives the bar its fallback name and the display (`standard` by default; `fullscreen` fills
-the window, bar kept). No tier gets more than the base set below.
+manifest gives the bar its fallback name and the display, read as the phone reads it, earlier names
+included (`titled` by default; `clean` fills the window, bar kept; `immersive` is shown as `clean`,
+since a window has no system bars). No tier gets more than the base set below.
 
 **The view.** Two `WebContentsView`s added to the main window: the shell's chrome (a dimmed backdrop,
 the card, the bar with its close control — a local page, `subWebViewChrome.ts`) and the page over it.
@@ -112,6 +130,9 @@ The preload (`src/preload/index.ts`) sets these on `window` before the page runs
   `CHATIC_APP_CURRENT_LANGUAGE`, `CHATIC_APP_SHOULD_UPDATE` — the same keys the phone shell injects.
 - `CHATIC_APP_STORAGE_MEDIA` — `['nativeSecure']`: the storage media the shell keeps. The web picks
   its storage from this list alone, synchronously at boot.
+- `CHATIC_APP_CAPABILITIES` — `{ version: 1, checkout: [] }`: the desktop app sells no subscription.
+  Without it the web's rule for an app that declares nothing would read the bridge as a phone's and
+  pick Google's store; `desktop-web` publishes no checkout either way.
 - `ChaticMessageHandler.postMessage` — the bridge's web → app path. The sub view's page gets none
   of these; it has a preload of its own (Sub view above).
 - `electronAPI` — app version, platform, the dev-channel custom UI controls and launch-at-login.

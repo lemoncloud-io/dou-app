@@ -1,7 +1,5 @@
 import { blocksToPlainText, parseBlocks } from '@chatic/block-kit';
-import { isWebhookChat } from '@chatic/data';
-
-import { toPlainPreview, toPlainText } from '@chatic/data';
+import { isWebhookChat, toPlainPreview, toPlainText } from '@chatic/runtime';
 
 /**
  * A message body as one string, whatever shape it arrived in — a Block Kit payload or

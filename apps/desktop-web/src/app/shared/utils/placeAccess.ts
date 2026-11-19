@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * The accounts that may manage places on a development build without the admin role: the two

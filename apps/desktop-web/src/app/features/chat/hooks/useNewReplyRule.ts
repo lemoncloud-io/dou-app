@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { useThreadStore } from '../stores';
 import { isOwnMessage, type MessageViewer, type NewReplyRule } from '../utils';

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 const getChat = vi.fn();
 // One object for every render, as the runtime's is: a fresh one would re-run the hook's fetch effect on each.
@@ -16,16 +16,16 @@ vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn
 // the socket session (`auth.switch`) follows, so the selection alone says nothing about which place a read
 // will be answered from.
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => session.switching }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionSelection: () => ({ selectedSiteId: session.siteId }),
             SWITCH_SITE_MUTATION_KEY: ['switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
-    },
-}));
+    })
+);
 
 import { REPLY_PAGES_PER_BATCH, useThreadRoot } from './useThreadRoot';
 

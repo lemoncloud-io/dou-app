@@ -9,6 +9,7 @@ import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 let mockWebViewProps: Record<string, any> = {};
 const mockPostMessage = jest.fn();
 const mockGoBack = jest.fn();
+const mockInjectJavaScript = jest.fn();
 let mockBackListener: (() => boolean) | undefined;
 const mockOpenURL = jest.fn(() => Promise.resolve());
 let mockTheme: 'light' | 'dark' = 'light';
@@ -18,7 +19,11 @@ jest.mock('react-native-webview', () => {
     return {
         WebView: forwardRef((props: Record<string, unknown>, ref: unknown) => {
             mockWebViewProps = props;
-            useImperativeHandle(ref, () => ({ postMessage: mockPostMessage, goBack: mockGoBack }));
+            useImperativeHandle(ref, () => ({
+                postMessage: mockPostMessage,
+                goBack: mockGoBack,
+                injectJavaScript: mockInjectJavaScript,
+            }));
             return null;
         }),
     };
@@ -125,6 +130,7 @@ describe('SubWebView', () => {
         mockWebViewProps = {};
         mockPostMessage.mockClear();
         mockGoBack.mockClear();
+        mockInjectJavaScript.mockClear();
         mockOpenURL.mockClear();
         mockBackListener = undefined;
         mockTheme = 'light';
@@ -207,6 +213,57 @@ describe('SubWebView', () => {
         expect(mockWebViewProps.injectedJavaScript).toBe(script);
         expect(mockWebViewProps.applicationNameForUserAgent).toBeUndefined();
         expect(mockWebViewProps.userAgent).toBeUndefined();
+    });
+
+    describe('safe-area insets', () => {
+        const INSETS = { top: 47, bottom: 34, left: 0, right: 0 };
+
+        // A padded view lies inside the safe area: there is nothing for the page to keep clear of.
+        it('tells a page nothing of the insets when the screen pads the view', () => {
+            renderView();
+
+            expect(mockWebViewProps.injectedJavaScriptBeforeContentLoaded).not.toContain('--chatic-safe-area-inset');
+            expect(mockInjectJavaScript).not.toHaveBeenCalled();
+        });
+
+        it('tells an immersive page its insets with every load, at both injection points', () => {
+            renderView({ insets: INSETS });
+
+            const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
+            expect(script).toContain("'ChaticSubWebView'");
+            expect(script).toContain('"--chatic-safe-area-inset-top", "47px"');
+            expect(script).toContain('"--chatic-safe-area-inset-bottom", "34px"');
+            expect(mockWebViewProps.injectedJavaScript).toBe(script);
+        });
+
+        // A rotation moves the notch to a side while the page is up; it must not wait for a reload.
+        it('pushes the insets to the page again when they change', () => {
+            const view = renderView({ insets: INSETS });
+            mockInjectJavaScript.mockClear();
+
+            view.rerender(
+                <SubWebView
+                    viewId="view-1"
+                    url={URL_}
+                    params={{ orderId: 7 }}
+                    permissions={ALL_PERMISSIONS}
+                    runtimePermissions={NO_RUNTIME}
+                    trust="reviewed"
+                    onRequestClose={jest.fn()}
+                    insets={{ top: 0, bottom: 21, left: 47, right: 47 }}
+                />
+            );
+
+            expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
+            expect(mockInjectJavaScript.mock.calls[0][0]).toContain('"--chatic-safe-area-inset-left", "47px"');
+        });
+
+        // WebKit reports the safe area to `env()` only while the scroll view leaves the content alone.
+        it('keeps the scroll view from insetting the content itself', () => {
+            renderView();
+
+            expect(mockWebViewProps.contentInsetAdjustmentBehavior).toBe('never');
+        });
     });
 
     // react-native-webview checks this list before `onShouldStartLoadWithRequest` and hands anything

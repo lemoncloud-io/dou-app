@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { RELAY_CLOUD_ID, type ChatAttachmentKind } from '@chatic/data';
+import { RELAY_CLOUD_ID, type ChatAttachmentKind } from '@chatic/runtime';
 import { deviceStore, persistStorageOver } from '../../storage';
 
 /** What a saved message carried, snapshotted with it: the Files filter and the card's file tile read it. */

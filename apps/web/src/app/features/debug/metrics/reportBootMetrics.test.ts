@@ -1,12 +1,17 @@
-jest.mock('@chatic/bridges', () => ({ isNative: jest.fn() }));
+const mockIsNative = jest.fn();
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get diagnostics() {
+            return { kind: mockIsNative() ? 'shell' : 'browser' };
+        },
+    })
+);
 jest.mock('../../../bridge', () => ({ appBridge: { sendBootMetrics: jest.fn() } }));
-
-import { isNative } from '@chatic/bridges';
 
 import { appBridge } from '../../../bridge';
 import { scheduleBootMetricsReport } from './reportBootMetrics';
 
-const isNativeMock = isNative as jest.Mock;
+const isNativeMock = mockIsNative;
 const sendMock = appBridge.sendBootMetrics as jest.Mock;
 
 describe('scheduleBootMetricsReport — 웹 부팅 스냅샷 네이티브 전송', () => {

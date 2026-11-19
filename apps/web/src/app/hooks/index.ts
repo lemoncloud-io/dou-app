@@ -40,6 +40,7 @@ export * from './useOpenPendingInviteChannel';
 export * from './useOtherCloudUnread';
 export * from './usePlaceProfileAbsent';
 export * from './useRelayInvites';
+export * from './useScrollChrome';
 export * from './useScrollRestoration';
 export * from './useSentInviteLog';
 export * from './useSetMyPlaceProfile';

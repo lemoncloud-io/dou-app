@@ -7,12 +7,12 @@ const approvePairing = jest.fn();
 const denyPairing = jest.fn();
 const classify = jest.fn((_op: string, _e: unknown) => 'notFound');
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ pairing: { checkPairing, approvePairing, denyPairing } }) },
         session: { classifyPairingError: (op: string, e: unknown) => classify(op, e) },
-    },
-}));
+    })
+);
 
 const CHECK = { pairingId: 'p-1', purpose: 'web', deviceId: 'd-1', client: { name: 'Chrome · macOS' }, expiredAt: 1 };
 

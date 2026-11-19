@@ -7,13 +7,13 @@ import { PlaceProfileEditDialog } from './PlaceProfileEditDialog';
 const setMyProfileMock = jest.fn();
 let mockProfile: { nick?: string; thumbnail?: string } | null = null;
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ profile: { setMyProfile: setMyProfileMock } }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('../../../hooks', () => ({

@@ -29,7 +29,7 @@ const CAPABILITIES = Object.keys({
     errorReport: true,
     storage: true,
     permissions: true,
-    runtime: true,
+    data: true,
 } satisfies Record<Capability, true>) as Capability[];
 
 const ALL = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
@@ -102,7 +102,7 @@ describe('chatic-apps-sdk against the page host', () => {
         expect(apps.context).toEqual(expect.objectContaining({ viewId: 'view-1', params: { level: 3 } }));
         // The runtime requests come from the runtime gate, not the manifest's capabilities: they are
         // checked against the host in `chaticAppsSdkRuntime.contract.test.ts`.
-        expect(CAPABILITIES.filter(capability => !apps.supports(capability))).toEqual(['runtime']);
+        expect(CAPABILITIES.filter(capability => !apps.supports(capability))).toEqual(['data']);
     });
 
     it('sees exactly the gated four go when the manifest grants nothing', async () => {
@@ -111,7 +111,7 @@ describe('chatic-apps-sdk against the page host', () => {
         const apps = await connectOver(transport, { reportErrors: false });
 
         expect(CAPABILITIES.filter(capability => !apps.supports(capability)).sort()).toEqual(
-            ['clipboard', 'openUrl', 'runtime', 'share', 'userKey'].sort()
+            ['clipboard', 'data', 'openUrl', 'share', 'userKey'].sort()
         );
         await expect(apps.getUserKey()).rejects.toEqual(expect.objectContaining({ code: 'NOT_SUPPORTED' }));
     });

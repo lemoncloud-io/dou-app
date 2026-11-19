@@ -14,13 +14,13 @@ jest.mock('react-router-dom', () => ({
     useLocation: () => ({ search: mockSearch }),
     Navigate: ({ to }: { to: string }) => <div>navigated:{to}</div>,
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks/useBackHandler', () => ({ useBackHandler: () => mockBackHandler() }));
 // Every branch is stubbed to a sentinel: this suite is about which one the deeplink picks, and
 // mounting any of them for real would drag in its data layer.

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChannel } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import type { DomainChannel } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useNotificationPrefsStore, type ChannelNotifyMode } from '../stores';
 import { channelsByPlace, placeNotifyKey, summarizePlaceNotify, toastFailure } from '../utils';

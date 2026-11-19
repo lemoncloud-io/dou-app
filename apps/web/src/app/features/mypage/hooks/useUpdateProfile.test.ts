@@ -3,18 +3,18 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useUpdateProfile } from './useUpdateProfile';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             patchRelaySessionUser: jest.fn(),
             updateAccountProfile: (...args: unknown[]) => updateMock(...args),
         },
-    },
-}));
+    })
+);
 
 const updateMock = jest.fn();
 const wrapper = ({ children }: { children: ReactNode }) =>

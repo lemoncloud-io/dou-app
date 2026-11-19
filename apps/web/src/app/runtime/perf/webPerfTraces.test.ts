@@ -7,6 +7,12 @@ import { configureWebPerfTraces, setPerfTelemetryRecorder } from './webPerfTrace
 import type { Logger } from '@chatic/logger';
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
+/** Whether the `diagnostics` port sends through the app, which decides whether the session owner is stamped. */
+let mockInsideTheApp = false;
+jest.mock('../../../config/diagnosticsKind', () => ({
+    diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),
+}));
+
 jest.mock('../../bridge/appBridge', () => ({
     appBridge: { startPerfTrace: jest.fn(), stopPerfTrace: jest.fn() },
 }));
@@ -110,7 +116,7 @@ describe('configureWebPerfTraces — the log pipeline branch', () => {
     it('stamps who holds the session on the pipeline inside the app, and keeps it off the bridge', () => {
         const pipeline = recorder();
         setPerfTelemetryRecorder(pipeline);
-        (window as unknown as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        mockInsideTheApp = true;
         setLaunchSessionOwner('native');
         try {
             configureWebPerfTraces().resolveWith(reportWith(['StartPerfTrace', 'StopPerfTrace']));
@@ -119,7 +125,7 @@ describe('configureWebPerfTraces — the log pipeline branch', () => {
             trace.stop();
         } finally {
             setLaunchSessionOwner(undefined);
-            delete (window as unknown as Record<string, unknown>).ReactNativeWebView;
+            mockInsideTheApp = false;
         }
 
         expect(pipeline.record).toHaveBeenCalledWith(

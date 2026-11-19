@@ -1,4 +1,4 @@
-import { isWebhookChat } from '@chatic/data';
+import { isWebhookChat } from '@chatic/runtime';
 
 import type { PlaceProfileEntry } from '../stores/useSiteProfilesStore';
 

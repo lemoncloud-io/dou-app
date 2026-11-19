@@ -2,8 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false, guest: false }));
 
-vi.mock('@chatic/config', () => ({ config: { get: () => env.flag } }));
-vi.mock('@chatic/bridges', () => ({ isNative: () => env.native }));
+// The registry key, and who signs a person in, as the host's `signIn` port says.
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        settings: { get: () => env.flag },
+        get signIn() {
+            return { kind: env.native ? 'shell' : 'browser', os: null };
+        },
+    })
+);
 vi.mock('../../../shared/hooks/useRelayAccount', () => ({ isRelayGuest: () => env.guest }));
 
 import { canApprovePairing, canRequestPairing, isDevicePairingEnabled } from './devicePairing';

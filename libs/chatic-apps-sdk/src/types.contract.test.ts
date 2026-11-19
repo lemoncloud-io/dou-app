@@ -23,7 +23,7 @@ import type {
 } from './types';
 
 // Exactly equal, both ways: a field added to, removed from or retyped in either side fails to compile,
-// and ts-jest fails this file on a type error.
+// and the typecheck (`tsc -b`, which covers this file) fails on it; ts-jest here only transpiles.
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 const pinned: [
