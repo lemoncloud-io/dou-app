@@ -452,7 +452,12 @@ a sign-in it does not know, so W-02b is reached by the screen tests alone today.
 
 **The code is exchanged signed, as the desktop app does** (`lib/port/http/signInExchange.ts`). This
 browser's device guest signs in first — one guest per browser, its id kept in the browser's storage —
-and the code goes to `verify-oauth-code` with that session (`linkCurrentSession`). The server then finds
+and the code goes to `verify-oauth-code` with that session (`linkCurrentSession`). The guest signs in
+on every sign-in, even when the tab still holds a session: a refused call sends the reader to the
+sign-in page without clearing the session, so what is left may be an earlier sign-in whose
+credentials expired, or another account's. Signing the exchange with it was refused by the API
+gateway with a 403 before the server saw the request, on every retry. The guest sign-in is unsigned
+and replaces that session, so a sign-in works from any state. The server then finds
 the user by the provider's own account id, the same user the phone's native sign-in finds, and keeps the
 guest as the session's link. The relay's sessionless exchange (`/oauth/<provider>/token`, which the admin
 console uses) is not used here: it finds the user by the provider's email first, which need not be the

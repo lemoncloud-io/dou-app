@@ -198,7 +198,8 @@ if (apps.supports('data') && placeId) {
   a new view there. The places themselves and the cloud's own row are not a place's and stay open.
   Read the place's id from `session().committedSiteId` or the launch parameters (`place.id`).
 - **Server reads are budgeted**: one per 250 ms and 60 a minute per view, `RATE_LIMITED` past it, with
-  `error.details.retryAfterMs`.
+  `error.details.retryAfterMs`. So are cache reads, apart: 600 a minute per view, each room the app
+  checks for a read or a message counting as one.
 - **Only some launches answer it**: the app has to hold the session itself, the page has to be a
   reviewed one on the phone, a cloud — Home included — has to be selected when it opens, and on
   Android the WebView has to tell the page's own messages from a frame's inside it (an old Android
@@ -418,7 +419,7 @@ try {
 | `RUNTIME_NOT_ALLOWED`  | `data`: not a method this page may use, or an argument the app holds to the current cloud or place — for a message, its shape or its room                                          |
 | `CLOUD_CHANGED`        | `data`: the user's cloud is no longer the one this view opened on; nothing answers after                                                                                           |
 | `CONSENT_REFUSED`      | `data.connect()`: the user did not allow this page to read this cloud                                                                                                              |
-| `RATE_LIMITED`         | `data`: too many server reads, or messages sent; wait `error.details.retryAfterMs`                                                                                                 |
+| `RATE_LIMITED`         | `data`: too many server reads, cache reads or messages sent; wait `error.details.retryAfterMs`                                                                                     |
 | `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                                                                                    |
 
 Treat a code not in this table as that call failing, and nothing more. The codes are the app's own,
@@ -550,7 +551,7 @@ numbers, for reading a bug report:
 | ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                                                                                                                                                                        |
 | 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                                                                                                                                                                    |
-| next (unreleased) | 2.32.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type; the skill (`skill/SKILL.md`); `react` (`chatReact`); `context.display` and `context.safeArea`; the mock's `display`, `rotate()` and `reactions` |
+| next (unreleased) | 2.33.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type; the skill (`skill/SKILL.md`); `react` (`chatReact`); `context.display` and `context.safeArea`; the mock's `display`, `rotate()` and `reactions` |
 
 The data contract is the app's own version for what `apps.data` reads. The app answers a
 page with the newest contract both speak; a library that speaks none the app does is answered

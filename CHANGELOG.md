@@ -2,6 +2,24 @@
 
 ## [2026-11-19] - No version updates
 
+### Bug Fixes
+
+- (runtime-web) read the 'app' and 'page' spellings installed phone apps still declare
+
+## [2026-11-19] - root@0.168.8, @chatic/landing@0.19.4
+
+### Bug Fixes
+
+- (landing) sign in from the device guest every time, not the session left on the tab
+
+## [2026-11-19] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) hold a mini app to a cache budget, merge its events while hidden
+
+## [2026-11-19] - No version updates
+
 ### Features
 
 - (mobile,runtime-core,bridge-messages) let a mini app react to a message of its place

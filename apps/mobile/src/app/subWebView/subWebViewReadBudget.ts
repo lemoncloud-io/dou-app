@@ -8,6 +8,14 @@ export const SUB_WEBVIEW_SERVER_READS = { minIntervalMs: 250, perMinute: 60 } as
 export const SUB_WEBVIEW_MESSAGE_SENDS = { minIntervalMs: 500, perMinute: 30 } as const;
 
 /**
+ * How often one view may read the device cache — a cache read, a cache list, a stream opened over the
+ * cache. No spacing between them: a page that opens reads a room, its members and its messages at
+ * once, as DoU's own screens do. The ceiling is for a page that reads in a loop, which would hold the
+ * app's own thread in serializing rows it then throws away.
+ */
+export const SUB_WEBVIEW_CACHE_READS = { minIntervalMs: 0, perMinute: 600 } as const;
+
+/**
  * How often one view may set a reaction: a person tapping, as with a message. Every member of the room
  * sees each one, but it adds no row to read, so it is allowed twice as often as a message.
  */
@@ -23,8 +31,9 @@ export interface SubWebViewReadBudget {
 /**
  * A view's budget of server reads — or, built with `SUB_WEBVIEW_MESSAGE_SENDS`, of messages sent: at
  * most one per `minIntervalMs`, and `perMinute` in any 60 seconds. One per view, not per page load, so
- * a page cannot reset it by reloading. Reads of the device cache never come here — the server is what a
- * page could flood, and the user's own screens share it.
+ * a page cannot reset it by reloading. Built with `SUB_WEBVIEW_CACHE_READS`, it is the view's budget of
+ * device cache reads, kept apart from the server's: a page that reads its cache hard can still ask the
+ * server, and the other way round.
  */
 export const createSubWebViewReadBudget = ({
     minIntervalMs,

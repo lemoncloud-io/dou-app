@@ -18,9 +18,7 @@ export const readDeviceId = (store: KeyValueStore, make: () => string = () => cr
 };
 
 export interface SignInSession {
-    /** Whether a relay session is on this tab now. */
-    isAuthenticated(): boolean;
-    /** Signs this tab in as the device's guest. */
+    /** Signs this tab in as the device's guest, replacing whatever session the tab held. */
     loginGuest(deviceId: string): Promise<unknown>;
     /** Exchanges the code, signed with the current session, for the account's session. */
     exchangeLinked(provider: SignInProvider, code: string): Promise<unknown>;
@@ -36,6 +34,13 @@ export interface SignInSession {
  * be the user the app signs in as, so a subscription bought here could belong to an account the app does
  * not use. Without a session the server will not take the signed exchange, so the device's guest signs
  * in first.
+ *
+ * It signs in as the guest every time, even when the tab already holds a session. A session left on
+ * the tab is not one this exchange can trust: an earlier sign-in's credentials may have expired or been
+ * refused (the site turns a refused call into the sign-in page without clearing it), and the gateway
+ * then rejects the signed request before the server sees it. It may also be another account's, and
+ * the server would record that account as the link. The guest sign-in is unsigned, so it works from
+ * any state, and it costs one request per sign-in.
  */
 export const exchangeSignInCode = async (
     session: SignInSession,
@@ -43,6 +48,6 @@ export const exchangeSignInCode = async (
     provider: SignInProvider,
     code: string
 ): Promise<void> => {
-    if (!session.isAuthenticated()) await session.loginGuest(deviceId());
+    await session.loginGuest(deviceId());
     await session.exchangeLinked(provider, code);
 };

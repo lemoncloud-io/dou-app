@@ -25,12 +25,11 @@ describe('readDeviceId', () => {
 });
 
 describe('exchangeSignInCode', () => {
-    const sessionWith = (authenticated: boolean) => {
+    const signInSession = () => {
         const calls: string[] = [];
         return {
             calls,
             session: {
-                isAuthenticated: () => authenticated,
                 loginGuest: vi.fn(async (deviceId: string) => void calls.push(`guest:${deviceId}`)),
                 exchangeLinked: vi.fn(
                     async (provider: string, code: string) => void calls.push(`link:${provider}:${code}`)
@@ -40,21 +39,27 @@ describe('exchangeSignInCode', () => {
     };
 
     it('signs the device guest in first, then exchanges the code signed with it', async () => {
-        const { session, calls } = sessionWith(false);
+        const { session, calls } = signInSession();
         await exchangeSignInCode(session, () => 'device-1', 'google', 'code-123456');
         expect(calls).toEqual(['guest:device-1', 'link:google:code-123456']);
     });
 
-    it('exchanges with the session already on the tab, without another guest sign-in', async () => {
-        const { session, calls } = sessionWith(true);
-        const deviceId = vi.fn(() => 'device-1');
-        await exchangeSignInCode(session, deviceId, 'apple', 'code-654321');
-        expect(calls).toEqual(['link:apple:code-654321']);
-        expect(deviceId).not.toHaveBeenCalled();
+    // A session left on the tab — expired, refused, or another account's — used to sign the exchange,
+    // and the gateway refused it with a 403 on every attempt. Each sign-in starts from the guest now.
+    it('signs the guest in again on every sign-in, so no earlier session signs the exchange', async () => {
+        const { session, calls } = signInSession();
+        await exchangeSignInCode(session, () => 'device-1', 'google', 'code-111111');
+        await exchangeSignInCode(session, () => 'device-1', 'apple', 'code-222222');
+        expect(calls).toEqual([
+            'guest:device-1',
+            'link:google:code-111111',
+            'guest:device-1',
+            'link:apple:code-222222',
+        ]);
     });
 
     it('does not exchange the code when the guest sign-in fails', async () => {
-        const { session } = sessionWith(false);
+        const { session } = signInSession();
         session.loginGuest.mockRejectedValueOnce(new Error('relay down'));
         await expect(exchangeSignInCode(session, () => 'device-1', 'google', 'code-123456')).rejects.toThrow(
             'relay down'

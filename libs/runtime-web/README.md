@@ -295,12 +295,17 @@ page's own profile:
 | `resolveFilesMethod`                                                                                      | `files`, 3 (`FILES_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                                             |
 | `resolveLinksMethod`, `resolveDiagnosticsMethod`, `resolvePushMethod`, `resolveAppShell`, `resolveSignIn` | their own keys, 4 (`SHELL_DOMAINS_INTRODUCED_IN`) | `'shell' \| 'browser'`; `resolveAppShell` (`Pick<AppShellPort, 'kind' \| 'os'>`, the choice alone) and `resolveSignIn` add `os` through `hostOsOf` |
 
-Every `'shell' | 'browser'` key goes through `resolveShellOrBrowser`, which holds the three rules:
+Every `'shell' | 'browser'` key goes through `resolveShellOrBrowser`, which holds these rules:
 
 - **No declaration, or one older than the key** — the shell never knew it — answers what the page did
   before ports: the shell wherever there is a bridge. For `checkout` the old rule is a phone store
   (Apple's when `CHATIC_APP_PLATFORM` is `ios`, in any case; Google's otherwise) with a bridge, and the
   website without one.
+- **A spelling the phone app already shipped** — `'app'` for `'shell'`, `'page'` for `'browser'`, from
+  before the values were renamed — reads as its new name, without a warning. Installed 0.32.x builds
+  declare every key that way, and the page they load is always the current deploy, so dropping these
+  turns every port on those phones over to the browser. They can go once the phone app's version floor
+  is above the last build that declares them; nothing logs them, so the floor is the only signal.
 - **A declaration that should hold the key and does not, or holds anything else**, is a bug in the
   shell: the browser does the work, since every host can do what a browser does, and it is logged.
   For `checkout` it sells nothing.
