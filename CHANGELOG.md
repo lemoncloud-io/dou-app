@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.5, @chatic/landing@0.19.2
+
+### Bug Fixes
+
+- (landing) ask the payer for an email the account lacks, not refuse checkout (ADR-0350)
+
 ## [2026-11-19] - root@0.168.4, @chatic/web@0.96.1, @chatic/desktop-web@0.60.4
 
 ### Features
