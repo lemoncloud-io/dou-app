@@ -5,7 +5,9 @@
 > [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene) ·
 > [ADR-0091](./0091-relay-home-cloud-sheet-and-cloud-guide-redesign.md) (cloud sheet · cloud guide screens)
 > · Amended by: [ADR-0240](./0240-adding-a-cloud-follows-the-servers-membership-validity.md) — Context
-> item 2 (the add-cloud gate reads `isValid`)
+> item 2 (the add-cloud gate reads `isValid`) ·
+> [ADR-0360](./0360-a-clouds-recovery-email-is-set-only-from-cloud-management.md) — Context item 4's
+> reason for the step rule, and the five-emails trade-off (a cloud is created without an email)
 >
 > Product canon: `plan/features/subscription/` (README · product-pricing · purchase-flow ·
 > subscription-lifecycle) · `plan/features/cloud.md` · Backend canon:

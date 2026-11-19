@@ -8,7 +8,7 @@ import { Button, IconBack, IconButton, IconSpinner, KeyValueRows, ModalTopBar, S
 import { useMembershipInfo } from '../../../hooks/useMembership';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
-import { EmailRequiredBanner, HeldCloudsBanner, PlanProductCard } from '../components';
+import { HeldCloudsBanner, PlanProductCard } from '../components';
 import { usePlanCatalog, usePlanPrice, useRestorePurchases } from '../hooks';
 import { formatDate, planDisplayName, productStatusWord } from '../lib';
 import { useRestoredSignal } from '../stores/useRestoredSignal';
@@ -93,8 +93,6 @@ export const SubscriptionPage = () => {
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
                 {/* Clouds the relay held after a downgrade — reported, released elsewhere. */}
                 <HeldCloudsBanner />
-                {/* A cloud with no recovery email — the dialog that fixes it, surfaced here. */}
-                <EmailRequiredBanner />
 
                 {isLoading ? (
                     <div className="flex justify-center pt-20">

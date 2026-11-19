@@ -3,7 +3,6 @@ export * from './AddCloudLimitDialog';
 export * from './CloudManageBanner';
 export * from './CurrentPlanCard';
 export * from './EmailBindRequestHost';
-export * from './EmailRequiredBanner';
 export * from './EmailVerifyDialog';
 export * from './HeldCloudsBanner';
 export * from './LoginRequiredDialog';

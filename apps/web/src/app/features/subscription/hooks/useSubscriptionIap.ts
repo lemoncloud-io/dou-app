@@ -102,7 +102,7 @@ export const useSubscriptionIap = () => {
             // A guest is refused ahead of the social check: it is the same missing credential, but
             // "log in" is the actionable instruction, whereas `socialLinkRequired` points at a MyPage
             // linking screen a guest cannot use. This is only a backstop — both entry points send a
-            // guest to login before the email step, so reaching here means a gate was bypassed.
+            // guest to login first, so reaching here means a gate was bypassed.
             if (isGuest) {
                 logger.warn('IAP', 'purchase refused before store', { reason: 'guest' });
                 throw new Error(t('mypage.subscription.loginRequired'));

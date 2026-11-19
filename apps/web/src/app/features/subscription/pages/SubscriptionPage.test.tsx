@@ -38,7 +38,6 @@ jest.mock('../../auth/hooks', () => ({ useNavigateToLogin: () => loginMock }));
 jest.mock('../components', () => ({
     ...jest.requireActual('../components'),
     HeldCloudsBanner: () => null,
-    EmailRequiredBanner: () => null,
 }));
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn(), usePlanPrice: jest.fn(), useRestorePurchases: jest.fn() }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));

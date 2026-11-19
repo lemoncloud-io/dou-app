@@ -90,13 +90,13 @@ export const findResubscribePlan = (
 
 /**
  * Adjacency is purely an app policy — neither store enforces it, and the backend's `calcNeededClouds`
- * only does the arithmetic. The reason is that every cloud carries its own email verification, so a
- * tier1 → tier3 jump would ask for two verifications back to back; downgrades are locked to one step
- * for as long as there is no UI to release the clouds a multi-step drop would strand.
+ * only does the arithmetic. It was set while every new cloud asked for its own email verification,
+ * so a tier1 → tier3 jump would have asked for two back to back; clouds are created without one now,
+ * so that reason is gone and the rule stands on the other: downgrades are locked to one step so a
+ * multi-step drop cannot strand several clouds at once.
  *
  * The same rule governs the first purchase: a new subscription starts on the entry tier and climbs
- * one step at a time. Selling tier 5 outright would hand someone an allowance for five clouds and
- * five email verifications to work through before any of it is usable.
+ * one step at a time.
  *
  * Someone whose subscription expired starts again where they left off (`resubscribe`, see
  * `findResubscribePlan`) rather than at the entry tier: their clouds were already verified once, and

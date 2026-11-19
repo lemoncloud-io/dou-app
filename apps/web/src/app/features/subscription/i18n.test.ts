@@ -128,9 +128,6 @@ const SUBSCRIPTION_KEYS = [
     'keep.failed',
     'complete.cancelAnytime',
     'excess.manage',
-    'emailRequired.title',
-    'emailRequired.description',
-    'emailRequired.action',
     'refusal.current.title',
     'refusal.current.description',
     'refusal.tierJump.title',
@@ -162,7 +159,6 @@ const ADD_ACCOUNT_KEYS = [
     'subscriptionCanceled',
     'addFailed',
     'success',
-    'emailSkip',
     // Keys read by the redesigned verification screen
     'emailTitle',
     'emailSubtitle',

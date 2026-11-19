@@ -28,7 +28,7 @@ plus feedback's, whose screen lives in another feature.
 | `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                  |
 | `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                               |
 | `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                       |
-| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released                                   |
+| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, its recovery email, and where it is released               |
 | `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                    |
 | `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
 | `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
@@ -173,6 +173,17 @@ holds no workspace slot — so a cloud that failed after its slot was assigned (
 on the catalog row) gets no retry row (`canRetryCloudSetup`). A refusal that still comes back is the
 failure toast, and releasing the cloud on the information screen is what is left. The button sits on the hub rather than on the
 switcher's row, which explains the state and leads here.
+
+**The recovery email is set on the information screen, nowhere else.** Creating a cloud asks for
+no address and entering one never checks for it, so a cloud without one is an ordinary cloud, not an
+unfinished one — the address only matters on a new device or after a reinstall, which is when the
+cloud would otherwise be lost. The field reads "not registered", offers to register, and says what
+the address is for in one line, without pressing for it. Registering raises
+`stores/useEmailBindRequest`; the dialog that answers it (`EmailBindRequestHost`) belongs to
+[subscription](../subscription/README.md) and binds the address to this cloud with `verify-email`'s
+`confirm` step. Before this, the email was asked for while adding a cloud, the switcher refused to
+enter a cloud without one, and "구독 관리" carried a banner listing those clouds — three places
+pressing for something optional, and the user had no way to say "no".
 
 **Releasing lives on the information screen, nowhere else.** It is irreversible and cascades, so it
 sits at the foot of the read-only facts behind a confirm, not on a list row. Releasing the ACTIVE
