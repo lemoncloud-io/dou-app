@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-19] - No version updates
+
+### Documentation
+
+- (agents) name the sdk's korean author docs as a language exception
+- (chatic-apps-sdk) guide a page's own server and trying it in the app
+- (chatic-apps-sdk,scripts) ship the sdk's author docs in korean beside english (ADR-0349)
+
 ## [2026-11-19] - root@0.168.5, @chatic/landing@0.19.2
 
 ### Bug Fixes
