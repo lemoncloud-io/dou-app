@@ -485,7 +485,7 @@ describe('createSubWebViewRuntimeBridge', () => {
         });
     });
 
-    it('asks a page that may send per place, and a page that only reads per cloud', async () => {
+    it('asks every page per place, one that only reads as much as one that sends', async () => {
         const ensure = jest.fn(async () => 'allowed' as const);
         await build({ granted: ['chatSend'], consent: { ensure } }).hello();
         await build({ granted: ['chat'], consent: { ensure } }).hello();
@@ -497,7 +497,7 @@ describe('createSubWebViewRuntimeBridge', () => {
         );
         expect(ensure).toHaveBeenNthCalledWith(
             2,
-            expect.objectContaining({ cloudId: 'c1', placeId: undefined }),
+            expect.objectContaining({ cloudId: 'c1', placeId: 's1' }),
             expect.anything()
         );
     });

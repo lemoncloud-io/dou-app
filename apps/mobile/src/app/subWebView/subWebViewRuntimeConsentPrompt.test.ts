@@ -1,66 +1,85 @@
+import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
+
 import { consentQuestion } from './subWebViewRuntimeConsentPrompt';
 
 jest.mock('react-native', () => ({ Alert: { alert: jest.fn() } }));
 jest.mock('react-native-mmkv', () => ({ createMMKV: jest.fn() }));
-// Each key comes back as itself, so the test reads which words were chosen and what filled them.
-jest.mock('../utils', () => ({ t: (key: string) => `${key}[{0}|{1}]` }));
+// A sentence comes back as its key's last part with the placeholders it was filled with, and a
+// permission as its own name, so a test reads which sentences were chosen, in which order.
+jest.mock('../utils', () => ({
+    t: (key: string) => {
+        const name = key.split('.').pop();
+        return key.startsWith('webview.subRuntimePermission.') ? name : `${name}({0}|{1})`;
+    },
+}));
+
+const host = 'quiz.apps.chatic.io';
 
 describe('consentQuestion', () => {
-    it('asks to read, and says nothing can change, for a page that only reads', () => {
-        expect(consentQuestion('quiz.apps.chatic.io', ['channel', 'chat'])).toEqual({
-            title: 'webview.subRuntimeConsent.title[{0}|{1}]',
-            message:
-                'webview.subRuntimeConsent.message[quiz.apps.chatic.io|' +
-                'webview.subRuntimePermission.channel[{0}|{1}], webview.subRuntimePermission.chat[{0}|{1}]]',
-        });
-    });
-
-    it('names sending in the title, and never among the reads, for a page that also sends', () => {
-        const question = consentQuestion('quiz.apps.chatic.io', ['channel', 'chat', 'chatSend']);
-        expect(question.title).toBe('webview.subRuntimeConsent.titleWithSend[{0}|{1}]');
-        expect(question.message).toBe(
-            'webview.subRuntimeConsent.messageWithSend[quiz.apps.chatic.io|' +
-                'webview.subRuntimePermission.channel[{0}|{1}], webview.subRuntimePermission.chat[{0}|{1}]]'
-        );
-        expect(question.message).not.toContain('chatSend');
-    });
-
-    it('asks to send alone for a page that reads nothing', () => {
-        expect(consentQuestion('quiz.apps.chatic.io', ['chatSend'])).toEqual({
-            title: 'webview.subRuntimeConsent.titleWithSend[{0}|{1}]',
-            message: 'webview.subRuntimeConsent.messageSendOnly[quiz.apps.chatic.io|]',
-        });
-    });
-
-    it.each([
+    it.each<[string, SubWebViewRuntimePermission[], string, string]>([
         [
-            'react with reads',
-            ['channel', 'chatReact'],
+            'a page that reads only what is the cloud’s says what an owned cloud carries, and nothing of a place',
+            ['cloud', 'place', 'session'],
+            'title',
+            `read(${host}|cloud, place, session) cloudAccount({0}|{1}) changesNothing({0}|{1})`,
+        ],
+        [
+            'a page that reads a place’s rooms says they come only from the place it is opened in',
+            ['channel', 'chat'],
+            'title',
+            `read(${host}|channel, chat) thisPlaceOnly({0}|{1}) changesNothing({0}|{1})`,
+        ],
+        [
+            'a page that reads members says what their accounts carry is read too',
+            ['place', 'user'],
+            'title',
+            `read(${host}|place, user) thisPlaceOnly({0}|{1}) memberAccounts({0}|{1}) changesNothing({0}|{1})`,
+        ],
+        [
+            'a page that reads members and sends names sending in the title and never among the reads',
+            ['channel', 'chatSend', 'user'],
+            'titleWithSend',
+            `readAndSend(${host}|channel, user) thisPlaceOnly({0}|{1}) memberAccounts({0}|{1}) ` +
+                'changesNothingElse({0}|{1})',
+        ],
+        [
+            'a page that reads only the cloud and sends says nothing of a place’s reads',
+            ['chatSend', 'cloud'],
+            'titleWithSend',
+            `readAndSend(${host}|cloud) cloudAccount({0}|{1}) changesNothingElse({0}|{1})`,
+        ],
+        [
+            'a page that only sends says it reads nothing',
+            ['chatSend'],
+            'titleWithSend',
+            `sendOnly(${host}|) readsAndChangesNothingElse({0}|{1})`,
+        ],
+        [
+            'a page that reads and reacts names reacting, and that it can remove the user’s own',
+            ['chat', 'chatReact'],
             'titleWithReact',
-            'messageWithReact[quiz.apps.chatic.io|channel]',
+            `readAndReact(${host}|chat) reactRemovesOwn({0}|{1}) thisPlaceOnly({0}|{1}) changesNothingElse({0}|{1})`,
         ],
-        ['react alone', ['chatReact'], 'titleWithReact', 'messageReactOnly[quiz.apps.chatic.io|]'],
         [
-            'send and react with reads',
-            ['chat', 'chatReact', 'chatSend'],
+            'a page that only reacts says it reads nothing',
+            ['chatReact'],
+            'titleWithReact',
+            `reactOnly(${host}|) reactRemovesOwn({0}|{1}) readsAndChangesNothingElse({0}|{1})`,
+        ],
+        [
+            'a page that sends and reacts names both writes, never among the reads',
+            ['channel', 'chatReact', 'chatSend'],
             'titleWithSendAndReact',
-            'messageWithSendAndReact[quiz.apps.chatic.io|chat]',
+            `readAndSendAndReact(${host}|channel) reactRemovesOwn({0}|{1}) thisPlaceOnly({0}|{1}) ` +
+                'changesNothingElse({0}|{1})',
         ],
         [
-            'send and react alone',
+            'a page that sends and reacts and reads nothing says so',
             ['chatReact', 'chatSend'],
             'titleWithSendAndReact',
-            'messageSendAndReactOnly[quiz.apps.chatic.io|]',
+            `sendAndReactOnly(${host}|) reactRemovesOwn({0}|{1}) readsAndChangesNothingElse({0}|{1})`,
         ],
-    ] as const)(
-        'names reacting in the title, and never among the reads, for a page that may %s',
-        (_c, permissions, title, message) => {
-            const question = consentQuestion('quiz.apps.chatic.io', [...permissions]);
-            expect(question.title).toBe(`webview.subRuntimeConsent.${title}[{0}|{1}]`);
-            expect(question.message.replace(/webview\.subRuntimePermission\.(\w+)\[\{0\}\|\{1\}\]/g, '$1')).toBe(
-                `webview.subRuntimeConsent.${message}`
-            );
-            expect(question.message).not.toContain('chatReact');
-        }
-    );
+    ])('%s', (_, permissions, title, message) => {
+        expect(consentQuestion(host, permissions)).toEqual({ title: `${title}({0}|{1})`, message });
+    });
 });

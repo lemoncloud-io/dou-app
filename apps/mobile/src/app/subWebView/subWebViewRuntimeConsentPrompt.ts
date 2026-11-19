@@ -31,32 +31,66 @@ const openStore = (): SubWebViewConsentStore => {
 /** The writes, named on their own in the question, never listed among the reads. */
 const WRITES: readonly SubWebViewRuntimePermission[] = ['chatSend', 'chatReact'];
 
+/** The permissions whose reads are held to the place the view opened on. */
+const PLACE_BOUND: readonly SubWebViewRuntimePermission[] = ['channel', 'chat', 'user'];
+
 /**
- * The words of the question. Each write is named on its own, never listed among the reads: a page that
- * may post or react in the user's name says so in the title, and the "cannot change anything" line
- * gives way to "anything else". Removing a reaction is said as well as adding one: the page can remove
- * one the user set by hand, and nothing tells the two apart.
+ * The words of the question, one sentence per thing the user is agreeing to:
+ *
+ * 1. what the page reads, and with `chatSend` or `chatReact` that it posts or reacts in the user's
+ *    name — each write is named on its own, in the title too, never listed among the reads; with
+ *    `chatReact`, that it can remove a reaction the user set by hand, since nothing tells the two apart;
+ * 2. with a place's reads (`channel`, `chat`, `user`), that they come from this place only — a yes is
+ *    kept per place, so another place asks again;
+ * 3. with `user`, that members come with what their accounts carry, and with `cloud`, that an owned
+ *    cloud comes with its owner, account, subscription and server — the rows are not filtered;
+ * 4. what it cannot do: change anything, or, with a write, anything else.
  */
 export const consentQuestion = (
     host: string,
     permissions: readonly SubWebViewRuntimePermission[]
 ): { title: string; message: string } => {
     const reads = permissions.filter(permission => !WRITES.includes(permission));
-    const what = reads.map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey)).join(', ');
     const sends = permissions.includes('chatSend');
     const reacts = permissions.includes('chatReact');
+    const writes = sends && reacts ? 'SendAndReact' : sends ? 'Send' : reacts ? 'React' : null;
+    const what = reads.map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey)).join(', ');
     const fill = (key: TranslationKey) => t(key).replace('{0}', host).replace('{1}', what);
-    if (!sends && !reacts) {
-        return { title: t('webview.subRuntimeConsent.title'), message: fill('webview.subRuntimeConsent.message') };
+
+    // `read`, or with a write `readAndSend` / `readAndReact` / `readAndSendAndReact`; with no reads,
+    // `sendOnly` / `reactOnly` / `sendAndReactOnly`.
+    const lead =
+        reads.length === 0 && writes
+            ? fill(`webview.subRuntimeConsent.${writes[0].toLowerCase()}${writes.slice(1)}Only` as TranslationKey)
+            : fill(
+                  (writes
+                      ? `webview.subRuntimeConsent.readAnd${writes}`
+                      : 'webview.subRuntimeConsent.read') as TranslationKey
+              );
+    const sentences = [lead];
+    if (reacts) sentences.push(t('webview.subRuntimeConsent.reactRemovesOwn'));
+    if (reads.some(permission => PLACE_BOUND.includes(permission))) {
+        sentences.push(t('webview.subRuntimeConsent.thisPlaceOnly'));
     }
-    const writes = sends && reacts ? 'SendAndReact' : sends ? 'Send' : 'React';
+    if (reads.includes('user')) sentences.push(t('webview.subRuntimeConsent.memberAccounts'));
+    if (reads.includes('cloud')) sentences.push(t('webview.subRuntimeConsent.cloudAccount'));
+    sentences.push(
+        t(
+            !writes
+                ? 'webview.subRuntimeConsent.changesNothing'
+                : reads.length === 0
+                  ? 'webview.subRuntimeConsent.readsAndChangesNothingElse'
+                  : 'webview.subRuntimeConsent.changesNothingElse'
+        )
+    );
+
     return {
-        title: t(`webview.subRuntimeConsent.titleWith${writes}` as TranslationKey),
-        message: fill(
-            (reads.length === 0
-                ? `webview.subRuntimeConsent.message${writes}Only`
-                : `webview.subRuntimeConsent.messageWith${writes}`) as TranslationKey
+        title: t(
+            (writes
+                ? `webview.subRuntimeConsent.titleWith${writes}`
+                : 'webview.subRuntimeConsent.title') as TranslationKey
         ),
+        message: sentences.join(' '),
     };
 };
 

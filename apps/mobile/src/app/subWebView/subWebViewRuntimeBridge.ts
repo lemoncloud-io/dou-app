@@ -235,8 +235,8 @@ export const createSubWebViewRuntimeBridge = ({
 
     const ask = async (): Promise<AppMessageError | null> => {
         const userId = session.snapshot().context.identity.userId ?? '';
-        // A page that may write is allowed per place: a yes in one place posts and reacts nothing in another.
-        const placeId = granted.has('chatSend') || granted.has('chatReact') ? (openedPlaceId ?? '') : undefined;
+        // Allowed per place: a yes in one place reads and posts nothing in another.
+        const placeId = openedPlaceId ?? '';
         if ((await consent.ensure({ userId, origin, cloudId: openedCloudId, placeId }, granted)) === 'refused') {
             return error('CONSENT_REFUSED', 'The user did not allow this page to read this cloud.');
         }

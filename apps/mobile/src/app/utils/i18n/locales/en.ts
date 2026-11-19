@@ -35,22 +35,30 @@ export const en = {
         subClose: 'Close',
         subRuntimeConsent: {
             title: 'Allow access to this cloud?',
-            message: '{0} wants to read this cloud in DoU: {1}. It cannot change anything.',
             titleWithSend: 'Allow this page to send messages?',
-            messageWithSend:
-                "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms. It cannot change anything else.",
-            messageSendOnly:
-                "{0} wants to send messages in your name to this place's chat rooms in DoU. It cannot read or change anything else.",
+            read: '{0} wants to read this cloud in DoU: {1}.',
+            readAndSend:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms.",
+            sendOnly: "{0} wants to send messages in your name to this place's chat rooms in DoU.",
             titleWithReact: 'Allow this page to react to messages?',
-            messageWithReact:
-                "{0} wants to read this cloud in DoU: {1}, and to add and remove reactions in your name on messages in this place's chat rooms, including ones you added yourself. It cannot change anything else.",
-            messageReactOnly:
-                "{0} wants to add and remove reactions in your name on messages in this place's chat rooms in DoU, including ones you added yourself. It cannot read or change anything else.",
+            readAndReact:
+                "{0} wants to read this cloud in DoU: {1}, and to add and remove reactions in your name on messages in this place's chat rooms.",
+            reactOnly:
+                "{0} wants to add and remove reactions in your name on messages in this place's chat rooms in DoU.",
             titleWithSendAndReact: 'Allow this page to send messages and react?',
-            messageWithSendAndReact:
-                "{0} wants to read this cloud in DoU: {1}, and to send messages and add and remove reactions in your name in this place's chat rooms, including reactions you added yourself. It cannot change anything else.",
-            messageSendAndReactOnly:
-                "{0} wants to send messages and add and remove reactions in your name in this place's chat rooms in DoU, including reactions you added yourself. It cannot read or change anything else.",
+            readAndSendAndReact:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages and add and remove reactions in your name in this place's chat rooms.",
+            sendAndReactOnly:
+                "{0} wants to send messages and add and remove reactions in your name in this place's chat rooms in DoU.",
+            reactRemovesOwn: 'That includes removing reactions you added yourself.',
+            thisPlaceOnly:
+                "Chat rooms, messages and members are read from this place only, and no longer once you move to another place. You'll be asked again in another place.",
+            memberAccounts: "Member details include what their accounts hold, such as each member's sign-in ID.",
+            cloudAccount:
+                'For a cloud you own, its details include its owner, the linked account, the subscription and the server.',
+            changesNothing: 'It cannot change anything.',
+            changesNothingElse: 'It cannot change anything else.',
+            readsAndChangesNothingElse: 'It cannot read or change anything else.',
             allow: 'Allow',
             deny: "Don't allow",
         },

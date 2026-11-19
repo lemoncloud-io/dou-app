@@ -748,16 +748,23 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   has a budget of its own, one per 250 ms and 60 a minute (`RATE_LIMITED`), apart from the reads' and
   the messages', spent before the message is read, so a refused reaction counts too. None of the other
   permissions opens it, and it opens no read: a page reads the message ids it reacts to with `chat`.
-- **Consent.** Before the first answer, the app asks the user whether this page may read this cloud,
-  naming what it reads — and, with `chatSend` or `chatReact`, saying in the title and the text that the
-  page sends messages, or adds and removes reactions (the user's own included), in the user's name; a
-  yes given before a page asked for either does not cover it. The
-  hello's reply waits for that answer, so a page MUST NOT time it out (see [Timing](#timing)) and
-  SHOULD send it before any `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same
-  question. A yes is kept per user, page and cloud — and, for a page with `chatSend` or `chatReact`, per
-  place — with
-  the permissions it covered; a page that later asks for more is asked again. A no is kept for the
-  view only, so the next open asks again.
+- **Consent.** Before the first answer, the app asks the user whether this page may read this cloud's
+  place, naming what it reads; with `channel`, `chat` or `user`, saying that they come from this place
+  only and that another place asks again; with `user`, saying that members come with what their
+  accounts carry; with `cloud`, saying that an owned cloud comes with its owner, linked account,
+  subscription and server (see [What each permission hands over](#what-each-permission-hands-over));
+  and, with `chatSend` or `chatReact`, saying in the title and the text that the page sends messages,
+  or adds and removes reactions (the user's own included), in the user's name — a yes given before a
+  page asked for either does not cover it. The hello's reply waits for
+  that answer, so a page MUST NOT time it out (see [Timing](#timing)) and SHOULD send it before any
+  `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same question. A yes is kept
+  per user, page, cloud and place, for every permission at once (`cloud` included), with the permissions
+  it covered: the first open in another place of the same cloud asks again — on Home, Home's own place
+  is the place — and a page that later asks for more is asked again. A yes is also kept with the question's
+  wording: one given before the question said what members or an owned cloud carry is asked again,
+  until it is answered yes, if it covered `user` or `cloud`. So a page MUST expect a `RuntimeHello` to
+  wait on the user even where it was allowed before. A no is kept for the view only, so the next open
+  asks again.
 - **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
   open stream ends with `CLOUD_CHANGED` and every later request fails with it, even if the cloud comes
   back. Reads of a place and a message alike are held to the place the view opened on (above).
