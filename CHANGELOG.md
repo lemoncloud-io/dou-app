@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.8, @chatic/landing@0.19.4
+
+### Bug Fixes
+
+- (landing) sign in from the device guest every time, not the session left on the tab
+
 ## [2026-11-19] - No version updates
 
 ### Features
