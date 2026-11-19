@@ -81,9 +81,12 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
+// 2.30.0: a sub WebView page's context carries `display`, the display the shell shows it in, and
+//         `safeArea`, how far the system bars reach into it (0 on every edge unless `immersive`);
+//         OnSubWebViewContextChanged carries `safeArea` too, pushed once the insets settle.
 // 2.32.0: a sub WebView page's runtime permissions add `chatReact` — `chat.setReaction` of one emoji,
 //         on or off, on a message of a room of the place the view opened on, budgeted apart from the
-//         reads and the sends. (2.30.0 and 2.31.0 are the display context and the resource limits.)
+//         reads and the sends. (2.31.0 is the resource limits, decided in a change of its own.)
 export const BRIDGE_VERSION = '2.32.0' as const;
 
 export const BRIDGE_VERSION_INFO = {

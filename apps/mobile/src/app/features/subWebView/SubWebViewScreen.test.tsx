@@ -215,6 +215,7 @@ describe('SubWebViewScreen', () => {
             ])
         );
         expect(mockWebViewProps).not.toHaveProperty('insets');
+        expect(mockWebViewProps).toEqual(expect.objectContaining({ display }));
     });
 
     // The page draws under the system bars, so it is told how far they reach instead.
@@ -230,7 +231,7 @@ describe('SubWebViewScreen', () => {
             expect(style).not.toHaveProperty('paddingRight');
         }
         expect(mockWebViewProps).toEqual(
-            expect.objectContaining({ insets: { top: 47, bottom: 34, left: 12, right: 21 } })
+            expect.objectContaining({ display: 'immersive', insets: { top: 47, bottom: 34, left: 12, right: 21 } })
         );
     });
 

@@ -488,6 +488,16 @@ to `never`, react-native-webview's default: an inset the scroll view applied its
 then stopped reporting to `env()`. The desktop has no system bars and shows `immersive` as
 `clean`.
 
+**The page is also told its display and the insets as values**, for a page that draws on a canvas
+and cannot read CSS: the screen hands `SubWebView` the display it shows, and the context carries it as
+`display` with the insets as `safeArea` — the very values the custom properties carry
+(`subWebViewSafeAreaOf`), 0 on every edge for a padded page. They come from the app's own safe-area
+measurement, which the screen has before the view mounts, so the global and the handshake carry them
+from the first load even where the custom properties trail the page on Android. A change is pushed as
+`OnSubWebViewContextChanged` only once the insets have stayed put for 200 ms
+(`SUB_WEBVIEW_SAFE_AREA_SETTLE_MS`): a rotation moves them several times on its way, and the custom
+properties follow every step while the push carries where they came to rest.
+
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
 goes through the close control or Android back, and the web always hears of it. If the screen leaves
 some other way anyway, its unmount closes the view as `user`; once the service has closed it, that

@@ -244,9 +244,15 @@ export type SubWebViewParams = { [key: string]: unknown };
 export type SubWebViewTheme = 'light' | 'dark';
 
 /**
+ * How far each system bar reaches into the page, in CSS pixels, for a page the shell draws under them
+ * (`immersive`). The shell pads a `titled` or `clean` page by the bars itself, so there every edge is 0.
+ */
+export type SubWebViewSafeArea = { top: number; right: number; bottom: number; left: number };
+
+/**
  * What the shell defines as `window.ChaticSubWebView` before the page's own scripts run, on the
  * origin the view was opened on only. Nothing that identifies the device, the install or the user.
- * It is a snapshot: a later theme or language change arrives as `OnSubWebViewContextChanged`.
+ * It is a snapshot: a later theme, language or safe-area change arrives as `OnSubWebViewContextChanged`.
  */
 export type SubWebViewContext = {
     /** This page-facing contract's own version. */
@@ -268,6 +274,18 @@ export type SubWebViewContext = {
      * 2.17.0.
      */
     appLink?: string;
+    /**
+     * The display the shell actually shows the page in — not the one its manifest asked for, which an
+     * app may not know. Absent from apps before 2.30.0 and from the desktop shell.
+     */
+    display?: SubWebViewDisplay;
+    /**
+     * How far the system bars reach into the page: the same values the shell sets as the
+     * `--chatic-safe-area-inset-*` properties of an `immersive` page, and 0 on every edge of a padded
+     * one. Absent from apps before 2.30.0 and from the desktop shell; a page then reads the properties,
+     * then `env(safe-area-inset-*)`.
+     */
+    safeArea?: SubWebViewSafeArea;
 };
 
 /** [Request] Show `url` in a sub WebView over the app. */
@@ -353,7 +371,7 @@ export type OnSetSubWebViewTitlePayload = {
 };
 
 /** [Event, to a sub WebView page] The app's theme or language changed while the view showed. */
-export type OnSubWebViewContextChangedPayload = Pick<SubWebViewContext, 'theme' | 'locale'>;
+export type OnSubWebViewContextChangedPayload = Pick<SubWebViewContext, 'theme' | 'locale' | 'safeArea'>;
 
 /**
  * [Request, from a sub WebView page] This device's key for this page's origin, for the page's own

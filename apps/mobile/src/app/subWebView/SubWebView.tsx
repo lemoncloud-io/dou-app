@@ -8,6 +8,7 @@ import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTyp
 import type {
     SubWebViewCloseTrigger,
     SubWebViewContext,
+    SubWebViewDisplay,
     SubWebViewPermission,
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
@@ -23,7 +24,12 @@ import { originOf } from '../utils/url';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { createSubWebViewCloseGuard } from './subWebViewCloseGuard';
-import { buildSubWebViewInsetScript } from './subWebViewInsetScript';
+import {
+    buildSubWebViewInsetScript,
+    NO_SUB_WEBVIEW_SAFE_AREA,
+    sameSubWebViewSafeArea,
+    subWebViewSafeAreaOf,
+} from './subWebViewInsetScript';
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 import { openSubWebViewRuntime } from './subWebViewRuntimeAccess';
@@ -54,7 +60,16 @@ interface SubWebViewProps {
      * page is told nothing.
      */
     insets?: EdgeInsets;
+    /** The display the screen shows the page in, told to the page as the context's `display`. */
+    display?: SubWebViewDisplay;
 }
+
+/**
+ * How long the safe area has to stay put before a change is pushed: a rotation moves the insets
+ * several times on its way, and the page is told once, where they came to rest. The custom
+ * properties follow every step; the push carries the last.
+ */
+export const SUB_WEBVIEW_SAFE_AREA_SETTLE_MS = 200;
 
 const openExternal = (url: string) => Linking.openURL(url);
 const openShareSheet = (data: { title?: string; message?: string; url?: string }) => deviceService.openShareSheet(data);
@@ -91,6 +106,7 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         onTitleChange,
         onTitleRequest,
         insets,
+        display = 'clean',
     },
     ref
 ) {
@@ -122,6 +138,17 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         return openedOrigin ? subWebViewAppLinkOfOrigin(openedOrigin) : null;
     }, [appId, openedOrigin]);
 
+    // The bars' reach as the page is told it: the screen's insets for an `immersive` page, which draws
+    // under the bars, and 0 for a padded one, which the screen keeps clear of them. Kept by value, so
+    // insets that come back equal do not count as a change.
+    const immersiveInsets = display === 'immersive' ? insets : undefined;
+    const measured = immersiveInsets ? subWebViewSafeAreaOf(immersiveInsets) : NO_SUB_WEBVIEW_SAFE_AREA;
+    const safeArea = useMemo(
+        () => measured,
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- by value: a new object with equal edges is no change
+        [measured.top, measured.right, measured.bottom, measured.left]
+    );
+
     const context = useMemo<SubWebViewContext>(
         () => ({
             protocolVersion: 1,
@@ -132,8 +159,10 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             theme: resolvedTheme,
             params,
             ...(appLink ? { appLink } : {}),
+            display,
+            safeArea,
         }),
-        [viewId, params, locale, resolvedTheme, appLink]
+        [viewId, params, locale, resolvedTheme, appLink, display, safeArea]
     );
     // The handshake reports the context as it is when the page asks, not as it was at load.
     const contextRef = useRef(context);
@@ -227,22 +256,37 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     useSubWebViewBack(onBack);
 
     const contextScript = useMemo(() => buildSubWebViewContextScript(context, url), [context, url]);
-    const insetScript = insets ? buildSubWebViewInsetScript(insets) : '';
+    // Only for an `immersive` page, from the same insets as `safeArea`, so the two never disagree.
+    const insetScript = immersiveInsets ? buildSubWebViewInsetScript(immersiveInsets) : '';
     // A load runs it with the context script; a change while the page is up (a rotation) is pushed.
     const pageScript = useMemo(() => contextScript + insetScript, [contextScript, insetScript]);
     useEffect(() => {
         if (insetScript) webViewRef.current?.injectJavaScript(insetScript);
     }, [insetScript]);
 
-    // The page read the context once; a change after that arrives as an event. The host holds it
-    // until the page's handshake, so a page still loading misses nothing.
-    const announcedContext = useRef({ locale, theme: resolvedTheme });
+    // The page read the context once; a change after that arrives as an event, carrying the whole of
+    // what can change so a page that reads only `theme` and `locale` reads them as before. The host
+    // holds it until the page's handshake, so a page still loading misses nothing. A theme or language
+    // change goes at once; a safe-area change only once the insets have settled.
+    const announcedContext = useRef({ locale, theme: resolvedTheme, safeArea });
     useEffect(() => {
         const previous = announcedContext.current;
-        if (previous.locale === locale && previous.theme === resolvedTheme) return;
-        announcedContext.current = { locale, theme: resolvedTheme };
-        host.pushEvent({ type: 'OnSubWebViewContextChanged', success: true, data: { locale, theme: resolvedTheme } });
-    }, [host, locale, resolvedTheme]);
+        const announce = () => {
+            announcedContext.current = { locale, theme: resolvedTheme, safeArea };
+            host.pushEvent({
+                type: 'OnSubWebViewContextChanged',
+                success: true,
+                data: { locale, theme: resolvedTheme, safeArea },
+            });
+        };
+        if (previous.locale !== locale || previous.theme !== resolvedTheme) {
+            announce();
+            return;
+        }
+        if (sameSubWebViewSafeArea(previous.safeArea, safeArea)) return;
+        const settled = setTimeout(announce, SUB_WEBVIEW_SAFE_AREA_SETTLE_MS);
+        return () => clearTimeout(settled);
+    }, [host, locale, resolvedTheme, safeArea]);
 
     // Only the origin the view was opened on may talk to the app. A page it navigated to — another
     // allowlisted one included — and any frame on another origin get no answer at all.
