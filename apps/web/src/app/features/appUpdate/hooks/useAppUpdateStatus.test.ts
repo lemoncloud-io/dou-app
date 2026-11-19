@@ -4,24 +4,19 @@ const mockIsNative = jest.fn();
 // Every level, not just what the hook happened to use before: a partial logger mock turns a new
 // entry into a TypeError inside the effect.
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const mockCheckAppUpdate = jest.fn();
+// The store the frame checks for a newer build, as the host's `appShell` port offers it; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            const storeUpdate = { check: () => mockCheckAppUpdate(), openStore: jest.fn() };
+            return { ...browserAppShell(), storeUpdate: mockIsNative() ? storeUpdate : null };
         },
-    })
-);
+    });
+});
 jest.mock('@chatic/bridges', () => ({
     logger: mockLogger,
-}));
-
-const mockCheckAppUpdate = jest.fn();
-jest.mock('../../../bridge', () => ({
-    appBridge: {
-        checkAppUpdate: (...args: unknown[]) => mockCheckAppUpdate(...args),
-        openStore: jest.fn(),
-    },
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -34,10 +29,7 @@ jest.mock('../../../bridge/useAppForeground', () => ({
 
 import { useAppUpdateStatus, useAppUpdateStore } from './useAppUpdateStatus';
 
-const updateResponse = (latestVersion: string, updateAvailable = true) => ({
-    success: true,
-    data: { platform: 'ios', currentVersion: '1.0.0', latestVersion, updateAvailable, storeUrl: 'x' },
-});
+const updateResponse = (latestVersion: string, updateAvailable = true) => ({ latestVersion, updateAvailable });
 
 const flush = () =>
     act(async () => {

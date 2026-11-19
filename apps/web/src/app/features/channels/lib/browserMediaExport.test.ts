@@ -9,7 +9,7 @@ const depsWith = (overrides: Partial<BrowserMediaDeps> = {}) => {
             blob: photo,
         })),
         freshUrl: jest.fn(async () => 'https://bucket/fresh'),
-        save: jest.fn(),
+        save: jest.fn<ReturnType<BrowserMediaDeps['save']>, Parameters<BrowserMediaDeps['save']>>(async () => 'saved'),
         share: jest.fn<ReturnType<BrowserMediaDeps['share']>, Parameters<BrowserMediaDeps['share']>>(
             async () => 'shared'
         ),

@@ -77,8 +77,8 @@ No step reads the OS color scheme.
 
 1. `setTheme('dark')` (`apps/web/src/app/hooks/useTheme.ts`) makes three independent writes:
    `config.set('ui.theme', 'dark', { lane: 'shell' })`, a confirmed-with-one-retry
-   `appBridge.savePreferenceConfirmed({ key: 'theme', value: 'dark' })`, and
-   `localStorage.setItem('vite-ui-theme', 'dark')`.
+   `runtime.appShell.preferences.save('theme', 'dark')` (`appBridge.savePreferenceConfirmed`
+   underneath — the same `SavePreference` message), and `localStorage.setItem('vite-ui-theme', 'dark')`.
 2. `ThemeApplier` updates the `<html>` class and `meta[theme-color]` — no reload needed
    for the mobile status bar area to follow.
 3. Native's `usePreferenceCacheHandler` validates the `SavePreference` payload and calls
@@ -249,21 +249,21 @@ Web owns `ui.theme` as a `@chatic/config` registry key (`persist: 'shell'`, defa
 consuming detail is the [web theme doc](../../../web/docs/shell/theme.md)'s. This document's
 concern is only the second channel that config write does not cover:
 
-| File                                                                                | Role                                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`hooks/useTheme.ts`](../../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` — three independent channels for one value |
-| [`index.html`](../../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                 |
-| [`runtime/ThemeApplier.tsx`](../../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                |
-| [`runtime/PreferenceLoader.tsx`](../../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                          |
+| File                                                                                | Role                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`hooks/useTheme.ts`](../../../web/src/app/hooks/useTheme.ts)                       | `setTheme` writes `config.set('ui.theme', theme, { lane: 'shell' })`, `localStorage['vite-ui-theme']`, **and** `runtime.appShell.preferences.save('theme', theme)` (`SavePreference`) — three independent channels for one value |
+| [`index.html`](../../../web/index.html)                                             | Pre-paint script: `localStorage['vite-ui-theme'] \|\| window.CHATIC_APP_THEME \|\| 'light'`, unchanged by the `@chatic/config` migration since it runs before `config.init()`                                                    |
+| [`runtime/ThemeApplier.tsx`](../../../web/src/app/runtime/ThemeApplier.tsx)         | Updates `<html>` class and `meta[theme-color]` (looked up by `meta[name=...]`)                                                                                                                                                   |
+| [`runtime/PreferenceLoader.tsx`](../../../web/src/app/runtime/PreferenceLoader.tsx) | Fallback `FetchPreference` read for a shell old enough to predate boot injection, decoded by `parseThemeBridgeValue`                                                                                                             |
 
 **The bridge write exists only because native reads its own separate store.** `runtime.settings.set(...,
 { lane: 'shell' })` is what `runtime.settings.get('ui.theme')` resolves from on the _next_ boot, and what
 `ConfigKvService`/`getConfigBagScript` inject for `@chatic/config` to hydrate from. But native's
 status bar, root background, resume overlay and its own `window.CHATIC_APP_THEME` pre-paint
 injection all read the older, separate `themeStore` this document owns — `ConfigKvService` never
-touches it. `appBridge.savePreferenceConfirmed` (confirmed, one retry) is what keeps that store
-current; it is the one write of the three that does not self-heal, since a lost write leaves native
-and web permanently disagreeing until a full restart.
+touches it. The web's `SavePreference` write (`runtime.appShell.preferences`, confirmed, one retry) is
+what keeps that store current; it is the one write of the three that does not self-heal, since a lost
+write leaves native and web permanently disagreeing until a full restart.
 
 The `index.html` boot cover (`#splash`) has no colour of its own to keep in step: it is styled from
 the `<html>` `dark` class, so the pre-paint script colours it and `ThemeApplier` recolours it if the

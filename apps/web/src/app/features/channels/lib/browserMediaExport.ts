@@ -1,3 +1,4 @@
+import type { BrowserSaveResult } from './browserSave';
 import type { BrowserShareResult } from './browserShare';
 import type { BrowserFetchResult } from './fileDownload';
 
@@ -5,10 +6,11 @@ import type { BrowserFetchResult } from './fileDownload';
  * Save and share for one photo or video in a browser tab, where the page — not the shell — fetches
  * the original. Inside the app the shell downloads it instead (`imageExport.ts`).
  *
- * - `saved` — the browser was handed the file as a download; its own download UI is the feedback.
+ * - `saved` — the browser was handed the file as a download (on iOS, a target on the share sheet took
+ *   it); that UI is the feedback.
  * - `shared` / `dismissed` — the share sheet was shown; nothing to say either way.
- * - `needs-gesture` — fetching took longer than the browser lets a share follow its press. The bytes
- *   are returned (`held`) so the next press shares them at once.
+ * - `needs-gesture` — fetching took longer than the browser lets the share sheet follow its press (a
+ *   share, or a save on iOS). The bytes are returned (`held`) so the next press uses them at once.
  * - `failed` — the original could not be fetched (CORS, offline, a second 403) or shared.
  * - `cancelled` — stopped through the signal (the viewer closed on a share).
  */
@@ -27,7 +29,7 @@ export interface BrowserMediaDeps {
     ): Promise<BrowserFetchResult>;
     /** Reads the message again and returns this upload's fresh address, if any. */
     freshUrl(): Promise<string | undefined>;
-    save(blob: Blob, name: string): void;
+    save(blob: Blob, name: string): Promise<BrowserSaveResult>;
     share(blob: Blob, name: string): Promise<BrowserShareResult>;
 }
 
@@ -92,11 +94,7 @@ export const exportMediaInBrowser = async (
     }
     if (signal?.aborted) return { kind: 'cancelled' };
     const fileName = mediaFileName(name, uploadId, kind, blob.type);
-    if (action === 'save') {
-        deps.save(blob, fileName);
-        return { kind: 'saved' };
-    }
-    const shared = await deps.share(blob, fileName);
-    if (shared === 'needs-gesture') return { kind: 'needs-gesture', held: blob };
-    return { kind: shared };
+    const handed = action === 'save' ? await deps.save(blob, fileName) : await deps.share(blob, fileName);
+    if (handed === 'needs-gesture') return { kind: 'needs-gesture', held: blob };
+    return { kind: handed };
 };

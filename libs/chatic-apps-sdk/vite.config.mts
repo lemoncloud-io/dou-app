@@ -1,4 +1,4 @@
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { defineConfig } from 'vite';
@@ -42,6 +42,11 @@ export default defineConfig({
                 for (const [source, shipped] of docs) {
                     copyFileSync(join(__dirname, `${source}.md`), join(__dirname, outDir, `${shipped}.md`));
                     copyFileSync(join(__dirname, `${source}.ko.md`), join(__dirname, outDir, `${shipped}.ko.md`));
+                }
+                // The skill ships as a folder of its own, so a project copies it whole.
+                mkdirSync(join(__dirname, outDir, 'skill'), { recursive: true });
+                for (const name of ['SKILL.md', 'SKILL.ko.md']) {
+                    copyFileSync(join(__dirname, 'skill', name), join(__dirname, outDir, 'skill', name));
                 }
             },
         },

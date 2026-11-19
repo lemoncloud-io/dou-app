@@ -1,15 +1,17 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The store the frame checks for a newer build, as the host's `appShell` port offers it; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            const storeUpdate = { check: () => mockCheckAppUpdate(), openStore: jest.fn() };
+            return { ...browserAppShell(), storeUpdate: mockIsNative() ? storeUpdate : null };
         },
         settings: { set: (...args: unknown[]) => mockSet(...args), useConfigValue: () => dismissedUpdateVersion },
-    })
-);
+    });
+});
 jest.mock('@chatic/bridges', () => ({
     // `useAppUpdateStatus` logs the check result; a partial logger mock breaks this suite even
     // though it asserts nothing about logging.
@@ -20,7 +22,6 @@ const mockCheckAppUpdate = jest.fn();
 const mockOpenStore = jest.fn();
 jest.mock('../../../bridge', () => ({
     appBridge: {
-        checkAppUpdate: (...args: unknown[]) => mockCheckAppUpdate(...args),
         openStore: (...args: unknown[]) => mockOpenStore(...args),
     },
 }));
@@ -39,10 +40,7 @@ let dismissedUpdateVersion = '';
 import { useAppUpdateStore } from './useAppUpdateStatus';
 import { useAppUpdatePrompt } from './useAppUpdatePrompt';
 
-const updateResponse = (latestVersion: string, updateAvailable = true) => ({
-    success: true,
-    data: { platform: 'ios', currentVersion: '1.0.0', latestVersion, updateAvailable, storeUrl: 'x' },
-});
+const updateResponse = (latestVersion: string, updateAvailable = true) => ({ latestVersion, updateAvailable });
 
 const flush = () =>
     act(async () => {

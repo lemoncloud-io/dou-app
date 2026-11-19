@@ -4,6 +4,19 @@
 
 ### Features
 
+- (chatic-apps-sdk) ship a skill that leads an author from an idea to a verified zip
+- (chatic-apps-devtools) add bundle, the zip a page hands over, and say each fix once
+
+## [2026-11-19] - root@0.168.6, @chatic/web@0.96.2
+
+### Bug Fixes
+
+- (web) save through the share sheet on ios, not a blob download
+
+## [2026-11-19] - No version updates
+
+### Features
+
 - (web,web-ui-kit) preview pdfs in a browser tab and save and share from the viewers (ADR-0353)
 
 ## [2026-11-19] - No version updates

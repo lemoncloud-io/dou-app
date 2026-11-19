@@ -131,28 +131,49 @@ entry points published by hand, read from the facts the start resolved against �
 host profile's bridge, platform and capability declaration, and the readers take them as a
 `DeclaredHost`.
 
-| Port                                                                   | Adapter (id)                                         | `supports`                                              | Builds                                                                     |
-| ---------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `media`, `files`, `links`, `appShell`, `signIn`, `diagnostics`, `push` | `<port>Host` (`<port>.host`)                         | every host                                              | what the host declared, through the port's reader — the right default      |
-| the same                                                               | `<port>Shell` (`<port>.shell`)                       | only where the host's declaration resolves to the shell | `{ kind: 'shell' }`; `appShell` and `signIn` add `os`                      |
-| the same                                                               | `<port>Browser` (`<port>.browser`)                   | every host                                              | `{ kind: 'browser' }`; `appShell` and `signIn` add `os: null`              |
-| `checkout`                                                             | `checkoutFromHost({ store, web })` (`checkout.host`) | every host                                              | the first method the host offers, from the app's implementation, or `none` |
-| `checkout`                                                             | `checkoutStore(store)` (`checkout.store`)            | a host that offers a store                              | the first store it offers                                                  |
-| `checkout`                                                             | `checkoutWeb(web)` (`checkout.web`)                  | a host that offers the website                          | the app's website checkout                                                 |
-| `checkout`                                                             | `checkoutNone` (`checkout.none`)                     | every host                                              | `{ kind: 'none' }`                                                         |
+| Port                               | Adapter (id)                                                   | `supports`                                              | Builds                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `media`, `files`, `signIn`, `push` | `<port>Host` (`<port>.host`)                                   | every host                                              | what the host declared, through the port's reader — the right default                  |
+| the same                           | `<port>Shell` (`<port>.shell`)                                 | only where the host's declaration resolves to the shell | `{ kind: 'shell' }`; `signIn` adds `os`                                                |
+| the same                           | `<port>Browser` (`<port>.browser`)                             | every host                                              | `{ kind: 'browser' }`; `signIn` adds `os: null`                                        |
+| `links`, `appShell`, `diagnostics` | `<port>Adapters(implementations)` → `{ host, shell, browser }` | as the three rows above                                 | the app's `shell` or `browser` implementation, given the choice (`appShell` adds `os`) |
+| `checkout`                         | `checkoutFromHost({ store, web })` (`checkout.host`)           | every host                                              | the first method the host offers, from the app's implementation, or `none`             |
+| `checkout`                         | `checkoutStore(store)` (`checkout.store`)                      | a host that offers a store                              | the first store it offers                                                              |
+| `checkout`                         | `checkoutWeb(web)` (`checkout.web`)                            | a host that offers the website                          | the app's website checkout                                                             |
+| `checkout`                         | `checkoutNone` (`checkout.none`)                               | every host                                              | `{ kind: 'none' }`                                                                     |
 
 `.shell` follows the declaration, so a toggle cannot hand a port to a shell that never said it does the
 work. `.browser` runs everywhere because the readers already hold that every host can do what a browser
-does; it is what lets a toggle move one port onto the page while the rest stay on the shell. Checkout's
-implementations — a store purchase over the app's bridge wrapper, a hand-off to the website — are app
-code, so the checkout adapters are built from what the app hands in and create it only when chosen; a
-store's rules can forbid sending a buyer to the website, so `checkout.web` needs the host to offer it
-(`offeredCheckoutMethods`).
+does; it is what lets a toggle move one port onto the page while the rest stay on the shell.
+
+`links`, `appShell` and `diagnostics` carry their work, not only the choice (their contracts are
+runtime-client's), and the work is the app's: the shell side talks to the app's own bridge wrapper —
+apps/web's `appBridge`, desktop-web's `webClient` requests — and the page side can need the app's own
+data. So `linksAdapters`, `appShellAdapters` and `diagnosticsAdapters` take the app's
+`ShellOrBrowserImplementations<P>` — `shell(base, facts)` and `browser(base, facts)`, each handed the
+choice (`base`, `ShellOrBrowserBase<P>`: `kind`, and `os` for `appShell`) and returning the whole port —
+and build the same three adapters from them, calling only the side that was chosen. Each app defines
+its own `linksHost`/`linksShell`/`linksBrowser` (and so on) in its `src/config/adapters/`.
+
+Checkout's implementations — a store purchase over the app's bridge wrapper, a hand-off to the
+website — are app code, so the checkout adapters are built from what the app hands in and create it
+only when chosen; a store's rules can forbid sending a buyer to the website, so `checkout.web` needs the
+host to offer it (`offeredCheckoutMethods`).
 
 A web app's declaration with all of it — close to what apps/web declares for a page inside a shell
 (`apps/web/src/config/webHybrid.ts`):
 
 ```ts
+// src/config/adapters/links.ts — appShell and diagnostics the same way
+export const {
+    host: linksHost,
+    shell: linksShell,
+    browser: linksBrowser,
+} = linksAdapters({
+    shell: base => ({ ...base, openUrl: url => appBridge.openURL(url) /* , … every member */ }),
+    browser: base => ({ ...base, openUrl: url => window.open(url, '_blank', 'noopener,noreferrer') /* , … */ }),
+});
+
 export const web = defineRuntime({
     name: 'web',
     facts: webHostFacts,
@@ -166,8 +187,8 @@ export const web = defineRuntime({
         },
         media: { default: mediaHost, alternatives: [mediaShell, mediaBrowser] },
         files: { default: filesHost, alternatives: [filesShell, filesBrowser] },
-        links: { default: linksHost },
-        appShell: { default: appShellHost },
+        links: { default: linksHost, alternatives: [linksShell, linksBrowser] },
+        appShell: { default: appShellHost, alternatives: [appShellShell, appShellBrowser] },
         signIn: { default: signInHost },
         diagnostics: { default: diagnosticsHost },
         push: { default: pushHost },
@@ -267,12 +288,12 @@ page ran (`CHATIC_APP_CAPABILITIES`, read through `@chatic/bridges`' host profil
 `readWebHostFacts`). `src/hostCapabilities/` reads it, one resolver per port, each defaulting to this
 page's own profile:
 
-| Reader                                                                                                    | Key, since version                                | Answers                                                                                                                      |
-| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `resolveCheckoutMethod`                                                                                   | `checkout`, 1 (`CHECKOUT_INTRODUCED_IN`)          | `'apple' \| 'google' \| 'web' \| 'none'` — the first listed method the page knows; a non-list or nothing known sells nothing |
-| `resolveMediaMethod`                                                                                      | `media`, 2 (`MEDIA_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                       |
-| `resolveFilesMethod`                                                                                      | `files`, 3 (`FILES_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                       |
-| `resolveLinksMethod`, `resolveDiagnosticsMethod`, `resolvePushMethod`, `resolveAppShell`, `resolveSignIn` | their own keys, 4 (`SHELL_DOMAINS_INTRODUCED_IN`) | `'shell' \| 'browser'`; `resolveAppShell` and `resolveSignIn` add `os` through `hostOsOf`                                    |
+| Reader                                                                                                    | Key, since version                                | Answers                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveCheckoutMethod`                                                                                   | `checkout`, 1 (`CHECKOUT_INTRODUCED_IN`)          | `'apple' \| 'google' \| 'web' \| 'none'` — the first listed method the page knows; a non-list or nothing known sells nothing                       |
+| `resolveMediaMethod`                                                                                      | `media`, 2 (`MEDIA_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                                             |
+| `resolveFilesMethod`                                                                                      | `files`, 3 (`FILES_INTRODUCED_IN`)                | `'shell' \| 'browser'`                                                                                                                             |
+| `resolveLinksMethod`, `resolveDiagnosticsMethod`, `resolvePushMethod`, `resolveAppShell`, `resolveSignIn` | their own keys, 4 (`SHELL_DOMAINS_INTRODUCED_IN`) | `'shell' \| 'browser'`; `resolveAppShell` (`Pick<AppShellPort, 'kind' \| 'os'>`, the choice alone) and `resolveSignIn` add `os` through `hostOsOf` |
 
 Every `'shell' | 'browser'` key goes through `resolveShellOrBrowser`, which holds the three rules:
 

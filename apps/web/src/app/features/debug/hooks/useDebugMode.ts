@@ -3,7 +3,6 @@ import { useCallback, useSyncExternalStore } from 'react';
 import { liveShellValue } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 
-import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY, DEBUG_OVERLAY_KEY as OVERLAY_KEY } from '../consts';
 import { tabStore } from '../../../storage';
 
@@ -60,11 +59,8 @@ export const setDebugModeEnabled = (enabled: boolean) => {
     // Harmless before `config.init()` — the facade answers `notWired` instead of throwing.
     if (enabled) runtime.settings.set(runtime.settings.CONFIG_UNLOCK_KEY, true, { lane: 'local' });
     else runtime.settings.clear(runtime.settings.CONFIG_UNLOCK_KEY, { lane: 'local' });
-    if (runtime.diagnostics.kind === 'shell') {
-        // Where the app keeps the diagnostics, a single unlock/lock covers both layers (PROD included).
-        appBridge.setDebugMode(enabled);
-        (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE = enabled;
-    }
+    // Where the app has a debug switch of its own, a single unlock/lock covers both layers (PROD included).
+    runtime.diagnostics.debugMode?.set(enabled);
     notify();
 };
 

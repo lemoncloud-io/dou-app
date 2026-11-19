@@ -22,6 +22,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import io.chatic.dou.MainActivity
+import io.chatic.dou.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -544,30 +545,25 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Find fallback notification icon
-        var iconId = resources.getIdentifier("ic_launcher_default", "mipmap", packageName)
-        if (iconId == 0) {
-            iconId = applicationInfo.icon
-        }
-        if (iconId == 0) {
-            iconId = android.R.drawable.ic_dialog_info
-        }
-
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
+        // The banner follows the app icon the user picked. Android draws the small icon from its
+        // alpha alone, so that slot gets the logo's cut-out silhouette (the coloured launcher icon
+        // showed as a plain grey square) tinted with the icon's accent; the icon itself, in colour,
+        // goes in the large-icon slot whenever no sender face takes it.
+        val appIcon = ActiveAppIcon.read(this)
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(iconId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(appIcon.accent)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
-        // The sender's face. Title and body stay the plain assembled copy — not MessagingStyle, which
-        // would redraw the sender and room its own way and make this banner read differently from the
-        // iOS one and the in-app one.
-        if (largeIcon != null) {
-            notificationBuilder.setLargeIcon(largeIcon)
-        }
+        // The sender's face, else the active app icon. Title and body stay the plain assembled copy —
+        // not MessagingStyle, which would redraw the sender and room its own way and make this banner
+        // read differently from the iOS one and the in-app one.
+        (largeIcon ?: appIcon.picture)?.let { notificationBuilder.setLargeIcon(it) }
 
         // Drive the launcher app-icon badge count where the launcher supports numeric badges.
         // Badge fidelity is launcher-dependent on Android (same limitation as notifee): launchers

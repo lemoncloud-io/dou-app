@@ -16,23 +16,37 @@ import {
     resolveSignIn,
 } from '../hostCapabilities';
 import {
-    appShellBrowser,
-    appShellHost,
-    appShellShell,
+    appShellAdapters,
     checkoutFromHost,
     checkoutNone,
     checkoutStore,
     checkoutWeb,
-    diagnosticsHost,
+    diagnosticsAdapters,
     filesBrowser,
     filesHost,
-    linksHost,
+    linksAdapters,
     mediaBrowser,
     mediaHost,
     mediaShell,
     pushHost,
     signInHost,
 } from './hostPorts';
+import type { ShellOrBrowserImplementations } from './hostPorts';
+
+// The app's implementations, reduced to which one was built and from what, so a port's value shows it.
+const builtFrom = <P extends 'links' | 'appShell' | 'diagnostics'>() =>
+    ({
+        shell: jest.fn((base: object, facts: WebHostFacts) => ({ ...base, built: 'shell', bridge: facts.bridge })),
+        browser: jest.fn((base: object, facts: WebHostFacts) => ({ ...base, built: 'browser', bridge: facts.bridge })),
+    }) as unknown as ShellOrBrowserImplementations<P>;
+const linksImplementations = builtFrom<'links'>();
+const { host: linksHost } = linksAdapters(linksImplementations);
+const {
+    host: appShellHost,
+    shell: appShellShell,
+    browser: appShellBrowser,
+} = appShellAdapters(builtFrom<'appShell'>());
+const { host: diagnosticsHost } = diagnosticsAdapters(builtFrom<'diagnostics'>());
 
 const post = { postMessage: jest.fn() };
 type Globals = Record<string, unknown>;
@@ -83,10 +97,19 @@ describe('the `<port>.host` adapters', () => {
         const facts = factsOf(profile);
         expect(mediaHost.create({ facts })).toEqual({ kind: resolveMediaMethod(profile) });
         expect(filesHost.create({ facts })).toEqual({ kind: resolveFilesMethod(profile) });
-        expect(linksHost.create({ facts })).toEqual({ kind: resolveLinksMethod(profile) });
-        expect(appShellHost.create({ facts })).toEqual(resolveAppShell(profile));
+        expect(linksHost.create({ facts })).toMatchObject({
+            kind: resolveLinksMethod(profile),
+            built: resolveLinksMethod(profile),
+        });
+        expect(appShellHost.create({ facts })).toMatchObject({
+            ...resolveAppShell(profile),
+            built: resolveAppShell(profile).kind,
+        });
         expect(signInHost.create({ facts })).toEqual(resolveSignIn(profile));
-        expect(diagnosticsHost.create({ facts })).toEqual({ kind: resolveDiagnosticsMethod(profile) });
+        expect(diagnosticsHost.create({ facts })).toMatchObject({
+            kind: resolveDiagnosticsMethod(profile),
+            built: resolveDiagnosticsMethod(profile),
+        });
         expect(pushHost.create({ facts })).toEqual({ kind: resolvePushMethod(profile) });
     });
 
@@ -119,8 +142,41 @@ describe('the `.shell` and `.browser` adapters', () => {
 
     it('carry the phone platform behind the shell, and none behind the browser', () => {
         const facts = factsOf(phone('IOS'));
-        expect(appShellShell.create({ facts })).toEqual({ kind: 'shell', os: 'ios' });
-        expect(appShellBrowser.create({ facts })).toEqual({ kind: 'browser', os: null });
+        expect(appShellShell.create({ facts })).toMatchObject({ kind: 'shell', os: 'ios' });
+        expect(appShellBrowser.create({ facts })).toMatchObject({ kind: 'browser', os: null });
+    });
+});
+
+describe('the ports built from the app implementations', () => {
+    it('build the implementation for the choice, from the choice and the facts', () => {
+        const facts = factsOf(phone('android'));
+        expect(appShellShell.create({ facts })).toEqual({
+            kind: 'shell',
+            os: 'android',
+            built: 'shell',
+            bridge: facts.bridge,
+        });
+        expect(appShellBrowser.create({ facts })).toEqual({
+            kind: 'browser',
+            os: null,
+            built: 'browser',
+            bridge: facts.bridge,
+        });
+    });
+
+    it('build only the side that was chosen', () => {
+        jest.mocked(linksImplementations.shell).mockClear();
+        jest.mocked(linksImplementations.browser).mockClear();
+        linksHost.create({ facts: factsOf(browser()) });
+        expect(linksImplementations.browser).toHaveBeenCalledTimes(1);
+        expect(linksImplementations.shell).not.toHaveBeenCalled();
+    });
+
+    it('keep the shell for a host that declared it, and the browser everywhere', () => {
+        const { shell, browser: page } = linksAdapters(builtFrom<'links'>());
+        expect(shell.supports?.(factsOf(phone('ios')))).toBe(true);
+        expect(shell.supports?.(factsOf(browser()))).toBe(false);
+        expect(page.supports).toBeUndefined();
     });
 });
 

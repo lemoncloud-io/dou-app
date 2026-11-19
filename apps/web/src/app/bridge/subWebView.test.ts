@@ -4,23 +4,24 @@ import { shellCapabilities } from './shellCapabilities';
 import { openSubWebView } from './subWebView';
 
 let mockNative = true;
-// Who takes the page's links, as the host's `links` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
-        get links() {
-            return { kind: mockNative ? 'shell' : 'browser' };
-        },
-    })
-);
-
 const openURL = jest.fn();
 const requestOpen = jest.fn();
-jest.mock('./appBridge', () => ({
-    appBridge: {
-        openURL: (...args: unknown[]) => openURL(...args),
-        openSubWebView: (...args: unknown[]) => requestOpen(...args),
-    },
-}));
+// The app's sub WebView where the host has one, and the OS browser beside it; a browser has neither.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
+        get links() {
+            return mockNative
+                ? {
+                      ...testing.browserLinks(),
+                      kind: 'shell',
+                      openUrl: (...args: unknown[]) => openURL(...args),
+                      subWebView: { openScope: jest.fn(), open: (...args: unknown[]) => requestOpen(...args) },
+                  }
+                : testing.browserLinks();
+        },
+    });
+});
 
 const report = (supportedWebMessages: string[]): OnWebAppReadyPayload => ({
     protocolVersion: '2.6.0',
@@ -39,32 +40,32 @@ describe('openSubWebView', () => {
 
     it('asks the shell when its handshake lists OpenSubWebView', async () => {
         shellCapabilities.setReport(report(['OpenSubWebView']));
-        requestOpen.mockResolvedValue({ data: { viewId: 'view-1' } });
+        requestOpen.mockResolvedValue('view-1');
 
         await expect(openSubWebView({ url: URL_, title: 'Notice' })).resolves.toEqual({
             via: 'subWebView',
             viewId: 'view-1',
         });
-        expect(requestOpen).toHaveBeenCalledWith(URL_, 'Notice', undefined, undefined);
+        expect(requestOpen).toHaveBeenCalledWith(URL_, { title: 'Notice', params: undefined, appId: undefined });
         expect(openURL).not.toHaveBeenCalled();
     });
 
     it('passes params on to the shell', async () => {
         shellCapabilities.setReport(report(['OpenSubWebView']));
-        requestOpen.mockResolvedValue({ data: { viewId: 'view-1' } });
+        requestOpen.mockResolvedValue('view-1');
 
         await openSubWebView({ url: URL_, params: { orderId: 7 } });
 
-        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, { orderId: 7 }, undefined);
+        expect(requestOpen).toHaveBeenCalledWith(URL_, expect.objectContaining({ params: { orderId: 7 } }));
     });
 
     it('passes the app id on to the shell', async () => {
         shellCapabilities.setReport(report(['OpenSubWebView']));
-        requestOpen.mockResolvedValue({ data: { viewId: 'view-1' } });
+        requestOpen.mockResolvedValue('view-1');
 
         await openSubWebView({ url: URL_, appId: 'quiz' });
 
-        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, undefined, 'quiz');
+        expect(requestOpen).toHaveBeenCalledWith(URL_, expect.objectContaining({ appId: 'quiz' }));
     });
 
     // An app built before the sub WebView never meets the request: it would answer NOT_FOUND.

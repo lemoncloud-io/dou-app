@@ -18,10 +18,12 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-// Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({ appShell: { kind: 'browser', os: null } })
-);
+// Haptics play only where the frame has them (the host's `appShell` port); this page is in a browser,
+// which has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({ appShell: browserAppShell() });
+});
 jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
     ToastAction: ({ children }: any) => <button>{children}</button>,
 }));

@@ -54,11 +54,22 @@ is an implementation that says so rather than a check scattered across screens.
 
 This package holds the two halves that are not a page's:
 
-- **The contracts** (`host/ports.ts`, `host/checkout.ts`): `HostPorts`, one field per port, and each
-  port's type. `checkout` is a union — `store` (an app store, with `products()`, `purchase()`,
-  `finish()`, `currentPurchases()`, `openManagement()`), `web` (`open(url)`, the website sells) or
-  `none`. Every other port carries a choice only, `{ kind: 'shell' | 'browser' }` (`ShellOrBrowser`),
-  and `appShell` and `signIn` add `os`, the phone platform behind a `'shell'` answer.
+- **The contracts** (`host/ports.ts`, and a file of its own for each port that carries work —
+  `host/checkout.ts`, `host/links.ts`, `host/appShell.ts`, `host/diagnostics.ts`): `HostPorts`, one
+  field per port, and each port's type. `checkout` is a union — `store` (an app store, with
+  `products()`, `purchase()`, `finish()`, `currentPurchases()`, `openManagement()`), `web` (`open(url)`,
+  the website sells) or `none`. `links`, `appShell` and `diagnostics` keep their choice,
+  `kind: 'shell' | 'browser'` (`ShellOrBrowser`, with `os` on `appShell`, the phone platform behind a
+  `'shell'` answer), and carry the work as members: `LinksPort` (`openUrl`, `copyText`, and the share
+  sheet, share intake, contacts, SMS, link preview and sub web view), `AppShellPort` (`ownsWindow`,
+  `reportsKeyboardHeight`, and haptics, the frame's preference store, the back gesture, the icon and
+  dock badges, alternate icons, the store update and the app's own updater) and `DiagnosticsPort`
+  (`entry`, and the app's debug switch, boot metrics sink and pending-report queue). A member every
+  host does is a method; a capability only some hosts have is a member that is `null` where the host
+  lacks it, so a feature asks for the member, never for `kind` — `@nx/workspace-host-port-kind`
+  ([`tools/eslint-rules/host-port-kind.js`](../../tools/eslint-rules/host-port-kind.js)) reports a read
+  of their `kind` outside an app's `src/config/` and tests. `media`, `files`, `signIn` and `push` still
+  carry the choice only, `{ kind: 'shell' | 'browser' }`, and `signIn` adds `os`.
 - **The holder** (`host/hostPorts.ts`): `host`, published once by the entry point
   (`host.publish(ports)`) and refused a second time, since a replacement would leave every caller that
   already read a port holding the old one. `host.ports` throws before the publish, naming the missed
@@ -78,8 +89,8 @@ throw, so it is `undefined` until the publish; it joins the push hooks as `runti
 The rules the ports keep:
 
 - **Every port field is required.** A host that cannot do something gets an implementation that says so
-  (`checkout.kind === 'none'`, a picker that answers `unavailable`), never a missing field a feature then
-  fills with a browser's answer.
+  (`checkout.kind === 'none'`, a picker that answers `unavailable`, a `null` member such as
+  `links.contacts`), never a missing field a feature then fills with a browser's answer.
 - **Published once, read at the point of use.** A module that read a port at module scope would throw
   before the publish, or keep what it read first after it.
 - **Product rules stay out.** What a membership allows, which tier sits next to which, who bills a

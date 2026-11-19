@@ -415,7 +415,11 @@ describe('MessageImages — videos and documents', () => {
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.fileCard.download' }));
         });
 
-        expect(mockDownload).toHaveBeenCalledWith('https://s3/d1', 'quote.pdf', { signal: expect.any(AbortSignal) });
+        expect(mockDownload).toHaveBeenCalledWith(
+            'https://s3/d1',
+            'quote.pdf',
+            expect.objectContaining({ signal: expect.any(AbortSignal) })
+        );
         expect(toast).not.toHaveBeenCalled();
     });
 

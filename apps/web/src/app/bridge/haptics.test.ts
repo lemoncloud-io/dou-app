@@ -1,41 +1,35 @@
 import { haptics } from './haptics';
 
-let mockNative = true;
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const play = jest.fn();
+let mockHaptics = true;
+// The frame's haptics, as the host's `appShell` port offers them; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockNative ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), haptics: mockHaptics ? { play } : null };
         },
-    })
-);
-
-const postHaptic = jest.fn();
-jest.mock('./appBridge', () => ({
-    appBridge: {
-        postHaptic: (...args: unknown[]) => postHaptic(...args),
-    },
-}));
+    });
+});
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockNative = true;
+    mockHaptics = true;
 });
 
 describe('haptics', () => {
-    it('posts the kind to the shell without waiting for an answer', () => {
+    it('plays each kind on the frame', () => {
         haptics.play('selection');
         haptics.play('impact');
 
-        expect(postHaptic).toHaveBeenNthCalledWith(1, 'selection');
-        expect(postHaptic).toHaveBeenNthCalledWith(2, 'impact');
+        expect(play).toHaveBeenNthCalledWith(1, 'selection');
+        expect(play).toHaveBeenNthCalledWith(2, 'impact');
     });
 
-    it('asks nothing in a browser', () => {
-        mockNative = false;
+    it('plays nothing, and does not throw, where the frame has no haptics', () => {
+        mockHaptics = false;
 
-        haptics.play('impact');
-
-        expect(postHaptic).not.toHaveBeenCalled();
+        expect(() => haptics.play('impact')).not.toThrow();
+        expect(play).not.toHaveBeenCalled();
     });
 });

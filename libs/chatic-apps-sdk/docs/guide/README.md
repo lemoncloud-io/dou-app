@@ -382,9 +382,33 @@ The package ships `AGENTS.md`: rules for an assistant writing a Chatic app. Assi
 `AGENTS.md` at the top of the project, not one inside `node_modules`, so copy it there, or point your
 assistant at `node_modules/@lemoncloud/chatic-apps-sdk/AGENTS.md`.
 
+From 0.3.0 it also ships a skill, `skill/SKILL.md` (and `skill/SKILL.ko.md` in Korean): a procedure that takes
+someone who has never built a web page from an idea to a zip that passes the verifier, by asking one
+question at a time. It goes in three stages — the idea, the first build, the release prep — and keeps its
+plan and progress in `MINIAPP.md` at the project's top, so a conversation on another day picks up where
+the last one stopped. It only edits the project's files, installs the starting packages once after
+asking, and runs the project's own scripts; it never uploads or submits anything.
+
+To use it, put the `skill` folder where your assistant reads skills from, or give it `SKILL.md` and ask
+it to follow it. In a project that already installed the package, copy it from `node_modules`; in an empty
+folder, fetch the file of the published version you will install:
+
+```bash
+cp -R node_modules/@lemoncloud/chatic-apps-sdk/skill ./chatic-app-skill
+curl -fsSLO https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/skill/SKILL.md
+```
+
+The skill's first install needs SDK 0.3.0 and `@lemoncloud/chatic-apps-devtools` on npm; until both are
+published, neither the commands above nor that install work. Then tell the assistant what you want —
+"make a quiz mini-app" is enough to start. A copy does not update
+with the package; the skill names the SDK version it was written for and says so when the installed one
+differs.
+
 ## Before you hand it over
 
 - [ ] `npm run build` produces `dist/` with `index.html` and `.well-known/chatic-app.json` at its top.
+- [ ] Once `@lemoncloud/chatic-apps-devtools` is published: `npx @lemoncloud/chatic-apps-devtools verify`
+      (or the project's `npm run verify`) ends with "Ready to hand over".
 - [ ] Opened from a plain file server, the built page works at the root, with no path in the address.
 - [ ] The page works in a browser with no app (`apps.inApp` is `false`) and with the stand-in.
 - [ ] Every permission in the manifest is used, and every call that needs one is guarded with

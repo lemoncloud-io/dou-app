@@ -72,8 +72,8 @@ yarn mobile:deploy:android:prod -m "..."
 
 Release builds run R8, which shrinks and renames the app's Java/Kotlin classes; debug builds do not.
 The JS side is unaffected — it already ships as Hermes bytecode. Resource shrinking stays off: the
-push service looks up `app_scheme` and `ic_launcher_default` by name with `getIdentifier`, which is
-exactly what the resource shrinker gets wrong.
+push service looks up `app_scheme` by name with `getIdentifier`, which is exactly what the resource
+shrinker gets wrong.
 
 - **Breakage shows up at runtime, not at build time.** Anything looked up by name — reflection, a
   WebView `@JavascriptInterface`, JNI — fails as `ClassNotFoundException`/`NoSuchMethodException`

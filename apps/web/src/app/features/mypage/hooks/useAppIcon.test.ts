@@ -1,7 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { webClient } from '@chatic/bridges';
-
 import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
 import { isDefaultAppIcon, useAppIcon } from './useAppIcon';
 
@@ -10,38 +8,34 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('@chatic/bridges', () => ({
-    webClient: { request: jest.fn() },
+    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
 const mockIsNative = jest.fn((): boolean => false);
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The frame's alternate icons, as the host's `appShell` port offers them; a browser has none.
+const mockAppIcon = { current: jest.fn(), options: jest.fn(), change: jest.fn() };
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), appIcon: mockIsNative() ? mockAppIcon : null };
         },
-    })
-);
-
-const requestMock = webClient.request as jest.Mock;
-
-// Resolve each bridge request based on its message type.
-const mockBridge = () =>
-    requestMock.mockImplementation(({ type }: { type: string }) => {
-        switch (type) {
-            case 'FetchAppIcon':
-                return Promise.resolve({ success: true, data: { supported: true, iconName: 'alt' } });
-            case 'FetchAppIconList':
-                return Promise.resolve({
-                    success: true,
-                    data: { availableIcons: [{ id: 'alt', label: 'Alt Icon' }] },
-                });
-            case 'ChangeAppIcon':
-                return Promise.resolve({ success: true, data: { success: true, iconName: 'alt' } });
-            default:
-                return Promise.resolve({ success: false });
-        }
     });
+});
+
+// The frame answers: the alternate icon in use, one on offer, and a change applied.
+const mockFrame = () => {
+    mockAppIcon.current.mockResolvedValue({ supported: true, iconName: 'alt' });
+    mockAppIcon.options.mockResolvedValue([{ id: 'alt', label: 'Alt Icon' }]);
+    mockAppIcon.change.mockResolvedValue({ iconName: 'alt' });
+};
+
+// The frame did not answer.
+const mockSilentFrame = () => {
+    mockAppIcon.current.mockResolvedValue(null);
+    mockAppIcon.options.mockResolvedValue(null);
+    mockAppIcon.change.mockResolvedValue(null);
+};
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -52,14 +46,15 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
         mockIsNative.mockReturnValue(false);
         const { result } = renderHook(() => useAppIcon());
 
-        expect(requestMock).not.toHaveBeenCalled();
+        expect(mockAppIcon.current).not.toHaveBeenCalled();
+        expect(mockAppIcon.options).not.toHaveBeenCalled();
         expect(result.current.isSupported).toBe(false);
         expect(result.current.currentIcon).toBe('default');
     });
 
     it('네이티브에서는 마운트 시 아이콘 상태와 목록을 불러온다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockBridge();
+        mockFrame();
         const { result } = renderHook(() => useAppIcon());
 
         await waitFor(() => expect(result.current.isSupported).toBe(true));
@@ -69,7 +64,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
 
     it('selectIcon이 성공하면 현재 아이콘을 갱신하고 true를 반환한다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockBridge();
+        mockFrame();
         const { result } = renderHook(() => useAppIcon());
 
         let changed: boolean | undefined;
@@ -83,7 +78,7 @@ describe('useAppIcon — 네이티브 앱 아이콘', () => {
 
     it('selectIcon이 실패하면 false를 반환한다', async () => {
         mockIsNative.mockReturnValue(true);
-        requestMock.mockResolvedValue({ success: false });
+        mockSilentFrame();
         const { result } = renderHook(() => useAppIcon());
 
         let changed: boolean | undefined;
@@ -110,13 +105,8 @@ describe('isDefaultAppIcon', () => {
 describe('useAppIcon — the primary icon reported by its stored name', () => {
     it('labels DefaultIcon as the default icon', async () => {
         mockIsNative.mockReturnValue(true);
-        requestMock.mockImplementation(({ type }: { type: string }) =>
-            Promise.resolve(
-                type === 'FetchAppIcon'
-                    ? { success: true, data: { supported: true, iconName: 'DefaultIcon' } }
-                    : { success: true, data: { availableIcons: [{ id: null, label: 'Default' }] } }
-            )
-        );
+        mockAppIcon.current.mockResolvedValue({ supported: true, iconName: 'DefaultIcon' });
+        mockAppIcon.options.mockResolvedValue([{ id: null, label: 'Default' }]);
         const { result } = renderHook(() => useAppIcon());
 
         await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
@@ -127,15 +117,9 @@ describe('useAppIcon — the primary icon reported by its stored name', () => {
 describe('useAppIcon — the change statistic', () => {
     it('records a successful change from the icon in use to the one the app applied', async () => {
         mockIsNative.mockReturnValue(true);
-        requestMock.mockImplementation(({ type }: { type: string }) => {
-            if (type === 'FetchAppIcon') {
-                return Promise.resolve({ success: true, data: { supported: true, iconName: 'DefaultIcon' } });
-            }
-            if (type === 'ChangeAppIcon') {
-                return Promise.resolve({ success: true, data: { success: true, iconName: 'MidnightIcon' } });
-            }
-            return Promise.resolve({ success: true, data: { availableIcons: [] } });
-        });
+        mockAppIcon.current.mockResolvedValue({ supported: true, iconName: 'DefaultIcon' });
+        mockAppIcon.options.mockResolvedValue([]);
+        mockAppIcon.change.mockResolvedValue({ iconName: 'MidnightIcon' });
         const { result } = renderHook(() => useAppIcon());
         await waitFor(() => expect(result.current.currentIcon).toBe('DefaultIcon'));
 
@@ -148,19 +132,31 @@ describe('useAppIcon — the change statistic', () => {
 
     it('records nothing when the app did not apply the change', async () => {
         mockIsNative.mockReturnValue(true);
-        requestMock.mockImplementation(({ type }: { type: string }) =>
-            Promise.resolve(
-                type === 'ChangeAppIcon'
-                    ? { success: true, data: { success: false } }
-                    : { success: true, data: { supported: true, iconName: 'DefaultIcon', availableIcons: [] } }
-            )
-        );
+        mockAppIcon.current.mockResolvedValue({ supported: true, iconName: 'DefaultIcon' });
+        mockAppIcon.options.mockResolvedValue([]);
+        mockAppIcon.change.mockResolvedValue(null);
         const { result } = renderHook(() => useAppIcon());
 
         await act(async () => {
             await result.current.selectIcon('MidnightIcon');
         });
 
+        expect(recordAppIconChange).not.toHaveBeenCalled();
+    });
+});
+
+describe('useAppIcon — a frame without alternate icons', () => {
+    it('changes nothing and reports the change as not made', async () => {
+        mockIsNative.mockReturnValue(false);
+        const { result } = renderHook(() => useAppIcon());
+
+        let changed: boolean | undefined;
+        await act(async () => {
+            changed = await result.current.selectIcon('alt');
+        });
+
+        expect(changed).toBe(false);
+        expect(mockAppIcon.change).not.toHaveBeenCalled();
         expect(recordAppIconChange).not.toHaveBeenCalled();
     });
 });

@@ -13,14 +13,15 @@ import {
 } from './useAttachPanelSlot';
 
 let mockNative = true;
-// Whether the app runs the frame around the page, keyboard included, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// Whether the frame reports the keyboard's height to the page, as the host's `appShell` port says.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: mockNative ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), reportsKeyboardHeight: mockNative };
         },
-    })
-);
+    });
+});
 
 /** One frame of the fake clock: jest's fake `requestAnimationFrame` runs every 16 ms. */
 const FRAME_MS = 16;

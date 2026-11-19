@@ -1,16 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { bundle } from './bundle';
 import { check, formatCheck } from './check';
 import { loadScenarioConfig } from './config';
 import { loadDist } from './page';
 import { SCENARIOS, formatScenarios, runScenarios, type ScenarioName } from './scenarios';
-import { formatVerify, verify, type Language } from './verify';
+import { MESSAGES, formatVerify, systemLanguage, verify, type Language } from './verify';
 
 const USAGE = `Usage:
   chatic-apps verify [--root <dir>] [--dist <dir>] [--lang en|ko] [--details] [--json]
       Checks the page and tries its build against a stand-in for the app, then says what to fix.
       Run it from the project's folder after building; the build folder is dist/ unless --dist says.
+
+  chatic-apps bundle [--root <dir>] [--dist <dir>] [--out <file.zip>] [--lang en|ko] [--json]
+      Packs the build folder into the zip to hand over: its contents at the top, nothing else.
 
 Advanced, for CI:
   chatic-apps check [--root <dir>] [--src <dir>] [--dist <dir>] [--json]
@@ -31,12 +35,25 @@ const main = async (args: string[]): Promise<number> => {
     const dist = option(args, 'dist') ?? 'dist';
     const json = args.includes('--json');
 
-    if (command === 'verify') {
-        const lang = option(args, 'lang');
-        if (lang !== undefined && lang !== 'en' && lang !== 'ko') {
-            console.error('--lang takes en or ko.');
-            return 2;
+    const lang = option(args, 'lang');
+    if (lang !== undefined && lang !== 'en' && lang !== 'ko') {
+        console.error('--lang takes en or ko.');
+        return 2;
+    }
+
+    if (command === 'bundle') {
+        const text = MESSAGES[(lang as Language | undefined) ?? systemLanguage()];
+        try {
+            const packed = bundle({ root, dist, out: option(args, 'out') });
+            console.log(json ? JSON.stringify(packed, null, 2) : text.bundled(packed.file, packed.entries.length));
+            return 0;
+        } catch (error) {
+            console.error(text.bundleFailed(error instanceof Error ? error.message : String(error)));
+            return 1;
         }
+    }
+
+    if (command === 'verify') {
         const result = await verify({
             root,
             src: option(args, 'src'),
