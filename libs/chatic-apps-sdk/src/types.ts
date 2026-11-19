@@ -28,6 +28,13 @@ export type ChaticAppsContext = {
     params: { [key: string]: unknown };
     /** The link that opens this page in the app; absent from older apps. */
     appLink?: string;
+    /** The display the app shows the page in; absent from older apps and the desktop. */
+    display?: 'titled' | 'clean' | 'immersive';
+    /**
+     * How far the system bars reach into the page, in CSS pixels; 0 on every edge unless `immersive`.
+     * Absent from older apps and the desktop: read `--chatic-safe-area-inset-*`, then `env()`.
+     */
+    safeArea?: { top: number; right: number; bottom: number; left: number };
 };
 
 /**

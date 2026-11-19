@@ -81,7 +81,10 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
-export const BRIDGE_VERSION = '2.29.0' as const;
+// 2.30.0: a sub WebView page's context carries `display`, the display the shell shows it in, and
+//         `safeArea`, how far the system bars reach into it (0 on every edge unless `immersive`);
+//         OnSubWebViewContextChanged carries `safeArea` too, pushed once the insets settle.
+export const BRIDGE_VERSION = '2.30.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

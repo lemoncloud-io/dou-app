@@ -3,7 +3,7 @@ import { act, render } from '@testing-library/react';
 import { BRIDGE_VERSION, JsonProtocol } from '@chatic/bridges';
 
 import { pushedEventErrors } from '../webview/hooks/appEventContract';
-import { SubWebView, type SubWebViewHandle } from './SubWebView';
+import { SUB_WEBVIEW_SAFE_AREA_SETTLE_MS, SubWebView, type SubWebViewHandle } from './SubWebView';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
 let mockWebViewProps: Record<string, any> = {};
@@ -227,7 +227,7 @@ describe('SubWebView', () => {
         });
 
         it('tells an immersive page its insets with every load, at both injection points', () => {
-            renderView({ insets: INSETS });
+            renderView({ display: 'immersive', insets: INSETS });
 
             const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
             expect(script).toContain("'ChaticSubWebView'");
@@ -238,7 +238,7 @@ describe('SubWebView', () => {
 
         // A rotation moves the notch to a side while the page is up; it must not wait for a reload.
         it('pushes the insets to the page again when they change', () => {
-            const view = renderView({ insets: INSETS });
+            const view = renderView({ display: 'immersive', insets: INSETS });
             mockInjectJavaScript.mockClear();
 
             view.rerender(
@@ -250,12 +250,109 @@ describe('SubWebView', () => {
                     runtimePermissions={NO_RUNTIME}
                     trust="reviewed"
                     onRequestClose={jest.fn()}
+                    display="immersive"
                     insets={{ top: 0, bottom: 21, left: 47, right: 47 }}
                 />
             );
 
             expect(mockInjectJavaScript).toHaveBeenCalledTimes(1);
             expect(mockInjectJavaScript.mock.calls[0][0]).toContain('"--chatic-safe-area-inset-left", "47px"');
+        });
+
+        const handshakeContext = async () => {
+            mockPostMessage.mockClear();
+            mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+            await settle();
+            const [reply] = mockPostMessage.mock.calls.find(([raw]) => raw.includes('OnWebAppReady')) ?? ['null'];
+            return JSON.parse(reply)?.data.subWebView;
+        };
+
+        const rotateTo = (view: ReturnType<typeof renderView>, insets: typeof INSETS) =>
+            view.rerender(
+                <SubWebView
+                    viewId="view-1"
+                    url={URL_}
+                    params={{ orderId: 7 }}
+                    permissions={ALL_PERMISSIONS}
+                    runtimePermissions={NO_RUNTIME}
+                    trust="reviewed"
+                    onRequestClose={jest.fn()}
+                    display="immersive"
+                    insets={insets}
+                />
+            );
+
+        const contextPushes = () =>
+            mockPostMessage.mock.calls
+                .map(([raw]) => JSON.parse(raw))
+                .filter(message => message.type === 'OnSubWebViewContextChanged')
+                .map(message => message.data);
+
+        it('tells an immersive page its display and the insets the custom properties carry', async () => {
+            renderView({ display: 'immersive', insets: { ...INSETS, left: Number.NaN, right: -3 } });
+
+            const context = await handshakeContext();
+            expect(context.display).toBe('immersive');
+            expect(context.safeArea).toEqual({ top: 47, right: 0, bottom: 34, left: 0 });
+            const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
+            expect(script).toContain('"--chatic-safe-area-inset-left", "0px"');
+            expect(script).toContain('"--chatic-safe-area-inset-right", "0px"');
+            // The global carries the same values as the handshake.
+            expect(script).toContain('\\"safeArea\\":{\\"top\\":47,\\"right\\":0,\\"bottom\\":34,\\"left\\":0}');
+        });
+
+        it.each(['titled', 'clean'] as const)(
+            'tells a %s page 0 on every edge, as the shell pads it',
+            async display => {
+                renderView({ display, insets: INSETS });
+
+                const context = await handshakeContext();
+                expect(context.display).toBe(display);
+                expect(context.safeArea).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+            }
+        );
+
+        // A rotation moves the insets several times on its way; the page hears once, where they rest.
+        it('pushes a safe-area change once the insets settle, with the whole context', async () => {
+            const view = renderView({ display: 'immersive', insets: INSETS });
+            await handshakeContext();
+            mockPostMessage.mockClear();
+            jest.useFakeTimers();
+            try {
+                rotateTo(view, { top: 20, bottom: 21, left: 47, right: 47 });
+                act(() => jest.advanceTimersByTime(SUB_WEBVIEW_SAFE_AREA_SETTLE_MS - 50));
+                rotateTo(view, { top: 0, bottom: 21, left: 47, right: 47 });
+                act(() => jest.advanceTimersByTime(SUB_WEBVIEW_SAFE_AREA_SETTLE_MS - 50));
+                expect(contextPushes()).toEqual([]);
+
+                act(() => jest.advanceTimersByTime(50));
+                expect(contextPushes()).toEqual([
+                    { locale: 'ko', theme: 'light', safeArea: { top: 0, right: 47, bottom: 21, left: 47 } },
+                ]);
+
+                // Insets that come back the same are no change.
+                rotateTo(view, { top: 0, bottom: 21, left: 47, right: 47 });
+                act(() => jest.advanceTimersByTime(SUB_WEBVIEW_SAFE_AREA_SETTLE_MS * 2));
+                expect(contextPushes()).toHaveLength(1);
+            } finally {
+                jest.useRealTimers();
+            }
+            // A page that asks again after the rotation reads where the insets came to rest.
+            expect((await handshakeContext()).safeArea).toEqual({ top: 0, right: 47, bottom: 21, left: 47 });
+        });
+
+        it('pushes nothing when a rotation settles back where it started', () => {
+            const view = renderView({ display: 'immersive', insets: INSETS });
+            jest.useFakeTimers();
+            try {
+                rotateTo(view, { top: 0, bottom: 21, left: 47, right: 47 });
+                act(() => jest.advanceTimersByTime(50));
+                rotateTo(view, INSETS);
+                act(() => jest.advanceTimersByTime(SUB_WEBVIEW_SAFE_AREA_SETTLE_MS * 2));
+            } finally {
+                jest.useRealTimers();
+            }
+            expect(contextPushes()).toEqual([]);
         });
 
         // WebKit reports the safe area to `env()` only while the scroll view leaves the content alone.
@@ -475,7 +572,11 @@ describe('SubWebView', () => {
             .filter(message => message.type === 'OnSubWebViewContextChanged')
             .map(({ type, success, data }) => ({ type, success, data }));
         expect(pushed).toEqual([
-            { type: 'OnSubWebViewContextChanged', success: true, data: { locale: 'ko', theme: 'dark' } },
+            {
+                type: 'OnSubWebViewContextChanged',
+                success: true,
+                data: { locale: 'ko', theme: 'dark', safeArea: { top: 0, right: 0, bottom: 0, left: 0 } },
+            },
         ]);
         expect(pushedEventErrors(pushed)).toEqual([]);
     });
@@ -508,6 +609,8 @@ describe('SubWebView', () => {
             theme: 'light',
             params: { orderId: 7 },
             appLink: 'https://app.chatic.io/apps/foo',
+            display: 'clean',
+            safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
         });
     });
 
