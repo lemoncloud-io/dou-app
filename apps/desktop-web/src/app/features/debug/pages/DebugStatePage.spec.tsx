@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'u1' }),
             useRuntimeProfile: () => ({ userName: 'Kim' }),
@@ -14,8 +14,8 @@ vi.mock('@chatic/app-runtime', () => ({
         connection: {
             useRuntimeSocketState: () => ({ isConnected: true, isVerified: true, state: 'open' }),
         },
-    },
-}));
+    })
+);
 vi.mock('../../../shared', () => ({
     useClouds: () => ({ clouds: [], activeCloudId: 'c1' }),
     usePlaces: () => ({ places: [] }),

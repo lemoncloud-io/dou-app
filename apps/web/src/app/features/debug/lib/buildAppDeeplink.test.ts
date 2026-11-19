@@ -1,9 +1,11 @@
 import { buildAppDeeplink } from './buildAppDeeplink';
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
-jest.mock('@chatic/config', () => ({ config: { get: jest.fn() } }));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: jest.fn() } })
+);
 
-const mockGet = config.get as jest.Mock;
+const mockGet = runtime.settings.get as jest.Mock;
 
 describe('buildAppDeeplink', () => {
     beforeEach(() => mockGet.mockReset());

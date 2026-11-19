@@ -30,7 +30,7 @@ jest.mock('../../../auth/components/PhoneVerifyScreen', () => ({
         </button>
     ),
 }));
-// Same reason as PhoneVerifyScreen: the real dialog imports @chatic/app-runtime, whose config barrel
+// Same reason as PhoneVerifyScreen: the real dialog imports @chatic/runtime, whose config barrel
 // jest cannot parse. The stub also exposes whether `exit` was passed — omitting it is what makes X
 // leave without a confirmation modal (ADR-0041 decision 2).
 jest.mock('../../../../ui/components/PlaceProfileCreateDialog', () => ({

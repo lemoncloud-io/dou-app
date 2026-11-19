@@ -1,7 +1,7 @@
 import { ChevronRight, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-// Concrete module, not the hooks barrel: that barrel pulls the whole app-runtime surface, and this
+// Concrete module, not the hooks barrel: that barrel pulls the whole runtime surface, and this
 // component renders inside a dialog the auth suites load under jsdom.
 import { useLinkedAccounts } from '../../../hooks/useLinkedAccounts';
 import { useNavigateToLogin } from '../hooks/useNavigateToLogin';

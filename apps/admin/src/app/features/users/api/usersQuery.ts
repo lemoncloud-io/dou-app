@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { createQueryKeys } from '@chatic/shared';
 
 import { relayOverrideFor, type ServiceStage } from '../../../config/stageEndpoints';
@@ -9,7 +9,7 @@ import { relayOverrideFor, type ServiceStage } from '../../../config/stageEndpoi
 type Params = Record<string, unknown>;
 
 /**
- * Relay user listing for the console, moved down from `@chatic/app-runtime`'s `data/hooks/user.ts`.
+ * Relay user listing for the console, moved down from `@chatic/runtime`'s `data/hooks/user.ts`.
  *
  * This console is the only consumer the listing has ever had (`IUserRepository.listRelayUsers`
  * says as much), so both the hook and its cache key belong here rather than on the shared runtime

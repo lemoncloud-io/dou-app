@@ -1,7 +1,7 @@
 import { render, renderHook, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { useInAppPushMessage } from './useInAppPushMessage';
@@ -10,13 +10,13 @@ import { roomOpenTrace } from '../runtime/perf';
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
 // The banner card translates its "now" label; echo keys so assertions target the key.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('../bridge', () => ({
     useOnReceiveNotification: jest.fn(),
     usePushNavigate: jest.fn(),

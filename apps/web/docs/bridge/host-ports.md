@@ -1,14 +1,22 @@
 # host ports — how this app reaches what the host can do
 
-> Scope: `apps/web/src/app/host/`. The port types, the facade and the declaration reader are
-> [`@chatic/host`](../../../../libs/host/README.md); the host profile they read is
-> [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
+> Scope: the `host` slot of `apps/web/src/config/`'s two declarations, and `config/adapters/checkout/`.
+> The port types and the adapters are [`@chatic/runtime-web`](../../../../libs/runtime-web/README.md#the-host-port-adapters);
+> the host profile they read is [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
 What the host does for a feature — sell a subscription, pick and move files, open links, run the app's
-frame, sign in, collect diagnostics, receive push — reaches the feature through a port of `@chatic/host`, never through `isNative()` or a `CHATIC_APP_*` global.
-`publishHostPorts.ts` chooses one implementation per port, once, from `main.tsx` right after
-`config.init()`, from what the host declared (or, for a shell built before declarations, the port's
-legacy rule). A feature reads `host.ports.<port>` where it uses it.
+frame, sign in, collect diagnostics, receive push — reaches the feature through a host port, never
+through `isNative()` or a `CHATIC_APP_*` global. The declaration `main.tsx` starts from names one
+adapter per port, and `startRuntime` builds and publishes them once, right after it initialises config
+and before the runtime boots. Each port's default, `<port>.host` (`checkout.host` for checkout), answers
+what the host declared — or, for a shell built before declarations, the port's legacy rule — exactly as
+the entry's own chooser did before. A feature reads `runtime.<port>` (`runtime.push.kind` for push)
+from `@chatic/runtime` where it uses it.
+
+Inside a shell (`web-hybrid`) a `port.<name>` toggle may move one port: to `<port>.browser`, the page
+doing the work, or to `<port>.shell` where the shell declared that it does it; checkout to the store or
+the website where the host offers them, or to nothing. In a browser tab (`web-browser`) every port has
+its default alone — the page already does everything itself.
 
 ## links, appShell, signIn, diagnostics, push
 
@@ -36,7 +44,7 @@ ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveSh
 
 ## media
 
-Who picks what a person attaches. `publishHostPorts` publishes `{ kind: resolveMediaMethod() }`; the
+Who picks what a person attaches. `media.host` publishes `{ kind: resolveMediaMethod() }`; the
 picker (`bridge/attachmentPicker.ts`) and the photo library (`bridge/photoLibrary.ts`) are unsupported
 unless it is `'shell'`, and the attach panel then opens the page's own input. The same answer decides the
 three other places that used to ask `isNative()`: whether the camera input waits for the app's camera
@@ -46,7 +54,7 @@ app's settings (`PermissionDeniedBanner`).
 
 ## files
 
-Who moves a message's files. `publishHostPorts` publishes `{ kind: resolveFilesMethod() }`; where it is
+Who moves a message's files. `files.host` publishes `{ kind: resolveFilesMethod() }`; where it is
 `'shell'`:
 
 - `shellUpload` hands uploads to the app's transfer module and catches up with the ones it finished.
@@ -60,11 +68,11 @@ Where it is `'browser'`, the page PUTs, fetches and saves the file itself and dr
 
 ## checkout
 
-| What the host sells through | Implementation                    | What it does                                                                           |
-| --------------------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `apple`, `google`           | `checkout/storeCheckout.ts`       | The store's catalog, purchase, finish, held purchases and management, over `appBridge` |
-| `web`                       | `checkout/webCheckout.ts`         | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
-| nothing                     | `{ kind: 'none' }` in the chooser | Nothing to sell                                                                        |
+| What the host sells through | Implementation                          | What it does                                                                           |
+| --------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
+| `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | The store's catalog, purchase, finish, held purchases and management, over `appBridge` |
+| `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
+| nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                        |
 
 The phone app declares its store and the desktop app declares that it sells nothing, from the first
 builds made after they began to declare; the e2e fake shell declares as the phone does. A shell that

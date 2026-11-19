@@ -1,10 +1,8 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
-import type { DomainCloud } from '@chatic/data';
-
 /**
- * Releases one cloud. Moved down from `@chatic/app-runtime`'s `data/hooks/subscription.ts` to sit
+ * Releases one cloud. Moved down from `@chatic/runtime`'s `data/hooks/subscription.ts` to sit
  * with its only caller in this app (`CloudDetailPage`).
  *
  * `cascade` is a named repository option now instead of a raw `params: { cascade: 1 }` bag — it

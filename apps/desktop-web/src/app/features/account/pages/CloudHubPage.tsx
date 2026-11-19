@@ -7,7 +7,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import {
     NotifyLevelSection,

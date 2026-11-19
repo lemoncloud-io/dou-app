@@ -60,14 +60,14 @@ jest.mock('@chatic/bridges', () => ({
     // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
     liveShellValue: () => undefined,
 }));
-// Partial mock: keep the real module for everything else. `@chatic/app-runtime`'s session hooks now
+// Partial mock: keep the real module for everything else. `@chatic/runtime`'s session hooks now
 // reach `createQueryKeys` at import time, and a fully-replaced module would drop it.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'session-uid' }),
             // "Me" is the uid in the thread's cloud; the session uid above is another cloud's.
@@ -83,8 +83,8 @@ jest.mock('@chatic/app-runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 
 jest.mock('@chatic/web-ui-kit', () => ({

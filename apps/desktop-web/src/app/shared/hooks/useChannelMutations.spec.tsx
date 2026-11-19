@@ -9,8 +9,8 @@ let selectedSiteId: string | null = 'site-1';
 const createChannel = vi.fn();
 const repositories = { channel: { createChannel }, join: {} };
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionSelection: () => ({ selectedCloudId: activeCloudId, selectedSiteId }),
@@ -18,8 +18,8 @@ vi.mock('@chatic/app-runtime', () => ({
             SWITCH_SITE_MUTATION_KEY: ['switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
-    },
-}));
+    })
+);
 
 import { useDesktopChannelMutations } from './useChannelMutations';
 

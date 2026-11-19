@@ -17,18 +17,19 @@ jest.mock('../../../hooks/useDeviceInfo', () => ({
     useDeviceInfo: () => ({ deviceInfo: null, versionInfo: null }),
 }));
 jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => mockNavigate,
     // jsdom has no canvas, so the real encoder cannot run here; it is covered by its own
     // contract (aspect-preserving downscale) and exercised in the browser.
     prepareImage: (file: File) => mockEncode(file),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         report: {
             reportIssue: (...args: unknown[]) => mockReportIssue(...args),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 // `buildReportContext` has its own suite; here it only has to be callable.
 jest.mock('../lib', () => ({ buildReportContext: () => ({ path: '/mypage/feedback', routeTrail: ['/mypage'] }) }));

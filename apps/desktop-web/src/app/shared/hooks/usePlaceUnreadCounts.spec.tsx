@@ -24,8 +24,8 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: {
             useGlobalSession: () => ({ activeServer: { kind: 'cloud', cloudId: 'cloud-1' } }),
@@ -35,8 +35,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useRuntimeSocketState: () => ({ isVerified: true }),
             onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler),
         },
-    },
-}));
+    })
+);
 
 // One array for every render, as the real hook gives: a fresh one would rebuild the counts on each
 // render and hide a missing dependency.

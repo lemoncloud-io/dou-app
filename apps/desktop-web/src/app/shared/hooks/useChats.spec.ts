@@ -29,8 +29,8 @@ const warn = vi.fn();
 
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
@@ -38,8 +38,8 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.isVerified }) },
         sync: { useChatSync: () => ({ prime: state.prime, retryPrime: state.retryPrime }) },
-    },
-}));
+    })
+);
 
 import { useChats } from './useChats';
 

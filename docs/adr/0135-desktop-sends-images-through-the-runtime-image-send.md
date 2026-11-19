@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-09-29 · superseded in part by
 > [ADR-0304](./0304-the-core-packages-read-no-page.md): `xhrPut` lives in `@chatic/runtime-web`, not `@chatic/data`
-> Scope: `libs/app-runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
+> Scope: `libs/runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
 > `apps/web/src/app/features/channels/hooks/useSendImages.ts` ·
 > `apps/desktop-web/src/app/features/chat/**` (`useComposerSend` · `useChatImages` · `chatImages` ·
 > `imageActions` · `Composer` · `ChatPane` · `ThreadPanel` · `MessageRow` · image components)

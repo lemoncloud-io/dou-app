@@ -1,4 +1,4 @@
-import baseConfig, { noBridgesImport } from '../../eslint.config.mjs';
+import baseConfig from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
@@ -7,8 +7,6 @@ export default [
         // Override or add rules here
         rules: {},
     },
-    // No `@chatic/bridges` in this package — the root config holds the pattern and says why.
-    noBridgesImport,
     // ---------------------------------------------------------------------------------------------
     // `@chatic/session` is open to this package, through its barrel.
     //
@@ -39,9 +37,9 @@ export default [
                                 '@chatic/sync/*',
                                 '@chatic/auth',
                                 '@chatic/auth/*',
-                                '@chatic/app-runtime',
+                                '@chatic/runtime',
                             ],
-                            message: 'This package sits below sync, auth and app-runtime — it may not import them.',
+                            message: 'This package sits below sync, auth and @chatic/runtime — it may not import them.',
                         },
                         {
                             group: ['@chatic/transport', '@chatic/transport/*'],
@@ -71,9 +69,9 @@ export default [
                                 '@chatic/sync/*',
                                 '@chatic/auth',
                                 '@chatic/auth/*',
-                                '@chatic/app-runtime',
+                                '@chatic/runtime',
                             ],
-                            message: 'This package sits below sync, auth and app-runtime — it may not import them.',
+                            message: 'This package sits below sync, auth and @chatic/runtime — it may not import them.',
                         },
                         {
                             group: ['@chatic/transport', '@chatic/transport/*'],

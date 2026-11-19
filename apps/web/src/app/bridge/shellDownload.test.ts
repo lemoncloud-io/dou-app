@@ -1,13 +1,13 @@
 const request = jest.fn();
 let native = true;
 // Who moves files, as the host's `files` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { files: { kind: native ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get files() {
+            return { kind: native ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn() },
     webClient: {

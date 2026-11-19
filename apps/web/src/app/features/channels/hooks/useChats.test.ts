@@ -1,13 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChat, DomainUser } from '@chatic/data';
+import { runtime, type DomainChat, type DomainUser } from '@chatic/runtime';
 
 import { useChannelHeadRefresh } from './useChannelHeadRefresh';
 import { useChats } from './useChats';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -22,8 +21,8 @@ jest.mock('@chatic/app-runtime', () => ({
         connection: {
             useRuntimeSocketState: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 // Covered by its own test file; isolate useChats from the foreground-refresh side effects.
 jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));

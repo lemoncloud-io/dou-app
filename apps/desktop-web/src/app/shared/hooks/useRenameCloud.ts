@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainCloud, DomainListResult } from '@chatic/data';
+import { runtime } from '@chatic/runtime';
+import type { DomainCloud, DomainListResult } from '@chatic/runtime';
 
 /**
  * Rename an owned cloud. `CloudRepository.updateCloud` already rewrites the cached cloud row

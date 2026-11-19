@@ -10,16 +10,17 @@ jest.mock('@tanstack/react-query', () => ({
     useQueryClient: () => ({ invalidateQueries }),
 }));
 jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
     useCustomMutation: (mutationFn: (v: unknown) => Promise<unknown>) => ({ mutateAsync: mutationFn }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ cloud: { retryCloudSetup } }),
             cloudsKeys: { lists: () => ['clouds', 'list'] },
         },
-    },
-}));
+    })
+);
 
 beforeEach(() => jest.clearAllMocks());
 

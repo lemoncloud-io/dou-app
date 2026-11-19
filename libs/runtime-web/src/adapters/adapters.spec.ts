@@ -132,6 +132,25 @@ describe('web adapters — storage', () => {
         expect(boot.plain).toBe(stores.plain);
         expect(boot.afterLogout).toBe(true);
     });
+
+    it('storage.vault leaves the vault unopened when the engine says the shell owns the session', async () => {
+        const { facts, storageVault } = await load(true, ['nativeSecure']);
+        mockPrepareSecretStorage.mockClear();
+
+        const stores = await storageVault.create({ facts, sessionOwner: 'native' });
+
+        expect(mockPrepareSecretStorage).not.toHaveBeenCalled();
+        expect(stores.secret).toBeDefined();
+    });
+
+    it('storage.vault loads the vault when the engine says the page owns the session', async () => {
+        const { facts, storageVault } = await load(true, ['nativeSecure']);
+        mockPrepareSecretStorage.mockClear();
+
+        await storageVault.create({ facts, sessionOwner: 'web' });
+
+        expect(mockPrepareSecretStorage).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('web adapters — cache', () => {

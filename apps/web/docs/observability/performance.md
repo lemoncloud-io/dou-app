@@ -38,17 +38,17 @@ nothing; outside the app it still carries nothing.
 
 | Trace             | Taken in                                                                                                                                      | Attributes                                                                           |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                                                                                                  | `outcome`: `ok` / `error`                                                            |
-| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op                                                                                 | `outcome`: `ok` / `error`                                                            |
+| `cloud_switch`    | `useSwitchCloudSession` (`libs/runtime`)                                                                                                      | `outcome`: `ok` / `error`                                                            |
+| `site_switch`     | `switchSite` (`libs/runtime`), below its same-place no-op                                                                                     | `outcome`: `ok` / `error`                                                            |
 | `web_vitals`      | `webVitalsReporter.ts`, all five as samples (value in `value_ms`, CLS ×1000); FCP and LCP also reach Firebase, INP/CLS/TTFB the pipeline only | `vital`: `fcp` / `lcp` / `inp` / `cls` / `ttfb`                                      |
 | `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` · `session_owner` (pipeline only) |
 | `chat_room_sync`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` · `session_owner` (pipeline only) |
 | `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome` · `session_owner` (pipeline only)                                 |
 | `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                                                                                          | `thread` · `kind` (`text`) · `outcome`                                               |
-| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc                                                                       | `kind` · `count` · `size` · `thread` · `outcome`                                     |
+| `chat_send_media` | `libs/runtime` `useSendImages`, as samples — see its image-send doc                                                                           | `kind` · `count` · `size` · `thread` · `outcome`                                     |
 | `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)                                                                                | `type` · `kind` · `outcome` · `close_reason`                                         |
 | `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                                                                                    | `op` · `outcome` · `kind`                                                            |
-| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                                                                                           | `kind` · `cause` · `outcome`                                                         |
+| `socket_verify`   | `libs/runtime`, as samples — see its socket doc                                                                                               | `kind` · `cause` · `outcome`                                                         |
 | `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)                                                                                | `lane` · `outcome` · `step` · `room`                                                 |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
@@ -197,7 +197,7 @@ fast but took long to become current.
 It begins with `chat_room_open`, in `roomOpenTrace.begin` — or natively, for a tap, and is handed over
 as `OnNavigate.perfTrace.syncId` (a hand-over without it has the web start it at the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
 [`@chatic/perf`](../../../../libs/perf/README.md)), because the sync that marks its phases runs in
-`libs/app-runtime`, which cannot reach the web.
+`libs/runtime`, which cannot reach the web.
 
 The room page takes it only through the slot's claim of the matching `chat_room_open`, in the same
 mount (`roomOpenTrace.takeClaimedSync`). A sync trace begun for a room that was already on screen, or
@@ -216,7 +216,7 @@ the same page and may start it before the entry refresh's cache read returns. It
 `fetchRoomFeed` too, with `cache: 'hit'`, so whichever starts first takes the trace and the other
 joins it; the trace reads the same either way.
 
-Both go through `fetchRoomFeed` (`libs/app-runtime`), which marks the phases on the active trace. On
+Both go through `fetchRoomFeed` (`libs/runtime`), which marks the phases on the active trace. On
 a list entry the fetch usually starts earlier still, at the tap (`prefetchRoomFeed`, called by
 `ChannelList.tsx`), and the hook that applies joins it. That fetch is the one that takes the trace, so
 on those entries `feed_sent` lands just after the tap, ahead of `mount`. It is how the room's wait
@@ -280,7 +280,7 @@ background, rather than when its timer resumes. Its attributes are at the same c
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
   from `apps/web`;
   `npx jest src/socket/sync/hooks/useSyncTarget src/data/mediaSendTrace src/data/hooks/useSendImages`
-  from `libs/app-runtime`, plus `src/data/factories/outboxFactory` there for `state_outbox`;
+  from `libs/runtime`, plus `src/data/factories/outboxFactory` there for `state_outbox`;
   `npx jest src/roomFeed` from `libs/sync`;
   `npx jest src/socket/socketVerifyTrace src/socket/SocketManager` from `libs/transport`;
   `npx jest src/repositories/ChatRepository src/outbox/stateOutbox` from `libs/data`;
@@ -353,7 +353,7 @@ and the write that replaces the row — the time the message shows as pending.
 | `outcome` | `ok`, or `error` when the send rejected — offline, refused, timed out        |
 
 - **Text sends only.** Attachment sends go through `useSendImages` and an upload first, and are timed
-  there as `chat_send_media` (see `libs/app-runtime`'s image-send doc), by `kind`.
+  there as `chat_send_media` (see `libs/runtime`'s image-send doc), by `kind`.
 - **A retry is a send.** `retryMessage` resends through `sendMessage`, so it is timed like one.
 - **Ten a minute** (`CHAT_SEND_TRACES_PER_MINUTE`), for the same shared budget `bridge_request` is
   capped for. A burst keeps its first ten.
@@ -385,7 +385,7 @@ screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send`
 
 A 499 is chatic-sockets-lib rejecting every in-flight and queued request at once as a socket closes,
 so the outcome alone says only that some socket closed. `close_reason` names the close, as
-`libs/app-runtime` reads it from the SDK transport (its socket doc lists the values and how each is
+`libs/runtime` reads it from the SDK transport (its socket doc lists the values and how each is
 told apart): `pong_timeout`, `wake_recovery`, `wake_probe`, `service_restart`, `destroyed`, `server`,
 `transport`, `other`.
 
@@ -423,7 +423,7 @@ compare from the release date on. A week of sampled runs is the first useful rea
 - **`service_restart`** comes from the SDK's connection rotation, roughly every 100 min on a long
   connection. Requests in flight across it fail as 499 and are its cost. In chatic-sockets-lib 0.5.7
   the rotation also left the socket closed until the next foreground kick, and every request in that
-  gap failed as 503; `SocketManager` now reopens it on the next tick (`libs/app-runtime` socket doc).
+  gap failed as 503; `SocketManager` now reopens it on the next tick (`libs/runtime` socket doc).
   A 503 share that falls after that release, on long foreground sessions above all, is that gap
   closing.
 - **`destroyed`** is the app tearing a slot down — a cloud switch, a logout. A request still in flight
@@ -446,7 +446,7 @@ often, they take to land. `socket_request` cannot answer that: it times one requ
 waited for a reconnect or was retried is several requests and a wait between them.
 
 - **Where it is taken.** The outbox machine reports each key's wait to the runtime's observer
-  (`libs/app-runtime` `outboxFactory.ts`), which hands it to the one `main.tsx` sets
+  (`libs/runtime` `outboxFactory.ts`), which hands it to the one `main.tsx` sets
   (`observeStateOutbox`).
 - **One sample per wait, not per value.** A wait runs from the `set` that made the key wait to the
   answer that leaves nothing waiting for it. Values set meanwhile fold into it — a cursor moved three

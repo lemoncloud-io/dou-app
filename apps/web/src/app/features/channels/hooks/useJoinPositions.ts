@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 interface ReadCount {
     readCount: number;

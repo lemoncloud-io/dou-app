@@ -104,6 +104,43 @@ describe('launchSessionOwner', () => {
     });
 });
 
+describe('launchSessionOwnerChoice', () => {
+    beforeEach(() => mockOpen.mockReset());
+
+    const loadModule = (): typeof LaunchSessionOwnerModule => {
+        let module: typeof LaunchSessionOwnerModule | undefined;
+        jest.isolateModules(() => {
+            module = require('./launchSessionOwner') as typeof LaunchSessionOwnerModule;
+        });
+        return module as typeof LaunchSessionOwnerModule;
+    };
+
+    it('reads the owner and its row together, once, and launchSessionOwner hears the same answer', () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockConfig.VITE_SESSION_OWNER_DEFAULT = 'web';
+        mockOpen.mockReturnValue({ getString: () => undefined });
+        const { launchSessionOwner, launchSessionOwnerChoice } = loadModule();
+
+        expect(launchSessionOwnerChoice()).toEqual({ owner: 'web', source: 'build' });
+        expect(launchSessionOwner()).toBe('web');
+        expect(mockOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the switch for a recorded choice', () => {
+        mockConfig.VITE_ENV = 'PROD';
+        mockOpen.mockReturnValue({ getString: (key: string) => (key === SESSION_OWNER_KEY ? 'native' : undefined) });
+        expect(loadModule().launchSessionOwnerChoice()).toEqual({ owner: 'native', source: 'switch' });
+    });
+
+    it('names an unreadable file, read as the page', () => {
+        mockConfig.VITE_ENV = 'DEV';
+        mockOpen.mockImplementation(() => {
+            throw new Error('mmkv');
+        });
+        expect(loadModule().launchSessionOwnerChoice()).toEqual({ owner: 'web', source: 'unreadable' });
+    });
+});
+
 describe('settledSessionOwner', () => {
     beforeEach(() => mockOpen.mockReset());
 

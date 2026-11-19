@@ -15,7 +15,7 @@ let switchesInFlight = 0;
 export const isSiteSwitchInFlight = (): boolean => switchesInFlight > 0;
 
 /**
- * Switches the active site on the live socket via the SDK `auth.switch` — owned by app-runtime now
+ * Switches the active site on the live socket via the SDK `auth.switch` — owned by @chatic/runtime now
  * that ClientSocketAuth performs the switch (multi-socket-design.md §8-2). Apps wrap this in a
  * react-query mutation (keyed by web-core's SWITCH_SITE_MUTATION_KEY) for `isSwitching` + the global
  * in-flight observer; the switch logic itself lives here.

@@ -4,7 +4,7 @@ import {
     isNotifiableMessage,
     type DomainChannel,
     type DomainChat,
-} from '@chatic/data';
+} from '@chatic/runtime';
 
 import {
     notificationId,

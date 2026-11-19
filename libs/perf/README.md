@@ -150,7 +150,7 @@ console. The trace's own duration means nothing. The other samples:
 - `bridge_request` — one bridge round trip, measured by the web's bridge client, read from its
   `rtt_ms` metric.
 - `socket_verify` — one socket connection from `connecting` to authenticated, measured in
-  `libs/app-runtime`. It is a sample rather than a start and a stop because the first connections
+  `libs/runtime`. It is a sample rather than a start and a stop because the first connections
   happen before the WebView knows where traces go, and a held start would reach Firebase late.
 - `first_screen` — the launch from the boot baseline to the moment the launch splash lifts,
   measured by the native shell. The `boot` trace stops at WebAppReady, before the first screen has
@@ -158,17 +158,17 @@ console. The trace's own duration means nothing. The other samples:
 - `socket_request` — one app-originated socket request's round trip, per request `type`, read from
   `rtt_ms`. `SocketManager.setRequestObserver` hands it over; the web samples and records it.
 - `chat_send_media` — an attachment send (images, videos, documents), timed in
-  `libs/app-runtime`. A sample because the native backend forgets a trace open for two minutes, and
+  `libs/runtime`. A sample because the native backend forgets a trace open for two minutes, and
   a large video's send can take longer.
 - `state_outbox` — one state write's trip to the server (a read cursor, a notification setting, a
   room's name), read from `delivery_ms`, with `wait_socket_ms` and `attempts` beside it. The state
-  outbox in `@chatic/data` hands it over through `libs/app-runtime`; the web samples and records it.
+  outbox in `@chatic/data` hands it over through `libs/runtime`; the web samples and records it.
   A sample because the wait can outlast the two minutes a native trace is kept open.
 
 ### Traces several modules contribute to: the active trace
 
 `chat_room_sync` is begun by a tap in the web, has its phases marked by `fetchRoomFeed` in
-`libs/app-runtime` (which the tap itself can start, before the room exists), and is ended by the room
+`libs/runtime` (which the tap itself can start, before the room exists), and is ended by the room
 page. None of them can hand the handle to the next, so
 they meet at `setActivePerfTrace(name, subject, trace)` / `getActivePerfTrace(name, subject)`: one
 trace in progress per name, keyed by what it is about (the channel, here).

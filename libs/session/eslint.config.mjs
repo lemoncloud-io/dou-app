@@ -1,4 +1,4 @@
-import baseConfig, { bridgesImportPattern, noBridgesImport } from '../../eslint.config.mjs';
+import baseConfig from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
@@ -7,8 +7,6 @@ export default [
         // Override or add rules here
         rules: {},
     },
-    // No `@chatic/bridges` in this package — the root config holds the pattern and says why.
-    noBridgesImport,
     // ---------------------------------------------------------------------------------------------
     // The store is passive: it stores and notifies, nothing else.
     //
@@ -27,7 +25,7 @@ export default [
                 {
                     patterns: [
                         {
-                            group: ['../scope', '../scope/*', '@chatic/app-runtime'],
+                            group: ['../scope', '../scope/*', '@chatic/runtime'],
                             message: 'The store is passive — it stores and notifies, and knows nothing above it.',
                         },
                         {
@@ -35,9 +33,6 @@ export default [
                             message:
                                 'Do not read settings here — take what boot injected. The seam is store/configure.ts.',
                         },
-                        // This block sets the same rule as `noBridgesImport` above for these files, so it
-                        // replaces that list and has to repeat the pattern.
-                        bridgesImportPattern,
                     ],
                 },
             ],

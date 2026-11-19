@@ -4,41 +4,35 @@ import { act, renderHook } from '@testing-library/react';
 
 import type * as ZustandModule from 'zustand';
 
-// Mock the host (control whether the app runs the frame, through its `appShell` port), the bridge
-// (capture logger.warn) and the two stores the hook reads. The stores are real zustand instances so
-// selector reads, getState() and setState() all behave exactly as in the app — only their module
+// Mock the host (control whether the app runs the frame, through the runtime's `appShell` port), the
+// bridge (capture logger.warn) and the two stores the hook reads. The stores are real zustand instances
+// so selector reads, getState() and setState() all behave exactly as in the app — only their module
 // wiring is faked.
 const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => true) }));
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { appShell: { kind: isNative() ? 'shell' : 'browser', os: null } };
-        },
-    },
-}));
 vi.mock('@chatic/bridges', () => ({
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-// v2: socket verification comes from app-runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
+// v2: socket verification comes from the runtime's `runtime.connection.useRuntimeSocketState()` (reactive) and
 // `runtime.connection.getRuntimeSocketState()` (imperative, re-checked inside the grace timer) —
 // back both with one zustand store so they stay consistent. Auth is `runtime.session.useSessionAuth()`.
-vi.mock('@chatic/app-runtime', async () => {
+vi.mock('@chatic/runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
     const socketStore = create(() => ({ isVerified: false }));
-    return {
-        runtime: {
-            connection: {
-                useRuntimeSocketState: socketStore,
-                getRuntimeSocketState: () => socketStore.getState(),
-            },
-            // `useSessionAuth` moved from @chatic/web-core to the session hub (ADR-0070 step 3). Still
-            // a zustand store because the test drives it with setState.
-            session: { useSessionAuth: create(() => ({ isAuthenticated: false })) },
+    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        connection: {
+            useRuntimeSocketState: socketStore,
+            getRuntimeSocketState: () => socketStore.getState(),
         },
-    };
+        // `useSessionAuth` is the session group's, no longer @chatic/web-core's. Still a zustand
+        // store because the test drives it with setState.
+        session: { useSessionAuth: create(() => ({ isAuthenticated: false })) },
+        get appShell() {
+            return { kind: isNative() ? 'shell' : 'browser', os: null };
+        },
+    });
 });
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 // The mocked exports ARE zustand stores (hook + setState); cast for the test driver.
 type MockStore<T> = { getState: () => T; setState: (partial: Partial<T>) => void };

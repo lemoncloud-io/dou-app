@@ -1,8 +1,8 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 /**
  * Web-side runtime metrics. All aggregation happens here — components only push
- * raw state via `report*` callbacks. The engine (libs/app-runtime) stays unaware
+ * raw state via `report*` callbacks. The engine (libs/runtime) stays unaware
  * of metrics; cache activity is observed in-memory from `observe` notifications.
  */
 export interface MetricsSnapshot {

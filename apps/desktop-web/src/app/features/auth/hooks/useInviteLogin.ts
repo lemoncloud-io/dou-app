@@ -6,18 +6,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
-import { config } from '@chatic/config';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { serverErrorText, toError, toastFailure, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
 import { inviteLoginErrorText, isTrustedInviteBackend, parseInviteInput } from '../utils';
 import type { InviteLoginError } from '../utils';
 
-/** Backends this build talks to; read per call because `config` answers undefined before boot. */
+/** Backends this build talks to; read per call because the settings answer undefined before boot. */
 const configuredBackends = (): string[] => [
-    config.get<string>('net.relay.backend') ?? '',
-    config.get<string>('net.admin.backend') ?? '',
+    runtime.settings.get<string>('net.relay.backend') ?? '',
+    runtime.settings.get<string>('net.admin.backend') ?? '',
 ];
 
 /** What the preview step shows, plus what `enter` needs so the lookup is not repeated. */

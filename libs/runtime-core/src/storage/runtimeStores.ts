@@ -6,9 +6,9 @@ import type { KeyValueStore } from '@chatic/storage';
  * - `device` — survives closing the tab: the sync cursor watermark. Tolerant: the watermark is a
  *   convenience, so a full or blocked storage costs the value, not the boot.
  *
- * The entry point hands it over in `createWebRuntime({ storage })`, from the same `resolveStorageStores`
- * call that built the session's stores. **There is no default**: reading it before then throws, like
- * the session's own ports — a default would be one platform's storage. (The tab-lifetime store a page
+ * The start hands it over with the storage port its declaration names, built with the session's
+ * stores. **There is no default**: reading it before then throws, like the session's own ports — a
+ * default would be one platform's storage. (The tab-lifetime store a page
  * keeps its invited clouds in belongs to the web cache, `webLocalCachePorts(tab)` in
  * `@chatic/runtime-web`, not to the runtime.)
  */

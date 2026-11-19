@@ -5,16 +5,16 @@ import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 
-import { bootNativeRuntime, runNativeRuntime } from '@chatic/runtime-mobile';
+import { runNativeRuntime } from '@chatic/runtime-mobile';
 import type { NativeRuntimeRunOptions } from '@chatic/runtime-mobile';
 
+import { startMobileRuntime } from '../../../config/mobile';
 import { getUserAgent } from '../../utils/device';
 import { appRestart } from '../appRestart';
 import { acquirePushToken } from '../notification/pushToken';
 import { provider } from '../provider';
 import { createNativeRuntimeHost } from './nativeRuntimeHost';
-import { buildRuntimePorts } from './runtimePorts';
-import { launchSessionOwner } from './launchSessionOwner';
+import { launchSessionOwner, launchSessionOwnerChoice } from './launchSessionOwner';
 import { restartOnSessionEnd } from './restartOnSessionEnd';
 import { openRuntimeStorageFiles } from './runtimeStorageFiles';
 
@@ -65,8 +65,10 @@ const pushDelegate: NonNullable<NativeRuntimeRunOptions['push']> = {
  */
 export const nativeRuntimeHost = createNativeRuntimeHost({
     readOwner: launchSessionOwner,
-    boot: async leaveToHome => {
-        const ports = buildRuntimePorts({
+    // The runtime is assembled from its declaration (`config/mobile.ts`); the boot checks the build
+    // first and hands back how the vault was found.
+    boot: async leaveToHome =>
+        startMobileRuntime({
             vault: provider.secureStorageService,
             files: openRuntimeStorageFiles(),
             cache: {
@@ -74,15 +76,12 @@ export const nativeRuntimeHost = createNativeRuntimeHost({
                 search: () => provider.cacheSearchService,
                 logger: provider.logService,
             },
-        });
-        return bootNativeRuntime({
-            ...ports,
-            vault: provider.secureStorageService,
             env: readEnv,
             userAgent: await getUserAgent(),
             leaveToHome,
-        });
-    },
+            owner: launchSessionOwnerChoice(),
+            logger: provider.logService,
+        }),
     run: engine => runNativeRuntime(engine, { deviceIds, push: pushDelegate }),
     logService: provider.logService,
 });

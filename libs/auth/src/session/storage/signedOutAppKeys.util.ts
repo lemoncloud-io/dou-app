@@ -6,9 +6,9 @@ import type { KeyValueStore } from '@chatic/storage';
  * The prefixes belong to the domains that write those keys — in apps/web, the log pipeline
  * (`@chatic/web.log.` — unsent batches, their heartbeats, the tab id, the crash sentinel) and the
  * telemetry policy (`@chatic/web.telemetry.policy`); the logs carry the account that just left. Each
- * app hands its domains' prefixes to `createWebRuntime({ signedOutKeyPrefixes })`, whose `createRuntime` registers them
- * here before the boot's own `?logout=1` sweep. This module only runs the sweep: it knows no app's
- * key names, so a new domain's keys are that domain's to declare.
+ * app's runtime declaration hands its domains' prefixes over (`signedOutKeyPrefixes`), and
+ * `createRuntime` registers them here before the boot's own `?logout=1` sweep. This module only runs the
+ * sweep: it knows no app's key names, so a new domain's keys are that domain's to declare.
  *
  * They are cleared from the session's plain store — `localStorage` inside a shell, `sessionStorage` in
  * a browser — which is the storage a sign-out has always taken them from. A browser's `localStorage`

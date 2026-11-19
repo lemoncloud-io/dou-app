@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { MetricsCollector } from './MetricsCollector';
 

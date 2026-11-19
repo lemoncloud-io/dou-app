@@ -1,6 +1,6 @@
 import { createConsoleListener, logHub } from '@chatic/bridges';
 
-import { diagnosticsKind } from './diagnosticsKind';
+import { diagnosticsKind } from '../../../config/diagnosticsKind';
 
 /**
  * The listener that prints — one of the three `apps/web` attaches to the hub.

@@ -14,13 +14,8 @@ import type { LogUploaderHandle } from './logUploader';
 
 let mockIsNative = false;
 
-jest.mock('@chatic/host', () => ({
-    host: {
-        isPublished: true,
-        get ports() {
-            return { diagnostics: { kind: mockIsNative ? 'shell' : 'browser' } };
-        },
-    },
+jest.mock('../../../config/diagnosticsKind', () => ({
+    diagnosticsKind: () => (mockIsNative ? 'shell' : 'browser'),
 }));
 
 let collectionEnabled = true;
@@ -66,7 +61,7 @@ jest.mock('./nativeUploadSource', () => ({
 }));
 
 const mockUpload = jest.fn(async () => 'ok' as const);
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             registerSessionLogoutCallback: () => () => undefined,

@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
@@ -9,8 +9,8 @@ import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
 import { useGlobalSearch } from './useGlobalSearch';
 
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useGlobalCacheSearch: jest.fn(),
             // useCachedCloudNames observes the cloud cache through the repositories.
@@ -19,8 +19,8 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionSelection: jest.fn(() => ({ selectedCloudId: 'cloud-a' })),
         },
-    },
-}));
+    })
+);
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('../../../hooks/useInvitedClouds', () => ({ useInvitedClouds: jest.fn() }));

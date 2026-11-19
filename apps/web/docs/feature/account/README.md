@@ -2,7 +2,7 @@
 
 **Two multi-step email flows, and nothing else.** `apps/web/src/app/features/account` holds six
 screens that walk a user from an email address to a verification code to a password: sign-up, and
-password reset. Both legs run on one mutation from `@chatic/app-runtime`, and the feature itself
+password reset. Both legs run on one mutation from `@chatic/runtime`, and the feature itself
 owns no session state.
 
 Logging in, delegating a session and accepting an invite belong to [auth](../auth/README.md). The
@@ -49,7 +49,7 @@ from screen to `mode`/`step`.
 **Out**
 
 - The mutations themselves (`useVerifyAlias`, `useFindAlias`, `useSessionIdentity`) —
-  [`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md).
+  [`libs/runtime`](../../../../../libs/runtime/docs/session/README.md).
 - The wire contract (`POST /oauth/verify-alias`, `POST /oauth/find-alias`) — `libs/http`.
 - Login, logout and the OAuth callback — [auth](../auth/README.md).
 - Linking a phone number or a social account to an existing user — [auth](../auth/README.md) owns

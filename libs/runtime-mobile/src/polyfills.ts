@@ -2,7 +2,7 @@
 //
 // Imported once, first, from the app's entry file — before anything that draws random numbers is
 // loaded, because a module may take its random source when it is evaluated rather than when it is
-// called. `createNativeRuntime` checks the result and refuses to build without it.
+// called. A start checks the result (`mobileHostFacts`) and refuses to build without it.
 //
 // Hermes has no `crypto.getRandomValues`, and `uuid` and `crypto-js` draw from it (ids, nonces). The
 // polyfill asks the OS's secure random generator through a native module — not `Math.random`, which

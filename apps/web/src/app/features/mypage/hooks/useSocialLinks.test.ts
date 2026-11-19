@@ -7,13 +7,13 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 
 const mockIsNative = jest.fn();
 // Who signs a person in, as the host's `signIn` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: mockIsNative() ? 'shell' : 'browser', os: null } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get signIn() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));

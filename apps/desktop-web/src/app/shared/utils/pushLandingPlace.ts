@@ -1,4 +1,4 @@
-import { dmPlaceOf, placeOfDmId, RELAY_CLOUD_ID } from '@chatic/data';
+import { dmPlaceOf, placeOfDmId, RELAY_CLOUD_ID } from '@chatic/runtime';
 
 import type { PushChannelData } from './resolvePushCloudId';
 

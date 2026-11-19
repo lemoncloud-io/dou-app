@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 import { useCloudOrder, usePlaceOrder } from '@chatic/shared';
 
 import type { RailCloud } from '../../../shared';

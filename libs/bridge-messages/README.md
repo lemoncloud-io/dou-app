@@ -43,7 +43,7 @@ timeouts ([`@chatic/bridges`](../bridges/README.md)); the handlers that answer t
 (`apps/mobile/src/app/webview/hooks/useWebMessageRouter.ts`,
 `apps/desktop/src/main/bridgeHandlers.ts`); the storage engines behind the cache messages
 ([`@chatic/db`](../db/README.md)); which cache domain is routed to which engine
-([`@chatic/app-runtime`](../app-runtime/README.md)); the `LogEntry` contract that `AppLogInfo`
+([`@chatic/runtime`](../runtime/README.md)); the `LogEntry` contract that `AppLogInfo`
 mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 
 ## Design principles
@@ -98,7 +98,7 @@ the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessag
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
 `apps/desktop`). The cache engines the cache messages reach are [`@chatic/db`](../db/README.md), and
-the routing decision in front of them is [`@chatic/app-runtime`](../app-runtime/README.md).
+the routing decision in front of them is [`@chatic/runtime`](../runtime/README.md).
 
 ## Structure
 

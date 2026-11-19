@@ -47,7 +47,7 @@ export interface IPairingRepository extends DisposableRepository {
  * never to the cloud the session happens to be working in, which does not serve `/pairings`.
  *
  * **It performs the calls and installs nothing.** `claimPairing` can return a session; applying it
- * (the relay socket's re-registration included) is `app-runtime`'s, through the same path a phone
+ * (the relay socket's re-registration included) is `@chatic/runtime`'s, through the same path a phone
  * login takes. Nothing here reads a token, writes a store or flips auth state.
  *
  * `IPairingHttpDataSource` injection is optional for the same reason as its siblings — every

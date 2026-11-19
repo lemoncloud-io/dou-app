@@ -1,17 +1,16 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel, DomainLastChat } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainLastChat } from '@chatic/runtime';
 
 import { useLastActivities, useLastChats } from './useLastChats';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeLastList = jest.fn();
 const refreshList = jest.fn();

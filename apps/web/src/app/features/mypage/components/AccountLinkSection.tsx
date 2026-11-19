@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { useLinkedAccounts } from '../../../hooks';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
@@ -70,8 +69,8 @@ export const AccountLinkSection = () => {
     // Both slots ride on the same read, so one unknown means the whole section is guessing.
     if (socialState === 'unknown' || linked.phone === 'unknown') return null;
 
-    // Apple is offered where the app signs in on iOS (`host.ports.signIn`), as on the login screen.
-    const isIOS = host.ports.signIn.os === 'ios';
+    // Apple is offered where the app signs in on iOS (`runtime.signIn`), as on the login screen.
+    const isIOS = runtime.signIn.os === 'ios';
     // Server truth now, not a per-device guess: an account with neither credential is one device wipe
     // away from being unrecoverable, which is what the nudge is about.
     const hasNoCredential = linked.phone === 'absent' && linked.social === 'absent';

@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 

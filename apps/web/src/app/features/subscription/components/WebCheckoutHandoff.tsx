@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { IconSpinner } from '@chatic/web-ui-kit';
 
 import { useMembershipInfo } from '../../../hooks/useMembership';
@@ -27,7 +27,7 @@ import { canCheckoutOnWeb } from '../lib';
  */
 export const WebCheckoutHandoff = ({ children }: { children: ReactNode }) => {
     const { t } = useTranslation();
-    const checkout = host.ports.checkout;
+    const checkout = runtime.checkout;
     const { summary } = usePlanCatalog();
     const { data: membership, isSuccess, isError } = useMembershipInfo();
     const handOff = checkout.kind === 'web' && isSuccess && canCheckoutOnWeb(summary, membership?.platform);

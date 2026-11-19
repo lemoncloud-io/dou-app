@@ -1,3 +1,4 @@
+import { runtime } from '@chatic/runtime';
 import type {
     OnSubWebViewClosedPayload,
     OnWebAppReadyPayload,
@@ -5,11 +6,10 @@ import type {
     SubWebViewParams,
 } from '@chatic/bridge-messages';
 import { logger, webClient } from '@chatic/bridges';
-import { host } from '@chatic/host';
 
 /**
  * How far the shell opens sub views, from its handshake, or `null` when it says nothing: a host where
- * the page takes its own links (`host.ports.links`), such as a plain browser; a shell built before the
+ * the page takes its own links (`runtime.links`), such as a plain browser; a shell built before the
  * sub view; or a failed handshake. Only `anyHttps` lets the web offer a link an owner registered; the
  * web ships before the shell, so it asks rather than assumes.
  *
@@ -17,7 +17,7 @@ import { host } from '@chatic/host';
  * answers it without side effects.
  */
 export const readSubWebViewOpenScope = async (): Promise<SubWebViewOpenScope | null> => {
-    if (host.ports.links.kind !== 'shell') return null;
+    if (runtime.links.kind !== 'shell') return null;
     try {
         const response = await webClient.request({ type: 'WebAppReady', data: {} });
         return (response?.data as OnWebAppReadyPayload | undefined)?.subWebViewOpenScope ?? null;

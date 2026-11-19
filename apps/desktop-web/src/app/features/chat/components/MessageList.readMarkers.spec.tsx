@@ -4,15 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 // One object for every call: a fresh one per render would change what the rows derive from it, and
 // every row would redraw for a reason that has nothing to do with read markers.
 const session = vi.hoisted(() => ({ activeServer: { siteId: 'S1' } }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -22,8 +22,8 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => session,
         },
-    },
-}));
+    })
+);
 
 import i18n from '../../../../i18n';
 

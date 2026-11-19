@@ -23,16 +23,13 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/runtime-web/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/storage/tsconfig.lib.json"
-        },
-        {
             "path": "../../libs/logger/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/host/tsconfig.lib.json"
         },
         {
             "path": "../../libs/http/tsconfig.lib.json"
@@ -50,7 +47,7 @@
             "path": "../../assets/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/config/tsconfig.lib.json"
+            "path": "../../libs/storage/tsconfig.lib.json"
         },
         {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
@@ -59,10 +56,7 @@
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/data/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/app-runtime/tsconfig.lib.json"
+            "path": "../../libs/runtime/tsconfig.lib.json"
         },
         {
             "path": "../../libs/bridge-messages/tsconfig.lib.json"

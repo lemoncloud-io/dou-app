@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-17 · Implemented: `fix/unmigrated-web-session-wins`
 > · Scope: `libs/auth/src/session/storage/secretStorageMigration.ts` (`replaceWithWebCopy`,
 > `hasWebCopy`, `discardWebCopy`), `libs/auth/src/session/storage/types.ts` (`'replaced'`);
-> `libs/runtime-core/src/session/secretStorage.ts` and `libs/app-runtime/src/boot.ts`
+> `libs/runtime-core/src/session/secretStorage.ts` and `libs/runtime/src/boot.ts`
 > (`hasWebSessionCopy`, `discardWebSessionCopy`); `apps/web/src/main.tsx` (the sign-out on a launch the
 > runtime owns, `adoptLateVault`)
 > · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md#the-device-vault-at-boot)

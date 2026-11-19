@@ -10,14 +10,17 @@ const verifyCloudEmail = jest.fn();
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ cloud: { verifyCloudEmail } }),
         },
-    },
+    })
+);
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useCustomMutation: () => ({ mutateAsync }),
 }));
-jest.mock('@chatic/shared', () => ({ useCustomMutation: () => ({ mutateAsync }) }));
 jest.mock('../consts', () => ({ IS_DEV: false }));
 
 const error = logger.error as jest.Mock;

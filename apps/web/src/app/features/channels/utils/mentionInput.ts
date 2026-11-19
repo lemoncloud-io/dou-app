@@ -1,4 +1,4 @@
-import type { ChatMentionBody } from '@chatic/data';
+import type { ChatMentionBody } from '@chatic/runtime';
 
 /**
  * Mentions in the composer's plain textarea.

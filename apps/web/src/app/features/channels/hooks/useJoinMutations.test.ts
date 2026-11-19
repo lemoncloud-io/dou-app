@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { logger } from '@chatic/bridges';
 
@@ -8,13 +8,13 @@ import { useJoinMutations } from './useJoinMutations';
 
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const updateJoin = jest.fn();
 

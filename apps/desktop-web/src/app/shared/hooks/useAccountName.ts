@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { isPlaceholderName } from '../utils';
 

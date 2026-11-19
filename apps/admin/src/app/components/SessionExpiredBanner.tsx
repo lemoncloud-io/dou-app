@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { authFailureNotice } from '../session/authFailureNotice';
 

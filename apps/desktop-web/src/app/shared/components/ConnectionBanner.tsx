@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useIsMutating } from '@tanstack/react-query';
 
 import { cn } from '@chatic/ui-kit';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * App-shell connection status bar. The engine's connectivity derivation composes

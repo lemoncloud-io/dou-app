@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import type { UserView } from '@lemoncloud/chatic-backend-api';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 interface UpdateProfileData {
     name?: string;

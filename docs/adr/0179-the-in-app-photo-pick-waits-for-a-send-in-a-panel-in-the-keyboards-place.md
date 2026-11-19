@@ -7,7 +7,7 @@
 > `useKeyboardMemory`, `useAttachPanelSlot`, `utils/slotSlide`, `utils/bakePhotoEdit`,
 > `ChannelRoomPage`, `ThreadPage`) · `apps/web/src/app/ui/hooks/useChromeInsets`
 > · `libs/web-ui-kit` (`PhotoEditor`, `EditedPhotoImage`, `photoEdit`, `cropBox`, `PhotoGridSheet`,
-> `SelectedPhotoStrip`, `AttachPanel`, `RecentPhotoStrip`, `MessageInput`) · `libs/app-runtime`
+> `SelectedPhotoStrip`, `AttachPanel`, `RecentPhotoStrip`, `MessageInput`) · `libs/runtime`
 > (`sendImages`'s `separately` and `content`) · `libs/data` (`createPendingImageChat`'s `content`)
 > · `libs/config` `ui.photoSendGrouped`
 > · Supersedes in part [ADR-0123](./0123-picking-a-photo-sends-it-and-the-shell-decides-how-it-is-picked.md):
@@ -15,7 +15,7 @@
 > panel's recent row
 > · The module docs are [apps/web channels/photo-edit.md](../../apps/web/docs/feature/channels/photo-edit.md),
 > [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md) and
-> [libs/app-runtime data/image-send.md](../../libs/app-runtime/docs/data/image-send.md)
+> [libs/runtime data/image-send.md](../../libs/runtime/docs/data/image-send.md)
 
 ## Context
 

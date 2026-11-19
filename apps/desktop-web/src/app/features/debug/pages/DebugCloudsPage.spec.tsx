@@ -16,8 +16,8 @@ const rail = [
 const joined = { c4: { id: 'c4', name: 'Joined' } };
 const refetchClouds = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 cloud: {
@@ -28,8 +28,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             }),
         },
-    },
-}));
+    })
+);
 // The real label rule, so the test pins the switcher's notion of untitled rather than a copy of it.
 vi.mock('../../../shared', async () => ({
     useCloudSessionCatalog: () => ({ clouds: catalog, isFetchingClouds: false, isCloudsError: false, refetchClouds }),

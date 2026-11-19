@@ -5,7 +5,7 @@ where the tier number is the number of clouds the account may hold at once.** Ar
 four decisions — which tiers may be sold, which state the membership is in, whether another cloud
 may be created, and what a tier change sends to the store — plus the in-app purchase flow that
 executes them through the store, and, where the website sells, the hand-over to its checkout (§ 6).
-Which of those this host does is `@chatic/host`'s `checkout` port, chosen at boot
+Which of those this host does is its `checkout` port (`runtime.checkout`), chosen at boot
 ([bridge/host-ports.md](../../bridge/host-ports.md)); no file here asks the host what it is.
 
 Every one of those decisions is a pure function in `lib/` with a hook in `hooks/` that feeds it
@@ -235,7 +235,7 @@ covers the whole account, so skipping receipts one by one would only repeat it.
 
 ### 6. Outside the app, the website sells
 
-Where the website sells (`host.ports.checkout.kind === 'web'` — a browser tab, unless its host
+Where the website sells (`runtime.checkout.kind === 'web'` — a browser tab, unless its host
 declares otherwise) there is no store, so this feature sells nothing itself: the website's checkout
 (the landing app's `/subscription`, on the policy host — `WEB_SUBSCRIPTION_URL`) does. The relay
 writes a subscription bought there into the same membership, with `platform` set to the website's

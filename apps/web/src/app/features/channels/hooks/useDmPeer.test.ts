@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 import type { ChannelMember, ClientChannelView } from '../types';
 import { useDmPeer } from './useDmPeer';

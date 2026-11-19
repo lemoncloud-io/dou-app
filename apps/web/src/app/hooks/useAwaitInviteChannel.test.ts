@@ -1,12 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, type DomainChannel } from '@chatic/runtime';
 
 import { useAwaitInviteChannel } from './useAwaitInviteChannel';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
@@ -14,8 +13,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useGlobalSession: jest.fn(),
             useSessionSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeListMock = jest.fn();
 const cacheReadListMock = jest.fn();

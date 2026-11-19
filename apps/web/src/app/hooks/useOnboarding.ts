@@ -1,5 +1,4 @@
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 
 /**
  * `ui.onboardingCompleted` is the positive of the retired `usePreferenceStore.isFirstRun` — this
@@ -10,15 +9,15 @@ import { useConfigValue } from '@chatic/config/react';
  * shell value in `ConfigLanePolicy`'s row order and be silently shadowed.
  */
 export const completeOnboarding = (): void => {
-    config.set('ui.onboardingCompleted', true, { lane: 'shell' });
+    runtime.settings.set('ui.onboardingCompleted', true, { lane: 'shell' });
 };
 
 export const resetOnboarding = (): void => {
-    config.set('ui.onboardingCompleted', false, { lane: 'shell' });
+    runtime.settings.set('ui.onboardingCompleted', false, { lane: 'shell' });
 };
 
 export const useOnboarding = () => {
-    const onboardingCompleted = useConfigValue<boolean>('ui.onboardingCompleted') ?? false;
+    const onboardingCompleted = runtime.settings.useConfigValue<boolean>('ui.onboardingCompleted') ?? false;
     return {
         isFirstRun: !onboardingCompleted,
         completeOnboarding,

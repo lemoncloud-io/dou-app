@@ -8,7 +8,7 @@ import type { ChannelSortMethod, HomeSectionId, Theme } from './preferenceKeys';
 // `@chatic/config` only validates that a `type: 'json'` value is parseable JSON — it has no way to
 // know that a "channel sort map" must have `ChannelSortMethod` values, or that a "pinned channels
 // map" must have non-empty string arrays. That product-shape validation lives here, applied to
-// whatever `config.get()`/`useConfigValue()` returns (already-decoded, so these take the real value,
+// whatever `runtime.settings.get()`/`useConfigValue()` returns (already-decoded, so these take the real value,
 // not a raw string) and to the old key's value during the one-time legacy migration, which does its
 // own `JSON.parse` first.
 // ---------------------------------------------------------------------------

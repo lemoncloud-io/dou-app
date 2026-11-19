@@ -1,8 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID, isEventChat, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
+import {
+    runtime,
+    RELAY_CLOUD_ID,
+    isEventChat,
+    isInJoinWindow,
+    type DomainChannel,
+    type DomainChat,
+} from '@chatic/runtime';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import { captureInboxReply } from './useInboxCapture';

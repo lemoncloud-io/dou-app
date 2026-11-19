@@ -1,6 +1,6 @@
 import { type JSX, type ReactNode } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * The relay session's host: restores a stored session as the page loads and keeps it fresh over its

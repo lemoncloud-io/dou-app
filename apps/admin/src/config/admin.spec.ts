@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { startRuntime } from '@chatic/runtime-web';
 import type { StartRuntimeOptions } from '@chatic/runtime-web';
 
-import { webConfigPorts } from '../app/config/adapters';
+import { webConfigPorts } from './adapters/config';
 import { deviceStore, tabStore } from '../app/storage';
 import { admin } from './admin';
 

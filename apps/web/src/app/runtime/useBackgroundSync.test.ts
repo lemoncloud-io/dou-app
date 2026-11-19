@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { requestBackgroundRefresh } from './backgroundRefresh';
@@ -9,7 +9,7 @@ import { syncStreakReporter } from './logging/syncStreakReporter';
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             // The key constant the hook uses — mocking the module makes the real export disappear.

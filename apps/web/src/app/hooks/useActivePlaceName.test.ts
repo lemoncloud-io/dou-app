@@ -1,19 +1,19 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useActivePlaceName } from './useActivePlaceName';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
         session: {
             useSessionSelection: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 // Echo the key so the branded-label branch is identifiable without loading i18n resources.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));

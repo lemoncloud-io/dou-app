@@ -1,7 +1,7 @@
 # ADR-0296: An app's storage media are chosen in one place, and features reach web storage only through them
 
 > Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/general-storage-ports` (apps/web, libs), `feat/desktop-web-storage-ports` (apps/desktop-web, `libs/theme`), `refactor/storage-media-all-apps` (admin, landing, block-kit-builder; the app-wide `storage` retired)
-> · Scope: `libs/app-runtime` (`storage/` — `resolveStorageMedia`, the runtime's `device`/`tab` media;
+> · Scope: `libs/runtime` (`storage/` — `resolveStorageMedia`, the runtime's `device`/`tab` media;
 > `initAppRuntime({ storage, signedOutKeyPrefixes })`), `libs/storage` (`TolerantMedium`, `SwitchableMedium`), `libs/auth`
 > (`signedOutAppKeys`), `libs/config` (`ui.phoneCountry`), `libs/shared` (phone country), `apps/web`
 > (`app/storage/`, entry point, the features that kept state in web storage), `apps/desktop-web` (the same,
@@ -9,7 +9,7 @@
 > · Names since renamed (medium → store, `refactor/storage-medium-to-store`): `resolveStorageStores`, the runtime's
 > `device`/`tab` stores, `TolerantStore`, `SwitchableStore`, `sessionStores`. The text below keeps the names of its time.
 > · The behaviour is documented in [libs/storage](../../libs/storage/README.md),
-> [libs/app-runtime](../../libs/app-runtime/README.md), [apps/web](../../apps/web/README.md) and
+> [libs/runtime](../../libs/runtime/README.md), [apps/web](../../apps/web/README.md) and
 > [apps/desktop-web docs/storage](../../apps/desktop-web/docs/storage/README.md)
 
 ## Context
@@ -38,7 +38,7 @@ itself — a session package holding another domain's key names.
 else in apps/web or the libs names a web storage.** apps/web uses it now; desktop-web still builds its
 media in its entry point and moves next.
 
-1. **`resolveStorageMedia()`** (`libs/app-runtime`, `boot` group) reads the environment once — in a
+1. **`resolveStorageMedia()`** (`libs/runtime`, `boot` group) reads the environment once — in a
    shell or not, whether the shell listed `nativeSecure`, the tab's late-vault mark — and returns the
    session's `secret`/`plain`, the vault when there is one, a `device` medium (`localStorage`, in every
    environment), a `tab` medium (`sessionStorage`) and the two raw web media. It is the storage
@@ -120,5 +120,5 @@ them. It was pointed at the session's `plain` medium by apps/web and desktop-web
 `sessionStorage` everywhere else, so it was a medium nobody chose by name. Its last users now say which
 medium they mean: desktop-web's Google sign-in start, its used nonces and the sign-in notice take
 `plainMedium` from its `app/storage` (the session's `plain`, so they stay where they were), and the
-push registration record in `libs/app-runtime` reads the session's `plain` medium through
+push registration record in `libs/runtime` reads the session's `plain` medium through
 `sessionMedia`.

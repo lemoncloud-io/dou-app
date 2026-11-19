@@ -12,8 +12,8 @@ const mockConfirmPhoneLogin = jest.fn();
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),
             retryPhoneLogin: jest.fn(),
@@ -22,8 +22,8 @@ jest.mock('@chatic/app-runtime', () => ({
             PHONE_LOGIN_NO_TOKEN: 'PHONE_LOGIN_NO_TOKEN',
             PHONE_LOGIN_SWITCH_FAILED: 'PHONE_LOGIN_SWITCH_FAILED',
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 // One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.
 jest.mock('../../../hooks/useLinkAccount', () => ({

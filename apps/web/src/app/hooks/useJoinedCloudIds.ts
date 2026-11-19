@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
-import { RELAY_CLOUD_ID } from '@chatic/data';
-import type { DomainCloud } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainCloud } from '@chatic/runtime';
 
 /**
  * The ids of every cloud this account belongs to — the owned catalog and the invited-cloud cache,

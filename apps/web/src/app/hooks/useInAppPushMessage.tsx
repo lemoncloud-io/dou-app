@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { matchPath } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import type { AppMessageData } from '@chatic/bridge-messages';
 

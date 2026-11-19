@@ -3,7 +3,7 @@
 **The internal operator console** — subscription overrides, failure tracing, redeploying the
 subscription clouds after a server update, relay user registration, and the multi-client WebSocket
 lab used to verify the socket stack directly, all behind one login gate. It depends on
-`@chatic/app-runtime` alone for session, socket and repository access; it does not import
+`@chatic/runtime` alone for session, socket and repository access; it does not import
 `@chatic/data` directly, so the runtime stays the one window this app looks through the stack with.
 
 The app was called `admin-v2` until 2026-11; older ADRs, changelog entries and commit scopes use
@@ -37,8 +37,15 @@ storage, and the root lint rule refuses it.
 The console boots its runtime from a declaration: `src/config/admin.ts` names one adapter per port,
 and `src/main.tsx` awaits `startRuntime(admin)` before it registers the session-failure banner and
 renders. The start also initialises `@chatic/config` from the declaration's `config` ports
-(`src/app/config/adapters.ts`), synchronously and before anything reads config, so there is no
+(`src/config/adapters/config.ts`), synchronously and before anything reads config, so there is no
 separate `config.init` call in the entry.
+
+`src/config/` and `src/main.tsx` are the only code that names an implementation: they alone import
+`@chatic/runtime-web` and `@chatic/config`. Everything under `src/app/` reaches the runtime through
+`@chatic/runtime`, and its tests mock that module with `fakeRuntimeModule` from
+`@chatic/runtime/testing`. The one exception is the env: `src/app/config/stageEndpoints.ts` reads the
+per-stage service bases and the build's stage through the declaration's config ports
+(`webConfigPorts.env`), because `runtime.settings` reads settings, not the raw `VITE_*` values.
 
 Every port is fixed — no alternatives — to what the console ran before the declaration existed:
 

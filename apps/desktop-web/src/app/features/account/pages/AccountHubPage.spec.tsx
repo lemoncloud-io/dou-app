@@ -11,8 +11,8 @@ const tokenUser = vi.hoisted(() => ({
 const patchRelaySessionUser = vi.hoisted(() => vi.fn());
 const gatewayUpdate = vi.hoisted(() => vi.fn(async (data: unknown) => data));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'relay',
             useSlotVerified: () => true,
@@ -24,8 +24,8 @@ vi.mock('@chatic/app-runtime', () => ({
             fetchAccountProfile: async () => ({}),
             updateAccountProfile: (...args: unknown[]) => gatewayUpdate(...args),
         },
-    },
-}));
+    })
+);
 
 const prepareImage = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/shared', async () => ({

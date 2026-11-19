@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 
 import { hostProfile, webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 const APPLICATION = 'chatic';
 const DEFAULT_PLATFORM = 'desktop';
@@ -27,7 +26,7 @@ const DEFAULT_PLATFORM = 'desktop';
  */
 export const useDeviceTokenRegistration = (): void => {
     const delegate = useMemo<runtime.push.DeviceTokenDelegate | null>(() => {
-        if (host.ports.push.kind !== 'shell') return null;
+        if (runtime.push.kind !== 'shell') return null;
         const globals = hostProfile().globals;
         return {
             fetchDeviceToken: () =>

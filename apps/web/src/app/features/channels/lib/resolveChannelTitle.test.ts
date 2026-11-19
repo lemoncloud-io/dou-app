@@ -1,6 +1,6 @@
 import { resolveChannelTitle } from './resolveChannelTitle';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 // Minimal channel factory — only the fields resolveChannelTitle reads.
 const channel = (overrides: Partial<DomainChannel>): DomainChannel =>

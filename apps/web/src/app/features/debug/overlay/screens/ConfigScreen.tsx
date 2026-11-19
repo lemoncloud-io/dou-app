@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { config } from '@chatic/config';
-import type { ConfigSnapshot, SetResult } from '@chatic/config';
+import { runtime, type ConfigSnapshot, type SetResult } from '@chatic/runtime';
 
 import { CopyButton } from '../../components/CopyButton';
 import { Section } from '../../components/Section';
@@ -17,7 +16,7 @@ type ConfigScreenStrings = ReturnType<typeof useConfigScreenStrings>;
  * `snapshotAll()` already carries what a row needs: title, description, current value, default,
  * which row won (`origin`), and who may write it here and now (`canWrite`). Editing writes the
  * LOCAL lane only — the panel is this device's operator, not the shell and not the server — and
- * `config.set` reports refusals as a reason, so a control that does nothing says why (types.ts:
+ * `runtime.settings.set` reports refusals as a reason, so a control that does nothing says why (types.ts:
  * "a debug panel should show the reason, not crash").
  *
  * Two exclusions, both from the ADRs rather than taste:
@@ -52,7 +51,7 @@ export const ConfigScreen = () => {
     // every change for anyone who needs the timeline. Writes bump the same counter.
     const snapshots = useMemo(() => {
         void tick;
-        return config.snapshotAll().filter(snapshot => !isHidden(snapshot));
+        return runtime.settings.snapshotAll().filter(snapshot => !isHidden(snapshot));
     }, [tick]);
 
     const refresh = useCallback(() => setTick(t => t + 1), []);
@@ -142,16 +141,16 @@ const ConfigRow = ({
     const canEdit = canWrite.includes('local');
 
     const apply = (next: unknown) => {
-        const result = config.set(key, next, { lane: 'local' });
+        const result = runtime.settings.set(key, next, { lane: 'local' });
         setMessage(reasonOf(result, t));
         if (result.ok) onChanged();
     };
 
     const revert = () => {
-        const result = config.clear(key, { lane: 'local' });
+        const result = runtime.settings.clear(key, { lane: 'local' });
         setMessage(reasonOf(result, t));
         if (result.ok) {
-            setDraft(show(config.snapshotAll().find(s => s.key === key)?.value));
+            setDraft(show(runtime.settings.snapshotAll().find(s => s.key === key)?.value));
             onChanged();
         }
     };

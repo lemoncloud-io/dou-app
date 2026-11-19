@@ -11,19 +11,22 @@ let mockPairingEnabled = true;
 let mockGuest = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 // Who signs a person in, as the host's `signIn` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: mockNative ? 'shell' : 'browser', os: null } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        session: { useIsPairedSession: () => mockPaired },
+        get signIn() {
+            return { kind: mockNative ? 'shell' : 'browser', os: null };
         },
-    },
-}));
-jest.mock('@chatic/app-runtime', () => ({ runtime: { session: { useIsPairedSession: () => mockPaired } } }));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
-}));
+        settings: {
+            useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
+        },
+    })
+);
 jest.mock('@chatic/web-ui-kit', () => ({
     DefaultAvatar: () => null,
     IconChevronRight: () => null,

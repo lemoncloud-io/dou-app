@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 import type * as SharedLib from '@chatic/shared';
 
 const rows: DomainChannel[] = [
@@ -41,8 +41,8 @@ const repositories = {
     },
 };
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
             // The channel cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
@@ -61,8 +61,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useCloudVerified: () => true,
         },
         sync: { registerSyncTarget: () => () => undefined },
-    },
-}));
+    })
+);
 
 const pinned = vi.hoisted(() => ({ ids: [] as string[], toggle: vi.fn() }));
 vi.mock('@chatic/shared', async () => ({

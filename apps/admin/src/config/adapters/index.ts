@@ -25,7 +25,7 @@ export const storageAdminTab = defineAdapter<'storage', WebHostFacts>({
 
 /**
  * `cache.admin-web-storage` — IndexedDB, and a plain tab's invited clouds in the console's `tabStore`:
- * the page's cache routing (`webLocalCachePorts`), as `createWebRuntime` built it. The tab store is the
+ * the page's cache routing, `@chatic/runtime-web`'s `webLocalCachePorts` handed this console's store. The tab store is the
  * raw one, never the tolerant `deviceStore`, because a cache must hear a failed write.
  */
 export const cacheAdminWebStorage = defineAdapter<'cache', WebHostFacts>({

@@ -9,11 +9,11 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { logoutSession: vi.fn() } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ session: { logoutSession: vi.fn() } })
+);
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { authFailureNotice } from '../session/authFailureNotice';
 import { SessionExpiredBanner } from './SessionExpiredBanner';

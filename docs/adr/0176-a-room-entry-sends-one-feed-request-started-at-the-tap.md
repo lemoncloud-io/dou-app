@@ -1,7 +1,7 @@
 # ADR-0176: A room entry sends one feed request, started at the tap
 
 > Status: Accepted · Decided: 2026-10-02 · Implemented: `feat/room-entry-speed`
-> · Scope: `libs/app-runtime/src/socket/sync/{roomFeed.ts,hooks/useSyncTarget.ts}`
+> · Scope: `libs/runtime/src/socket/sync/{roomFeed.ts,hooks/useSyncTarget.ts}`
 > · `apps/web/src/app/features/channels/hooks/useForegroundChatRefresh.ts`
 > · `apps/web/src/app/features/home/components/ChannelList.tsx` · `apps/web/src/app/routes/{routeChunks.ts,PrivateRoutes.tsx}`
 > · The module docs are [sync/README.md](../../libs/sync/README.md#one-fetch-per-room-entry)

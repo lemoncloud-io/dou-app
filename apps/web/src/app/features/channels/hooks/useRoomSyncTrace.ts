@@ -4,7 +4,7 @@ import { clearActivePerfTrace } from '@chatic/perf';
 
 import { roomOpenTrace } from '../../../runtime/perf';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import type { PerfTrace } from '@chatic/perf';
 
 /** Past this with no synced page on screen, the trace is closed as timed out. */

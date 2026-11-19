@@ -1,4 +1,4 @@
-import type { ChatSubType } from '@chatic/data';
+import type { ChatSubType } from '@chatic/runtime';
 
 // Maps a system message subType to its i18n key for the trailing clause. The owner name is rendered
 // separately (bold, as a prefix), so the localized string is only the suffix — e.g. "님이 들어왔습니다"

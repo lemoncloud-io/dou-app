@@ -4,7 +4,7 @@
         "outDir": "dist",
         // No `dom` and no Node types, like runtime-core: this is the side of the React surface that
         // calls the core, and nothing in it may assume a page. What only a page knows (its address,
-        // its host profile) is handed in by the caller in app-runtime.
+        // its host profile) is handed in by the caller in @chatic/runtime.
         "lib": ["es2022"],
         "types": [],
         "rootDir": "src",
@@ -50,6 +50,9 @@
         },
         {
             "path": "../runtime-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridge-messages/tsconfig.lib.json"
         }
     ]
 }

@@ -1,11 +1,14 @@
 import type { ConfigRuntimePorts } from '@chatic/config';
 import type { RuntimeConfig, RuntimeEngine, RuntimePorts } from '@chatic/runtime-core';
 
-import { defineAdapter, defineRuntime } from './define';
+import { host } from '../host/hostPorts';
+import { HOST_PORT_NAMES } from '../host/ports';
+import type { HostPorts } from '../host/ports';
+import { defineAdapter, defineEngineAdapter, defineHostAdapter, defineRuntime } from './define';
 import { RuntimeDeclarationError } from './resolvePorts';
 import { formatPortChoice, startRuntime } from './startRuntime';
 import type { RuntimeConfigAccess } from './startRuntime';
-import type { PortChoiceReader, PortName } from './types';
+import type { HostPortDeclarations, HostPortName, PortChoiceReader, PortName, RuntimeDeclaration } from './types';
 
 interface Facts {
     shell: boolean;
@@ -140,6 +143,7 @@ describe('startRuntime', () => {
             'auth → auth.location (default)',
             "cache → cache.indexeddb (default, fell back: local asked for 'cache.memory', not one of this runtime's cache adapters (cache.indexeddb, cache.web-storage))",
             'foreground → foreground.visibility (default)',
+            'engine → engine.core (default)',
         ]);
     });
 
@@ -186,6 +190,195 @@ describe('startRuntime', () => {
         const h = harness(undefined, fakeConfig(false));
         await expect(startRuntime(decl, h.options)).rejects.toThrow(RuntimeDeclarationError);
         expect(h.createRuntime).not.toHaveBeenCalled();
+    });
+});
+
+/** Every host port on one `browser` adapter (`checkout` on `none`), each recording when it was built. */
+const hostDeclarations = (built: string[]): HostPortDeclarations<Facts> => {
+    const browser = <P extends HostPortName>(port: P, value: HostPorts[P]) =>
+        defineHostAdapter<P, Facts>({
+            id: `${port}.browser`,
+            port,
+            create: () => {
+                built.push(port);
+                return value;
+            },
+        });
+    return {
+        checkout: { default: browser('checkout', { kind: 'none' }) },
+        media: { default: browser('media', { kind: 'browser' }) },
+        files: { default: browser('files', { kind: 'browser' }) },
+        links: { default: browser('links', { kind: 'browser' }) },
+        appShell: { default: browser('appShell', { kind: 'browser', os: null }) },
+        signIn: { default: browser('signIn', { kind: 'browser', os: null }) },
+        diagnostics: { default: browser('diagnostics', { kind: 'browser' }) },
+        push: {
+            default: browser('push', { kind: 'browser' }),
+            alternatives: [
+                defineHostAdapter<'push', Facts>({
+                    id: 'push.shell',
+                    port: 'push',
+                    supports: facts => facts.shell,
+                    create: () => ({ kind: 'shell' }),
+                }),
+            ],
+        },
+    };
+};
+
+describe('startRuntime with host ports', () => {
+    afterEach(() => host.resetForTests());
+
+    it('publishes every host port, once, before any runtime port is built or the engine assembled', async () => {
+        const order: string[] = [];
+        const { decl } = declaration();
+        const withHost = defineRuntime<Facts>({ ...decl, host: hostDeclarations(order) });
+        const h = harness();
+        const publishHost = jest.fn((ports: HostPorts) => order.push(`publish:${Object.keys(ports).length}`));
+        h.createRuntime.mockImplementation(() => {
+            order.push('createRuntime');
+            return engine;
+        });
+
+        const started = await startRuntime(withHost, { ...h.options, publishHost });
+
+        expect(publishHost).toHaveBeenCalledTimes(1);
+        expect(order).toEqual([...HOST_PORT_NAMES, 'publish:8', 'createRuntime']);
+        expect(publishHost.mock.calls[0][0].appShell).toEqual({ kind: 'browser', os: null });
+        expect(started.hostChoices?.push).toMatchObject({ id: 'push.browser', origin: 'default' });
+    });
+
+    it('publishes through the process holder by default', async () => {
+        const { decl } = declaration();
+        await startRuntime(defineRuntime<Facts>({ ...decl, host: hostDeclarations([]) }), harness().options);
+
+        expect(host.isPublished).toBe(true);
+        expect(host.ports.checkout).toEqual({ kind: 'none' });
+    });
+
+    it('publishes nothing for a declaration that names no host port', async () => {
+        const { decl } = declaration();
+        const publishHost = jest.fn();
+        const started = await startRuntime(decl, { ...harness().options, publishHost });
+
+        expect(publishHost).not.toHaveBeenCalled();
+        expect(host.isPublished).toBe(false);
+        expect(started.hostChoices).toBeUndefined();
+    });
+
+    it('settles a host port toggle by the same rules as a runtime port', async () => {
+        const { decl } = declaration();
+        const withHost = defineRuntime<Facts>({ ...decl, host: hostDeclarations([]) });
+        const publishHost = jest.fn();
+        const h = harness(key =>
+            key === 'port.push' ? { value: 'push.shell', origin: 'local' } : { value: '', origin: 'default' }
+        );
+
+        const started = await startRuntime(withHost, { ...h.options, publishHost });
+
+        // The facts say this is no shell, so the toggle falls back and the log says why.
+        expect(started.hostChoices?.push).toMatchObject({
+            id: 'push.browser',
+            fellBack: { requested: 'push.shell', from: 'local', because: 'not supported on this host' },
+        });
+        expect(publishHost.mock.calls[0][0].push).toEqual({ kind: 'browser' });
+        expect(h.lines).toContain(
+            "push → push.browser (default, fell back: local asked for 'push.shell', not supported on this host)"
+        );
+    });
+});
+
+describe('startRuntime with an engine adapter', () => {
+    type Owner = { side: 'web' | 'native' | null };
+
+    const withEngine = (
+        create: Parameters<typeof defineEngineAdapter<Facts, Owner>>[0]['create']
+    ): { decl: RuntimeDeclaration<Facts, Owner>; storageContexts: unknown[] } => {
+        const { decl } = declaration();
+        const storageContexts: unknown[] = [];
+        const storage = defineAdapter<'storage', Facts>({
+            id: 'storage.vault',
+            port: 'storage',
+            create: context => {
+                storageContexts.push(context);
+                return storagePorts as unknown as RuntimePorts['storage'];
+            },
+        });
+        return {
+            decl: defineRuntime<Facts, Owner>({
+                ...decl,
+                ports: { ...decl.ports, storage: { default: storage } },
+                engine: { default: defineEngineAdapter<Facts, Owner>({ id: 'engine.fake', port: 'engine', create }) },
+            }),
+            storageContexts,
+        };
+    };
+
+    it('boots the engine the adapter made without building a port, and hands back what it settled', async () => {
+        const mirrored = { id: 'mirror' } as unknown as RuntimeEngine;
+        const { decl, storageContexts } = withEngine(() => ({ engine: mirrored, owner: { side: 'native' } }));
+        const h = harness();
+
+        const started = await startRuntime(decl, h.options);
+
+        expect(storageContexts).toEqual([]);
+        expect(h.createRuntime).not.toHaveBeenCalled();
+        expect(h.initEngine).toHaveBeenCalledWith(mirrored);
+        expect(started.engine).toBe(mirrored);
+        expect(started.owner).toEqual({ side: 'native' });
+        expect(started.engineChoice).toMatchObject({ id: 'engine.fake', origin: 'default' });
+    });
+
+    it('builds the core over the declared ports when the adapter asks, telling storage who owns the session', async () => {
+        const { decl, storageContexts } = withEngine(async ({ core }) => ({
+            engine: await core({ sessionOwner: 'web' }),
+            owner: { side: 'web' },
+        }));
+        const h = harness();
+
+        const started = await startRuntime(decl, h.options);
+
+        expect(storageContexts).toEqual([{ facts: { shell: false }, sessionOwner: 'web' }]);
+        expect(h.createRuntime).toHaveBeenCalledTimes(1);
+        expect(started.engine).toBe(engine);
+        expect(started.owner).toEqual({ side: 'web' });
+    });
+
+    it('builds the ports once however often the adapter asks for the core', async () => {
+        const { decl, storageContexts } = withEngine(async ({ core }) => {
+            const [first, second] = await Promise.all([core(), core()]);
+            return { engine: first === second ? first : null };
+        });
+        const h = harness();
+
+        const started = await startRuntime(decl, h.options);
+
+        expect(storageContexts).toHaveLength(1);
+        expect(h.createRuntime).toHaveBeenCalledTimes(1);
+        expect(started.engine).toBe(engine);
+    });
+
+    it('boots nothing when the adapter decides no engine may run this launch', async () => {
+        const { decl, storageContexts } = withEngine(() => ({ engine: null, owner: { side: null } }));
+        const h = harness();
+
+        const started = await startRuntime(decl, h.options);
+
+        expect(storageContexts).toEqual([]);
+        expect(h.initEngine).not.toHaveBeenCalled();
+        expect(started.engine).toBeNull();
+        expect(started.owner).toEqual({ side: null });
+    });
+
+    it('builds every port with no sessionOwner and hands back no owner when no engine is declared', async () => {
+        const { decl } = declaration();
+        const h = harness();
+
+        const started = await startRuntime(decl, h.options);
+
+        expect(started.engineChoice.id).toBe('engine.core');
+        expect(started).not.toHaveProperty('owner');
+        expect(h.initEngine).toHaveBeenCalledWith(engine);
     });
 });
 

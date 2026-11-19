@@ -21,8 +21,7 @@ import { webTransportPorts } from '../transport';
 
 /**
  * An adapter for a web page: one way of filling one port, asked about this page's `WebHostFacts`.
- * Each one wraps the factory of the same port, so a declaration that names the adapters `createWebRuntime`
- * uses builds the same runtime.
+ * Each one wraps the factory of the same port, so an adapter builds what that factory builds on its own.
  */
 export type WebAdapter<P extends PortName> = Adapter<P, RuntimePorts[P], WebHostFacts>;
 
@@ -95,18 +94,21 @@ export const storageLocal: WebAdapter<'storage'> = {
  * vault is loaded here, through the same secret-storage step an entry point runs, because the runtime
  * reads it synchronously from the start; its fallback is the same tab store the set hands out.
  *
- * Not covered yet, and needed before apps/web can declare it: a launch whose session the shell owns,
- * where the page must not open the vault at all, and a vault the shell confirms only in its handshake
- * (apps/web's late-vault mark). Both are decided by apps/web's entry point today.
+ * Not on a launch whose session the shell owns: the vault is then the shell's alone, and the page must
+ * not open it. `engine.mirror` builds no port at all on such a launch; a storage built while the engine
+ * says the shell owns the session (`sessionOwner: 'native'`) hands out the stores without loading the
+ * vault. A vault the shell confirms only in its handshake (apps/web's late-vault mark) is still the
+ * entry point's to carry into the next load.
  */
 export const storageVault: WebAdapter<'storage'> = {
     id: 'storage.vault',
     port: 'storage',
     supports: facts => inShell(facts) && shellKeepsVault(facts),
-    create: async () => {
+    create: async ({ sessionOwner }) => {
         const areas = pageStorageAreas();
         const vault = createShellVault({ fallback: areas.webSession });
         const stores = vaultStorageStores({ ...areas, vault });
+        if (sessionOwner === 'native') return stores;
         await prepareSecretStorage({
             vault,
             plain: stores.plain,
@@ -170,3 +172,34 @@ export const cacheShellSqlite: WebAdapter<'cache'> = {
         });
     },
 };
+
+export { engineMirror } from './engine';
+export type { EngineMirrorOptions } from './engine';
+export {
+    appShellBrowser,
+    appShellHost,
+    appShellShell,
+    checkoutFromHost,
+    checkoutNone,
+    checkoutStore,
+    checkoutWeb,
+    diagnosticsBrowser,
+    diagnosticsHost,
+    diagnosticsShell,
+    filesBrowser,
+    filesHost,
+    filesShell,
+    linksBrowser,
+    linksHost,
+    linksShell,
+    mediaBrowser,
+    mediaHost,
+    mediaShell,
+    pushBrowser,
+    pushHost,
+    pushShell,
+    signInBrowser,
+    signInHost,
+    signInShell,
+} from './hostPorts';
+export type { CheckoutImplementations, WebHostAdapter } from './hostPorts';

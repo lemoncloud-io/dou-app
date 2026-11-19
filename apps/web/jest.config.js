@@ -1,7 +1,7 @@
 module.exports = {
     testEnvironment: 'jsdom',
     setupFiles: ['<rootDir>/jest.setup.ts'],
-    // `uuid` ships ESM-only; the session hooks that moved into `@chatic/app-runtime` (ADR-0070 step 3)
+    // `uuid` ships ESM-only; the session hooks in `@chatic/runtime`
     // pull it in via `useDynamicDeviceId`, so it must be transformed rather than required as CJS.
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
@@ -26,6 +26,8 @@ module.exports = {
         '^@chatic/config/(.*)$': '<rootDir>/../../libs/config/src/$1/index.ts',
         // Same trap: `shared/phone` is a subpath entry kept out of the root barrel (libphonenumber's metadata).
         '^@chatic/shared/phone$': '<rootDir>/../../libs/shared/src/phone/index.ts',
+        // Same trap: the runtime's test fake is a subpath entry kept out of its barrel.
+        '^@chatic/runtime/testing$': '<rootDir>/../../libs/runtime/src/testing/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         // web-ui-kit re-exports SVG/image assets from its barrel; stub them (and styles) so tests
         // importing @chatic/web-ui-kit don't choke on static asset imports.

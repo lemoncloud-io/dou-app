@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 import '../../../../i18n';
 
@@ -12,7 +12,10 @@ import { WelcomePage } from './WelcomePage';
 
 const NONE: WelcomeSignals = { ownsChannel: false, invited: false, hasDm: false, hasProfile: false };
 
-const renderPage = (signals: Partial<WelcomeSignals> = {}, actions: Partial<Parameters<typeof WelcomePage>[0]> = {}) => {
+const renderPage = (
+    signals: Partial<WelcomeSignals> = {},
+    actions: Partial<Parameters<typeof WelcomePage>[0]> = {}
+) => {
     const props = {
         placeName: 'Lemon',
         signals: { ...NONE, ...signals },
@@ -29,7 +32,8 @@ const renderPage = (signals: Partial<WelcomeSignals> = {}, actions: Partial<Para
 
 const step = (name: RegExp) => screen.getByRole('button', { name });
 
-const channel = (over: Partial<DomainChannel>) => ({ id: 'c', name: 'general', stereo: 'public', ...over }) as DomainChannel;
+const channel = (over: Partial<DomainChannel>) =>
+    ({ id: 'c', name: 'general', stereo: 'public', ...over }) as DomainChannel;
 
 beforeEach(() => {
     useWelcomeStore.setState({ dismissed: {}, invited: {} });
@@ -96,7 +100,10 @@ describe('shouldShowWelcome', () => {
     it('steps aside once the place has a channel or a 1:1', () => {
         expect(shouldShowWelcome({ ...base, channels: [channel({})] })).toBe(false);
         expect(
-            shouldShowWelcome({ ...base, channels: [channel({ id: 'd', stereo: 'dm', name: '', memberIds: ['me', 'ada'] })] })
+            shouldShowWelcome({
+                ...base,
+                channels: [channel({ id: 'd', stereo: 'dm', name: '', memberIds: ['me', 'ada'] })],
+            })
         ).toBe(false);
     });
 

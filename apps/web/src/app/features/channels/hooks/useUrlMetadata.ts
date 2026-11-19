@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 
@@ -76,7 +76,7 @@ export const __resetUrlMetadataCache = () => {
 /**
  * Preview metadata for a link, or null while unresolved or when there is nothing to show.
  *
- * Returns null where the page takes its own links (`host.ports.links`), as in a plain browser:
+ * Returns null where the page takes its own links (`runtime.links`), as in a plain browser:
  * parsing needs the app, so there is no point asking.
  */
 export const useUrlMetadata = (url: string): UrlMetadata | null => {
@@ -88,7 +88,7 @@ export const useUrlMetadata = (url: string): UrlMetadata | null => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => cache.get(url) ?? null);
 
     useEffect(() => {
-        if (host.ports.links.kind !== 'shell') return;
+        if (runtime.links.kind !== 'shell') return;
 
         let active = true;
         void requestUrlMetadata(url).then(result => {

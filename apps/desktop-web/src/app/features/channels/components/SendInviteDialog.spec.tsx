@@ -6,8 +6,8 @@ const createInvite = vi.fn(async () => ({ id: 'inv-1', deeplink: 'https://dou.ex
 // `user.invite` answers with the link in `Location`, not `deeplink`.
 const requestPlaceInvite = vi.fn(async () => ({ id: 'inv-p', Location: 'https://dou.example/p/xyz' }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 invite: { create: (...args: unknown[]) => createInvite(...args), cancel: vi.fn(), list: vi.fn() },
@@ -22,8 +22,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             getRelaySessionUser: () => relayUser.current,
         },
-    },
-}));
+    })
+);
 
 // The relay user the invite is issued as: a contact invite rides the relay slot.
 const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));

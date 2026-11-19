@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 
 const places: DomainPlace[] = [
     {
@@ -21,8 +21,8 @@ const places: DomainPlace[] = [
 
 const sessionSel = vi.hoisted(() => ({ siteId: 'p1' }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 place: {
@@ -38,8 +38,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedSiteId: sessionSel.siteId }),
         },
-    },
-}));
+    })
+);
 
 // Author names resolve off-device; the owner row is about layout, not lookup.
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({

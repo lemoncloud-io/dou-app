@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
 import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/bridge-messages';

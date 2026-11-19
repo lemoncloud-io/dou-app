@@ -55,7 +55,7 @@ export interface IAuthRepository extends DisposableRepository {
      * recovered (return). On `mode: 'link'` no token comes back and the session is unchanged.
      *
      * This repository does not interpret or install the token — session state belongs to
-     * `app-runtime`'s `session/auth` (see libs/app-runtime/docs/session/architecture.md,
+     * `@chatic/runtime`'s `session/auth` (see libs/runtime/docs/session/architecture.md,
      * "session/auth — HTTP goes through the data layer"). `data` performs the call; it never reads a
      * `Token`, writes a store, or flips auth state.
      */

@@ -27,26 +27,26 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Eleven workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+Ten workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
 entry contract and the upload queue; [`@chatic/perf`](../../libs/perf/README.md) the performance
 traces; [`@chatic/shared`](../../libs/shared/README.md) and `@chatic/chatic-apps-sdk` supply the small
 shared pieces, and the User-Agent prefixes this app stamps on its WebView are declared in
-`@chatic/bridge-messages`. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md), [`@chatic/storage`](../../libs/storage/README.md) and
-[`@chatic/db`](../../libs/db/README.md) are the runtime's ports the app builds on its own storage (`services/runtime/`), and
-`@chatic/data` is read by tests only.
+`@chatic/bridge-messages`. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md) and
+[`@chatic/db`](../../libs/db/README.md) are the runtime the app declares on its own storage (`src/config/mobile.ts`,
+`services/runtime/`), and `@chatic/data` is read by tests only.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
 bookkeeping (`@chatic/bridges`); the desktop shell's answers to the same messages (`apps/desktop`).
 
-`@chatic/config` is a special case, and the absence is deliberate: this app never imports it, but
-`ConfigKvService` and `useConfigKvHandler` persist its shell lane. The library's name appears in this
-source tree only in comments. The app's own session runtime does run it — `@chatic/runtime-mobile`'s
-boot calls `config.init` with the build's values on a launch the runtime owns
-([docs/runtime/](./docs/runtime/README.md)) — but through that package, not from this tree.
+`@chatic/config` is a special case: one file imports it, and only that file may. The runtime's
+declaration (`src/config/mobile.ts`) hands it the build's values, and the runtime's start calls
+`config.init` with them on a launch the runtime owns ([docs/runtime/](./docs/runtime/README.md)).
+Everywhere else the app only persists the library's shell lane — `ConfigKvService` and
+`useConfigKvHandler` — and its name appears in the rest of the tree only in comments.
 
 ## Design principles
 
@@ -157,6 +157,7 @@ before the web client's own pre-paint code, and only the second survives a reloa
 apps/mobile/
 ├── src/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
+│   ├── config/            the session runtime's declaration (mobile.ts) and its app-only adapters
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash

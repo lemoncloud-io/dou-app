@@ -4,14 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type { useThreadRoot as UseThreadRoot } from '../hooks/useThreadRoot';
 import type { MemberReadCursor, ReadCount } from '../../../shared';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn(), getChat: vi.fn() },
@@ -22,8 +22,8 @@ vi.mock('@chatic/app-runtime', () => ({
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
             useSessionSelection: () => ({ selectedSiteId: 'S1' }),
         },
-    },
-}));
+    })
+);
 
 let messages: DomainChat[] = [];
 vi.mock('../../../shared/hooks/useChats', () => ({

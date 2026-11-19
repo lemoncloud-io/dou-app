@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { LinkedAccountsView, LinkVerifiedView } from '@lemoncloud/chatic-backend-api';
@@ -43,9 +42,9 @@ const openAuthorize = (provider: OAuthProvider, intent: OAuthStartIntent, accoun
     openBrowser(buildAuthorizeUrl(provider, record.nonce));
 };
 
-/** The system browser where the app signs a person in (`host.ports.signIn`); this tab where the page does. */
+/** The system browser where the app signs a person in (`runtime.signIn`); this tab where the page does. */
 const openBrowser = (url: string): void => {
-    if (host.ports.signIn.kind === 'shell') window.open(url, '_blank');
+    if (runtime.signIn.kind === 'shell') window.open(url, '_blank');
     else window.location.assign(url);
 };
 

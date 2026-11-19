@@ -1,4 +1,4 @@
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 import { isPlaceProfileAbsent, type MyPlaceProfileReader } from './placeProfile';
 

@@ -1,4 +1,4 @@
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 // The wire types are read off the repositories this app already depends on, rather than imported
 // from the HTTP layer: desktop-web does not reference `@chatic/http`, and the shapes it needs are

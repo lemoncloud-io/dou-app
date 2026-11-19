@@ -26,21 +26,17 @@ jest.mock('react-i18next', () => ({
     // Echo the key (with the masked tail appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { last4?: string }) => (o?.last4 ? `${k}|${o.last4}` : k) }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-    },
-}));
-// Who signs a person in, as the host's `signIn` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { signIn: { kind: mockIsNative() ? 'shell' : 'browser', os: mockIsNative() ? mockPlatform : null } };
+        // Who signs a person in, as the host's `signIn` port says.
+        get signIn() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: mockIsNative() ? mockPlatform : null };
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: () => mockLinked }));
 jest.mock('../hooks', () => ({
     useSocialLinks: () => ({
@@ -51,7 +47,7 @@ jest.mock('../hooks', () => ({
     }),
 }));
 // Stubbed like ContactInvitePage.test.tsx does: the sheet's own rendering is covered by
-// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/app-runtime's confirmPhoneLogin plus the
+// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/runtime's confirmPhoneLogin plus the
 // Radix Sheet primitives. `mode` is surfaced because it is this section's decision (ADR-0042 §3).
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     PhoneVerifySheet: ({ mode, onVerified, onClose }: any) => (

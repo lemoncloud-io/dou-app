@@ -1,12 +1,12 @@
 import { renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useDeviceTokenRegistration: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 jest.mock('./appBridge', () => ({
     appBridge: {
@@ -14,7 +14,7 @@ jest.mock('./appBridge', () => ({
     },
 }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';
@@ -24,7 +24,7 @@ const mockRuntimeHook = runtime.push.useDeviceTokenRegistration as jest.Mock;
 const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
 // The adapter's job is delegate construction only; registration policy is
-// covered by app-runtime's own tests.
+// covered by the runtime's own tests.
 const lastDelegate = () => mockRuntimeHook.mock.calls[mockRuntimeHook.mock.calls.length - 1][0];
 
 describe('useDeviceTokenRegistration — appBridge 델리게이트 어댑터', () => {

@@ -2,7 +2,7 @@
  * `hooks/useRelaySessionGuard.ts`
  * - Keeps the relay HTTP signing credentials fresh while the console stays open.
  *
- * The probe/refresh body lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
+ * The probe/refresh body lives in `@chatic/runtime`'s `runtime.session.useSessionStalenessGuard`
  * (ADR-0070, step 3, checklist item 7). What is left here is admin's POLICY — and that policy is now
  * REFRESH ONLY: this guard no longer ends sessions.
  *
@@ -24,7 +24,7 @@
  * relay verification (the moment a refresh becomes possible at all). The probe is cheap — a few
  * storage reads — when nothing is expired.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /** Cheap when not expired, so a tight cadence keeps the 403 window small. */
 const CHECK_INTERVAL_MS = 30_000;

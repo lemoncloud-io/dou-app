@@ -1,9 +1,7 @@
 import { useCallback, useRef } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
+import { pushCloudIdOf, RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
 import type { AppMessageData } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
 
 import { useOnReceiveNotification } from '../bridge';
 import { extractPushContext } from '../utils/resolveInAppPushRoute';
@@ -34,7 +32,7 @@ export const InvitedCloudDurabilityRunner = (): null => {
     const handleReceiveNotification = useCallback((message: AppMessageData<'OnReceiveNotification'>) => {
         // A delivery is the `push` port's: only where the app receives notifications, which is the
         // native WebView, the one place the native store exists too (the boot hook's guard).
-        if (host.ports.push.kind !== 'shell') return;
+        if (runtime.push.kind !== 'shell') return;
         const data = message.data?.notification?.data;
         if (!data) return;
         // cid usually lives inside the `payload` JSON string, with a top-level fallback —

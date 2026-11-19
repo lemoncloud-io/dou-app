@@ -1,9 +1,0 @@
-{
-    "name": "@chatic/host",
-    "$schema": "../../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "libs/host/src",
-    "projectType": "library",
-    "tags": ["layer:host"],
-    "// targets": "to see all targets run: nx show project host --web",
-    "targets": {}
-}

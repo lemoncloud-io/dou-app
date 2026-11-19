@@ -6,13 +6,9 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 // `webClient.request` returns the unfurled metadata. Faking the module lets the
 // test drive whatever the shell "found" for a URL.
 // Who takes the page's links, as the host's `links` port says.
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { links: { kind: 'shell' } };
-        },
-    },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ links: { kind: 'shell' } })
+);
 vi.mock('@chatic/bridges', () => ({
     webClient: { request: vi.fn() },
 }));

@@ -7,7 +7,7 @@ app's settings surface, and it is also where three different kinds of profile me
 single thing most likely to be got wrong here.
 
 The feature holds no session and no repository of its own. Every read is a hook from `app/hooks/` or
-[`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md); the chrome around it — the
+[`@chatic/runtime`](../../../../../libs/runtime/README.md); the chrome around it — the
 floating nav, safe areas, keyboard insets — belongs to
 [shell/layout-shell.md](../../shell/layout-shell.md).
 
@@ -199,7 +199,7 @@ holds a partition for. Invited clouds and invite dismissals survive — the cach
 both — and so do the session and tokens. Unsent messages do not, and nothing on screen warns about
 that any more; the row is a plain "clear cache" by product choice. What is swept, and why the sync
 cursors go last, is in
-[`libs/app-runtime`'s data doc](../../../../../libs/runtime-core/docs/data/README.md#clearing-the-cache).
+[`libs/runtime`'s data doc](../../../../../libs/runtime-core/docs/data/README.md#clearing-the-cache).
 
 A clean sweep **reloads the page**. Screens and react-query still hold what they already read, so
 without the reload the old data would stay on screen until each one happened to refetch. A partial
@@ -212,8 +212,8 @@ another sweep.
 Tapping the app version ten times used to open the debug gate, which meant one row had to be both a
 store link and a hidden gesture — and a tap that navigates to the store can never complete a ten-tap
 count. The gesture now lives on `LabPage`, on the flask icon inside the intro card: `aria-hidden`,
-`tabIndex={-1}`, advertised nowhere. `useDebugUnlock(config.get('debug.entryCode'))` owns the
-counting and the code challenge; see [debug](../debug/README.md).
+`tabIndex={-1}`, advertised nowhere. `useDebugUnlock(runtime.settings.get('debug.entryCode'))` owns
+the counting and the code challenge; see [debug](../debug/README.md).
 
 Once unlocked, Lab shows a single destructive row that opens the panel at full size.
 

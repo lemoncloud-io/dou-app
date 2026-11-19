@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger, webClient } from '@chatic/bridges';
 import type { AppIconOption } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
 
@@ -28,7 +28,7 @@ export const useAppIcon = () => {
     const [availableIcons, setAvailableIcons] = useState<AppIconOption[]>([]);
 
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
 
         webClient
             .request({ type: 'FetchAppIcon', data: {} })

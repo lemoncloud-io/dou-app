@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 /**
  * Ported from apps/desktop-web `features/chat/utils/foldReactions.ts` (ADR-0093). The fold

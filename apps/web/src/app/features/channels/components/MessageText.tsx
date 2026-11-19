@@ -3,7 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 import { CodeBlock, InlineCode } from '@chatic/web-ui-kit';
 
 import { type MentionMarks, type MentionPerson, splitMentionRuns } from '../utils/mentionHighlight';
-import { type InlineToken, tokenizeMessage } from '@chatic/data';
+import { tokenizeMessage, type InlineToken } from '@chatic/runtime';
 import { openExternalUrl } from '../utils/openExternalUrl';
 
 export interface MessageTextProps {

@@ -66,8 +66,8 @@ the identical reason — it runs during `MainScreen` render, before the WebView 
 
 `@chatic/config`'s shell lane is the one domain with no domain-named service: `configKvService`
 (`ConfigKvService`) is a generic, meaning-blind key-value store that `@chatic/config` writes and
-reads through, and this app never imports `@chatic/config` directly — the library name appears only
-in a comment on `configKvService`.
+reads through. Outside the runtime's declaration (`src/config/mobile.ts`) this app never imports
+`@chatic/config` — elsewhere the library name appears only in comments.
 
 ## Usage
 

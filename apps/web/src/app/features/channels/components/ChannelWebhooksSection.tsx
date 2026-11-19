@@ -2,8 +2,7 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainWebhook } from '@chatic/data';
-import { isWebhookExpired } from '@chatic/data';
+import { isWebhookExpired, type DomainWebhook } from '@chatic/runtime';
 import { BottomSheet, GroupLabel, ListRow } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 

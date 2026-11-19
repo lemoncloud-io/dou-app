@@ -44,7 +44,7 @@ Figma `3586:16827`'s 24×24 frame), a `footer` slot, and `pb-safe-bottom`. The i
 ### 1. The gate is a pre-gate on the session role
 
 Decide with `useRuntimeProfile().isGuest`
-(`libs/app-runtime/src/runtime/useRuntimeProfile.ts:54`). For a guest, `ContactInvitePage` renders the
+(`libs/runtime/src/runtime/useRuntimeProfile.ts:54`). For a guest, `ContactInvitePage` renders the
 intercept screen instead of the form — the same route and the same header (`Invite friends`), so no new
 route is created.
 

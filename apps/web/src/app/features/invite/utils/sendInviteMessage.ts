@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 import { copyMessageToClipboard } from '../../channels/utils/copyMessageToClipboard';
@@ -9,7 +9,7 @@ export type InviteMessageChannel = 'sms' | 'clipboard';
 
 /**
  * Deliver an invite message to `phone`: opens the native SMS composer prefilled with `body` where
- * the app takes the page's links (`host.ports.links`), falling back to a clipboard copy otherwise —
+ * the app takes the page's links (`runtime.links`), falling back to a clipboard copy otherwise —
  * including when the composer bridge rejects (no native bridge) or reports it could not open
  * (ADR-0089 D4).
  *
@@ -17,7 +17,7 @@ export type InviteMessageChannel = 'sms' | 'clipboard';
  * treat as the invite still being issued, just without an automatic hand-off.
  */
 export const sendInviteMessage = async (phone: string, body: string): Promise<InviteMessageChannel | false> => {
-    if (host.ports.links.kind === 'shell') {
+    if (runtime.links.kind === 'shell') {
         try {
             const response = await appBridge.sendSms(phone, body);
             // Only an explicit `false` means the composer did not open. Shells up to 0.28.4 send no

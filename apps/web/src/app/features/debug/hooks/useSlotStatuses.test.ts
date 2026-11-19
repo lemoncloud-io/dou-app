@@ -3,9 +3,11 @@ import { act, renderHook } from '@testing-library/react';
 import { useSlotStatuses } from './useSlotStatuses';
 
 const mockGetSlotStatuses = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { connection: { getSlotStatuses: () => mockGetSlotStatuses() } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        connection: { getSlotStatuses: () => mockGetSlotStatuses() },
+    })
+);
 
 const relay = { key: 'default', kind: 'relay', active: true, state: 'connected', verified: true, connectCount: 1 };
 const cloud = { key: 'cloud-a', kind: 'cloud', active: false, state: 'connected', verified: true, connectCount: 1 };

@@ -25,7 +25,7 @@ Consumers see the `@chatic/http` barrel and nothing else. `tsconfig.base.json` m
 `@chatic/http` alone — there is no `@chatic/http/*` entry, so a deep import does not resolve.
 
 What this lib does **not** own: endpoints, credentials, sessions and the log sink implementation
-(`libs/app-runtime`, injected as ports); domain mapping and caching (`@chatic/data`); the lemon HMAC
+(`libs/runtime`, injected as ports); domain mapping and caching (`@chatic/data`); the lemon HMAC
 signature ([`@chatic/auth`](../auth/docs/socket/signing.md#the-formula)); the socket transport
 (`@lemoncloud/chatic-sockets-lib`).
 
@@ -76,7 +76,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["HttpDataSource × 6<br/>@chatic/data"]:::ext
-    SA["@chatic/auth · app-runtime report"]:::ext
+    SA["@chatic/auth · @chatic/runtime report"]:::ext
     HM["HttpManager · transport.ts<br/>@chatic/transport"]:::ext
     AX["axios"]:::ext
 
@@ -226,7 +226,7 @@ const clouds = createCloudHttpGateway(httpClient);
 const { list } = await clouds.list({ page: 1 });
 ```
 
-Building the client itself is a one-liner, and `app-runtime` is its only intended caller.
+Building the client itself is a one-liner, and `@chatic/runtime` is its only intended caller.
 
 ```ts
 import { createHttpClient, type HttpRuntimePorts } from '@chatic/http';
@@ -351,7 +351,7 @@ npx jest --config libs/http/jest.config.js   # 18 suites, 153 cases
 - Jest runs under `jsdom`, so `navigator` exists. `isBrowserOffline` is written to read a missing
   global as "cannot tell" rather than as offline, because an offline verdict _suppresses_ credential
   attribution — a wrong one would silently disable it in every non-browser runtime.
-- Downstream: a changed barrel identifier reaches `@chatic/data` and `@chatic/app-runtime` directly
+- Downstream: a changed barrel identifier reaches `@chatic/data` and `@chatic/runtime` directly
   (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin`,
   `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
   those except `@chatic/mobile` — that one is for you to run by hand.

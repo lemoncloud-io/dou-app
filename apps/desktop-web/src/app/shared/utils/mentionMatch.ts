@@ -1,5 +1,5 @@
-import { isMentioningViewer } from '@chatic/data';
-import type { DomainChat } from '@chatic/data';
+import { isMentioningViewer } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime';
 
 /**
  * Group tokens that mention everyone in the channel: Slack's three, and the words the phone's

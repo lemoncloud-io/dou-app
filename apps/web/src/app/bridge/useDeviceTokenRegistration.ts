@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';
@@ -9,7 +9,7 @@ const APPLICATION = 'chatic';
 const RECORD_PREFERENCE_KEY = 'pushRegistration' as const;
 
 /**
- * Native mirror of app-runtime's registration record (ADR-0077).
+ * Native mirror of the runtime's registration record.
  *
  * The record decides whether `reg-dev` is called at all, so it must outlive the webview's own
  * storage — a cache clear would otherwise read as "never registered" and re-register every device it

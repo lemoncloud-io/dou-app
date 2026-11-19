@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-import type { DomainPlace } from '@chatic/data';
+import type { DomainPlace } from '@chatic/runtime';
 
 /**
  * Site id of the relay's personal place. Its backend name is "default"/"#default", which is an

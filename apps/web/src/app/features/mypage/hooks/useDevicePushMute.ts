@@ -1,11 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
 
 import { haptics } from '../../../bridge/haptics';
 
@@ -26,8 +24,8 @@ export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();
     const { t } = useTranslation();
     const { toast } = useToast();
-    const pushMuted = useConfigValue<boolean>('ui.pushMuted') ?? false;
-    const setPushMuted = (value: boolean) => config.set('ui.pushMuted', value, { lane: 'local' });
+    const pushMuted = runtime.settings.useConfigValue<boolean>('ui.pushMuted') ?? false;
+    const setPushMuted = (value: boolean) => runtime.settings.set('ui.pushMuted', value, { lane: 'local' });
 
     // Shell globals are injected before the web app boots, so the profile's boot value is stable.
     const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;

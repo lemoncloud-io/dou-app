@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { PAIRING_CODE_LENGTH, normalizePairingCode } from '../utils/pairingCode';
 import type { PairingCheck, PairingTarget } from '../utils/types';

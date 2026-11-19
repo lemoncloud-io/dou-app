@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { isInJoinWindow } from '@chatic/data';
+import { isInJoinWindow } from '@chatic/runtime';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';

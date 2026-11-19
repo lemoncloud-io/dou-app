@@ -9,7 +9,7 @@ import { openExternalUrl } from '../utils/openExternalUrl';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 // Mocked rather than spied on: the real module reaches the bridge barrel, which pulls the whole
-// app-runtime in at import time.
+// runtime in at import time.
 jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 
 // Same reason: the clipboard helper reaches the bridge barrel at import time.

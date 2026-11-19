@@ -14,7 +14,7 @@ let relayVerified = false;
 const mockGuard = jest.fn(() => ({ check: mockCheck }));
 const mockCheck = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),

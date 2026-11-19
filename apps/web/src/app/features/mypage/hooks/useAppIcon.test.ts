@@ -15,13 +15,13 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
 const mockIsNative = jest.fn((): boolean => false);
 // Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { appShell: { kind: mockIsNative() ? 'shell' : 'browser', os: null } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get appShell() {
+            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
         },
-    },
-}));
+    })
+);
 
 const requestMock = webClient.request as jest.Mock;
 

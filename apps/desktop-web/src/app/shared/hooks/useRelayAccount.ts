@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type { LinkedAccountsView } from '@lemoncloud/chatic-backend-api';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 export interface RelayAccount {
     name?: string;

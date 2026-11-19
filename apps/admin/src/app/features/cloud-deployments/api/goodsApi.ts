@@ -8,7 +8,7 @@
  *
  * @see goods service — `GET /products/0/list`, `POST /products/{id}/auto-deploy`.
  */
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { findForeignProducts, SERVICE_CODES, type CloudService } from '../lib/cloudGroups';
 import { collectPages, type ListPage, type PagedList } from '../lib/listPaging';

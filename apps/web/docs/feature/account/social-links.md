@@ -8,7 +8,7 @@ unmergeable one.
 This document covers the **screen**. The packet it drives, its modes and its four steps belong to
 [auth](../auth/README.md); the phone sheet it opens belongs there too. Session state, tokens and who
 may write them belong to
-[`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md).
+[`libs/runtime`](../../../../../libs/runtime/docs/session/README.md).
 
 The code is in `apps/web/src/app/features/mypage`, not in `features/account`. The file sits in this
 group because the subject is account credentials — the same subject as
@@ -253,5 +253,5 @@ whole point of reading `link$` from the server.
 - [auth](../auth/README.md) — the `auth.link-account` contract, its modes and steps, and the phone
   verification screens.
 - [mypage](../mypage/README.md) — the screen this card is mounted on.
-- [`libs/app-runtime`](../../../../../libs/app-runtime/docs/session/README.md) — session state and
+- [`libs/runtime`](../../../../../libs/runtime/docs/session/README.md) — session state and
   what may write it.

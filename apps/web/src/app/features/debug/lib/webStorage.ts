@@ -11,7 +11,7 @@
  * half: the screen compares entries, it does not account for disk.
  */
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { asDomStorage, WebStore } from '@chatic/storage';
 

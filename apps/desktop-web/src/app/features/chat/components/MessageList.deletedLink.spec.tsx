@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { render, screen, waitFor } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -18,19 +18,13 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
-    },
-}));
+        // Who takes the page's links, as the host's `links` port says.
+        links: { kind: 'shell' },
+    })
+);
 
 // The link card only draws inside the desktop shell, which answers `FetchUrlMetadata`
 // with the unfurled page. Faking the bridge makes every link "resolve" to a card.
-// Who takes the page's links, as the host's `links` port says.
-vi.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { links: { kind: 'shell' } };
-        },
-    },
-}));
 vi.mock('@chatic/bridges', async importOriginal => ({
     ...(await importOriginal<object>()),
     webClient: {

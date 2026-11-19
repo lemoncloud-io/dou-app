@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 // A write the server files under the session's place (a 1:1, a channel) waits on these: during a
 // place or cloud switch the selection already names the new place while the session is still in the

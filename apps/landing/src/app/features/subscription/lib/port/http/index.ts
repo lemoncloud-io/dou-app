@@ -34,8 +34,11 @@ export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?:
     const sandboxWindow = options.sandbox ? createSandboxWindow() : undefined;
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
-    // A failed load is forgotten, so the next call tries again instead of failing until a reload —
-    // the chunk can be missing for a moment after a deploy.
+    // A failed chunk load is forgotten, so the next call tries again instead of failing until a
+    // reload — the chunk can be missing for a moment after a deploy. A failed port is forgotten too,
+    // but that only retries the chunk: a runtime start that failed stays failed for the page
+    // (`startLandingRuntime` answers every later call with the first start), so a port whose start
+    // failed fails again until a reload.
     const load = () =>
         (live ??= import('./live').catch(error => {
             live = undefined;
@@ -65,7 +68,7 @@ export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?:
         ])
     ) as unknown as HttpPort;
 
-    // The port is made before the host renders, so the runtime is booted before the host reads it.
+    // The port is made before the host renders, so the runtime has started before the host reads it.
     const LazyHost = lazy(() => loadPort().then(() => load().then(module => ({ default: module.SessionHost }))));
     const Host = ({ children }: { children: ReactNode }) =>
         createElement(Suspense, { fallback: null }, createElement(LazyHost, null, children));

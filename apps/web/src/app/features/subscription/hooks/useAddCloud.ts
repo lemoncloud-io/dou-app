@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
 import { subscriptionKeys } from '../../../hooks/queryKeys';
@@ -10,7 +10,6 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 import { IS_DEV } from '../consts';
 
 import type { CloudBody } from '@lemoncloud/chatic-backend-api';
-import type { DomainCloud } from '@chatic/data';
 
 /**
  * Adds one cloud to a membership that already has room for it.
@@ -24,7 +23,7 @@ import type { DomainCloud } from '@chatic/data';
  * offering an action that would fail.
  */
 /**
- * Cloud creation, moved down from `@chatic/app-runtime`'s `data/hooks/subscription.ts` to sit with
+ * Cloud creation, moved down from `@chatic/runtime`'s `data/hooks/subscription.ts` to sit with
  * its only caller. `dryRun` is a named repository option now (not a raw `params` bag) — the app asks
  * for a dry run and no longer spells the relay's wire encoding.
  */

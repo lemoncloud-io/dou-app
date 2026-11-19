@@ -29,14 +29,17 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
 // Only the role gate is read here; the sheet itself is stubbed below.
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-    },
+    })
+);
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 // Only `useLocation` is read (the re-invite entry rides in route state); rendering without a Router
 // would otherwise throw its "may be used only in the context of a Router" invariant.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ state: mockRouteState }) }));
@@ -55,7 +58,7 @@ jest.mock('../../../hooks', () => ({
     usePlaceProfileAbsent: () => ({ absent: mockProfileAbsent, markPresent }),
     useSetMyPlaceProfile: () => jest.fn(),
 }));
-// Stubbed like PhoneVerifySheet — the real dialog imports @chatic/app-runtime. `exit` is surfaced
+// Stubbed like PhoneVerifySheet — the real dialog imports @chatic/runtime. `exit` is surfaced
 // because omitting it is what makes X leave at once (ADR-0041 decision 2).
 jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({ placeName, onDone, onExit, exit }: any) => (
@@ -75,7 +78,7 @@ jest.mock('../utils/sendInviteMessage', () => ({
 }));
 // Stubbed like ReinviteDialog: the sheet's own rendering is covered by PhoneVerifySheet.test.tsx and
 // its behaviour by PhoneVerifyScreen.test.tsx (same hook), and the real one pulls
-// @chatic/app-runtime's confirmPhoneLogin plus the Radix Sheet primitives.
+// @chatic/runtime's confirmPhoneLogin plus the Radix Sheet primitives.
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     // `mode` is surfaced because it is this page's decision: a guest opens a session (`login`), a main
     // user without a number hangs one on the session they already have (`link`) — ADR-0042 §3.

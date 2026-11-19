@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `refactor/runtime-engine`
 > · Scope: `libs/runtime-core/src/engine.ts` (`RuntimeEngine`, `coreEngine`), `createRuntime` returning it,
 > the barrel keeping only the lifecycle classes' types; `libs/runtime-web/src/createWebRuntime.ts` and
-> `storage/resolveStorageStores.ts` (moved from `libs/app-runtime/src/storage/`); `libs/app-runtime/src/init.ts`
+> `storage/resolveStorageStores.ts` (moved from `libs/runtime/src/storage/`); `libs/runtime/src/init.ts`
 > (`initAppRuntime(engine)`, `runtimeEngine()`) and the hosts and hooks that read it; the four apps' entry points
 > · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md#the-engine) and
 > [libs/runtime-web](../../libs/runtime-web/README.md)

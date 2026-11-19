@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { retryOnNetworkError } from '../lib/retryOnNetworkError';
 

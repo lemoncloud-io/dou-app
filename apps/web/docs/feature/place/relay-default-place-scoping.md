@@ -55,9 +55,10 @@ before persisting. Absent, it persists — the previous behaviour, unchanged for
 opt in. The web app opts in during boot, allowing the write only while the context is the `default`
 partition, before the first repository access creates the data runtime.
 
-The path is `createWebRuntime` → `createRuntime` → `configureDataRuntime` → `DataManager` → `createRepositories`. The
-runtime singleton is lazy and builds its repositories once, so a late call cannot apply; it warns
-and is ignored rather than rebuilding shared state underneath live subscribers.
+The path is the declaration's `data` (`src/config/policies.ts`) → `startRuntime` → `createRuntime` →
+`configureDataRuntime` → `DataManager` → `createRepositories`. The runtime singleton is lazy and
+builds its repositories once, so a late call cannot apply; it warns and is ignored rather than
+rebuilding shared state underneath live subscribers.
 
 This stops new pollution. It does nothing about a row already sitting in a store from before the
 gate existed — that is §2 and §3.
@@ -215,5 +216,5 @@ What those cover, and what they cannot:
 - [mypage/README.md](../mypage/README.md) — the account screens that §6 is written for.
 - [`@chatic/data`](../../../../../libs/data/docs/local/README.md#scope-and-cache-slots) — the scope
   and cache-slot model this document depends on.
-- [`@chatic/app-runtime`](../../../../../libs/app-runtime/README.md) — the session store, the relay
+- [`@chatic/runtime`](../../../../../libs/runtime/README.md) — the session store, the relay
   token, and slot-pinned socket routing.

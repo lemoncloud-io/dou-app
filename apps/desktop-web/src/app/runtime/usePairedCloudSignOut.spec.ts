@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 /**
- * The check itself (re-issue through the relay, teardown of an ended cloud) is `@chatic/app-runtime`'s
+ * The check itself (re-issue through the relay, teardown of an ended cloud) is `@chatic/runtime`'s
  * `usePairedCloudCheck` and is tested there. What is desktop-web's is the policy: check again on
  * returning to the window, and sign out — account reset, then logout — once an approval ended.
  */
@@ -15,8 +15,8 @@ const env = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionLogout: () => env.logout,
             usePairedCloudCheck: (onEnded: (cloudId: string) => void) => {
@@ -24,8 +24,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 return { check: env.check };
             },
         },
-    },
-}));
+    })
+);
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (...args: unknown[]) => env.toast(...args) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('../shared', () => ({ useAccountResetOnLogout: () => ({ resetAccount: env.resetAccount }) }));

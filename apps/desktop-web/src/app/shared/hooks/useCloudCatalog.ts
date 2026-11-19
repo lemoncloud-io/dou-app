@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * The relay cloud catalog, as react-query. This app's own copy.
  *
- * Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts`: react-query IS the cache for this
+ * Moved down from `@chatic/runtime`'s `data/hooks/cloud.ts`: react-query IS the cache for this
  * read (`ICloudRepository.fetchCloudCatalog` — "Never writes local cache … React-query owns this
  * read's cache", because the catalog mixes invited and owned clouds and would poison `cloudType`),
  * so the staleness policy is the whole policy and each app owns its own (ADR-0070 decision 5, option ② direction).

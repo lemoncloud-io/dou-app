@@ -44,9 +44,9 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
     selectedCloudId: 'c',
     selectedSiteId: 's',
 };
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { useSessionSelection: () => mockSelection } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({ session: { useSessionSelection: () => mockSelection } })
+);
 // How the page was reached: a back press is POP, the bottom nav REPLACE, opening a link PUSH.
 let mockNavigationType = 'POP';
 jest.mock('react-router-dom', () => ({

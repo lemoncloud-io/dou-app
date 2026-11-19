@@ -3,13 +3,13 @@ import type { PendingReportInfo } from '@chatic/bridge-messages';
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();
 
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { diagnostics: { kind: mockIsNative() ? 'shell' : 'browser' } };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        get diagnostics() {
+            return { kind: mockIsNative() ? 'shell' : 'browser' };
         },
-    },
-}));
+    })
+);
 
 jest.mock('@chatic/bridges', () => ({
     ingestLogEntry: (...args: unknown[]) => mockIngestLogEntry(...args),

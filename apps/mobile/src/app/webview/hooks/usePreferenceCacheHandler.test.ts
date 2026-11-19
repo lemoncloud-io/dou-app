@@ -70,7 +70,7 @@ describe('handleSavePreference — bridge write allowlist', () => {
     });
 
     it("'pushRegistration'는 정상 persist된다 — app-runtime의 등록 기록(ADR-0077)", async () => {
-        // An opaque JSON blob owned by libs/app-runtime; nothing native reads or acts on it, which is
+        // An opaque JSON blob owned by libs/runtime; nothing native reads or acts on it, which is
         // why it can be web-writable while system keys stay locked.
         const raw = '{"id":"v1:u-1:d-1:ios","token":"tok-1","at":1}';
         const res = await save('pushRegistration', raw);

@@ -13,8 +13,8 @@ const sent: SentRequest[] = [];
 /** Replies by URL suffix, so parallel calls do not depend on their order. */
 const replies = new Map<string, ({ data: unknown } | { error: unknown })[]>();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         boot: {
             webTransport: {
                 buildSignedRequest: (config: SentRequest['config']) => {
@@ -41,8 +41,8 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             },
         },
-    },
-}));
+    })
+);
 
 const { actualsOf, createLimiter, fetchActuals, fetchClouds, fetchMetrics, fetchTenants } = await import('./costApi');
 

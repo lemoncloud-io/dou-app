@@ -23,7 +23,7 @@ reads "custom".
 
 Every Sandbox client calls `createClientSocketV2` from `@lemoncloud/chatic-sockets-lib` directly
 (`runtime/client-container.ts`), wrapped by one `SandboxController` per client
-(`runtime/sandbox-controller.ts`). None of them goes through the socket `@chatic/app-runtime` holds:
+(`runtime/sandbox-controller.ts`). None of them goes through the socket `@chatic/runtime` holds:
 that one belongs to the signed-in admin session and is shared by the whole app, while this feature
 exists to run several sockets that are nobody's session. Each client owns its own socket, device
 runtime, stores and metrics collector — there is no shared state between clients by design. The

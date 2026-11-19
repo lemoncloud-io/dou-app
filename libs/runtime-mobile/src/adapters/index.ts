@@ -4,6 +4,7 @@ import type { CacheBridgeClient } from '@chatic/db';
 
 import { nativeAuthPorts } from '../auth';
 import { loadNativeSession } from '../boot';
+import type { NativeSessionLoad } from '../boot';
 import { nativeForegroundPorts } from '../foreground';
 import type { AppStateSource } from '../foreground';
 import { readNativeHostFacts } from '../hostFacts';
@@ -63,20 +64,31 @@ export const authMobile = ({ leaveToHome }: MobileAuthOptions): MobileAdapter<'a
 export interface MobileVaultStorageOptions extends NativeStorageOptions {
     /** The app's state, for the locked-vault wait. React Native's `AppState` when left out. */
     appState?: AppStateSource;
+    /**
+     * Hears how the session's secrets were found — the vault's first answer and the secret-storage
+     * step's row — once the vault is loaded and holds a session. Not called when the load throws. The
+     * app logs it after the start; this package keeps no log of its own.
+     */
+    onLoad?: (load: NativeSessionLoad) => void;
 }
 
 /**
  * `storage.mobile-vault` — the session's secrets in the device vault the WebView's pages use, the
- * plain and device state in key-value files of the runtime's own. Loaded here as the boot loads it: a
- * locked vault is waited out, and a vault left with no session throws `NativeRuntimeNoSessionError`
- * before anything is built, so the page takes the launch.
+ * plain and device state in key-value files of the runtime's own. Loaded here as a page's boot loads
+ * it: a locked vault is waited out, and a vault left with no session throws
+ * `NativeRuntimeNoSessionError` before anything is built, so the page takes the launch.
  */
-export const storageMobileVault = ({ appState, ...options }: MobileVaultStorageOptions): MobileAdapter<'storage'> => ({
+export const storageMobileVault = ({
+    appState,
+    onLoad,
+    ...options
+}: MobileVaultStorageOptions): MobileAdapter<'storage'> => ({
     id: 'storage.mobile-vault',
     port: 'storage',
     create: async () => {
         const storage = nativeStoragePorts(options);
-        await loadNativeSession(storage, options.vault, appState);
+        const load = await loadNativeSession(storage, options.vault, appState);
+        onLoad?.(load);
         return storage;
     },
 });

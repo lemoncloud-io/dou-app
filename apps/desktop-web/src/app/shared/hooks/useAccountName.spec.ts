@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 const profile = vi.hoisted(() => ({ userName: '', isGuest: false }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: { session: { useRuntimeProfile: () => profile } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ session: { useRuntimeProfile: () => profile } })
+);
 
 import '../../../i18n';
 import { useAccountName } from './useAccountName';

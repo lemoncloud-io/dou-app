@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Reads the name of a cloud this browser entered through a pairing, once per entry, so home's header

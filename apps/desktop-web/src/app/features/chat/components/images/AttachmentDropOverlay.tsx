@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Paperclip } from 'lucide-react';
 
-import { CHAT_ATTACHMENT_MAX_BYTES } from '@chatic/data';
+import { CHAT_ATTACHMENT_MAX_BYTES } from '@chatic/runtime';
 
 import { MAX_ATTACHMENTS, VOICE_EXTENSIONS, formatFileSize } from '../../utils';
 

@@ -12,9 +12,11 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: { connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) } },
-}));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        connection: { onServerMessage: (handler: MessageHandler) => connectionMocks.onServerMessage(handler) },
+    })
+);
 
 /** A fresh copy of the store module, so its once-per-app guard starts unset. */
 const loadStore = async () => {
@@ -27,7 +29,10 @@ beforeEach(() => {
     connectionMocks.onServerMessage.mockClear();
 });
 
-describe('startSocketFrameLog', () => {
+// Each test resets modules and imports the subject again, which evaluates the real runtime graph
+// behind `fakeRuntimeModule` every time (about 2 s alone). Under a parallel run that passes the
+// default 5 s, so the suite gets room rather than a flaky timeout.
+describe('startSocketFrameLog', { timeout: 30_000 }, () => {
     it('records each inbound frame, split into domain and action', async () => {
         const { startSocketFrameLog, useSocketFrameLogStore } = await loadStore();
 

@@ -2,8 +2,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { asWebSubscriptionActive } from '../lib/webSubscriptionActive';
@@ -79,5 +78,5 @@ export const useRestorePurchases = (): RestorePurchases => {
         }
     }, [isRestoring, restorePurchases, showWebActive, t, toast]);
 
-    return { restore, isRestoring, canRestore: host.ports.checkout.kind === 'store' && !isGuest, notice };
+    return { restore, isRestoring, canRestore: runtime.checkout.kind === 'store' && !isGuest, notice };
 };

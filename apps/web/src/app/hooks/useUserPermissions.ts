@@ -1,9 +1,9 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { GUEST_MAX_CHANNELS, MAX_CHANNELS_PER_PLACE } from '../utils/consts';
 
 /**
- * App-side permission policy. Web-core/app-runtime expose only raw identity facts (userRole /
+ * App-side permission policy. Web-core and the runtime expose only raw identity facts (userRole /
  * isGuest / isCloudActive); this hook is where the product decides what a user may do, derived from
  * those facts. Kept in the app layer so permission rules can change without touching the runtime.
  *

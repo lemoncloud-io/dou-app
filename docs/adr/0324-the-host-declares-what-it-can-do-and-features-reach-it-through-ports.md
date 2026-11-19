@@ -1,11 +1,15 @@
 # ADR-0324: The host declares what it can do, and features reach it through ports chosen at the entry point
 
-> Status: Accepted · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
+> Status: Accepted (§ 2 Capability ports and § 3 One entry point chooses are Superseded by
+> [ADR-0346](./0346-every-app-starts-from-a-declaration-and-its-call-part-sees-only-the-runtime.md), which
+> moves the ports into each app's runtime declaration and removes `@chatic/host`; the host profile of § 1
+> stands) · Decided: 2026-11-16 · Implemented: `refactor/host-profile-in-bridges` (step 0),
 > `refactor/host-ports-frame` (step 1), `feat/host-checkout-port` (step 2), `feat/virtual-shell-checkout`
 > (§ 5, for `checkout`), `feat/host-media-port` (step 3, `media`), `feat/host-files-port` (step 3, `files`),
 > `feat/host-ports-rest` (steps 4–7, together), `refactor/host-shell-browser-methods` (the values' names)
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
-> the ports and the lint rule in [libs/host](../../libs/host/README.md)
+> the ports in `libs/host` until ADR-0346 removed it (now
+> [libs/runtime-client § The host ports](../../libs/runtime-client/README.md#the-host-ports))
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
 > `libs/runtime-web`, `libs/shared`; the config adapters of `apps/web`, `apps/desktop-web` and
 > `apps/admin`; `apps/web` (the device store, the runtime offer)

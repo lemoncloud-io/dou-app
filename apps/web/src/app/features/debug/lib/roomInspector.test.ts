@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import type { DebugRoomObservation } from '../overlay/sharedObservationStore';
 import { ROOM_INSPECTOR_LIMIT, findInspectorRow, listInspectorRows, summarizeChat, toRawJson } from './roomInspector';

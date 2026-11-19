@@ -2,8 +2,8 @@ import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 

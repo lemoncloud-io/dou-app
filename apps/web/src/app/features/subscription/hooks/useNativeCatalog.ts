@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import type { IapProductSubscription } from '@chatic/bridge-messages';
 
@@ -17,7 +17,7 @@ import type { IapProductSubscription } from '@chatic/bridge-messages';
  * through the same bridge call) because a price has to be on screen before the user decides.
  */
 export const useNativeCatalog = () => {
-    const checkout = host.ports.checkout;
+    const checkout = runtime.checkout;
     const enabled = checkout.kind === 'store';
 
     const { data, isLoading } = useQuery({

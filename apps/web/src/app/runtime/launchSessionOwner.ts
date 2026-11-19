@@ -1,4 +1,4 @@
-import { diagnosticsKind } from './logging/diagnosticsKind';
+import { diagnosticsKind } from '../../config/diagnosticsKind';
 
 let owner: 'web' | 'native' | undefined;
 

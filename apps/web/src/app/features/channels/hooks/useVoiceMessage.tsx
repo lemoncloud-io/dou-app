@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowUp, Mic } from 'lucide-react';
 
 import type { OnAudioRecordingEndedPayload } from '@chatic/bridge-messages';
-import type { ChatAttachmentSource } from '@chatic/data';
+import type { ChatAttachmentSource } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { AlertDialog, BottomSheet, formatVideoDuration } from '@chatic/web-ui-kit';

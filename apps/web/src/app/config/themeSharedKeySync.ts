@@ -1,5 +1,4 @@
-import { encodeValue, storageKeyFor } from '@chatic/config';
-
+import { runtime } from '@chatic/runtime';
 import type { KeyValueStore } from '@chatic/storage';
 
 /**
@@ -13,12 +12,14 @@ import type { KeyValueStore } from '@chatic/storage';
  *
  * `local` is the app's `webLocal` store — the same `localStorage` config's own `local` port reads.
  *
- * Must run before `config.init()` — the value it writes is read into the `local` lane by
- * `hydrateStorage()`, which only runs once, inside `init()`.
+ * Must run before `config.init()` (the first step of `startRuntime`) — the value it writes is read into
+ * the `local` lane by `hydrateStorage()`, which only runs once, inside `init()`. The two helpers below
+ * are pure, so they answer before config is initialised.
  */
 export const syncThemeFromSharedKey = (local: KeyValueStore): void => {
     try {
         const shared = local.get('vite-ui-theme');
+        const { storageKeyFor, encodeValue } = runtime.settings;
         if (shared !== null) local.set(storageKeyFor('ui.theme'), encodeValue(shared));
     } catch {
         // Best-effort — the resolver still has window.CHATIC_APP_THEME / defaultValue below it.

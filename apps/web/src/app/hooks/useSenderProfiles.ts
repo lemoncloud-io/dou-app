@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainProfile } from '@chatic/data';
+import { runtime, type DomainProfile } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 
 /** A message's author, addressed the way a profile is: the place it was written in + who wrote it. */

@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel, DomainPlaceMember } from '@chatic/data';
+import { runtime, type DomainChannel, type DomainPlaceMember } from '@chatic/runtime';
 
 import { useHomeChannels, useSelectedCloudId } from '../../../hooks';
 

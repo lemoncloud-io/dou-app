@@ -1,11 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useJoinPositions } from './useJoinPositions';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             useCloudVerified: jest.fn(),
         },
@@ -15,8 +15,8 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useUidInCloud: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 

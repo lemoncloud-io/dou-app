@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import type { DomainChannel, DomainChat } from '@chatic/runtime';
 
 /** A possibly-string or numeric time as epoch ms; 0 when absent or unreadable. */
 const toTime = (value: unknown): number => {

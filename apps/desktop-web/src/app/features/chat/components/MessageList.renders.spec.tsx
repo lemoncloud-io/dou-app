@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, render } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import type * as SharedModule from '../../../shared';
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat: vi.fn(), deleteChat: vi.fn(), setReaction: vi.fn() },
@@ -20,8 +20,8 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveServerContext: () => ({ siteId: 'S1' }),
             useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }),
         },
-    },
-}));
+    })
+);
 
 // Every MessageRow render asks this one query, and nothing else in the feed does, so
 // counting the calls counts row renders without replacing the row or its memo.

@@ -1,7 +1,7 @@
 # ADR-0343: Each app declares its runtime, and libraries never choose
 
 > Status: Accepted · Decided: 2026-11-18 · Implemented: `refactor/runtime-client-and-adapters`
-> · Scope: new `libs/runtime-client`; `libs/app-runtime`, `libs/runtime-web`, `libs/runtime-mobile`,
+> · Scope: new `libs/runtime-client`; `libs/runtime`, `libs/runtime-web`, `libs/runtime-mobile`,
 > `libs/config` (the `port.*` keys), the root lint config, and `apps/admin` as the first app on a
 > declaration
 > · The behaviour is documented in

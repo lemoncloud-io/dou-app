@@ -3,10 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
 import { logger } from '@chatic/bridges';
-import { isInJoinWindow } from '@chatic/data';
-import type { DomainChat } from '@chatic/data';
-
-import { runtime } from '@chatic/app-runtime';
+import { isInJoinWindow, runtime } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime';
 
 import { classifyWireError, extractErrorMessage } from '../../../shared';
 

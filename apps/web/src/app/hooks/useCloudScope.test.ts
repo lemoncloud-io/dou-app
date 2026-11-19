@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { readSelectedCloudId, toCloudId, useSelectedCloudId } from './useCloudScope';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: jest.fn(),
             getGlobalSessionContext: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 beforeEach(() => {
     jest.clearAllMocks();

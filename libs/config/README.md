@@ -1,7 +1,7 @@
 # @chatic/config
 
 **One answer per setting, and one place that decides it.** This lib declares every runtime setting
-the apps have — 109 keys across 13 domain modules — folds four override lanes and three registry rows
+the apps have — 110 keys across 13 domain modules — folds four override lanes and three registry rows
 into a single value, and exports that as one `config` facade. It stores nothing itself and reaches
 nothing itself: storage, the native shell and the network all arrive as adapters the app plugs in.
 
@@ -38,7 +38,7 @@ hand-built row on the Lab page.
 1. **This lib imports nothing.** Zero `@chatic` dependencies, zero `import.meta`, zero network, and React only inside `src/react/`. `tsconfig.lib.json` lists no project references at all, and `package.json` declares no dependencies — those two empty lists are the check. Breaking this is what would stop React Native from sharing the core and start import cycles in consumer libs.
 2. **Only the value is mutable at runtime.** Type, writers, persistence and surface are authored in the registry and frozen. No lane can change them, or an override could grant itself permission.
 3. **The kill switch is read alone and first.** `serverEnforced` looks at the cached payload, the key's own `writableBy` and the TTL — never at the store, the shell or a stage rule. A kill is used when everything else is broken, so it must not travel the road it is closing.
-4. **A developer's mistake must not stop a user's boot.** 83 of 109 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
+4. **A developer's mistake must not stop a user's boot.** 84 of 110 keys are developer-facing. A duplicate key or an impossible combination fails a test and, at runtime, drops that one key. `ConfigRegistry.merge` never throws.
 5. **A refusal is a return value.** `set`/`clear` answer `{ ok: false, reason }`. A debug panel should say why a control did nothing, not crash.
 6. **Observers hear only when the resolved value moved.** `set`, `clear` and `applyRemotePayload` all snapshot before and after and notify on the difference. A change under a row that is already losing tells a watcher nothing true.
 7. **An absent port means "not wired", never "broken".** No `shell` leaves the shell lane empty; no `remote` leaves both server lanes empty. Only `env` is required, because a stage and a platform are what the registry's rules are judged against.
@@ -51,10 +51,12 @@ policy invariants, the four-lane precedence table, value validation, the lane st
 subscribers, the last-known-good remote payload cache, JSON encoding at the storage boundary, the
 port interfaces, the shared Vite env adapter, and the two React hooks.
 
-**Out** — every adapter implementation (each app's `src/app/config/adapters.ts`), the shell's side of
+**Out** — every adapter implementation (each app's declaration under `src/config/`: `apps/web`'s
+`configPorts.ts`, `apps/desktop-web`'s `adapters/configPorts.ts`, `apps/admin`'s and `apps/landing`'s
+`adapters/config.ts`), the shell's side of
 the KV bridge (`apps/mobile`'s `ConfigKvService` and `useConfigKvHandler`), the remote fetcher (does
 not exist), the screens that draw controls (`apps/web`), the device state log
-(`libs/app-runtime`'s `attachConfigStateLog`), and product entitlements such as place and channel
+(`libs/runtime`'s `attachConfigStateLog`), and product entitlements such as place and channel
 counts, which the server's product catalogue owns.
 
 ## Structure
@@ -67,13 +69,13 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["app composition root<br/>web · desktop-web · admin"]:::ext
-    UI["UI · libs/app-runtime · libs/shared"]:::ext
+    UI["UI · libs/runtime · libs/shared"]:::ext
 
     Facade["ConfigFacade<br/><i>index.ts — the only public class</i>"]:::resl
     React["react/<br/><i>useConfigValue</i>"]:::resl
 
     Registry["ConfigRegistry<br/><i>merge · findPolicyViolations</i>"]:::decl
-    Modules["registry/ × 13<br/><i>109 ConfigEntry declarations</i>"]:::decl
+    Modules["registry/ × 13<br/><i>110 ConfigEntry declarations</i>"]:::decl
 
     Resolver["ConfigResolver<br/><i>folds 6 rows into one value</i>"]:::resl
     Policy["ConfigLanePolicy<br/><i>order · canSupply · writersFor</i>"]:::resl
@@ -187,25 +189,32 @@ const stop = config.subscribe(['ui.theme'], changed => redraw(changed));
 Three rules hold.
 
 1. **`config.get<T>()` returns `T | undefined`, always.** It is `undefined` before `init`, and for an unknown key. Consumers compare against the value they want (`!== false`, `?? fallback`) rather than trusting the type parameter.
-2. **Read at the point of use, never at module scope.** ES modules evaluate an import's body before the importing file's, so a module-scope `config.get()` runs before `main.tsx` reaches `config.init()` and silently takes the fallback branch. `apps/desktop-web`'s `oauth.ts` records the one time this shipped.
+2. **Read at the point of use, never at module scope.** ES modules evaluate an import's body before the importing file's, so a module-scope `config.get()` runs before `main.tsx`'s `startRuntime` reaches `config.init()` and silently takes the fallback branch. `apps/desktop-web`'s `oauth.ts` records the one time this shipped.
 3. **`lane: 'local'` is this browser, `lane: 'shell'` is the native app.** Writing the shell lane round-trips over the bridge and waits for a confirmation; writing the local lane does not.
 
 ### Wiring
 
-One file per app assembles the ports, and `main.tsx` calls `init` once.
+One file per app assembles the ports and hands them to the app's runtime declaration as its `config`;
+`startRuntime` (runtime-client, through `@chatic/runtime-web`) calls `init` once, as its first step.
 
 ```text
 main.tsx
   ├─ syncThemeFromSharedKey()    apps/web only: seeds storageKeyFor('ui.theme')    ── must be first
-  ├─ config.init(createWebConfigPorts(stores)) hydrateShell() then hydrateStorage()
-  └─ runtime.boot.initAppRuntime(createWebRuntime(...))
-        └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
+  └─ startRuntime(declaration)
+        ├─ config.init(declaration.config)   hydrateShell() then hydrateStorage()
+        └─ initAppRuntime(engine)
+              └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
 ```
 
-Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile` does not import
-this lib — it implements the other side of the shell port instead — but on a launch whose session the
-app's own runtime holds, `libs/runtime-mobile`'s boot calls `init` in the app's process, with the env
-port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/app-runtime`,
+Past the entry, an app reads and writes settings through `runtime.settings` (`@chatic/runtime`), which
+forwards each call to this lib's `config` at the moment it is made; only the declaration imports
+`@chatic/config` itself.
+
+Four apps do this: `apps/web`, `apps/desktop-web`, `apps/admin` and `apps/landing` (whose account
+surface starts the runtime on demand rather than in `main.tsx`). `apps/mobile` implements the other side
+of the shell port instead, but on a launch whose session the app's own runtime holds, its declaration
+(`apps/mobile/src/config/mobile.ts`) is started the same way and `startRuntime` calls `init` in the
+app's process, with the env port only (the build's `VITE_*` values; no storage, shell or remote lane). Among libs, `libs/runtime`,
 `libs/shared` and `libs/runtime-mobile` import this one.
 
 Anything that seeds a local-lane value runs **before** `init`, because `init`'s `hydrateStorage()` is
@@ -282,4 +291,4 @@ npx jest --config libs/config/jest.config.js
 - Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. A fixture missing a required member runs green under jest whenever the omitted member happens not to be called, which is why the spec project has to be in the reference list.
 - `registry/allModules.spec.ts` is the invariant test: it asserts the key count, that no two domains declare the same key, that `findPolicyViolations` is empty, that no `title`/`description` is blank, and the surface distribution. Adding a key means updating the count there.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
-- Downstream: a changed barrel identifier reaches five projects — `libs/app-runtime`, `libs/shared`, `apps/web`, `apps/admin` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all five.
+- Downstream: a changed barrel identifier reaches five projects — `libs/runtime`, `libs/shared`, `apps/web`, `apps/admin` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all five.

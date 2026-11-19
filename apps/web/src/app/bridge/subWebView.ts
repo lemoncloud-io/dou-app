@@ -1,5 +1,5 @@
 import type { SubWebViewParams } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from './appBridge';
 import { shellCapabilities } from './shellCapabilities';
@@ -7,7 +7,7 @@ import { shellCapabilities } from './shellCapabilities';
 /**
  * Where a page asked for with `openSubWebView` went: the app's sub WebView, the OS browser (an app
  * built before the sub WebView), or a new browser tab (where the page takes its own links,
- * `host.ports.links`).
+ * `runtime.links`).
  */
 export type SubWebViewOpening = { via: 'subWebView'; viewId: string } | { via: 'external' } | { via: 'browser' };
 
@@ -36,7 +36,7 @@ export const openSubWebView = async ({
     params?: SubWebViewParams;
     appId?: string;
 }): Promise<SubWebViewOpening> => {
-    if (host.ports.links.kind !== 'shell') {
+    if (runtime.links.kind !== 'shell') {
         window.open(url, '_blank', 'noopener,noreferrer');
         return { via: 'browser' };
     }

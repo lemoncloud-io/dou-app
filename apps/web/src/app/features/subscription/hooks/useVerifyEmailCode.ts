@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
 
@@ -31,7 +31,7 @@ export interface EmailVerifyRequest {
  * address before a code is sent.
  */
 /**
- * Cloud email-ownership check. Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts` to sit
+ * Cloud email-ownership check. Moved down from `@chatic/runtime`'s `data/hooks/cloud.ts` to sit
  * with its only caller (ADR-0070 decision 5, direction ②) — the `dryRun` policy below is this feature's,
  * not the runtime's.
  *

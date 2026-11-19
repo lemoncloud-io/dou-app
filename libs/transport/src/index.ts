@@ -4,7 +4,7 @@
 // import, whole; a module nothing above imports — `SocketManager`, `HttpManager`, `factory`, the
 // failure reporter, the error-code ledger, `annotateSocketError` — stays inside. Apps never import
 // it: the root eslint config closes it, and they reach sockets and HTTP through `runtime` from
-// @chatic/app-runtime.
+// @chatic/runtime.
 
 // socket — `types.ts` holds no values, so exporting it whole puts only types here.
 export * from './socket/types';

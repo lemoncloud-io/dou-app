@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type * as AppRuntime from '@chatic/app-runtime';
+import type * as AppRuntime from '@chatic/runtime';
 
 import '../../../../i18n';
 
@@ -38,7 +38,7 @@ vi.mock('../hooks', () => ({
         };
     },
 }));
-vi.mock('@chatic/app-runtime', async importOriginal => {
+vi.mock('@chatic/runtime', async importOriginal => {
     const actual = await importOriginal<typeof AppRuntime>();
     return {
         ...actual,

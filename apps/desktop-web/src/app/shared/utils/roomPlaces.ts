@@ -1,4 +1,4 @@
-import { dmPlaceOf, isCloudDm, type DomainChannel } from '@chatic/data';
+import { dmPlaceOf, isCloudDm, type DomainChannel } from '@chatic/runtime';
 
 import { isSelfChannel } from './dmDisplay';
 

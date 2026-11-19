@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -11,25 +11,13 @@ import { useHandlePushNavigation } from './useHandlePushNavigation';
 import { configurePerfTraces, getActivePerfTrace, resetPerfTraces } from '@chatic/perf';
 import { roomOpenTrace } from '../../runtime/perf';
 
-// The invited-cloud recovery step added to usePushNavigate pulls more app-runtime exports, and asks the
-// `push` port whether the app receives notifications. The port must be mocked and answer `browser` by
-// default: an unpublished host throws inside the switch block, which the best-effort catch swallows
-// into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery
-// itself runs only where the app receives notifications, so it never runs here unless a test says so.
 const mockIsNativeApp = jest.fn(() => false);
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { push: { kind: mockIsNativeApp() ? 'shell' : 'browser' } };
-        },
-    },
-}));
 const cacheRead = jest.fn();
 const getChat = jest.fn();
 const channelCacheRead = jest.fn();
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         connection: {
             waitUntilVerified: jest.fn(),
         },
@@ -48,8 +36,18 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionSelection: jest.fn(),
             useSwitchCloudSession: jest.fn(),
         },
-    },
-}));
+        // The invited-cloud recovery step added to usePushNavigate pulls more runtime exports, and asks the
+        // `push` port whether the app receives notifications. The port must be mocked and answer `browser` by
+        // default: an unpublished host throws inside the switch block, which the best-effort catch swallows
+        // into a plain navigate — silently losing the cloud/site switch this suite asserts on. The recovery
+        // itself runs only where the app receives notifications, so it never runs here unless a test says so.
+        push: {
+            get kind() {
+                return mockIsNativeApp() ? 'shell' : 'browser';
+            },
+        },
+    })
+);
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));

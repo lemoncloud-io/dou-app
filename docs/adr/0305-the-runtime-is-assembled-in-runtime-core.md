@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `refactor/runtime-assembly-to-core-move`
 > · Scope: `libs/runtime-core` (`createRuntime.ts`, `ports.ts`, `config/`, `storage/`, `data/` and their
-> tests, moved from `libs/app-runtime`); `libs/app-runtime` (`init.ts`, `boot.ts`, `data/` hooks and
+> tests, moved from `libs/runtime`); `libs/runtime` (`init.ts`, `boot.ts`, `data/` hooks and
 > group, the source-scanning guards); `nx.tags` of logger, config, perf, http, storage and
 > bridge-messages; root `eslint.config.mjs` (`runtimeLayerConstraints`, `RUNTIME_WIRING`)
 > · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md) and its

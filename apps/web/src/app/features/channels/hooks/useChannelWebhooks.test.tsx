@@ -5,12 +5,12 @@ import { useChannelWebhooks } from './useChannelWebhooks';
 const repo = { list: jest.fn(), issue: jest.fn(), setPaused: jest.fn(), setExpiresAt: jest.fn(), remove: jest.fn() };
 let verified = true;
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ webhook: repo }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: verified }) },
-    },
-}));
+    })
+);
 
 const w = (id: string, over = {}) => ({
     id,

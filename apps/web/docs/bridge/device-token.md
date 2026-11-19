@@ -24,7 +24,7 @@ Push screen — see [debug](../feature/debug/README.md).
 | Layer                 | What it decides                                                                                                            |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `apps/web` (this doc) | How a token is obtained, which platform string to send, and where the durable record can be mirrored                       |
-| `@chatic/app-runtime` | Whether to register at all: auth gating, once-per-install dedup, the record's shape and storage, the retry floor, the call |
+| `@chatic/runtime`     | Whether to register at all: auth gating, once-per-install dedup, the record's shape and storage, the retry floor, the call |
 
 The split is an inversion, the same one the socket auth delegate uses: the runtime never learns what
 a shell is, and the shell never learns the policy. Outside a native shell the delegate is `null` and

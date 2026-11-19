@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useOnReceiveNotification } from '../bridge';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
@@ -8,22 +8,20 @@ import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 const cloudRepository = { name: 'cloud-repository' };
 
 const mockIsNativeApp = jest.fn();
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { push: { kind: mockIsNativeApp() ? 'shell' : 'browser' } };
-        },
-    },
-}));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
             useInvitedCloudNameSync: jest.fn(),
             recoverInvitedCloudIfMissing: jest.fn(),
         },
-    },
-}));
+        push: {
+            get kind() {
+                return mockIsNativeApp() ? 'shell' : 'browser';
+            },
+        },
+    })
+);
 jest.mock('../bridge', () => ({ useOnReceiveNotification: jest.fn() }));
 
 type ReceiveMessage = { data?: { notification?: { data?: Record<string, unknown> } } };

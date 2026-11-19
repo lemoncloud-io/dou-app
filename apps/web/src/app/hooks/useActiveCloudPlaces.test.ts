@@ -1,21 +1,20 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainPlace } from '@chatic/data';
+import { runtime, type DomainPlace } from '@chatic/runtime';
 
 import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 import { useActiveCloudPlaces } from './useActiveCloudPlaces';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
         session: {
             useGlobalSession: jest.fn(),
         },
-    },
-}));
+    })
+);
 
 const observeListMock = jest.fn();
 const refreshListMock = jest.fn();

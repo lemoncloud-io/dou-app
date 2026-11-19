@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { hostProfile } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { appBridge } from '../../../bridge';
@@ -63,7 +62,7 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
         setError(null);
         setSummary(null);
 
-        if (host.ports.push.kind !== 'shell') {
+        if (runtime.push.kind !== 'shell') {
             setState('no-native');
             setError(messages.noNative);
             return;

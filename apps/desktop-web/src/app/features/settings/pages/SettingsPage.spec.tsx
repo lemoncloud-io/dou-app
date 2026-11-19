@@ -3,25 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type * as AppRuntimeModule from '@chatic/app-runtime';
-
 import type * as SharedModule from '../../../shared';
 
 const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
 
-vi.mock('@chatic/app-runtime', async () => {
-    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/app-runtime');
-    return {
-        ...actual,
-        runtime: {
-            ...actual.runtime,
-            session: { ...actual.runtime.session, useIsPairedSession: () => pairingEnv.paired },
-        },
-    };
-});
-// The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
 // The sub web view's launcher asks the links port; the page takes its own links, as in a browser.
-vi.mock('@chatic/host', () => ({ host: { ports: { links: { kind: 'browser' } } } }));
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+        session: { useIsPairedSession: () => pairingEnv.paired },
+        links: { kind: 'browser' },
+    })
+);
+// The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
 vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
 }));

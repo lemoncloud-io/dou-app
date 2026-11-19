@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/runtime';
 
 /** A 1:1 conversation: stereo 'dm', or an unnamed 2-member private channel. */
 export const isDmChannel = (channel: DomainChannel): boolean =>

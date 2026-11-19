@@ -7,7 +7,7 @@ let engine: RuntimeEngine | null = null;
 
 /**
  * Hands the React surface its engine. **Every app calls this once from its entry point, before render**,
- * with the engine its platform built — `createWebRuntime(...)` from `@chatic/runtime-web` in a page.
+ * with the engine its platform built — `startRuntime(declaration)` does it for every app.
  * Building the engine is what wires the runtime; this only tells the hooks and the hosts where to start
  * their lifecycle work from.
  *
@@ -29,8 +29,8 @@ export const initAppRuntime = (next: RuntimeEngine): void => {
 export const runtimeEngine = (): RuntimeEngine => {
     if (!engine) {
         throw new Error(
-            '[app-runtime] the runtime engine was read before initAppRuntime(engine) — the entry point has to ' +
-                'build one (createWebRuntime in a page) and hand it over before render.'
+            '[runtime] the runtime engine was read before initAppRuntime(engine) — the entry point has to ' +
+                'start one (startRuntime with the app declaration) before render.'
         );
     }
     return engine;

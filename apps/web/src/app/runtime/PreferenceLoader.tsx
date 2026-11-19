@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { config } from '@chatic/config';
 import type { PreferenceKey } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge, syncLanguageChoiceToShell } from '../bridge';
 import { toLanguagePreference } from '../../i18n/languagePreference';
@@ -45,7 +44,7 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
  * keys `config.init()` resolved to nothing but the floor (`defaultValue`/a stage rule) — a value
  * already supplied by the shell (the common case, once the app updates) or by a prior local mirror
  * never triggers a bridge round-trip. Written back through
- * `config.set(..., { lane: 'shell' })`, the same lane the boot injection itself would have used, so
+ * `runtime.settings.set(..., { lane: 'shell' })`, the same lane the boot injection itself would have used, so
  * this is exactly a slower version of what the injection already does — including feeding the same
  * local-storage mirror (`ConfigFacade`'s own `persist: 'shell'` fallback), so the NEXT boot resolves
  * synchronously without needing this fetch again.
@@ -54,13 +53,13 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
  */
 export const PreferenceLoader = (): null => {
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
+        if (runtime.appShell.kind !== 'shell') return;
         MANAGED_KEYS.forEach(({ configKey, nativeKey, decode }) => {
-            if (config.snapshot(configKey)?.isOverridden) return; // shell or local already answered
+            if (runtime.settings.snapshot(configKey)?.isOverridden) return; // shell or local already answered
             appBridge.fetchPreference({ key: nativeKey }).then(response => {
                 if (response.data.value == null) return;
                 const decoded = decode(response.data.value);
-                if (decoded != null) config.set(configKey, decoded, { lane: 'shell' });
+                if (decoded != null) runtime.settings.set(configKey, decoded, { lane: 'shell' });
             });
         });
     }, []);
@@ -71,8 +70,8 @@ export const PreferenceLoader = (): null => {
     // current shell discards — and the Settings sheet only sends on change, so without this the shell
     // would stay on the device language for good.
     useEffect(() => {
-        if (host.ports.appShell.kind !== 'shell') return;
-        const snapshot = config.snapshot('ui.language');
+        if (runtime.appShell.kind !== 'shell') return;
+        const snapshot = runtime.settings.snapshot('ui.language');
         if (!snapshot?.isOverridden) return; // nothing chosen — the shell already follows the device
         void syncLanguageChoiceToShell(toLanguagePreference(snapshot.value));
     }, []);

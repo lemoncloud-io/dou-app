@@ -2,11 +2,10 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Query } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, type DomainCloud, type DomainListResult } from '@chatic/runtime';
 
 import { useIsAccountGuest } from './useMyUser';
 
-import type { DomainCloud, DomainListResult } from '@chatic/data';
 /** Query parameters for a relay request. */
 type Params = Record<string, unknown>;
 
@@ -15,7 +14,7 @@ const GUEST_CATALOG: DomainListResult<DomainCloud> = { list: [], meta: { total: 
 /**
  * The relay cloud catalog, as react-query.
  *
- * Moved down from `@chatic/app-runtime`'s `data/hooks/cloud.ts`: react-query IS the cache for this
+ * Moved down from `@chatic/runtime`'s `data/hooks/cloud.ts`: react-query IS the cache for this
  * read, which `ICloudRepository.fetchCloudCatalog` states in its own docblock ("Never writes local
  * cache … React-query owns this read's cache") — the catalog mixes invited and owned clouds and
  * would poison `cloudType` classification if it landed in the local cache. The staleness policy

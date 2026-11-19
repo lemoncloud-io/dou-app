@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-import type { DomainChat } from '@chatic/data';
-import { runtime } from '@chatic/app-runtime';
+import type { DomainChat } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useReadCursorStore } from '../stores';
 import { registerLiveRead } from './liveReadRegistry';

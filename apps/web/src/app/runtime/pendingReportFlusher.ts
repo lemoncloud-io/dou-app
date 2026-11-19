@@ -1,6 +1,6 @@
 import { ingestLogEntry, logger } from '@chatic/bridges';
 import type { PendingReportInfo } from '@chatic/bridge-messages';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../bridge';
 
@@ -55,7 +55,7 @@ const relayReport = (report: PendingReportInfo): void => {
  * has no such queue.
  */
 export const schedulePendingReportFlush = (): void => {
-    if (host.ports.diagnostics.kind !== 'shell') return;
+    if (runtime.diagnostics.kind !== 'shell') return;
 
     const flush = async (): Promise<void> => {
         try {

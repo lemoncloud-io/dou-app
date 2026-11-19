@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { logger } from '@chatic/bridges';
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import { appBridge } from '../../../bridge';
 import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
@@ -47,8 +47,8 @@ export const useSocialLinks = () => {
 
     const linkProvider = useCallback(
         async (provider: SocialProvider) => {
-            if (host.ports.signIn.kind !== 'shell') {
-                // Where the page signs in (`host.ports.signIn`) there is no native bridge, so no way to
+            if (runtime.signIn.kind !== 'shell') {
+                // Where the page signs in (`runtime.signIn`) there is no native bridge, so no way to
                 // obtain the provider's raw token (the existing browser OAuth relay only yields our own
                 // session token, not a native id/identity token — see social-links.md "non-native OAuth
                 // relay reuse investigation").

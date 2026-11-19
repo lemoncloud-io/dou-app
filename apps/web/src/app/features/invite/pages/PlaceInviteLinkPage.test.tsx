@@ -4,7 +4,7 @@ const navigate = jest.fn();
 let routeState: unknown = { inviteLink: 'https://dou.link/abc' };
 let view: any = null;
 
-jest.mock('@chatic/app-runtime', () => {
+jest.mock('@chatic/runtime', () => {
     const repositories = {
         place: {
             observeItem: (_id: string, callback: (row: unknown) => void) => {
@@ -13,9 +13,14 @@ jest.mock('@chatic/app-runtime', () => {
             },
         },
     };
-    return { runtime: { data: { useRuntimeRepositories: () => repositories } } };
+    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { useRuntimeRepositories: () => repositories },
+    });
 });
-jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('@chatic/shared'),
+    useNavigateWithTransition: () => navigate,
+}));
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ placeId: 'site-1' }),
     useLocation: () => ({ state: routeState }),

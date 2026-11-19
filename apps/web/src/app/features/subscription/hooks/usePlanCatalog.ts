@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
@@ -76,7 +76,7 @@ export interface PlanCatalog {
  * pending plan, allowance and trial resolve from it like a store's.
  */
 export const usePlanCatalog = (): PlanCatalog => {
-    const checkout = host.ports.checkout;
+    const checkout = runtime.checkout;
     const platform: StorePlatform | undefined = checkout.kind === 'store' ? checkout.store : undefined;
     const sellsInStore = platform !== undefined;
     const isIOS = platform === 'apple';

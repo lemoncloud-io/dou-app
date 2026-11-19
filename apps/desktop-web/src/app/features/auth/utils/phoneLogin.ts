@@ -1,10 +1,11 @@
-import { config } from '@chatic/config';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Phone-number sign-in: on in every build, behind a registry key for the same reason as social
- * sign-in. Read per call — `config.get()` answers nothing until boot has run `config.init()`.
+ * sign-in. Read per call — `runtime.settings.get()` answers nothing until the runtime's start has
+ * initialised config.
  */
-export const isPhoneLoginEnabled = (): boolean => config.get<boolean>('feature.auth.phoneLogin') !== false;
+export const isPhoneLoginEnabled = (): boolean => runtime.settings.get<boolean>('feature.auth.phoneLogin') !== false;
 
 /**
  * The note beside a Google button for people who signed up on mobile with a phone number: Google

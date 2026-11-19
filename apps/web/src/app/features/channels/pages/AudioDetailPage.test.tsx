@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
@@ -23,8 +23,8 @@ jest.mock('@chatic/shared', () => ({
 
 const mockCacheRead = jest.fn();
 const mockGetChat = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useUidInCloud: () => 'u1',
@@ -36,8 +36,8 @@ jest.mock('@chatic/app-runtime', () => ({
             const graphOf = () => (graph ??= { chat: { cacheRead: mockCacheRead, getChat: mockGetChat } });
             return { getCloudRepositories: graphOf, useRuntimeRepositories: graphOf };
         })(),
-    },
-}));
+    })
+);
 jest.mock('../hooks/useChannel', () => ({ useChannel: () => ({ channel: { id: 'ch-1', cid: 'c1' } }) }));
 // The waveform reads and decodes the file; its own suite covers that. Undefined draws the decorative bars.
 jest.mock('../hooks/useAudioWaveform', () => ({ useAudioWaveform: () => undefined }));

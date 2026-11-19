@@ -26,8 +26,8 @@ import type { RuntimePorts } from './ports';
 
 /**
  * What the runtime is assembled from: the platform's ports, every one required, and the app's own
- * policies. A web app does not write one itself: `createWebRuntime` in `@chatic/runtime-web` fills the
- * ports and passes the app's policies through.
+ * policies. An app does not write one itself: `startRuntime` builds it from the app's declaration — the
+ * adapters it names fill the ports — and passes the app's policies through.
  */
 export interface RuntimeConfig extends RuntimePorts {
     /**
@@ -48,10 +48,10 @@ let booted = false;
 
 /**
  * Assembles the runtime from the platform's ports — the one place that wires the core packages
- * together. A web app reaches it through `createWebRuntime` in `@chatic/runtime-web`, once from its
- * entry point, before render, and hands the engine it returns to `@chatic/app-runtime`'s
- * `initAppRuntime(engine)`. The packages it wires are process-wide, one per launch; the engine it
- * returns is how the React surface starts its lifecycle work on them.
+ * together. An app reaches it through `startRuntime(declaration)`, once from its entry point, before
+ * render, which hands the engine it returns to `@chatic/runtime`'s `initAppRuntime(engine)`. The
+ * packages it wires are process-wide, one per launch; the engine it returns is how the React surface
+ * starts its lifecycle work on them.
  *
  * ## Why this exists
  *

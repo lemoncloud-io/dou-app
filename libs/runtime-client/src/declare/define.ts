@@ -1,18 +1,41 @@
 import type { RuntimePorts } from '@chatic/runtime-core';
 
-import type { Adapter, AdapterRef, PortConstraint, PortName, RuntimeDeclaration } from './types';
+import type { HostPorts } from '../host/ports';
+import type {
+    Adapter,
+    AdapterRef,
+    EngineAdapter,
+    HostAdapter,
+    HostPortName,
+    PortConstraint,
+    PortName,
+    RuntimeDeclaration,
+} from './types';
 
 /**
  * An app's runtime declaration, unchanged. It exists for its types: the facts reader fixes what every
- * adapter's `supports` is asked about, each of the five ports must be declared, and an adapter can only
- * sit in the port it fills.
+ * adapter's `supports` is asked about, each of the five ports must be declared (and all eight host
+ * ports, when any is), an adapter can only sit in the port it fills, and the engine's adapters fix what
+ * the start hands back as `owner`.
  */
-export const defineRuntime = <Facts>(declaration: RuntimeDeclaration<Facts>): RuntimeDeclaration<Facts> => declaration;
+export const defineRuntime = <Facts, Owner = never>(
+    declaration: RuntimeDeclaration<Facts, Owner>
+): RuntimeDeclaration<Facts, Owner> => declaration;
 
 /** An adapter value, unchanged; written through this so its port, id and facts are checked together. */
 export const defineAdapter = <P extends PortName, Facts = unknown, Impl extends RuntimePorts[P] = RuntimePorts[P]>(
     adapter: Adapter<P, Impl, Facts>
 ): Adapter<P, Impl, Facts> => adapter;
+
+/** A host port's adapter value, unchanged; checked like `defineAdapter`'s. */
+export const defineHostAdapter = <P extends HostPortName, Facts = unknown, Impl extends HostPorts[P] = HostPorts[P]>(
+    adapter: HostAdapter<P, Impl, Facts>
+): HostAdapter<P, Impl, Facts> => adapter;
+
+/** An engine adapter value, unchanged; checked like `defineAdapter`'s. */
+export const defineEngineAdapter = <Facts = unknown, Owner = never>(
+    adapter: EngineAdapter<Facts, Owner>
+): EngineAdapter<Facts, Owner> => adapter;
 
 const refOf = ({ id, port }: AdapterRef): AdapterRef => ({ id, port });
 

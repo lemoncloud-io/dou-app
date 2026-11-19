@@ -13,13 +13,9 @@ const request = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/bridges', () => ({
     webClient: { request },
 }));
-// Inside the desktop shell: the app delivers notifications, so banners are raised.
-vi.mock('@chatic/host', () => ({
-    host: { ports: { push: { kind: 'shell' } } },
-}));
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: { observeList: () => () => undefined },
@@ -28,8 +24,10 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-    },
-}));
+        // Inside the desktop shell: the app delivers notifications, so banners are raised.
+        push: { kind: 'shell' },
+    })
+);
 
 vi.mock('./usePlaces', () => ({ usePlaces: () => ({ places: [] }) }));
 

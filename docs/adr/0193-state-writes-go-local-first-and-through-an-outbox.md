@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `fix/chat-read-outbox`
 > · Scope: `libs/data/src/outbox/` · `libs/data/src/repositories/JoinRepository.ts` · `libs/data/src/local/data-sources/JoinLocalDataSource.ts`
-> · `libs/app-runtime/src/data/factories/outboxFactory.ts` · `libs/app-runtime/src/data/DataManager.ts`
+> · `libs/runtime/src/data/factories/outboxFactory.ts` · `libs/runtime/src/data/DataManager.ts`
 > · `apps/web/src/app/features/channels/hooks/useReadMarker.ts` · `apps/desktop-web/src/app/shared/hooks/useReadReceipts.ts`
 > · The module docs are [libs/data outbox](../../libs/data/docs/outbox/README.md),
 > [libs/runtime-core data](../../libs/runtime-core/docs/data/README.md#the-state-outbox-transport) and
@@ -48,7 +48,7 @@ such a failed write stays on the device with nothing resending it.
 2. **The repository owns it, so nothing can bypass it.** `JoinRepository.readChat` and `updateJoin`
    write locally, call the outbox and return a `WriteReceipt` once the local write is done; neither
    calls the socket. `receipt.delivered` settles when the server has the value.
-3. **The outbox lives in `libs/data`, its timing in `libs/app-runtime`.** `libs/data/src/outbox/` holds
+3. **The outbox lives in `libs/data`, its timing in `libs/runtime`.** `libs/data/src/outbox/` holds
    the port repositories depend on, the machine and the state definitions — what is sent and how values
    combine. The connection's lifecycle stays the runtime's: `outboxFactory.ts` implements the transport
    (the cloud's own slot being verified, its scoped graph, holding the slot during a send, the uid in

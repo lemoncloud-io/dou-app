@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AudioLines, Bookmark, FileText, Film, Image, Paperclip, type LucideIcon } from 'lucide-react';
 
-import type { ChatAttachmentKind, DomainChannel, DomainChat, DomainPlace } from '@chatic/data';
+import type { ChatAttachmentKind, DomainChannel, DomainChat, DomainPlace } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 

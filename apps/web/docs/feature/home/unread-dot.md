@@ -169,7 +169,7 @@ A push naming the **active** cloud is never marked; its live socket already owns
 state.
 
 **A mark is a bridge between hearing of a message and that cloud's cache holding it.** A cloud off
-screen is not sent the message on its socket (measured on the dev servers — see `libs/app-runtime`'s
+screen is not sent the message on its socket (measured on the dev servers — see `libs/runtime`'s
 sync doc), so its count would only move on its next once-a-minute delta. Marking therefore does two
 things: it lights the dot, and it asks that one cloud for its delta now
 (`runtime.sync.refreshBackgroundClouds(cid)`). That delta also re-reads the cloud's place list, so

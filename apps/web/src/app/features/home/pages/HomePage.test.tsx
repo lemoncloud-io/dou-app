@@ -44,8 +44,8 @@ jest.mock('@chatic/shared', () => ({
     // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
     usePinnedChannels: () => ({ pinnedIds: [], toggle: jest.fn(), reorder: jest.fn() }),
 }));
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionAuth: () => ({ isAuthenticated }),
@@ -53,8 +53,10 @@ jest.mock('@chatic/app-runtime', () => ({
             usePairedCloudIds: () => pairedCloudIds,
             usePairedCloudNames: () => pairedCloudNames,
         },
-    },
-}));
+        // Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
+        appShell: { kind: 'browser', os: null },
+    })
+);
 
 // The three things a pull re-asks. Spies, so the pull-to-refresh block can see each one go out.
 const refetchCloudsMock = jest.fn();
@@ -150,8 +152,6 @@ const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 // `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
-// Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
-jest.mock('@chatic/host', () => ({ host: { ports: { appShell: { kind: 'browser', os: null } } } }));
 
 jest.mock('../../../hooks', () => ({
     useActiveCloudPlaces: (...args: unknown[]) => useActiveCloudPlaces(...(args as [])),

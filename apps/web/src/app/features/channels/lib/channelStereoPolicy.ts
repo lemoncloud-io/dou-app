@@ -1,4 +1,4 @@
-import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 
 /** The server's `ChannelStereo`, plus the absent case a cached row can carry. */
 type ChannelStereo = DomainChannel['stereo'];

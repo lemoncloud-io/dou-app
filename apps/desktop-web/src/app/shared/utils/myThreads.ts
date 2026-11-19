@@ -1,4 +1,4 @@
-import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/runtime';
 
 import { bareChannelName, channelKind, type ChannelKind } from './channelLabel';
 

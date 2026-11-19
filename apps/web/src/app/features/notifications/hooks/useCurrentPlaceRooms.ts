@@ -1,7 +1,13 @@
 import { useEffect, useMemo } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import { ACCOUNT_CHANNEL_SID, RELAY_CLOUD_ID, isInPlaceList, isRelayDm, type DomainChannel } from '@chatic/data';
+import {
+    runtime,
+    ACCOUNT_CHANNEL_SID,
+    isInPlaceList,
+    isRelayDm,
+    RELAY_CLOUD_ID,
+    type DomainChannel,
+} from '@chatic/runtime';
 
 import { useActiveCloudData } from '../../../hooks/activeCloudDataContext';
 

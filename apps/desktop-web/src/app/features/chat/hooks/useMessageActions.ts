@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/app-runtime';
-
-import { isMessageEdited } from '@chatic/data';
+import { runtime, isMessageEdited } from '@chatic/runtime';
 
 /**
  * Edit and delete, for whichever message in a group the reader acts on.

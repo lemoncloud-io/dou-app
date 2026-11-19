@@ -3,60 +3,43 @@
 **The native adapter: the runtime for React Native's JS process.** On the phone the session, the
 sockets, sync and the data layer can run in the app's own process instead of the WebView's page. This
 package holds the pieces that are true of that process and of nothing else — NetInfo, `AppState`, a
-socket opened by React Native with the handshake header the relay checks — and builds the runtime from
-them. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/README.md).
+socket opened by React Native with the handshake header the relay checks — as the adapters an app's
+runtime declaration plugs in. It is the native counterpart of [`@chatic/runtime-web`](../runtime-web/README.md).
 
 The mobile app can boot it (`apps/mobile/docs/runtime/`), on a launch whose owner is set to the app;
 a dev or production build (from app 0.32.1) sets it for installs nobody switched, unless the web names
-the page. A launch whose vault holds no session is declined and goes to the page (from 0.32.2). An app boots it with
-`bootNativeRuntime` and keeps it alive with `runNativeRuntime`:
+the page. A launch whose vault holds no session is declined and goes to the page (from 0.32.2). The app
+starts it from its own runtime declaration — `startRuntime`, handed on from runtime-client, over the
+adapters below, in `apps/mobile/src/config/mobile.ts` — and keeps it alive with `runNativeRuntime`:
 
 ```ts
 import '@chatic/runtime-mobile/polyfills'; // first, before anything draws random numbers
 
-const { engine } = await bootNativeRuntime({ storage, vault, cache, env, userAgent, leaveToHome });
+const { engine } = await startRuntime(declaration); // the app's `mobile(...)` declaration
 const stop = runNativeRuntime(engine, { deviceIds, push });
 ```
 
-`createNativeRuntime` is the step inside the boot that assembles the runtime from loaded stores:
+No library chooses a React Native app's ports for it: a choice made here would be made for every such
+app at once and could change only with a build, while a declaration is read by its own app alone
+(ADR-0343).
 
-```ts
-// The app's entry file, first line — before anything that draws random numbers is loaded.
-import '@chatic/runtime-mobile/polyfills';
-
-import { createNativeRuntime } from '@chatic/runtime-mobile';
-
-// after the app's config and logging are set up
-const engine = createNativeRuntime({
-    storage: { secret, plain, device }, // the app's own stores, on its native storage
-    cache, // the app's `LocalCachePorts`
-    userAgent: await getUserAgent(), // the string this device reports everywhere
-    leaveToHome: params => {
-        /* the app's way home when a session ends */
-    },
-    signedOutKeyPrefixes, // optional
-    data, // optional
-});
-```
-
-| Export                                                                    | Does                                                                                                                                                                                   |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createNativeRuntime(options)`                                            | checks the polyfill, fills the native ports (below), calls runtime-core's `createRuntime`, returns the engine                                                                          |
-| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                                                                            |
-| `nativeTransportPorts({ userAgent })`                                     | the transport port (below); one NetInfo listener for the process however often it is built                                                                                             |
-| `nativeForegroundPorts(appState?)`                                        | the foreground port (below), on React Native's `AppState` unless handed another                                                                                                        |
-| `nativeAuthPorts({ plain, leaveToHome })`                                 | the auth port (below): the address carried in `plain`, read and removed once when it is built                                                                                          |
-| `nativeStoragePorts({ vault, files, secret? })`                           | the storage port: `nativeSecretStore` on the vault, `keyValueStoreOn` on the plain and device files; `secret` not yet loaded                                                           |
-| `readNativeHostFacts({ userAgent }, platform?)`                           | `NativeHostFacts`, a frozen `{ platform, userAgent }`: `Platform.OS` and the user agent the app resolved before the boot                                                               |
-| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process                                                                           |
-| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                                                                                        |
-| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                                                                                     |
-| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                                                                             |
-| `bootNativeRuntime(options)`                                              | checks the build's values, configures, waits for the vault, runs the secret-storage step, creates the runtime, or throws `NativeRuntimeNoSessionError` when the vault holds no session |
-| `loadNativeSession(storage, vault, appState?)`                            | the boot's vault wait and secret-storage step on their own, with the same `NativeRuntimeNoSessionError`; the vault storage adapter runs it too                                         |
-| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop                                                                           |
-| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core                                                             |
-| `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`, `RuntimeEngine`  | runtime-core's, handed on: the whitelist a sub WebView page's runtime requests pass, and the engine type its bridge is built over                                                      |
+| Export                                                                    | Does                                                                                                                                                             |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@chatic/runtime-mobile/polyfills` entry                                  | installs `crypto.getRandomValues` on the OS's secure random generator; imported first, once                                                                      |
+| `nativeTransportPorts({ userAgent })`                                     | the transport port (below); one NetInfo listener for the process however often it is built                                                                       |
+| `nativeForegroundPorts(appState?)`                                        | the foreground port (below), on React Native's `AppState` unless handed another                                                                                  |
+| `nativeAuthPorts({ plain, leaveToHome })`                                 | the auth port (below): the address carried in `plain`, read and removed once when it is built                                                                    |
+| `nativeStoragePorts({ vault, files, secret? })`                           | the storage port: `nativeSecretStore` on the vault, `keyValueStoreOn` on the plain and device files; `secret` not yet loaded                                     |
+| `readNativeHostFacts({ userAgent }, platform?)`                           | `NativeHostFacts`, a frozen `{ platform, userAgent }`: `Platform.OS` and the user agent the app resolved before the boot                                         |
+| `nativeSecretStore(vault, options?)`                                      | the session's `secret` store on the app's device vault (`DeviceVault`) — the store a page builds, in-process                                                     |
+| `waitForUnlockedVault(vault)`                                             | waits while the vault is locked (iOS, before the first unlock) and answers the first other read                                                                  |
+| `keyValueStoreOn(file)`                                                   | a `KeyValueStore` on a key-value file (`KeyValueFile`, an MMKV instance), strings kept as they are                                                               |
+| `nativeLocalCachePorts(client)`                                           | the cache's `LocalCachePorts`: every domain in the app's database (`NATIVE_CACHE_ROUTE`), through `client`                                                       |
+| `missingNativeRuntimeEnv(env)`, `NativeRuntimeEnvError`                   | the build values the runtime cannot start without (`NATIVE_RUNTIME_ENV_KEYS`) that `env` lacks, and the error an app throws before a start when there are any    |
+| `loadNativeSession(storage, vault, appState?)`                            | waits for the vault and runs the secret-storage step, or throws `NativeRuntimeNoSessionError` when the vault holds no session; the vault storage adapter runs it |
+| `runNativeRuntime(engine, options)`                                       | starts the session and connection controllers, the two credential guards and push registration; returns stop                                                     |
+| `createRuntimeBridgeHost`, `RUNTIME_CONTRACTS`, `RUNTIME_LISTENER_MARKER` | runtime-core's, handed on: the shell's half of the bridge and the contract it speaks — the app may not import runtime-core                                       |
+| `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`, `RuntimeEngine`  | runtime-core's, handed on: the whitelist a sub WebView page's runtime requests pass, and the engine type its bridge is built over                                |
 
 ### The adapters
 
@@ -67,30 +50,31 @@ export is named after its id. A port that sits on one of the app's own native ha
 from that handle, because the app opens it. None declares `supports`: each runs in any React Native
 process.
 
-| Export                                    | Id                     | Builds                                                                                                                                          |
-| ----------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `transportMobile`                         | `transport.mobile`     | `nativeTransportPorts({ userAgent })`, the user agent from the facts                                                                            |
-| `foregroundAppState`                      | `foreground.app-state` | `nativeForegroundPorts()`                                                                                                                       |
-| `authMobile({ leaveToHome })`             | `auth.mobile`          | `nativeAuthPorts` over the built `plain` store                                                                                                  |
-| `storageMobileVault({ vault, files, … })` | `storage.mobile-vault` | `nativeStoragePorts`, loaded by `loadNativeSession` — the boot's steps 2 and 3, so a vault with no session throws `NativeRuntimeNoSessionError` |
-| `cacheMobileSqlite(client)`               | `cache.mobile-sqlite`  | `nativeLocalCachePorts(client)`                                                                                                                 |
+| Export                                    | Id                     | Builds                                                                                                                                     |
+| ----------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `transportMobile`                         | `transport.mobile`     | `nativeTransportPorts({ userAgent })`, the user agent from the facts                                                                       |
+| `foregroundAppState`                      | `foreground.app-state` | `nativeForegroundPorts()`                                                                                                                  |
+| `authMobile({ leaveToHome })`             | `auth.mobile`          | `nativeAuthPorts` over the built `plain` store                                                                                             |
+| `storageMobileVault({ vault, files, … })` | `storage.mobile-vault` | `nativeStoragePorts`, loaded by `loadNativeSession` — steps 2 and 3 below, so a vault with no session throws `NativeRuntimeNoSessionError` |
+| `cacheMobileSqlite(client)`               | `cache.mobile-sqlite`  | `nativeLocalCachePorts(client)`                                                                                                            |
 
-`mobileHostFacts({ userAgent })` is the facts reader: `readNativeHostFacts`, after the secure-random check
-`createNativeRuntime` makes, since reading the facts is a start's first step. The build-value check and
-the config set-up `bootNativeRuntime` does first are not part of a start; an app that starts from a
-declaration does them before it, or names config's ports in the declaration.
+`storageMobileVault`'s `onLoad` hears how the load went — the vault's first answer and the
+secret-storage step's row (`NativeSessionLoad`) — once the vault holds a session, and is not called when
+the load throws. The package logs nothing about it; the app logs it once the start is done.
 
-Nothing starts through these adapters yet: the mobile app still boots with `bootNativeRuntime`, which
-builds through `createNativeRuntime`, and both stay, unchanged, until the app has a declaration of its
-own. When it does, the choice of each port leaves this package for the app, as it does for a web app
-(ADR-0343) — a choice made here would be made for every React Native app at once and could change only
-with a build.
+`mobileHostFacts({ userAgent })` is the facts reader: `readNativeHostFacts`, after the secure-random
+check, since reading the facts is a start's first step. The build-value check and the config set-up are
+not part of a start; an app that starts from a declaration does them before it, or names config's ports
+in the declaration.
+
+The mobile app starts through these adapters: its declaration (`apps/mobile/src/config/mobile.ts`)
+checks the build's values first and names config's ports itself, so the choice of each port is the
+app's, as it is for a web app.
 
 Each port has one factory, and each factory builds on its own from what it is handed — nothing reads
-another port's result — so an app can declare port by port what it plugs in. `createNativeRuntime` uses
-the same factories.
+another port's result — so an app can declare port by port what it plugs in.
 
-The ports `createNativeRuntime` fills, the same in every React Native app:
+The ports the adapters fill, the same in every React Native app:
 
 | Port                      | Filled by (`src/`)        | With                                                                                                                          |
 | ------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -147,7 +131,9 @@ vault, so this runtime reads it through `secret` (`libs/session` README, `identi
 
 ## Booting and running
 
-`bootNativeRuntime` boots in the order a page's entry does, and each step is one a page already has:
+A start boots in the order a page's entry does, and each step is one a page already has. The app's
+declaration runs them through `startRuntime` — step 1 in `startMobileRuntime` before the start, the rest
+as the start's config set-up and its `storage.mobile-vault` adapter:
 
 1. **The build's values** (`NATIVE_RUNTIME_ENV_KEYS`: `VITE_ENV`, `VITE_PROJECT`, `VITE_HOST`,
    `VITE_OAUTH_ENDPOINT`, `VITE_SOCIAL_OAUTH_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`,
@@ -163,13 +149,14 @@ vault, so this runtime reads it through `secret` (`libs/session` README, `identi
    outlives the logout as long as the process runs on — a guest signed in after it would lose its
    tokens at the next launch — and the logout empties the vault before it ends anyway. The app has no
    web storage behind it, so the step's web copy and tab are empty. When the step leaves the vault with
-   no session (`empty`, or `logout-finished`), the boot throws `NativeRuntimeNoSessionError` and creates
-   nothing: the page takes that launch. Only the page's boot can move a session out of the page's own
+   no session (`empty`, or `logout-finished`), `loadNativeSession` throws `NativeRuntimeNoSessionError`
+   and the start creates nothing: the page takes that launch. Only the page's boot can move a session out of the page's own
    `localStorage`, where an install updating from an app without a vault still has it, and on a
    signed-out install the page signs a guest in as the runtime would have. The next launch finds a
    session in the vault and is the runtime's. A vault that could not be read is not a missing session;
    the runtime runs from the tab then, as before.
-4. **`createNativeRuntime`**, with the loaded stores.
+4. **The engine**, assembled by runtime-core's `createRuntime` from the loaded stores and the other
+   declared adapters.
 
 `runNativeRuntime` then starts what a page's runtime host starts on mount: the session controller
 (initialize, keep a guest signed in), the connection controller (background clouds now, sockets once the
@@ -215,7 +202,7 @@ stops what had started and rethrows.
 
 Hermes has no `crypto.getRandomValues`, and `uuid` and `crypto-js` draw from it. The polyfill entry
 installs it on `react-native-get-random-values`, which asks the OS's secure generator through a native
-module, and `createNativeRuntime` throws at boot when it is missing — a `Math.random` fallback would
+module, and a start throws at its first step (`mobileHostFacts`) when it is missing — a `Math.random` fallback would
 make ids and nonces predictable, and a missing one otherwise fails deep inside a sign-in.
 
 It is the only one the runtime needs. `URL`, `URLSearchParams`, `TextEncoder`, `fetch` and `WebSocket`
@@ -234,7 +221,7 @@ has to build the string itself.
 
 ## Rules
 
-- Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/app-runtime` (the React
+- Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. The app's runtime modules do (`apps/mobile`'s

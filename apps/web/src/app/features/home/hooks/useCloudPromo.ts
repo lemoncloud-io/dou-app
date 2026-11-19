@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
-import { config } from '@chatic/config';
-import { useConfigValue } from '@chatic/config/react';
+import { runtime } from '@chatic/runtime';
 import { CLOUD_PROMO_DISMISS_TTL_MS } from '../../../stores/preferenceKeys';
 
 export interface CloudPromoOptions {
@@ -43,12 +42,12 @@ export interface CloudPromoResult {
 export const useCloudPromo = ({ hasOwnedCloud }: CloudPromoOptions): CloudPromoResult => {
     // Already sanitized by the resolver's `number` type (0 = never, future values degraded to 0
     // by the config-write side — see normalizeCloudPromoDismissedAt in the legacy migration).
-    const dismissedAt = useConfigValue<number>('ui.cloudPromoDismissedAt') ?? 0;
+    const dismissedAt = runtime.settings.useConfigValue<number>('ui.cloudPromoDismissedAt') ?? 0;
 
     const isDismissed = dismissedAt > 0 && Date.now() - dismissedAt < CLOUD_PROMO_DISMISS_TTL_MS;
 
     const dismiss = useCallback(() => {
-        config.set('ui.cloudPromoDismissedAt', Date.now(), { lane: 'local' });
+        runtime.settings.set('ui.cloudPromoDismissedAt', Date.now(), { lane: 'local' });
     }, []);
 
     return { isVisible: !hasOwnedCloud && !isDismissed, dismiss };

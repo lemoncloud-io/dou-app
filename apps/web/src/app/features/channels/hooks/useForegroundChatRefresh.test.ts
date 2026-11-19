@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         sync: {
             updateSyncSnapshot: jest.fn(),
             fetchRoomFeed: jest.fn(),
@@ -15,15 +15,15 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             getGlobalSessionContext: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 // Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../../../bridge', () => ({ useAppForeground: jest.fn() }));
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useAppForeground } from '../../../bridge';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
@@ -188,7 +188,7 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
         return trace;
     };
 
-    // The fetch phases and the trace's failure ending are fetchRoomFeed's (app-runtime), tested there.
+    // The fetch phases and the trace's failure ending are fetchRoomFeed's (the runtime's), tested there.
     it('marks verified when the entry effect runs', async () => {
         setCachedChats([3, 7]);
         const trace = beginSync();

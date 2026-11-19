@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { runtime, type DomainChannel } from '@chatic/runtime';
 
 import { isRoomOwner } from '../lib/channelStereoPolicy';
 import type { ClientChannelView } from '../types';

@@ -6,16 +6,16 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
 const mockSwitchCloud = jest.fn();
 const mockSwitchSite = jest.fn();
 const mockWaitUntilVerified = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => mockSelection,
             useSwitchCloudSession: () => ({ switchCloud: mockSwitchCloud }),
             useSiteSwitch: () => ({ switchSite: mockSwitchSite }),
         },
         connection: { waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args) },
-    },
-}));
+    })
+);
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
 
 let mockCatalog: Array<Record<string, unknown>>;

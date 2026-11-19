@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainProfile } from '@chatic/data';
+import type { DomainProfile } from '@chatic/runtime';
 
 import type { ChannelMember, ClientChannelView } from '../types';
 import { peerCloudNameOf, pickDmPeerId } from '../utils/dmPeer';

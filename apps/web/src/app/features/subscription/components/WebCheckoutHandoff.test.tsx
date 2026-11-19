@@ -10,17 +10,17 @@ import { useMembershipInfo } from '../../../hooks/useMembership';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 let mockNative = false;
-// The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-// in a browser.
 const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { checkout: mockNative ? mockStore : mockWeb };
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
+        // in a browser.
+        get checkout() {
+            return mockNative ? mockStore : mockWeb;
         },
-    },
-}));
+    })
+);
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn() }));
 jest.mock('../consts', () => ({
     WEB_SUBSCRIPTION_URL: { plans: 'https://web.example/subscription/plans', list: 'https://web.example/subscription' },

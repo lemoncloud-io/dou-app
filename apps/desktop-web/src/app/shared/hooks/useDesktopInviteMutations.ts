@@ -2,14 +2,14 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 /**
  * Desktop invite-write hook. Wraps the engine's invite repository (number-bound
  * `invite.create` / `cancel` / `list`) and the user repository's place-bound
  * `requestInvite` for every invite write the desktop UI needs.
  *
- * WHY HERE (not libs/app-runtime): same app-side convention as
+ * WHY HERE (not libs/runtime): same app-side convention as
  * `useDesktopChannelMutations` — the engine exposes the repositories, the app
  * owns the write shapes. Invite rows are relay-scoped (the invite repository
  * is cid-gated to the default cloud), so callers gate entry on the default

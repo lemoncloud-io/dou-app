@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomainChat } from '@chatic/data';
+import type { DomainChat } from '@chatic/runtime';
 
 import type { MessageViewer } from './buildMessageRows';
 import { foldReactions, hasMyReaction } from './foldReactions';

@@ -1,4 +1,4 @@
-import { chatAttachmentExtension } from '@chatic/data';
+import { chatAttachmentExtension } from '@chatic/runtime';
 
 import { isSafeImageUrl, type ChatImage } from './chatImages';
 

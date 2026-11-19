@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainWebhook } from '@chatic/data';
-import { isWebhookExpired } from '@chatic/data';
+import type { DomainWebhook } from '@chatic/runtime';
+import { isWebhookExpired } from '@chatic/runtime';
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 

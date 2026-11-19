@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useAppForeground } from '../bridge';
 
@@ -6,7 +6,7 @@ import { useAppForeground } from '../bridge';
  * Re-mints the stale relay HTTP signing credential (the relay token's AWS credential) once the
  * relay socket is up.
  *
- * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`
+ * The probe/refresh body now lives in `@chatic/runtime`'s `runtime.session.useSessionStalenessGuard`
  * (ADR-0070 3-step checklist 7) — admin had invented the same thing independently. What stays
  * here is apps/web's POLICY, and the two triggers are the whole point:
  *

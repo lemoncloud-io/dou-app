@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactElement } from 'react';
 
-import type { ChatFileSlot } from '@chatic/data';
+import type { ChatFileSlot } from '@chatic/runtime';
 
 import type { DownloadProgress, DownloadResult } from '../../../runtime/transfer';
 import { resetFileDownloads, useFileDownloads } from './useFileDownloads';
@@ -16,14 +16,6 @@ jest.mock('react-i18next', () => ({
 
 let native = true;
 const request = jest.fn();
-// Who moves files, as the host's `files` port says.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { files: { kind: native ? 'shell' : 'browser' } };
-        },
-    },
-}));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn() },
     webClient: { request: (message: unknown, options: unknown) => request(message, options) },
@@ -62,9 +54,15 @@ jest.mock('../../../bridge/shellDownload', () => ({
 }));
 
 const getChat = jest.fn();
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
+        // Who moves files, as the host's `files` port says.
+        get files() {
+            return { kind: native ? 'shell' : 'browser' };
+        },
+    })
+);
 
 const downloadInBrowser = jest.fn();
 jest.mock('../lib/fileDownload', () => ({

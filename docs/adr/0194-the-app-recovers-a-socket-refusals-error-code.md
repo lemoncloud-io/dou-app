@@ -2,8 +2,8 @@
 
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `fix/socket-error-code`
 > · Supersedes the `errorCode` non-goal of [ADR-0042](./0042-account-linking-unified-path-migration.md)
-> · Scope: `libs/app-runtime/src/socket/utils/errorCodeLedger.ts` · `libs/app-runtime/src/socket/SocketManager.ts`
-> · The module doc is [libs/app-runtime socket](../../libs/transport/docs/socket/README.md#failed-requests-get-a-name-and-a-volume-policy)
+> · Scope: `libs/runtime/src/socket/utils/errorCodeLedger.ts` · `libs/runtime/src/socket/SocketManager.ts`
+> · The module doc is [libs/runtime socket](../../libs/transport/docs/socket/README.md#failed-requests-get-a-name-and-a-volume-policy)
 
 ## Context
 

@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/app-runtime';
-import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
+import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';

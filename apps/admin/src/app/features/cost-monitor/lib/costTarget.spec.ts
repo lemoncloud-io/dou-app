@@ -8,7 +8,7 @@ const env: Record<string, string | undefined> = {
     VITE_V1_RELAY_ENDPOINT: 'https://api.example.org/dou-v1',
 };
 
-vi.mock('../../../config/adapters', () => ({
+vi.mock('../../../../config/adapters/config', () => ({
     webConfigPorts: { env: { raw: (name: string) => env[name] } },
 }));
 

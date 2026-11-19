@@ -1,6 +1,6 @@
 import { authLocation, defineRuntime, foregroundVisibility, transportBrowser, webHostFacts } from '@chatic/runtime-web';
 
-import { webConfigPorts } from '../app/config/adapters';
+import { webConfigPorts } from './adapters/config';
 import { cacheAdminWebStorage, storageAdminTab } from './adapters';
 
 /**

@@ -3,12 +3,12 @@
 > Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5),
 > `refactor/session-module` (step 2 — `libs/session`), `refactor/transport-module` (step 3 —
 > `libs/transport`), `refactor/sync-module` (step 4 — `libs/sync`), `refactor/auth-module` (step 5 —
-> `libs/auth`) · Scope: `libs/app-runtime/`, `libs/session/`, `libs/transport/`, `libs/sync/`,
+> `libs/auth`) · Scope: `libs/runtime/`, `libs/session/`, `libs/transport/`, `libs/sync/`,
 > `libs/auth/`
 
 ## Context
 
-`libs/app-runtime` holds the session store, login and cloud switching, device pairing, the socket
+`libs/runtime` holds the session store, login and cloud switching, device pairing, the socket
 manager and its slots, the HTTP manager, the sync manager, the assembly of the repository graph, the
 React host and binders, every hook, push registration, the issue report and boot — 181 source files
 and about 16,800 lines in one package. ADR-0002 made it the shared engine and that still holds; what

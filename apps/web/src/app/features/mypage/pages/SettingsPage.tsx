@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 
 import { getStoreUrl, useNavigateWithTransition } from '@chatic/shared';
 
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 import { appBridge } from '../../../bridge';
 import { haptics } from '../../../bridge/haptics';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
-import { runtime } from '@chatic/app-runtime';
 
 import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog, PairingLogoutDialog } from '../components';
 import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks';
@@ -76,7 +75,7 @@ export const SettingsPage = () => {
     // Part of the update check: where the app runs the frame around the page (the host's `appShell`
     // port) it opens its own store listing; anywhere else the page opens the store's web page.
     const handleOpenStore = () => {
-        if (host.ports.appShell.kind === 'shell') {
+        if (runtime.appShell.kind === 'shell') {
             appBridge.openStore();
             return;
         }
@@ -129,7 +128,7 @@ export const SettingsPage = () => {
                         }
                         onClick={() => setIsLanguageSheetOpen(true)}
                     />
-                    {host.ports.appShell.kind === 'shell' && isIconChangeSupported && (
+                    {runtime.appShell.kind === 'shell' && isIconChangeSupported && (
                         <ListRow
                             title={t('mypage.appIconSettings')}
                             trailing={

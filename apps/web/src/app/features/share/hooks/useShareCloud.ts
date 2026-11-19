@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
-import { RELAY_CLOUD_ID } from '@chatic/data';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useActiveCloudPlaces, useCachedCloudNames, useCloudSessionCatalog, useInvitedClouds } from '../../../hooks';

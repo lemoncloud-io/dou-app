@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { useLocallyCanceledInvites } from './useLocallyCanceledInvites';
 import { useRelayInvites } from '../../../hooks';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+    })
+);
 jest.mock('../../../hooks', () => ({ useRelayInvites: jest.fn() }));
 
 const dismiss = jest.fn();

@@ -23,7 +23,7 @@
 
 ## Context
 
-The cache storage assembly in `libs/app-runtime` is structurally out of step with the other
+The cache storage assembly in `libs/runtime` is structurally out of step with the other
 factories in the data layer (over-modularized). `remoteFactory` and `repositoryFactory` are
 stateless, thin assembly functions, while only `localFactory` + `cacheStorageStrategies` carry the
 following:

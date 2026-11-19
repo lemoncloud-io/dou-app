@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -9,9 +9,15 @@ import { useAppForeground } from '../../../bridge/useAppForeground';
 import { getShellPut, syncShellTransfers } from '../../../bridge/shellUpload';
 import { useSendImages } from './useSendImages';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() } },
-}));
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() },
+        // Who picks, as the host's media port says: the app when the case runs in the app.
+        get media() {
+            return { kind: mockNative ? 'shell' : 'browser' };
+        },
+    })
+);
 const shellPut = jest.fn();
 const shellFilePut = jest.fn();
 jest.mock('../../../bridge/shellUpload', () => ({
@@ -23,14 +29,6 @@ jest.mock('../../../bridge/useAppForeground', () => ({ useAppForeground: jest.fn
 jest.mock('../../../bridge/attachmentPicker', () => ({ attachmentPicker: { prepareVideo: jest.fn() } }));
 let mockNative = true;
 jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
-// Who picks, as the host's media port says: the app when the case runs in the app.
-jest.mock('@chatic/host', () => ({
-    host: {
-        get ports() {
-            return { media: { kind: mockNative ? 'shell' : 'browser' } };
-        },
-    },
-}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 

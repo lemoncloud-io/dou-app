@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Bug } from 'lucide-react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 
 import { metricsCollector } from '../metrics/MetricsCollector';
 import { useDebugMode } from '../hooks';

@@ -1,4 +1,4 @@
-import { host } from '@chatic/host';
+import { runtime } from '@chatic/runtime';
 
 import type { LanguagePreference } from '../../i18n/languagePreference';
 import { appBridge } from './appBridge';
@@ -19,7 +19,7 @@ import { appBridge } from './appBridge';
  * browser has no shell store to tell.
  */
 export const syncLanguageChoiceToShell = async (preference: LanguagePreference): Promise<void> => {
-    if (host.ports.appShell.kind !== 'shell') return;
+    if (runtime.appShell.kind !== 'shell') return;
     const attempt = () => appBridge.savePreferenceConfirmed({ key: 'language', value: preference });
     try {
         await attempt();

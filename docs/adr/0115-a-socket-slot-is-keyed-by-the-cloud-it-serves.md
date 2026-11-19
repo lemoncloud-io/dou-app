@@ -2,13 +2,13 @@
 
 > Status: Accepted; decision 5 superseded by [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md)
 > · Decided: 2026-09-28 · Implemented: `refactor/socket-slots-by-cid`
-> · Scope: `libs/app-runtime/src/socket/**` · `libs/app-runtime/src/connection/**` ·
+> · Scope: `libs/runtime/src/socket/**` · `libs/runtime/src/connection/**` ·
 > `libs/data/src/remote/gateways/socket.ts` (the unused `cloud` route) · the app call sites that pinned
 > the relay slot
 > · Related: [ADR-0112](./0112-the-cache-partition-is-the-one-an-operation-was-captured-for.md) (the
 > cache half of the same question — which cloud a write belongs to) ·
 > [ADR-0045](./0045-push-relay-cloud-routing-crossover.md) (`'#'`, the relay marker in push payloads)
-> · The module doc is [libs/app-runtime/docs/socket](../../libs/transport/docs/socket/README.md#a-slot-is-keyed-by-the-cloud-it-serves)
+> · The module doc is [libs/runtime/docs/socket](../../libs/transport/docs/socket/README.md#a-slot-is-keyed-by-the-cloud-it-serves)
 
 ## Context
 

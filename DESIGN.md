@@ -42,7 +42,7 @@ Figma variables read from node `187-3` (the desktop palette):
 
 ## Surfaces
 
-Three clients, one engine (`libs/app-runtime`). Presentation is rebuilt per platform.
+Three clients, one engine (`libs/runtime`). Presentation is rebuilt per platform.
 
 | App                      | Shape                                                                              | Theme file                                     | Kit                                                                                                       |
 | ------------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |

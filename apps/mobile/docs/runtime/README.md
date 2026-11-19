@@ -25,15 +25,18 @@ The same runtime also answers a mini app in the sub WebView on such a launch —
 `chatSend` one text send, of the current cloud, through a whitelist and a runtime bridge host of each page load's own (see
 [the sub WebView](../webview/sub-webview.md)). On a launch the page owns, a mini app reads nothing.
 
-| File (`src/app/services/runtime/`)           | Role                                                                                                      |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `sessionOwner.ts` · `launchSessionOwner.ts`  | Who owns the session this launch, read once from its own MMKV file                                        |
-| `nativeRuntimeHost.ts`                       | The host: boots and runs the runtime once per process, reports a session's end                            |
-| `nativeRuntime.ts`                           | The app's one host, wired to the app's services — loaded only when the runtime is wanted                  |
-| `runtimePorts.ts` · `runtimeStorageFiles.ts` | The runtime's stores and cache on the app's vault, MMKV files and SQLite                                  |
-| `runtimeOffer.ts` · `runtimeBridge.ts`       | The offer injected into the page, and the four runtime requests answered over the host                    |
-| `restartOnSessionEnd.ts`                     | A session's end restarts the JS context, which opens the WebView home                                     |
-| `sessionOwnerSwitch.ts`                      | The owner switch: records the owner and restarts to apply it; offered outside production or in debug mode |
+| File (`src/app/services/runtime/`)          | Role                                                                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `sessionOwner.ts` · `launchSessionOwner.ts` | Who owns the session this launch, read once from its own MMKV file                                        |
+| `nativeRuntimeHost.ts`                      | The host: boots and runs the runtime once per process, reports a session's end                            |
+| `nativeRuntime.ts`                          | The app's one host, wired to the app's services — loaded only when the runtime is wanted                  |
+| `runtimeStorageFiles.ts`                    | The runtime's own MMKV files: its plain and device stores, and the owner's file                           |
+| `runtimeOffer.ts` · `runtimeBridge.ts`      | The offer injected into the page, and the four runtime requests answered over the host                    |
+| `restartOnSessionEnd.ts`                    | A session's end restarts the JS context, which opens the WebView home                                     |
+| `sessionOwnerSwitch.ts`                     | The owner switch: records the owner and restarts to apply it; offered outside production or in debug mode |
+
+The runtime itself is declared outside that folder, in `src/config/`: `mobile.ts` names one adapter per
+port, all of them runtime-mobile's, and boots it (`startMobileRuntime`).
 
 ## Who owns the session
 
@@ -160,7 +163,27 @@ WebView content-process restart leaves the session and its sockets standing. Its
 (`nativeRuntime.ts`) imports the whole runtime, so **nothing on the app's startup path imports it** —
 whatever starts the runtime loads it then. A launch the page owns pays one MMKV read and nothing more.
 
-The boot, in order (`bootNativeRuntime` in runtime-mobile):
+The runtime is declared (`mobile` in `src/config/mobile.ts`, with runtime-mobile's `defineRuntime`): each
+of its five ports has one adapter and no alternative, so a `port.*` toggle — a `VITE_PORT_<PORT>` in the
+env file, say — changes nothing and is logged as a fall-back to the default.
+
+| Port         | Adapter                | What it is                                                                                |
+| ------------ | ---------------------- | ----------------------------------------------------------------------------------------- |
+| `storage`    | `storage.mobile-vault` | `secret` on the vault the pages use; `plain` and `device` on the runtime's own MMKV files |
+| `transport`  | `transport.mobile`     | NetInfo, `Platform.OS`, React Native's `WebSocket` with the app's user agent              |
+| `auth`       | `auth.mobile`          | the address a session ended with, carried to the next launch in `plain`                   |
+| `cache`      | `cache.mobile-sqlite`  | the app's SQLite, through the handlers that answer the pages' cache messages              |
+| `foreground` | `foreground.app-state` | React Native's `AppState`                                                                 |
+
+`plain` and `device` are files of their own because the app's other MMKV files hold its own values,
+JSON-encoded, and a store's `clear` empties its whole file. The storage adapter is runtime-mobile's
+`storageMobileVault`, given an `onLoad` that hands on how the load went, which the host logs once the
+runtime runs.
+
+Who owns the session is not one of those ports. It is settled before anything loads the runtime
+([Who owns the session](#who-owns-the-session)); only a launch it gives to the app boots this.
+
+The boot, in order (`startMobileRuntime`):
 
 1. **The build's values.** The runtime's config needs the session's services by the names the web's env
    files use — `VITE_PROJECT`, `VITE_HOST`, `VITE_OAUTH_ENDPOINT`, `VITE_SOCIAL_OAUTH_ENDPOINT`,
@@ -168,7 +191,10 @@ The boot, in order (`bootNativeRuntime` in runtime-mobile):
    in `.env.example` as blanks, to copy from the web app's env of the same stage — which means each
    stage's values now live in two env files that have to agree. A build missing any of them fails the
    boot before anything starts: the host logs `session.native_runtime_failed` with the missing names,
-   answers `null`, and the page keeps the session.
+   answers `null`, and the page keeps the session. With them all, the boot logs the launch's owner and
+   the row that settled it — `[mobile] owner → native (switch)`; the row is `switch`, `build`, `page` or
+   `stage` — under `app.runtime_port`, and runtime-mobile's `startRuntime` hands config the build's
+   values and logs one line per port under the same tag (`[mobile] storage → storage.mobile-vault (default)`).
 2. **The vault**, waited for while it is locked (iOS, before the first unlock).
 3. **The secret store**, loaded through the page's own secret-storage step, which also finishes a logout
    whose clear was never confirmed. Unlike a page's boot, it is never told "this launch follows a

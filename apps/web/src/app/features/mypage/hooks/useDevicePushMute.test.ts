@@ -3,18 +3,19 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/app-runtime';
+import { runtime } from '@chatic/runtime';
 import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
-jest.mock('@chatic/app-runtime', () => ({
-    runtime: {
+jest.mock('@chatic/runtime', () =>
+    require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
-    },
-}));
+        settings: { set: (_key: string, value: boolean) => setPushMutedMock(value), useConfigValue: () => mutedState },
+    })
+);
 
 const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
@@ -24,12 +25,6 @@ let mutedState = false;
 const setPushMutedMock = jest.fn((value: boolean) => {
     mutedState = value;
 });
-jest.mock('@chatic/config', () => ({
-    config: { set: (_key: string, value: boolean) => setPushMutedMock(value) },
-}));
-jest.mock('@chatic/config/react', () => ({
-    useConfigValue: () => mutedState,
-}));
 
 const mockHaptic = jest.fn();
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));

@@ -14,8 +14,8 @@ const mockSyncProfiles = vi.fn();
 const mockGetSyncedAt = vi.fn();
 const mockSetSyncedAt = vi.fn();
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 profile: { syncProfiles: mockSyncProfiles },
@@ -29,8 +29,8 @@ vi.mock('@chatic/app-runtime', () => ({
         connection: {
             onServerEvent: (type: string, listener: (message: unknown) => void) => mockOnServerEvent(type, listener),
         },
-    },
-}));
+    })
+);
 
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 

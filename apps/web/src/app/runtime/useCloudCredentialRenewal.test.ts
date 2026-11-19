@@ -16,7 +16,7 @@ let onPairedCloudEnded: (cloudId: string) => void = () => undefined;
 const toast = jest.fn();
 const mockLogout = jest.fn(() => Promise.resolve());
 
-jest.mock('@chatic/app-runtime', () => ({
+jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
             useCloudCredentialGuard: (...args: unknown[]) => mockGuard(...(args as [])),

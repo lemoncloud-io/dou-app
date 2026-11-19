@@ -14,12 +14,8 @@ vi.mock('@chatic/bridges', () => ({
     webClient: { request },
 }));
 
-// The desktop shell delivers notifications, as the `push` port says there.
-vi.mock('@chatic/host', () => ({
-    host: { ports: { push: { kind: 'shell' } } },
-}));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: { observeList: () => () => undefined },
@@ -28,8 +24,10 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-    },
-}));
+        // The desktop shell delivers notifications, as the `push` port says there.
+        push: { kind: 'shell' },
+    })
+);
 
 vi.mock('./usePlaces', () => ({ usePlaces: () => ({ places: [] }) }));
 

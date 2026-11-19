@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { runtime as Runtime } from '@chatic/app-runtime';
+import type { runtime as Runtime } from '@chatic/runtime';
 
 type PairingState = ReturnType<typeof Runtime.session.usePairingRequest>['state'];
 
@@ -35,8 +35,8 @@ const env = vi.hoisted(() => {
     };
 });
 
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
+vi.mock('@chatic/runtime', async () =>
+    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             useSessionAuth: () => ({
                 isAuthenticated: useSyncExternalStore(env.auth.subscribe, env.auth.get, env.auth.get),
@@ -49,8 +49,8 @@ vi.mock('@chatic/app-runtime', () => ({
             },
             pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'macos' }),
         },
-    },
-}));
+    })
+);
 vi.mock('qrcode.react', () => ({
     QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="pairing-qr" data-value={value} />,
 }));

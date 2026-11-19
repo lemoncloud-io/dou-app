@@ -1,4 +1,4 @@
-import type { runtime } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/runtime';
 
 import { deviceStore } from '../../storage';
 import { useJoinedCloudsStore } from '../stores/useJoinedCloudsStore';

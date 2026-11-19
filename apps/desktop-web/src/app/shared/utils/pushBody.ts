@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import type { ChatAttachmentKind } from '@chatic/data';
+import type { ChatAttachmentKind } from '@chatic/runtime';
 
 import { attachmentLabel } from './messagePreview';
 import { messagePlainText } from './messagePlainText';
