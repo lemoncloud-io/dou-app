@@ -38,6 +38,14 @@ copy or link each file to the same path here; `git pull` there picks up changed 
 cannot open it, ask a repository admin for read access. Values change there, by pull request —
 not by passing files around.
 
+Every app keeps its own copy of the backend's addresses, so the copies can drift apart.
+`yarn check:env` holds them to one backend per stage: in each `.env.dev`, `.env.prod` and
+`.env.localhost`, every backend key an app carries is set, `VITE_ENV` names the stage, and apps
+deployed from the same secrets (web, landing, desktop-web, and the phone app that hosts the web) hold
+the same values. It also says which backend each app's `.env` points at. It prints no values. The keys
+and groups are in `scripts/env-keys.js`; run it with `--dir <path>` against the secrets repository
+itself.
+
 Release and signing credentials are not in it (see
 [Optional — release and signing credentials](#optional--release-and-signing-credentials-not-needed-for-local-dev)).
 Contributors outside the team create their own from the `.example` templates below.

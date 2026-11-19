@@ -524,6 +524,7 @@ yarn check:undefined-names  # Fail on TS2304 — a name used but never imported;
 yarn check:doc-links        # Fail on a dead markdown link, or an ADR link whose label and target disagree
 yarn check:doc-korean       # Fail on untranslated Korean prose in a markdown file (AGENTS.md's English policy)
 yarn check:code-korean      # Fail on untranslated Korean prose in a source code comment (same policy)
+yarn check:env              # Fail when apps' local env files disagree on a backend (values never printed)
 
 # Format
 yarn prettier               # Format all files
