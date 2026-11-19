@@ -1,0 +1,19 @@
+{
+    "manifestVersion": 1,
+    "name": "Chatic Apps Example",
+    "permissions": [
+        "clipboard",
+        "share",
+        "openUrl",
+        "userKey",
+        "session",
+        "cloud",
+        "place",
+        "channel",
+        "chat",
+        "user",
+        "chatSend"
+    ],
+    "display": "clean",
+    "orientation": "portrait"
+}

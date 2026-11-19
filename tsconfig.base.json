@@ -28,6 +28,7 @@
             "@chatic/bridge-messages": ["libs/bridge-messages/src/index.ts"],
             "@chatic/bridge-messages/testing": ["libs/bridge-messages/src/testing/index.ts"],
             "@chatic/bridges": ["libs/bridges/src/index.ts"],
+            "@chatic/chatic-apps-devtools": ["libs/chatic-apps-devtools/src/index.ts"],
             "@chatic/chatic-apps-sdk": ["libs/chatic-apps-sdk/src/index.ts"],
             "@chatic/chatic-apps-sdk/mock": ["libs/chatic-apps-sdk/src/mock.ts"],
             "@chatic/chatic-apps-sdk/internal": ["libs/chatic-apps-sdk/src/internal.ts"],

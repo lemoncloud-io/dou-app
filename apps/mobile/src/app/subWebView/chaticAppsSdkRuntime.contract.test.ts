@@ -1,7 +1,9 @@
 /**
  * @jest-environment node
  */
-// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
+// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out. The
+// reference mini-app gets a window of its own.
+import * as fs from 'fs';
 import * as path from 'path';
 
 import * as ts from 'typescript';
@@ -36,6 +38,7 @@ import {
     type CloudUser,
 } from '@chatic/chatic-apps-sdk';
 import { connectOver, type Transport } from '@chatic/chatic-apps-sdk/internal';
+import { loadEntry, openPage, settle as pageSettle, type OpenedPage } from '@chatic/chatic-apps-devtools';
 import {
     RUNTIME_CONTRACTS,
     createRuntimeBridgeHost,
@@ -43,7 +46,11 @@ import {
     type RuntimeEngine,
 } from '@chatic/runtime-mobile';
 
+import { memoryStorageFile } from '../services/subWebView/memoryStorageFile';
+import { SubWebViewService } from '../services/subWebView/SubWebViewService';
+import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import { createSubBridgeHost } from './createSubBridgeHost';
+import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { createSubWebViewRuntimeBridge, type sessionForPage } from './subWebViewRuntimeBridge';
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 
@@ -550,4 +557,295 @@ describe("chatic-apps-sdk's typed runtime against the app's", () => {
 
         expect(errors).toEqual([]);
     }, 120_000);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// The reference mini-app against this app's page host.
+//
+// The page in `apps/chatic-apps-example`, built from its sources as a production build would be, runs
+// in a window of its own and talks to the real page host — the base handlers and the runtime bridge
+// together, as `SubWebView` puts them — from the handshake to `finish`. Only the device and the
+// runtime's engine are stand-ins. A request the library renames, or a handler the host drops, breaks
+// what the page shows here before a page on a phone finds it.
+// ---------------------------------------------------------------------------------------------------
+
+const EXAMPLE = path.resolve(__dirname, '../../../../chatic-apps-example');
+
+const hostedExample = async () => {
+    const cloud = { id: 'cloud-example', cid: 'cloud-example', name: 'Example Cloud' };
+    const rooms = [
+        { id: 'room-lobby', cid: 'cloud-example', sid: 'place-example', isNotificationEnabled: true, name: 'Lobby' },
+        { id: 'room-notes', cid: 'cloud-example', sid: 'place-example', isNotificationEnabled: true, name: 'Notes' },
+    ];
+    const profiles = [
+        {
+            id: 'place-example@user-me',
+            cid: 'cloud-example',
+            sid: 'place-example',
+            uid: 'user-me',
+            userId: 'user-me',
+            updatedAtMs: 1,
+            nick: 'Example Me',
+        },
+        {
+            id: 'place-example@user-two',
+            cid: 'cloud-example',
+            sid: 'place-example',
+            uid: 'user-two',
+            userId: 'user-two',
+            updatedAtMs: 1,
+            nick: 'Member Two',
+        },
+    ];
+    const stopRooms = jest.fn();
+    const observeRooms = jest.fn((_query: unknown, listener: (result: unknown) => void) => {
+        listener({ list: rooms, meta: { total: rooms.length } });
+        return stopRooms;
+    });
+    const sendChat = jest.fn(async (input: { channelId: string; content: string }) => ({
+        id: 'chat-sent',
+        cid: 'cloud-example',
+        channelId: input.channelId,
+        chatNo: 9,
+        isPending: false,
+        isFailed: false,
+        createdAtMs: 1,
+        updatedAtMs: 1,
+        content: input.content,
+    }));
+    const engine = {
+        session: {
+            snapshot: () => ({
+                context: {
+                    cloud: { cloudId: 'cloud-example', siteId: 'place-example', isActive: true },
+                    identity: { userId: 'user-me', isAuthenticated: true },
+                },
+                committedSiteId: 'place-example',
+            }),
+            subscribe: () => () => undefined,
+            onLogout: () => () => undefined,
+        },
+        data: {
+            repositories: () => ({
+                cloud: { getCloud: async () => cloud },
+                place: {
+                    cacheReadList: async () => ({
+                        list: [{ id: 'place-example', cid: 'cloud-example', order: 0, name: 'Example Place' }],
+                        meta: { total: 1 },
+                    }),
+                },
+                channel: {
+                    cacheRead: async (id: string) => rooms.find(room => room.id === id) ?? null,
+                    observeList: observeRooms,
+                },
+                chat: {
+                    sendChat,
+                    cacheReadList: async (query: { channelId: string }) => ({
+                        list: [
+                            {
+                                id: 'chat-1',
+                                cid: 'cloud-example',
+                                channelId: query.channelId,
+                                chatNo: 1,
+                                content: 'First message',
+                            },
+                        ],
+                        meta: { total: 1 },
+                    }),
+                },
+                profile: {
+                    cacheRead: async (id: string) => profiles.find(profile => profile.id === id) ?? null,
+                    cacheReadList: async (query: { sid?: string }) => ({
+                        list: profiles.filter(profile => profile.sid === query.sid),
+                        meta: { total: 2 },
+                    }),
+                    observeItem: (id: string, listener: (profile: unknown) => void) => {
+                        listener(profiles.find(profile => profile.id === id) ?? null);
+                        return () => undefined;
+                    },
+                },
+            }),
+        },
+    } as unknown as RuntimeEngine;
+
+    const storage = new SubWebViewStorage(memoryStorageFile());
+    const service = new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as never, () => 'view-1');
+    service.open({ url: 'https://example.apps.chatic.io/' });
+    const deps = {
+        viewId: 'view-1',
+        service,
+        clipboard: { setText: jest.fn(async () => undefined) },
+        haptic: { trigger: jest.fn(() => true) },
+        openExternal: jest.fn(async () => undefined),
+        setTitle: jest.fn(),
+        openShareSheet: jest.fn(async () => ({ action: 'sharedAction' as const, activityType: null })),
+        origin: 'https://example.apps.chatic.io',
+        getDeviceId: () => 'device-1',
+        setBackClaim: jest.fn(),
+        setCloseGuard: jest.fn(),
+        logPageError: jest.fn(),
+        openStorage: () => storage,
+        permissions: {
+            status: jest.fn(async () => 'DENIED' as const),
+            request: jest.fn(async () => 'GRANTED' as const),
+        },
+        openSettings: jest.fn(async () => true),
+    };
+
+    let page: OpenedPage | null = null;
+    let host: ReturnType<typeof createSubBridgeHost> | null = null;
+    const runtime = createSubWebViewRuntimeBridge({
+        createHost: send => createRuntimeBridgeHost({ engine: async () => engine, send }),
+        session: engine.session,
+        openedCloudId: 'cloud-example',
+        openedPlaceId: 'place-example',
+        granted: new Set(['session', 'cloud', 'place', 'channel', 'chat', 'user', 'chatSend']),
+        origin: 'https://example.apps.chatic.io',
+        pageHost: () => host,
+        consent: { ensure: async () => 'allowed' },
+        budget: { take: () => ({ ok: true }) },
+        sends: { take: () => ({ ok: true }) },
+    });
+    host = createSubBridgeHost(
+        // Asynchronous, as the WebView is.
+        message =>
+            queueMicrotask(() =>
+                page?.window.dispatchEvent(new page.window.MessageEvent('message', { data: message }))
+            ),
+        {
+            ...permittedSubBridgeHandlers(
+                createSubBridgeHandlers(deps),
+                new Set(['clipboard', 'share', 'openUrl', 'userKey'])
+            ),
+            ...runtime.handlers,
+        },
+        () => ({
+            protocolVersion: 1,
+            viewId: 'view-1',
+            platform: 'android',
+            appVersion: '0.31.0',
+            locale: 'en',
+            theme: 'light',
+            params: {},
+            appLink: 'https://app.chatic.io/apps/example',
+        })
+    );
+
+    const source = await loadEntry({
+        html: fs.readFileSync(path.join(EXAMPLE, 'index.html'), 'utf8'),
+        entry: path.join(EXAMPLE, 'src/main.ts'),
+    });
+    page = openPage(source, {
+        url: 'https://example.apps.chatic.io/',
+        beforeScripts: window => {
+            Object.assign(window, {
+                ReactNativeWebView: { postMessage: (message: string) => void host?.handleMessage(message) },
+            });
+        },
+    });
+    const opened = page;
+    const document = opened.window.document;
+    const text = (field: string) => document.querySelector(`[data-field="${field}"]`)?.textContent ?? '';
+    /** Waits until `ready` holds, as the page answers at its own pace. */
+    const until = async (ready: () => boolean, what: string) => {
+        for (let waited = 0; waited < 3000; waited += 10) {
+            if (ready()) return;
+            await pageSettle(10);
+        }
+        throw new Error(`The page never got to: ${what}. It shows: ${document.body.textContent}`);
+    };
+    const tap = async (action: string) => {
+        const element = document.querySelector(`[data-action="${action}"]`) as HTMLElement | null;
+        if (!element) throw new Error(`No ${action} on the page. It shows: ${document.body.textContent}`);
+        element.click();
+        await pageSettle(20);
+    };
+    const back = async () => {
+        host?.pushEvent({ type: 'OnBackPressed', success: true, data: {} });
+        await pageSettle(20);
+    };
+    return {
+        page: opened,
+        document,
+        deps,
+        service,
+        storage,
+        runtime,
+        sendChat,
+        observeRooms,
+        stopRooms,
+        text,
+        until,
+        tap,
+        back,
+    };
+};
+
+describe('the reference mini-app against the page host', () => {
+    it('talks to the host from the handshake to finish', async () => {
+        const app = await hostedExample();
+        try {
+            await app.until(() => app.document.querySelector('[data-action="rooms"]') !== null, 'the cloud read');
+            expect(app.deps.setTitle).toHaveBeenCalledWith('Example Cloud');
+            expect(app.text('place')).toBe('Place: Example Place');
+
+            await app.tap('count');
+            await app.tap('copy');
+            await app.tap('share');
+            await app.tap('user-key');
+            await app.until(() => /^Key: [0-9a-f]{8}…$/.test(app.text('notice')), 'the user key');
+            await app.tap('camera');
+            await app.until(() => app.text('notice') === 'Camera: granted', 'the camera');
+            expect(app.deps.haptic.trigger).toHaveBeenCalledWith('selection');
+            expect(app.deps.clipboard.setText).toHaveBeenCalledWith('https://app.chatic.io/apps/example?from=example');
+            expect(app.deps.openShareSheet).toHaveBeenCalledWith(
+                expect.objectContaining({ url: 'https://app.chatic.io/apps/example?count=1' })
+            );
+            expect(app.deps.permissions.request).toHaveBeenCalledWith('CAMERA');
+            await app.until(() => app.storage.get(['count']).ok, 'the count saved');
+
+            // A room: a stream to open and stop, a list to read, a message to send, back taken and given back.
+            await app.tap('rooms');
+            await app.until(() => app.text('room-total') === '2 rooms', 'the rooms');
+            expect(app.deps.setBackClaim).toHaveBeenLastCalledWith(true);
+            await app.tap('room');
+            await app.until(() => app.text('messages') === 'First message', 'the messages');
+            const draft = app.document.querySelector('[data-field="draft"]') as HTMLInputElement;
+            draft.value = 'Hello from the example';
+            draft.dispatchEvent(new app.page.window.Event('input'));
+            await app.until(() => app.deps.setCloseGuard.mock.calls.at(-1)?.[0] === true, 'the close guard');
+            await app.tap('send');
+            await app.until(() => app.text('notice') === 'Sent.', 'the send');
+            expect(app.sendChat).toHaveBeenCalledWith({ channelId: 'room-lobby', content: 'Hello from the example' });
+            expect(app.deps.setCloseGuard).toHaveBeenLastCalledWith(false);
+            await app.back();
+            await app.back();
+            // The rooms screen opens its stream each time it shows, and stops it each time it leaves.
+            await app.until(
+                () => app.stopRooms.mock.calls.length === app.observeRooms.mock.calls.length,
+                'every rooms stream stopped'
+            );
+            expect(app.observeRooms).toHaveBeenCalledWith({ sid: 'place-example' }, expect.any(Function));
+            expect(app.deps.setBackClaim).toHaveBeenLastCalledWith(false);
+
+            // Members: the place's profiles, the user's own, one followed.
+            await app.tap('members');
+            await app.until(() => app.text('me') === 'You: Example Me', 'my profile');
+            await app.until(() => app.text('members').includes('Member Two'), 'the members');
+            await app.tap('member');
+            await app.until(() => app.text('member') === 'Example Me', 'the member picked');
+            await app.back();
+
+            const closed: unknown[] = [];
+            app.service.subscribe(event => closed.push(event));
+            await app.tap('done');
+            await app.until(() => closed.length > 0, 'finish');
+            expect(closed).toEqual([expect.objectContaining({ type: 'closed', reason: 'page', result: { count: 1 } })]);
+            expect(app.deps.logPageError).not.toHaveBeenCalled();
+            expect(app.page.errors).toEqual([]);
+        } finally {
+            app.page.close();
+            app.runtime.dispose();
+        }
+    }, 60_000);
 });

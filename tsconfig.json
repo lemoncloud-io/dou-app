@@ -110,6 +110,12 @@
         },
         {
             "path": "./libs/runtime-mobile"
+        },
+        {
+            "path": "./libs/chatic-apps-devtools"
+        },
+        {
+            "path": "./apps/chatic-apps-example"
         }
     ]
 }
