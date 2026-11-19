@@ -650,6 +650,12 @@ the room's file list (`useFileDownloads`' `onPreview` and `opensInPageViewer`; t
   share waits.
 - **A file that will not open** — damaged, or locked with a password — says it cannot be previewed and
   still offers save and share, so another app can open it.
+- **Zoom.** Pinching enlarges the pages up to 4× about the point between the fingers, and a double tap
+  takes a fitted page to 2× about the tap, or fits an enlarged one back (`documentZoom.ts` in
+  `libs/web-ui-kit`). The fingers move a CSS scale; when they lift, the pages are drawn again at the
+  new width, sharp, and the scroll keeps the same content under them. An enlarged document scrolls both
+  ways. The browser's own pinch is off in that area (`touch-action: pan-x pan-y`): the page's viewport
+  does not scale anyway.
 - **Closing** is the close button or Esc. The browser's back leaves the room, as from the photo viewer.
 
 In the Vite dev server the pdf.js worker fails to start — the dev server adds its client to the worker

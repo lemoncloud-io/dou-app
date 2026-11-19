@@ -115,6 +115,101 @@ describe('DocumentViewer', () => {
         expect(screen.getByRole('button', { name: 'Close viewer' })).toHaveFocus();
     });
 
+    describe('zoom', () => {
+        const touch = (x: number, y: number) => ({ clientX: x, clientY: y });
+        const scroller = () => screen.getByRole('dialog').querySelector('[data-zoom]') as HTMLElement;
+        const widthOf = (page: number) =>
+            (screen.getByRole('dialog').querySelector(`[data-page="${page}"]`) as HTMLElement).style.width;
+
+        const openAt = async () => {
+            render(<DocumentViewer open name="report.pdf" status="ready" pages={pagesOf(2)} onClose={jest.fn()} />);
+            await act(async () => undefined);
+        };
+
+        const tap = (x: number, y: number) => {
+            fireEvent.touchStart(scroller(), { touches: [touch(x, y)], changedTouches: [touch(x, y)] });
+            fireEvent.touchEnd(scroller(), { touches: [], changedTouches: [touch(0, 0)] });
+        };
+
+        it('doubles the pages on a double tap and fits them back on the next', async () => {
+            await openAt();
+
+            tap(100, 200);
+            tap(104, 202);
+            await act(async () => undefined);
+            expect(scroller().dataset.zoom).toBe('2');
+            expect(widthOf(1)).toBe('716px');
+
+            tap(100, 200);
+            tap(100, 200);
+            await act(async () => undefined);
+            expect(scroller().dataset.zoom).toBe('1');
+            expect(widthOf(1)).toBe('358px');
+        });
+
+        it('takes a tap that moved for a scroll, not half of a double tap', async () => {
+            await openAt();
+
+            fireEvent.touchStart(scroller(), { touches: [touch(100, 200)], changedTouches: [touch(100, 200)] });
+            fireEvent.touchMove(scroller(), { touches: [touch(100, 260)], changedTouches: [touch(100, 260)] });
+            fireEvent.touchEnd(scroller(), { touches: [], changedTouches: [touch(0, 0)] });
+            tap(100, 260);
+            await act(async () => undefined);
+
+            expect(scroller().dataset.zoom).toBe('1');
+        });
+
+        it('zooms by the pinch, scaled live while the fingers move and drawn sharp when they lift', async () => {
+            await openAt();
+            const section = screen.getByRole('region', { name: 'report.pdf' });
+
+            fireEvent.touchStart(scroller(), {
+                touches: [touch(100, 300), touch(200, 300)],
+                changedTouches: [touch(100, 300), touch(200, 300)],
+            });
+            fireEvent.touchMove(scroller(), {
+                touches: [touch(50, 300), touch(250, 300)],
+                changedTouches: [touch(50, 300), touch(250, 300)],
+            });
+            expect(section.style.transform).toBe('scale(2)');
+
+            fireEvent.touchEnd(scroller(), { touches: [touch(250, 300)], changedTouches: [touch(0, 0)] });
+            await act(async () => undefined);
+
+            expect(section.style.transform).toBe('');
+            expect(scroller().dataset.zoom).toBe('2');
+            expect(widthOf(2)).toBe('716px');
+        });
+
+        it('holds a pinch within the zoom range', async () => {
+            await openAt();
+
+            fireEvent.touchStart(scroller(), {
+                touches: [touch(100, 300), touch(110, 300)],
+                changedTouches: [touch(100, 300), touch(110, 300)],
+            });
+            fireEvent.touchMove(scroller(), {
+                touches: [touch(0, 300), touch(300, 300)],
+                changedTouches: [touch(0, 300), touch(300, 300)],
+            });
+            fireEvent.touchEnd(scroller(), { touches: [], changedTouches: [touch(0, 0)] });
+            await act(async () => undefined);
+            expect(scroller().dataset.zoom).toBe('4');
+
+            fireEvent.touchStart(scroller(), {
+                touches: [touch(0, 300), touch(300, 300)],
+                changedTouches: [touch(0, 300), touch(300, 300)],
+            });
+            fireEvent.touchMove(scroller(), {
+                touches: [touch(140, 300), touch(150, 300)],
+                changedTouches: [touch(140, 300), touch(150, 300)],
+            });
+            fireEvent.touchEnd(scroller(), { touches: [], changedTouches: [touch(0, 0)] });
+            await act(async () => undefined);
+            expect(scroller().dataset.zoom).toBe('1');
+        });
+    });
+
     it('draws nothing while closed', () => {
         render(<DocumentViewer open={false} name="a.pdf" status="loading" onClose={jest.fn()} />);
 
