@@ -35,7 +35,11 @@ import {
     type CloudUpload,
     type CloudUser,
 } from '@chatic/chatic-apps-sdk';
-import { connectOver, type Transport } from '@chatic/chatic-apps-sdk/internal';
+import {
+    connectOver,
+    isOneReactionCharacter as libraryReactionRule,
+    type Transport,
+} from '@chatic/chatic-apps-sdk/internal';
 import {
     RUNTIME_CONTRACTS,
     createRuntimeBridgeHost,
@@ -78,6 +82,16 @@ const setup = ({
         { id: 's1@u2', cid: 'c1', sid: 's1', uid: 'u2', userId: 'u2', updatedAtMs: 1, nick: 'Them' },
         { id: 's2@u2', cid: 'c1', sid: 's2', uid: 'u2', userId: 'u2', updatedAtMs: 1, nick: 'Them elsewhere' },
     ];
+    const setReaction = jest.fn(async (input: { chatId: string }) => ({
+        id: input.chatId,
+        cid: 'c1',
+        channelId: 'ch1',
+        chatNo: 1,
+        isPending: false,
+        isFailed: false,
+        createdAtMs: 1,
+        updatedAtMs: 1,
+    }));
     const sendChat = jest.fn(async (input: { channelId: string; content: string }) => ({
         id: 'm1',
         cid: 'c1',
@@ -106,7 +120,12 @@ const setup = ({
         },
         data: {
             repositories: () => ({
-                chat: { sendChat },
+                chat: {
+                    sendChat,
+                    setReaction,
+                    cacheRead: async (id: string) =>
+                        id === 'm1' ? { id: 'm1', cid: 'c1', channelId: 'ch1', chatNo: 1 } : null,
+                },
                 profile: {
                     cacheRead: async (id: string) => profiles.find(profile => profile.id === id) ?? null,
                     cacheReadList: async (query: { sid?: string }) => ({
@@ -167,6 +186,7 @@ const setup = ({
         transport,
         runtime,
         sendChat,
+        setReaction,
         emitRooms: (result: unknown) => roomListeners.forEach(listener => listener(result)),
         moveTo: (next: string) => {
             cloudId = next;
@@ -412,6 +432,7 @@ const callsMatch: { [N in DataCallName]: CallMatches<N> } = {
     'chat.cacheReadList': true,
     'chat.listPendingImageChats': true,
     'chat.sendChat': true,
+    'chat.setReaction': true,
     'cloud.cacheRead': true,
     'cloud.getCloud': true,
     'place.cacheReadList': true,
@@ -470,6 +491,7 @@ const LIBRARY_CALLS: { [N in DataCallName]: DataCalls[N]['permission'] } = {
     'chat.cacheReadList': 'chat',
     'chat.listPendingImageChats': 'chat',
     'chat.sendChat': 'chatSend',
+    'chat.setReaction': 'chatReact',
     'cloud.cacheRead': 'cloud',
     'cloud.getCloud': 'cloud',
     'place.cacheReadList': 'place',
@@ -495,8 +517,8 @@ const LIBRARY_STREAMS: { [N in DataStreamName]: DataStreams[N]['permission'] } =
 };
 
 // Keyed by every runtime permission, so one the app adds fails to compile until it is listed here.
-// `false` marks one the app opens before the library types it: the reaction, which the library's own
-// typed methods add next. Turn it to `true` with them, and this test holds the two equal again.
+// `false` marks one the app opens before the library types it; turn it to `true` once the library's
+// typed methods cover it, and this test holds the two equal again. Every one is typed today.
 const TYPED_BY_THE_LIBRARY = {
     session: true,
     cloud: true,
@@ -505,7 +527,7 @@ const TYPED_BY_THE_LIBRARY = {
     chat: true,
     user: true,
     chatSend: true,
-    chatReact: false,
+    chatReact: true,
 } satisfies Record<SubWebViewRuntimePermission, boolean>;
 const PERMISSIONS = (Object.keys(TYPED_BY_THE_LIBRARY) as SubWebViewRuntimePermission[]).filter(
     permission => TYPED_BY_THE_LIBRARY[permission]
@@ -517,6 +539,37 @@ const byPermission = (table: Record<string, string>, permission: string) =>
         .sort();
 
 describe("chatic-apps-sdk's typed runtime against the app's", () => {
+    it.each([
+        '👍',
+        '👍🏽',
+        '👨‍👩‍👧',
+        '🇰🇷',
+        '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+        '#️⃣',
+        '1⃣',
+        '❤️',
+        'é',
+        'a\u0301\u0302',
+        'a\u0301\u0302\u0303',
+        'ok',
+        '👍👍',
+        ' ',
+        '\u200b',
+        '\ue000',
+        '\u1100\u1161',
+        'x'.repeat(17),
+        '\u200d👍',
+    ])("refuses a reaction of %j exactly when the mock's copy of the rule does", async sample => {
+        const { transport } = setup({ granted: ['chatReact'] });
+        const apps = await connectOver(transport, { reportErrors: false });
+        const answer = await apps.data.react('m1', sample, true).then(
+            () => 'set',
+            (error: ChaticAppsError) => error.code
+        );
+        expect(answer).toBe(libraryReactionRule(sample) ? 'set' : 'RUNTIME_NOT_ALLOWED');
+        apps.disconnect();
+    });
+
     it.each(PERMISSIONS)('types exactly what the whitelist opens with `%s`', permission => {
         const opened = subWebViewAllowedFor(new Set([permission]));
         expect({

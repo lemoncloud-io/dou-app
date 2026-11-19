@@ -1,4 +1,5 @@
 import { SDK_BRIDGE_VERSION } from './client';
+import { isOneReactionCharacter } from './reaction';
 import { ruledStore, type StoreFile } from './storage';
 import type {
     DataCallArgs,
@@ -10,7 +11,7 @@ import type {
     DataStreamEvent,
     DataStreamName,
 } from './runtimeTypes';
-import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
+import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState, SafeArea } from './types';
 
 /** A manifest permission, as the page would declare it in `/.well-known/chatic-app.json`. */
 export type MockPermission =
@@ -24,7 +25,8 @@ export type MockPermission =
     | 'channel'
     | 'chat'
     | 'user'
-    | 'chatSend';
+    | 'chatSend'
+    | 'chatReact';
 
 /**
  * What a known method answers in the mock: the same shape the app answers with, so an answer of the
@@ -51,8 +53,9 @@ export type MockDataStreams = {
  * The app's data, as the mock answers `apps.data`: each method the page may call, and each stream it
  * may subscribe to, by its `<repository>.<method>` name. The mock does not know the app's whitelist —
  * it answers what is given here and refuses the rest — so read the real `allowed` in the app. The one
- * exception is the text send: with `chatSend` the mock opens `chat.sendChat` itself and records each
- * message (`MockController.sentMessages`).
+ * exceptions are the two writes: with `chatSend` the mock opens `chat.sendChat` itself and records each
+ * message (`MockController.sentMessages`), and with `chatReact` it opens `chat.setReaction` and records
+ * each reaction (`MockController.reactions`).
  */
 export interface MockData {
     /** The session snapshot, given to a page with the `session` permission. */
@@ -70,13 +73,24 @@ export interface MockSentMessage {
     text: string;
 }
 
+/** A reaction the page set or took off through `apps.data.react` (or `chat.setReaction`) in the mock. */
+export interface MockReaction {
+    messageId: string;
+    emoji: string;
+    on: boolean;
+}
+
 /** How the user answers when the page asks for a device: allows it, refuses it, or the OS blocks it. */
 export type MockDeviceAnswer = 'allow' | 'deny' | 'blocked' | 'unavailable';
 
 export interface MockOptions {
     /** What the page's manifest would grant. None by default, as for a page with no manifest. */
     permissions?: MockPermission[];
-    /** Overrides for the context the page gets; the rest is filled in. */
+    /**
+     * Overrides for the context the page gets; the rest is filled in. `display` is `clean` by default;
+     * with `immersive` the page gets a phone's insets in `safeArea` and in the
+     * `--chatic-safe-area-inset-*` properties, as the app sets them, and `rotate()` turns the phone.
+     */
     context?: Partial<ChaticAppsContext>;
     /** The key `getUserKey` answers; a stable one derived from the page's origin by default. */
     userKey?: string;
@@ -111,10 +125,18 @@ export interface MockController {
     requestClose(trigger?: CloseTrigger): void;
     /** A theme or language change while the page shows. */
     changeContext(change: Partial<Pick<ChaticAppsContext, 'theme' | 'locale'>>): void;
+    /**
+     * The user turns the phone. An `immersive` page gets the other orientation's insets, in `safeArea`
+     * through `onContextChange` and in the CSS properties; a padded page's safe area stays 0, so nothing
+     * reaches it.
+     */
+    rotate(): void;
     /** The user moves to another cloud under the view: every stream ends, and nothing answers after. */
     changeCloud(): void;
     /** The messages the page sent and the mock answered, in the order they went through. */
     readonly sentMessages: readonly MockSentMessage[];
+    /** The reactions the page set and took off, in the order they went through. */
+    readonly reactions: readonly MockReaction[];
     /** Removes the fake app. */
     uninstall(): void;
 }
@@ -151,6 +173,7 @@ const RUNTIME_PERMISSIONS: readonly MockPermission[] = [
     'chat',
     'user',
     'chatSend',
+    'chatReact',
 ];
 const RUNTIME_REQUESTS = ['RuntimeHello', 'RuntimeCall', 'RuntimeSubscribe', 'RuntimeUnsubscribe'];
 const DEVICE_KINDS: readonly DeviceKind[] = ['camera', 'microphone'];
@@ -161,6 +184,14 @@ const FORCE_WINDOW_MS = 3000;
 /** The app's limit on a message a page sends, in UTF-16 code units. */
 const SEND_LIMIT = 1000;
 const SEND_METHOD = 'chat.sendChat';
+const REACT_METHOD = 'chat.setReaction';
+/** The app's limit on the message id a reaction names. */
+const MESSAGE_ID_LIMIT = 200;
+/** A phone's insets, in CSS pixels, for an `immersive` page: upright, then turned. */
+const PORTRAIT_INSETS: SafeArea = { top: 47, right: 0, bottom: 34, left: 0 };
+const LANDSCAPE_INSETS: SafeArea = { top: 0, right: 47, bottom: 21, left: 47 };
+const NO_INSETS: SafeArea = { top: 0, right: 0, bottom: 0, left: 0 };
+
 /** The app's limit on the room id a send names. */
 const ROOM_ID_LIMIT = 200;
 
@@ -247,6 +278,25 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     };
     if (sends && !ownSendAnswer) calls[SEND_METHOD] = madeUpSend as (...args: never[]) => unknown;
     if (!sends) delete calls[SEND_METHOD];
+    // With `chatReact`, the same for a reaction: open, recorded, and answered with the message's row.
+    const reacts = permissions.includes('chatReact');
+    const reactions: MockReaction[] = [];
+    const ownReactAnswer = calls[REACT_METHOD];
+    const madeUpReaction = (input: { chatId: string }): CloudChat => {
+        const now = Date.now();
+        return {
+            id: input.chatId,
+            cid: 'mock-cloud',
+            channelId: 'mock-room',
+            chatNo: 1,
+            isPending: false,
+            isFailed: false,
+            createdAtMs: now,
+            updatedAtMs: now,
+        };
+    };
+    if (reacts && !ownReactAnswer) calls[REACT_METHOD] = madeUpReaction as (...args: never[]) => unknown;
+    if (!reacts) delete calls[REACT_METHOD];
     let cloudChanged = false;
     // Each device starts unasked, as on a fresh install.
     const devices: Record<DeviceKind, PermissionState> = { camera: 'prompt', microphone: 'prompt' };
@@ -261,8 +311,22 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         theme: 'light',
         params: {},
         appLink: mockAppLink(origin),
+        display: 'clean',
         ...options.context,
     };
+    // An immersive page lies under the system bars; a padded one never meets them.
+    const immersive = context.display === 'immersive';
+    let portrait = true;
+    // Given as `undefined`, a field stays absent, as from an app older than 2.30.0.
+    if (!(options.context && 'safeArea' in options.context)) context.safeArea = immersive ? PORTRAIT_INSETS : NO_INSETS;
+    for (const field of ['display', 'safeArea'] as const) if (context[field] === undefined) delete context[field];
+    const applyInsets = (insets: SafeArea | undefined) => {
+        if (!insets || !immersive || typeof document === 'undefined') return;
+        for (const edge of ['top', 'right', 'bottom', 'left'] as const) {
+            document.documentElement.style.setProperty(`--chatic-safe-area-inset-${edge}`, `${insets[edge]}px`);
+        }
+    };
+    applyInsets(context.safeArea);
     const log =
         options.log === false ? () => undefined : (...args: unknown[]) => console.info('[chatic-apps mock]', ...args);
 
@@ -270,7 +334,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     const held: string[] = [];
     let title: string | undefined;
     let closed: { by: 'page' | 'user'; result?: unknown } | null = null;
-    const current = { theme: context.theme, locale: context.locale };
+    const current = { theme: context.theme, locale: context.locale, safeArea: context.safeArea };
     let backClaimed = false;
     let guard = false;
     let askedAt: number | null = null;
@@ -509,6 +573,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 if (data.target !== 'data' || !call) {
                     return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', `${method} is not open to this page.`);
                 }
+                if (method === REACT_METHOD) return answerReaction(reply, refId, method, call, args);
                 if (method !== SEND_METHOD) {
                     return void Promise.resolve()
                         .then(() => call(...args))
@@ -581,6 +646,49 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         }
     }
 
+    // The app's own checks on a reaction's shape: one argument, only a message, one emoji and on or off.
+    // The message's place, whether it takes reactions, and the reaction budget are the app's alone.
+    function answerReaction(
+        reply: string,
+        refId: unknown,
+        method: string,
+        call: (...args: unknown[]) => unknown,
+        args: unknown[]
+    ): void {
+        const input = args[0] as { chatId?: unknown; emoji?: unknown; action?: unknown } | undefined;
+        const chatId = input?.chatId;
+        const emoji = input?.emoji;
+        const action = input?.action;
+        const valid =
+            args.length === 1 &&
+            typeof input === 'object' &&
+            input !== null &&
+            Object.keys(input).every(key => key === 'chatId' || key === 'emoji' || key === 'action') &&
+            typeof chatId === 'string' &&
+            chatId.trim() !== '' &&
+            chatId.length <= MESSAGE_ID_LIMIT &&
+            typeof emoji === 'string' &&
+            isOneReactionCharacter(emoji) &&
+            (action === 'on' || action === 'off');
+        if (!valid) {
+            return fail(reply, refId, 'RUNTIME_NOT_ALLOWED', 'One emoji, on or off, on one message.', {
+                target: 'data',
+                method,
+                reason: 'guard',
+            });
+        }
+        return void Promise.resolve()
+            .then(() => (ownReactAnswer ? call(...args) : madeUpReaction({ chatId })))
+            .then(
+                value => {
+                    reactions.push({ messageId: chatId, emoji, on: action === 'on' });
+                    log('reaction', action, chatId, emoji);
+                    ok(reply, refId, { value: value ?? null });
+                },
+                error => fail(reply, refId, 'RUNTIME_ERROR', String((error as Error)?.message ?? error))
+            );
+    }
+
     const target = window as unknown as {
         ReactNativeWebView?: { postMessage(message: string): void };
         ChaticSubWebView?: ChaticAppsContext;
@@ -604,6 +712,9 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         get sentMessages() {
             return [...sentMessages];
         },
+        get reactions() {
+            return [...reactions];
+        },
         pressBack: () => {
             if (closed) return;
             if (backClaimed) push('OnBackPressed', {});
@@ -624,6 +735,15 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         changeContext: change => {
             Object.assign(current, change);
+            push('OnSubWebViewContextChanged', { ...current });
+        },
+        // The phone's own insets, upright and turned, whatever `context.safeArea` started with; pushed at
+        // once, where the app waits for the insets to hold still for 200 ms.
+        rotate: () => {
+            portrait = !portrait;
+            if (!immersive || !current.safeArea) return;
+            current.safeArea = portrait ? PORTRAIT_INSETS : LANDSCAPE_INSETS;
+            applyInsets(current.safeArea);
             push('OnSubWebViewContextChanged', { ...current });
         },
         changeCloud: () => {

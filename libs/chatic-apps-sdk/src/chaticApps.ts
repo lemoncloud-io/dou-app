@@ -338,7 +338,12 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                 assertClaims();
                 runtime.reset();
                 const after = state.context;
-                if (after && (after.theme !== before?.theme || after.locale !== before?.locale)) announce(after);
+                const changed =
+                    after &&
+                    (after.theme !== before?.theme ||
+                        after.locale !== before?.locale ||
+                        JSON.stringify(after.safeArea) !== JSON.stringify(before?.safeArea));
+                if (after && changed) announce(after);
             })
             .catch(() => undefined);
     };

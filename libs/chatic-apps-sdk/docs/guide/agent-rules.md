@@ -49,7 +49,9 @@ code. Read the part you need before you write code that depends on it.
     arguments, with no `LISTENER` and nothing after it, and `stop()` it when it leaves the screen.
     Read every row field with a fallback: most are optional. Send a message only with
     `apps.data.sendMessage(channelId, text)`, with `chatSend`, of text the user chose to send — it
-    goes out in their name. Read the cloud the page is in with
+    goes out in their name; react to a message only with `apps.data.react(messageId, emoji, on)`, with
+    `chatReact`, on the user's tap — it adds or removes their reaction, a hand-made one included. Read the
+    cloud the page is in with
     `call('cloud.getCloud', { id }, { cache: false })`, not `cloud.cacheRead`, which is often `null` for a
     cloud the user owns; take `id` from the session's `context.cloud.cloudId` (needs `session`) or
     `params.cloud.id`. Rows carry contact and account details (emails, phone numbers, sign-in ids,
@@ -61,13 +63,16 @@ code. Read the part you need before you write code that depends on it.
 14. No `window.opener`, no popup logins, no file downloads.
 15. Never put the user's data in errors or in `reportError`.
 16. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`, and for the app's
-    data `session`, `cloud`, `place`, `channel`, `chat`, `user`, and `chatSend` to send) in
+    data `session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend` to send and `chatReact`
+    to react) in
     `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with `NOT_SUPPORTED` without it; a cloud data method
     outside what the cloud data permissions open fails with `RUNTIME_NOT_ALLOWED`.
 17. Do not draw for the safe area: the page already lies inside it on every edge. The exception is a
     manifest with `"display": "immersive"`, for a page whose scenery must reach the screen's edges: then
     add `viewport-fit=cover` to the viewport meta and pad every header, control and tappable element with
-    `var(--chatic-safe-area-inset-<edge>, env(safe-area-inset-<edge>, 0px))`.
+    `var(--chatic-safe-area-inset-<edge>, env(safe-area-inset-<edge>, 0px))`. A page that lays out in
+    script reads `apps.context.safeArea` and its changes through `onContextChange`, and falls back to the
+    CSS properties when an older app leaves it out.
 18. The page has no title bar unless the manifest sets `"display": "titled"`: draw your own header and
     title, and keep the top-right corner clear, where the app's close button floats.
 

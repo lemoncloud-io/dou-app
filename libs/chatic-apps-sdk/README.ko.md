@@ -92,22 +92,22 @@ try {
 
 ## 페이지가 할 수 있는 일
 
-| 호출                                                             | 앱에서                                                                                      | 브라우저에서                       | 필요한 권한                                                                   |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| `finish(result?)`                                                | 뷰를 닫는다. `result`(JSON, ≤ 16 KiB)는 페이지를 연 쪽으로 돌아간다                         | `NOT_IN_APP`                       | —                                                                             |
-| `setTitle(title)`                                                | 페이지가 바를 요청했다면 앱의 바에 표시된다(1–100자)                                        | `document.title`                   | —                                                                             |
-| `haptic(kind)`                                                   | `selection`, `impact`, `success`, `warning`, `error`                                        | 지원되면 짧은 진동                 | —                                                                             |
-| `onBack(handler \| null)`                                        | Android 뒤로 가기가 `handler`를 호출하고 그 밖에는 아무것도 하지 않는다                     | 호출되지 않음                      | —                                                                             |
-| `onCloseRequest(handler \| null)`                                | 사용자가 닫기 전에 묻는다. `true`를 반환하면 닫힌다                                         | 호출되지 않음                      | —                                                                             |
-| `reportError(error)`                                             | DoU의 로그에 자신의 origin으로 기록된다(페이지 로드당 20개)                                 | `console.error`                    | —                                                                             |
-| `copy(text)`                                                     | 클립보드                                                                                    | 브라우저의 클립보드                | `clipboard`                                                                   |
-| `share({ title, message, url })`                                 | 공유 시트. 사용자를 기다린다(아래 참고)                                                     | Web Share, 없으면 복사(`'copied'`) | `share`                                                                       |
-| `openUrl(url)`                                                   | 브라우저, 메일, 전화, SMS 또는 스토어                                                       | 새 탭                              | `openUrl`                                                                     |
-| `getUserKey()`                                                   | 16진수 64자. 이 기기와 이 사이트에서 항상 같다                                              | `NOT_IN_APP`                       | `userKey`                                                                     |
-| `link(params?)`                                                  | 이 페이지를 앱에서 여는 링크(아래 참고)                                                     | 페이지 자신의 루트                 | —                                                                             |
-| `storage.get(key)`, `.set(key, value)`, …                        | 기기에 있는 페이지 전용 저장소(아래 참고)                                                   | `localStorage`, 한도 동일          | —                                                                             |
-| `permissions.query(kind)`, `.request(kind)`, `openSettings()`    | `'camera'` 또는 `'microphone'`에 대해 앱이 OS에서 받은 권한 상태와, 그 권한 요청(아래 참고) | 브라우저 자체의 권한               | —                                                                             |
-| `data.connect()`, `.call(…)`, `.subscribe(…)`, `.sendMessage(…)` | 앱 자신의 데이터 — 현재 클라우드 — 를 DoU 화면처럼 읽는다. `chatSend`로 텍스트를 보낸다     | `NOT_IN_APP`                       | `session`, `cloud`, `place`, `channel`, `chat`, `user`; 보내기에는 `chatSend` |
+| 호출                                                                          | 앱에서                                                                                                             | 브라우저에서                       | 필요한 권한                                                                                         |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `finish(result?)`                                                             | 뷰를 닫는다. `result`(JSON, ≤ 16 KiB)는 페이지를 연 쪽으로 돌아간다                                                | `NOT_IN_APP`                       | —                                                                                                   |
+| `setTitle(title)`                                                             | 페이지가 바를 요청했다면 앱의 바에 표시된다(1–100자)                                                               | `document.title`                   | —                                                                                                   |
+| `haptic(kind)`                                                                | `selection`, `impact`, `success`, `warning`, `error`                                                               | 지원되면 짧은 진동                 | —                                                                                                   |
+| `onBack(handler \| null)`                                                     | Android 뒤로 가기가 `handler`를 호출하고 그 밖에는 아무것도 하지 않는다                                            | 호출되지 않음                      | —                                                                                                   |
+| `onCloseRequest(handler \| null)`                                             | 사용자가 닫기 전에 묻는다. `true`를 반환하면 닫힌다                                                                | 호출되지 않음                      | —                                                                                                   |
+| `reportError(error)`                                                          | DoU의 로그에 자신의 origin으로 기록된다(페이지 로드당 20개)                                                        | `console.error`                    | —                                                                                                   |
+| `copy(text)`                                                                  | 클립보드                                                                                                           | 브라우저의 클립보드                | `clipboard`                                                                                         |
+| `share({ title, message, url })`                                              | 공유 시트. 사용자를 기다린다(아래 참고)                                                                            | Web Share, 없으면 복사(`'copied'`) | `share`                                                                                             |
+| `openUrl(url)`                                                                | 브라우저, 메일, 전화, SMS 또는 스토어                                                                              | 새 탭                              | `openUrl`                                                                                           |
+| `getUserKey()`                                                                | 16진수 64자. 이 기기와 이 사이트에서 항상 같다                                                                     | `NOT_IN_APP`                       | `userKey`                                                                                           |
+| `link(params?)`                                                               | 이 페이지를 앱에서 여는 링크(아래 참고)                                                                            | 페이지 자신의 루트                 | —                                                                                                   |
+| `storage.get(key)`, `.set(key, value)`, …                                     | 기기에 있는 페이지 전용 저장소(아래 참고)                                                                          | `localStorage`, 한도 동일          | —                                                                                                   |
+| `permissions.query(kind)`, `.request(kind)`, `openSettings()`                 | `'camera'` 또는 `'microphone'`에 대해 앱이 OS에서 받은 권한 상태와, 그 권한 요청(아래 참고)                        | 브라우저 자체의 권한               | —                                                                                                   |
+| `data.connect()`, `.call(…)`, `.subscribe(…)`, `.sendMessage(…)`, `.react(…)` | 앱 자신의 데이터 — 현재 클라우드 — 를 DoU 화면처럼 읽는다. `chatSend`로 텍스트를 보내고, `chatReact`로 반응을 단다 | `NOT_IN_APP`                       | `session`, `cloud`, `place`, `channel`, `chat`, `user`; 보내기에는 `chatSend`, 반응에는 `chatReact` |
 
 그 밖에 `apps.context`(앱의 언어, 테마, 플랫폼 — `ios`, `android` 또는 `desktop` — 그리고 페이지를 열 때
 전달된 `params`. DoU 자체 웹은 미니앱을 `MiniAppLaunchParams`로 연다. 아래 참고), 테마나 언어 변경을 듣는
@@ -168,10 +168,10 @@ if (apps.supports('data') && placeId) {
 - **돌아오는 것은 앱 자신의 데이터다.** 앱이 가진 그대로 — 아래 행들, 필드 하나하나 그대로 — 이며, 페이지를
   위해 모양을 바꾸거나 걸러 내지 않는다. `SDK_DATA_CONTRACTS`는 이 라이브러리가 지원하는 클라우드 데이터 계약
   버전을 나열한다.
-- **읽기, 그리고 쓰기 하나는 매니페스트가 요청한 만큼만.** 클라우드 데이터 권한 하나하나가 정해진 메서드 집합을
+- **읽기, 그리고 쓰기 둘은 매니페스트가 요청한 만큼만.** 클라우드 데이터 권한 하나하나가 정해진 메서드 집합을
   연다(아래 표). `connect()`는 이 페이지가 쓸 수 있는 이름들(`allowed.calls`, `allowed.streams`)을 응답하고,
   `can(name)`은 하나를 확인한다 — 타입은 메서드가 무엇인지 말하고, `can`은 그것이 지금 열려 있는지 말한다. 그
-  밖의 것은 `RUNTIME_NOT_ALLOWED`로 거부된다. `chatSend`가 여는 메시지 하나를 빼면, 페이지가 호출할 수 있는 어떤
+  밖의 것은 `RUNTIME_NOT_ALLOWED`로 거부된다. `chatSend`가 여는 메시지와 `chatReact`가 여는 반응을 빼면, 페이지가 호출할 수 있는 어떤
   것도 무언가를 바꾸거나, 클라우드나 플레이스를 전환하거나, 다른 클라우드를 읽지 않는다.
 - **사용자에게 한 번 묻는다**, 페이지가 이 클라우드를 읽어도 되는지. `connect()`는 사용자가 얼마나 걸리든
   타임아웃 없이 답을 기다린다. 거부는 `CONSENT_REFUSED`이며, `connect()`는 다음에 페이지가 열릴 때 다시 묻는다.
@@ -204,37 +204,38 @@ if (apps.supports('data') && placeId) {
 
 ### 권한별 메서드
 
-| 권한       | 메서드                                           | 인자                                                     | 응답                              |
-| ---------- | ------------------------------------------------ | -------------------------------------------------------- | --------------------------------- |
-| `session`  | — (hello의 응답: `session()`, `onSessionChange`) | —                                                        | `CloudSession`                    |
-| `cloud`    | `cloud.cacheRead`                                | `id` — 현재 클라우드의 것                                | `CloudInfo \| null`               |
-| `cloud`    | `cloud.getCloud` (server)                        | `{ id }` — 현재 클라우드의 것, `{ cache: false }`        | `CloudInfo`                       |
-| `cloud`    | `cloud.observeItem` (stream)                     | `id` — 현재 클라우드의 것                                | `CloudInfo \| null`               |
-| `place`    | `place.cacheReadList`                            | `{}` (선택)                                              | `CloudList<CloudPlace> \| null`   |
-| `place`    | `place.observeList` (stream)                     | `{}`                                                     | `CloudList<CloudPlace> \| null`   |
-| `place`    | `place.observeItem` (stream)                     | 플레이스 `id`                                            | `CloudPlace \| null`              |
-| `place`    | `place.isPlaceDeleted` (server)                  | 플레이스 `id`                                            | `boolean`                         |
-| `channel`  | `channel.cacheRead`                              | 채팅방 `id` — 그 플레이스의 채팅방                       | `CloudChannel \| null`            |
-| `channel`  | `channel.cacheReadList`                          | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel> \| null` |
-| `channel`  | `channel.fetchList` (server)                     | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel>`         |
-| `channel`  | `channel.observeList` (stream)                   | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel> \| null` |
-| `channel`  | `channel.observeItem` (stream)                   | 채팅방 `id` — 그 플레이스의 채팅방                       | `CloudChannel \| null`            |
-| `channel`  | `join.cacheReadList`                             | `{ channelId, activeOnly? }` — 그 플레이스의 채팅방      | `CloudList<CloudJoin> \| null`    |
-| `channel`  | `join.observeList` (stream)                      | `{ channelId, activeOnly? }` — 그 플레이스의 채팅방      | `CloudList<CloudJoin> \| null`    |
-| `chat`     | `chat.cacheRead`                                 | 메시지 `id` — 채팅방이 그 플레이스의 것이면 응답         | `CloudChat \| null`               |
-| `chat`     | `chat.cacheReadList`                             | `{ channelId, cursorNo?, limit? }`                       | `CloudList<CloudChat> \| null`    |
-| `chat`     | `chat.listPendingImageChats`                     | 채팅방 `id`                                              | `CloudChat[]`                     |
-| `chat`     | `chat.observeList` (stream)                      | `{ channelId, cursorNo?, limit?, includeUnsent? }`       | `CloudList<CloudChat> \| null`    |
-| `chat`     | `chat.observeLastList` (stream)                  | 채팅방 id 목록                                           | `CloudLastChat[]`                 |
-| `chat`     | `chat.observeFeedCoverage` (stream)              | 채팅방 `id`                                              | `[low, high][]` 메시지 번호 범위  |
-| `user`     | `user.cacheReadList`                             | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`    |
-| `user`     | `user.listPlaceMembers` (server)                 | `{ placeId, sessionPlaceId }` — 둘 다 현재 플레이스의 것 | `CloudPlaceMembers`               |
-| `user`     | `user.observeList` (stream)                      | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`    |
-| `user`     | `profile.cacheRead`                              | `<place id>@<user id>` — 그 플레이스의 것                | `CloudProfile \| null`            |
-| `user`     | `profile.cacheReadList`                          | `{ sid, uid? }` — `sid`는 그 플레이스의 것, 필수         | `CloudList<CloudProfile> \| null` |
-| `user`     | `profile.observeList` (stream)                   | `{ sid, uid? }` — `sid`는 그 플레이스의 것, 필수         | `CloudList<CloudProfile> \| null` |
-| `user`     | `profile.observeItem` (stream)                   | `<place id>@<user id>` — 그 플레이스의 것                | `CloudProfile \| null`            |
-| `chatSend` | `chat.sendChat` — `sendMessage`로 호출           | `{ channelId, content }`                                 | `CloudChat`                       |
+| 권한        | 메서드                                           | 인자                                                     | 응답                              |
+| ----------- | ------------------------------------------------ | -------------------------------------------------------- | --------------------------------- |
+| `session`   | — (hello의 응답: `session()`, `onSessionChange`) | —                                                        | `CloudSession`                    |
+| `cloud`     | `cloud.cacheRead`                                | `id` — 현재 클라우드의 것                                | `CloudInfo \| null`               |
+| `cloud`     | `cloud.getCloud` (server)                        | `{ id }` — 현재 클라우드의 것, `{ cache: false }`        | `CloudInfo`                       |
+| `cloud`     | `cloud.observeItem` (stream)                     | `id` — 현재 클라우드의 것                                | `CloudInfo \| null`               |
+| `place`     | `place.cacheReadList`                            | `{}` (선택)                                              | `CloudList<CloudPlace> \| null`   |
+| `place`     | `place.observeList` (stream)                     | `{}`                                                     | `CloudList<CloudPlace> \| null`   |
+| `place`     | `place.observeItem` (stream)                     | 플레이스 `id`                                            | `CloudPlace \| null`              |
+| `place`     | `place.isPlaceDeleted` (server)                  | 플레이스 `id`                                            | `boolean`                         |
+| `channel`   | `channel.cacheRead`                              | 채팅방 `id` — 그 플레이스의 채팅방                       | `CloudChannel \| null`            |
+| `channel`   | `channel.cacheReadList`                          | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel> \| null` |
+| `channel`   | `channel.fetchList` (server)                     | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel>`         |
+| `channel`   | `channel.observeList` (stream)                   | `CloudChannelListQuery` — `sid`는 그 플레이스의 것, 필수 | `CloudList<CloudChannel> \| null` |
+| `channel`   | `channel.observeItem` (stream)                   | 채팅방 `id` — 그 플레이스의 채팅방                       | `CloudChannel \| null`            |
+| `channel`   | `join.cacheReadList`                             | `{ channelId, activeOnly? }` — 그 플레이스의 채팅방      | `CloudList<CloudJoin> \| null`    |
+| `channel`   | `join.observeList` (stream)                      | `{ channelId, activeOnly? }` — 그 플레이스의 채팅방      | `CloudList<CloudJoin> \| null`    |
+| `chat`      | `chat.cacheRead`                                 | 메시지 `id` — 채팅방이 그 플레이스의 것이면 응답         | `CloudChat \| null`               |
+| `chat`      | `chat.cacheReadList`                             | `{ channelId, cursorNo?, limit? }`                       | `CloudList<CloudChat> \| null`    |
+| `chat`      | `chat.listPendingImageChats`                     | 채팅방 `id`                                              | `CloudChat[]`                     |
+| `chat`      | `chat.observeList` (stream)                      | `{ channelId, cursorNo?, limit?, includeUnsent? }`       | `CloudList<CloudChat> \| null`    |
+| `chat`      | `chat.observeLastList` (stream)                  | 채팅방 id 목록                                           | `CloudLastChat[]`                 |
+| `chat`      | `chat.observeFeedCoverage` (stream)              | 채팅방 `id`                                              | `[low, high][]` 메시지 번호 범위  |
+| `user`      | `user.cacheReadList`                             | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`    |
+| `user`      | `user.listPlaceMembers` (server)                 | `{ placeId, sessionPlaceId }` — 둘 다 현재 플레이스의 것 | `CloudPlaceMembers`               |
+| `user`      | `user.observeList` (stream)                      | `{ channelId, limit?, page?, detail? }`                  | `CloudList<CloudUser> \| null`    |
+| `user`      | `profile.cacheRead`                              | `<place id>@<user id>` — 그 플레이스의 것                | `CloudProfile \| null`            |
+| `user`      | `profile.cacheReadList`                          | `{ sid, uid? }` — `sid`는 그 플레이스의 것, 필수         | `CloudList<CloudProfile> \| null` |
+| `user`      | `profile.observeList` (stream)                   | `{ sid, uid? }` — `sid`는 그 플레이스의 것, 필수         | `CloudList<CloudProfile> \| null` |
+| `user`      | `profile.observeItem` (stream)                   | `<place id>@<user id>` — 그 플레이스의 것                | `CloudProfile \| null`            |
+| `chatSend`  | `chat.sendChat` — `sendMessage`로 호출           | `{ channelId, content }`                                 | `CloudChat`                       |
+| `chatReact` | `chat.setReaction` — `react`로 호출              | `{ chatId, emoji, action: 'on' \| 'off' }`               | `CloudChat`                       |
 
 ### 행
 
@@ -260,15 +261,16 @@ if (apps.supports('data') && placeId) {
 포함되며, 타입에 그렇게 표시되어 있다. 페이지에 필요한 권한만 요청하고 — 읽은 것으로 무엇을 하는지는 작성자의
 책임이다 — 그런 정보는 기기에 두며, 사용자에게 알리지 않고 제3자에게 보내지 않는다.
 
-| 권한       | 넘겨주는 것                                                                                                                                                                                                                                                                                                                                                                                         |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `session`  | 사용자가 있는 클라우드와 플레이스, 이 클라우드에서의 사용자 id, 로그인 여부. 사용자의 다른 클라우드에 관한 것, 서버 주소, 토큰은 없다                                                                                                                                                                                                                                                               |
-| `cloud`    | 현재 클라우드의 행. 기기 캐시에서는 그 서버 주소(`backend`, `wss`)와 초대를 수락한 기기 사용자 id(`acceptedBy`)도. `cloud.getCloud`를 통해서는, 사용자가 소유한 클라우드라면 그 소유자, 인증된 **이메일**, 연결된 **계정**(`accountId`, `account$`), 구독 id, 클라우드 서버의 **계정 번호**(`accountNo`)와 서비스 엔드포인트(`$envs`). 그 밖의 클라우드라면 relay의 최소한의 `{ id, name, status }` |
-| `place`    | 클라우드의 플레이스들과 그 서버 엔드포인트(`$envs`). 플레이스의 `owner$`는 계정 서버가 보는 그 소유자이며, 그 타입에는 **전화번호, 이메일, 주소, 생년월일**, 로그인 정보, 비밀 이름이 붙은 필드(`loginPw`, `$account.otp$`, `$account.key$`)가 있다 — 서버가 정하는 대로 채워진다. 비밀 이름이 붙은 필드는 절대 읽거나 보관하거나 보내지 않는다                                                     |
-| `channel`  | 플레이스의 채팅방, 그 멤버 id, 각 멤버의 join(역할, 닉네임, 읽은 위치), 그리고 포함된 소유자(`owner$`, **로그인 id** 포함)                                                                                                                                                                                                                                                                          |
-| `chat`     | 플레이스의 채팅방에 있는 메시지, 그 파일 주소, 웹훅 카드, 그리고 포함된 보낸 사람(`owner$`, **로그인 id** 포함)                                                                                                                                                                                                                                                                                     |
-| `user`     | 플레이스의 채팅방에 있는 사용자(이름, 닉네임, 사진, **로그인 id**), 플레이스의 프로필, 그리고 그 멤버 목록                                                                                                                                                                                                                                                                                          |
-| `chatSend` | 없음: 페이지가 보낼 수 있게 할 뿐이다                                                                                                                                                                                                                                                                                                                                                               |
+| 권한        | 넘겨주는 것                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `session`   | 사용자가 있는 클라우드와 플레이스, 이 클라우드에서의 사용자 id, 로그인 여부. 사용자의 다른 클라우드에 관한 것, 서버 주소, 토큰은 없다                                                                                                                                                                                                                                                               |
+| `cloud`     | 현재 클라우드의 행. 기기 캐시에서는 그 서버 주소(`backend`, `wss`)와 초대를 수락한 기기 사용자 id(`acceptedBy`)도. `cloud.getCloud`를 통해서는, 사용자가 소유한 클라우드라면 그 소유자, 인증된 **이메일**, 연결된 **계정**(`accountId`, `account$`), 구독 id, 클라우드 서버의 **계정 번호**(`accountNo`)와 서비스 엔드포인트(`$envs`). 그 밖의 클라우드라면 relay의 최소한의 `{ id, name, status }` |
+| `place`     | 클라우드의 플레이스들과 그 서버 엔드포인트(`$envs`). 플레이스의 `owner$`는 계정 서버가 보는 그 소유자이며, 그 타입에는 **전화번호, 이메일, 주소, 생년월일**, 로그인 정보, 비밀 이름이 붙은 필드(`loginPw`, `$account.otp$`, `$account.key$`)가 있다 — 서버가 정하는 대로 채워진다. 비밀 이름이 붙은 필드는 절대 읽거나 보관하거나 보내지 않는다                                                     |
+| `channel`   | 플레이스의 채팅방, 그 멤버 id, 각 멤버의 join(역할, 닉네임, 읽은 위치), 그리고 포함된 소유자(`owner$`, **로그인 id** 포함)                                                                                                                                                                                                                                                                          |
+| `chat`      | 플레이스의 채팅방에 있는 메시지, 그 파일 주소, 웹훅 카드, 그리고 포함된 보낸 사람(`owner$`, **로그인 id** 포함)                                                                                                                                                                                                                                                                                     |
+| `user`      | 플레이스의 채팅방에 있는 사용자(이름, 닉네임, 사진, **로그인 id**), 플레이스의 프로필, 그리고 그 멤버 목록                                                                                                                                                                                                                                                                                          |
+| `chatSend`  | 없음: 페이지가 보낼 수 있게 할 뿐이다                                                                                                                                                                                                                                                                                                                                                               |
+| `chatReact` | 없음: 페이지가 사용자의 반응을 달고 뗄 수 있게 할 뿐이다. 응답은 메시지의 행이고, 그것은 `chat`이 어차피 읽는다                                                                                                                                                                                                                                                                                     |
 
 ### 메시지 보내기: `sendMessage`
 
@@ -285,6 +287,24 @@ const sent = await apps.data.sendMessage(roomId, 'Round 3: 120 points'); // Clou
 입력창에서 실패한 보내기처럼 사용자의 기기에서 채팅방에 실패한 메시지를 남긴다. 메시지에는 별도의 한도가
 있다: 500 ms에 한 번, 1분에 30번이며, 넘으면 `RATE_LIMITED`다. 채팅방의 id는 읽기(`channel`)나 실행 파라미터에서
 얻는다. 브라우저에서는 `NOT_IN_APP`이다.
+
+### 메시지에 반응 달기: `react`
+
+```ts
+await apps.data.react(messageId, '👍', true); // CloudChat, the reaction on
+await apps.data.react(messageId, '👍', false); // and off again
+```
+
+`chatReact`가 있으면 `react(messageId, emoji, on)`은 메시지에 이모지 하나를 단다(`true`) 또는 뗀다(`false`).
+사용자의 이름으로, 아무 표시 없이, 사용자가 직접 누른 것과 똑같이 하고, 반응이 적용된 메시지의 행으로 응답한다.
+`call('chat.setReaction', { chatId, emoji, action })`과 같고, `action`은 `'on'` 또는 `'off'`다. `emoji`는 사람이
+보기에 한 글자다 — 코드 포인트 몇 개로 이루어졌든 이모지 하나, 피부색이나 국기 포함 — 그리고 DoU 선택기에 있는
+것만이 아니라 어떤 이모지든 된다. **떼기는 그 이모지로 단 사용자의 반응을 누가 달았든 뗀다** — 사용자가 직접 단
+것도 포함이다. 둘을 구별할 방법이 없고, 사용자는 동의를 구할 때 그 사실을 듣는다. 메시지는 기기가 갖고 있는
+것이어야 하고, 페이지가 열릴 때 사용자가 있던 플레이스의 채팅방에 있어야 하며, DoU 화면이 반응을 허용하는 것이어야
+한다 — 삭제됐거나 보내는 중이거나 실패한 것, 수정이나 반응을 기록하는 행은 안 된다. 그 밖의 것, 그리고 사용자가 다른 곳으로 옮긴 뒤의 모든
+메시지는 `RUNTIME_NOT_ALLOWED`다. 반응에는 따로 한도가 있다: 250 ms에 한 번, 1분에 60번이며, 한도는 메시지를 읽기 전에
+쓰이므로 메시지 때문에 거부된 반응도 한도를 쓴다(`RATE_LIMITED`). 메시지 id는 `chat`으로 읽는다. 브라우저에서는 `NOT_IN_APP`이다.
 
 ### 플레이스 프로필: `placeProfile`, `placeProfiles`, `myProfile`
 
@@ -317,7 +337,8 @@ const stop = await apps.data.observePlaceProfile(userId, profile => renderName(p
 mock은 같은 맵으로 타입이 붙은 `data: { calls, streams, session, consent }`로 응답하고 — 모양이 틀린 응답은 타입
 검사에서 실패한다 — `changeCloud()`로 클라우드 변경을 재현한다. mock은 앱의 화이트리스트를 모른다: 주어진 것에
 응답한다. `chatSend`가 있으면 `chat.sendChat`을 스스로 열고, 보내기의 모양을 앱처럼 검사하며(채팅방의
-플레이스와 보내기 한도는 검사하지 않음), 통과한 보내기를 각각 `sentMessages`에 기록한다.
+플레이스와 보내기 한도는 검사하지 않음), 통과한 보내기를 각각 `sentMessages`에 기록한다. `chatReact`가 있으면 `chat.setReaction`도 똑같이
+다루고, 반응을 각각 `reactions`(`{ messageId, emoji, on }`)에 기록한다.
 
 ## 권한
 
@@ -459,6 +480,11 @@ const params = apps.context?.params as Partial<MiniAppLaunchParams> | undefined;
     같은 CSS가 양쪽에서 맞다. 닫기 버튼은 여전히 오른쪽 위, 상태 표시줄 아래에 떠 있다. 상태 표시줄의 아이콘은
     앱의 테마를 따른다.
 
+    스크립트로 배치하는 페이지 — 캔버스 게임 — 는 같은 값을 `apps.context.safeArea`(`{ top, right, bottom, left }`,
+    CSS px, 패딩되는 페이지는 모든 가장자리가 0)에서 읽고, 회전은 inset이 자리를 잡은 뒤 `onContextChange`로 듣는다.
+    `apps.context.display`는 앱이 실제로 쓴 표시 방식을 알려 준다. 둘 다 브리지 2.30.0 이전의 앱과 데스크톱에는
+    없다: 없다는 것이 곧 위의 CSS 속성으로 물러나라는 신호다.
+
 ## 앱 없이 해 보기
 
 `@lemoncloud/chatic-apps-sdk/mock`은 브라우저 탭을 앱의 대역으로 만든다. `connect()` 전에, 개발 환경에서만
@@ -475,11 +501,15 @@ const apps = await connect();
 app?.pressBack();
 app?.requestClose();
 app?.changeContext({ theme: 'dark' });
+app?.rotate(); // an immersive page gets the other orientation's insets
 console.log(app?.closed); // { by: 'page', result } once the page finishes, { by: 'user' } on a close
 console.log(app?.storage); // what the page has stored
 ```
 
-이미 저장된 데이터로 시작하려면 `storage: { … }`를 넘긴다. mock은 이를 메모리에만 보관한다.
+이미 저장된 데이터로 시작하려면 `storage: { … }`를 넘긴다. mock은 이를 메모리에만 보관한다. immersive 페이지를
+해 보려면 `context: { display: 'immersive' }`를 넘긴다: mock이 휴대폰의 inset을 `apps.context.safeArea`와
+`--chatic-safe-area-inset-*` 속성에 넣고, `rotate()`가 그것을 돌린다. `context: { display: undefined, safeArea:
+undefined }`는 브리지 2.29.0 이전의 앱, 즉 둘 다 보내지 않고 페이지를 패딩해서 보여 주는 앱의 대역이다.
 
 mock은 앱처럼 응답하고 — 기본 호출과 넘겨준 `permissions`에 대해 응답하고, 나머지는 `NOT_SUPPORTED` — 앱이
 확인하는 것을 확인하며, 모든 호출을 로그로 남긴다. mock은 대역일 뿐이다: 공유 시트는 보여 주는 대신 로그로
@@ -495,11 +525,11 @@ mock은 앱처럼 응답하고 — 기본 호출과 넘겨준 `permissions`에 �
 실패하므로, 버전 번호가 아니라 `apps.supports(...)`로 정한다. 버그 리포트를 읽을 때 쓰는 라이브러리 자체의
 번호:
 
-| 라이브러리        | 빌드 기준 bridge (`SDK_BRIDGE_VERSION`) | 데이터 계약 (`SDK_DATA_CONTRACTS`) | 추가된 것                                                                                                                                                                                                                                  |
-| ----------------- | --------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.1.0             | 2.19.0                                  | —                                  | 기본 호출, 저장소, 공유, 사용자 키                                                                                                                                                                                                         |
-| 0.2.0             | 2.20.0                                  | —                                  | 카메라와 마이크 권한, 패키지의 `GUIDE.md`와 `AGENTS.md`                                                                                                                                                                                    |
-| next (unreleased) | 2.32.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`) |
+| 라이브러리        | 빌드 기준 bridge (`SDK_BRIDGE_VERSION`) | 데이터 계약 (`SDK_DATA_CONTRACTS`) | 추가된 것                                                                                                                                                                                                                                                                                                                                           |
+| ----------------- | --------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0             | 2.19.0                                  | —                                  | 기본 호출, 저장소, 공유, 사용자 키                                                                                                                                                                                                                                                                                                                  |
+| 0.2.0             | 2.20.0                                  | —                                  | 카메라와 마이크 권한, 패키지의 `GUIDE.md`와 `AGENTS.md`                                                                                                                                                                                                                                                                                             |
+| next (unreleased) | 2.32.0                                  | `[1]`                              | 타입이 붙은 메서드, 행, 세션을 갖춘 `apps.data`; `sendMessage`; 플레이스 프로필(`placeProfile`, `placeProfiles`, `myProfile`과 그 `observe…`); 타입이 붙은 mock; `platform: 'desktop'`; `MiniAppLaunchParams` 타입; 스킬(`skill/SKILL.md`); `react`(`chatReact`); `context.display`와 `context.safeArea`; mock의 `display`, `rotate()`, `reactions` |
 
 데이터 계약은 `apps.data`가 읽는 것에 대한 앱 자신의 버전이다. 앱은 양쪽이 모두 지원하는 가장 새로운 계약으로
 페이지에 응답한다. 앱이 지원하는 계약을 하나도 지원하지 않는 라이브러리는 `NOT_SUPPORTED`로 응답받는다.

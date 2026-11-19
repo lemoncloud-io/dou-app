@@ -152,7 +152,9 @@ has the detail on each.
   website data. What must follow the user to another phone goes on your own server, under
   `apps.getUserKey()`.
 - **The page lies inside the safe area on every edge**, unless its manifest asks for `immersive`.
-  There are no insets to handle; an `immersive` page handles them itself.
+  There are no insets to handle; an `immersive` page handles them itself, from the
+  `--chatic-safe-area-inset-*` properties in CSS, or `apps.context.safeArea` in script, which an older
+  app does not send — then fall back to the CSS properties.
 - **Dark mode follows the app's theme**, from `apps.context.theme`, not the phone's.
 - **Share `apps.link({ … })`**, not the page's address, and read what a link carries from
   `location.search` when the page starts.
@@ -210,7 +212,7 @@ A page opened in a cloud can read that cloud — its places, rooms, messages and
 the rows it answers; this is how to build a page around them.
 
 **Choose permissions by what the page shows.** Each of `session`, `cloud`, `place`, `channel`, `chat`
-and `user` opens a set of reads, and `chatSend` opens the send. The app does not filter what a read
+and `user` opens a set of reads, `chatSend` opens the send, and `chatReact` opens reacting to a message. The app does not filter what a read
 answers: a page with `user`, `channel` or `chat` gets users' sign-in ids, one with `place` gets each place's owner as the
 account server has them, one with `cloud` the cloud's account details. Ask for the fewest that do the
 job — what the page does with what it read is its author's responsibility — and do not send any of it
@@ -258,7 +260,10 @@ apps.data.onCloudChanged(() => apps.finish());
 
 **Send only what the user chose to send.** `apps.data.sendMessage(roomId, text)` posts in the
 user's name, to a room of the place the page was opened in. Send on a tap the user made, with text they
-saw.
+saw. The same goes for `apps.data.react(messageId, emoji, on)` with `chatReact`: it adds or removes a
+reaction in the user's name — removing takes off the user's own reaction with that emoji, even one they
+added by hand — so react only on the user's tap. Reactions are limited to one per 250 ms and 60 a
+minute.
 
 **Develop against the mock.** It answers from the data you give it, typed with the same map as the
 app, so an answer of the wrong shape fails the build before it fails in the app:

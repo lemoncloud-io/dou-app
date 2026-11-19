@@ -44,8 +44,8 @@ export interface DataSubscription {
 
 /**
  * The current cloud's data — its places, rooms, messages and members, exactly as DoU's own screens
- * read them — and one write, a text message. Only what the page's
- * manifest asks for (`session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`): the app
+ * read them — and two writes, a text message and a reaction. Only what the page's manifest asks for
+ * (`session`, `cloud`, `place`, `channel`, `chat`, `user`, `chatSend`, `chatReact`): the app
  * refuses every other method with `RUNTIME_NOT_ALLOWED`. The app asks the user once, at `connect`,
  * whether this page may read this cloud.
  *
@@ -94,13 +94,23 @@ export interface ChaticAppsData {
         onEnd?: (error: ChaticAppsError) => void
     ): Promise<DataSubscription>;
     /**
-     * Sends a plain text message, in the user's name, to a room of the place the view opened on — the
-     * one write, with the `chatSend` permission. Resolves with the message as sent. Text only: nothing
+     * Sends a plain text message, in the user's name, to a room of the place the view opened on — a
+     * write, with the `chatSend` permission. Resolves with the message as sent. Text only: nothing
      * else a message can carry. `RUNTIME_NOT_ALLOWED` for a room of another place, blank text or text
      * over 1000 characters; `RATE_LIMITED` past the view's send budget. The same as
      * `call('chat.sendChat', { channelId, content: text })`.
      */
     sendMessage(channelId: string, text: string): Promise<CloudChat>;
+    /**
+     * Adds (`on: true`) or removes (`on: false`) one emoji on a message, in the user's name — the other
+     * write, with the `chatReact` permission. Resolves with the message's row, the reaction applied.
+     * `emoji` is one character as a person sees it. Removing takes off the user's reaction with that
+     * emoji whoever set it, the user's own tap included. `RUNTIME_NOT_ALLOWED` for a message the device
+     * does not hold, one of another place, or one the app offers no reaction on; `RATE_LIMITED` past one
+     * reaction per 250 ms or 60 a minute. The same as
+     * `call('chat.setReaction', { chatId: messageId, emoji, action: on ? 'on' : 'off' })`.
+     */
+    react(messageId: string, emoji: string, on: boolean): Promise<CloudChat>;
     /**
      * A member's place profile — what they are called in the place this view opened on: mostly the name
      * shown there (`nick`) and a picture — as the device holds it; `null` when it holds none (they have
@@ -352,6 +362,8 @@ export const runtimeOver = (
         call,
         subscribe,
         sendMessage: (channelId, text) => call('chat.sendChat', { channelId, content: text }),
+        react: (messageId, emoji, on) =>
+            call('chat.setReaction', { chatId: messageId, emoji, action: on ? 'on' : 'off' }),
         placeProfile,
         placeProfiles: async () => call('profile.cacheReadList', { sid: await placeOf() }),
         observePlaceProfile,
@@ -394,6 +406,7 @@ export const browserRuntime = (): ChaticAppsData => {
         call: notInApp,
         subscribe: notInApp,
         sendMessage: notInApp,
+        react: notInApp,
         placeProfile: notInApp,
         placeProfiles: notInApp,
         observePlaceProfile: notInApp,

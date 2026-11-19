@@ -64,7 +64,7 @@ Ask what is still unknown, in roughly this order. Each line is the question, the
 3. Which screens does it have, and what is on each? — Start with two or three: a first screen and what
    it leads to.
 4. When it closes, does it hand a result back? — No, unless something opened it to get one.
-5. Does it use the cloud's rooms, messages or members? — Only if the idea needs them; each one is a
+5. Does it read the cloud's rooms, messages or members, send a message, or react to one? — Only if the idea needs them; each one is a
    permission the user is asked to allow, and the page's author answers for what it does with it.
 6. Does it share, copy or open links outside? — Only what the idea needs; each is a permission too.
 7. Does it need the whole screen, like a game? — No: the normal display keeps the app's close button
