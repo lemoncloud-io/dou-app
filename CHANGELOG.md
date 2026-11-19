@@ -2,6 +2,26 @@
 
 ## [2026-11-19] - No version updates
 
+### Features
+
+- (chatic-apps-devtools) add verify, one plain-language command for authors
+- (chatic-apps-devtools,chatic-apps-example,mobile) check and try a mini-app before handover
+
+### Bug Fixes
+
+- (chatic-apps-devtools) expect a reaction to a cloud change only from a page with a stream open
+
+### Documentation
+
+- (chatic-apps-devtools) ship the README in Korean too, held to the SDK's pairing check
+- (adr) record that pages are checked by verify, not by an automated test here
+
+### Refactor
+
+- (chatic-apps-devtools) keep the reference mini-app outside this repository
+
+## [2026-11-19] - No version updates
+
 ### Documentation
 
 - (chatic-apps-sdk) correct the in-app trial steps from a device run
