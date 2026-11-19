@@ -7,6 +7,7 @@ import {
     createSubWebViewReadBudget,
     SUB_WEBVIEW_CACHE_READS,
     SUB_WEBVIEW_MESSAGE_SENDS,
+    SUB_WEBVIEW_REACTIONS,
     type SubWebViewReadBudget,
 } from './subWebViewReadBudget';
 import { subWebViewReportsFrameOrigin } from './subWebViewFrameOrigin';
@@ -29,6 +30,8 @@ export interface SubWebViewRuntimeAccess {
     sends: SubWebViewReadBudget;
     /** Its reads of the device cache, per view as well. */
     cacheReads: SubWebViewReadBudget;
+    /** The reactions it may set, per view as well. */
+    reactions: SubWebViewReadBudget;
     consent: SubWebViewRuntimeConsent;
 }
 
@@ -65,6 +68,7 @@ export const openSubWebViewRuntime = ({
         budget: createSubWebViewReadBudget(),
         sends: createSubWebViewReadBudget(SUB_WEBVIEW_MESSAGE_SENDS),
         cacheReads: createSubWebViewReadBudget(SUB_WEBVIEW_CACHE_READS),
+        reactions: createSubWebViewReadBudget(SUB_WEBVIEW_REACTIONS),
         consent: createAppSubWebViewRuntimeConsent(),
     };
 };

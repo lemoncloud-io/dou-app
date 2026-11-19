@@ -102,8 +102,8 @@ desktop debug log, where the desktop shell never runs the runtime itself
 The data is a fourth target, `data` (`DATA_TARGET`). A repository method is named
 `<repository>.<method>` — `chat.sendChat`. For a cloud's graph rather than the live scope's the target
 is `data@cloud` (`DATA_CLOUD_TARGET`), with the same names and the cloud id first among the arguments.
-`REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of each page
-repository so a new one cannot be left out, and each crossing is read off the method's signature, so an
+`REPOSITORY_METHODS` lists every method of the page's graph, keyed by every page repository and every
+method of each, so a new repository or method cannot be left out, and each crossing is read off the method's signature, so an
 entry that disagrees with its method does not compile: a method that returns a promise is a `call`; one
 whose promise resolves with a write receipt a `receipt` ([below](#write-receipts)); an `observe*` method,
 which returns its unsubscribe, a `stream` whose events are its callback's arguments; a method that
@@ -236,6 +236,13 @@ the chat cache's room media index that the room's file list reads. Where the she
 an app built before them answers `RUNTIME_NOT_AVAILABLE`, and the page reads that as "this app has no
 room file list yet" — it hides the entry point rather than showing an empty list. Where the page runs
 its own runtime (a browser, an app that does not own the session) the web deploy alone brings them.
+
+The `webhook` repository went the same way, late. It joined the repository graph without joining
+`REPOSITORY_METHODS`, and the mirror builds its graph from that table alone, so a page whose session
+the shell owned had no `webhook` at all: the room settings read `webhook.list` for a group room's owner
+and the screen fell to the error boundary. The table is now keyed by every repository of the page's
+graph, so a repository left out of it does not compile. Its five methods cross as calls; an app built
+before them answers `RUNTIME_NOT_AVAILABLE`, and the room settings leave the webhook section out there.
 
 ## Errors
 
@@ -396,10 +403,12 @@ that safe is which methods can be reached at all, and two rules decide every one
   whatever their arguments, `channel.fetchList` and `place.isPlaceDeleted`, and under guards (below)
   the member list and `cloud.getCloud`, which writes nothing once the page passes `{ cache: false }`.
 
-    One write is the exception, and it is written down as one: `chat.sendChat`, under a permission no
-    read carries (`chatSend`), of plain text to a room of the place the view opened on — a line the user
-    could have typed into that room. A page that runs a game in a room needs its own player to call
-    into the room and the page to announce the result; nothing else a message can carry is open.
+    Two writes are the exception, each written down as one under a permission no read carries:
+    `chat.sendChat` (`chatSend`), of plain text to a room of the place the view opened on — a line the
+    user could have typed into that room — and `chat.setReaction` (`chatReact`), one emoji on or off a
+    message of such a room — a tap the user could have made. A page that runs a game in a room needs
+    its own player to call into the room and the page to announce the result, and a poll needs a vote;
+    nothing else a message can carry is open.
 
 - **The current cloud, and no switching.** Only `data` is open, which is the live scope. `session` is
   closed — the cloud and place switches are session commands — and so are `connection`, `sync`,
@@ -429,20 +438,29 @@ server's page size. `chat.sendChat` passes only one argument (`argCount`), a pla
 most `SUB_WEB_VIEW_MESSAGE_LIMIT` (1,000) long (`text`) — no attachments, mention, reply, content type,
 system or webhook row. Its room has to be one of the place the view opened on, with the session still there, which only the
 shell and the device cache can say: the entry carries `roomInCurrentPlace`, and the shell reads the room
-before the message goes. Table lookups read only a table's own keys: a page names them, and `__proto__`
+before the message goes. `chat.setReaction` passes only one argument, a plain object holding `chatId`,
+`emoji` and `action` and nothing else: `chatId` a string of at most 200, `emoji` one character as a person
+sees it (`reaction`, `isOneReactionCharacter`: one emoji however many code points build it — joiners only
+between pictographs, tags only after a black flag — or one precomposed letter with at most two combining
+marks, never an invisible or direction character, at most `SUB_WEB_VIEW_REACTION_LIMIT` (16) long —
+written out, since Hermes has no `Intl.Segmenter`), `action` `on` or `off` (`oneOf`). It names no room, so the entry carries
+`messageInCurrentPlace`: the shell reads the message from the cache, refuses it when the cache does not
+hold it or holds it deleted, unsent, failed or as an edit or reaction record, and checks its room as a
+message's. Table lookups read only a table's own keys: a page names them, and `__proto__`
 names nothing.
 
 Each allowed method sits under one permission a page's manifest declares (`session`, `cloud`, `place`,
-`channel`, `chat`, `user`, `chatSend`) with its cost — `local` for the device cache and its streams,
-`server` for a read that asks the server, `send` for the message, each of the last two budgeted by the
-shell on its own. Each closed one names its reason (`write`,
+`channel`, `chat`, `user`, `chatSend`, `chatReact`) with its cost — `local` for the device cache and its
+streams, `server` for a read that asks the server, `send` for the message, `react` for the reaction, each
+of the last three budgeted by the shell on its own. Each closed one names its reason (`write`,
 `cacheWrite`, `cursor`, `serverSideEffect`, `otherCloud`, `account`, `device`, `admin`, `internal`), and
 whole repositories are closed with one: `auth`, `pairing`, `invite`, `subscription`, `device`, `report`,
-`syncMeta`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
+`syncMeta`, `webhook`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
 of `RuntimeData`, so **a method added to the runtime does not compile until it is decided here** — the
 moment to ask the two questions above. The spec typecheck also refuses allowing a name that writes
-(`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than
-`chat.sendChat`, an entry budgeted as a send other than that one, anything `…InCloud`, a server read
+(`create…`, `send…`, `set…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than
+exactly `chat.sendChat` and `chat.setReaction`, an entry budgeted as a send other than the first or as a
+reaction other than the second, anything `…InCloud`, a server read
 other than the four above, and a stream that is not an `observe…`; and the test lists the
 allowed methods by name, so a flipped entry shows as a diff.
 

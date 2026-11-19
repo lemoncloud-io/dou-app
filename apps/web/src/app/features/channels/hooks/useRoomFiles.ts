@@ -11,18 +11,12 @@ import {
     type RoomFileEntry,
     type RoomFilesTab,
 } from '../utils/roomFiles';
+import { isRuntimeNotAvailable } from '../utils/runtimeNotAvailable';
 
 /** Entries read per kind per page. */
 const PAGE_SIZE = 60;
 /** Messages asked of the server per "find older files" — the room's own older-page size. */
 const HISTORY_PAGE_SIZE = 50;
-
-/**
- * Whether a call failed because the app's runtime predates the method — the shell answers
- * `RUNTIME_NOT_AVAILABLE` where it owns the session and was built before the room's media reads.
- */
-export const isRuntimeNotAvailable = (error: unknown): boolean =>
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'RUNTIME_NOT_AVAILABLE';
 
 interface KindPage {
     items: RoomFileEntry[];

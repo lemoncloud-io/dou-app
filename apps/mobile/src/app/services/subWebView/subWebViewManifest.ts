@@ -49,6 +49,7 @@ const RUNTIME_PERMISSIONS: readonly SubWebViewRuntimePermission[] = [
     'chat',
     'user',
     'chatSend',
+    'chatReact',
 ];
 const ORIENTATIONS: readonly SubWebViewOrientation[] = ['any', 'portrait', 'landscape'];
 const NAME_LIMIT = 100;

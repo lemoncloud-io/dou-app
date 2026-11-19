@@ -47,9 +47,13 @@ const fakeEngine = () => {
         ch2: { id: 'ch2', cid: 'c1', sid: 's2' },
     };
     // Messages this device holds: one in each of those rooms.
-    const messages: Record<string, { id: string; channelId: string }> = {
-        m1: { id: 'm1', channelId: 'ch1' },
-        m2: { id: 'm2', channelId: 'ch2' },
+    const messages: Record<string, { id: string; channelId: string; chatNo?: number } & Record<string, unknown>> = {
+        m1: { id: 'm1', channelId: 'ch1', chatNo: 1 },
+        m2: { id: 'm2', channelId: 'ch2', chatNo: 2 },
+        // Rows of the same room a reaction cannot be set on.
+        mDeleted: { id: 'mDeleted', channelId: 'ch1', chatNo: 3, hidden: true },
+        mSending: { id: 'mSending', channelId: 'ch1', chatNo: 0, isPending: true },
+        mReaction: { id: 'mReaction', channelId: 'ch1', chatNo: 4, subType: 'reaction' },
     };
     const repositories = {
         channel: {
@@ -63,6 +67,10 @@ const fakeEngine = () => {
         },
         chat: {
             sendChat: jest.fn(async (payload: { channelId: string; content: string }) => ({ id: 'm9', ...payload })),
+            setReaction: jest.fn(async (payload: { chatId: string; emoji: string; action: string }) => ({
+                ...messages[payload.chatId],
+                reactions: { [payload.emoji]: payload.action === 'on' ? 1 : 0 },
+            })),
             cacheRead: jest.fn(async (id: string) => messages[id] ?? null),
             cacheReadList: jest.fn(async () => ({ list: [] })),
         },
@@ -107,6 +115,7 @@ const build = ({
     sends = plenty,
     cacheReads = plenty,
     visibility,
+    reactions = plenty,
 }: {
     granted?: SubWebViewRuntimePermission[];
     consent?: SubWebViewRuntimeConsent;
@@ -114,6 +123,7 @@ const build = ({
     sends?: SubWebViewReadBudget;
     cacheReads?: SubWebViewReadBudget;
     visibility?: SubWebViewVisibility;
+    reactions?: SubWebViewReadBudget;
 } = {}) => {
     const fake = fakeEngine();
     const bridge = { pushEvent: jest.fn() } as unknown as IAppBridgeHost & { pushEvent: jest.Mock };
@@ -132,6 +142,7 @@ const build = ({
         sends,
         cacheReads,
         visibility,
+        reactions,
         onRefused,
     });
     const hello = () =>
@@ -286,6 +297,111 @@ describe('createSubWebViewRuntimeBridge', () => {
             },
         });
         expect(onRefused).toHaveBeenCalledWith(expect.objectContaining({ method: 'chat.deleteChat', reason: 'write' }));
+    });
+
+    describe('a reaction', () => {
+        const react = (call: (t: string, m: string, a?: unknown[]) => Promise<unknown>, payload: object) =>
+            call('data', 'chat.setReaction', [payload]);
+
+        it('sets one on a message of a room of the place with chatReact, and answers the message', async () => {
+            const { hello, call, repositories } = build({ granted: ['chatReact'] });
+            await hello();
+
+            await expect(react(call, { chatId: 'm1', emoji: '👍', action: 'on' })).resolves.toEqual({
+                type: 'OnRuntimeCall',
+                success: true,
+                data: { value: { id: 'm1', channelId: 'ch1', chatNo: 1, reactions: { '👍': 1 } } },
+            });
+            await expect(react(call, { chatId: 'm1', emoji: '👍', action: 'off' })).resolves.toMatchObject({
+                success: true,
+            });
+            expect(repositories.chat.setReaction).toHaveBeenCalledTimes(2);
+        });
+
+        it.each([
+            ['of a room in another place', 'm2'],
+            ['the device does not hold', 'm404'],
+            ['that was deleted', 'mDeleted'],
+            ['still sending', 'mSending'],
+            ['that records a reaction itself', 'mReaction'],
+        ])('refuses one on a message %s, before it is set', async (_case, chatId) => {
+            const { hello, call, repositories } = build({ granted: ['chatReact'] });
+            await hello();
+
+            await expect(react(call, { chatId, emoji: '👍', action: 'on' })).resolves.toMatchObject({
+                success: false,
+                error: { code: 'RUNTIME_NOT_ALLOWED', details: { method: 'chat.setReaction', reason: 'guard' } },
+            });
+            expect(repositories.chat.setReaction).not.toHaveBeenCalled();
+        });
+
+        it('refuses every reaction once the user moved to another place', async () => {
+            const { hello, call, moveToPlace, repositories } = build({ granted: ['chatReact'] });
+            await hello();
+            moveToPlace('s2');
+
+            await expect(react(call, { chatId: 'm1', emoji: '👍', action: 'on' })).resolves.toMatchObject({
+                success: false,
+                error: { code: 'RUNTIME_NOT_ALLOWED' },
+            });
+            expect(repositories.chat.setReaction).not.toHaveBeenCalled();
+        });
+
+        it('refuses a page without chatReact, whatever else it may do', async () => {
+            const { hello, call, repositories } = build({
+                granted: ['session', 'cloud', 'place', 'channel', 'chat', 'user', 'chatSend'],
+            });
+            await hello();
+
+            await expect(react(call, { chatId: 'm1', emoji: '👍', action: 'on' })).resolves.toMatchObject({
+                success: false,
+                error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'notGranted' } },
+            });
+            expect(repositories.chat.setReaction).not.toHaveBeenCalled();
+        });
+
+        it('refuses a long emoji, as a guard, before anything is read', async () => {
+            const { hello, call, repositories } = build({ granted: ['chatReact'] });
+            await hello();
+
+            await expect(react(call, { chatId: 'm1', emoji: '👍 nice', action: 'on' })).resolves.toMatchObject({
+                success: false,
+                error: { code: 'RUNTIME_NOT_ALLOWED', details: { reason: 'guard' } },
+            });
+            expect(repositories.chat.cacheRead).not.toHaveBeenCalled();
+        });
+
+        it('spends its budget on every attempt, a refused one included, so the cache cannot be probed', async () => {
+            const take = jest.fn(() => ({ ok: true as const }));
+            const { hello, call } = build({ granted: ['chatReact'], reactions: { take } });
+            await hello();
+
+            await react(call, { chatId: 'm404', emoji: '👍', action: 'on' });
+            await react(call, { chatId: 'm1', emoji: '👍', action: 'on' });
+
+            expect(take).toHaveBeenCalledTimes(2);
+        });
+
+        it('asks consent per place, and spends a budget of its own, apart from the messages', async () => {
+            const ensure = jest.fn(async () => 'allowed' as const);
+            const reacted = jest.fn(() => ({ ok: false as const, retryAfterMs: 75 }));
+            const sent = jest.fn(() => ({ ok: true as const }));
+            const { hello, call } = build({
+                granted: ['chatReact'],
+                consent: { ensure },
+                reactions: { take: reacted },
+                sends: { take: sent },
+            });
+            await hello();
+
+            await expect(react(call, { chatId: 'm1', emoji: '👍', action: 'on' })).resolves.toMatchObject({
+                success: false,
+                error: { code: 'RATE_LIMITED', details: { retryAfterMs: 75 } },
+            });
+            expect(reacted).toHaveBeenCalledTimes(1);
+            expect(sent).not.toHaveBeenCalled();
+            expect(ensure).toHaveBeenCalledWith(expect.objectContaining({ placeId: 's1' }), new Set(['chatReact']));
+        });
     });
 
     it('sends a text message to a room of the place with chatSend, and answers the sent message', async () => {

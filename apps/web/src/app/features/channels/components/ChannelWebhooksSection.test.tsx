@@ -70,6 +70,13 @@ const setHook = (over: Record<string, unknown> = {}) => {
 beforeEach(() => toast.mockReset());
 
 describe('ChannelWebhooksSection', () => {
+    it('draws nothing where the installed app cannot answer the webhook methods', () => {
+        setHook({ status: 'unavailable' });
+        const { container } = render(<ChannelWebhooksSection channelId="C1" />);
+
+        expect(container).toBeEmptyDOMElement();
+    });
+
     it('shows loading, error with retry, and empty states', () => {
         setHook({ status: 'loading' });
         const { rerender } = render(<ChannelWebhooksSection channelId="C1" />);

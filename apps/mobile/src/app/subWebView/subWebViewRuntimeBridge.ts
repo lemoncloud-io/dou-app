@@ -121,6 +121,8 @@ export interface SubWebViewRuntimeBridgeDeps {
      * delivered when it can again. Absent, the page is always reachable.
      */
     visibility?: SubWebViewVisibility;
+    /** The view's reactions set, apart from its reads and its messages. */
+    reactions: SubWebViewReadBudget;
     now?: () => number;
     /** Hears each refusal, for the app's log. */
     onRefused?: (refusal: { target: string; method: string; code: string; reason?: string }) => void;
@@ -183,9 +185,11 @@ const fieldOf = (args: readonly RuntimeWireValue[], at: { arg: number; field?: s
  * 5. for a message and a room's reads, the room: one this device holds, in the cloud and the place the
  *    view opened on — and the session still on that place — read from the device cache, else
  *    `RUNTIME_NOT_ALLOWED` with `guard` (a failure of the read itself passes through as the runtime
- *    answered it);
- * 6. for a read that asks the server, the view's read budget, and for a message its send budget, else
- *    `RATE_LIMITED` with `retryAfterMs`.
+ *    answered it); for a reaction, the message it names, read from the device cache, and that
+ *    message's room the same way — a message the device does not hold is refused, since the write
+ *    cannot be checked after it is made;
+ * 6. for a read that asks the server, the view's read budget, for a message its send budget and for a
+ *    reaction its reaction budget, else `RATE_LIMITED` with `retryAfterMs`.
  *
  * Then the request goes to the app's runtime unchanged, and its answer comes back unchanged — unless
  * the view closed or its cloud changed while the checks waited: nothing is sent past either.
@@ -212,6 +216,7 @@ export const createSubWebViewRuntimeBridge = ({
     sends,
     cacheReads,
     visibility,
+    reactions,
     now = Date.now,
     onRefused,
 }: SubWebViewRuntimeBridgeDeps): { handlers: SubWebViewRuntimeHandlers; dispose(): void } => {
@@ -330,6 +335,49 @@ export const createSubWebViewRuntimeBridge = ({
                 if (room === 'notHere') return notAllowed('guard');
                 if (room !== 'here') return room;
             }
+        }
+        if (check.entry.messageInCurrentPlace) {
+            // Spent before the message is read, so a page cannot look up which message ids the cache
+            // holds for free, one refused reaction at a time.
+            const spent = reactions.take(now());
+            if (!spent.ok) {
+                onRefused?.({ target, method, code: 'RATE_LIMITED' });
+                return error('RATE_LIMITED', 'Too many reactions from this view.', {
+                    retryAfterMs: spent.retryAfterMs,
+                });
+            }
+            const chatId = fieldOf(args, check.entry.messageInCurrentPlace);
+            if (!isString(chatId) || !onOpenedPlace()) return notAllowed('guard');
+            const answer = await host.call({ target, method: 'chat.cacheRead', args: [chatId] });
+            if ('failure' in answer) return answer.failure;
+            if (!cloudStillOpen()) return CLOUD_CHANGED;
+            const message = answer.value.value as {
+                id?: unknown;
+                channelId?: unknown;
+                chatNo?: unknown;
+                hidden?: unknown;
+                isPending?: unknown;
+                isFailed?: unknown;
+                subType?: unknown;
+            } | null;
+            // Only a sent, visible message, as the user's own screen offers a reaction on: not one deleted,
+            // still sending or failed, and not a row that records an edit or a reaction itself.
+            if (
+                !message ||
+                message.id !== chatId ||
+                typeof message.chatNo !== 'number' ||
+                message.chatNo <= 0 ||
+                message.hidden === true ||
+                message.isPending === true ||
+                message.isFailed === true ||
+                message.subType === 'reaction' ||
+                message.subType === 'edit'
+            ) {
+                return notAllowed('guard');
+            }
+            const room = await roomOfPlace(target, method, message.channelId);
+            if (room === 'notHere') return notAllowed('guard');
+            if (room !== 'here') return room;
         }
         const spending = check.entry.cost === 'server' ? budget : check.entry.cost === 'send' ? sends : null;
         if (spending) {
@@ -528,5 +576,6 @@ export const createAppSubWebViewRuntimeBridge = ({
         sends: access.sends,
         cacheReads: access.cacheReads,
         visibility: appSubWebViewVisibility,
+        reactions: access.reactions,
         onRefused,
     });

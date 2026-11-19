@@ -141,6 +141,7 @@ const setup = ({
         budget,
         sends: { take: () => ({ ok: true }) },
         cacheReads: { take: () => ({ ok: true }) },
+        reactions: { take: () => ({ ok: true }) },
     });
     host = createSubBridgeHost(
         // Asynchronous, as the WebView is.
@@ -495,7 +496,9 @@ const LIBRARY_STREAMS: { [N in DataStreamName]: DataStreams[N]['permission'] } =
 };
 
 // Keyed by every runtime permission, so one the app adds fails to compile until it is listed here.
-const PERMISSIONS = Object.keys({
+// `false` marks one the app opens before the library types it: the reaction, which the library's own
+// typed methods add next. Turn it to `true` with them, and this test holds the two equal again.
+const TYPED_BY_THE_LIBRARY = {
     session: true,
     cloud: true,
     place: true,
@@ -503,7 +506,11 @@ const PERMISSIONS = Object.keys({
     chat: true,
     user: true,
     chatSend: true,
-} satisfies Record<SubWebViewRuntimePermission, true>) as SubWebViewRuntimePermission[];
+    chatReact: false,
+} satisfies Record<SubWebViewRuntimePermission, boolean>;
+const PERMISSIONS = (Object.keys(TYPED_BY_THE_LIBRARY) as SubWebViewRuntimePermission[]).filter(
+    permission => TYPED_BY_THE_LIBRARY[permission]
+);
 
 const byPermission = (table: Record<string, string>, permission: string) =>
     Object.keys(table)

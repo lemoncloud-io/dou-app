@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-19 · Implemented: `feat/sub-webview-resource-limits`
 > · Scope: `apps/mobile/src/app/subWebView/` (`subWebViewReadBudget.ts` — `SUB_WEBVIEW_CACHE_READS`;
 > `subWebViewRuntimeAccess.ts`; `subWebViewRuntimeBridge.ts` — the cache budget, the held events;
-> `SubWebView.tsx` — the process callbacks) · `libs/bridges` (`BRIDGE_VERSION` 2.31.0) ·
+> `SubWebView.tsx` — the process callbacks) · `libs/bridges` (`BRIDGE_VERSION` 2.33.0) ·
 > `libs/chatic-apps-sdk` (`SDK_BRIDGE_VERSION`)
 > · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads)
 > · Related: [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
@@ -52,7 +52,7 @@ A review of what a mini app can make the app spend found four open edges, all in
    JSON; over it an answer fails and a stream ends with `RUNTIME_PAYLOAD_TOO_LARGE`. Pushes held before
    a page's first message have no ceiling and need none: before then only a context change can be
    pushed, since every other push answers something the page sent.
-5. `BRIDGE_VERSION` goes to 2.31.0 — 2.30.0 being the context's display and safe area, decided apart —
+5. `BRIDGE_VERSION` goes to 2.33.0 — 2.30.0 and 2.32.0 being the display context and the reaction, decided apart —
    and the SDK's constant with it. Nothing is added to the vocabulary; `RATE_LIMITED` and `system`
    already existed.
 

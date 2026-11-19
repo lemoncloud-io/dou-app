@@ -54,6 +54,31 @@ describe('consentQuestion', () => {
             'titleWithSend',
             `sendOnly(${host}|) readsAndChangesNothingElse({0}|{1})`,
         ],
+        [
+            'a page that reads and reacts names reacting, and that it can remove the user’s own',
+            ['chat', 'chatReact'],
+            'titleWithReact',
+            `readAndReact(${host}|chat) reactRemovesOwn({0}|{1}) thisPlaceOnly({0}|{1}) changesNothingElse({0}|{1})`,
+        ],
+        [
+            'a page that only reacts says it reads nothing',
+            ['chatReact'],
+            'titleWithReact',
+            `reactOnly(${host}|) reactRemovesOwn({0}|{1}) readsAndChangesNothingElse({0}|{1})`,
+        ],
+        [
+            'a page that sends and reacts names both writes, never among the reads',
+            ['channel', 'chatReact', 'chatSend'],
+            'titleWithSendAndReact',
+            `readAndSendAndReact(${host}|channel) reactRemovesOwn({0}|{1}) thisPlaceOnly({0}|{1}) ` +
+                'changesNothingElse({0}|{1})',
+        ],
+        [
+            'a page that sends and reacts and reads nothing says so',
+            ['chatReact', 'chatSend'],
+            'titleWithSendAndReact',
+            `sendAndReactOnly(${host}|) reactRemovesOwn({0}|{1}) readsAndChangesNothingElse({0}|{1})`,
+        ],
     ])('%s', (_, permissions, title, message) => {
         expect(consentQuestion(host, permissions)).toEqual({ title: `${title}({0}|{1})`, message });
     });
