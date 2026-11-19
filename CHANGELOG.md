@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web,web-ui-kit) preview pdfs in a browser tab and save and share from the viewers (ADR-0353)
+
+## [2026-11-19] - No version updates
+
+### Features
+
 - (chatic-apps-devtools) add verify, one plain-language command for authors
 - (chatic-apps-devtools,chatic-apps-example,mobile) check and try a mini-app before handover
 
