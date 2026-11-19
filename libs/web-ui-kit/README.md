@@ -200,7 +200,9 @@ its hook is not:
   same slide-in, close button, position along the top and bottom bar, which takes the host's
   `MediaViewerActionButton`s), with the pages in one scrolling column instead of a pager. It draws no
   document itself: the host passes `pages` with a `renderPage` (pdf.js, in the app), so this kit never
-  loads a renderer. Only pages near the view hold a canvas.
+  loads a renderer. Only pages near the view hold a canvas. Pinch and double tap zoom the pages
+  (`documentZoom.ts` holds the range, the double-tap rule and the scroll that keeps the fingers' point
+  in place).
 - `composites/overlay/slidePresence.ts` — how something slides into its resting place and back out:
   `AttachPanel` and the photo grid's footer up from below (on `transform`), `SelectedPhotoStrip` and
   `RecentPhotoStrip` open from no height (on `height`). A CSS transition rather than the Radix overlays'

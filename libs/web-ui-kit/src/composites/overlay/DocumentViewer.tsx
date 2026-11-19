@@ -5,6 +5,14 @@ import { cn } from '@chatic/ui-kit';
 import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
 import { IconClose, IconFileSolid, IconSpinner } from '../../resources/icons';
+import {
+    clampDocumentZoom,
+    documentZoomScroll,
+    doubleTapDocumentZoom,
+    isDocumentDoubleTap,
+    type DocumentPoint,
+    type DocumentTap,
+} from './documentZoom';
 import { MEDIA_VIEWER_FOOTER_TOAST_LIFT } from './MediaViewer';
 import { VIEWER_MOTION } from './viewerShell';
 
@@ -76,6 +84,11 @@ const NEAR_MARGIN = '150% 0px';
  *
  * Only pages near the view hold a canvas; the rest keep their place and shape, so a long file does
  * not hold every page in memory.
+ *
+ * Pinching zooms the pages (up to 4×) about the point between the fingers, and a double tap enlarges
+ * a fitted page to 2× about the tap — or fits an enlarged one back. While the fingers move only a CSS
+ * scale is applied; when they lift the pages are drawn again at the new width, sharp, and the scroll
+ * is moved so the same content stays under the fingers. An enlarged document scrolls both ways.
  */
 export const DocumentViewer = ({ open, name, status, pages, onClose, renderFooter, labels }: DocumentViewerProps) => {
     const text = { ...DEFAULT_LABELS, ...labels };
@@ -84,6 +97,14 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
     const [current, setCurrent] = React.useState(1);
     const closeRef = React.useRef<HTMLButtonElement>(null);
     const ready = status === 'ready' && pages !== undefined && pages.pageCount > 0;
+    const [zoom, setZoom] = React.useState(1);
+    const sectionRef = React.useRef<HTMLElement>(null);
+    // The pinch under way: where it started and the scale it has reached, applied as a CSS transform.
+    const pinchRef = React.useRef<{ distance: number; focal: DocumentPoint; scale: number } | null>(null);
+    // The scroll to set once the pages have been laid out at a new zoom.
+    const pendingScroll = React.useRef<DocumentPoint | null>(null);
+    const lastTap = React.useRef<DocumentTap | null>(null);
+    const tapStart = React.useRef<DocumentPoint | null>(null);
 
     useToastLift(open && renderFooter !== undefined ? MEDIA_VIEWER_FOOTER_TOAST_LIFT : null);
 
@@ -123,8 +144,110 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         return () => observer.disconnect();
     }, [ready, scrollRoot, pages, width]);
 
-    // A new document starts at its first page.
-    React.useEffect(() => setCurrent(1), [pages]);
+    // A new document starts at its first page, fitted to the width.
+    React.useEffect(() => {
+        setCurrent(1);
+        setZoom(1);
+    }, [pages]);
+
+    // After the pages are laid out at a new zoom, the scroll the zoom asked for.
+    React.useLayoutEffect(() => {
+        const target = pendingScroll.current;
+        if (!target || !scrollRoot) return;
+        pendingScroll.current = null;
+        scrollRoot.scrollLeft = target.x;
+        scrollRoot.scrollTop = target.y;
+    }, [zoom, scrollRoot]);
+
+    /** A point of a touch or pointer event in the scroll area's own box. */
+    const pointIn = (clientX: number, clientY: number): DocumentPoint => {
+        const box = scrollRoot?.getBoundingClientRect();
+        return { x: clientX - (box?.left ?? 0), y: clientY - (box?.top ?? 0) };
+    };
+
+    const zoomTo = (next: number, focal: DocumentPoint) => {
+        const to = clampDocumentZoom(next);
+        if (!scrollRoot || to === zoom) return;
+        pendingScroll.current = documentZoomScroll(
+            { x: scrollRoot.scrollLeft, y: scrollRoot.scrollTop },
+            focal,
+            zoom,
+            to
+        );
+        setZoom(to);
+    };
+
+    const setLiveScale = (scale: number, focal: DocumentPoint | null) => {
+        const section = sectionRef.current;
+        if (!section) return;
+        if (!focal || scale === 1) {
+            section.style.transform = '';
+            section.style.transformOrigin = '';
+            return;
+        }
+        // The origin is the focal point in the section's own box, so the content under the fingers stays put.
+        const originX = (scrollRoot?.scrollLeft ?? 0) + focal.x - section.offsetLeft;
+        const originY = (scrollRoot?.scrollTop ?? 0) + focal.y - section.offsetTop;
+        section.style.transformOrigin = `${originX}px ${originY}px`;
+        section.style.transform = `scale(${scale})`;
+    };
+
+    const onTouchStart = (event: React.TouchEvent) => {
+        if (event.touches.length === 2) {
+            const [a, b] = [event.touches[0], event.touches[1]];
+            pinchRef.current = {
+                distance: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+                focal: pointIn((a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2),
+                scale: 1,
+            };
+            tapStart.current = null;
+            return;
+        }
+        if (event.touches.length === 1) {
+            tapStart.current = pointIn(event.touches[0].clientX, event.touches[0].clientY);
+        }
+    };
+
+    const onTouchMove = (event: React.TouchEvent) => {
+        const pinch = pinchRef.current;
+        if (pinch && event.touches.length === 2) {
+            const [a, b] = [event.touches[0], event.touches[1]];
+            const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+            // Held within the zoom's range, so the live scale never promises more than the lift gives.
+            pinch.scale = clampDocumentZoom((zoom * distance) / pinch.distance) / zoom;
+            setLiveScale(pinch.scale, pinch.focal);
+            return;
+        }
+        const start = tapStart.current;
+        if (start && event.touches.length === 1) {
+            const point = pointIn(event.touches[0].clientX, event.touches[0].clientY);
+            // Moved: a scroll, not a tap.
+            if (Math.hypot(point.x - start.x, point.y - start.y) > 10) tapStart.current = null;
+        }
+    };
+
+    const onTouchEnd = (event: React.TouchEvent) => {
+        const pinch = pinchRef.current;
+        if (pinch && event.touches.length < 2) {
+            pinchRef.current = null;
+            setLiveScale(1, null);
+            zoomTo(zoom * pinch.scale, pinch.focal);
+            lastTap.current = null;
+            return;
+        }
+        const start = tapStart.current;
+        tapStart.current = null;
+        if (!start || event.touches.length > 0) return;
+        const tap = { ...start, at: Date.now() };
+        if (isDocumentDoubleTap(lastTap.current, tap)) {
+            lastTap.current = null;
+            zoomTo(doubleTapDocumentZoom(zoom), tap);
+            return;
+        }
+        lastTap.current = tap;
+    };
+
+    const pageWidth = Math.round(width * zoom);
 
     const footer = renderFooter?.();
 
@@ -160,20 +283,39 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
                         // State, not a ref: the pages observe against it, and it exists only once the
                         // dialog's portal has mounted.
                         ref={setScrollRoot}
+                        onTouchStart={onTouchStart}
+                        onTouchMove={onTouchMove}
+                        onTouchEnd={onTouchEnd}
+                        onTouchCancel={() => {
+                            pinchRef.current = null;
+                            tapStart.current = null;
+                            setLiveScale(1, null);
+                        }}
+                        // A mouse's double click does what a double tap does.
+                        onDoubleClick={event =>
+                            zoomTo(doubleTapDocumentZoom(zoom), pointIn(event.clientX, event.clientY))
+                        }
+                        data-zoom={zoom}
                         className={cn(
-                            'absolute inset-0 overflow-y-auto overscroll-contain',
+                            // The browser pans; the pinch is the viewer's own, about the fingers.
+                            'absolute inset-0 touch-pan-x touch-pan-y overflow-auto overscroll-contain',
                             'pt-[calc(var(--safe-top,0px)+56px)]',
                             footer ? 'pb-[calc(var(--safe-bottom,0px)+76px)]' : 'pb-[calc(var(--safe-bottom,0px)+16px)]'
                         )}
                     >
                         {ready && width > 0 && (
-                            <section aria-label={name} className="flex flex-col items-center gap-3 px-4">
+                            <section
+                                ref={sectionRef}
+                                aria-label={name}
+                                // At least the column's width, wider once enlarged: the scroll area then scrolls sideways.
+                                className="flex w-max min-w-full flex-col items-center gap-3 px-4"
+                            >
                                 {Array.from({ length: pages.pageCount }, (_, i) => (
                                     <DocumentPage
                                         key={i + 1}
                                         pages={pages}
                                         page={i + 1}
-                                        width={width}
+                                        width={pageWidth}
                                         scrollRoot={scrollRoot}
                                     />
                                 ))}

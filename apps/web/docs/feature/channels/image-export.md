@@ -230,7 +230,9 @@ The decision is recorded in
 
 ## Not done here
 
-- **Save or share from a tile, or from the message's action sheet.** Only the viewer has them.
+- **Save or share from a tile, or from the message's action sheet.** Only the viewers have them — the
+  room's, and the room file list's (`RoomFilesPage`), which offers the same two buttons for the showing
+  item without save all.
 - **Sharing several items at once.** `ShareFile` takes one file; widening it is a shell change.
 - **Desktop.** `apps/desktop-web` has its own viewer and is not touched here.
 

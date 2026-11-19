@@ -77,8 +77,17 @@ jest.mock('../hooks/useFileDownloads', () => ({
     useFileDownloads: () => ({ saveAll: mockSaveAll, share: jest.fn(), open: jest.fn() }),
 }));
 let mockCanShare = true;
+const mockRun = jest.fn();
 jest.mock('../hooks/useImageExports', () => ({
-    useImageExports: () => ({ runAll: jest.fn(), run: jest.fn(), canShare: mockCanShare }),
+    isExportableUrl: (url: string | undefined) => !!url && url.startsWith('https:'),
+    useImageExports: () => ({
+        runAll: jest.fn(),
+        run: (...args: unknown[]) => mockRun(...args),
+        canShare: mockCanShare,
+        canExport: true,
+        busyFor: () => undefined,
+        stopOnClose: jest.fn(),
+    }),
 }));
 jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 
@@ -297,6 +306,21 @@ describe('RoomFilesPage', () => {
         expect(barButton('chat.attach.audio.share')).toBeDisabled();
         expect(barButton('chat.attach.audio.save')).toBeEnabled();
         mockCanShare = true;
+    });
+
+    it('offers share and save for the showing photo in its viewer', async () => {
+        photoPage([photoItem(9)]);
+        renderPage('media');
+        fireEvent.click(await screen.findByLabelText(/chat\.attach\.tile/));
+
+        const viewer = await screen.findByRole('dialog');
+        fireEvent.click(within(viewer).getByRole('button', { name: 'chat.attach.export.save' }));
+
+        expect(within(viewer).getByRole('button', { name: 'chat.attach.export.share' })).toBeInTheDocument();
+        expect(mockRun).toHaveBeenCalledWith(
+            'save',
+            expect.objectContaining({ uploadId: 'up-9', kind: 'image', chatId: 'ch-1:9' })
+        );
     });
 
     it('hides the picked files on this device after a confirm, and an undo shows them again', async () => {
