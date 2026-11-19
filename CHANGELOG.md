@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-19] - No version updates
+
+### Bug Fixes
+
+- (runtime-web) read the 'app' and 'page' spellings installed phone apps still declare
+
 ## [2026-11-19] - root@0.168.8, @chatic/landing@0.19.4
 
 ### Bug Fixes
