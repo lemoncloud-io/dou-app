@@ -4,6 +4,16 @@ import type { HostOs, ShellOrBrowser } from '@chatic/runtime-client';
 const METHODS: readonly ShellOrBrowser[] = ['shell', 'browser'];
 
 /**
+ * The spellings the phone app shipped before the values were renamed. Installed builds (0.32.x)
+ * declare them and keep declaring them until people update, while the page they load is always the
+ * current deploy — so the page reads both, or every one of those phones is treated as a browser.
+ */
+const SHIPPED_SPELLINGS: ReadonlyMap<unknown, ShellOrBrowser> = new Map([
+    ['app', 'shell'],
+    ['page', 'browser'],
+]);
+
+/**
  * What the readers ask of a host: its bridge, its capability declaration and the platform it injected.
  * The host profile has all three, and so do a page's host facts (`readWebHostFacts`), which is how the
  * host port adapters read the same declaration from the facts a start was resolved against.
@@ -19,6 +29,8 @@ export interface DeclaredHost {
  *
  * - No declaration, or one older than the key — the shell never knew it — answers what the page did
  *   before ports: the shell wherever there was a bridge to ask it through, as `isNative()` said.
+ * - A declaration that names a spelling the phone app already shipped (`'app'`, `'page'`) means what
+ *   it meant then, without a warning: it is not a bug in the shell that sent it.
  * - A declaration that should hold the key and does not, or names anything else, is a bug in the
  *   shell: the browser does the work, since every host can do what a browser does, and it is logged.
  */
@@ -27,6 +39,8 @@ export const resolveShellOrBrowser = (profile: DeclaredHost, key: string, introd
     if (source.from === 'legacy') return profile.bridge === null ? 'browser' : 'shell';
     if (source.from === 'unavailable') return 'browser';
     if ((METHODS as readonly unknown[]).includes(source.value)) return source.value as ShellOrBrowser;
+    const shipped = SHIPPED_SPELLINGS.get(source.value);
+    if (shipped) return shipped;
     logger.warn('BRIDGE', `[host] the declared ${key} is neither 'shell' nor 'browser'; the browser does it`, {
         value: source.value,
     });
