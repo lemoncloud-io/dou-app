@@ -620,7 +620,10 @@ In a browser the button downloads (`lib/fileDownload.ts`): the bytes are fetched
 saved from a local address under the upload's own name, since an anchor's `download` attribute names
 nothing on the bucket's origin. The whole file is in memory meanwhile, which the 50MB document limit
 keeps affordable. A 403 means the signed address expired: the message is read again for fresh ones and
-the user presses again. The card body downloads the same way — except a sent PDF, which opens in the
+the user presses again. On iOS and iPadOS the save goes to the share sheet ("Save to Files") rather than
+an anchor (`lib/browserSave.ts`): a home-screen web app and the in-app browsers show a downloaded
+`blob:` in place of the page, with no prompt and no way back. When the fetch outlasted the press the
+sheet needs, the bytes are kept for the card and a toast asks for another press, which saves at once. The card body downloads the same way — except a sent PDF, which opens in the
 page's document viewer (below).
 
 #### The document viewer (browser)
@@ -641,7 +644,7 @@ the room's file list (`useFileDownloads`' `onPreview` and `opensInPageViewer`; t
   Korean PDF that names a font without embedding it still draws its text.
 - **The bytes are fetched once** when it opens (a 403 re-reads the message once, as the card does) and
   dropped once the viewer has slid shut, which also frees the document; reopening starts from the spinner. Save and share hand over those same bytes:
-  save as a browser download, share as a file on the Web Share sheet
+  save as a browser download (the share sheet on iOS), share as a file on the Web Share sheet
   ([image-export.md § In a browser tab](./image-export.md#in-a-browser-tab) has the share rules, the
   "tap again" case included). Before the bytes arrive, save downloads as the card's button does and
   share waits.
