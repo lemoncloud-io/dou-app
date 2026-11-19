@@ -14,7 +14,6 @@ import {
 } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { appBridge } from '../../../bridge';
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import type { InviteMessageChannel } from '../../invite/utils/sendInviteMessage';
 import { PermissionDeniedBanner } from './PermissionDeniedBanner';
@@ -72,8 +71,8 @@ export const ContactInviteTab = ({
     const { t } = useTranslation();
     const { toast } = useToast();
 
-    // Contacts and SMS invites are the app's where it takes the page's links (`runtime.links`).
-    const isOnMobileApp = runtime.links.kind === 'shell';
+    // The picker needs the device's address book, which only an app has (`runtime.links.contacts`).
+    const isOnMobileApp = runtime.links.contacts !== null;
     const [search, setSearch] = useState('');
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
     const [permissionDenied, setPermissionDenied] = useState(false);
@@ -89,8 +88,8 @@ export const ContactInviteTab = ({
     );
 
     /**
-     * Loads contacts only where the app takes the links. The page has no contacts access → funneled
-     * into the invite link.
+     * Loads contacts only where the host has an address book. The page has no contacts access →
+     * funneled into the invite link.
      *
      * Only called once the tab is actually shown. `getContacts()` raises the OS permission popup,
      * and a host that opens on another tab would otherwise **prompt for permission even from a user
@@ -108,15 +107,16 @@ export const ContactInviteTab = ({
     }, [active]);
 
     useEffect(() => {
-        if (!isOnMobileApp || !contactsRequested) return;
+        const addressBook = runtime.links.contacts;
+        if (!addressBook || !contactsRequested) return;
         let cancelled = false;
         setIsWaitingForContacts(true);
-        appBridge
-            .getContacts()
-            .then(response => {
+        addressBook
+            .read()
+            .then(answer => {
                 if (cancelled) return;
-                const received = response.data?.contacts ?? [];
-                const permission = response.data?.permission;
+                const received = answer?.contacts ?? [];
+                const permission = answer?.permission;
                 setIsWaitingForContacts(false);
                 setContacts(received);
                 // The shell states the permission, so an empty address book is an empty list rather
@@ -132,7 +132,7 @@ export const ContactInviteTab = ({
         return () => {
             cancelled = true;
         };
-    }, [isOnMobileApp, contactsRequested]);
+    }, [contactsRequested]);
 
     /**
      * A contact with no stored number at all is kept out of the list.

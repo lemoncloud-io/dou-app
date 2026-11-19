@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge, useOnBackPressed } from '../bridge';
+import { useOnBackPressed } from '../bridge';
 import { useStackBack } from '../navigation';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
@@ -11,26 +11,26 @@ const OPEN_DIALOG_SELECTOR =
 
 /**
  * Hook to handle back button in hybrid app environment.
- * - Syncs navigation state with native app, where the app runs the frame around the page (the host's
+ * - Syncs navigation state with native app, where the frame has a back gesture (the host's
  *   `appShell` port)
  * - Handles native back button events
  * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
  */
 export const useBackHandler = () => {
     const location = useLocation();
-    const isOnMobileApp = runtime.appShell.kind === 'shell';
+    const backGesture = runtime.appShell.backGesture;
     const consumeBack = useStackBack();
 
     // Notify native app about navigation state changes
     // Also watch for dialog state changes using MutationObserver
     useEffect(() => {
-        if (!isOnMobileApp) return;
+        if (!backGesture) return;
 
         const checkCanGoBack = () => {
             // Only report dialog state - native app tracks navigation history separately
             const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 
-            appBridge.setCanGoBack(hasOpenDialogs);
+            backGesture.setCanGoBack(hasOpenDialogs);
         };
 
         // Initial check
@@ -49,7 +49,7 @@ export const useBackHandler = () => {
         });
 
         return () => observer.disconnect();
-    }, [location, isOnMobileApp]);
+    }, [location, backGesture]);
 
     /**
      * Closes the topmost open overlay.

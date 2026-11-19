@@ -4,11 +4,11 @@ import { act, renderHook } from '@testing-library/react';
 
 import type * as ZustandModule from 'zustand';
 
-// Mock the host (control whether the app runs the frame, through the runtime's `appShell` port), the
+// Mock the host (control whether the page owns its window, through the runtime's `appShell` port), the
 // bridge (capture logger.warn) and the two stores the hook reads. The stores are real zustand instances
 // so selector reads, getState() and setState() all behave exactly as in the app — only their module
 // wiring is faked.
-const { isNative } = vi.hoisted(() => ({ isNative: vi.fn(() => true) }));
+const { ownsWindow } = vi.hoisted(() => ({ ownsWindow: vi.fn(() => true) }));
 vi.mock('@chatic/bridges', () => ({
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -18,7 +18,8 @@ vi.mock('@chatic/bridges', () => ({
 vi.mock('@chatic/runtime', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
     const socketStore = create(() => ({ isVerified: false }));
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    const { browserAppShell, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         connection: {
             useRuntimeSocketState: socketStore,
             getRuntimeSocketState: () => socketStore.getState(),
@@ -27,7 +28,7 @@ vi.mock('@chatic/runtime', async () => {
         // store because the test drives it with setState.
         session: { useSessionAuth: create(() => ({ isAuthenticated: false })) },
         get appShell() {
-            return { kind: isNative() ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), ownsWindow: ownsWindow() };
         },
     });
 });
@@ -52,7 +53,7 @@ const setVerified = (isVerified: boolean) => act(() => socketStore.setState({ is
 const setAuthenticated = (isAuthenticated: boolean) => act(() => authStore.setState({ isAuthenticated }));
 const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
-// Drive the hook to the armed state: native + authenticated + verified once, then
+// Drive the hook to the armed state: own window + authenticated + verified once, then
 // the socket loses verification (the post-sleep wedge). Returns renderHook's handle.
 const arm = () => {
     const handle = renderHook(() => useSocketWedgeReload());
@@ -65,7 +66,7 @@ beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(BASE);
     sessionStorage.clear();
-    vi.mocked(isNative).mockReturnValue(true);
+    vi.mocked(ownsWindow).mockReturnValue(true);
     socketStore.setState({ isVerified: false });
     authStore.setState({ isAuthenticated: false });
     reloadMock = vi.fn();
@@ -115,8 +116,8 @@ describe('useSocketWedgeReload', () => {
         unmount();
     });
 
-    it('is a no-op outside the Electron shell (the app does not run the frame)', () => {
-        vi.mocked(isNative).mockReturnValue(false);
+    it('is a no-op where the page does not own its window (a browser tab)', () => {
+        vi.mocked(ownsWindow).mockReturnValue(false);
         const { unmount } = arm();
         setVerified(false);
         advance(GRACE_MS * 2);

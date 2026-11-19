@@ -208,10 +208,10 @@ const hostDeclarations = (built: string[]): HostPortDeclarations<Facts> => {
         checkout: { default: browser('checkout', { kind: 'none' }) },
         media: { default: browser('media', { kind: 'browser' }) },
         files: { default: browser('files', { kind: 'browser' }) },
-        links: { default: browser('links', { kind: 'browser' }) },
-        appShell: { default: browser('appShell', { kind: 'browser', os: null }) },
+        links: { default: browser('links', { kind: 'browser' } as HostPorts['links']) },
+        appShell: { default: browser('appShell', { kind: 'browser', os: null } as HostPorts['appShell']) },
         signIn: { default: browser('signIn', { kind: 'browser', os: null }) },
-        diagnostics: { default: browser('diagnostics', { kind: 'browser' }) },
+        diagnostics: { default: browser('diagnostics', { kind: 'browser' } as HostPorts['diagnostics']) },
         push: {
             default: browser('push', { kind: 'browser' }),
             alternatives: [

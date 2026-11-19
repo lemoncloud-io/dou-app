@@ -2,8 +2,6 @@ import { ingestLogEntry, logger } from '@chatic/bridges';
 import type { PendingReportInfo } from '@chatic/bridge-messages';
 import { runtime } from '@chatic/runtime';
 
-import { appBridge } from '../bridge';
-
 /** Settle delay past window load, so the bridge is answering before we ask it. */
 const FLUSH_DELAY_MS = 3_000;
 
@@ -51,16 +49,16 @@ const relayReport = (report: PendingReportInfo): void => {
  * crashes / RN exceptions / native crashes are detected while the web is gone
  * or dying, so they queue in MMKV and flush here once the web boots. Relayed
  * ids are acknowledged so the queue never re-sends them. Only where the
- * `diagnostics` port says the app queues the reports; a page that sends its own
- * has no such queue.
+ * `diagnostics` port has the app's queue; a page that sends its own has no
+ * such queue.
  */
 export const schedulePendingReportFlush = (): void => {
-    if (runtime.diagnostics.kind !== 'shell') return;
+    const { pendingReports } = runtime.diagnostics;
+    if (!pendingReports) return;
 
     const flush = async (): Promise<void> => {
         try {
-            const response = await appBridge.fetchPendingReports();
-            const reports = response.success ? (response.data?.reports ?? []) : [];
+            const reports = await pendingReports.fetch();
             if (!reports.length) return;
 
             const relayedIds: string[] = [];
@@ -74,7 +72,7 @@ export const schedulePendingReportFlush = (): void => {
                 }
             }
             if (relayedIds.length) {
-                await appBridge.ackPendingReports(relayedIds);
+                await pendingReports.ack(relayedIds);
             }
         } catch (flushError) {
             logger.warn('ERROR_REPORT', '[PendingReports] flush failed', { flushError });

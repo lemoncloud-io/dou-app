@@ -1,43 +1,41 @@
 import { syncLanguageChoiceToShell } from './languageChoice';
 
-let native = true;
-// Whether the app runs the frame around the page, as the host's `appShell` port says.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const save = jest.fn();
+let mockPreferences = true;
+// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get appShell() {
-            return { kind: native ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), preferences: mockPreferences ? { save, read: jest.fn() } : null };
         },
-    })
-);
-const savePreferenceConfirmed = jest.fn();
-jest.mock('./appBridge', () => ({
-    appBridge: { savePreferenceConfirmed: (data: unknown) => savePreferenceConfirmed(data) },
-}));
+    });
+});
 
 beforeEach(() => {
-    native = true;
-    savePreferenceConfirmed.mockReset().mockResolvedValue({ success: true });
+    mockPreferences = true;
+    save.mockReset().mockResolvedValue(undefined);
 });
 
 describe('syncLanguageChoiceToShell', () => {
     it('sends the choice itself under the legacy language key', async () => {
         await syncLanguageChoiceToShell('system');
 
-        expect(savePreferenceConfirmed).toHaveBeenCalledWith({ key: 'language', value: 'system' });
+        expect(save).toHaveBeenCalledWith('language', 'system');
     });
 
     it('retries once, like the theme, and then gives up without throwing', async () => {
-        savePreferenceConfirmed.mockRejectedValue(new Error('dropped'));
+        save.mockRejectedValue(new Error('dropped'));
 
         await expect(syncLanguageChoiceToShell('ko')).resolves.toBeUndefined();
-        expect(savePreferenceConfirmed).toHaveBeenCalledTimes(2);
+        expect(save).toHaveBeenCalledTimes(2);
     });
 
-    it('sends nothing outside a shell', async () => {
-        native = false;
+    it('sends nothing where the frame keeps no preference store', async () => {
+        mockPreferences = false;
 
         await syncLanguageChoiceToShell('ko');
 
-        expect(savePreferenceConfirmed).not.toHaveBeenCalled();
+        expect(save).not.toHaveBeenCalled();
     });
 });

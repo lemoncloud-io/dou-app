@@ -33,7 +33,7 @@ const declaredHostOf = (facts: WebHostFacts): DeclaredHost => ({
 });
 
 /** The three ways of filling one `'shell' | 'browser'` port. */
-interface ShellOrBrowserAdapters<P extends HostPortName> {
+export interface ShellOrBrowserAdapters<P extends HostPortName> {
     /** `<port>.host` — what the host declared, exactly as the entry points published it before. */
     readonly host: WebHostAdapter<P>;
     /** `<port>.shell` — the shell does it; only where the host declared that it does. */
@@ -42,9 +42,27 @@ interface ShellOrBrowserAdapters<P extends HostPortName> {
     readonly browser: WebHostAdapter<P>;
 }
 
+/** What a port's value starts from: the choice, and for `appShell` and `signIn` the phone platform behind it. */
+export type ShellOrBrowserBase<P extends HostPortName> = Pick<HostPorts[P], Extract<keyof HostPorts[P], 'kind' | 'os'>>;
+
+/**
+ * The app's two ways of doing one port's work, each built only when chosen: through its shell, and with
+ * what the page has. Both take the port's choice (`base`) and the facts the start was resolved against,
+ * and return the whole port with `base` in it.
+ *
+ * The app hands these in, as it does for `checkout`: the shell side talks to the app's own bridge wrapper
+ * (the web's `appBridge`, desktop-web's `webClient` requests), and the page side can need the app's own
+ * data — a store's address, a toast — so neither belongs in a library.
+ */
+export interface ShellOrBrowserImplementations<P extends HostPortName> {
+    readonly shell: (base: ShellOrBrowserBase<P>, facts: WebHostFacts) => HostPorts[P];
+    readonly browser: (base: ShellOrBrowserBase<P>, facts: WebHostFacts) => HostPorts[P];
+}
+
 /**
  * The adapters of one port whose value is the choice, and for `appShell` and `signIn` the phone platform
- * behind a `'shell'` answer (`withOs`).
+ * behind a `'shell'` answer (`withOs`). With `implementations`, the value is the app's implementation for
+ * that choice; without, it is the choice alone (the ports whose work still branches in the app).
  *
  * `.shell` is supported only where the host's declaration resolves to the shell, so a toggle cannot hand
  * the work to a shell that never said it does it. `.browser` is supported everywhere, which is the same
@@ -55,48 +73,69 @@ interface ShellOrBrowserAdapters<P extends HostPortName> {
 const shellOrBrowserAdapters = <P extends HostPortName>(
     port: P,
     introducedIn: number,
-    withOs: boolean
+    withOs: boolean,
+    implementations?: ShellOrBrowserImplementations<P>
 ): ShellOrBrowserAdapters<P> => {
-    const valueOf = (host: DeclaredHost, kind: ShellOrBrowser) =>
-        (withOs ? { kind, os: hostOsOf(host, kind) } : { kind }) as HostPorts[P];
+    const valueOf = (facts: WebHostFacts, kind: ShellOrBrowser) => {
+        const host = declaredHostOf(facts);
+        const base = (withOs ? { kind, os: hostOsOf(host, kind) } : { kind }) as ShellOrBrowserBase<P>;
+        return implementations ? implementations[kind](base, facts) : (base as HostPorts[P]);
+    };
     const declared = (facts: WebHostFacts): ShellOrBrowser =>
         resolveShellOrBrowser(declaredHostOf(facts), port, introducedIn);
     return {
         host: {
             id: `${port}.host`,
             port,
-            create: ({ facts }) => valueOf(declaredHostOf(facts), declared(facts)),
+            create: ({ facts }) => valueOf(facts, declared(facts)),
         },
         shell: {
             id: `${port}.shell`,
             port,
             supports: facts => declared(facts) === 'shell',
-            create: ({ facts }) => valueOf(declaredHostOf(facts), 'shell'),
+            create: ({ facts }) => valueOf(facts, 'shell'),
         },
         browser: {
             id: `${port}.browser`,
             port,
-            create: ({ facts }) => valueOf(declaredHostOf(facts), 'browser'),
+            create: ({ facts }) => valueOf(facts, 'browser'),
         },
     };
 };
 
 const media = shellOrBrowserAdapters('media', MEDIA_INTRODUCED_IN, false);
 const files = shellOrBrowserAdapters('files', FILES_INTRODUCED_IN, false);
-const links = shellOrBrowserAdapters('links', SHELL_DOMAINS_INTRODUCED_IN, false);
-const appShell = shellOrBrowserAdapters('appShell', SHELL_DOMAINS_INTRODUCED_IN, true);
 const signIn = shellOrBrowserAdapters('signIn', SHELL_DOMAINS_INTRODUCED_IN, true);
-const diagnostics = shellOrBrowserAdapters('diagnostics', SHELL_DOMAINS_INTRODUCED_IN, false);
 const push = shellOrBrowserAdapters('push', SHELL_DOMAINS_INTRODUCED_IN, false);
 
 // Each named after its id, as the runtime ports' adapters are (`media.host` → `mediaHost`).
 export const { host: mediaHost, shell: mediaShell, browser: mediaBrowser } = media;
 export const { host: filesHost, shell: filesShell, browser: filesBrowser } = files;
-export const { host: linksHost, shell: linksShell, browser: linksBrowser } = links;
-export const { host: appShellHost, shell: appShellShell, browser: appShellBrowser } = appShell;
 export const { host: signInHost, shell: signInShell, browser: signInBrowser } = signIn;
-export const { host: diagnosticsHost, shell: diagnosticsShell, browser: diagnosticsBrowser } = diagnostics;
 export const { host: pushHost, shell: pushShell, browser: pushBrowser } = push;
+
+// --- links, appShell, diagnostics: the implementations are the app's ----------------------------------
+//
+// The same three ways — as declared, the shell, the page — each built from the app's implementation for
+// that choice, so a feature calls the port and never asks which side it is on.
+
+/** `links.host` / `links.shell` / `links.browser`, from the app's implementations of the links port. */
+export const linksAdapters = (
+    implementations: ShellOrBrowserImplementations<'links'>
+): ShellOrBrowserAdapters<'links'> =>
+    shellOrBrowserAdapters('links', SHELL_DOMAINS_INTRODUCED_IN, false, implementations);
+
+/** `appShell.host` / `appShell.shell` / `appShell.browser`, from the app's implementations of the frame. */
+export const appShellAdapters = (
+    implementations: ShellOrBrowserImplementations<'appShell'>
+): ShellOrBrowserAdapters<'appShell'> =>
+    shellOrBrowserAdapters('appShell', SHELL_DOMAINS_INTRODUCED_IN, true, implementations);
+
+/** `diagnostics.host` / `diagnostics.shell` / `diagnostics.browser`, from the app's diagnostics implementations. */
+export const diagnosticsAdapters = (
+    implementations: ShellOrBrowserImplementations<'diagnostics'>
+): ShellOrBrowserAdapters<'diagnostics'> =>
+    shellOrBrowserAdapters('diagnostics', SHELL_DOMAINS_INTRODUCED_IN, false, implementations);
 
 // --- checkout: the implementations are the app's ------------------------------------------------------
 //

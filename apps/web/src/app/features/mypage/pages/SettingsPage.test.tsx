@@ -8,19 +8,25 @@ const setTheme = jest.fn();
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
-    getStoreUrl: () => undefined,
     useNavigateWithTransition: () => jest.fn(),
 }));
-// A browser tab: the page runs no app frame, as the `appShell` port says there.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// A browser tab by default: the frame checks no store, as the `appShell` port says there. A test that
+// needs the phone app's store lays `storeUpdate` on it.
+const mockOpenStore = jest.fn();
+let mockStoreUpdate = false;
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             usePairingAwareLogout: () => ({ start: jest.fn() }),
         },
-        appShell: { kind: 'browser', os: null },
-    })
-);
+        get appShell() {
+            const storeUpdate = { check: jest.fn(), openStore: mockOpenStore };
+            return { ...browserAppShell(), storeUpdate: mockStoreUpdate ? storeUpdate : null };
+        },
+    });
+});
 jest.mock('@chatic/web-ui-kit', () => ({
     IconChevronRight: () => null,
     IconSpinner: () => null,
@@ -37,18 +43,22 @@ jest.mock('@chatic/web-ui-kit', () => ({
         <button type="button" role="switch" aria-checked={checked} onClick={() => onCheckedChange(!checked)} />
     ),
 }));
-jest.mock('../../../bridge', () => ({ appBridge: {} }));
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
-jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: () => ({}) }));
+let mockPlatform: string | undefined;
+jest.mock('../../../hooks/useDeviceInfo', () => ({
+    useDeviceInfo: () => ({ deviceInfo: mockPlatform ? { platform: mockPlatform } : undefined }),
+}));
 jest.mock('../../../hooks/useDevicePairingEnabled', () => ({ useDevicePairingEnabled: () => false }));
 jest.mock('../../../hooks', () => ({
     useOnboarding: () => ({ resetOnboarding: jest.fn() }),
     useTheme: () => ({ setTheme, isDarkTheme: false }),
 }));
-jest.mock('../../appUpdate', () => ({ useAppUpdateStatus: () => ({ updateAvailable: false }) }));
+let mockUpdateAvailable = false;
+jest.mock('../../appUpdate', () => ({ useAppUpdateStatus: () => ({ updateAvailable: mockUpdateAvailable }) }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
+let mockIconSupported = false;
 jest.mock('../hooks', () => ({
-    useAppIcon: () => ({ isSupported: false, currentIcon: null, availableIcons: [], currentIconLabel: '' }),
+    useAppIcon: () => ({ isSupported: mockIconSupported, currentIcon: null, availableIcons: [], currentIconLabel: '' }),
     useClearLocalCaches: () => ({ clearLocalCaches: jest.fn(), isClearing: false }),
     useLanguagePreference: () => ({ preference: 'system' }),
 }));
@@ -59,7 +69,13 @@ jest.mock('../components', () => ({
     LogoutDialog: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div role="dialog" /> : null),
 }));
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockStoreUpdate = false;
+    mockPlatform = undefined;
+    mockUpdateAvailable = false;
+    mockIconSupported = false;
+});
 
 describe('SettingsPage — haptics', () => {
     it('ticks as dark mode flips, and switches the theme', () => {
@@ -78,5 +94,43 @@ describe('SettingsPage — haptics', () => {
 
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(mockHaptic.mock.calls).toEqual([['warning']]);
+    });
+});
+
+describe('SettingsPage — the version row', () => {
+    it('opens the store listing through the frame that found the newer build', () => {
+        mockStoreUpdate = true;
+        mockPlatform = 'ios';
+        mockUpdateAvailable = true;
+        render(<SettingsPage />);
+
+        fireEvent.click(screen.getByText('mypage.appVersion'));
+
+        expect(mockOpenStore).toHaveBeenCalledTimes(1);
+    });
+
+    it('goes nowhere while no update is pending', () => {
+        mockStoreUpdate = true;
+        mockPlatform = 'ios';
+        render(<SettingsPage />);
+
+        fireEvent.click(screen.getByText('mypage.appVersion'));
+
+        expect(mockOpenStore).not.toHaveBeenCalled();
+    });
+});
+
+describe('SettingsPage — the app icon row', () => {
+    it('shows once the frame says this device can change its icon', () => {
+        mockIconSupported = true;
+        render(<SettingsPage />);
+
+        expect(screen.getByText('mypage.appIconSettings')).toBeTruthy();
+    });
+
+    it('stays hidden where the icon cannot be changed', () => {
+        render(<SettingsPage />);
+
+        expect(screen.queryByText('mypage.appIconSettings')).toBeNull();
     });
 });

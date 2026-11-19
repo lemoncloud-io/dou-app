@@ -8,12 +8,13 @@ import type * as SharedModule from '../../../shared';
 const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
 
 // The sub web view's launcher asks the links port; the page takes its own links, as in a browser.
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime', async () => {
+    const testing = await import('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         session: { useIsPairedSession: () => pairingEnv.paired },
-        links: { kind: 'browser' },
-    })
-);
+        links: testing.browserLinks(),
+    });
+});
 // The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
 vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,

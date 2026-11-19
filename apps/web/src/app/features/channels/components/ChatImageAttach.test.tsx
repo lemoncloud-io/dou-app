@@ -27,18 +27,19 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
-// Who picks, as the host's media port says, and who runs the frame around the page, as its `appShell`
-// port says: the app for both when the case runs in the app.
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// Who picks, as the host's media port says, and whether the frame reports the keyboard's height, as
+// its `appShell` port says: the app for both when the case runs in the app.
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         get media() {
             return { kind: mockNative ? 'shell' : 'browser' };
         },
         get appShell() {
-            return { kind: mockNative ? 'shell' : 'browser', os: null };
+            return { ...browserAppShell(), reportsKeyboardHeight: mockNative };
         },
-    })
-);
+    });
+});
 let mockAppleTouch = false;
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),

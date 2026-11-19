@@ -13,8 +13,8 @@ import { tabStore } from '../../storage';
 //
 // Reproduce that reload automatically: when a socket that verified at least once
 // this session stays unverified past the grace window, reload once. Only where
-// the app runs the frame around the page (the host's `appShell` port: Electron)
-// — in a plain browser tab the page is the user's own and must never be
+// the page owns its window (the host's `appShell` port: the desktop app's own
+// window) — in a plain browser tab the page is the user's own and must never be
 // auto-reloaded out from under them.
 const WEDGE_GRACE_MS = 25_000; // let the normal recovery (supervisor probe,
 // auth.update retries ~14s, periodic refresh) run before we force a reload.
@@ -28,8 +28,9 @@ const readReloadAt = (): number => Number(tabStore.get(RELOAD_AT_KEY)) || 0;
 /**
  * Self-heal a socket wedged unverified after sleep/wake by reloading the Electron
  * renderer — the automatic equivalent of the user's manual ctrl+r. No-op unless
- * the `appShell` port says the app runs the frame (so in a plain browser) and until the socket has verified at least once this session
- * (so a slow cold start is never mistaken for a wedge).
+ * the `appShell` port says the page owns its window (so never in a plain browser
+ * tab), and until the socket has verified at least once this session (so a slow
+ * cold start is never mistaken for a wedge).
  */
 export const useSocketWedgeReload = (): void => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
@@ -38,7 +39,7 @@ export const useSocketWedgeReload = (): void => {
     const hasVerifiedRef = useRef(false);
 
     useEffect(() => {
-        if (runtime.appShell.kind !== 'shell') return;
+        if (!runtime.appShell.ownsWindow) return;
 
         if (isVerified) {
             hasVerifiedRef.current = true;

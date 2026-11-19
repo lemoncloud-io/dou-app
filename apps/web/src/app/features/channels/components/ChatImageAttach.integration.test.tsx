@@ -35,13 +35,14 @@ jest.mock('react-i18next', () => ({
 jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => false }));
 // The page picks, as the host's media port says in a browser — the same answer as `isNative` above —
-// and no app runs the frame around it (the `appShell` port).
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// and no frame reports the keyboard to it (the `appShell` port).
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
         media: { kind: 'browser' },
-        appShell: { kind: 'browser', os: null },
-    })
-);
+        appShell: browserAppShell(),
+    });
+});
 jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),
     isAppleTouchWebKit: () => false,

@@ -26,6 +26,10 @@ import type { HostPorts } from '@chatic/runtime-client';
 import * as domain from '../domain';
 import * as facade from '../facade';
 
+import { browserAppShell } from './hostPorts/appShell';
+import { browserDiagnostics } from './hostPorts/diagnostics';
+import { browserLinks } from './hostPorts/links';
+
 import type * as RuntimeModule from '../index';
 
 type Runtime = typeof facade;
@@ -43,15 +47,18 @@ const PORT_GROUPS = HOST_PORT_NAMES.filter((name): name is PortGroup => name !==
  */
 export type RuntimeOverrides = { [G in keyof Runtime]?: Record<string, unknown> };
 
+// Each port's browser value on its own, for a test that lays its own members on one.
+export { browserAppShell, browserDiagnostics, browserLinks };
+
 /** A browser tab's ports: nothing sold, and the page does everything itself. */
 export const browserHostPorts = (): HostPorts => ({
     checkout: { kind: 'none' },
     media: { kind: 'browser' },
     files: { kind: 'browser' },
-    links: { kind: 'browser' },
-    appShell: { kind: 'browser', os: null },
+    links: browserLinks(),
+    appShell: browserAppShell(),
     signIn: { kind: 'browser', os: null },
-    diagnostics: { kind: 'browser' },
+    diagnostics: browserDiagnostics(),
     push: { kind: 'browser' },
 });
 

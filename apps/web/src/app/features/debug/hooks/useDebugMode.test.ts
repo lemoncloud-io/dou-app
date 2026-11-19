@@ -1,10 +1,15 @@
-// Mock the bridge so the hook's native propagation is observable and jsdom
-// never touches the real webClient; the `diagnostics` port decides whether it propagates.
+// The `diagnostics` port decides whether an unlock reaches the app: where it has a debug switch of its
+// own, the hook calls it. A watched switch stands in for the app's, so jsdom never touches the bridge.
 const mockIsNative = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+const mockSetHostDebugMode = jest.fn();
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
         get diagnostics() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return {
+                ...testing.browserDiagnostics(),
+                ...(mockIsNative() ? { kind: 'shell', debugMode: { set: mockSetHostDebugMode } } : {}),
+            };
         },
         settings: {
             get: (key: string) => configGet(key),
@@ -13,9 +18,8 @@ jest.mock('@chatic/runtime', () =>
             subscribe: () => () => undefined,
             CONFIG_UNLOCK_KEY: 'system.overridesUnlocked',
         },
-    })
-);
-jest.mock('../../../bridge', () => ({ appBridge: { setDebugMode: jest.fn() } }));
+    });
+});
 // The registry decides visibility by build stage (ADR-0080 Decision 4); the facade is mocked so the
 // stage rule can be stated per test instead of standing up ports.
 const configGet = jest.fn();
@@ -24,12 +28,11 @@ const configClear = jest.fn();
 
 import { act, renderHook } from '@testing-library/react';
 
-import { appBridge } from '../../../bridge';
 import { setDebugModeEnabled, useDebugMode } from './useDebugMode';
 import { DEBUG_STORAGE_KEY } from '../consts';
 
 const isNativeMock = mockIsNative;
-const setDebugModeMock = appBridge.setDebugMode as jest.Mock;
+const setDebugModeMock = mockSetHostDebugMode;
 
 describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
     beforeEach(() => {

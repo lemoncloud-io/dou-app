@@ -28,16 +28,24 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
-        // Who takes the page's links, as the host's `links` port says.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
+        // The app's address book where the host has one, answering what `getContacts` replies; a
+        // browser has none.
         get links() {
-            return { kind: isNativeValue ? 'shell' : 'browser' };
+            return isNativeValue
+                ? {
+                      ...testing.browserLinks(),
+                      kind: 'shell',
+                      contacts: { read: async () => (await getContacts())?.data },
+                  }
+                : testing.browserLinks();
         },
-    })
-);
+    });
+});
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
-jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
+jest.mock('../../../bridge', () => ({ appBridge: { openSettings } }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite, requestInviteLink }),
     useChannel: () => ({ channel: mockChannel }),

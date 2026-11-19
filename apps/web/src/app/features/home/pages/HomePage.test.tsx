@@ -53,8 +53,9 @@ jest.mock('@chatic/runtime', () =>
             usePairedCloudIds: () => pairedCloudIds,
             usePairedCloudNames: () => pairedCloudNames,
         },
-        // Haptics play only where the app runs the frame (the host's `appShell` port); this page is in a browser.
-        appShell: { kind: 'browser', os: null },
+        // Haptics play only where the frame has them (the host's `appShell` port); this page is in a
+        // browser, which has none.
+        appShell: require('@chatic/runtime/testing').browserAppShell(),
     })
 );
 
