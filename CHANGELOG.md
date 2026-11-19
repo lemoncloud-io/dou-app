@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-19] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,chatic-apps-sdk) tell a mini app its display and safe area
+
+### Documentation
+
+- (adr) renumber the display context decision to ADR-0358, as 0355 is taken
+
 ## [2026-11-19] - root@0.168.7, @chatic/web@0.96.3, @chatic/landing@0.19.3, @chatic/desktop-web@0.60.5
 
 ### Features
