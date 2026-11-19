@@ -24,7 +24,7 @@ Or, with no bundler, one script that defines `window.ChaticAppsSDK` (pin the ver
 is not in this file):
 
 ```html
-<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
+<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/chatic-apps-sdk.global.js"></script>
 ```
 
 ## Start
@@ -57,7 +57,7 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Quiz</title>
-        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
+        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.3.0/chatic-apps-sdk.global.js"></script>
     </head>
     <body>
         <h1 id="score">0</h1>
@@ -547,11 +547,22 @@ Which app a page meets is the app's business, not the library's: a call the app 
 `NOT_SUPPORTED`, so decide with `apps.supports(...)`, never with a version number. The library's own
 numbers, for reading a bug report:
 
-| Library           | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.1.0             | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                                                                                                                                                                        |
-| 0.2.0             | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                                                                                                                                                                    |
-| next (unreleased) | 2.33.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type; the skill (`skill/SKILL.md`); `react` (`chatReact`); `context.display` and `context.safeArea`; the mock's `display`, `rotate()` and `reactions` |
+| Library | Bridge it was built against (`SDK_BRIDGE_VERSION`) | Data contracts (`SDK_DATA_CONTRACTS`) | Added                                                                                                                                                                                                                                                                                                                                                                           |
+| ------- | -------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0   | 2.19.0                                             | —                                     | The base calls, storage, share, user key                                                                                                                                                                                                                                                                                                                                        |
+| 0.2.0   | 2.20.0                                             | —                                     | Camera and microphone permissions; `GUIDE.md` and `AGENTS.md` in the package                                                                                                                                                                                                                                                                                                    |
+| 0.3.0   | 2.33.0                                             | `[1]`                                 | `apps.data` with its typed methods, rows and session; `sendMessage`; place profiles (`placeProfile`, `placeProfiles`, `myProfile` and their `observe…`); the typed mock; `platform: 'desktop'`; the `MiniAppLaunchParams` type; the skill (`skill/SKILL.md`); `react` (`chatReact`); `context.display` and `context.safeArea`; the mock's `display`, `rotate()` and `reactions` |
+
+What 0.3.0 needs from the app, for reading a bug report (bridge versions; the page still decides with
+`apps.supports(...)`, and an older app answers `false` or `NOT_SUPPORTED` rather than breaking the page):
+
+- `apps.data` reads: bridge 2.26.0; `sendMessage`: 2.27.0.
+- `context.display` and `context.safeArea`: 2.30.0 (absent before it).
+- The cache budget and merged events while hidden: 2.31.0.
+- `react` (`chatReact`): 2.32.0.
+- 2.33.0 is the bridge this build was made against; no further call needs it.
+
+A page written for 0.2.0 needs no change: nothing it called was removed or renamed.
 
 The data contract is the app's own version for what `apps.data` reads. The app answers a
 page with the newest contract both speak; a library that speaks none the app does is answered
