@@ -1,6 +1,6 @@
 # The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.29.0. This document states the protocol as it stands. Which
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.30.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.
@@ -46,7 +46,7 @@ desktop column is the [desktop shell](#the-desktop-shell); the last column is wh
 | Feature                    | Means                                                                                                 | Opened by                                                  | Desktop shell                                   | `chatic-apps-sdk`             |
 | -------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------- | ----------------------------- |
 | Connecting, starting state | [Handshake](#handshake) (`WebAppReady`, `Ping`); the [context](#context)                              | base                                                       | Answered                                        | `connect`, `context`          |
-| Theme and language changes | Push `OnSubWebViewContextChanged`                                                                     | base                                                       | Never pushed: the context stays the opening one | `onContextChange`             |
+| Theme, language, safe area | Push `OnSubWebViewContextChanged`                                                                     | base                                                       | Never pushed: the context stays the opening one | `onContextChange`             |
 | Closing, with a result     | `FinishSubWebView`                                                                                    | base                                                       | Answered                                        | `finish`                      |
 | Title                      | `SetSubWebViewTitle`                                                                                  | base; shown with `display: titled`                         | Answered                                        | `setTitle`                    |
 | Haptics                    | `TriggerHaptic`                                                                                       | base                                                       | `NOT_FOUND`                                     | `haptic`                      |
@@ -59,8 +59,8 @@ desktop column is the [desktop shell](#the-desktop-shell); the last column is wh
 | Share sheet                | `OpenShareSheet`                                                                                      | `share`                                                    | `NOT_FOUND`                                     | `share`                       |
 | Opening outside the app    | `OpenURL`                                                                                             | `openUrl`                                                  | `NOT_FOUND`                                     | `openUrl`                     |
 | User key                   | `GetSubWebViewUserKey`                                                                                | `userKey`                                                  | `NOT_FOUND`                                     | `getUserKey`                  |
-| Display                    | The manifest's `display`: `titled`, `clean`, `immersive` ([Layout](#layout))                          | The manifest                                               | Always with the bar                             | None: the page cannot ask     |
-| Safe area                  | The shell pads `titled` and `clean`; `immersive` gets the `--chatic-safe-area-inset-*` CSS properties | `display: immersive`                                       | No system bars, nothing to report               | None: CSS only                |
+| Display                    | The manifest's `display`: `titled`, `clean`, `immersive`; the context's `display` ([Layout](#layout)) | The manifest                                               | Always with the bar; not in the context         | `context.display`             |
+| Safe area                  | The shell pads `titled` and `clean`; `immersive` gets the CSS properties and the context's `safeArea` | `display: immersive` (0 on every edge otherwise)           | No system bars; not in the context              | `context.safeArea`            |
 | Orientation                | The manifest's `orientation`                                                                          | The manifest                                               | Not applied: a window                           | None                          |
 | Links to the page          | The context's `appLink` ([Links to a page](#links-to-a-page))                                         | base                                                       | Not in the context                              | `link`                        |
 | Reading the cloud's data   | The four [runtime](#runtime-reads) requests, pushes `OnRuntimeEvent`, `OnRuntimeSessionChanged`       | A runtime permission, and [six conditions](#runtime-reads) | `NOT_FOUND`                                     | `data`                        |
@@ -192,23 +192,30 @@ opened origin, and is not answered (see [Timing](#timing)).
 
 `window.ChaticSubWebView`, and the handshake's `subWebView`, is a frozen `SubWebViewContext`:
 
-| Field             | Type                              | Meaning                                                                                |
-| ----------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `protocolVersion` | `1`                               | This protocol's major version                                                          |
-| `viewId`          | string                            | The view; opaque to the page                                                           |
-| `platform`        | `'ios' \| 'android' \| 'desktop'` | The OS, or `desktop` for the desktop app (see [The desktop shell](#the-desktop-shell)) |
-| `appVersion`      | string                            | The app's own version (`0.31.0`)                                                       |
-| `locale`          | string                            | The language the user chose in the app (`ko`, `en`)                                    |
-| `theme`           | `'light' \| 'dark'`               | The app's resolved theme, which can differ from the OS's                               |
-| `params`          | object                            | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                        |
-| `appLink`         | string                            | The link that opens this page: see [Links to a page](#links-to-a-page)                 |
+| Field             | Type                                 | Meaning                                                                                |
+| ----------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `protocolVersion` | `1`                                  | This protocol's major version                                                          |
+| `viewId`          | string                               | The view; opaque to the page                                                           |
+| `platform`        | `'ios' \| 'android' \| 'desktop'`    | The OS, or `desktop` for the desktop app (see [The desktop shell](#the-desktop-shell)) |
+| `appVersion`      | string                               | The app's own version (`0.31.0`)                                                       |
+| `locale`          | string                               | The language the user chose in the app (`ko`, `en`)                                    |
+| `theme`           | `'light' \| 'dark'`                  | The app's resolved theme, which can differ from the OS's                               |
+| `params`          | object                               | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                        |
+| `appLink`         | string                               | The link that opens this page: see [Links to a page](#links-to-a-page)                 |
+| `display`         | `'titled' \| 'clean' \| 'immersive'` | The display the shell **shows** the page in, not the one the manifest asked for        |
+| `safeArea`        | `{ top, right, bottom, left }`       | How far the system bars reach into the page, in CSS px; see [Layout](#layout)          |
 
 - It is defined only on the opened origin. A page the view navigated to finds nothing, even on
   another allowlisted origin.
 - What the shell puts in it identifies nothing — not the device, the install or the user. `params`
   are the opener's, not the shell's: DoU's own web opens a mini app with
-  [launch params](#launch-params) that name the user within one cloud. A later change of `theme`
-  or `locale` arrives as `OnSubWebViewContextChanged`; the global keeps its first values.
+  [launch params](#launch-params) that name the user within one cloud. A later change of `theme`,
+  `locale` or `safeArea` arrives as `OnSubWebViewContextChanged`; the global keeps its first values,
+  and the handshake reply carries the values as they are when the page asks.
+- `display` and `safeArea` are absent from an app before 2.30.0 and from the desktop shell. A page that
+  finds no `safeArea` reads the `--chatic-safe-area-inset-*` properties, then `env()`, as before; one
+  that finds no `display` cannot tell its display, as before. Their presence is the only signal: they
+  are fields, not requests, so the handshake does not list them.
 
 ## Launch params
 
@@ -772,7 +779,7 @@ meaning moves to a new contract (see [Compatibility](#compatibility)).
 
 | Push                         | Data                               | When                                                                              |
 | ---------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
-| `OnSubWebViewContextChanged` | `{ theme, locale }`                | The app's theme or language changed while the view showed                         |
+| `OnSubWebViewContextChanged` | `{ theme, locale, safeArea }`      | The theme or language changed, or the safe area settled after a change            |
 | `OnRuntimeEvent`             | `{ subscriptionId, seq, event }`   | An open runtime stream's event; its last is `{ $ended }`                          |
 | `OnRuntimeSessionChanged`    | `{ seq, signals, session }`        | The session changed, with the `session` permission                                |
 | `OnBackPressed`              | `{}`                               | Android back, while the page's `SetCanGoBack` claim is `true`                     |
@@ -883,6 +890,13 @@ colour are gone. The system bars themselves stay visible. The floating close con
   `viewport-fit=cover` (the shell keeps WKWebView's scroll view from insetting the
   content, which is what lets WebKit report the safe area); on Android from WebView M136 for a WebView
   that fills the screen, and from M144 for any. An older Android WebView reports 0.
+- **The context carries the same values** as `safeArea`, for a page that lays out in script (a canvas
+  game): `{ top, right, bottom, left }` in CSS px, from the one measurement the properties are set from.
+  A padded page's `safeArea` is 0 on every edge. The values are the app's own measurement, which it has
+  before the view mounts, so the global and the handshake reply carry them from the page's first load —
+  unlike the properties, which can trail the page on Android. After a rotation the properties follow
+  every step at once, and `OnSubWebViewContextChanged` carries the new `safeArea` once the insets have
+  stayed put for 200 ms, with `theme` and `locale` beside it as always.
 - **A page SHOULD read the property first and fall back to `env()`**:
   `padding-top: var(--chatic-safe-area-inset-top, env(safe-area-inset-top, 0px))`. Its controls and
   anything tappable stay clear of the insets; its scenery runs under them.
@@ -954,7 +968,7 @@ row actually has.
 | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Notice before a `page`, `host` or `system` close            | Save as you go; `visibilitychange`                                     |
 | A background or foreground push                             | `visibilitychange`                                                     |
-| Safe-area insets on `titled` and `clean`                    | Not needed: the viewport is inside the safe area                       |
+| Safe-area insets on `titled` and `clean`                    | Not needed: the viewport is inside the safe area (`safeArea` is all 0) |
 | A colour for the safe-area padding                          | `immersive`, which has no padding to colour                            |
 | The status bar's icon colour                                | Not provided: it follows the app's theme                               |
 | Talking to the opener while open                            | `params` and `result`                                                  |
@@ -977,6 +991,8 @@ tests, but have not been watched on a device:
   properties are in place before the page's first paint on Android, where the first injection can
   trail the page, that they follow a rotation, and that a focused input near the bottom stays above the
   keyboard in the unpadded view on Android;
+- that the context's `safeArea` matches the bars on both platforms at the start and after a rotation,
+  and that one push arrives per rotation;
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
   Android, which runs edge to edge;
 - that iOS and Android hand an `/apps/…` link to the app (the association file and the intent filter),
@@ -1013,3 +1029,4 @@ for the rest, the section that describes it says how a page copes.
 | 2.26.0           | Runtime reads: the permissions `session`, `cloud`, `place`, `channel`, `chat`, `user`; the four runtime requests and their two pushes; `RUNTIME_NOT_ALLOWED`, `CLOUD_CHANGED`, `CONSENT_REFUSED`, `RATE_LIMITED`; the stream and server-read limits; the security invariant about the user amended                                                                       |
 | 2.27.0           | `chatSend` and `chat.sendChat`; the send limit and the message length limits; `RUNTIME_NOT_ALLOWED` and `RATE_LIMITED` extended to a message; consent kept per place with `chatSend`; the security invariant about the user amended again                                                                                                                                |
 | 2.29.0           | The displays renamed `titled` and `clean` (`standard` and `fullscreen` still read); `immersive` and the `--chatic-safe-area-inset-*` properties; the desktop showing `immersive` as `clean`                                                                                                                                                                              |
+| 2.30.0           | The context's `display` and `safeArea`; `safeArea` in `OnSubWebViewContextChanged`, pushed once the insets settle                                                                                                                                                                                                                                                        |

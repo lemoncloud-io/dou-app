@@ -1,3 +1,4 @@
+import { SDK_BRIDGE_VERSION } from './client';
 import { ruledStore, type StoreFile } from './storage';
 import type {
     DataCallArgs,
@@ -338,8 +339,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.29.0',
-                    protocolVersion: '2.29.0',
+                    appVersion: SDK_BRIDGE_VERSION,
+                    protocolVersion: SDK_BRIDGE_VERSION,
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },
