@@ -38,12 +38,44 @@ const storeKey = ({ userId, origin, cloudId, placeId }: SubWebViewConsentKey) =>
 const hostOf = (origin: string) => origin.replace(/^https:\/\//, '');
 
 /**
+ * The wording a yes was given under, per permission whose question once said less than it does now.
+ * A kept yes covers such a permission only if it was given under at least this revision; one given
+ * earlier is asked again, once. A permission not listed has said the same since it was first asked.
+ *
+ * - `user` 2: the question says that reading members hands over what their accounts carry. Before,
+ *   it named "members and profiles" only.
+ * - `cloud` 2: the question says that an owned cloud comes with its owner, linked account,
+ *   subscription and server. Before, it named "the cloud" only.
+ */
+export const SUB_WEB_VIEW_CONSENT_REVISION: Partial<Record<SubWebViewRuntimePermission, number>> = {
+    user: 2,
+    cloud: 2,
+};
+
+/** The revision every new yes is kept under: the highest a permission needs. */
+const CURRENT_REVISION = Math.max(1, ...Object.values(SUB_WEB_VIEW_CONSENT_REVISION).map(Number));
+
+/**
+ * A kept yes, as `channel,user` (before revisions were kept, read as revision 1) or
+ * `channel,user;2`.
+ */
+const readKept = (kept: string): { allowed: ReadonlySet<string>; revision: number } => {
+    const [names, revision] = kept.split(';');
+    const parsed = Number(revision);
+    return {
+        allowed: new Set(names.split(',')),
+        revision: Number.isInteger(parsed) && parsed > 0 ? parsed : 1,
+    };
+};
+
+/**
  * The user's answer to "may this page read this cloud", before a page's first runtime request is
  * answered. Per user, page and cloud: the data is the cloud's, so allowing a page in one says nothing
  * about another. A page that may send messages is asked per place as well (`placeId`).
  *
- * - **Allowed** is kept, with the permissions it covered. A page whose manifest later asks for more is
- *   asked again.
+ * - **Allowed** is kept, with the permissions it covered and the wording it was given under. A page
+ *   whose manifest later asks for more is asked again, and so is a yes given before the question said
+ *   what it says now about one of its permissions (`SUB_WEB_VIEW_CONSENT_REVISION`).
  * - **Refused** is kept for this consent only — one per view — so a page that keeps asking does not
  *   put the question up again and again. The next view asks anew.
  * - **One question at a time.** Requests that arrive while it is up wait for the same answer.
@@ -61,8 +93,10 @@ export const createSubWebViewRuntimeConsent = ({
     const covered = (key: string, permissions: ReadonlySet<SubWebViewRuntimePermission>): boolean => {
         const kept = store.getString(key);
         if (kept === undefined) return false;
-        const allowed = new Set(kept.split(','));
-        return [...permissions].every(permission => allowed.has(permission));
+        const { allowed, revision } = readKept(kept);
+        return [...permissions].every(
+            permission => allowed.has(permission) && revision >= (SUB_WEB_VIEW_CONSENT_REVISION[permission] ?? 1)
+        );
     };
 
     return {
@@ -81,7 +115,7 @@ export const createSubWebViewRuntimeConsent = ({
                         refused.add(id);
                         return 'refused' as const;
                     }
-                    store.set(id, [...permissions].sort().join(','));
+                    store.set(id, `${[...permissions].sort().join(',')};${CURRENT_REVISION}`);
                     return 'allowed' as const;
                 });
             asking.set(id, question);

@@ -28,28 +28,52 @@ const openStore = (): SubWebViewConsentStore => {
     return store;
 };
 
+/** The permissions whose reads are held to the place the view opened on. */
+const PLACE_BOUND: readonly SubWebViewRuntimePermission[] = ['channel', 'chat', 'user'];
+
 /**
- * The words of the question. Sending is named on its own, never listed among the reads: a page that may
- * post in the user's name says so in the title, and the "cannot change anything" line is dropped.
+ * The words of the question, one sentence per thing the user is agreeing to:
+ *
+ * 1. what the page reads (and, with `chatSend`, that it posts in the user's name) — sending is named on
+ *    its own, in the title too, never listed among the reads;
+ * 2. with a place's reads (`channel`, `chat`, `user`), that they come only from the place the page is
+ *    opened in — a read-only yes is kept per cloud, so the words never say "this place" of the reads;
+ * 3. with `user`, that members come with what their accounts carry, and with `cloud`, that an owned
+ *    cloud comes with its owner, account, subscription and server — the rows are not filtered;
+ * 4. what it cannot do: change anything, or, with `chatSend`, anything else.
  */
 export const consentQuestion = (
     host: string,
     permissions: readonly SubWebViewRuntimePermission[]
 ): { title: string; message: string } => {
     const reads = permissions.filter(permission => permission !== 'chatSend');
+    const sends = permissions.includes('chatSend');
     const what = reads.map(permission => t(`webview.subRuntimePermission.${permission}` as TranslationKey)).join(', ');
-    if (!permissions.includes('chatSend')) {
-        return {
-            title: t('webview.subRuntimeConsent.title'),
-            message: t('webview.subRuntimeConsent.message').replace('{0}', host).replace('{1}', what),
-        };
+    const fill = (key: TranslationKey) => t(key).replace('{0}', host).replace('{1}', what);
+
+    const lead =
+        reads.length === 0
+            ? fill('webview.subRuntimeConsent.sendOnly')
+            : fill(sends ? 'webview.subRuntimeConsent.readAndSend' : 'webview.subRuntimeConsent.read');
+    const sentences = [lead];
+    if (reads.some(permission => PLACE_BOUND.includes(permission))) {
+        sentences.push(t('webview.subRuntimeConsent.thisPlaceOnly'));
     }
+    if (reads.includes('user')) sentences.push(t('webview.subRuntimeConsent.memberAccounts'));
+    if (reads.includes('cloud')) sentences.push(t('webview.subRuntimeConsent.cloudAccount'));
+    sentences.push(
+        t(
+            !sends
+                ? 'webview.subRuntimeConsent.changesNothing'
+                : reads.length === 0
+                  ? 'webview.subRuntimeConsent.readsAndChangesNothingElse'
+                  : 'webview.subRuntimeConsent.changesNothingElse'
+        )
+    );
+
     return {
-        title: t('webview.subRuntimeConsent.titleWithSend'),
-        message:
-            reads.length === 0
-                ? t('webview.subRuntimeConsent.messageSendOnly').replace('{0}', host)
-                : t('webview.subRuntimeConsent.messageWithSend').replace('{0}', host).replace('{1}', what),
+        title: t(sends ? 'webview.subRuntimeConsent.titleWithSend' : 'webview.subRuntimeConsent.title'),
+        message: sentences.join(' '),
     };
 };
 

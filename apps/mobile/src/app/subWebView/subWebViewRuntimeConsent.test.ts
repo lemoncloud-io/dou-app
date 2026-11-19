@@ -98,4 +98,31 @@ describe('createSubWebViewRuntimeConsent', () => {
 
         await expect(consent.ensure(key, perms('chat'))).resolves.toBe('refused');
     });
+
+    it('asks a yes kept before the question named what members carry again when it covers user', async () => {
+        const store = memoryStore();
+        // A yes kept by an app before the revision: names only, no revision.
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`, 'channel,user');
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc2`, 'channel,chat');
+        const ask = jest.fn().mockResolvedValue(true);
+        const consent = createSubWebViewRuntimeConsent({ store, ask });
+
+        await expect(consent.ensure(key, perms('channel', 'user'))).resolves.toBe('allowed');
+        await expect(consent.ensure(key, perms('channel', 'user'))).resolves.toBe('allowed');
+        // The yes without `user` said nothing less than it says now, so it still stands.
+        await expect(consent.ensure({ ...key, cloudId: 'c2' }, perms('chat'))).resolves.toBe('allowed');
+
+        expect(ask).toHaveBeenCalledTimes(1);
+        expect(store.values.get(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`)).toBe('channel,user;2');
+    });
+
+    it('reads a kept revision it cannot parse as the first', async () => {
+        const store = memoryStore();
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`, 'user;x');
+        const ask = jest.fn().mockResolvedValue(true);
+
+        await createSubWebViewRuntimeConsent({ store, ask }).ensure(key, perms('user'));
+
+        expect(ask).toHaveBeenCalledTimes(1);
+    });
 });

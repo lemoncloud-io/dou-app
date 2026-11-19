@@ -725,13 +725,20 @@ otherwise answer `NOT_FOUND` as in an app that predates them:
   failed send leaves: a failed row in the room, in the user's name, on this device. None of the read
   permissions opens it, and it opens no read: a page that needs a room's id reads it with `channel`.
 - **Consent.** Before the first answer, the app asks the user whether this page may read this cloud,
-  naming what it reads — and, with `chatSend`, saying in the title and the text that the page sends
-  messages in the user's name; a yes given before a page asked for `chatSend` does not cover it. The
-  hello's reply waits for that answer, so a page MUST NOT time it out (see [Timing](#timing)) and
-  SHOULD send it before any `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same
-  question. A yes is kept per user, page and cloud — and, for a page with `chatSend`, per place — with
-  the permissions it covered; a page that later asks for more is asked again. A no is kept for the
-  view only, so the next open asks again.
+  naming what it reads; with `channel`, `chat` or `user`, saying that what belongs to a place comes
+  only from the place the page is opened in; with `user`, saying that members come with what their
+  accounts carry; with `cloud`, saying that an owned cloud comes with its owner, linked account,
+  subscription and server (see [What each permission hands over](#what-each-permission-hands-over));
+  and, with `chatSend`, saying in the title and the text that the page sends messages in the user's
+  name — a yes given before a page asked for `chatSend` does not cover it. The hello's reply waits for
+  that answer, so a page MUST NOT time it out (see [Timing](#timing)) and SHOULD send it before any
+  `RuntimeCall` or `RuntimeSubscribe`, which would otherwise wait on the same question. A yes is kept
+  per user, page and cloud — and, for a page with `chatSend`, per place — with the permissions it
+  covered; a page that later asks for more is asked again. A yes is also kept with the question's
+  wording: one given before the question said what members or an owned cloud carry is asked again,
+  until it is answered yes, if it covered `user` or `cloud`. So a page MUST expect a `RuntimeHello` to
+  wait on the user even where it was allowed before. A no is kept for the view only, so the next open
+  asks again.
 - **The view is bound to its cloud.** Once the session's cloud is not the one the view opened on, every
   open stream ends with `CLOUD_CHANGED` and every later request fails with it, even if the cloud comes
   back. Reads of a place and a message alike are held to the place the view opened on (above).

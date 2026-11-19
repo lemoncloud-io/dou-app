@@ -35,12 +35,19 @@ export const en = {
         subClose: 'Close',
         subRuntimeConsent: {
             title: 'Allow access to this cloud?',
-            message: '{0} wants to read this cloud in DoU: {1}. It cannot change anything.',
             titleWithSend: 'Allow this page to send messages?',
-            messageWithSend:
-                "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms. It cannot change anything else.",
-            messageSendOnly:
-                "{0} wants to send messages in your name to this place's chat rooms in DoU. It cannot read or change anything else.",
+            read: '{0} wants to read this cloud in DoU: {1}.',
+            readAndSend:
+                "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms.",
+            sendOnly: "{0} wants to send messages in your name to this place's chat rooms in DoU.",
+            thisPlaceOnly:
+                'What belongs to a place is read only from the place the page is opened in, and no longer once you move to another place.',
+            memberAccounts: "Member details include what their accounts hold, such as each member's sign-in ID.",
+            cloudAccount:
+                'For a cloud you own, its details include its owner, the linked account, the subscription and the server.',
+            changesNothing: 'It cannot change anything.',
+            changesNothingElse: 'It cannot change anything else.',
+            readsAndChangesNothingElse: 'It cannot read or change anything else.',
             allow: 'Allow',
             deny: "Don't allow",
         },
