@@ -561,3 +561,64 @@ describe('useFileDownloads — a file from another message', () => {
         expect(getChat).not.toHaveBeenCalledWith({ id: 'm' });
     });
 });
+
+describe('useFileDownloads — the document viewer', () => {
+    const onPreview = jest.fn();
+    const withViewer = () => renderHook(() => useFileDownloads({ cid: 'c', chatId: 'm', onPreview }));
+
+    beforeEach(() => onPreview.mockReset());
+
+    it('opens a sent PDF in the viewer in a browser, and the button still downloads', async () => {
+        native = false;
+        const { result } = withViewer();
+
+        await act(() => result.current.open(doc));
+        expect(onPreview).toHaveBeenCalledWith(doc, 'm');
+        expect(downloadInBrowser).not.toHaveBeenCalled();
+
+        await act(() => result.current.download(doc));
+        expect(downloadInBrowser).toHaveBeenCalledTimes(1);
+    });
+
+    it('passes the file’s own message from a list that mixes messages', async () => {
+        native = false;
+        const { result } = withViewer();
+
+        await act(() => result.current.open(doc, 'other'));
+
+        expect(onPreview).toHaveBeenCalledWith(doc, 'other');
+    });
+
+    it('knows a PDF by its type when its name has no extension', async () => {
+        native = false;
+        const { result } = withViewer();
+
+        await act(() => result.current.open({ ...doc, name: 'scan', contentType: 'application/pdf' }));
+
+        expect(onPreview).toHaveBeenCalled();
+    });
+
+    it('downloads anything else, a PDF still on its way, and a PDF where no viewer is drawn', async () => {
+        native = false;
+        const { result } = withViewer();
+
+        await act(() => result.current.open({ ...doc, name: 'notes.docx' }));
+        await act(() => result.current.open({ ...doc, state: 'sending' }));
+        expect(onPreview).not.toHaveBeenCalled();
+        // Both take the card's old path, a download, as they did before the viewer.
+        expect(downloadInBrowser).toHaveBeenCalledTimes(2);
+
+        const { result: plain } = render();
+        await act(() => plain.current.open(doc));
+        expect(downloadInBrowser).toHaveBeenCalledTimes(3);
+    });
+
+    it('leaves the app opening a PDF with the OS', async () => {
+        const { result } = withViewer();
+
+        await act(() => result.current.open(doc));
+
+        expect(onPreview).not.toHaveBeenCalled();
+        expect(sent('OpenFile')).toHaveLength(1);
+    });
+});

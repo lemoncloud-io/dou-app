@@ -34,12 +34,30 @@ jest.mock('../../../bridge/shellDownload', () => ({
     }),
 }));
 const getChat = jest.fn();
+/** Who moves files, as the host's `files` port says: the app unless a test is in a browser. */
+let filesKind: 'shell' | 'browser' = 'shell';
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
+        get files() {
+            return { kind: filesKind };
+        },
     })
 );
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
+
+const fetchInBrowser = jest.fn();
+const saveBlob = jest.fn();
+jest.mock('../lib/fileDownload', () => ({
+    fetchInBrowser: (...args: unknown[]) => fetchInBrowser(...args),
+    saveBlob: (...args: unknown[]) => saveBlob(...args),
+}));
+const shareFileInBrowser = jest.fn();
+let browserShares = true;
+jest.mock('../lib/browserShare', () => ({
+    canShareFilesInBrowser: () => browserShares,
+    shareFileInBrowser: (...args: unknown[]) => shareFileInBrowser(...args),
+}));
 
 const file = { uri: 'file:///cache/transfer-download/h/photo.jpg', size: 3, contentType: 'image/jpeg' };
 const image = { uploadId: 'u-1', url: 'https://bucket.s3.amazonaws.com/k', name: 'photo.jpg', kind: 'image' as const };
@@ -73,6 +91,11 @@ beforeEach(() => {
     nextResult = Promise.resolve({ kind: 'file', file });
     start = defaultStart;
     getChat.mockReset();
+    filesKind = 'shell';
+    browserShares = true;
+    fetchInBrowser.mockReset();
+    saveBlob.mockReset();
+    shareFileInBrowser.mockReset();
 });
 afterEach(() => shellCapabilities.reset());
 
@@ -370,5 +393,134 @@ describe('useImageExports', () => {
         expect(urls).toEqual([image.url]);
         expect(saveToPhotoLibrary).toHaveBeenCalledTimes(1);
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedAll:{"n":1}' });
+    });
+});
+
+describe('useImageExports in a browser', () => {
+    const bytes = new Blob(['jpeg'], { type: 'image/jpeg' });
+
+    beforeEach(() => {
+        filesKind = 'browser';
+        fetchInBrowser.mockResolvedValue({ kind: 'blob', blob: bytes });
+        shareFileInBrowser.mockResolvedValue('shared');
+    });
+
+    it('offers save and share without a handshake, but never save all', () => {
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        expect(result.current.canExport).toBe(true);
+        expect(result.current.canShare).toBe(true);
+        expect(result.current.canSaveAll).toBe(false);
+    });
+
+    it('leaves share out where the browser cannot share files', () => {
+        browserShares = false;
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        expect(result.current.canShare).toBe(false);
+    });
+
+    it('fetches the original and hands it to the browser as a download, with no shell call or toast', async () => {
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('save', image));
+
+        expect(fetchInBrowser).toHaveBeenCalledWith(image.url, expect.anything());
+        expect(saveBlob).toHaveBeenCalledWith(bytes, 'photo.jpg');
+        expect(saveToPhotoLibrary).not.toHaveBeenCalled();
+        expect(toast).not.toHaveBeenCalled();
+        expect(result.current.busyFor('u-1')).toBeUndefined();
+    });
+
+    it('shares the fetched bytes on the browser sheet', async () => {
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', image));
+
+        expect(shareFileInBrowser).toHaveBeenCalledWith(bytes, 'photo.jpg');
+        expect(shareFile).not.toHaveBeenCalled();
+    });
+
+    it('keeps the bytes when the browser wants a fresh tap, and shares them on the next one without fetching', async () => {
+        shareFileInBrowser.mockResolvedValueOnce('needs-gesture').mockResolvedValueOnce('shared');
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', image));
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.browserShare.again' });
+
+        await act(() => result.current.run('share', image));
+        expect(fetchInBrowser).toHaveBeenCalledTimes(1);
+        expect(shareFileInBrowser).toHaveBeenCalledTimes(2);
+    });
+
+    it('saves the bytes a refused share already fetched, without fetching again', async () => {
+        shareFileInBrowser.mockResolvedValueOnce('needs-gesture');
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', image));
+        await act(() => result.current.run('save', image));
+
+        expect(fetchInBrowser).toHaveBeenCalledTimes(1);
+        expect(saveBlob).toHaveBeenCalledWith(bytes, 'photo.jpg');
+    });
+
+    it('signs an expired address again through the item’s own message when it names one', async () => {
+        fetchInBrowser.mockResolvedValueOnce({ kind: 'expired' });
+        getChat.mockResolvedValue({ upload$$: [{ id: 'u-1', orgUrl: 'https://bucket/fresh' }] });
+        const { result } = renderHook(() => useImageExports({ cid: 'c' }));
+
+        await act(() => result.current.run('save', { ...image, chatId: 'other' }));
+
+        expect(getChat).toHaveBeenCalledWith({ id: 'other' });
+        expect(fetchInBrowser).toHaveBeenLastCalledWith('https://bucket/fresh', expect.anything());
+    });
+
+    it('finishes the item under way and starts no more when the list goes', async () => {
+        let finish: (result: unknown) => void = () => undefined;
+        fetchInBrowser.mockReturnValueOnce(new Promise(resolve => (finish = resolve)));
+        const { result, unmount } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        let running: Promise<void> = Promise.resolve();
+        act(() => {
+            running = result.current.runAll([image, second]);
+        });
+        unmount();
+        await act(async () => {
+            finish({ kind: 'blob', blob: bytes });
+            await running;
+        });
+
+        expect(saveBlob).toHaveBeenCalledTimes(1);
+        expect(fetchInBrowser).toHaveBeenCalledTimes(1);
+    });
+
+    it('says so when the original cannot be fetched', async () => {
+        fetchInBrowser.mockResolvedValue({ kind: 'failed' });
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('save', clip));
+
+        expect(saveBlob).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.failedVideo', variant: 'destructive' });
+    });
+
+    it('does not share where the browser cannot', async () => {
+        browserShares = false;
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.run('share', image));
+
+        expect(fetchInBrowser).not.toHaveBeenCalled();
+    });
+
+    it('saves a selection one by one and reports once when some failed', async () => {
+        fetchInBrowser.mockResolvedValueOnce({ kind: 'blob', blob: bytes }).mockResolvedValueOnce({ kind: 'failed' });
+        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
+
+        await act(() => result.current.runAll([image, second]));
+
+        expect(saveBlob).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.failed', variant: 'destructive' });
     });
 });

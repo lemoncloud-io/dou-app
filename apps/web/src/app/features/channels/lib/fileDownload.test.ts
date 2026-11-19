@@ -1,4 +1,4 @@
-import { downloadInBrowser, type BrowserDownloadDeps } from './fileDownload';
+import { downloadInBrowser, fetchInBrowser, type BrowserDownloadDeps } from './fileDownload';
 
 // jsdom has no `Response`; the download reads only these three members.
 const respond = (status: number, body = 'bytes') =>
@@ -51,5 +51,88 @@ describe('downloadInBrowser', () => {
         await expect(downloadInBrowser('u', 'a.pdf', { signal: controller.signal, deps: injected })).resolves.toBe(
             'cancelled'
         );
+    });
+});
+
+/** A response whose body arrives in `chunks`, with a length header when `length` is given. */
+const streamed = (chunks: string[], length?: number) => {
+    const encoded = chunks.map(chunk => new TextEncoder().encode(chunk));
+    let at = 0;
+    return {
+        status: 200,
+        ok: true,
+        headers: { get: (name: string) => (name === 'content-length' && length ? String(length) : null) },
+        body: {
+            getReader: () => ({
+                read: async () =>
+                    at < encoded.length ? { done: false, value: encoded[at++] } : { done: true, value: undefined },
+            }),
+        },
+        blob: async () => new Blob(chunks),
+    } as unknown as Response;
+};
+
+describe('fetchInBrowser', () => {
+    afterEach(() => {
+        delete (globalThis as { fetch?: unknown }).fetch;
+    });
+
+    it('always goes to the network, so a copy an image left in the HTTP cache is never used', async () => {
+        const fetchSpy = jest.fn(async () => respond(200));
+        (globalThis as { fetch?: unknown }).fetch = fetchSpy;
+
+        await fetchInBrowser('https://s/1');
+
+        expect(fetchSpy).toHaveBeenCalledWith(
+            'https://s/1',
+            expect.objectContaining({ cache: 'no-store', mode: 'cors', credentials: 'omit' })
+        );
+    });
+
+    it('reports how far the body has got when its length is known', async () => {
+        const progress: number[] = [];
+        const result = await fetchInBrowser('u', {
+            onProgress: fraction => progress.push(fraction),
+            deps: { fetch: async () => streamed(['ab', 'cd'], 4) },
+        });
+
+        expect(result.kind).toBe('blob');
+        expect(result.kind === 'blob' && result.blob.size).toBe(4);
+        expect(progress).toEqual([0.5, 1]);
+    });
+
+    it('reports once per whole percent, however many chunks arrive', async () => {
+        const progress: number[] = [];
+        // 1,000 one-byte chunks: a thousand reads, and the whole percents 0 through 100.
+        await fetchInBrowser('u', {
+            onProgress: fraction => progress.push(fraction),
+            deps: {
+                fetch: async () =>
+                    streamed(
+                        Array.from({ length: 1000 }, () => 'x'),
+                        1000
+                    ),
+            },
+        });
+
+        expect(progress).toHaveLength(101);
+        expect(progress[progress.length - 1]).toBe(1);
+    });
+
+    it('reads the body whole without a length to measure against', async () => {
+        const progress: number[] = [];
+        const result = await fetchInBrowser('u', {
+            onProgress: fraction => progress.push(fraction),
+            deps: { fetch: async () => streamed(['abcd']) },
+        });
+
+        expect(result.kind === 'blob' && result.blob.size).toBe(4);
+        expect(progress).toEqual([]);
+    });
+
+    it('reports a 403 as expired', async () => {
+        await expect(fetchInBrowser('u', { deps: { fetch: async () => respond(403) } })).resolves.toEqual({
+            kind: 'expired',
+        });
     });
 });

@@ -18,6 +18,11 @@ interface SaveShareButtonsProps {
      * rather than photos. A count of one saves straight away.
      */
     saveAll?: { count: number; videos: boolean; onSaveAll: () => void };
+    /**
+     * Whether share is offered. A browser that cannot share files (most desktop ones) leaves it out;
+     * save then still sits at the right end.
+     */
+    canShare?: boolean;
 }
 
 /**
@@ -25,7 +30,7 @@ interface SaveShareButtonsProps {
  * a "save all" run's position between them. Both are off for an item still on its way (its address is
  * a page-local preview), for one the viewer could not draw, and while either is working on this item.
  */
-export const SaveShareButtons = ({ item, busy, onAction, saveAll }: SaveShareButtonsProps) => {
+export const SaveShareButtons = ({ item, busy, onAction, saveAll, canShare = true }: SaveShareButtonsProps) => {
     const { t } = useTranslation();
     // The item the sheet was opened for, held so a page turned behind the sheet does not change it.
     const [choosing, setChoosing] = useState<ExportableMedia | null>(null);
@@ -37,15 +42,19 @@ export const SaveShareButtons = ({ item, busy, onAction, saveAll }: SaveShareBut
     };
     return (
         <>
-            <MediaViewerActionButton
-                label={t(video ? 'chat.attach.export.shareVideo' : 'chat.attach.export.share')}
-                onClick={() => onAction('share', item)}
-                disabled={disabled}
-                busy={busy?.action === 'share'}
-                progress={busy?.action === 'share' ? busy.progress : null}
-            >
-                <Share className="size-5" aria-hidden="true" />
-            </MediaViewerActionButton>
+            {canShare ? (
+                <MediaViewerActionButton
+                    label={t(video ? 'chat.attach.export.shareVideo' : 'chat.attach.export.share')}
+                    onClick={() => onAction('share', item)}
+                    disabled={disabled}
+                    busy={busy?.action === 'share'}
+                    progress={busy?.action === 'share' ? busy.progress : null}
+                >
+                    <Share className="size-5" aria-hidden="true" />
+                </MediaViewerActionButton>
+            ) : (
+                <span aria-hidden="true" />
+            )}
             {busy?.step && (
                 <span role="status" className="text-sm tabular-nums text-white">
                     {t('chat.attach.export.saveAllProgress', busy.step)}

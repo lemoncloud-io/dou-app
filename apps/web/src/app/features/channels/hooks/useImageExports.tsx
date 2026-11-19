@@ -9,6 +9,9 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { appBridge } from '../../../bridge/appBridge';
 import { useCanExportImages } from '../../../bridge/shellCapabilities';
 import { getShellDownloads } from '../../../bridge/shellDownload';
+import { exportMediaInBrowser, type BrowserMediaDeps, type BrowserMediaOutcome } from '../lib/browserMediaExport';
+import { canShareFilesInBrowser, shareFileInBrowser } from '../lib/browserShare';
+import { fetchInBrowser, saveBlob } from '../lib/fileDownload';
 import {
     exportMedia,
     saveAllMedia,
@@ -31,6 +34,11 @@ export interface ExportableMedia {
     kind: ExportMediaKind;
     /** The viewer could not draw it. Its buttons are off and "save all" leaves it out. */
     broken?: boolean;
+    /**
+     * The message it came from, when it is not the hook's own — the room's file list mixes messages —
+     * so an expired address is signed again through the right one.
+     */
+    chatId?: string;
 }
 
 export interface MediaExportBusy {
@@ -55,16 +63,26 @@ const isReady = (item: ExportableMedia): item is ExportableMedia & { url: string
  * done; a share is cancelled on close — and when the row itself goes away — so its sheet never
  * appears over whatever the user went to next; a "save all" finishes the item it is on and stops.
  *
- * Photos and videos alike follow the handshake (`canExport`).
+ * Photos and videos alike follow the handshake inside the app. In a browser tab (the host's `files`
+ * port is `browser`) the page fetches the original itself and hands it to the browser — a download for
+ * save, the Web Share sheet for share, offered only where the browser shares files (`canShare`).
+ * "Save all" stays an app feature (`canSaveAll`): a browser asks before letting a page start several
+ * downloads, and a run of them reads as a pile of prompts.
  */
 export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
-    const canExport = useCanExportImages();
+    const shellExports = useCanExportImages();
+    const inBrowser = !shellExports && runtime.files.kind === 'browser';
+    const canExport = shellExports || inBrowser;
+    const [browserShares] = useState(() => inBrowser && canShareFilesInBrowser());
+    const canShare = shellExports || browserShares;
     const [busy, setBusy] = useState<ReadonlyMap<string, MediaExportBusy>>(() => new Map());
     const shares = useRef(new Set<AbortController>());
     const runs = useRef(new Set<AbortController>());
     // Busy state reaches the buttons a render later; two taps inside one frame must not start two.
     const running = useRef(new Set<string>());
+    // Bytes a browser share fetched and could not hand over in time, by upload: the next press shares them.
+    const held = useRef(new Map<string, Blob>());
 
     /** Sets the busy state of several uploads in one render. */
     const mark = useCallback((uploadIds: readonly string[], value: MediaExportBusy | null) => {
@@ -78,6 +96,19 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         });
     }, []);
 
+    /** Reads the message again for the item's fresh address. */
+    const freshUrlOf = useCallback(
+        async (item: ExportableMedia): Promise<string | undefined> => {
+            const from = item.chatId ?? chatId;
+            if (!from) return undefined;
+            const chat: DomainChat = await runtime.data.getCloudRepositories(cid).chat.getChat({ id: from });
+            const slot = chat.upload$$?.find(entry => !isPendingUploadSlot(entry) && entry.id === item.uploadId);
+            // The same address the viewer opens: the original, or the thumbnail when there is none.
+            return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? slot.thumbUrl ?? undefined) : undefined;
+        },
+        [cid, chatId]
+    );
+
     /** The shell and the data layer, for one item. */
     const depsFor = useCallback(
         (item: ExportableMedia): MediaExportDeps => {
@@ -87,19 +118,22 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
                 acknowledge: ids => downloads.acknowledge(ids),
                 save: uri => appBridge.saveToPhotoLibrary(uri),
                 share: (uri, title) => appBridge.shareFile(uri, title),
-                freshUrl: async () => {
-                    if (!chatId) return undefined;
-                    const chat: DomainChat = await runtime.data.getCloudRepositories(cid).chat.getChat({ id: chatId });
-                    const slot = chat.upload$$?.find(
-                        entry => !isPendingUploadSlot(entry) && entry.id === item.uploadId
-                    );
-                    // The same address the viewer opens: the original, or the thumbnail when there is none.
-                    return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? slot.thumbUrl ?? undefined) : undefined;
-                },
+                freshUrl: () => freshUrlOf(item),
                 log: (message, data) => logger.error('DOWNLOAD', message, data),
             };
         },
-        [cid, chatId]
+        [freshUrlOf]
+    );
+
+    /** The page's own fetch, save and share, for one item in a browser tab. */
+    const browserDepsFor = useCallback(
+        (item: ExportableMedia): BrowserMediaDeps => ({
+            fetch: (url, options) => fetchInBrowser(url, options),
+            freshUrl: () => freshUrlOf(item),
+            save: saveBlob,
+            share: (blob, name) => shareFileInBrowser(blob, name),
+        }),
+        [freshUrlOf]
     );
 
     const show = useCallback(
@@ -123,13 +157,61 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         [t]
     );
 
+    /** Speaks for a browser save or share. A download and a share sheet are their own feedback. */
+    const showBrowser = useCallback(
+        (outcome: BrowserMediaOutcome, kind: ExportableMedia['kind']) => {
+            if (outcome.kind === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
+            if (outcome.kind === 'failed') {
+                toast({
+                    title: t(kind === 'video' ? 'chat.attach.export.failedVideo' : 'chat.attach.export.failed'),
+                    variant: 'destructive',
+                });
+            }
+        },
+        [t]
+    );
+
+    const runInBrowser = useCallback(
+        async (action: MediaExportAction, item: ExportableMedia & { url: string }, signal: AbortSignal) => {
+            // Bytes a share could not hand over in time serve a save as well as the next share.
+            const kept = held.current.get(item.uploadId);
+            held.current.delete(item.uploadId);
+            const outcome = await exportMediaInBrowser(
+                {
+                    action,
+                    url: item.url,
+                    name: item.name,
+                    uploadId: item.uploadId,
+                    kind: item.kind,
+                    held: kept,
+                    signal,
+                    onProgress: fraction => mark([item.uploadId], { action, progress: fraction }),
+                },
+                browserDepsFor(item)
+            );
+            if (outcome.kind === 'needs-gesture') held.current.set(item.uploadId, outcome.held);
+            return outcome;
+        },
+        [browserDepsFor, mark]
+    );
+
     const run = useCallback(
         async (action: MediaExportAction, item: ExportableMedia) => {
             if (!isReady(item) || running.current.has(item.uploadId)) return;
+            if (action === 'share' && !canShare) return;
             running.current.add(item.uploadId);
             const controller = new AbortController();
             if (action === 'share') shares.current.add(controller);
             mark([item.uploadId], { action, progress: null });
+
+            if (inBrowser) {
+                const outcome = await runInBrowser(action, item, controller.signal);
+                shares.current.delete(controller);
+                running.current.delete(item.uploadId);
+                mark([item.uploadId], null);
+                showBrowser(outcome, item.kind);
+                return;
+            }
 
             const outcome = await exportMedia(
                 {
@@ -151,7 +233,7 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
             mark([item.uploadId], null);
             show(toastFor(outcome, item.kind));
         },
-        [depsFor, mark, show]
+        [canShare, depsFor, inBrowser, mark, runInBrowser, show, showBrowser]
     );
 
     /**
@@ -173,6 +255,28 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
                     isReady(item) && !running.current.has(item.uploadId)
             );
             if (queue.length === 0) return;
+            if (inBrowser) {
+                // The room's file list saves a selection: each in turn, as the viewer's button does,
+                // and one toast when any of them could not be saved. Leaving the list finishes the item
+                // under way — a save carries on — and starts no more, as the app's save all does.
+                const controller = new AbortController();
+                runs.current.add(controller);
+                let failed = 0;
+                for (const item of queue) {
+                    if (controller.signal.aborted) break;
+                    running.current.add(item.uploadId);
+                    mark([item.uploadId], { action: 'save', progress: null });
+                    const outcome = await runInBrowser('save', item, new AbortController().signal);
+                    running.current.delete(item.uploadId);
+                    mark([item.uploadId], null);
+                    if (outcome.kind === 'failed') failed += 1;
+                }
+                runs.current.delete(controller);
+                if (failed > 0) {
+                    showBrowser({ kind: 'failed' }, queue.some(item => item.kind === 'video') ? 'video' : 'image');
+                }
+                return;
+            }
             const ids = queue.map(item => item.uploadId);
             for (const id of ids) running.current.add(id);
             const controller = new AbortController();
@@ -191,7 +295,7 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
             mark(ids, null);
             show(toastForSaveAll(results));
         },
-        [depsFor, mark, show]
+        [depsFor, inBrowser, mark, runInBrowser, show, showBrowser]
     );
 
     /**
@@ -202,6 +306,7 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         for (const controller of shares.current) controller.abort();
         shares.current.clear();
         for (const controller of runs.current) controller.abort();
+        held.current.clear();
     }, []);
 
     // The row can go without the viewer closing first — a push tap or a deep link leaves the room.
@@ -209,6 +314,8 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
 
     return {
         canExport,
+        canShare,
+        canSaveAll: shellExports,
         savable,
         busyFor: (uploadId: string) => busy.get(uploadId),
         run,

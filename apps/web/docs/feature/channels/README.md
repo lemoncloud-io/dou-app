@@ -91,8 +91,11 @@ Files whose contents the name does not give away:
   borrow: `resolveChannelTitle`, `resolveChannelAvatar` and `channelStereoPolicy`. Outside it, the image
   cache (`imageCache.ts`) and its IndexedDB store (`imageCacheStore.ts`) — stateful, and reached only
   through `hooks/useCachedImages` — the frame maker for videos sent without a poster (`videoFrames.ts`),
-  reached only through `hooks/useVideoFrames`, and the browser's document download (`fileDownload.ts`), reached
-  only through `hooks/useFileDownloads` ([image-send.md](./image-send.md)). Two more for audio: the
+  reached only through `hooks/useVideoFrames`, and the browser's own fetch, save and share of a sent file
+  (`fileDownload.ts`, `browserShare.ts`, `browserMediaExport.ts`), reached through `hooks/useFileDownloads`,
+  `hooks/useImageExports` and `components/DocumentPreview` ([image-send.md](./image-send.md),
+  [image-export.md](./image-export.md)). The pdf.js loader (`pdf.ts`) is reached only through
+  `components/DocumentPreview`. Two more for audio: the
   waveform computation (`audioWaveform.ts`, reached through `hooks/useAudioWaveform`) and what this device
   remembers about a room's files — hidden items and computed waveforms (`localMediaPrefs.ts`, stateful: it
   reads and writes the page's device store) ([audio-files.md](./audio-files.md), [room-files.md](./room-files.md)). Everything else that is

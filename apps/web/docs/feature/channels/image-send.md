@@ -616,11 +616,43 @@ An audio upload (M4A, MP3, WAV, Ogg — a voice message or an audio file) is lis
 marked `audio` (`chatMediaItems`), and drawn as an audio bubble in every state
 ([audio-files.md](./audio-files.md)).
 
-In a browser the button and the card both download (`lib/fileDownload.ts`): the bytes are fetched into
-a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
-attribute names nothing on the bucket's origin. The whole file is in memory meanwhile, which the 50MB
-document limit keeps affordable. A 403 means the signed address expired: the message is read again for
-fresh ones and the user presses again.
+In a browser the button downloads (`lib/fileDownload.ts`): the bytes are fetched into a `Blob` and
+saved from a local address under the upload's own name, since an anchor's `download` attribute names
+nothing on the bucket's origin. The whole file is in memory meanwhile, which the 50MB document limit
+keeps affordable. A 403 means the signed address expired: the message is read again for fresh ones and
+the user presses again. The card body downloads the same way — except a sent PDF, which opens in the
+page's document viewer (below).
+
+#### The document viewer (browser)
+
+A phone browser shows a downloaded PDF in place of the page, with no way back to the room and nothing
+to keep the file with. So in a browser a sent PDF — by its extension, or its type when the name has
+none — opens in `DocumentViewer` (`libs/web-ui-kit`) when its card body is pressed, in a room and in
+the room's file list (`useFileDownloads`' `onPreview` and `opensInPageViewer`; the host draws
+`components/DocumentPreview`). Inside the app the OS opens it as before.
+
+- **It is the photo viewer's frame**: black, the page most in view as "3 / 12" along the top (none for
+  one page), close at the top right with focus on it, share at the left and save at the right of the
+  bottom bar. The pages run down one scrolling column, as wide as the screen less 16px a side (at most
+  880px); only pages near the view hold a canvas.
+- **Drawn with pdf.js** (`lib/pdf.ts`, the same loader `apps/desktop-web` uses): loaded on first use, the
+  legacy build, canvas only — no text or annotation layer, no scripts, no XFA. Its CMaps, standard fonts
+  and image decoders are served at `/pdfjs/` by the `pdfjs-assets` plugin in `vite.config.mts`, so a
+  Korean PDF that names a font without embedding it still draws its text.
+- **The bytes are fetched once** when it opens (a 403 re-reads the message once, as the card does) and
+  dropped once the viewer has slid shut, which also frees the document; reopening starts from the spinner. Save and share hand over those same bytes:
+  save as a browser download, share as a file on the Web Share sheet
+  ([image-export.md § In a browser tab](./image-export.md#in-a-browser-tab) has the share rules, the
+  "tap again" case included). Before the bytes arrive, save downloads as the card's button does and
+  share waits.
+- **A file that will not open** — damaged, or locked with a password — says it cannot be previewed and
+  still offers save and share, so another app can open it.
+- **Closing** is the close button or Esc. The browser's back leaves the room, as from the photo viewer.
+
+In the Vite dev server the pdf.js worker fails to start — the dev server adds its client to the worker
+module, which then throws `window is not defined` — and pdf.js draws on the main thread instead. A
+build ships the worker untouched. The decision is
+[ADR-0353](../../../../../docs/adr/0353-a-browser-tab-previews-pdfs-and-saves-and-shares-media-itself.md).
 
 Inside the app the WebView ignores `download`, so the shell does the work (`lib/fileExport.ts`, driven
 by `hooks/useFileDownloads`). The shell downloads the file — the button shows the byte progress, and
@@ -732,6 +764,8 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/components/MessageImages \
   apps/web/src/app/features/channels/components/ChatImageAttach apps/web/src/app/bridge/attachmentPicker \
   apps/web/src/app/features/channels/lib/fileDownload apps/web/src/app/features/channels/utils/attachSources \
+  apps/web/src/app/features/channels/lib/pdf apps/web/src/app/features/channels/components/DocumentPreview \
+  apps/web/src/app/features/channels/hooks/useFileDownloads \
   apps/web/src/app/features/channels/components/ChannelMessageRow \
   apps/web/src/app/features/channels/lib/imageCache apps/web/src/app/features/channels/hooks/useCachedImages \
   apps/web/src/app/features/channels/lib/videoFrames apps/web/src/app/features/channels/hooks/useVideoFrames \
