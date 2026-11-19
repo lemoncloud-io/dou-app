@@ -335,6 +335,8 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
     device: { closed: 'device' },
     report: { closed: 'device' },
     syncMeta: { closed: 'cursor' },
+    // A room owner's administration, and `issue` hands back a secret token: nothing here is a page's.
+    webhook: { closed: 'admin' },
 } as const satisfies { [R in RepositoryName]: RepositoryDecision<R> };
 
 /** The rest of the `data` target, beside the repositories. All closed. */

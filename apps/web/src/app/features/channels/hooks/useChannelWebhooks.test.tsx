@@ -44,6 +44,13 @@ describe('useChannelWebhooks', () => {
         expect(repo.list).not.toHaveBeenCalled();
     });
 
+    it('reports unavailable, not an error, when the installed app predates the webhook methods', async () => {
+        repo.list.mockRejectedValue(Object.assign(new Error('not in this app'), { code: 'RUNTIME_NOT_AVAILABLE' }));
+        const { result } = renderHook(() => useChannelWebhooks('C1'));
+
+        await waitFor(() => expect(result.current.status).toBe('unavailable'));
+    });
+
     it('reports an error and retries', async () => {
         repo.list.mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([]);
         const { result } = renderHook(() => useChannelWebhooks('C1'));

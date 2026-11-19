@@ -102,8 +102,8 @@ desktop debug log, where the desktop shell never runs the runtime itself
 The data is a fourth target, `data` (`DATA_TARGET`). A repository method is named
 `<repository>.<method>` — `chat.sendChat`. For a cloud's graph rather than the live scope's the target
 is `data@cloud` (`DATA_CLOUD_TARGET`), with the same names and the cloud id first among the arguments.
-`REPOSITORY_METHODS` lists every method of the page's graph, keyed by every method of each page
-repository so a new one cannot be left out, and each crossing is read off the method's signature, so an
+`REPOSITORY_METHODS` lists every method of the page's graph, keyed by every page repository and every
+method of each, so a new repository or method cannot be left out, and each crossing is read off the method's signature, so an
 entry that disagrees with its method does not compile: a method that returns a promise is a `call`; one
 whose promise resolves with a write receipt a `receipt` ([below](#write-receipts)); an `observe*` method,
 which returns its unsubscribe, a `stream` whose events are its callback's arguments; a method that
@@ -236,6 +236,13 @@ the chat cache's room media index that the room's file list reads. Where the she
 an app built before them answers `RUNTIME_NOT_AVAILABLE`, and the page reads that as "this app has no
 room file list yet" — it hides the entry point rather than showing an empty list. Where the page runs
 its own runtime (a browser, an app that does not own the session) the web deploy alone brings them.
+
+The `webhook` repository went the same way, late. It joined the repository graph without joining
+`REPOSITORY_METHODS`, and the mirror builds its graph from that table alone, so a page whose session
+the shell owned had no `webhook` at all: the room settings read `webhook.list` for a group room's owner
+and the screen fell to the error boundary. The table is now keyed by every repository of the page's
+graph, so a repository left out of it does not compile. Its five methods cross as calls; an app built
+before them answers `RUNTIME_NOT_AVAILABLE`, and the room settings leave the webhook section out there.
 
 ## Errors
 
@@ -438,7 +445,7 @@ Each allowed method sits under one permission a page's manifest declares (`sessi
 shell on its own. Each closed one names its reason (`write`,
 `cacheWrite`, `cursor`, `serverSideEffect`, `otherCloud`, `account`, `device`, `admin`, `internal`), and
 whole repositories are closed with one: `auth`, `pairing`, `invite`, `subscription`, `device`, `report`,
-`syncMeta`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
+`syncMeta`, `webhook`. The table is keyed by every repository and method of `REPOSITORY_METHODS` and every member
 of `RuntimeData`, so **a method added to the runtime does not compile until it is decided here** — the
 moment to ask the two questions above. The spec typecheck also refuses allowing a name that writes
 (`create…`, `send…`, `read…`, `refresh…`, `sync…`, `cacheWrite…` and the like) other than

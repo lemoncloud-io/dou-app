@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { runtime, type DomainIssuedWebhook, type DomainWebhook, type WebhookIssueInput } from '@chatic/runtime';
 
-export type ChannelWebhooksStatus = 'loading' | 'ready' | 'error';
+import { isRuntimeNotAvailable } from '../utils/runtimeNotAvailable';
+
+/**
+ * `unavailable`: the installed app owns the session and predates the webhook methods, so there is
+ * nothing to manage from this page — the section is left out rather than shown failing.
+ */
+export type ChannelWebhooksStatus = 'loading' | 'ready' | 'error' | 'unavailable';
 
 /**
  * The channel owner's webhook list and its writes. Remote-only: nothing is cached, the list is read
@@ -32,8 +38,8 @@ export const useChannelWebhooks = (channelId: string | null) => {
                 setWebhooks(rows);
                 setStatus('ready');
             })
-            .catch(() => {
-                if (!cancelled) setStatus('error');
+            .catch(error => {
+                if (!cancelled) setStatus(isRuntimeNotAvailable(error) ? 'unavailable' : 'error');
             });
         return () => {
             cancelled = true;

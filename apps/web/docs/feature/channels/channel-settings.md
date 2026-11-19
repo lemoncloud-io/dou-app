@@ -284,6 +284,12 @@ The owner of a group room manages the webhooks that let another service post int
 A cloud server that does not have the webhook action yet answers an error, which the list shows as
 its error line.
 
+An installed app that owns the session and was built before the webhook methods crossed the bridge
+answers `RUNTIME_NOT_AVAILABLE` (`isRuntimeNotAvailable`, `utils/runtimeNotAvailable.ts`), and the
+section is not drawn at all — the same treatment as the room files entry. Before the methods crossed,
+such a session had no `webhook` repository whatsoever and the owner's settings screen fell to the error
+boundary; the next app release carries them, and the section appears there with no web change.
+
 ## What not to do
 
 - **Do not read `channel.$join` for anything that must reflect a write.** The notification level and

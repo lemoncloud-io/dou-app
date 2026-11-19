@@ -60,6 +60,7 @@ const fakeRuntime = () => {
             }),
         },
         device: { syncDevice: jest.fn(() => undefined) },
+        webhook: { list: jest.fn(async (channelId: string) => [{ id: 'w1', channelId }]) },
         join: {
             updateJoin: jest.fn(async (_payload: unknown) => writeReceipt()),
             readChat: jest.fn(async (_payload: unknown) => writeReceipt()),
@@ -290,6 +291,15 @@ describe('createMirrorEngine — calls and streams', () => {
         ).resolves.toEqual({ cid: 'c9', query: { channelId: 'ch2' } });
         expect(fake.raw.data.cloudRepositories).toHaveBeenCalledWith('c9');
         expect(mirror.data.cloudRepositories('c9')).toBe(mirror.data.cloudRepositories('c9'));
+    });
+
+    it("reaches a channel's webhooks, which the room settings read as soon as an owner opens them", async () => {
+        const { fake, mirror } = await setup();
+
+        await expect(mirror.data.repositories().webhook.list('ch1')).resolves.toEqual([
+            { id: 'w1', channelId: 'ch1' },
+        ]);
+        expect(fake.raw.data.repositories().webhook.list).toHaveBeenCalledWith('ch1');
     });
 
     it('hears an observe stream until it is stopped, then the runtime stops it too', async () => {
