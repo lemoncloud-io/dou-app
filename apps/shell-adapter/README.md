@@ -22,9 +22,11 @@ DOU_SHELL_CHECKOUT=web yarn local   # the shell declares how it sells (§ Checko
 
 An unnamed backend is dev. Before it starts anything it checks what it needs; a missing env file is
 named with where it comes from (ONBOARDING.md § Env and Firebase files), and nothing is started.
-`apps/web/.env` and `apps/web/.env.<env>` are handed to the web dev server as its process environment,
-the backend's file last — the web's Vite plugins read `process.env`, so this is what moves its
-endpoints. `apps/mobile/.env.<env>` is read for one value, the Google sign-in client.
+The shared root `.env.<env>`, then `apps/web/.env` and `apps/web/.env.<env>`, are handed to the web dev
+server as its process environment, a later file winning — the same order Nx gives a build, so the web's
+own files win over the shared one (ONBOARDING.md § Env and Firebase files). The web's Vite plugins read
+`process.env`, so this is what moves its endpoints. `apps/mobile/.env.<env>` is read for one value, the
+Google sign-in client.
 
 prod runs in the shell mode only, where the page carries a PROD band. While `yarn local` runs, the
 shell's DEV | PROD switch starts the other backend's pair on its own ports — its own origin, so its own
@@ -38,19 +40,22 @@ The agent procedure is [`dou-shell-verify`](../../docs/config/skills/dou-shell-v
 ports — the web on 5023, the shell on 5027 — so it never meets a dev or prod run. The page shows
 LOCALHOST and offers no DEV | PROD switch.
 
-It reads `apps/web/.env.localhost` and `apps/mobile/.env.localhost`. Neither is in the secrets
-repository, because their endpoints are whatever this machine serves, so make them from dev's:
+It reads the shared root `.env.localhost`, `apps/web/.env.localhost` and `apps/mobile/.env.localhost`.
+None is in the secrets repository, because the endpoints are whatever this machine serves, so make them
+from dev's:
 
 ```bash
+cp .env.dev .env.localhost
 cp apps/web/.env.dev apps/web/.env.localhost
 cp apps/mobile/.env.dev apps/mobile/.env.localhost
 ```
 
-Then, in `apps/web/.env.localhost`, change the endpoint of each service you run locally to the
-address it listens on — `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT` (a `ws://`
-address) and the rest. The endpoints you leave alone keep going to dev, so one local service can run
-beside dev's others, as long as they accept each other's sessions. `VITE_ENV` stays as copied: it
-picks the stage rules the web applies, not where the backend runs.
+Then, in the root `.env.localhost`, change the endpoint of each service you run locally to the address
+it listens on — `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT` (a `ws://` address)
+and the rest. The endpoints you leave alone keep going to dev, so one local service can run beside
+dev's others, as long as they accept each other's sessions. `VITE_ENV` stays as copied: it picks the
+stage rules the web applies, not where the backend runs. An endpoint still in
+`apps/web/.env.localhost` wins over the root file, so delete it there (`yarn check:env` names one).
 
 From the mobile file the shell reads one value, the Google sign-in client. Google sign-in works only
 when that client lists `http://localhost:5027` as an authorised JavaScript origin; otherwise stay a

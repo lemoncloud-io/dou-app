@@ -10,6 +10,11 @@
  *
  * The table covers the backend only. A key that belongs to one app — its own host, the store SKUs, the
  * signing keys — is that app's business and is not listed.
+ *
+ * The web group's keys live in one file per stage at the repository root (`SHARED_FILES`). Nx loads a
+ * task's env files project first and root after, keeping a key already set, so an app's own file wins and
+ * the root file fills in what it leaves out. An app with `readsShared: false` is built by something that
+ * reads its own file only, and keeps a full copy.
  */
 
 /** Keys that name the backend a build talks to, plus the stage and project the server reads them under. */
@@ -37,12 +42,13 @@ const STAGE_VALUES = { dev: 'DEV', prod: 'PROD' };
  * build reads, so a key the deploy writes and a local file lacks is reported.
  */
 const APPS = {
-    web: { group: 'web', carries: BACKEND_KEYS },
+    web: { group: 'web', readsShared: true, carries: BACKEND_KEYS },
     // Deployed from the web's secrets: the same backend, only another bucket.
-    'desktop-web': { group: 'web', carries: BACKEND_KEYS },
+    'desktop-web': { group: 'web', readsShared: true, carries: BACKEND_KEYS },
     // Its account screens sign in to the web's relay session, so its addresses must be the web's.
     landing: {
         group: 'web',
+        readsShared: true,
         carries: [
             'VITE_ENV',
             'VITE_PROJECT',
@@ -52,9 +58,11 @@ const APPS = {
             'VITE_WS_ENDPOINT',
         ],
     },
-    // The phone app hosts the web and, when it holds the session, talks to the same servers itself.
+    // The phone app hosts the web and, when it holds the session, talks to the same servers itself. React
+    // Native's config plugin reads one file per build, so the shared file never reaches it.
     mobile: {
         group: 'web',
+        readsShared: false,
         carries: [
             'VITE_ENV',
             'VITE_PROJECT',
@@ -66,9 +74,11 @@ const APPS = {
             'VITE_WS_ENDPOINT',
         ],
     },
-    // A group of its own: it is deployed from its own secrets and signs in to its own servers.
+    // A group of its own: it is deployed from its own secrets and signs in to its own servers, so its files
+    // set every key. Nx still loads the shared file under them, which only fills a key admin leaves out.
     admin: {
         group: 'admin',
+        readsShared: true,
         carries: BACKEND_KEYS.filter(key => key !== 'VITE_SOC_ENDPOINT' && key !== 'VITE_IAP_ENDPOINT'),
     },
 };
@@ -76,4 +86,10 @@ const APPS = {
 /** The stage files checked: `.env.<stage>`. `.env` itself is the local default and is only described. */
 const STAGES = ['dev', 'prod', 'localhost'];
 
-module.exports = { APPS, BACKEND_KEYS, STAGES, STAGE_VALUES };
+/**
+ * The web group's shared files at the repository root, by what reads each: a build or a virtual shell run
+ * of that stage, and `serve` — every `nx serve`, the backend a dev server talks to.
+ */
+const SHARED_FILES = { dev: '.env.dev', prod: '.env.prod', localhost: '.env.localhost', serve: '.env.serve' };
+
+module.exports = { APPS, BACKEND_KEYS, SHARED_FILES, STAGES, STAGE_VALUES };

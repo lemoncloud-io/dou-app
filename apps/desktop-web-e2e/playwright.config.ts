@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { E2E_BASE_URL, E2E_PORT } from './src/support/env';
+import { E2E_BASE_URL, E2E_PORT, sharedServeEnv } from './src/support/env';
 
 /**
  * `apps/desktop-web` in a desktop-sized Chromium window, signed in to real dev accounts against the dev
@@ -32,10 +32,11 @@ export default defineConfig({
         { name: 'desktop', testMatch: /specs\/.*\.spec\.ts/, dependencies: ['sign-in'] },
     ],
     webServer: {
-        // The developer's own `apps/desktop-web/.env` decides the backend: the dev servers the
-        // accounts live on. `/auth/debug` (email sign-in) exists only in a dev server.
+        // The developer's own env decides the backend: the dev servers the accounts live on — what
+        // `nx serve desktop-web` would talk to. `/auth/debug` (email sign-in) exists only in a dev server.
         command: `npx vite --port ${E2E_PORT} --strictPort`,
         cwd: '../desktop-web',
+        env: sharedServeEnv(),
         url: E2E_BASE_URL,
         reuseExistingServer: true,
         timeout: 180_000,

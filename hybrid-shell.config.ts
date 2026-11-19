@@ -5,11 +5,11 @@ import { deepLinkNavigation, pushTapNavigation } from './apps/shell-adapter/src/
 import type { DouEvents, DouMethods } from './apps/shell-adapter/src/types';
 
 // The hint is keyed by the `{env}` entry, so one text serves every backend. localhost has no file in the
-// secrets repository: its endpoints are whatever this machine serves, so it starts from dev's file.
+// secrets repository: its endpoints are whatever this machine serves, so it starts from dev's files.
 const BACKEND_ENV_SOURCE =
     'for dev and prod, download it from the team secrets repository, where it sits at the same path ' +
-    '(ONBOARDING.md § Env and Firebase files); for localhost, copy the .env.dev beside it and point the ' +
-    'endpoints of the services you run on this machine at them (apps/shell-adapter/README.md § A backend on this machine)';
+    '(ONBOARDING.md § Env and Firebase files); for localhost, copy the .env.dev beside it, and put the ' +
+    'endpoints of the services you run on this machine in the root .env.localhost (apps/shell-adapter/README.md § A backend on this machine)';
 
 /**
  * The app's own protocol, plus what this shell declares it can do. Its globals are the built-in
@@ -33,8 +33,10 @@ export default defineShell<DouMethods, DouEvents>({
         // has to reach through.
         start: 'cd apps/web && exec node ../../node_modules/vite/bin/vite.js --port {port} --strictPort',
         port: 5003,
-        // The web's Vite plugins read `process.env`, so the backend's files go into its environment.
-        envFiles: ['apps/web/.env', 'apps/web/.env.{env}'],
+        // The web's Vite plugins read `process.env`, so the backend's files go into its environment. Later
+        // files win, so the shared root file comes first: the web's own files win over it, as under Nx. A
+        // file that is not there is skipped, so a checkout without the shared file runs as before.
+        envFiles: ['.env.{env}', 'apps/web/.env', 'apps/web/.env.{env}'],
     },
     native: { ios: 'yarn mobile:ios:local', android: 'yarn mobile:android:local' },
     shell: { viteConfig: 'apps/shell-adapter/vite.shell.config.mts' },
