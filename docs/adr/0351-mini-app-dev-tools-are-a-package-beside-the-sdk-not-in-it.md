@@ -51,8 +51,10 @@ lives outside this repository.**
   checker rule and for each scenario a page commonly gets wrong, so a check that stops catching its case
   fails there. It builds to a zip of its build output; uploading, review and hosting are not part of this
   decision.
-- **No page in this repository.** The SDK's contract suites in `apps/mobile` keep testing the library
-  against the app's real host directly; running a whole page against that host is left out with the page.
+- **No page in this repository, and no automated test of pages here.** An author may build and check a
+  page entirely on their own machine and never open a pull request anywhere, so the check that matters is
+  the one they run: `verify`. The SDK's agreement with the app stays covered by the two existing contract
+  suites in `apps/mobile`.
 
 ## Alternatives
 
@@ -63,8 +65,8 @@ lives outside this repository.**
   for checks that do not need layout. A preview with a phone frame, which does, is a separate tool for later.
 - **Rules as documentation only.** That is the state this replaces: the assistant that wrote the page
   is the one rereading the rules.
-- **Keep the reference mini-app in this repository**, as an app the tools' tests and a host
-  conversation test in `apps/mobile` read by path. Tried first, then moved out by the maintainers'
+- **Keep the reference mini-app in this repository**, as an app the tools' tests read by path. Tried
+  first, then moved out by the maintainers'
   decision: a page inside the workspace imports the SDK by the workspace's name and leans on its build
   setup, which is not what an author's page looks like.
 
