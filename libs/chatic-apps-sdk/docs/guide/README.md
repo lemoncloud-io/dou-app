@@ -291,6 +291,83 @@ Use made-up ids and names in the mock, never a real cloud's. The mock does not k
 app opens for which permission — it answers what you give it — so check `allowed` from `connect()` in
 the app.
 
+## Your own server
+
+A page is static files, and stays that way: no server rendering, no server routing. When it needs a
+server of its own — scores, saved work, anything shared between users — that server is an API on its
+own origin, and the page calls it with `fetch`.
+
+**Allow the page's origin.** A call from the page is an ordinary cross-origin request from
+`https://<name>.apps.chatic.io`, so the server answers it with CORS headers naming that origin, and
+answers the preflight a JSON `POST` sends first:
+
+```http
+Access-Control-Allow-Origin: https://<name>.apps.chatic.io
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Vary: Origin
+```
+
+Allow your development address too while you test (see the next section), and not `*` once the page
+is live.
+
+**Tell users apart with the user key, and rely on nothing else from it.** `apps.getUserKey()` (the
+`userKey` permission) answers 64 hex characters that stay the same for one device and your site. Send
+it with each request and keep the user's data under it on the server. It is not a sign-in: two people
+on one phone share it, and anyone who learns it can send it. Keep game progress under it, not money,
+purchases or anything a user could take from another. If the page needs that, add a sign-in of your
+own, with a redirect: a popup sign-in does not work in the app (`window.open` loads in the same view,
+and nothing answers through `window.opener`).
+
+**Trust nothing the page sends.** The page runs on the user's device, and anyone can call your API
+directly with any body, any user key and any `params`. Check every value on the server as you would a
+form on the open web. `MiniAppLaunchParams` names who is looking; it proves nothing.
+
+**What the page read from the cloud is yours to answer for once it leaves the device.** The user
+allowed the page to read the cloud with `apps.data`, not to send it elsewhere. If the page sends
+members' names or messages to your server, say so in the page before it does, send only what the
+feature needs, and keep it no longer than it needs.
+
+## Trying it in the app
+
+A browser with the mock proves the page's logic; the app is the only place to see its layout, the
+keyboard and real haptics. To open the page you are working on in the app before it is deployed, give
+your development server an https address and add it to a cloud you own as a mini app.
+
+1. Run the development server, and expose it at an https address with a tunnel. `cloudflared` needs no
+   account for this:
+
+    ```bash
+    npm run dev                                       # Vite, on http://localhost:5173
+    cloudflared tunnel --url http://localhost:5173    # prints https://<random words>.trycloudflare.com
+    ```
+
+    Vite refuses a host it does not know, so allow the tunnel's:
+
+    ```ts
+    // vite.config.ts
+    export default defineConfig({ server: { allowedHosts: ['.trycloudflare.com'] } });
+    ```
+
+2. In DoU, in a cloud you own, add a mini app with that address (`https://…`, no port), and open it
+   from the cloud's mini app home. The first time, DoU asks before it hands the page your name and the
+   cloud's.
+3. The tunnel's address changes each time it starts: edit the mini app's address when it does.
+
+Such a page is opened as an outside site, not a reviewed page, and gets less than it will once
+deployed to `apps.chatic.io`:
+
+- **Only the base requests.** Closing, the title, haptics, Android back, the close guard, error
+  reports, storage, and the camera and microphone permissions work. `getUserKey`, `copy`, `share` and
+  `openUrl` fail with `NOT_SUPPORTED`. The desktop app answers fewer still: closing, the title and
+  error reports.
+- **No manifest.** The app does not read the page's `/.well-known/chatic-app.json`: the bar is always
+  shown, titled with the tunnel's host, and `display` and `orientation` do not apply.
+- **No cloud data.** `apps.supports('data')` is `false`, so `apps.data` cannot be tried in the app this
+  way. Build it against the mock, and check it in the app once the page is reviewed.
+- **Its own storage.** Storage is kept per origin, so what the page stores here is not what it will
+  find under its real address.
+
 ## For an AI assistant in your project
 
 The package ships `AGENTS.md`: rules for an assistant writing a Chatic app. Assistants read an
@@ -307,6 +384,8 @@ assistant at `node_modules/@lemoncloud/chatic-apps-sdk/AGENTS.md`.
 - [ ] State is saved as the user goes, not only at a button.
 - [ ] No `window.opener`, popup login, file download or server-side rendering.
 - [ ] No user data in errors, in `reportError` or in the page's own logs.
+- [ ] A page that calls its own server: the server allows the page's origin, checks every value it
+      receives, and puts nothing of value behind the user key alone.
 - [ ] A page that reads the cloud: it asks for only the cloud data permissions it uses, handles
       `CONSENT_REFUSED` and `CLOUD_CHANGED`, and stops every stream it no longer shows.
 
