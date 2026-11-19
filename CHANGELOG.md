@@ -4,6 +4,12 @@
 
 ### Documentation
 
+- (chatic-apps-sdk) correct the in-app trial steps from a device run
+
+## [2026-11-19] - No version updates
+
+### Documentation
+
 - (agents) name the sdk's korean author docs as a language exception
 - (chatic-apps-sdk) guide a page's own server and trying it in the app
 - (chatic-apps-sdk,scripts) ship the sdk's author docs in korean beside english (ADR-0349)
