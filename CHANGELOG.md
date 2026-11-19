@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.7, @chatic/web@0.96.3, @chatic/landing@0.19.3, @chatic/desktop-web@0.60.5
+
+### Features
+
+- (eslint-rules) refuse a read of a host port's kind outside the app's declaration
+
+### Documentation
+
+- describe the host ports' members and record ADR-0352
+
+### Refactor
+
+- (desktop-web) call the links, appShell and diagnostics members, not branch on kind
+- (web) call the links, appShell and diagnostics members, not branch on kind
+- (runtime-client,runtime-web,runtime) give links, appShell and diagnostics members
+
 ## [2026-11-19] - No version updates
 
 ### Features
