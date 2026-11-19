@@ -1,5 +1,5 @@
 import type { IapProductSubscription, WebMessageResponse } from '@chatic/bridge-messages';
-import type { ProtocolPreset } from '@lemoncloud/hybrid-shell';
+import type { ProtocolPreset, ShellEnv } from '@lemoncloud/hybrid-shell';
 
 /**
  * How this shell sells, as a person picks it. The shell declares it to the web in
@@ -132,7 +132,7 @@ export const capabilitiesScript = (
  * handlers have no other way to learn the backend: the fake store answers on dev only, because a fake
  * receipt must never reach the production server.
  */
-export const launch: { env: 'dev' | 'prod' | undefined; choice: ShellCheckoutChoice | undefined } = {
+export const launch: { env: ShellEnv | undefined; choice: ShellCheckoutChoice | undefined } = {
     env: undefined,
     choice: undefined,
 };

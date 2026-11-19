@@ -69,6 +69,9 @@ describe('fakeStore', () => {
         launch.env = 'prod';
         launch.choice = 'google';
         expect(fakeStore()).toBeUndefined();
+
+        launch.env = 'localhost';
+        expect(fakeStore()).toBeUndefined();
     });
 });
 
