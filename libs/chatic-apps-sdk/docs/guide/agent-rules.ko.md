@@ -49,7 +49,8 @@
     인자만 넘기고, `LISTENER`를 넣지 않고 리스너 뒤에도 아무것도 넘기지 않으며, 화면에서 사라지면 `stop()`한다.
     모든 행 필드는 대체값과 함께 읽는다. 대부분 선택적이다. 메시지는 `chatSend`를 갖춘 상태에서
     `apps.data.sendMessage(channelId, text)`로만, 사용자가 보내기로 고른 텍스트만 보낸다 — 사용자의 이름으로
-    나간다. 페이지가 있는 클라우드는 `cloud.cacheRead`가 아니라
+    나간다. 메시지 반응은 `chatReact`를 갖춘 상태에서 `apps.data.react(messageId, emoji, on)`로만, 사용자가
+    탭했을 때 단다 — 사용자의 반응을 달거나 떼며, 직접 단 것도 뗀다. 페이지가 있는 클라우드는 `cloud.cacheRead`가 아니라
     `call('cloud.getCloud', { id }, { cache: false })`로 읽는다. `cloud.cacheRead`는 사용자가 소유한
     클라우드에 대해 자주 `null`이다. `id`는 세션의 `context.cloud.cloudId`(`session` 필요) 또는
     `params.cloud.id`에서 가져온다. 행에는 연락처와 계정 정보(이메일, 전화번호, 로그인 id, 계정 번호)가
@@ -61,14 +62,16 @@
 14. `window.opener`, 팝업 로그인, 파일 다운로드를 쓰지 않는다.
 15. 오류나 `reportError`에 사용자의 데이터를 절대 넣지 않는다.
 16. 페이지에 필요한 권한(`clipboard`, `share`, `openUrl`, `userKey`, 그리고 앱의 데이터를 위한 `session`,
-    `cloud`, `place`, `channel`, `chat`, `user`, 보내기를 위한 `chatSend`)을
+    `cloud`, `place`, `channel`, `chat`, `user`, 보내기를 위한 `chatSend`, 반응을 위한 `chatReact`)을
     `/.well-known/chatic-app.json`에 나열한다 — 쓰지 않는 것은 나열하지 않는다. 권한이 필요한 호출은 그 권한
     없이는 `NOT_SUPPORTED`로 실패하고, 클라우드 데이터 권한이 여는 범위 밖의 클라우드 데이터 메서드는
     `RUNTIME_NOT_ALLOWED`로 실패한다.
 17. 안전 영역을 위해 그리지 않는다. 페이지는 이미 모든 가장자리에서 안전 영역 안에 놓인다. 예외는 화면
     가장자리까지 장면이 닿아야 하는 페이지를 위한 `"display": "immersive"` 매니페스트다. 이때는 viewport
     meta에 `viewport-fit=cover`를 추가하고, 모든 헤더, 컨트롤, 탭 가능한 요소에
-    `var(--chatic-safe-area-inset-<edge>, env(safe-area-inset-<edge>, 0px))`로 여백을 준다.
+    `var(--chatic-safe-area-inset-<edge>, env(safe-area-inset-<edge>, 0px))`로 여백을 준다. 스크립트로 배치하는
+    페이지는 `apps.context.safeArea`와 `onContextChange`로 오는 변경을 읽고, 오래된 앱이 그것을 보내지 않으면
+    CSS 속성으로 물러난다.
 18. 매니페스트가 `"display": "titled"`를 설정하지 않는 한 페이지에는 제목 바가 없다. 자기 헤더와 제목을
     그리고, 앱의 닫기 버튼이 떠 있는 오른쪽 위 모서리를 비워 둔다.
 

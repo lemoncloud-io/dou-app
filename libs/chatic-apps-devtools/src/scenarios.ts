@@ -43,7 +43,8 @@ export type ScenarioName =
     | 'consent-refused'
     | 'cloud-change'
     | 'big-list'
-    | 'rate-limited';
+    | 'rate-limited'
+    | 'rotation';
 
 export const SCENARIOS: Readonly<Record<ScenarioName, string>> = {
     start: 'The page connects, starts without an error, and leaves Android back to the app at its root.',
@@ -60,6 +61,7 @@ export const SCENARIOS: Readonly<Record<ScenarioName, string>> = {
         'The cloud changes under the page: its streams end, a page that had one open changes or finishes, and it does not retry.',
     'big-list': 'Lists of thousands of rows: the page draws only part of them.',
     'rate-limited': 'A read refused with `RATE_LIMITED` is tried again later.',
+    rotation: 'An `immersive` page goes on through a turn of the phone and back, as its insets change.',
 };
 
 /** What went wrong, by kind: what `verify` explains in plain words, in the reader's language. */
@@ -119,6 +121,7 @@ export const SCREENLESS_SCENARIOS: readonly ScenarioName[] = [
     'consent-refused',
     'cloud-change',
     'rate-limited',
+    'rotation',
 ];
 
 const issue = (kind: IssueKind, text: string, extra: Omit<ScenarioIssue, 'kind' | 'text'> = {}): ScenarioIssue => ({
@@ -131,6 +134,8 @@ export interface RunOptions {
     source: PageSource;
     /** The permissions the page's manifest asks for. */
     permissions: string[];
+    /** The manifest's `display`: an `immersive` page gets a phone's insets, as the app gives it. */
+    display?: string;
     config?: ScenarioConfig;
     /** The module the mock is imported from; the project's installed SDK by default. */
     mockModule?: string;
@@ -140,7 +145,7 @@ export interface RunOptions {
     only?: ScenarioName[];
 }
 
-const DATA_PERMISSIONS = ['session', 'cloud', 'place', 'channel', 'chat', 'user', 'chatSend'];
+const DATA_PERMISSIONS = ['session', 'cloud', 'place', 'channel', 'chat', 'user', 'chatSend', 'chatReact'];
 /** How many rows a long list has in `big-list`. */
 const BIG_LIST = 5000;
 /** More elements than this after a long list means the page drew all of it. */
@@ -209,6 +214,13 @@ const withBigLists = (data: MockData = {}): MockData => {
 };
 
 const NOT_READY = 'The page never showed';
+/** The display the app shows a manifest's `display` as: the older names mapped, `clean` by default. */
+const displayOf = (display: string | undefined): 'titled' | 'clean' | 'immersive' => {
+    if (display === 'titled' || display === 'standard') return 'titled';
+    if (display === 'immersive') return 'immersive';
+    return 'clean';
+};
+
 const MOCK_GLOBAL = '__chaticAppsRunnerMock';
 const OPTIONS_GLOBAL = '__chaticAppsRunnerOptions';
 
@@ -247,6 +259,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                         ...(sessionOptions.bigLists ? withBigLists(config.data) : config.data),
                         consent: sessionOptions.consent ?? 'allow',
                     },
+                    context: { display: displayOf(options.display) },
                     deviceAnswers: sessionOptions.devices
                         ? { camera: sessionOptions.devices, microphone: sessionOptions.devices }
                         : undefined,
@@ -762,6 +775,17 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                     );
                 }
             }
+            session.close();
+            return problems;
+        },
+        rotation: async () => {
+            if (options.display !== 'immersive') return null;
+            const session = await start();
+            session.app.rotate();
+            await settle(100);
+            session.app.rotate();
+            await settle(100);
+            const problems = errorsOf(session);
             session.close();
             return problems;
         },

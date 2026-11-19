@@ -56,6 +56,7 @@ const SCENARIO_GROUPS: Record<ScenarioName, GroupId> = {
     'cloud-change': 'cloudData',
     'big-list': 'cloudData',
     'rate-limited': 'cloudData',
+    rotation: 'display',
 };
 
 /** One thing to fix, in the reader's language. */
@@ -133,15 +134,21 @@ export const verify = async (options: VerifyOptions): Promise<VerifyResult> => {
     if (built) {
         const manifestPath = join(distDir, '.well-known', 'chatic-app.json');
         let permissions: string[] = [];
+        let display: string | undefined;
         try {
-            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { permissions?: unknown };
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+                permissions?: unknown;
+                display?: unknown;
+            };
             if (Array.isArray(manifest.permissions)) permissions = manifest.permissions.map(String);
+            if (typeof manifest.display === 'string') display = manifest.display;
         } catch {
             // The checker has said what is wrong with the manifest; the scenarios run with no permission.
         }
         scenarios = await runScenarios({
             source: await loadDist(distDir),
             permissions,
+            display,
             config,
             mockModule: options.mockModule,
             resolveDir: root,

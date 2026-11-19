@@ -15,6 +15,7 @@ export const MANIFEST_PERMISSIONS: readonly ManifestPermission[] = [
     'chat',
     'user',
     'chatSend',
+    'chatReact',
 ];
 
 export const DISPLAYS = ['clean', 'titled', 'immersive'] as const;
@@ -36,6 +37,7 @@ export const DATA_METHODS = {
     'chat.cacheReadList': 'chat',
     'chat.listPendingImageChats': 'chat',
     'chat.sendChat': 'chatSend',
+    'chat.setReaction': 'chatReact',
     'cloud.cacheRead': 'cloud',
     'cloud.getCloud': 'cloud',
     'place.cacheReadList': 'place',
@@ -71,6 +73,7 @@ export const CALL_PATTERNS: ReadonlyArray<{ pattern: RegExp; permissions: Manife
     { pattern: /\.openUrl\s*\(/, permissions: ['openUrl'], call: 'openUrl()' },
     { pattern: /\.getUserKey\s*\(/, permissions: ['userKey'], call: 'getUserKey()' },
     { pattern: /\.sendMessage\s*\(/, permissions: ['chatSend'], call: 'data.sendMessage()' },
+    { pattern: /\.react\s*\(/, permissions: ['chatReact'], call: 'data.react()' },
     { pattern: /\.session\s*\(\s*\)|\.onSessionChange\s*\(/, permissions: ['session'], call: 'data.session()' },
     {
         pattern: /\.(placeProfiles?|observePlaceProfile|myProfile|observeMyProfile)\s*\(/,
@@ -81,4 +84,4 @@ export const CALL_PATTERNS: ReadonlyArray<{ pattern: RegExp; permissions: Manife
 
 /** A quoted `<repository>.<method>` name of the kind the app's data methods have. */
 export const DATA_METHOD_NAME =
-    /['"`]((?:channel|join|chat|cloud|place|user|profile)\.(?:cache|fetch|observe|get|list|send|is)[A-Za-z]*)['"`]/g;
+    /['"`]((?:channel|join|chat|cloud|place|user|profile)\.(?:cache|fetch|observe|get|list|send|is)[A-Za-z]*|chat\.setReaction)['"`]/g;

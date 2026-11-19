@@ -29,13 +29,23 @@ export type ChaticAppsContext = {
     /** The link that opens this page in the app; absent from older apps. */
     appLink?: string;
     /** The display the app shows the page in; absent from older apps and the desktop. */
-    display?: 'titled' | 'clean' | 'immersive';
+    display?: Display;
     /**
      * How far the system bars reach into the page, in CSS pixels; 0 on every edge unless `immersive`.
-     * Absent from older apps and the desktop: read `--chatic-safe-area-inset-*`, then `env()`.
+     * Absent from older apps and the desktop: read `--chatic-safe-area-inset-*`, then `env()`. A change —
+     * a rotation — arrives through `onContextChange`.
      */
-    safeArea?: { top: number; right: number; bottom: number; left: number };
+    safeArea?: SafeArea;
 };
+
+/**
+ * How the app shows the page: `titled` under its bar, `clean` with no bar, `immersive` across the whole
+ * screen, under the system bars. The one the app actually uses, which may differ from the manifest's.
+ */
+export type Display = 'titled' | 'clean' | 'immersive';
+
+/** How far each system bar reaches into the page, in CSS pixels. */
+export type SafeArea = { top: number; right: number; bottom: number; left: number };
 
 /**
  * The `params` DoU's own web opens a mini app with (`context.params`): who is looking, in which cloud

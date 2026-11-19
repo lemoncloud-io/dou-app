@@ -48,7 +48,7 @@ Chatic 앱 검사
 - **`--details`**는 줄마다 그 뒤의 규칙이나 시나리오 이름을 덧붙이고, **`--json`**은 전부를 데이터로 출력합니다.
 - **빌드 폴더는 `dist/`**입니다. 다른 폴더면 `--dist`로, 프로젝트 폴더는 `--root`로 알려 줍니다.
 - **설정이 필요 없습니다.** 시나리오 파일이 없으면 화면 정보가 필요 없는 동작 검사(시작, 첫 화면 뒤로가기, 닫기, 테마,
-  숨김과 복귀, 동의 거절, 클라우드 변경, 한도 초과)만 돌리고, 시나리오 파일을 두면 화면 검사가 더해진다고 알려 줍니다.
+  숨김과 복귀, 동의 거절, 클라우드 변경, 한도 초과, `immersive` 페이지라면 휴대폰 돌리기)만 돌리고, 시나리오 파일을 두면 화면 검사가 더해진다고 알려 줍니다.
   아직 빌드하지 않았으면 먼저 빌드하라고 알려 줍니다.
 - 고칠 것이 없으면 `0`, 있으면 `1`로 끝납니다.
 
@@ -115,7 +115,7 @@ node dist/libs/chatic-apps-devtools/cli.js scenarios --root <page> --dist <built
 코드 규칙은 주석을 비운 소스를 읽으므로, 금지된 것을 이름으로 언급한 주석에는 걸리지 않습니다. 파서가 아니라 패턴이라서
 특이하게 쓴 위반은 놓칠 수 있고, 금지된 이름을 언급만 한 문자열에 걸릴 수 있습니다.
 
-**쓰는 권한**은 권한이 필요한 호출(`copy`, `share`, `openUrl`, `getUserKey`, `data.sendMessage`, `data.session`,
+**쓰는 권한**은 권한이 필요한 호출(`copy`, `share`, `openUrl`, `getUserKey`, `data.sendMessage`, `data.react`, `data.session`,
 플레이스 프로필 도우미)을 SDK나 그 타입을 가져오는 파일에서만 찾고, 따옴표 안의 데이터 메서드 이름에서도 찾습니다.
 메서드마다의 권한은 SDK의 `DataCalls`와 `DataStreams` 타입을 키로 하는 표에서 나옵니다. SDK가 메서드를 더하거나
 빼면 여기서 컴파일이 깨집니다.
@@ -149,6 +149,7 @@ esbuild가 합니다(jsdom은 모듈을 돌리지 못합니다). 그래서 설�
 | `cloud-change`    | 스트림이 열린 채 남거나, 스트림이 열려 있던 페이지가 반응하지 않거나, 계속 데이터를 요청할 때                                                  |
 | `big-list`        | 5,000행 목록에서 화면이 요소를 2,000개 넘게 그릴 때                                                                                            |
 | `rate-limited`    | `RATE_LIMITED`로 거절된 읽기를 다시 시도하지 않을 때                                                                                           |
+| `rotation`        | 휴대폰을 돌렸다 되돌릴 때(inset이 바뀔 때) `immersive` 페이지가 오류를 던지거나 보고할 때. `immersive` 매니페스트에서만 돈다                   |
 
 오류는 페이지가 던진 것(동기로, 이벤트 리스너에서, 처리하지 않은 rejection으로)과 `reportError`로 보고한 것입니다.
 스트림은 오가는 메시지로 셉니다: 구독해서 답을 받은 것에서 구독 해제한 것과 앱이 끝낸 것을 뺍니다. 리스너는 창, 문서,
@@ -186,7 +187,9 @@ export default {
 `verify`, `formatVerify`, `bundle`이 명령들의 API입니다. `check`, `runScenarios`, `loadDist`, `loadEntry`, `openPage`,
 `loadScenarioConfig`는 시험용으로 내보냅니다. `loadEntry`는 페이지를 소스에서 프로덕션 빌드처럼(`import.meta.env.DEV`가
 false) 묶고, 소스를 바꾸는 함수를 받을 수 있습니다. 페이지의 시험이 일부러 깨뜨린 사본을 만드는 방법입니다.
-`openPage`는 페이지를 열기 전에 호스트 — mock이든 실제 호스트든 — 를 끼워 넣는 고리를 받습니다.
+`openPage`는 페이지를 열기 전에 호스트 — mock이든 실제 호스트든 — 를 끼워 넣는 고리를 받습니다. `openMockedPage`는 SDK의 mock을 미리 설치한 채로 페이지를 열고 — mock의 옵션으로 시험이 고른 컨텍스트,
+`display: 'immersive'`, 또는 오래된 앱처럼 `display`와 `safeArea`가 없는 상태를 줄 수 있습니다 — mock의 컨트롤러를
+`app`으로 돌려줍니다.
 
 빌드는 이 API의 선언 파일 하나, `index.d.ts`를 `index.js`, `cli.js` 옆에 씁니다.
 

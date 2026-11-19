@@ -285,6 +285,164 @@ describe('apps.data.sendMessage, against the mock app', () => {
     });
 });
 
+describe('apps.data.react, against the mock app', () => {
+    let mock: MockController | undefined;
+    let apps: ChaticApps | undefined;
+
+    const start = async (options: MockOptions = {}) => {
+        mock = installChaticAppsMock({ log: false, ...options });
+        apps = await connect({ reportErrors: false });
+        return { mock, apps };
+    };
+
+    afterEach(() => {
+        apps?.disconnect();
+        mock?.uninstall();
+        apps = undefined;
+        mock = undefined;
+    });
+
+    it('sets and takes off a reaction through chat.setReaction, and the mock records both', async () => {
+        const { apps, mock } = await start({ permissions: ['chatReact'] });
+
+        await expect(apps.data.react('m1', '👍', true)).resolves.toEqual(expect.objectContaining({ id: 'm1' }));
+        await apps.data.react('m1', '👍', false);
+
+        expect(mock.reactions).toEqual([
+            { messageId: 'm1', emoji: '👍', on: true },
+            { messageId: 'm1', emoji: '👍', on: false },
+        ]);
+        expect(apps.data.can('chat.setReaction')).toBe(true);
+    });
+
+    it('sends the shape the app takes', async () => {
+        const answer = jest.fn((input: { chatId: string }) => ({
+            id: input.chatId,
+            cid: 'c1',
+            channelId: 'ch1',
+            chatNo: 3,
+            isPending: false,
+            isFailed: false,
+            createdAtMs: 1,
+            updatedAtMs: 1,
+        }));
+        const { apps } = await start({ permissions: ['chatReact'], data: { calls: { 'chat.setReaction': answer } } });
+
+        await apps.data.react('m1', '🎉', false);
+
+        expect(answer).toHaveBeenCalledWith({ chatId: 'm1', emoji: '🎉', action: 'off' });
+    });
+
+    it('refuses a reaction without the chatReact permission', async () => {
+        const { apps, mock } = await start({ permissions: ['chat', 'chatSend'] });
+
+        await expect(apps.data.react('m1', '👍', true)).rejects.toEqual(
+            expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
+        );
+        expect(mock.reactions).toEqual([]);
+    });
+
+    it.each([
+        ['two emoji', 'm1', '👍👍'],
+        ['a word', 'm1', 'ok'],
+        ['no emoji', 'm1', ''],
+        ['a space', 'm1', ' '],
+        ['a zero-width space', 'm1', '\u200b'],
+        ['a private-use character', 'm1', '\ue000'],
+        ['a letter with three combining marks', 'm1', 'a\u0301\u0302\u0303'],
+        ['a message id over 200 characters', 'm'.repeat(201), '👍'],
+    ])('refuses %s as the app does, and records nothing', async (_, message, emoji) => {
+        const { apps, mock } = await start({ permissions: ['chatReact'] });
+
+        await expect(apps.data.react(message, emoji, true)).rejects.toEqual(
+            expect.objectContaining({
+                code: 'RUNTIME_NOT_ALLOWED',
+                details: expect.objectContaining({ reason: 'guard' }),
+            })
+        );
+        expect(mock.reactions).toEqual([]);
+    });
+
+    it('takes one emoji built of several code points', async () => {
+        const { apps, mock } = await start({ permissions: ['chatReact'] });
+
+        await apps.data.react('m1', '👍🏽', true);
+        await apps.data.react('m1', '👨‍👩‍👧', true);
+
+        expect(mock.reactions.map(reaction => reaction.emoji)).toEqual(['👍🏽', '👨‍👩‍👧']);
+    });
+});
+
+describe('the display and the safe area, in the mock app', () => {
+    let mock: MockController | undefined;
+    let apps: ChaticApps | undefined;
+    const insetsOnPage = () =>
+        ['top', 'right', 'bottom', 'left'].map(edge =>
+            document.documentElement.style.getPropertyValue(`--chatic-safe-area-inset-${edge}`)
+        );
+
+    afterEach(() => {
+        apps?.disconnect();
+        mock?.uninstall();
+        apps = undefined;
+        mock = undefined;
+        document.documentElement.removeAttribute('style');
+    });
+
+    it('shows a page padded by default: clean, and 0 on every edge', async () => {
+        mock = installChaticAppsMock({ log: false });
+        apps = await connect({ reportErrors: false });
+
+        expect(apps.context).toEqual(
+            expect.objectContaining({ display: 'clean', safeArea: { top: 0, right: 0, bottom: 0, left: 0 } })
+        );
+        expect(insetsOnPage()).toEqual(['', '', '', '']);
+    });
+
+    it("gives an immersive page a phone's insets, and new ones when the phone turns", async () => {
+        mock = installChaticAppsMock({ log: false, context: { display: 'immersive' } });
+        apps = await connect({ reportErrors: false });
+        const heard = jest.fn();
+        apps.onContextChange(heard);
+
+        expect(apps.context?.safeArea).toEqual({ top: 47, right: 0, bottom: 34, left: 0 });
+        expect(insetsOnPage()).toEqual(['47px', '0px', '34px', '0px']);
+
+        mock.rotate();
+        await settle();
+        expect(heard).toHaveBeenLastCalledWith(
+            expect.objectContaining({ safeArea: { top: 0, right: 47, bottom: 21, left: 47 } })
+        );
+        expect(apps.context?.safeArea).toEqual({ top: 0, right: 47, bottom: 21, left: 47 });
+        expect(insetsOnPage()).toEqual(['0px', '47px', '21px', '47px']);
+
+        mock.rotate();
+        await settle();
+        expect(apps.context?.safeArea).toEqual({ top: 47, right: 0, bottom: 34, left: 0 });
+    });
+
+    it('tells a padded page nothing when the phone turns', async () => {
+        mock = installChaticAppsMock({ log: false, context: { display: 'titled' } });
+        apps = await connect({ reportErrors: false });
+        const heard = jest.fn();
+        apps.onContextChange(heard);
+
+        mock.rotate();
+        await settle();
+
+        expect(heard).not.toHaveBeenCalled();
+    });
+
+    it('stands in for an app that sends neither field', async () => {
+        mock = installChaticAppsMock({ log: false, context: { display: undefined, safeArea: undefined } });
+        apps = await connect({ reportErrors: false });
+
+        expect(apps.context?.display).toBeUndefined();
+        expect(apps.context?.safeArea).toBeUndefined();
+        expect(insetsOnPage()).toEqual(['', '', '', '']);
+    });
+});
+
 describe('apps.data place profiles, against the mock app', () => {
     let mock: MockController | undefined;
     let apps: ChaticApps | undefined;
@@ -492,6 +650,7 @@ describe('browserRuntime', () => {
             expect.objectContaining({ code: 'NOT_IN_APP' })
         );
         await expect(runtime.myProfile()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
+        await expect(runtime.react('m1', '👍', true)).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         expect(runtime.session()).toBeNull();
     });
 });

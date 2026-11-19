@@ -77,7 +77,7 @@ const main = async (args: string[]): Promise<number> => {
         const distDir = resolve(root, dist);
         const manifestPath = join(distDir, '.well-known', 'chatic-app.json');
         const manifest = existsSync(manifestPath)
-            ? (JSON.parse(readFileSync(manifestPath, 'utf8')) as { permissions?: unknown })
+            ? (JSON.parse(readFileSync(manifestPath, 'utf8')) as { permissions?: unknown; display?: unknown })
             : {};
         const permissions = Array.isArray(manifest.permissions) ? manifest.permissions.map(String) : [];
         const { config, file } = loadScenarioConfig(root);
@@ -90,6 +90,7 @@ const main = async (args: string[]): Promise<number> => {
         const results = await runScenarios({
             source: await loadDist(distDir),
             permissions,
+            display: typeof manifest.display === 'string' ? manifest.display : undefined,
             config,
             mockModule: option(args, 'mock'),
             resolveDir: root,

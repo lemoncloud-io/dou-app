@@ -910,6 +910,13 @@ export interface CloudPlaceMembersQuery {
     sessionPlaceId: string;
 }
 
+/** One emoji added to (`on`) or removed from (`off`) a message, in the user's name. */
+export interface CloudReactionInput {
+    chatId: string;
+    emoji: string;
+    action: 'on' | 'off';
+}
+
 /** A plain text message to a room of the place the view opened on. */
 export interface CloudSendChatInput {
     channelId: string;
@@ -922,7 +929,7 @@ export interface CloudSendChatInput {
 // ---------------------------------------------------------------------------------------------------
 
 /** The manifest permissions that open cloud data methods. */
-export type DataPermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend';
+export type DataPermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend' | 'chatReact';
 
 /**
  * Every method `apps.data.call` reaches, by the app's own `<repository>.<method>` name: the
@@ -954,8 +961,10 @@ export interface DataCalls {
         result: CloudList<CloudChat> | null;
     };
     'chat.listPendingImageChats': { permission: 'chat'; args: [channelId: string]; result: CloudChat[] };
-    /** The one write. `apps.data.sendMessage` calls it; prefer that. */
+    /** A write, the message. `apps.data.sendMessage` calls it; prefer that. */
     'chat.sendChat': { permission: 'chatSend'; args: [input: CloudSendChatInput]; result: CloudChat };
+    /** A write, the reaction; answers the message's row with it applied. `apps.data.react` calls it. */
+    'chat.setReaction': { permission: 'chatReact'; args: [input: CloudReactionInput]; result: CloudChat };
     /** `id` must be the current cloud's. */
     'cloud.cacheRead': { permission: 'cloud'; args: [id: string]; result: CloudInfo | null };
     /** Asks the server. `id` must be the current cloud's, and `cache: false` is required. */
