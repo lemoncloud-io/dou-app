@@ -2,6 +2,12 @@
 
 ## [2026-11-19] - No version updates
 
+### Features
+
+- (mobile,runtime-core,bridge-messages) let a mini app react to a message of its place
+
+## [2026-11-19] - No version updates
+
 ### Bug Fixes
 
 - (runtime-core,web) cross webhook on the bridge, not leave it off a native-owned session
