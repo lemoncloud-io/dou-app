@@ -170,11 +170,12 @@ Adjacency is **app policy**, not a store or backend rule. A tier change may move
 | the other store's tier | the same tier         | `current`                     |
 | the other store's tier | any other             | `blocked` (`otherStore`)      |
 
-The reason is that each cloud carries its own email verification: a tier 1 → 3 jump would collect
-two verifications before either cloud is usable, and a multi-step drop would strand clouds that no
-UI can release yet. `getTierRefusal` splits the `blocked` cases because they read nothing alike to
-the user, and `nearestSelectablePlan` offers the closest pickable tier instead (ties go to the
-cheaper one).
+The rule was set when each new cloud asked for its own email verification, so a tier 1 → 3 jump
+would have collected two verifications before either cloud was usable; that half no longer holds,
+since a cloud is now created without one. The other half — a multi-step drop stranding several
+clouds at once — is unchanged. The refusal copy states the rule without a reason. `getTierRefusal`
+splits the `blocked` cases because they read nothing alike to the user, and `nearestSelectablePlan`
+offers the closest pickable tier instead (ties go to the cheaper one).
 
 **An expired subscription comes back on the tier it lapsed from, not on tier 1.** The relay keeps
 `productId` through an expiry, so `usePlanCatalog.resubscribePlan` (`findResubscribePlan`) still
@@ -217,7 +218,7 @@ guards the parent-SKU regression.
 store has taken the money — failing there would leave a paid subscription with nothing to attach to.
 
 1. **Guest.** "Log in" is the actionable instruction. This is a backstop; both entry points route a
-   guest to login before the email step.
+   guest to login first.
 2. **No social credential.** A subscription attaches to a cloud and cloud ownership is
    social-account based. Only a definite `'absent'` blocks — `'unknown'` means the profile has not
    landed or the server never built the `link$` slot, and refusing on that would stop paying
@@ -349,9 +350,19 @@ each other, so the request arrives through a store seam — `stores/useAddCloudR
 membership fetch. Both mount on `PrivateShell` rather than `AppRuntime`: the flow navigates and
 therefore needs router context, and `AppRuntime` is a sibling of the router, outside it.
 
-**Email verification is optional at cloud creation.** A cloud reaches `active` with no email bound,
-so skipping leaves one to register later (`EmailRequiredBanner`, `findUnboundClouds`) rather than
-blocking creation. What is not optional is uniqueness: `useCloudEmailGuard` refuses a reused address
+**Adding a cloud asks for no email.** A cloud reaches `active` with no email bound, so `useAddCloud`
+sends none and `AddCloudFlowHost` goes from the quota verdict straight to `make` — one tap, no
+dialog. With nothing for the user to do in between, the verdict is judged on fresh data only: the
+flow re-reads the clouds and the membership on mount, and waits for `useCloudQuota`'s `isFetching`
+to clear, because the cache it answers from meanwhile may be out of date (another device may have used
+the last slot) and would turn the limit dialog into a failed `make`. It asks once: `make` invalidates
+the queries the quota reads, and the re-read verdict (now "full", counting the new cloud) would
+otherwise ask again or flash the limit dialog over the success.
+A cloud's recovery email is registered from cloud management only
+([mypage](../mypage/README.md)), through `stores/useEmailBindRequest` and `EmailBindRequestHost`,
+whose `EmailVerifyDialog` always binds to an existing cloud (`check`, then `confirm` with its
+`cloudId`). Nothing here nags for a missing one — no banner, no switcher prompt. What is not optional
+once an address is given is uniqueness: `useCloudEmailGuard` refuses a reused address
 on `send`/`resend`, before a code goes out, because the backend does not error — it silently
 overwrites the first cloud's `verify$.cloudId` pointer and breaks that cloud's release cascade. A
 released (`expired`) cloud frees its address again. An address **another user** registered is the
@@ -414,7 +425,7 @@ interpolations. What they cannot catch:
 | `IS_DEV` dry run           | `useAddCloud` passes `dryRun` in dev, mirroring the membership route, so no real infrastructure is provisioned. Cloud creation on tiers 2–5 is therefore not exercised in dev.                                                                                                 |
 | Android plan order         | `ANDROID_PLAN_LIST` in `apps/mobile/src/app/services/subscriptionIap/config.ts` derives an upgrade/downgrade rank from the env list's `indexOf`. If that order diverges from tier order, the direction flips — passing an exact `oldPlanId` is what keeps the judgement sound. |
 | `make` returns early       | `POST /clouds/0/make` returns once the model exists (`status=init`); workspace assignment and deploy follow asynchronously with no SLA. The success toast means accepted, not ready — the switcher shows the provisioning state.                                               |
-| One email per cloud, today | Reaching tier 5 needs five addresses. Until the backend supports one account across several clouds, that is the practical ceiling on tier 2+ conversion.                                                                                                                       |
+| One email per cloud, today | A recovery email is optional, but one address can back only one cloud (see `useCloudEmailGuard` above), so recovering all five clouds of tier 5 needs five addresses.                                                                                                          |
 | The website's side         | `subscription-web-checkout.spec.ts` (web-e2e, browser mode) proves the hand-off leaves for the right address on the dev host, and answers that address itself. Whether the website's page is open there, and what the production host shows, is the landing app's to test.     |
 
 The debug overlay's IAP screen maps 1:1 onto the bridge commands this feature uses, which is the

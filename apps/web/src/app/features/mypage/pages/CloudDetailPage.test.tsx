@@ -44,6 +44,11 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 jest.mock('../hooks/useDeleteCloud', () => ({
     useDeleteCloud: () => ({ mutateAsync: mockDeleteCloud, isPending: false }),
 }));
+const requestEmailBind = jest.fn();
+jest.mock('../../../stores/useEmailBindRequest', () => ({
+    useEmailBindRequest: (select: (s: { requestEmailBind: typeof requestEmailBind }) => unknown) =>
+        select({ requestEmailBind }),
+}));
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession }),
 }));
@@ -68,22 +73,14 @@ beforeEach(() => {
 });
 
 describe('CloudDetailPage — the facts', () => {
-    it('shows name, linked account and the status word', () => {
+    it('shows name, recovery email and the status word', () => {
         render(<CloudDetailPage />);
 
         expect(screen.getAllByText('작업용').length).toBeGreaterThan(0);
         expect(screen.getByText('b@example.com')).toBeInTheDocument();
+        expect(screen.queryByText(`${K}.detail.emailRegister`)).not.toBeInTheDocument();
         expect(screen.getByText(`${K}.status.subscribed`)).toBeInTheDocument();
     });
-
-    it('draws a dash for a missing linked account — its absence is the fact', () => {
-        clouds = [{ ...cloud, email: undefined }];
-
-        render(<CloudDetailPage />);
-
-        expect(screen.getByText('-')).toBeInTheDocument();
-    });
-
     it('leaves out the created date when the relay did not send one', () => {
         clouds = [{ ...cloud, createdAt: undefined }];
 
@@ -107,6 +104,26 @@ describe('CloudDetailPage — the facts', () => {
         render(<CloudDetailPage />);
 
         expect(navigate).not.toHaveBeenCalled();
+    });
+});
+
+describe('CloudDetailPage — the recovery email is set here', () => {
+    it('says a cloud without one has none, and what one would be for', () => {
+        clouds = [{ ...cloud, email: undefined }];
+
+        render(<CloudDetailPage />);
+
+        expect(screen.getByText(`${K}.detail.emailNotSet`)).toBeInTheDocument();
+        expect(screen.getByText(`${K}.detail.emailHelper`)).toBeInTheDocument();
+    });
+
+    it('raises the bind request for this cloud from the register action', () => {
+        clouds = [{ ...cloud, email: undefined }];
+
+        render(<CloudDetailPage />);
+        fireEvent.click(screen.getByText(`${K}.detail.emailRegister`));
+
+        expect(requestEmailBind).toHaveBeenCalledWith('CL2');
     });
 });
 

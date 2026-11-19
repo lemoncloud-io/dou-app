@@ -17,7 +17,6 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { useSessionLogout } from '../../../runtime/useSessionLogout';
 import { useCachedCloudNames, useInvitedClouds, useIsAccountGuest } from '../../../hooks';
-import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 import { ROUTES } from '../../../routes/paths';
 import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
@@ -79,7 +78,6 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
     const logoutSession = useSessionLogout();
     const { selectedCloudId } = runtime.session.useSessionSelection();
-    const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
     // A guest browser's clouds come from pairings, not from a catalog (a guest's is empty). An account
     // — a relay pairing included — has its catalog and never shows this section.
     const isAccountGuest = useIsAccountGuest();
@@ -234,7 +232,6 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                     hasUnread={(cloudUnread[cloud.id ?? ''] ?? 0) > 0 || isBadged(cloud.id ?? '')}
                     onSelectCloud={handleSelectCloud}
                     onInspectCloud={handleInspectCloud}
-                    onRequestEmailBind={requestEmailBind}
                 />
             ))}
         </div>

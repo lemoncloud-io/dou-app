@@ -85,8 +85,8 @@ const withSuspense = (Component: React.ComponentType) => (
  * by home because features do not import each other (ADR-0046 §3). It renders nothing — and runs no
  * queries — until something raises a request through `stores/useAddCloudRequest`.
  *
- * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers a request from
- * anywhere a cloud with no email is noticed (the switcher's unbound row, "구독 관리"'s banner).
+ * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers cloud
+ * management's request to register a recovery email on a cloud.
  */
 const PrivateShell = () => {
     usePreloadOnIdle(loadChannelRoutes);

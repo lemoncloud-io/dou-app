@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
+
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { AddCloudFlowHost } from './AddCloudFlowHost';
 import { useCloudQuota, usePlanCatalog } from '../hooks';
@@ -24,15 +26,11 @@ jest.mock('@chatic/shared', () => ({
 }));
 const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
+const addCloudMock = jest.fn();
 jest.mock('../hooks', () => ({
-    useAddCloud: () => jest.fn(),
-    useCloudEmailGuard: () => jest.fn(),
+    useAddCloud: () => addCloudMock,
     useCloudQuota: jest.fn(),
     usePlanCatalog: jest.fn(),
-}));
-// The verification dialog has its own suite; here only whether the flow reaches it matters.
-jest.mock('./EmailVerifyDialog', () => ({
-    EmailVerifyDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="email-verify" /> : null),
 }));
 
 const tier = (sort: number) => ({ id: `#pro-tier-0${sort}`, sort, maxClouds: sort });
@@ -41,12 +39,14 @@ const tiers = [1, 2, 3, 4, 5].map(tier);
 const open = (quota: Record<string, unknown>, currentPlan = tier(5), sellablePlans: unknown[] = tiers) => {
     (useCloudQuota as jest.Mock).mockReturnValue({ used: 0, limit: null, isLoading: false, ...quota });
     (usePlanCatalog as jest.Mock).mockReturnValue({ currentPlan, catalogPlans: tiers, sellablePlans });
-    render(<AddCloudFlowHost />);
+    const view = render(<AddCloudFlowHost />);
     act(() => useAddCloudRequest.getState().requestAddCloud());
+    return view;
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
+    addCloudMock.mockResolvedValue(undefined);
     act(() => useAddCloudRequest.getState().closeAddCloud());
 });
 
@@ -92,19 +92,93 @@ describe('AddCloudFlowHost — a used-up allowance', () => {
     });
 });
 
-describe('AddCloudFlowHost — the gate before verification', () => {
-    it('goes straight to verification when the quota allows it — an ending subscription included', () => {
+describe('AddCloudFlowHost — creating the cloud', () => {
+    it('asks the server for the cloud straight away, with no email step — an ending subscription included', async () => {
         open({ used: 1, limit: 3, canAdd: true }, tier(3));
 
-        expect(screen.getByTestId('email-verify')).toBeInTheDocument();
-        expect(toastMock).not.toHaveBeenCalled();
+        await waitFor(() => expect(useAddCloudRequest.getState().isOpen).toBe(false));
+        expect(addCloudMock).toHaveBeenCalledTimes(1);
+        expect(addCloudMock).toHaveBeenCalledWith();
+        expect(toastMock).toHaveBeenCalledWith({ title: 'addAccount.success' });
+    });
+
+    it('asks once even when the effect runs twice — StrictMode replays mount effects in dev', async () => {
+        (useCloudQuota as jest.Mock).mockReturnValue({ used: 1, limit: 3, isLoading: false, canAdd: true });
+        (usePlanCatalog as jest.Mock).mockReturnValue({
+            currentPlan: tier(3),
+            catalogPlans: tiers,
+            sellablePlans: tiers,
+        });
+        act(() => useAddCloudRequest.getState().requestAddCloud());
+
+        render(
+            <StrictMode>
+                <AddCloudFlowHost />
+            </StrictMode>
+        );
+
+        await waitFor(() => expect(useAddCloudRequest.getState().isOpen).toBe(false));
+        expect(addCloudMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for the re-read before asking — the cached verdict may be out of date', async () => {
+        const { rerender } = open({ used: 2, limit: 3, canAdd: true, isFetching: true }, tier(3));
+
+        expect(addCloudMock).not.toHaveBeenCalled();
+
+        // The fresh answer: another device used the last slot meanwhile.
+        (useCloudQuota as jest.Mock).mockReturnValue({
+            used: 3,
+            limit: 3,
+            isLoading: false,
+            isFetching: false,
+            canAdd: false,
+            reason: 'limitReached',
+        });
+        rerender(<AddCloudFlowHost />);
+
+        expect(addCloudMock).not.toHaveBeenCalled();
+        expect(screen.getByText('addAccount.limitDialog.title')).toBeInTheDocument();
+    });
+
+    it('says the request failed, and still closes', async () => {
+        addCloudMock.mockRejectedValue(new Error('409 CONFLICT'));
+
+        open({ used: 1, limit: 3, canAdd: true }, tier(3));
+
+        await waitFor(() => expect(useAddCloudRequest.getState().isOpen).toBe(false));
+        expect(toastMock).toHaveBeenCalledWith({ title: 'addAccount.addFailed', variant: 'destructive' });
+    });
+
+    it('asks once, and shows no limit dialog when the quota fills up under its own request', async () => {
+        let resolveMake: () => void = () => undefined;
+        addCloudMock.mockReturnValue(new Promise<void>(resolve => (resolveMake = resolve)));
+        const { rerender } = open({ used: 2, limit: 3, canAdd: true }, tier(3));
+
+        // `make` invalidates the quota mid-request; the re-read now counts the new cloud.
+        (useCloudQuota as jest.Mock).mockReturnValue({
+            used: 3,
+            limit: 3,
+            isLoading: false,
+            canAdd: false,
+            reason: 'limitReached',
+        });
+        rerender(<AddCloudFlowHost />);
+
+        expect(screen.queryByText('addAccount.limitDialog.title')).not.toBeInTheDocument();
+        expect(screen.queryByText('addAccount.limitDialog.topTitle:3')).not.toBeInTheDocument();
+
+        await act(async () => resolveMake());
+
+        expect(addCloudMock).toHaveBeenCalledTimes(1);
+        expect(useAddCloudRequest.getState().isOpen).toBe(false);
     });
 
     it('says why and closes when the server no longer finds the membership valid', () => {
         open({ used: 0, limit: 3, canAdd: false, reason: 'canceled' }, tier(3));
 
         expect(toastMock).toHaveBeenCalledWith({ title: 'addAccount.subscriptionCanceled', variant: 'destructive' });
-        expect(screen.queryByTestId('email-verify')).not.toBeInTheDocument();
+        expect(addCloudMock).not.toHaveBeenCalled();
         expect(useAddCloudRequest.getState().isOpen).toBe(false);
     });
 });

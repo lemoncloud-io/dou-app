@@ -332,11 +332,6 @@
             "excess": {
                 "manage": "Go to Cloud Management"
             },
-            "emailRequired": {
-                "title": "{{count}} cloud(s) without a recovery email",
-                "description": "Your email is how a cloud is recovered when you change devices or reinstall the app. Without one, this cloud cannot be brought back.",
-                "action": "Register email"
-            },
             "price": "Price",
             "guideTitle": "Subscription",
             "loginRequiredTitle": "You need to log in to subscribe",
@@ -380,7 +375,7 @@
                 },
                 "tierJump": {
                     "title": "One step at a time",
-                    "description": "Every cloud needs its own email verification, so a plan can only move one step at a time."
+                    "description": "A plan can only move one step at a time."
                 },
                 "entryTier": {
                     "title": "A first subscription starts on plan 1",
@@ -543,7 +538,10 @@
                 "title": "Cloud information",
                 "nameLabel": "Cloud name",
                 "createdAtLabel": "Created on",
-                "accountLabel": "Linked account",
+                "emailLabel": "Recovery email",
+                "emailNotSet": "Not registered",
+                "emailRegister": "Register",
+                "emailHelper": "Used to get this cloud back on a new device or after reinstalling the app. The cloud works the same without one.",
                 "statusLabel": "Cloud status"
             },
             "edit": {
@@ -719,7 +717,6 @@
         "invitedOwnerLabel": "{{owner}}'s cloud",
         "invitedFallbackLabel": "Invited cloud",
         "cloudReady": "Your cloud is ready!",
-        "emailRequired": "Add recovery email",
         "disconnectCloud": "Disconnect Cloud",
         "disconnectCloudDesc": "Disconnect from cloud",
         "authTimeout": "Cloud authentication timed out",
@@ -2177,7 +2174,6 @@
         "addFailed": "Could not add the account",
         "emailInvalid": "That email address is not valid",
         "codeExpired": "The code has expired — please resend",
-        "emailSkip": "I'll verify later",
         "limitDialog": {
             "title": "No more clouds can be added",
             "changeableDescription": "Your current plan allows up to {{max}} clouds.\nChange your plan to add more.",

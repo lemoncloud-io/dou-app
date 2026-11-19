@@ -13,7 +13,7 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { type CloudRowState, isCloudEnterable, needsCloudAttention, resolveCloudRowState } from '../../../../utils';
 import { CloudUnreadBadge } from './CloudUnreadBadge';
-import { SELECTED_HIGHLIGHT, getCloudDisplayName, needsEmailBind } from './shared';
+import { SELECTED_HIGHLIGHT, getCloudDisplayName } from './shared';
 
 /** The badge each row state wears in the switcher, and its word. `null` is a plain row. */
 const BADGE: Record<CloudRowState, { variant: CloudStatusVariant; key: string } | null> = {
@@ -34,8 +34,6 @@ interface CloudItemProps {
     onSelectCloud: (cloudId: string) => void;
     /** Raised instead of `onSelectCloud` for a row that cannot be entered — it opens cloud management. */
     onInspectCloud: (cloudId: string) => void;
-    /** Raised instead of `onSelectCloud` when the row `needsEmailBind` — see that helper. */
-    onRequestEmailBind?: (cloudId: string) => void;
 }
 
 /**
@@ -56,7 +54,6 @@ export const CloudItem = ({
     hasUnread,
     onSelectCloud,
     onInspectCloud,
-    onRequestEmailBind,
 }: CloudItemProps) => {
     const { t } = useTranslation();
     const state = resolveCloudRowState(cloud);
@@ -64,9 +61,6 @@ export const CloudItem = ({
     const attention = needsCloudAttention(state);
     const badge = BADGE[state];
     const isRestricted = state === 'restricted';
-    // An unbound cloud is live (not `disabled`) but there's nothing to sign into it with yet —
-    // route the tap at fixing that instead of switching.
-    const unbound = enterable && needsEmailBind(cloud);
     const displayName = getCloudDisplayName(cloud);
     const hasName = !!displayName;
     // A row that explains itself stays tappable whatever else is going on; only a switch in flight
@@ -77,10 +71,6 @@ export const CloudItem = ({
         if (disabled || !cloud.id) return;
         if (!enterable) {
             onInspectCloud(cloud.id);
-            return;
-        }
-        if (unbound && onRequestEmailBind) {
-            onRequestEmailBind(cloud.id);
             return;
         }
         onSelectCloud(cloud.id);
@@ -122,8 +112,10 @@ export const CloudItem = ({
                 )}
                 {/* The caption is the design's one sentence for every state that needs a look; the
                     badge says which state. The record's own `error` is a server-side provisioning
-                    trace that names internals, so it never reaches the row — the sheet logs it. */}
-                {attention ? (
+                    trace that names internals, so it never reaches the row — the sheet logs it.
+                    A live row has no second line: the cloud's recovery email is cloud management's
+                    business, so the switcher neither shows the address nor asks for one. */}
+                {attention && (
                     <span
                         className={cn(
                             'truncate text-left text-[13px] leading-[1.4] tracking-[-0.065px]',
@@ -131,17 +123,6 @@ export const CloudItem = ({
                         )}
                     >
                         {t('cloudSessionSheet.checkInfo')}
-                    </span>
-                ) : state === 'provisioning' ? null : (
-                    <span
-                        className={cn(
-                            'truncate text-left text-[14px] leading-[1.19] tracking-[-0.01em]',
-                            unbound
-                                ? 'font-medium text-point-blue underline underline-offset-2'
-                                : 'font-normal text-description'
-                        )}
-                    >
-                        {unbound ? t('cloudSessionSheet.emailRequired') : (cloud.email ?? '')}
                     </span>
                 )}
             </div>

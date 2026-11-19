@@ -8,16 +8,18 @@ import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/runtime';
-import { AlertDialog, Divider, IconSpinner, InfoField, ListRow } from '@chatic/web-ui-kit';
+import { AlertDialog, Divider, IconSpinner, InfoField, ListRow, Text } from '@chatic/web-ui-kit';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 
 import { ROUTES } from '../../../routes/paths';
+import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { cloudDisplayName } from '../../../utils';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { haptics } from '../../../bridge/haptics';
 import { PageHeader } from '../../../ui/components';
+import { InlineAction } from '../../../ui/components/InlineAction';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { CloudIdentity } from '../components/CloudIdentity';
 import { useDeleteCloud } from '../hooks/useDeleteCloud';
@@ -35,8 +37,12 @@ const TONE_CLASS: Record<CloudStatusTone, string> = {
  *
  * The rows are the catalog's facts: name, when it was made, the recovery address bound to it, and
  * its standing in words (`cloudStatusWord`). A fact the relay did not send is not drawn — the
- * created date, say — except the linked account, which the design draws as a dash because its
- * absence is itself the fact (there is nothing to recover the cloud with).
+ * created date, say — except the recovery email, whose absence is itself the fact.
+ *
+ * This is the one place a cloud's recovery email is set. Creating a cloud and entering one never
+ * ask for it, so a cloud without one is an ordinary cloud, not an unfinished one: the field says
+ * "not registered", offers to register, and explains what the address buys (getting the cloud back
+ * on a new device or after a reinstall) without pressing for it.
  *
  * Releasing is irreversible and cascades, so it is confirmed, and a release of the ACTIVE cloud
  * ends the cloud session and reloads: the session's tokens name a cloud that no longer exists.
@@ -51,6 +57,7 @@ export const CloudDetailPage = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { logoutCloudSession } = useLogoutCloudSession();
     const deleteCloud = useDeleteCloud();
+    const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     // The catalog patch below empties `cloud` before the release finishes; without this the
@@ -118,7 +125,28 @@ export const CloudDetailPage = () => {
                         {createdAt && (
                             <InfoField label={t('mypage.cloudManage.detail.createdAtLabel')}>{createdAt}</InfoField>
                         )}
-                        <InfoField label={t('mypage.cloudManage.detail.accountLabel')}>{cloud.email ?? '-'}</InfoField>
+                        <InfoField label={t('mypage.cloudManage.detail.emailLabel')}>
+                            {cloud.email ? (
+                                cloud.email
+                            ) : (
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <Text variant="body" className="text-placeholder">
+                                            {t('mypage.cloudManage.detail.emailNotSet')}
+                                        </Text>
+                                        <InlineAction
+                                            accent
+                                            enabled={!!cloud.id}
+                                            label={t('mypage.cloudManage.detail.emailRegister')}
+                                            onClick={() => cloud.id && requestEmailBind(cloud.id)}
+                                        />
+                                    </div>
+                                    <Text variant="caption" className="text-description">
+                                        {t('mypage.cloudManage.detail.emailHelper')}
+                                    </Text>
+                                </div>
+                            )}
+                        </InfoField>
                         <InfoField label={t('mypage.cloudManage.detail.statusLabel')}>
                             <span className={TONE_CLASS[word.tone]}>{t(`mypage.cloudManage.status.${word.key}`)}</span>
                         </InfoField>

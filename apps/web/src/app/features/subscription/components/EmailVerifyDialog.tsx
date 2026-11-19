@@ -30,19 +30,11 @@ interface EmailVerifyDialogProps {
         cloudId?: string;
     }) => Promise<void>;
     /**
-     * Lets the caller skip verification entirely. The backend accepts a cloud with no email at all
-     * (`POST /clouds/0/make`, `POST /memberships/0`) — it still reaches `active` — so nothing here
-     * is a hard requirement; the address can always be bound afterward via `cloudId` below.
+     * The existing cloud the verified address is bound to. `verify` chains a `confirm` call after
+     * `check` — `check` alone only validates the code typed back, it does not link the address to
+     * anything.
      */
-    onSkip?: () => void;
-    /**
-     * Binds the verified address to a cloud that ALREADY EXISTS, instead of the dialog's default of
-     * just validating the address for a caller who will attach it elsewhere (a new purchase, a new
-     * `make` call). When set, `verify` chains a `confirm` call after `check` — `check` alone only
-     * validates the code typed back, it does not link the address to anything. Used to register an
-     * email on a cloud that was created without one (see `EmailRequiredBanner`).
-     */
-    cloudId?: string;
+    cloudId: string;
 }
 
 /**
@@ -54,18 +46,10 @@ interface EmailVerifyDialogProps {
  * opposite the helper text (`helperTrailing`). It used to be two full-screen steps of bespoke
  * markup, which is how it drifted away from the rest of the app's inputs.
  *
- * Owned by this feature: every caller is a subscription flow (the plans page, the subscribe sheet,
- * the add-cloud host). It sat in `ui/components` while the sheet still lived under `features/home`;
- * once that moved, the reason for it being cross-cutting went with it.
+ * Its one caller is `EmailBindRequestHost`, which cloud management raises: a cloud is created
+ * without an email, and the address is bound to it afterwards, there and only there.
  */
-export const EmailVerifyDialog = ({
-    open,
-    onOpenChange,
-    onVerified,
-    verifyEmail,
-    onSkip,
-    cloudId,
-}: EmailVerifyDialogProps) => {
+export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail, cloudId }: EmailVerifyDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
 
@@ -116,11 +100,6 @@ export const EmailVerifyDialog = ({
         reset();
     }, [onOpenChange, reset]);
 
-    const handleSkip = useCallback(() => {
-        onSkip?.();
-        handleClose();
-    }, [onSkip, handleClose]);
-
     useEffect(() => () => void (timerRef.current && clearInterval(timerRef.current)), []);
 
     const send = async (step: 'send' | 'resend') => {
@@ -147,10 +126,9 @@ export const EmailVerifyDialog = ({
         let stage: 'check' | 'confirm' = 'check';
         try {
             await verifyEmail({ email, step: 'check', code });
-            // `check` only validates the code — binding to a specific cloud is a separate `confirm`
-            // call, and only needed when the caller asked to bind one (see `cloudId` on the props).
+            // `check` only validates the code — binding it to the cloud is a separate `confirm` call.
             stage = 'confirm';
-            if (cloudId) await verifyEmail({ email, step: 'confirm', cloudId });
+            await verifyEmail({ email, step: 'confirm', cloudId });
             onVerified(email);
             handleClose();
         } catch (error) {
@@ -195,17 +173,6 @@ export const EmailVerifyDialog = ({
                                 label={t('addAccount.complete')}
                                 onClick={() => void verify()}
                                 disabled={!isCodeComplete || isBusy || expired}
-                                link={
-                                    onSkip && (
-                                        <button
-                                            type="button"
-                                            onClick={handleSkip}
-                                            className="text-center text-[15px] font-medium text-muted-foreground"
-                                        >
-                                            {t('addAccount.emailSkip')}
-                                        </button>
-                                    )
-                                }
                             />
                             {/* Rides the CTA above the soft keyboard; collapses to nothing without one. */}
                             <KeyboardSafeAreaSpacer />

@@ -13,6 +13,12 @@ export interface CloudQuota {
     /** Why not, when `canAdd` is false. Absent while still loading. */
     reason?: CloudQuotaReason;
     isLoading: boolean;
+    /**
+     * The cloud list or the membership is being re-read. `isLoading` covers the first read only; a
+     * screen that mounts over cached data re-reads both (`refetchOnMount: 'always'`) while still
+     * answering from the cache, and a decision that spends the allowance waits for the fresh answer.
+     */
+    isFetching: boolean;
 }
 
 /**
@@ -25,10 +31,10 @@ export interface CloudQuota {
  */
 export const useCloudQuota = (): CloudQuota => {
     const { summary, isLoading: isCatalogLoading, currentPlan } = usePlanCatalog();
-    const { data: cloudsData, isLoading: isCloudsLoading } = useClouds({ limit: -1 });
+    const { data: cloudsData, isLoading: isCloudsLoading, isFetching: isCloudsFetching } = useClouds({ limit: -1 });
     // The same query `usePlanCatalog` already runs, so this adds no request — only the server's
     // provisioning verdict, which the catalog's summary deliberately leaves out.
-    const { data: membership } = useMembershipInfo();
+    const { data: membership, isFetching: isMembershipFetching } = useMembershipInfo();
 
     const isLoading = isCatalogLoading || isCloudsLoading;
     const used = countOwnedClouds(cloudsData?.list ?? []);
@@ -46,5 +52,6 @@ export const useCloudQuota = (): CloudQuota => {
         // membership is worse than saying nothing for a moment.
         reason: isLoading ? undefined : verdict.reason,
         isLoading,
+        isFetching: isCloudsFetching || isMembershipFetching,
     };
 };

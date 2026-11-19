@@ -82,6 +82,7 @@ jest.mock('../hooks/useCloudPromo', () => ({
 
 const activeCloud = (id: string, over: Record<string, unknown> = {}) => ({
     id,
+    name: `Cloud ${id}`,
     status: 'active',
     email: `${id}@example.com`,
     createdAt: 1,
@@ -159,7 +160,7 @@ describe('CloudSessionSheet — add cloud affordance', () => {
         catalog.clouds = [activeCloud('c1')];
 
         renderSheet();
-        const rowBefore = screen.getByText('c1@example.com');
+        const rowBefore = screen.getByText('Cloud c1');
 
         // Collapse "My Cloud" and let the height transition finish so its body unmounts.
         const toggles = screen.getAllByRole('button', { name: 'cloudSessionSheet.toggleSection' });
@@ -167,7 +168,7 @@ describe('CloudSessionSheet — add cloud affordance', () => {
         fireEvent.click(toggles[1]);
         fireEvent.transitionEnd(grid);
 
-        expect(screen.queryByText('c1@example.com')).not.toBeInTheDocument();
+        expect(screen.queryByText('Cloud c1')).not.toBeInTheDocument();
         // This is the regression the footer slot exists for.
         expect(screen.getByRole('button', { name: /cloudSessionSheet\.addAccount/ })).toBeInTheDocument();
         expect(screen.getByText('cloudSessionSheet.myCloudsDescription')).toBeInTheDocument();
@@ -200,7 +201,7 @@ describe('CloudSessionSheet — owned section body', () => {
         renderSheet();
 
         expect(screen.getByText('cloudSessionSheet.myCloudsDescription')).toBeInTheDocument();
-        expect(screen.getByText('c1@example.com')).toBeInTheDocument();
+        expect(screen.getByText('Cloud c1')).toBeInTheDocument();
         expect(screen.queryByText(/cloudPromo\.title/)).not.toBeInTheDocument();
     });
 
@@ -255,7 +256,7 @@ describe('CloudSessionSheet — selection', () => {
         selectedCloudId = 'default';
 
         renderSheet();
-        fireEvent.click(screen.getByText('c1@example.com'));
+        fireEvent.click(screen.getByText('Cloud c1'));
 
         expect(switchCloud).toHaveBeenCalledWith('c1');
     });
@@ -265,7 +266,7 @@ describe('CloudSessionSheet — selection', () => {
         selectedCloudId = 'default';
 
         renderSheet();
-        fireEvent.click(screen.getByText('c1@example.com'));
+        fireEvent.click(screen.getByText('Cloud c1'));
         await waitFor(() =>
             expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud switch succeeded', { cloudId: 'c1' })
         );

@@ -12,7 +12,7 @@ export interface AddCloudFlowResult {
 /**
  * Raises a request for the subscribe-a-cloud flow.
  *
- * The flow (quota check → plan picker or email verify → provision) lives in
+ * The flow (quota check → plan picker or provision) lives in
  * `features/subscription`, which home cannot import (ADR-0046 §3). Home only signals intent; the
  * private router mounts `AddCloudFlowHost` to answer it. That is also why nothing is returned to
  * render here any more — the host owns the dialogs.

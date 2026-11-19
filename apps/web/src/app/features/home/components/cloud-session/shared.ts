@@ -8,14 +8,6 @@ export const SELECTED_HIGHLIGHT = 'bg-[#F3F0FF] dark:bg-[#2D2640]';
 /** A cloud still being provisioned (not yet selectable). */
 export const isProvisioning = (status?: CloudView['status']): boolean => status === 'reserved' || status === 'init';
 
-/**
- * An `active` cloud with no email bound yet — the backend confirmed a cloud reaches `active` with
- * no email at all (a skipped purchase, or a skipped add-cloud request), so this isn't an error
- * state, just an unfinished one. Only checked once provisioning is done: while still `init`/
- * `reserved`, the provisioning row already says everything there is to say.
- */
-export const needsEmailBind = (cloud: CloudView): boolean => cloud.status === 'active' && !cloud.email;
-
 /** The one chain cloud management uses too — see `utils/cloudDisplayName`. */
 export const getCloudDisplayName = (cloud: CloudView): string => cloudDisplayName(cloud);
 

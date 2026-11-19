@@ -7,9 +7,9 @@ import { useCloudEmailGuard } from '../hooks';
 import { EmailVerifyDialog } from './EmailVerifyDialog';
 
 /**
- * Answers `useEmailBindRequest` — the same dialog `EmailRequiredBanner` uses, just reachable from
- * anywhere (the cloud switcher's unbound-email row) instead of only from "구독 관리". One dialog
- * instance, mounted once, rather than every caller managing its own.
+ * Answers `useEmailBindRequest` — registering a recovery email on a cloud that has none. The request
+ * comes from cloud management (`features/mypage`), which cannot import this feature, so the dialog
+ * is mounted once by the private router and raised through the store.
  */
 const EmailBindFlow = ({ cloudId }: { cloudId: string }) => {
     const queryClient = useQueryClient();

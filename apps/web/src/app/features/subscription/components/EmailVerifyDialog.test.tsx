@@ -22,49 +22,8 @@ const enterEmailAndCode = async () => {
     });
 };
 
-describe('EmailVerifyDialog — skip affordance', () => {
-    it('has no skip link when the caller does not supply onSkip (e.g. adding a cloud)', () => {
-        render(<EmailVerifyDialog open onOpenChange={noop} onVerified={noop} verifyEmail={() => Promise.resolve()} />);
-        expect(screen.queryByText('addAccount.emailSkip')).not.toBeInTheDocument();
-    });
-
-    it('offers a skip link when the caller supplies onSkip (e.g. purchasing a plan)', () => {
-        const onSkip = jest.fn();
-        const onOpenChange = jest.fn();
-        render(
-            <EmailVerifyDialog
-                open
-                onOpenChange={onOpenChange}
-                onVerified={noop}
-                onSkip={onSkip}
-                verifyEmail={() => Promise.resolve()}
-            />
-        );
-
-        const skipLink = screen.getByText('addAccount.emailSkip');
-        skipLink.click();
-
-        expect(onSkip).toHaveBeenCalledTimes(1);
-        // Skipping closes the dialog the same way the close (X) affordance does.
-        expect(onOpenChange).toHaveBeenCalledWith(false);
-    });
-});
-
-describe('EmailVerifyDialog — binding an existing cloud (cloudId)', () => {
-    it('checks only, with no cloudId — nothing to bind, the caller attaches the email itself', async () => {
-        const verifyEmail = jest.fn().mockResolvedValue(undefined);
-        const onVerified = jest.fn();
-        render(<EmailVerifyDialog open onOpenChange={noop} onVerified={onVerified} verifyEmail={verifyEmail} />);
-
-        await enterEmailAndCode();
-
-        expect(verifyEmail).toHaveBeenCalledWith({ email: EMAIL, step: 'send' });
-        expect(verifyEmail).toHaveBeenCalledWith({ email: EMAIL, step: 'check', code: CODE });
-        expect(verifyEmail).not.toHaveBeenCalledWith(expect.objectContaining({ step: 'confirm' }));
-        expect(onVerified).toHaveBeenCalledWith(EMAIL);
-    });
-
-    it('chains a confirm call after check when cloudId is supplied — check alone does not bind', async () => {
+describe('EmailVerifyDialog — binding the cloud', () => {
+    it('chains a confirm call after check — check alone does not bind', async () => {
         const verifyEmail = jest.fn().mockResolvedValue(undefined);
         const onVerified = jest.fn();
         render(
