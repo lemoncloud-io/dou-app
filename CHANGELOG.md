@@ -2,6 +2,13 @@
 
 ## [2026-11-19] - No version updates
 
+### Features
+
+- (chatic-apps-devtools) know chatReact, turn an immersive page, and open a mocked page
+- (chatic-apps-sdk,mobile) type the reaction, and tell a page its display and safe area
+
+## [2026-11-19] - No version updates
+
 ### Bug Fixes
 
 - (runtime-web) read the 'app' and 'page' spellings installed phone apps still declare
