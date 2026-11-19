@@ -207,4 +207,6 @@ export const en: Messages = {
     talksTo: hosts => `The page talks to: ${hosts} — check what each one receives.`,
     bundle: (files, kilobytes) => `Bundle: ${files} files, ${kilobytes} KB.`,
     detailsHint: 'Add --details to see the rule behind each line.',
+    bundled: (file, files) => `✓ Packed ${files} files into ${file}. This is the zip to hand over.`,
+    bundleFailed: reason => `✗ Could not pack the page: ${reason}`,
 };

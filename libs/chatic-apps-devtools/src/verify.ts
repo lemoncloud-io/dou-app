@@ -17,7 +17,7 @@ import { SCREENLESS_SCENARIOS, runScenarios, type ScenarioName, type ScenarioRes
 
 export type Language = 'en' | 'ko';
 
-const MESSAGES: Record<Language, Messages> = { en, ko };
+export const MESSAGES: Record<Language, Messages> = { en, ko };
 
 const RULE_GROUPS: Record<RuleId, GroupId> = {
     'manifest/missing': 'manifest',
@@ -150,9 +150,12 @@ export const verify = async (options: VerifyOptions): Promise<VerifyResult> => {
         for (const result of scenarios) {
             for (const issue of result.issues) {
                 const explained = text.issues[issue.kind];
+                const problem = explained.problem(issue);
+                // One thing to fix is said once, however many scenarios met it.
+                if (items.some(item => item.problem === problem && item.where === issue.screen)) continue;
                 items.push({
                     group: SCENARIO_GROUPS[result.name],
-                    problem: explained.problem(issue),
+                    problem,
                     fix: explained.fix,
                     where: issue.screen,
                     source: `scenario ${result.name}: ${issue.kind}`,

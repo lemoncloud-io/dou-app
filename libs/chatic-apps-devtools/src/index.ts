@@ -1,3 +1,4 @@
+export { bundle, zip, type BundleOptions, type BundleResult } from './bundle';
 export { RULES, check, formatCheck, type CheckOptions, type CheckResult, type Finding, type RuleId } from './check';
 export { CONFIG_FILES, loadScenarioConfig } from './config';
 export {

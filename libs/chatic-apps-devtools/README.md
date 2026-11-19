@@ -58,6 +58,14 @@ The package is not published yet. Its publish manifest is `package.publish.json`
 CI publishing with provenance, because a command that runs on authors' machines is worth more to an
 attacker than a library.
 
+## `bundle`
+
+`chatic-apps bundle` packs the build folder into the zip that is handed over: its contents at the top of
+the archive (`index.html`, `.well-known/chatic-app.json`, `assets/…`) and nothing else. Add it as the
+project's `bundle` script, as `verify`; it writes `<project folder>.zip` unless `--out` names another
+file, refuses a folder that is not built or holds a link, and packs the same build to the same bytes —
+entries sorted and dated 1980-01-01. It checks nothing else: run `verify` first.
+
 ## Inside: `check` and `scenarios`
 
 `verify` is the checker followed by the scenario runner. Both stay as commands of their own, for CI and
@@ -183,7 +191,7 @@ SDK (`@lemoncloud/chatic-apps-sdk/mock`); `--mock` names another module, as this
 
 ## The API
 
-`verify` and `formatVerify` are the command's API. `check`, `runScenarios`, `loadDist`, `loadEntry`,
+`verify`, `formatVerify` and `bundle` are the commands' API. `check`, `runScenarios`, `loadDist`, `loadEntry`,
 `openPage` and `loadScenarioConfig` are exported for tests. `loadEntry` bundles a page from its sources as a production build would (`import.meta.env.DEV`
 false) with an optional source transform, which is how a page's own tests make broken copies of it;
 `openPage` opens a page with a hook to put a host — the mock, or a real one — in place first.
