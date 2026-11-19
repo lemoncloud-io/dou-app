@@ -229,12 +229,22 @@ export const REPOSITORY_METHODS = {
         listRelayUsers: 'call',
         tryFetchProfile: 'call',
     } satisfies CrossingsOf<PageRepositories['user']>,
+    webhook: {
+        list: 'call',
+        issue: 'call',
+        setPaused: 'call',
+        setExpiresAt: 'call',
+        remove: 'call',
+    } satisfies CrossingsOf<PageRepositories['webhook']>,
     syncMeta: {
         getSyncedAt: 'call',
         setSyncedAt: 'call',
         cacheClear: 'call',
     } satisfies CrossingsOf<PageRepositories['syncMeta']>,
-} as const;
+    // Keyed by every repository, so one added to the graph and left out here does not compile. The
+    // mirror builds its graph from this table alone, so a repository missing from it is simply absent
+    // from a page whose session the shell owns — `webhook` was, and the room settings fell over on it.
+} as const satisfies { [Repository in keyof PageRepositories]: unknown };
 
 const repositoryMethodsCrossing = (...crossings: RepositoryCrossing[]): readonly string[] =>
     Object.entries(REPOSITORY_METHODS).flatMap(([repository, methods]) =>

@@ -201,7 +201,18 @@ describe('the data across the bridge', () => {
         expect(new Set(all).size).toBe(all.length);
         expect(REPOSITORY_STREAMS.every(method => method.split('.')[1].startsWith('observe'))).toBe(true);
         expect(REPOSITORY_CALL_METHODS.some(method => method.split('.')[1].startsWith('observe'))).toBe(false);
-        expect(Object.keys(REPOSITORY_METHODS)).toHaveLength(14);
+        expect(Object.keys(REPOSITORY_METHODS)).toHaveLength(15);
+    });
+
+    it("carries a channel's webhooks as calls — an app built before them answers RUNTIME_NOT_AVAILABLE", () => {
+        expect(REPOSITORY_METHODS.webhook).toEqual({
+            list: 'call',
+            issue: 'call',
+            setPaused: 'call',
+            setExpiresAt: 'call',
+            remove: 'call',
+        });
+        expect(REPOSITORY_CALL_METHODS).toEqual(expect.arrayContaining(['webhook.list', 'webhook.issue']));
     });
 
     it("carries the room's media reads as calls — an app built before them answers RUNTIME_NOT_AVAILABLE", () => {
