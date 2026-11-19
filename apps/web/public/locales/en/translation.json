@@ -1375,7 +1375,8 @@
             },
             "browserShare": {
                 "again": "Ready to share. Tap again",
-                "failed": "Couldn’t share the file"
+                "failed": "Couldn’t share the file",
+                "saveFailed": "Couldn’t save the file"
             }
         },
         "preview": {

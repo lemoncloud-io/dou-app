@@ -11,7 +11,8 @@ import { useCanExportImages } from '../../../bridge/shellCapabilities';
 import { getShellDownloads } from '../../../bridge/shellDownload';
 import { exportMediaInBrowser, type BrowserMediaDeps, type BrowserMediaOutcome } from '../lib/browserMediaExport';
 import { canShareFilesInBrowser, shareFileInBrowser } from '../lib/browserShare';
-import { fetchInBrowser, saveBlob } from '../lib/fileDownload';
+import { saveFileInBrowser } from '../lib/browserSave';
+import { fetchInBrowser } from '../lib/fileDownload';
 import {
     exportMedia,
     saveAllMedia,
@@ -130,7 +131,7 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         (item: ExportableMedia): BrowserMediaDeps => ({
             fetch: (url, options) => fetchInBrowser(url, options),
             freshUrl: () => freshUrlOf(item),
-            save: saveBlob,
+            save: (blob, name) => saveFileInBrowser(blob, name),
             share: (blob, name) => shareFileInBrowser(blob, name),
         }),
         [freshUrlOf]

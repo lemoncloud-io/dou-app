@@ -15,10 +15,12 @@ const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 
 const fetchInBrowser = jest.fn();
-const saveBlob = jest.fn();
 jest.mock('../lib/fileDownload', () => ({
     fetchInBrowser: (...args: unknown[]) => fetchInBrowser(...args),
-    saveBlob: (...args: unknown[]) => saveBlob(...args),
+}));
+const saveBlob = jest.fn();
+jest.mock('../lib/browserSave', () => ({
+    saveFileInBrowser: (...args: unknown[]) => saveBlob(...args),
 }));
 const loadPdf = jest.fn();
 jest.mock('../lib/pdf', () => ({
@@ -72,7 +74,7 @@ beforeEach(() => {
     browserShares = true;
     toast.mockReset();
     fetchInBrowser.mockReset().mockResolvedValue({ kind: 'blob', blob: bytes });
-    saveBlob.mockReset();
+    saveBlob.mockReset().mockResolvedValue('saved');
     loadPdf.mockReset().mockResolvedValue(docOf(2));
     shareFileInBrowser.mockReset().mockResolvedValue('shared');
     download.mockReset();
@@ -112,6 +114,16 @@ describe('DocumentPreview', () => {
         expect(saveBlob).toHaveBeenCalledWith(bytes, 'report.pdf');
         expect(fetchInBrowser).toHaveBeenCalledTimes(1);
         expect(download).not.toHaveBeenCalled();
+    });
+
+    it('says so when the iOS share sheet could not take the file', async () => {
+        saveBlob.mockResolvedValueOnce('failed');
+        render(<DocumentPreview cid="c" target={target} onClose={jest.fn()} />);
+        await settle();
+
+        await act(async () => fireEvent.click(saveButton()));
+
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.browserShare.saveFailed', variant: 'destructive' });
     });
 
     it('saves as the card’s button does before the bytes arrive, and holds share back', () => {

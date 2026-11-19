@@ -46,7 +46,12 @@ viewer), and saves and shares photos itself.
 6. **A share the browser refuses for a stale tap keeps the bytes.** A share must start within moments
    of the press; a long fetch can outlast that. The page keeps what it fetched and asks for another
    tap, which then shares at once.
-7. **Closing is the viewer's own**: the close button and Esc. The browser's back leaves the room, as it
+7. **On iOS and iPadOS, "save" is the share sheet** — for the card's download button, the document
+   viewer and the photo viewer alike. A home-screen web app (the manifest is `standalone`) and the
+   in-app browsers do not download a `blob:` address with `download`; they show the file in place of
+   the page, with no prompt and no way back. The sheet's "Save to Files" and "Save Image" are where iOS
+   keeps a file. A save the sheet refuses for a stale press keeps its bytes, as a share does.
+8. **Closing is the viewer's own**: the close button and Esc. The browser's back leaves the room, as it
    does from the photo viewer; the viewer adds no history entry.
 
 ## Alternatives
@@ -63,6 +68,9 @@ viewer), and saves and shares photos itself.
   the receiver gets a dead link.
 - **Save all in a browser.** Browsers ask before a page starts several downloads, so a run reads as a
   pile of prompts; the room's file list still saves a selection one by one.
+- **Detect a home-screen app or an in-app browser and use the sheet only there.** Safari's own tab
+  does ask before downloading, but telling the others apart means reading user-agent strings that each
+  in-app browser writes its own way; one rule for iOS covers all of them, and the sheet saves there too.
 - **Move the pdf.js loader into a library shared with desktop-web.** It is tied to each app's Vite
   build — the worker arrives as a `?url` import and the data files come from that app's plugin — so
   each app keeps its copy.

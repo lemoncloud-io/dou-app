@@ -4,14 +4,24 @@
  * An anchor's `download` attribute names the file only for a same-origin address, and the signed
  * address is the storage bucket's, so pointing an anchor at it would open the file (or save it under
  * the object key). The bytes are fetched into a `Blob` first, then saved from a local address that
- * the attribute does apply to. The whole file sits in memory meanwhile, which the 50MB document limit
- * keeps affordable.
+ * the attribute does apply to — or, on iOS, put on the share sheet (`browserSave.ts`). The whole file
+ * sits in memory meanwhile, which the 50MB document limit keeps affordable.
  *
  * Inside the app's WebView this does not work at all — it ignores `download` — so the app saves through
  * the shell instead, and an app too old for that shows an update notice rather than this.
  */
 
-export type BrowserDownloadResult = 'saved' | 'expired' | 'failed' | 'cancelled';
+import { saveFileInBrowser, type BrowserSaveResult } from './browserSave';
+
+export type BrowserDownloadResult =
+    | 'saved'
+    | 'expired'
+    | 'failed'
+    | 'cancelled'
+    /** The iOS share sheet was closed with no target. */
+    | 'dismissed'
+    /** The fetch outlasted the press the iOS share sheet needs; `onHeld` was handed the bytes. */
+    | 'needs-gesture';
 
 /** The bytes, or why there are none: a 403 is `expired` (the signed address outlived its time). */
 export type BrowserFetchResult =
@@ -22,30 +32,16 @@ export type BrowserFetchResult =
 
 export interface BrowserDownloadDeps {
     fetch: (url: string, signal?: AbortSignal) => Promise<Response>;
-    /** Saves the blob under `name`. Injected for tests; the default clicks a temporary anchor. */
-    save: (blob: Blob, name: string) => void;
+    /** Saves the blob under `name`. Injected for tests; the default is `saveFileInBrowser`. */
+    save: (blob: Blob, name: string) => Promise<BrowserSaveResult>;
 }
-
-/** Saves bytes the page already holds under `name`, as the browser's own download. */
-export const saveBlob = (blob: Blob, name: string): void => {
-    const href = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = href;
-    anchor.download = name;
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    // The click starts the save synchronously, but some browsers still read the address a moment later.
-    setTimeout(() => URL.revokeObjectURL(href), 60_000);
-};
 
 const defaultDeps: BrowserDownloadDeps = {
     // `no-store`: a photo's tile or viewer may already have loaded this address through `<img>`, and
     // that copy in the HTTP cache carries no CORS headers. A fetch answered from it fails as if the
     // bucket sent none, so the fetch always goes to the network.
     fetch: (url, signal) => fetch(url, { signal, mode: 'cors', credentials: 'omit', cache: 'no-store' }),
-    save: saveBlob,
+    save: (blob, name) => saveFileInBrowser(blob, name),
 };
 
 /**
@@ -102,18 +98,34 @@ export const fetchInBrowser = async (
     }
 };
 
-/** Fetches `url` and saves it as `name`. */
+/**
+ * Fetches `url` and saves it as `name`. Bytes an earlier press fetched (`held`) are saved without
+ * fetching; bytes the save could not hand over in time go to `onHeld`, for the next press.
+ */
 export const downloadInBrowser = async (
     url: string,
     name: string,
     {
         signal,
         onProgress,
+        held,
+        onHeld,
         deps = defaultDeps,
-    }: { signal?: AbortSignal; onProgress?: (fraction: number) => void; deps?: BrowserDownloadDeps } = {}
+    }: {
+        signal?: AbortSignal;
+        onProgress?: (fraction: number) => void;
+        held?: Blob;
+        onHeld?: (blob: Blob) => void;
+        deps?: BrowserDownloadDeps;
+    } = {}
 ): Promise<BrowserDownloadResult> => {
-    const result = await fetchInBrowser(url, { signal, onProgress, deps });
-    if (result.kind !== 'blob') return result.kind;
-    deps.save(result.blob, name);
-    return 'saved';
+    let blob = held;
+    if (!blob) {
+        const result = await fetchInBrowser(url, { signal, onProgress, deps });
+        if (result.kind !== 'blob') return result.kind;
+        blob = result.blob;
+    }
+    const saved = await deps.save(blob, name);
+    if (saved === 'needs-gesture') onHeld?.(blob);
+    return saved;
 };
