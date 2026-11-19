@@ -47,26 +47,44 @@ export {
 export type { DeclaredHost, OfferedCheckoutMethod } from './hostCapabilities';
 export { host } from '@chatic/runtime-client';
 export type {
+    AlternateAppIcon,
+    AppShellHaptics,
     AppShellPort,
+    BootMetricsSink,
     CheckoutMethod,
     CheckoutPort,
+    ContactsBook,
+    DiagnosticsEntry,
     DiagnosticsPort,
     FilesMethod,
     FilesPort,
+    HostDebugMode,
     HostOs,
     HostPorts,
+    LinkPreviewReader,
     LinksPort,
     MediaMethod,
     MediaPort,
     NoCheckout,
+    PaintableDockBadge,
+    PendingReportQueue,
     PushPort,
+    ReadableIconBadge,
+    SelfUpdate,
+    ShareIntakeSource,
+    ShareSheet,
+    ShellBackGesture,
     ShellOrBrowser,
+    ShellPreferenceStore,
     SignInPort,
+    SmsComposer,
     StoreCheckout,
     StoreName,
     StorePurchase,
     StorePurchaseError,
     StorePurchaseRequest,
+    StoreUpdate,
+    SubWebViewOpener,
     WebCheckout,
 } from '@chatic/runtime-client';
 
@@ -157,24 +175,19 @@ export type { WebAdapter } from './adapters';
 export { engineMirror } from './adapters';
 export type { EngineMirrorOptions } from './adapters';
 // the host port adapters: `<port>.host` follows what the host declared, `.shell` and `.browser` force a
-// method the host allows; checkout's are built from the app's own implementations
+// method the host allows; checkout's, links', appShell's and diagnostics' are built from the app's own
+// implementations
 export {
-    appShellBrowser,
-    appShellHost,
-    appShellShell,
+    appShellAdapters,
     checkoutFromHost,
     checkoutNone,
     checkoutStore,
     checkoutWeb,
-    diagnosticsBrowser,
-    diagnosticsHost,
-    diagnosticsShell,
+    diagnosticsAdapters,
     filesBrowser,
     filesHost,
     filesShell,
-    linksBrowser,
-    linksHost,
-    linksShell,
+    linksAdapters,
     mediaBrowser,
     mediaHost,
     mediaShell,
@@ -185,7 +198,14 @@ export {
     signInHost,
     signInShell,
 } from './adapters';
-export type { CheckoutImplementations, WebHostAdapter } from './adapters';
+export { pageLinks } from './adapters';
+export type {
+    CheckoutImplementations,
+    ShellOrBrowserAdapters,
+    ShellOrBrowserBase,
+    ShellOrBrowserImplementations,
+    WebHostAdapter,
+} from './adapters';
 
 // a page's own upload sender
 export { createXhrPut, xhrPut } from './xhrPut';
