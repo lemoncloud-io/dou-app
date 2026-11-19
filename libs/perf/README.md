@@ -11,7 +11,7 @@ each trace may carry and what of it Firebase receives, and the backends that do 
 SDK. The Firebase-backed backend lives in `apps/mobile`, because only the app has the SDK.
 
 **Firebase receives exactly what it did before the pipeline was added.** The two are compared over
-the same period, so the pipeline's extra room — sixteen attributes, three pipeline-only traces,
+the same period, so the pipeline's extra room — sixteen attributes, the pipeline-only traces,
 three more web vitals — is cut away on Firebase's side by `catalog.ts`. See [The catalogue](#the-catalogue).
 
 ## Why traces, and why Firebase
@@ -84,6 +84,8 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `long_tasks`      | — a sample, pipeline only (not recorded yet)  | —                                        | none yet                       |
 | `api_request`     | — a sample, pipeline only (the HTTP layer)    | —                                        | none yet                       |
 | `screen_render`   | route entry, pipeline only (not recorded yet) | the screen's first meaningful paint      | none yet                       |
+| `image_load`      | — a sample, pipeline only (the image cache)   | —                                        | none yet                       |
+| `image_refresh`   | — a sample, pipeline only (an image re-read)  | —                                        | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -242,8 +244,8 @@ and metrics it may record on the pipeline, and what Firebase receives:
 - **The fourteen existing traces send Firebase everything they recorded before**, and nothing new.
   `catalog.spec.ts` pins that list by hand, trace by trace, so a change to what Firebase receives
   shows up as a failing test rather than a quiet difference in the console.
-- **`long_tasks`, `api_request` and `screen_render` are pipeline-only.** Firebase never hears of
-  them.
+- **`long_tasks`, `api_request`, `screen_render`, `image_load` and `image_refresh` are
+  pipeline-only** (`firebase: null`). Firebase never hears of them.
 - **`web_vitals` reaches Firebase for `fcp` and `lcp` only.** INP, CLS (×1000, as an integer) and
   TTFB are recorded on the pipeline.
 

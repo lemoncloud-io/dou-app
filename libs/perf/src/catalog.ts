@@ -85,7 +85,7 @@ const MEDIA_PHASES = [
 /**
  * Every trace name. The existing fourteen are listed as their call sites record them today — see
  * `apps/web/docs/observability/performance.md` and `apps/mobile/docs/boot/boot-metrics.md` — and
- * Firebase keeps receiving all of it. The last three are pipeline-only.
+ * Firebase keeps receiving all of it. The ones after them are pipeline-only.
  */
 export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
     boot: everywhereByOwner(
@@ -152,6 +152,15 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
     },
     /** A route's entry to its first meaningful paint. */
     screen_render: { kind: 'trace', attributes: attrs('screen', 'cache'), metrics: ['mount'], firebase: null },
+    /** One chat image the page's image cache resolved: where it came from, and what each step cost. */
+    image_load: {
+        kind: 'sample',
+        attributes: attrs('variant', 'source', 'store', 'fallback'),
+        metrics: ['value_ms', 'store_ms', 'fetch_ms', 'bytes_kb'],
+        firebase: null,
+    },
+    /** One message read again because an image's (or a file's) signed address stopped loading. */
+    image_refresh: { kind: 'sample', attributes: attrs('kind', 'outcome'), metrics: ['value_ms'], firebase: null },
 };
 
 /**

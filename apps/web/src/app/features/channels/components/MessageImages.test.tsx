@@ -431,7 +431,7 @@ describe('MessageImages — videos and documents', () => {
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.fileCard.download' }));
         });
 
-        expect(refresh).toHaveBeenCalledWith({ cid: 'c', chatId: 'c:1', src: 'https://s3/d1' });
+        expect(refresh).toHaveBeenCalledWith({ cid: 'c', chatId: 'c:1', src: 'https://s3/d1', kind: 'file' });
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'chat.attach.fileCard.downloadFailed' }));
     });
 

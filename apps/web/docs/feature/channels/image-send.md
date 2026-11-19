@@ -607,6 +607,12 @@ a redraw with a new address does not blink.
 - **Kept past its address.** A kept image stays viewable after its address would have expired, or after
   the account lost access to the room — the same posture as the chat cache, which keeps the rows
   themselves. Neither is cleared on logout.
+- **Measured, not just trusted.** Each load the cache resolves outside memory is reported to an
+  optional observer — where the image came from, what the store answered, why an address was drawn
+  instead, and what the store read and the download cost — and each expiry re-read is reported the same
+  way. The web records both as the `image_load` and `image_refresh` samples
+  ([performance.md](../../observability/performance.md#image_load-and-image_refresh)). Nothing the
+  cache does depends on whether anyone observes it.
 
 The trade-offs, and the server-side fix that would make the address itself cacheable, are recorded in
 [ADR-0128](../../../../../docs/adr/0128-chat-images-are-cached-by-upload-not-by-signed-address.md).

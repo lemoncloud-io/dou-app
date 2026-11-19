@@ -24,7 +24,9 @@ export type PerfTraceName =
     // Recorded on the log pipeline only — Firebase never receives these (see `catalog.ts`).
     | 'long_tasks'
     | 'api_request'
-    | 'screen_render';
+    | 'screen_render'
+    | 'image_load'
+    | 'image_refresh';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {

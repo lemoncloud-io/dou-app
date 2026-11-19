@@ -48,6 +48,39 @@ export interface ImageCacheStore {
     trim(variant: ImageVariant, maxBytes: number): Promise<void>;
 }
 
+/**
+ * How one image the cache did not have in memory was resolved — what the `image_load` measurement
+ * records. A memory hit, and a load that joined one already running and took its answer, are not
+ * reports of their own; a joined load that retries with its own, newer address after the running one
+ * answered nothing is — so one image can report `expired` and then `network`. A cancelled download is
+ * not reported at all, since nobody waited for it.
+ */
+export interface ImageLoadReport {
+    variant: ImageVariant;
+    /** Where the drawn copy came from; `address` means none was kept and the caller draws the signed address. */
+    source: 'store' | 'network' | 'address';
+    /**
+     * What the persistent store answered: `timeout` is a read slower than the cache waits for, which
+     * is then treated as a miss; `none` is a page with no store to ask.
+     */
+    store: 'hit' | 'miss' | 'timeout' | 'error' | 'none';
+    /**
+     * Why the signed address is drawn instead, when it is: `expired` (a 403, which is what an expired
+     * signature answers), `http` (any other non-2xx), `not_image` (a body of another type), `no_answer`
+     * (no response at all — CORS or the network) or `backoff` (a recent `no_answer` skipped the fetch).
+     */
+    fallback?: 'expired' | 'http' | 'not_image' | 'no_answer' | 'backoff';
+    /** From the load's start to the decision, store read and download included. */
+    totalMs: number;
+    storeMs: number;
+    /** From the fetch to the body's last byte; absent when nothing was fetched. */
+    fetchMs?: number;
+    /** The body's size, for a download that was kept. */
+    bytes?: number;
+}
+
+type StoreRead = { record?: ImageCacheRecord; outcome: ImageLoadReport['store'] };
+
 export interface ImageCacheDeps {
     /** `null` where no persistent store can be opened; the memory layer still works. */
     store: ImageCacheStore | null;
@@ -60,6 +93,15 @@ export interface ImageCacheDeps {
     budgets?: Record<ImageVariant, number>;
     /** How many bytes of object URLs no one is drawing may stay in memory. */
     memoryMaxBytes?: number;
+    /**
+     * Measurement only, as a begin/end pair: called when a load starts resolving, and the function it
+     * returns (if any) is told how that load ended. A begin lets the measurement note what it needs at
+     * the start — whether the page hides before the end, say — without this cache knowing about it.
+     * What either throws is ignored.
+     */
+    observe?: () => ((report: ImageLoadReport) => void) | undefined;
+    /** A monotonic clock in ms for the durations `observe` is told; `now` when absent. */
+    elapsed?: () => number;
 }
 
 /**
@@ -143,11 +185,13 @@ export class ImageCache {
     private readonly now: () => number;
     private readonly budgets: Record<ImageVariant, number>;
     private readonly memoryMaxBytes: number;
+    private readonly elapsed: () => number;
 
     constructor(private readonly deps: ImageCacheDeps) {
         this.now = deps.now ?? Date.now;
         this.budgets = deps.budgets ?? DEFAULT_IMAGE_CACHE_BUDGETS;
         this.memoryMaxBytes = deps.memoryMaxBytes ?? DEFAULT_MEMORY_MAX_BYTES;
+        this.elapsed = deps.elapsed ?? this.now;
     }
 
     /** The object URL already in memory for `key`, without waiting — what lets a redraw skip a frame. */
@@ -229,7 +273,7 @@ export class ImageCache {
             entry.usedAt = this.now();
             return entry.url;
         }
-        const stored = await this.readStore(key);
+        const stored = (await this.readStore(key)).record;
         if (!stored) return null;
         // Another lookup may have filled memory while the store answered; one object URL per key.
         const raced = this.memory.get(key);
@@ -274,44 +318,99 @@ export class ImageCache {
         url: string,
         signal: AbortSignal
     ): Promise<string | null> {
-        const stored = await this.readStore(key);
+        const startedAt = this.elapsed();
+        const ended = this.beginReport();
+        const read = await this.readStore(key);
+        const storeMs = this.elapsed() - startedAt;
+        const report = (rest: Pick<ImageLoadReport, 'source' | 'fallback' | 'fetchMs' | 'bytes'>) =>
+            this.endReport(ended, {
+                variant,
+                store: read.outcome,
+                storeMs,
+                totalMs: this.elapsed() - startedAt,
+                ...rest,
+            });
+
+        const stored = read.record;
         if (stored) {
             if (this.now() - stored.usedAt > TOUCH_INTERVAL_MS) {
                 void this.deps.store?.touch(key, this.now()).catch(() => undefined);
             }
+            report({ source: 'store' });
             return this.remember(key, new Blob([stored.bytes], { type: stored.type }));
         }
 
-        if (signal.aborted || this.now() < this.fetchBlockedUntil) return null;
+        if (signal.aborted) return null;
+        if (this.now() < this.fetchBlockedUntil) {
+            report({ source: 'address', fallback: 'backoff' });
+            return null;
+        }
+        const fetchedAt = this.elapsed();
         let response: Response;
         try {
             response = await this.deps.fetch(url, signal);
         } catch (error) {
             // Not an answer but no answer at all: CORS or the network. Back off instead of making every
             // image wait for the same failure. A cancellation says nothing about the bucket.
-            if (!signal.aborted) this.fetchBlockedUntil = this.now() + FETCH_BACKOFF_MS;
+            if (!signal.aborted) {
+                this.fetchBlockedUntil = this.now() + FETCH_BACKOFF_MS;
+                report({ source: 'address', fallback: 'no_answer', fetchMs: this.elapsed() - fetchedAt });
+            }
             throw error;
         }
         // An expired or foreign address answers 403 with an XML body; that is not an image to keep.
         const type = response.headers.get('content-type') ?? '';
-        if (!response.ok || !type.startsWith('image/')) return null;
-        const bytes = await response.arrayBuffer();
+        if (!response.ok || !type.startsWith('image/')) {
+            const fallback = response.ok ? 'not_image' : response.status === 403 ? 'expired' : 'http';
+            report({ source: 'address', fallback, fetchMs: this.elapsed() - fetchedAt });
+            return null;
+        }
+        let bytes: ArrayBuffer;
+        try {
+            bytes = await response.arrayBuffer();
+        } catch (error) {
+            // The connection broke mid-body; unlike a failed fetch the bucket did answer, so no backoff.
+            if (!signal.aborted) {
+                report({ source: 'address', fallback: 'no_answer', fetchMs: this.elapsed() - fetchedAt });
+            }
+            throw error;
+        }
 
         void this.writeStore({ key, variant, type, bytes, size: bytes.byteLength, usedAt: this.now() });
+        report({ source: 'network', fetchMs: this.elapsed() - fetchedAt, bytes: bytes.byteLength });
         return this.remember(key, new Blob([bytes], { type }));
     }
 
-    private async readStore(key: string): Promise<ImageCacheRecord | undefined> {
-        const store = this.deps.store;
-        if (!store) return undefined;
-        let timer: ReturnType<typeof setTimeout> | undefined;
+    // A measurement must never cost an image: what the observer throws is swallowed at both ends.
+    private beginReport(): ((report: ImageLoadReport) => void) | undefined {
         try {
-            const timeout = new Promise<undefined>(resolve => {
-                timer = setTimeout(() => resolve(undefined), STORE_READ_TIMEOUT_MS);
-            });
-            return (await Promise.race([store.get(key), timeout])) ?? undefined;
+            return this.deps.observe?.();
         } catch {
             return undefined;
+        }
+    }
+
+    private endReport(ended: ((report: ImageLoadReport) => void) | undefined, report: ImageLoadReport): void {
+        try {
+            ended?.(report);
+        } catch {
+            // Ignored, as above.
+        }
+    }
+
+    private async readStore(key: string): Promise<StoreRead> {
+        const store = this.deps.store;
+        if (!store) return { outcome: 'none' };
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const timeout = new Promise<'timeout'>(resolve => {
+                timer = setTimeout(() => resolve('timeout'), STORE_READ_TIMEOUT_MS);
+            });
+            const answer = await Promise.race([store.get(key), timeout]);
+            if (answer === 'timeout') return { outcome: 'timeout' };
+            return answer ? { record: answer, outcome: 'hit' } : { outcome: 'miss' };
+        } catch {
+            return { outcome: 'error' };
         } finally {
             clearTimeout(timer);
         }

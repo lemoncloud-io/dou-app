@@ -73,6 +73,8 @@ localStorage.setItem(
 | `perf.long_tasks`        | sample         | leaving a screen that had long tasks: `count`, `total_ms`, `max_ms`                                                               |
 | `perf.telemetry_dropped` | sample         | at most once a minute, statistics the queue dropped for room                                                                      |
 | `perf.api_request`       | sample         | an HTTP request finished, by endpoint template and `backend` (`relay`/`cloud`) — 10 a minute at most (`libs/transport` docs/http) |
+| `perf.image_load`        | sample         | a chat image the cache resolved: from the store, the network or its signed address — 12 a minute at most                          |
+| `perf.image_refresh`     | sample         | a message read again because an image's or a file's address stopped loading — 6 a minute at most                                  |
 | `usage.session_start`    | event          | the run starts (`start=cold`), or a return after 30+ minutes away (`resume`)                                                      |
 | `usage.session_end`      | event          | before that `resume`: the old session's `duration_ms` and `screens`                                                               |
 | `usage.screen_view`      | event          | the route template changes: `screen`, `prev_screen`, `prev_dwell_ms`                                                              |
