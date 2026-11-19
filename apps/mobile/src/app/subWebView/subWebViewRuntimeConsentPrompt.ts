@@ -36,8 +36,8 @@ const PLACE_BOUND: readonly SubWebViewRuntimePermission[] = ['channel', 'chat', 
  *
  * 1. what the page reads (and, with `chatSend`, that it posts in the user's name) — sending is named on
  *    its own, in the title too, never listed among the reads;
- * 2. with a place's reads (`channel`, `chat`, `user`), that they come only from the place the page is
- *    opened in — a read-only yes is kept per cloud, so the words never say "this place" of the reads;
+ * 2. with a place's reads (`channel`, `chat`, `user`), that they come from this place only — a yes is
+ *    kept per place, so another place asks again;
  * 3. with `user`, that members come with what their accounts carry, and with `cloud`, that an owned
  *    cloud comes with its owner, account, subscription and server — the rows are not filtered;
  * 4. what it cannot do: change anything, or, with `chatSend`, anything else.

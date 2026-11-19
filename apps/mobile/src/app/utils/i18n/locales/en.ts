@@ -41,7 +41,7 @@ export const en = {
                 "{0} wants to read this cloud in DoU: {1}, and to send messages in your name to this place's chat rooms.",
             sendOnly: "{0} wants to send messages in your name to this place's chat rooms in DoU.",
             thisPlaceOnly:
-                'What belongs to a place is read only from the place the page is opened in, and no longer once you move to another place.',
+                "Chat rooms, messages and members are read from this place only, and no longer once you move to another place. You'll be asked again in another place.",
             memberAccounts: "Member details include what their accounts hold, such as each member's sign-in ID.",
             cloudAccount:
                 'For a cloud you own, its details include its owner, the linked account, the subscription and the server.',

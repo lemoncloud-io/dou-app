@@ -12,17 +12,18 @@ export type AskSubWebViewConsent = (question: {
     permissions: readonly SubWebViewRuntimePermission[];
 }) => Promise<boolean>;
 
-/** Whose answer, for which page, in which cloud. */
+/** Whose answer, for which page, in which cloud and place. */
 export interface SubWebViewConsentKey {
     /** The user's id in that cloud. */
     userId: string;
     origin: string;
     cloudId: string;
     /**
-     * The place, for a page that may send: its yes is kept per place, so allowing it to post in one
-     * place says nothing about another. Absent for a page that only reads.
+     * The place the view opened on — Home's own place on Home. A yes is kept per place: what a page
+     * reads is that place's rooms, members and messages, so allowing it in one place says nothing about
+     * another.
      */
-    placeId?: string;
+    placeId: string;
 }
 
 export interface SubWebViewRuntimeConsent {
@@ -32,8 +33,10 @@ export interface SubWebViewRuntimeConsent {
     ): Promise<'allowed' | 'refused'>;
 }
 
+// Always with the place. A yes kept per cloud alone, before consent was per place, is never looked up
+// again: it says nothing of which place it was given in.
 const storeKey = ({ userId, origin, cloudId, placeId }: SubWebViewConsentKey) =>
-    `runtime\n${userId}\n${origin}\n${cloudId}${placeId === undefined ? '' : `\n${placeId}`}`;
+    `runtime\n${userId}\n${origin}\n${cloudId}\n${placeId}`;
 
 const hostOf = (origin: string) => origin.replace(/^https:\/\//, '');
 
@@ -69,9 +72,10 @@ const readKept = (kept: string): { allowed: ReadonlySet<string>; revision: numbe
 };
 
 /**
- * The user's answer to "may this page read this cloud", before a page's first runtime request is
- * answered. Per user, page and cloud: the data is the cloud's, so allowing a page in one says nothing
- * about another. A page that may send messages is asked per place as well (`placeId`).
+ * The user's answer to "may this page read this place", before a page's first runtime request is
+ * answered. Per user, page, cloud and place, for every permission at once: what a page reads is the
+ * place's — its rooms, members and messages — as a user sees them one place at a time, so the first
+ * open in another place of the same cloud asks again.
  *
  * - **Allowed** is kept, with the permissions it covered and the wording it was given under. A page
  *   whose manifest later asks for more is asked again, and so is a yes given before the question said

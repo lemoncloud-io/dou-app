@@ -7,23 +7,45 @@ const memoryStore = (): SubWebViewConsentStore & { values: Map<string, string> }
     return { values, getString: key => values.get(key), set: (key, value) => void values.set(key, value) };
 };
 
-const key = { userId: 'u1', origin: 'https://quiz.apps.chatic.io', cloudId: 'c1' };
+const key = { userId: 'u1', origin: 'https://quiz.apps.chatic.io', cloudId: 'c1', placeId: 's1' };
 const perms = (...names: SubWebViewRuntimePermission[]) => new Set(names);
 
 describe('createSubWebViewRuntimeConsent', () => {
-    it('keeps a yes for a page that may send per place, apart from the cloud-wide one', async () => {
+    it('keeps a yes per place: one in place s1 says nothing of s2 in the same cloud', async () => {
         const store = memoryStore();
         const ask = jest.fn().mockResolvedValue(true);
         const consent = createSubWebViewRuntimeConsent({ store, ask });
 
-        await consent.ensure({ ...key, placeId: 's1' }, perms('chat', 'chatSend'));
-        await expect(consent.ensure({ ...key, placeId: 's1' }, perms('chatSend'))).resolves.toBe('allowed');
-        await consent.ensure({ ...key, placeId: 's2' }, perms('chatSend'));
-        await consent.ensure(key, perms('chat'));
+        await consent.ensure(key, perms('channel', 'chat'));
+        await consent.ensure({ ...key, placeId: 's2' }, perms('channel', 'chat'));
+        expect(ask).toHaveBeenCalledTimes(2);
 
-        // Place s1 once, place s2 once, and the read-only page in the cloud once.
-        expect(ask).toHaveBeenCalledTimes(3);
-        expect(store.values.size).toBe(3);
+        // Opening the page in s1 again, in a new view, asks nothing.
+        await expect(createSubWebViewRuntimeConsent({ store, ask }).ensure(key, perms('chat'))).resolves.toBe(
+            'allowed'
+        );
+        expect(ask).toHaveBeenCalledTimes(2);
+        expect(store.values.size).toBe(2);
+    });
+
+    it('asks every permission at once, the cloud and the writes included, in one question per place', async () => {
+        const ask = jest.fn().mockResolvedValue(true);
+        const consent = createSubWebViewRuntimeConsent({ store: memoryStore(), ask });
+
+        await consent.ensure(key, perms('cloud', 'chat', 'chatSend'));
+
+        expect(ask).toHaveBeenCalledTimes(1);
+        expect(ask).toHaveBeenCalledWith({ host: 'quiz.apps.chatic.io', permissions: ['chat', 'chatSend', 'cloud'] });
+    });
+
+    it('asks again a yes kept per cloud alone, before consent was per place', async () => {
+        const store = memoryStore();
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`, 'chat;2');
+        const ask = jest.fn().mockResolvedValue(true);
+
+        await createSubWebViewRuntimeConsent({ store, ask }).ensure(key, perms('chat'));
+
+        expect(ask).toHaveBeenCalledTimes(1);
     });
 
     it('asks once, names the host and the permissions, and keeps an allow', async () => {
@@ -102,8 +124,8 @@ describe('createSubWebViewRuntimeConsent', () => {
     it('asks a yes kept before the question named what members carry again when it covers user', async () => {
         const store = memoryStore();
         // A yes kept by an app before the revision: names only, no revision.
-        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`, 'channel,user');
-        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc2`, 'channel,chat');
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1\ns1`, 'channel,user');
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc2\ns1`, 'channel,chat');
         const ask = jest.fn().mockResolvedValue(true);
         const consent = createSubWebViewRuntimeConsent({ store, ask });
 
@@ -113,12 +135,12 @@ describe('createSubWebViewRuntimeConsent', () => {
         await expect(consent.ensure({ ...key, cloudId: 'c2' }, perms('chat'))).resolves.toBe('allowed');
 
         expect(ask).toHaveBeenCalledTimes(1);
-        expect(store.values.get(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`)).toBe('channel,user;2');
+        expect(store.values.get(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1\ns1`)).toBe('channel,user;2');
     });
 
     it('reads a kept revision it cannot parse as the first', async () => {
         const store = memoryStore();
-        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1`, 'user;x');
+        store.set(`runtime\nu1\nhttps://quiz.apps.chatic.io\nc1\ns1`, 'user;x');
         const ask = jest.fn().mockResolvedValue(true);
 
         await createSubWebViewRuntimeConsent({ store, ask }).ensure(key, perms('user'));

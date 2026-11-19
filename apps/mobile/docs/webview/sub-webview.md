@@ -112,12 +112,11 @@ it:
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
   app's engine, so the page's streams are apart from the main web's and end with the load. It checks,
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
-  (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page and cloud in its own
-  MMKV file; the text says what is read, that what belongs to a place comes only from the place the
-  page is opened in, with `user` that members come with what their accounts carry, and with `cloud`
+  (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page, cloud and place in
+  its own MMKV file, every permission in one question; the text says what is read, that a place's
+  rooms, messages and members come from this place only and another place asks again, with `user` that members come with what their accounts carry, and with `cloud`
   that an owned cloud comes with its owner, account, subscription and server; with `chatSend` the
-  alert's title and text say the page sends messages, the yes is kept per place too, and an earlier
-  yes without it does not count; a yes is kept with the wording's revision, and one given before the
+  alert's title and text say the page sends messages, and an earlier yes without it does not count; a yes is kept with the wording's revision, and one given before the
   text said what members or an owned cloud carry is asked again if it covered `user` or `cloud`), for
   a message and for every read of a
   room that the room is one the device holds in the view's cloud and the place the view opened on, with
