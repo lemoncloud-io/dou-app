@@ -2,6 +2,12 @@
 
 ## [2026-11-19] - No version updates
 
+### Bug Fixes
+
+- (runtime-core,web) cross webhook on the bridge, not leave it off a native-owned session
+
+## [2026-11-19] - No version updates
+
 ### Features
 
 - (mobile,bridge-messages,chatic-apps-sdk) tell a mini app its display and safe area
