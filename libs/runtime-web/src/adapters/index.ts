@@ -182,19 +182,11 @@ export {
     checkoutStore,
     checkoutWeb,
     diagnosticsAdapters,
-    filesBrowser,
-    filesHost,
-    filesShell,
+    filesAdapters,
     linksAdapters,
-    mediaBrowser,
-    mediaHost,
-    mediaShell,
-    pushBrowser,
-    pushHost,
-    pushShell,
-    signInBrowser,
-    signInHost,
-    signInShell,
+    mediaAdapters,
+    pushAdapters,
+    signInAdapters,
 } from './hostPorts';
 export { pageLinks } from './pageLinks';
 export type {

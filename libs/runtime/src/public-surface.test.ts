@@ -5,7 +5,15 @@
 import { host } from '@chatic/runtime-client';
 
 import * as api from './index';
-import { browserAppShell, browserDiagnostics, browserLinks } from './testing';
+import {
+    browserAppShell,
+    browserDiagnostics,
+    browserFiles,
+    browserLinks,
+    browserMedia,
+    browserPush,
+    browserSignIn,
+} from './testing';
 
 /**
  * Locks the package's PUBLIC runtime surface — now group by group.
@@ -165,8 +173,16 @@ const GROUPS: Record<string, readonly string[]> = {
         'useChatSync',
         'usePlaceSync',
     ],
-    // The push port's one field joins the push hooks: `kind` is the published port's answer.
-    push: ['kind', 'useDeviceTokenRegistration', 'useRegisterDeviceTokenMutation'],
+    // The push port's fields join the push hooks one by one: each is the published port's answer.
+    push: [
+        'deviceToken',
+        'kind',
+        'localBanner',
+        'notifications',
+        'tokenRenewal',
+        'useDeviceTokenRegistration',
+        'useRegisterDeviceTokenMutation',
+    ],
     report: ['reportIssue', 'uploadLogBatch'],
     // The config facade's reads and writes under its own method names, its hook, and the helpers the
     // screens use beside them.
@@ -265,19 +281,22 @@ describe('@chatic/runtime public surface', () => {
     });
 
     it.each(PORTS)('runtime.%s is the very port the entry point published', port => {
+        const notifications = { onReceive: () => () => undefined };
         host.publish({
             checkout: { kind: 'none' },
-            media: { kind: 'browser' },
-            files: { kind: 'shell' },
+            media: browserMedia(),
+            files: { ...browserFiles(), kind: 'shell' },
             links: browserLinks(),
             appShell: { ...browserAppShell(), kind: 'shell', os: 'ios' },
-            signIn: { kind: 'shell', os: 'android' },
+            signIn: { ...browserSignIn(), kind: 'shell', os: 'android' },
             diagnostics: browserDiagnostics(),
-            push: { kind: 'shell' },
+            push: { ...browserPush(), kind: 'shell', notifications },
         });
 
         expect(api.runtime[port]).toBe(host.ports[port]);
         expect(api.runtime.push.kind).toBe('shell');
+        expect(api.runtime.push.notifications).toBe(notifications);
+        expect(api.runtime.push.deviceToken).toBeNull();
     });
 
     it('runtime.data publishes the image send options, and sendImages takes them second', () => {

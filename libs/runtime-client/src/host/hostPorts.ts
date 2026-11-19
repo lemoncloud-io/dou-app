@@ -2,7 +2,11 @@ import type { AppShellPort } from './appShell';
 import type { CheckoutPort } from './checkout';
 import type { DiagnosticsPort } from './diagnostics';
 import type { LinksPort } from './links';
-import type { FilesPort, HostPorts, MediaPort, ShellOrBrowser, SignInPort } from './ports';
+import type { FilesPort } from './files';
+import type { MediaPort } from './media';
+import type { HostPorts, ShellOrBrowser } from './ports';
+import type { PushPort } from './push';
+import type { SignInPort } from './signIn';
 
 const NOT_PUBLISHED = "[host] the ports are read before the app's entry point published them (host.publish)";
 
@@ -14,11 +18,17 @@ const NOT_PUBLISHED = "[host] the ports are read before the app's entry point pu
 const INSPECTED = new Set(['then', 'toJSON', '$$typeof', 'asymmetricMatch', 'nodeType', 'constructor']);
 
 /**
+ * What a port, or one of the push port's members, is named in the error a read before the publish
+ * throws: `push.notifications`, not `push`, so the message says which member was read too early.
+ */
+type UnpublishedName = Exclude<keyof HostPorts, 'push'> | `push.${Exclude<keyof PushPort, 'kind'>}`;
+
+/**
  * What a port reads as before the entry point publishes: any property read throws, naming the step
  * that was missed, as `host.ports` does. A silent `undefined` would let a feature read the browser's
  * answer off a port that was never chosen.
  */
-const unpublished = <T extends object>(name: keyof HostPorts): T =>
+const unpublished = <T extends object>(name: UnpublishedName): T =>
     new Proxy({} as T, {
         get(_target, property) {
             if (typeof property !== 'string' || INSPECTED.has(property)) return undefined;
@@ -37,11 +47,21 @@ export let appShellPort: AppShellPort = unpublished('appShell');
 export let signInPort: SignInPort = unpublished('signIn');
 export let diagnosticsPort: DiagnosticsPort = unpublished('diagnostics');
 /**
- * The push port's only field, on its own: `runtime.push` is the push hooks' group already, so the port
- * joins it as `runtime.push.kind` rather than replacing it. A string cannot throw on read the way the
- * other ports do, so it is `undefined` until the entry point publishes.
+ * The push port's fields, each on its own: `runtime.push` is the push hooks' group already, so the port
+ * joins it member by member — `runtime.push.kind`, `runtime.push.notifications`, … — rather than
+ * replacing it. A string cannot throw on read the way the other ports do, so the kind is `undefined`
+ * until the entry point publishes; the members throw on a read of theirs, as a port does, rather than
+ * read as `null` — the browser's answer — off a port that was never chosen.
  */
 export let pushKind: ShellOrBrowser | undefined = undefined;
+export let pushNotifications: PushPort['notifications'] =
+    unpublished<NonNullable<PushPort['notifications']>>('push.notifications');
+export let pushDeviceToken: PushPort['deviceToken'] =
+    unpublished<NonNullable<PushPort['deviceToken']>>('push.deviceToken');
+export let pushTokenRenewal: PushPort['tokenRenewal'] =
+    unpublished<NonNullable<PushPort['tokenRenewal']>>('push.tokenRenewal');
+export let pushLocalBanner: PushPort['localBanner'] =
+    unpublished<NonNullable<PushPort['localBanner']>>('push.localBanner');
 
 const bindPorts = (ports: Readonly<HostPorts> | null): void => {
     checkoutPort = ports?.checkout ?? unpublished('checkout');
@@ -52,6 +72,18 @@ const bindPorts = (ports: Readonly<HostPorts> | null): void => {
     signInPort = ports?.signIn ?? unpublished('signIn');
     diagnosticsPort = ports?.diagnostics ?? unpublished('diagnostics');
     pushKind = ports?.push.kind;
+    pushNotifications = ports
+        ? ports.push.notifications
+        : unpublished<NonNullable<PushPort['notifications']>>('push.notifications');
+    pushDeviceToken = ports
+        ? ports.push.deviceToken
+        : unpublished<NonNullable<PushPort['deviceToken']>>('push.deviceToken');
+    pushTokenRenewal = ports
+        ? ports.push.tokenRenewal
+        : unpublished<NonNullable<PushPort['tokenRenewal']>>('push.tokenRenewal');
+    pushLocalBanner = ports
+        ? ports.push.localBanner
+        : unpublished<NonNullable<PushPort['localBanner']>>('push.localBanner');
 };
 
 /**

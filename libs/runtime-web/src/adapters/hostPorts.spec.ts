@@ -22,19 +22,16 @@ import {
     checkoutStore,
     checkoutWeb,
     diagnosticsAdapters,
-    filesBrowser,
-    filesHost,
+    filesAdapters,
     linksAdapters,
-    mediaBrowser,
-    mediaHost,
-    mediaShell,
-    pushHost,
-    signInHost,
+    mediaAdapters,
+    pushAdapters,
+    signInAdapters,
 } from './hostPorts';
 import type { ShellOrBrowserImplementations } from './hostPorts';
 
 // The app's implementations, reduced to which one was built and from what, so a port's value shows it.
-const builtFrom = <P extends 'links' | 'appShell' | 'diagnostics'>() =>
+const builtFrom = <P extends Exclude<keyof HostPorts, 'checkout'>>() =>
     ({
         shell: jest.fn((base: object, facts: WebHostFacts) => ({ ...base, built: 'shell', bridge: facts.bridge })),
         browser: jest.fn((base: object, facts: WebHostFacts) => ({ ...base, built: 'browser', bridge: facts.bridge })),
@@ -47,6 +44,10 @@ const {
     browser: appShellBrowser,
 } = appShellAdapters(builtFrom<'appShell'>());
 const { host: diagnosticsHost } = diagnosticsAdapters(builtFrom<'diagnostics'>());
+const { host: mediaHost, shell: mediaShell, browser: mediaBrowser } = mediaAdapters(builtFrom<'media'>());
+const { host: filesHost, browser: filesBrowser } = filesAdapters(builtFrom<'files'>());
+const { host: signInHost } = signInAdapters(builtFrom<'signIn'>());
+const { host: pushHost } = pushAdapters(builtFrom<'push'>());
 
 const post = { postMessage: jest.fn() };
 type Globals = Record<string, unknown>;
@@ -95,8 +96,14 @@ afterEach(() => warn.mockRestore());
 describe('the `<port>.host` adapters', () => {
     it.each(Object.entries(HOSTS))('follow what %s declared exactly as the readers do', (_name, profile) => {
         const facts = factsOf(profile);
-        expect(mediaHost.create({ facts })).toEqual({ kind: resolveMediaMethod(profile) });
-        expect(filesHost.create({ facts })).toEqual({ kind: resolveFilesMethod(profile) });
+        expect(mediaHost.create({ facts })).toMatchObject({
+            kind: resolveMediaMethod(profile),
+            built: resolveMediaMethod(profile),
+        });
+        expect(filesHost.create({ facts })).toMatchObject({
+            kind: resolveFilesMethod(profile),
+            built: resolveFilesMethod(profile),
+        });
         expect(linksHost.create({ facts })).toMatchObject({
             kind: resolveLinksMethod(profile),
             built: resolveLinksMethod(profile),
@@ -105,12 +112,18 @@ describe('the `<port>.host` adapters', () => {
             ...resolveAppShell(profile),
             built: resolveAppShell(profile).kind,
         });
-        expect(signInHost.create({ facts })).toEqual(resolveSignIn(profile));
+        expect(signInHost.create({ facts })).toMatchObject({
+            ...resolveSignIn(profile),
+            built: resolveSignIn(profile).kind,
+        });
         expect(diagnosticsHost.create({ facts })).toMatchObject({
             kind: resolveDiagnosticsMethod(profile),
             built: resolveDiagnosticsMethod(profile),
         });
-        expect(pushHost.create({ facts })).toEqual({ kind: resolvePushMethod(profile) });
+        expect(pushHost.create({ facts })).toMatchObject({
+            kind: resolvePushMethod(profile),
+            built: resolvePushMethod(profile),
+        });
     });
 
     it('run on every host', () => {
@@ -292,12 +305,12 @@ describe('host ports through startRuntime', () => {
 
         expect(started.hostChoices?.checkout).toMatchObject({ id: 'checkout.web', origin: 'local' });
         expect(published[0].checkout).toMatchObject({ kind: 'web' });
-        expect(published[0].media).toEqual({ kind: 'shell' });
+        expect(published[0].media).toMatchObject({ kind: 'shell' });
     });
 
     it('lets a toggle force the browser for one port', async () => {
         const { published } = await start(phone('ios'), { 'port.media': 'media.browser' });
-        expect(published[0].media).toEqual({ kind: 'browser' });
+        expect(published[0].media).toMatchObject({ kind: 'browser' });
     });
 
     it('refuses a toggle to a method the host lacks, falling back to what it declared', async () => {
@@ -309,7 +322,7 @@ describe('host ports through startRuntime', () => {
             id: 'media.host',
             fellBack: { requested: 'media.shell', because: 'not supported on this host' },
         });
-        expect(published[0].media).toEqual({ kind: 'browser' });
+        expect(published[0].media).toMatchObject({ kind: 'browser' });
         // A browser offers the website, so that toggle stands.
         expect(published[0].checkout).toMatchObject({ kind: 'web' });
     });

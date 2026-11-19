@@ -10,7 +10,11 @@ export {
     host,
     linksPort,
     mediaPort,
+    pushDeviceToken,
     pushKind,
+    pushLocalBanner,
+    pushNotifications,
+    pushTokenRenewal,
     signInPort,
 } from './hostPorts';
 export type {
@@ -23,6 +27,7 @@ export type {
     ShellBackGesture,
     ShellPreferenceStore,
     StoreUpdate,
+    SystemSettingsPage,
 } from './appShell';
 export type {
     BootMetricsSink,
@@ -40,17 +45,18 @@ export type {
     SmsComposer,
     SubWebViewOpener,
 } from './links';
+export type { AppFileTransfers, FilesMethod, FilesPort } from './files';
 export type {
-    FilesMethod,
-    FilesPort,
-    HostOs,
-    HostPorts,
+    AppAttachmentPicker,
+    CameraPermission,
+    DevicePhotoLibrary,
     MediaMethod,
     MediaPort,
-    PushPort,
-    ShellOrBrowser,
-    SignInPort,
-} from './ports';
+    VideoConverter,
+} from './media';
+export type { DeviceTokenRenewal, DeviceTokenSource, LocalBanner, NotificationFeed, PushPort } from './push';
+export type { HandoffLinks, ProviderSignIn, RelayOAuth, SignInPort } from './signIn';
+export type { HostOs, HostPorts, ShellOrBrowser } from './ports';
 export type {
     CheckoutMethod,
     CheckoutPort,

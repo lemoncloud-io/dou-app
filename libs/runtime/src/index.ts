@@ -16,7 +16,7 @@
 //     import { runtime } from '@chatic/runtime';
 //     const { selectedCloudId } = runtime.session.useSessionSelection();
 //     <runtime.connection.RuntimeConnectionHost>…</runtime.connection.RuntimeConnectionHost>
-//     if (runtime.signIn.kind === 'shell') …
+//     runtime.links.openUrl(url);
 //
 // One imported identifier, not one per group: the group names are natural words that consumers
 // already use as locals (`data` in 23 files, `session` in 17, `sync` in 9), and a shadowed group does

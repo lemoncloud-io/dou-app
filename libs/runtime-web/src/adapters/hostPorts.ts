@@ -61,8 +61,7 @@ export interface ShellOrBrowserImplementations<P extends HostPortName> {
 
 /**
  * The adapters of one port whose value is the choice, and for `appShell` and `signIn` the phone platform
- * behind a `'shell'` answer (`withOs`). With `implementations`, the value is the app's implementation for
- * that choice; without, it is the choice alone (the ports whose work still branches in the app).
+ * behind a `'shell'` answer (`withOs`). The value is the app's implementation for that choice.
  *
  * `.shell` is supported only where the host's declaration resolves to the shell, so a toggle cannot hand
  * the work to a shell that never said it does it. `.browser` is supported everywhere, which is the same
@@ -74,12 +73,12 @@ const shellOrBrowserAdapters = <P extends HostPortName>(
     port: P,
     introducedIn: number,
     withOs: boolean,
-    implementations?: ShellOrBrowserImplementations<P>
+    implementations: ShellOrBrowserImplementations<P>
 ): ShellOrBrowserAdapters<P> => {
     const valueOf = (facts: WebHostFacts, kind: ShellOrBrowser) => {
         const host = declaredHostOf(facts);
         const base = (withOs ? { kind, os: hostOsOf(host, kind) } : { kind }) as ShellOrBrowserBase<P>;
-        return implementations ? implementations[kind](base, facts) : (base as HostPorts[P]);
+        return implementations[kind](base, facts);
     };
     const declared = (facts: WebHostFacts): ShellOrBrowser =>
         resolveShellOrBrowser(declaredHostOf(facts), port, introducedIn);
@@ -103,21 +102,20 @@ const shellOrBrowserAdapters = <P extends HostPortName>(
     };
 };
 
-const media = shellOrBrowserAdapters('media', MEDIA_INTRODUCED_IN, false);
-const files = shellOrBrowserAdapters('files', FILES_INTRODUCED_IN, false);
-const signIn = shellOrBrowserAdapters('signIn', SHELL_DOMAINS_INTRODUCED_IN, true);
-const push = shellOrBrowserAdapters('push', SHELL_DOMAINS_INTRODUCED_IN, false);
-
-// Each named after its id, as the runtime ports' adapters are (`media.host` → `mediaHost`).
-export const { host: mediaHost, shell: mediaShell, browser: mediaBrowser } = media;
-export const { host: filesHost, shell: filesShell, browser: filesBrowser } = files;
-export const { host: signInHost, shell: signInShell, browser: signInBrowser } = signIn;
-export const { host: pushHost, shell: pushShell, browser: pushBrowser } = push;
-
-// --- links, appShell, diagnostics: the implementations are the app's ----------------------------------
+// --- the shell-or-browser ports: the implementations are the app's ------------------------------------
 //
-// The same three ways — as declared, the shell, the page — each built from the app's implementation for
-// that choice, so a feature calls the port and never asks which side it is on.
+// For every port but checkout, the same three ways — as declared, the shell, the page — each built from
+// the app's implementation for that choice, so a feature calls the port and never asks which side it is on.
+
+/** `media.host` / `media.shell` / `media.browser`, from the app's implementations of the attachment pickers. */
+export const mediaAdapters = (
+    implementations: ShellOrBrowserImplementations<'media'>
+): ShellOrBrowserAdapters<'media'> => shellOrBrowserAdapters('media', MEDIA_INTRODUCED_IN, false, implementations);
+
+/** `files.host` / `files.shell` / `files.browser`, from the app's implementations of a message's transfers. */
+export const filesAdapters = (
+    implementations: ShellOrBrowserImplementations<'files'>
+): ShellOrBrowserAdapters<'files'> => shellOrBrowserAdapters('files', FILES_INTRODUCED_IN, false, implementations);
 
 /** `links.host` / `links.shell` / `links.browser`, from the app's implementations of the links port. */
 export const linksAdapters = (
@@ -136,6 +134,16 @@ export const diagnosticsAdapters = (
     implementations: ShellOrBrowserImplementations<'diagnostics'>
 ): ShellOrBrowserAdapters<'diagnostics'> =>
     shellOrBrowserAdapters('diagnostics', SHELL_DOMAINS_INTRODUCED_IN, false, implementations);
+
+/** `signIn.host` / `signIn.shell` / `signIn.browser`, from the app's implementations of sign-in and pairing. */
+export const signInAdapters = (
+    implementations: ShellOrBrowserImplementations<'signIn'>
+): ShellOrBrowserAdapters<'signIn'> =>
+    shellOrBrowserAdapters('signIn', SHELL_DOMAINS_INTRODUCED_IN, true, implementations);
+
+/** `push.host` / `push.shell` / `push.browser`, from the app's implementations of this device's notifications. */
+export const pushAdapters = (implementations: ShellOrBrowserImplementations<'push'>): ShellOrBrowserAdapters<'push'> =>
+    shellOrBrowserAdapters('push', SHELL_DOMAINS_INTRODUCED_IN, false, implementations);
 
 // --- checkout: the implementations are the app's ------------------------------------------------------
 //

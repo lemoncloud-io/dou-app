@@ -1,5 +1,7 @@
 import type { RuntimePorts } from '@chatic/runtime-core';
 
+import type { MediaPort } from '../host/media';
+
 import { conflicts, defineAdapter, defineEngineAdapter, defineHostAdapter, defineRuntime, requires } from './define';
 import { engineCore } from './engine';
 import { RuntimeDeclarationError, resolveEngine, resolveHostPorts, resolvePorts } from './resolvePorts';
@@ -189,21 +191,22 @@ describe('resolvePorts', () => {
 });
 
 describe('resolveHostPorts', () => {
+    // These ports are told apart by their choice alone; their members do not matter here.
     const mediaHost = defineHostAdapter<'media', Facts>({
         id: 'media.host',
         port: 'media',
-        create: ({ facts }) => ({ kind: facts.shell ? 'shell' : 'browser' }),
+        create: ({ facts }) => ({ kind: facts.shell ? 'shell' : 'browser' }) as MediaPort,
     });
     const mediaShell = defineHostAdapter<'media', Facts>({
         id: 'media.shell',
         port: 'media',
         supports: facts => facts.shell,
-        create: () => ({ kind: 'shell' }),
+        create: () => ({ kind: 'shell' }) as MediaPort,
     });
     const mediaBrowser = defineHostAdapter<'media', Facts>({
         id: 'media.browser',
         port: 'media',
-        create: () => ({ kind: 'browser' }),
+        create: () => ({ kind: 'browser' }) as MediaPort,
     });
     const fixed = <P extends 'checkout' | 'files' | 'links' | 'appShell' | 'signIn' | 'diagnostics' | 'push'>(
         port: P
