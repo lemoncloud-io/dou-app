@@ -1,4 +1,4 @@
-# ADR-0355: A mini app's context carries its display and safe area, pushed once the insets settle
+# ADR-0358: A mini app's context carries its display and safe area, pushed once the insets settle
 
 > Status: Accepted · Decided: 2026-11-19 · Implemented: `feat/sub-webview-display-context`
 > · Scope: `libs/bridge-messages` (`SubWebViewContext.display`, `.safeArea`, `SubWebViewSafeArea`,
