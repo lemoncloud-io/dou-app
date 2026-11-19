@@ -21,3 +21,10 @@ Both documents in `guide/` are shipped in the published package, `README.md` bes
 `node_modules/@lemoncloud/chatic-apps-sdk/`. An assistant reads an `AGENTS.md` at the top of a project,
 not one inside a dependency, so the guide tells the developer to copy it there. They link to nothing
 outside this folder and name the package README in words.
+
+Every author document has a Korean translation beside it, `<name>.ko.md` — the package README too —
+shipped as `README.ko.md`, `GUIDE.ko.md` and `AGENTS.ko.md`. The English file is the canonical one,
+the first line of each points at the other, and a change to one goes with the same change to the other
+in the same pull request. `src/docs.pairing.test.ts` holds each pair to the same headings and code
+blocks; whether they say the same thing is a reviewer's to check. These `.ko.md` files are the only
+Korean prose the repository's language check lets through.

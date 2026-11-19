@@ -17,6 +17,12 @@
  * what a release said at the time, in whatever language the commit that produced them used, and
  * "fixing" one would falsify history rather than correct a live document.
  *
+ * The mini app SDK's Korean author documents are exempt too, and nothing else: a `.ko.md` file inside
+ * `libs/chatic-apps-sdk/`. They ship on npm beside their English originals for Korean page authors,
+ * the English file stays the canonical one, and the SDK's own test holds each pair to the same
+ * headings and code blocks. Korean prose anywhere else — a `.ko.md` in another module included —
+ * still fails.
+ *
  * Each exempt span is blanked to spaces rather than deleted, so a match's reported line number always
  * matches the real file — a span is free to contain newlines (a wrapped quoted string, a multi-line
  * fenced block) without shifting anything after it.
@@ -31,6 +37,8 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const EXEMPT_FILES = new Set(['CHANGELOG.md']);
+/** The SDK's Korean translations of its author documents (see above). */
+const isExemptTranslation = file => file.startsWith('libs/chatic-apps-sdk/') && file.endsWith('.ko.md');
 
 // Hangul syllables (`가`–`힣`) plus the compatibility jamo block (`ㄱ`–`ㆎ`) used for bare consonants/vowels.
 const HANGUL_CHAR = '\\uac00-\\ud7a3\\u3131-\\u318e';
@@ -52,7 +60,7 @@ const trackedMarkdown = () =>
 
 /** `source` is injectable so the tests can state a document instead of writing one to disk. */
 const checkFile = (file, contents = fs.readFileSync(path.join(ROOT, file), 'utf8')) => {
-    if (EXEMPT_FILES.has(file)) return [];
+    if (EXEMPT_FILES.has(file) || isExemptTranslation(file)) return [];
 
     let cleaned = blank(contents, FENCE);
     cleaned = blank(cleaned, CODE_SPAN);

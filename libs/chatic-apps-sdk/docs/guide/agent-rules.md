@@ -1,3 +1,5 @@
+> Korean: `AGENTS.ko.md` in the package (`agent-rules.ko.md` beside this file). This English version is the canonical one.
+
 # Rules for an AI assistant writing a Chatic app
 
 You are writing a web page that opens inside the DoU app, at `https://<name>.apps.chatic.io`, using

@@ -38,7 +38,18 @@
     },
     "unpkg": "./chatic-apps-sdk.global.js",
     "jsdelivr": "./chatic-apps-sdk.global.js",
-    "files": ["*.js", "*.cjs", "*.d.ts", "*.d.cts", "README.md", "GUIDE.md", "AGENTS.md"],
+    "files": [
+        "*.js",
+        "*.cjs",
+        "*.d.ts",
+        "*.d.cts",
+        "README.md",
+        "README.ko.md",
+        "GUIDE.md",
+        "GUIDE.ko.md",
+        "AGENTS.md",
+        "AGENTS.ko.md"
+    ],
     "publishConfig": {
         "access": "public"
     },

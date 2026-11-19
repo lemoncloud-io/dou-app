@@ -1,3 +1,5 @@
+> Korean: [README.ko.md](./README.ko.md). This English version is the canonical one.
+
 # chatic-apps-sdk
 
 Build pages that run inside the DoU app. A page on `https://<name>.apps.chatic.io` opens in the app
@@ -146,8 +148,8 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
 
 ## Reading the app's data: `apps.data`
 
-A page can read the cloud it was opened in — its places, rooms, messages, members — through the app's
-the same reads DoU's own screens make — hear them change, and send a text message:
+A page can read the cloud it was opened in — its places, rooms, messages, members — with the same
+reads DoU's own screens make, hear them change, and send a text message:
 
 ```ts
 const apps = await connect();
