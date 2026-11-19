@@ -64,6 +64,10 @@ the shell page reloads.
   A prod shell runs only scenarios marked `prod: safe`; put no writes in one — no sending, deleting,
   inviting, profile or settings changes. Say `status().env` in the report: the PROD band is on the
   shell page, not in a frame screenshot.
+- **localhost when the person runs a backend on this machine for this task.** Then
+  `yarn local --env localhost` (its shell is `http://localhost:5027/__shell/`), with the env files
+  `apps/shell-adapter/README.md` § A backend on this machine describes; it follows dev's rules. The page
+  always holds the session there, so a check of the app-held session goes to a device instead.
 - **Never pick an account or type a password** in the Google sign-in popup. When the scenario needs a
   signed-in user, open the shell in your browser tool first, then ask the person to sign in once **in
   that browser, in that shell tab** — a session in their own browser is in a different profile and you

@@ -11,6 +11,7 @@ this app's side of it. Why it is a package: ADR-0214.
 ```bash
 yarn local                          # the shell, dev: http://localhost:5007/__shell/ (web on 5003)
 yarn local --env prod               # the shell, prod: http://localhost:5017/__shell/ (web on 5013)
+yarn local --env localhost          # the shell, a backend on this machine: http://localhost:5027/__shell/ (web on 5023)
 yarn local --mode web               # the web dev server alone, dev, as a plain browser page
 yarn local --mode native            # the simulator run, unchanged (yarn mobile:ios:local)
 yarn local --mode native --platform android
@@ -30,6 +31,37 @@ shell's DEV | PROD switch starts the other backend's pair on its own ports — i
 sign-in — after asking first; only a person switches.
 
 The agent procedure is [`dou-shell-verify`](../../docs/config/skills/dou-shell-verify/SKILL.md).
+
+## A backend on this machine
+
+`yarn local --env localhost` runs the web against services served from this machine, on its own
+ports — the web on 5023, the shell on 5027 — so it never meets a dev or prod run. The page shows
+LOCALHOST and offers no DEV | PROD switch.
+
+It reads `apps/web/.env.localhost` and `apps/mobile/.env.localhost`. Neither is in the secrets
+repository, because their endpoints are whatever this machine serves, so make them from dev's:
+
+```bash
+cp apps/web/.env.dev apps/web/.env.localhost
+cp apps/mobile/.env.dev apps/mobile/.env.localhost
+```
+
+Then, in `apps/web/.env.localhost`, change the endpoint of each service you run locally to the
+address it listens on — `VITE_BACKEND_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT` (a `ws://`
+address) and the rest. The endpoints you leave alone keep going to dev, so one local service can run
+beside dev's others, as long as they accept each other's sessions. `VITE_ENV` stays as copied: it
+picks the stage rules the web applies, not where the backend runs.
+
+From the mobile file the shell reads one value, the Google sign-in client. Google sign-in works only
+when that client lists `http://localhost:5027` as an authorised JavaScript origin; otherwise stay a
+guest — the guest sign-in goes to the backend in the web's file, so it reaches the local one.
+`yarn local:pair` drives the dev shell on 5007, not this one. `yarn local --env localhost --check`
+names what is missing without starting anything.
+
+What the shell imitates is the same on every backend (the table below). Two of its limits matter most
+here: the web always holds the session itself, and keeps it in the page's own storage. A server change
+that only shows when the app's runtime holds the session — its own socket and the user agent it sends,
+its vault — is checked on a simulator ([dou-device-verify](../../docs/config/skills/dou-device-verify/SKILL.md)).
 
 ## What is here
 
@@ -70,6 +102,8 @@ This table is the reference. Adding an imitation changes it in the same commit.
 | App badge (`SetBadgeCount`)                                                              | **Recorded and shown** beside the phone and in `status().badge`. There is no OS badge                                                                                     |
 | Photos, camera, file save, contacts, SMS, app icon, app update, haptics, file transfer   | **Not imitated.** No handler answers them: the panel asks for 5 seconds, then the request fails, which the web reads as an older app and falls back where it has one      |
 | In-app purchase                                                                          | **Imitated on dev only, when picked** (§ Checkout): a virtual store with a fake price and a fake receipt the dev server refuses. Otherwise refused at once and logged     |
+| Session held by the app's runtime (`RuntimeHello`)                                       | **Not imitated.** The shell offers no runtime, so the web settles on holding the session itself, over its own socket. The app-held path is checked on a simulator         |
+| Device vault (`nativeSecure` storage)                                                    | **Not imitated.** The shell declares no storage medium, so the web keeps its session in the page's own storage, as a browser does                                         |
 | Input: user agent, pointer, touch                                                        | **Not imitated.** The frame keeps the desktop browser's: Enter sends instead of adding a line, and focus does not scroll into view. Check those in the native mode        |
 
 Every request the shell does not answer is logged as `unsupported` and shown as a notice beside the
@@ -137,7 +171,9 @@ way. When the web asks to sign in with Google, a sheet rises over the phone with
 Cancel answers the web as a cancelled sign-in (`result: null`).
 
 Outside this repository each client must list its shell's origin as an authorised JavaScript origin:
-`http://localhost:5007` on the dev client, `http://localhost:5017` on the prod one.
+`http://localhost:5007` on the dev client, `http://localhost:5017` on the prod one, and
+`http://localhost:5027` on whichever client `apps/mobile/.env.localhost` names (§ A backend on this
+machine).
 
 The web is also ready for the shell's relay sign-in (the core package's `oauth-relay` preset), which
 this config does not use yet. That preset sends the popup to the organisation's OAuth relay, as the

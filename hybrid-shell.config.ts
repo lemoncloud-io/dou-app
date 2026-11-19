@@ -4,8 +4,12 @@ import { withCheckoutDeclaration } from './apps/shell-adapter/src/checkout';
 import { deepLinkNavigation, pushTapNavigation } from './apps/shell-adapter/src/routes';
 import type { DouEvents, DouMethods } from './apps/shell-adapter/src/types';
 
+// The hint is keyed by the `{env}` entry, so one text serves every backend. localhost has no file in the
+// secrets repository: its endpoints are whatever this machine serves, so it starts from dev's file.
 const BACKEND_ENV_SOURCE =
-    'download it from the team secrets repository, where it sits at the same path (ONBOARDING.md § Env and Firebase files)';
+    'for dev and prod, download it from the team secrets repository, where it sits at the same path ' +
+    '(ONBOARDING.md § Env and Firebase files); for localhost, copy the .env.dev beside it and point the ' +
+    'endpoints of the services you run on this machine at them (apps/shell-adapter/README.md § A backend on this machine)';
 
 /**
  * The app's own protocol, plus what this shell declares it can do. Its globals are the built-in
