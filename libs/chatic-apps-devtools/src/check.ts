@@ -73,6 +73,8 @@ export interface Finding {
     /** Relative to the project, with `/` between parts. */
     file?: string;
     line?: number;
+    /** What it is about — the permission, field or method — for a reader's message. */
+    subject?: string;
 }
 
 /** A place the page's code talks to the network, listed for the author to review; never a failure. */
@@ -220,7 +222,12 @@ const readManifest = (
     }
     for (const field of Object.keys(manifest)) {
         if (!(MANIFEST_FIELDS as readonly string[]).includes(field)) {
-            findings.push({ rule: 'manifest/unknown-field', file, message: `The app does not read "${field}".` });
+            findings.push({
+                rule: 'manifest/unknown-field',
+                file,
+                subject: field,
+                message: `The app does not read "${field}".`,
+            });
         }
     }
     const declared = manifest.permissions === undefined ? [] : manifest.permissions;
@@ -233,6 +240,7 @@ const readManifest = (
             findings.push({
                 rule: 'manifest/unknown-permission',
                 file,
+                subject: permission,
                 message: `"${permission}" is not a permission the app knows.`,
             });
         }
@@ -388,6 +396,7 @@ export const check = (options: CheckOptions): CheckResult => {
                     rule: 'code/unknown-data-method',
                     file,
                     line,
+                    subject: method,
                     message: `${method} is not a method the app opens to a page.`,
                 });
             }
@@ -410,6 +419,7 @@ export const check = (options: CheckOptions): CheckResult => {
                 findings.push({
                     rule: 'manifest/unused-permission',
                     file: found?.file,
+                    subject: permission,
                     message: `"${permission}" is asked for, and nothing in ${srcName} uses it.`,
                 });
             }
@@ -421,6 +431,7 @@ export const check = (options: CheckOptions): CheckResult => {
                 rule: 'manifest/missing-permission',
                 file: at.file,
                 line: at.line,
+                subject: permission,
                 message: `${at.call} needs "${permission}" in the manifest; without it the app refuses it.`,
             });
         }

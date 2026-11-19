@@ -23,9 +23,10 @@ cloud change) without a phone.
 
 ## Decision
 
-**A development package, `libs/chatic-apps-devtools`, with one command and two subcommands — `check`
-and `scenarios` — kept apart from the SDK. The reference mini-app they are proven on lives outside this
-repository.**
+**A development package, `libs/chatic-apps-devtools`, kept apart from the SDK. An author sees one
+command, `verify`, which runs a checker and a scenario runner — `check` and `scenarios`, kept as commands
+of their own for CI — and explains the result in plain words. The reference mini-app they are proven on
+lives outside this repository.**
 
 - **Outside the SDK.** The SDK keeps no runtime dependencies and exports only `.` and `./mock`. The tools
   need a bundler and a DOM (esbuild, jsdom), so they live in their own package that a page installs as a
@@ -34,6 +35,12 @@ repository.**
   These commands take any page that builds to static files and only read it or run it: `check` reads the
   manifest, the source and the bundle; `scenarios` runs the built bundle against the SDK's mock. They add
   nothing to the page and nothing to the SDK's surface.
+- **One command for the author.** Two commands and rule names are a lot for someone building their first
+  page. `verify` runs both, folds what passed into one line per group, and gives one line per thing to fix
+  — what is wrong, how to fix it, where — in English or Korean, following the system's language. It runs
+  with no setup: without a scenario file it tries what needs no screens and says a scenario file adds the
+  rest. It is called through the project's own script or the package's full name, never a bare
+  `npx chatic-apps`, which outside the project would fetch whatever npm package owns that name.
 - **No browser.** The scenario runner runs the page in jsdom, bundling its module scripts to one classic
   script with esbuild. It cannot see layout or the safe area; it can see every request on the wire, every
   error, and every listener and stream left behind, which is what breaks on phones. A browser engine

@@ -5,8 +5,14 @@ import { check, formatCheck } from './check';
 import { loadScenarioConfig } from './config';
 import { loadDist } from './page';
 import { SCENARIOS, formatScenarios, runScenarios, type ScenarioName } from './scenarios';
+import { formatVerify, verify, type Language } from './verify';
 
 const USAGE = `Usage:
+  chatic-apps verify [--root <dir>] [--dist <dir>] [--lang en|ko] [--details] [--json]
+      Checks the page and tries its build against a stand-in for the app, then says what to fix.
+      Run it from the project's folder after building; the build folder is dist/ unless --dist says.
+
+Advanced, for CI:
   chatic-apps check [--root <dir>] [--src <dir>] [--dist <dir>] [--json]
       Checks the manifest, the source and the built bundle against the rules.
   chatic-apps scenarios [--root <dir>] [--dist <dir>] [--mock <module>] [--only <name,...>] [--json]
@@ -24,6 +30,25 @@ const main = async (args: string[]): Promise<number> => {
     const root = resolve(option(args, 'root') ?? '.');
     const dist = option(args, 'dist') ?? 'dist';
     const json = args.includes('--json');
+
+    if (command === 'verify') {
+        const lang = option(args, 'lang');
+        if (lang !== undefined && lang !== 'en' && lang !== 'ko') {
+            console.error('--lang takes en or ko.');
+            return 2;
+        }
+        const result = await verify({
+            root,
+            src: option(args, 'src'),
+            dist,
+            mockModule: option(args, 'mock'),
+            language: lang as Language | undefined,
+        });
+        console.log(
+            json ? JSON.stringify(result, null, 2) : formatVerify(result, { details: args.includes('--details') })
+        );
+        return result.ok ? 0 : 1;
+    }
 
     if (command === 'check') {
         const result = check({ root, src: option(args, 'src'), dist });

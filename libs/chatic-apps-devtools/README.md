@@ -1,28 +1,83 @@
 # chatic-apps-devtools
 
-Development tools for a Chatic app page (a mini-app built with `chatic-apps-sdk`): a **checker** and a
-**scenario runner**, as one command with two subcommands. They run on the author's machine, before the
-page is handed over; nothing here is part of the page. The page's only runtime dependency stays the SDK.
+The verifier for a Chatic app page (a mini-app built with `chatic-apps-sdk`). An author runs one command,
+`verify`, before handing the page over: it checks the page and tries its build against a stand-in for the
+app, then says what is wrong and how to fix it, in plain words. Nothing here is part of the page; the
+page's only runtime dependency stays the SDK.
+
+## `verify`
+
+Add it to the project's scripts and run it after building:
+
+```json
+{ "scripts": { "verify": "chatic-apps verify" } }
+```
+
+```bash
+npm run build
+npm run verify
+```
+
+Or, without a script, by the package's full name: `npx @lemoncloud/chatic-apps-devtools verify`. Never a
+bare `npx chatic-apps`: outside a project that has this package installed, npm would fetch whatever
+package owns that name, which is not this one.
+
+```text
+Chatic app check
+
+✓ Manifest
+✗ Permissions
+  • The page uses something that needs "share", and does not ask for it (src/app.ts:212) → add "share" to the manifest's permissions
+✓ Code
+✓ Bundle
+✓ Starting up
+✓ Back and close
+…
+
+Screen checks were skipped: add chatic-apps.scenarios.ts to try each screen's back and clean-up.
+Bundle: 4 files, 23.0 KB.
+
+✗ 1 thing(s) to fix.
+```
+
+- **One line per thing to fix**: what is wrong → how to fix it, with the file and line, or the screen.
+  A group with nothing to fix folds into one ✓ line.
+- **English or Korean**, following the system's language (`LC_ALL`, `LC_MESSAGES`, `LANG`); `--lang en`
+  or `--lang ko` chooses.
+- **`--details`** adds the rule or scenario behind each line; **`--json`** prints everything as data.
+- **The build folder is `dist/`** unless `--dist` names another; `--root` is the project's folder.
+- **No setup needed.** Without a scenario file it runs the behaviour checks that need no screens (start,
+  back at the root, close, theme, hiding and coming back, a refused consent, a cloud change, a rate
+  limit) and says that a scenario file adds the screen checks. Not built yet, it says to build first.
+- Exits `0` when there is nothing to fix, `1` when there is.
 
 The package is not published yet. Its publish manifest is `package.publish.json` (as
 `@lemoncloud/chatic-apps-devtools`, command `chatic-apps`); it ships once the SDK's release path moves to
 CI publishing with provenance, because a command that runs on authors' machines is worth more to an
 attacker than a library.
 
+## Inside: `check` and `scenarios`
+
+`verify` is the checker followed by the scenario runner. Both stay as commands of their own, for CI and
+for anyone who wants their raw output with rule names:
+
 ```bash
 npx nx build @chatic/chatic-apps-devtools          # into dist/libs/chatic-apps-devtools
+node dist/libs/chatic-apps-devtools/cli.js verify    --root <page> [--dist <built folder>]
 node dist/libs/chatic-apps-devtools/cli.js check     --root <page> --dist <built folder>
 node dist/libs/chatic-apps-devtools/cli.js scenarios --root <page> --dist <built folder> [--mock <module>]
 ```
 
-Both exit `1` when something fails, `0` when it passes, and print `--json` on request.
+Each exits `1` when something fails, `0` when it passes, and prints `--json` on request. The plain
+messages `verify` prints live in `src/i18n/` (`en.ts`, `ko.ts`), keyed by every rule and every scenario
+issue, so a rule added without its message does not compile.
 
 The tools are proven on a reference mini-app that is kept outside this repository, as a page author's own
-project would be: it installs this package and the SDK as packages, passes both commands, and its tests
-break it on purpose — once per checker rule, and for each scenario a page commonly gets wrong — to show
-each check catches its case. This repository holds no page of its own.
+project would be: it installs this package and the SDK as packages, passes `verify`, and its tests break
+it on purpose — once per checker rule, and for each scenario a page commonly gets wrong — to show each
+check catches its case. This repository holds no page of its own.
 
-## `check`
+### `check`
 
 Reads the manifest, the source (`src/`, and `index.html`) and the built bundle (`dist/` by default). It
 never runs the page.
@@ -68,7 +123,7 @@ what a page reads from the cloud, so what a page sends where is its author's to 
 
 **The bundle's size** is printed by file type, for the author and the release record.
 
-## `scenarios`
+### `scenarios`
 
 Opens the built page against the SDK's mock of the app and plays what a user and the app do to it. It
 runs with no browser: [jsdom](https://github.com/jsdom/jsdom) for the window and esbuild to turn the
@@ -99,7 +154,7 @@ that outlive a screen; an element's own listeners go with the element and are no
 A scenario that does not apply — no data permission, no screens or no actions declared — reports that
 it did not run.
 
-### The scenario file
+#### The scenario file
 
 The runner learns the page's screens and its data from `chatic-apps.scenarios.ts` (or `.mts`, `.js`,
 `.mjs`) at the project's root. Its default export:
@@ -126,8 +181,8 @@ SDK (`@lemoncloud/chatic-apps-sdk/mock`); `--mock` names another module, as this
 
 ## The API
 
-`check`, `runScenarios`, `loadDist`, `loadEntry`, `openPage` and `loadScenarioConfig` are exported for
-tests. `loadEntry` bundles a page from its sources as a production build would (`import.meta.env.DEV`
+`verify` and `formatVerify` are the command's API. `check`, `runScenarios`, `loadDist`, `loadEntry`,
+`openPage` and `loadScenarioConfig` are exported for tests. `loadEntry` bundles a page from its sources as a production build would (`import.meta.env.DEV`
 false) with an optional source transform, which is how a page's own tests make broken copies of it;
 `openPage` opens a page with a hook to put a host — the mock, or a real one — in place first.
 
@@ -135,8 +190,9 @@ The build writes one declaration file for this API, `index.d.ts`, beside `index.
 
 ## Tests
 
-The tests here hold the parts that need no page: the comment stripping the code rules read through, and
-the permission table against the SDK's methods. The checks themselves are tried on the reference mini-app,
+The tests here hold the parts that need no page: the comment stripping the code rules read through, the
+permission table against the SDK's methods, every message in both languages, the language choice, the
+scenarios run without a scenario file, the printed format, and `verify` on an empty folder. The checks themselves are tried on the reference mini-app,
 outside this repository.
 
 A test runner (jest, `node --test`) takes an unhandled rejection from the page for itself and fails the

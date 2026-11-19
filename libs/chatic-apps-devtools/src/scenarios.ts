@@ -62,12 +62,70 @@ export const SCENARIOS: Readonly<Record<ScenarioName, string>> = {
     'rate-limited': 'A read refused with `RATE_LIMITED` is tried again later.',
 };
 
+/** What went wrong, by kind: what `verify` explains in plain words, in the reader's language. */
+export type IssueKind =
+    | 'threw'
+    | 'reported'
+    | 'not-ready'
+    | 'could-not-run'
+    | 'never-connected'
+    | 'no-data-connect'
+    | 'root-back-taken'
+    | 'selector-missing'
+    | 'screen-no-back'
+    | 'back-closed'
+    | 'back-still-taken'
+    | 'stream-left'
+    | 'listener-left'
+    | 'interval-left'
+    | 'root-back-not-closing'
+    | 'close-not-closing'
+    | 'theme-ignored'
+    | 'no-save-on-hide'
+    | 'asked-again'
+    | 'cloud-streams-open'
+    | 'cloud-ignored'
+    | 'cloud-retries'
+    | 'big-list'
+    | 'no-retry';
+
+export interface ScenarioIssue {
+    kind: IssueKind;
+    /** The problem in English, as `scenarios` prints it. */
+    text: string;
+    /** The screen it happened on, by its name in the scenario file. */
+    screen?: string;
+    count?: number;
+    /** The error, the selector or the method it is about. */
+    detail?: string;
+}
+
 export interface ScenarioResult {
     name: ScenarioName;
     /** `false` when the scenario did not apply to this page: it is then neither passed nor failed. */
     ran: boolean;
+    /** Each issue's English text. */
     problems: string[];
+    issues: ScenarioIssue[];
 }
+
+/** The scenarios that need no screens from a scenario file. */
+export const SCREENLESS_SCENARIOS: readonly ScenarioName[] = [
+    'start',
+    'back-at-root',
+    'close-guard',
+    'theme',
+    'hide-resume',
+    'consent-refused',
+    'cloud-change',
+    'rate-limited',
+];
+
+const issue = (kind: IssueKind, text: string, extra: Omit<ScenarioIssue, 'kind' | 'text'> = {}): ScenarioIssue => ({
+    kind,
+    text,
+    ...extra,
+});
 
 export interface RunOptions {
     source: PageSource;
@@ -150,6 +208,7 @@ const withBigLists = (data: MockData = {}): MockData => {
     return { ...data, calls: calls as MockData['calls'], streams: streams as MockData['streams'] };
 };
 
+const NOT_READY = 'The page never showed';
 const MOCK_GLOBAL = '__chaticAppsRunnerMock';
 const OPTIONS_GLOBAL = '__chaticAppsRunnerOptions';
 
@@ -320,7 +379,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 await settle(20);
             }
             if (!page.window.document.querySelector(config.ready)) {
-                page.errors.push(`The page never showed ${config.ready}.`);
+                page.errors.push(`${NOT_READY} ${config.ready}.`);
             }
         }
         await settle(60);
@@ -350,11 +409,19 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
     };
 
     /** The page's own errors, and the ones it reported to the app, as problems. */
-    const errorsOf = (session: Session): string[] => [
-        ...session.errors.map(error => `The page threw: ${error}`),
+    const errorsOf = (session: Session): ScenarioIssue[] => [
+        ...session.errors.map(error =>
+            error.startsWith(NOT_READY)
+                ? issue('not-ready', error, { detail: config.ready })
+                : issue('threw', `The page threw: ${error}`, { detail: error })
+        ),
         ...session.requests
             .filter(request => request.type === 'ReportSubWebViewError')
-            .map(request => `The page reported an error: ${String(request.data.message)}`),
+            .map(request =>
+                issue('reported', `The page reported an error: ${String(request.data.message)}`, {
+                    detail: String(request.data.message),
+                })
+            ),
     ];
 
     const pressBack = async (session: Session, times = 1) => {
@@ -364,34 +431,46 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         }
     };
 
-    const clickAll = async (session: Session, problems: string[]) => {
+    const clickAll = async (session: Session, problems: ScenarioIssue[]) => {
         for (const action of config.actions ?? []) {
             if (!(await session.click(action.click))) {
-                problems.push(`${action.name}: ${action.click} is not on the page.`);
+                problems.push(
+                    issue('selector-missing', `${action.name}: ${action.click} is not on the page.`, {
+                        screen: action.name,
+                        detail: action.click,
+                    })
+                );
             }
         }
         await settle(100);
     };
 
-    const scenarios: Record<ScenarioName, () => Promise<string[] | null>> = {
+    const scenarios: Record<ScenarioName, () => Promise<ScenarioIssue[] | null>> = {
         start: async () => {
             const session = await start();
             const problems = errorsOf(session);
             if (!session.requests.some(request => request.type === 'WebAppReady')) {
-                problems.push('The page never connected: no `connect()`.');
+                problems.push(issue('never-connected', 'The page never connected: no `connect()`.'));
             }
             if (reads && !session.requests.some(request => request.type === 'RuntimeHello')) {
-                problems.push('The manifest asks for cloud data, and the page never called `apps.data.connect()`.');
+                problems.push(
+                    issue(
+                        'no-data-connect',
+                        'The manifest asks for cloud data, and the page never called `apps.data.connect()`.'
+                    )
+                );
             }
             if (session.claim()) {
-                problems.push('The page takes Android back at its root: the app cannot close it there.');
+                problems.push(
+                    issue('root-back-taken', 'The page takes Android back at its root: the app cannot close it there.')
+                );
             }
             session.close();
             return problems;
         },
         screens: async () => {
             if (!config.screens?.length) return null;
-            const problems: string[] = [];
+            const problems: ScenarioIssue[] = [];
             const session = await start();
             const before = {
                 streams: session.openStreams(),
@@ -402,7 +481,12 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 let opened = 0;
                 for (const selector of screen.open) {
                     if (!(await session.click(selector))) {
-                        problems.push(`${screen.name}: ${selector} is not on the page.`);
+                        problems.push(
+                            issue('selector-missing', `${screen.name}: ${selector} is not on the page.`, {
+                                screen: screen.name,
+                                detail: selector,
+                            })
+                        );
                         break;
                     }
                     opened += 1;
@@ -410,30 +494,56 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 if (opened === 0) continue;
                 for (const selector of screen.tap ?? []) {
                     if (!(await session.click(selector))) {
-                        problems.push(`${screen.name}: ${selector} is not on the page.`);
+                        problems.push(
+                            issue('selector-missing', `${screen.name}: ${selector} is not on the page.`, {
+                                screen: screen.name,
+                                detail: selector,
+                            })
+                        );
                     }
                 }
                 if (!session.claim()) {
                     problems.push(
-                        `${screen.name}: the screen does not take Android back (\`apps.onBack\`): back would close the page.`
+                        issue(
+                            'screen-no-back',
+                            `${screen.name}: the screen does not take Android back (\`apps.onBack\`): back would close the page.`,
+                            { screen: screen.name }
+                        )
                     );
                 }
                 await pressBack(session, opened);
                 if (session.app.closed) {
-                    problems.push(`${screen.name}: Android back closed the page instead of returning to the root.`);
+                    problems.push(
+                        issue(
+                            'back-closed',
+                            `${screen.name}: Android back closed the page instead of returning to the root.`,
+                            { screen: screen.name }
+                        )
+                    );
                     break;
                 }
-                if (session.claim()) problems.push(`${screen.name}: back at the root is still taken by the page.`);
+                if (session.claim()) {
+                    problems.push(
+                        issue('back-still-taken', `${screen.name}: back at the root is still taken by the page.`, {
+                            screen: screen.name,
+                        })
+                    );
+                }
                 const left = {
                     streams: session.openStreams() - before.streams,
                     listeners: session.listeners() - before.listeners,
                     intervals: session.intervals() - before.intervals,
                 };
-                if (left.streams > 0) problems.push(`${screen.name}: ${left.streams} stream(s) left open after back.`);
-                if (left.listeners > 0) {
-                    problems.push(`${screen.name}: ${left.listeners} event listener(s) left after back.`);
+                const leftOver = [
+                    ['stream-left', left.streams, 'stream(s) left open after back'],
+                    ['listener-left', left.listeners, 'event listener(s) left after back'],
+                    ['interval-left', left.intervals, 'interval(s) left after back'],
+                ] as const;
+                for (const [kind, count, what] of leftOver) {
+                    if (count > 0) {
+                        problems.push(issue(kind, `${screen.name}: ${count} ${what}.`, { screen: screen.name, count }));
+                    }
                 }
-                if (left.intervals > 0) problems.push(`${screen.name}: ${left.intervals} interval(s) left after back.`);
             }
             problems.unshift(...errorsOf(session));
             session.close();
@@ -445,7 +555,12 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             await settle(100);
             const problems = errorsOf(session);
             if (!session.app.closed) {
-                problems.push('Android back at the root did not close the page: it took back, or walked a history.');
+                problems.push(
+                    issue(
+                        'root-back-not-closing',
+                        'Android back at the root did not close the page: it took back, or walked a history.'
+                    )
+                );
             }
             session.close();
             return problems;
@@ -457,7 +572,11 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             if (!session.app.closed) session.app.requestClose();
             await settle(100);
             const problems = errorsOf(session);
-            if (!session.app.closed) problems.push('A second close within three seconds did not close the page.');
+            if (!session.app.closed) {
+                problems.push(
+                    issue('close-not-closing', 'A second close within three seconds did not close the page.')
+                );
+            }
             session.close();
             return problems;
         },
@@ -469,7 +588,12 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             await settle(100);
             const problems = errorsOf(session);
             if (session.mutations() === before) {
-                problems.push(`The theme changed to ${theme} and the page did not change: use \`onContextChange\`.`);
+                problems.push(
+                    issue(
+                        'theme-ignored',
+                        `The theme changed to ${theme} and the page did not change: use \`onContextChange\`.`
+                    )
+                );
             }
             session.close();
             return problems;
@@ -485,9 +609,14 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             const saved = stores();
             document.dispatchEvent(new session.window.Event('visibilitychange'));
             await settle(100);
-            const problems: string[] = [];
+            const problems: ScenarioIssue[] = [];
             if (usesStorage && stores() === saved) {
-                problems.push('Hidden, the page did not save: the app may close it without another word.');
+                problems.push(
+                    issue(
+                        'no-save-on-hide',
+                        'Hidden, the page did not save: the app may close it without another word.'
+                    )
+                );
             }
             state = 'visible';
             document.dispatchEvent(new session.window.Event('visibilitychange'));
@@ -500,7 +629,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         actions: async () => {
             if (!config.actions?.length) return null;
             const session = await start();
-            const problems: string[] = [];
+            const problems: ScenarioIssue[] = [];
             await clickAll(session, problems);
             problems.unshift(...errorsOf(session));
             session.close();
@@ -509,7 +638,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         'device-refused': async () => {
             if (!config.actions?.length) return null;
             const session = await start({ devices: 'blocked' });
-            const problems: string[] = [];
+            const problems: ScenarioIssue[] = [];
             await clickAll(session, problems);
             problems.unshift(...errorsOf(session));
             session.close();
@@ -521,7 +650,13 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             await settle(200);
             const problems = errorsOf(session);
             const hellos = session.requests.filter(request => request.type === 'RuntimeHello').length;
-            if (hellos > 1) problems.push(`The page asked again ${hellos - 1} time(s) after the user refused.`);
+            if (hellos > 1) {
+                problems.push(
+                    issue('asked-again', `The page asked again ${hellos - 1} time(s) after the user refused.`, {
+                        count: hellos - 1,
+                    })
+                );
+            }
             session.close();
             return problems;
         },
@@ -535,18 +670,31 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             await settle(300);
             const problems = errorsOf(session);
             if (session.openStreams() > 0) {
-                problems.push(`${session.openStreams()} stream(s) still open after the change.`);
+                problems.push(
+                    issue('cloud-streams-open', `${session.openStreams()} stream(s) still open after the change.`, {
+                        count: session.openStreams(),
+                    })
+                );
             }
             if (session.mutations() === before.mutations && !session.app.closed) {
                 problems.push(
-                    'The page did not react to the cloud change: show a notice or finish (`onCloudChanged`).'
+                    issue(
+                        'cloud-ignored',
+                        'The page did not react to the cloud change: show a notice or finish (`onCloudChanged`).'
+                    )
                 );
             }
             const retries = session.requests.filter(
                 request => request.at >= before.at && /^Runtime(Hello|Call|Subscribe)$/.test(request.type)
             ).length;
             if (retries > 1) {
-                problems.push(`The page sent ${retries} cloud data requests after the change: nothing answers.`);
+                problems.push(
+                    issue(
+                        'cloud-retries',
+                        `The page sent ${retries} cloud data requests after the change: nothing answers.`,
+                        { count: retries }
+                    )
+                );
             }
             session.close();
             return problems;
@@ -554,7 +702,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         'big-list': async () => {
             if (!reads || !config.screens?.length) return null;
             const session = await start({ bigLists: true });
-            const problems: string[] = [];
+            const problems: ScenarioIssue[] = [];
             for (const screen of config.screens) {
                 let opened = 0;
                 for (const selector of screen.open) if (await session.click(selector)) opened += 1;
@@ -562,7 +710,11 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 const elements = session.window.document.getElementsByTagName('*').length;
                 if (elements > ELEMENT_LIMIT) {
                     problems.push(
-                        `${screen.name}: ${elements} elements for lists of ${BIG_LIST} rows — draw and keep only what shows.`
+                        issue(
+                            'big-list',
+                            `${screen.name}: ${elements} elements for lists of ${BIG_LIST} rows — draw and keep only what shows.`,
+                            { screen: screen.name, count: elements }
+                        )
                     );
                 }
                 await pressBack(session, opened);
@@ -600,7 +752,13 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 const calls = session.requests.filter(
                     request => request.type === 'RuntimeCall' && request.data.method === refused
                 ).length;
-                if (calls < 2) problems.push(`${refused} was refused with RATE_LIMITED and never tried again.`);
+                if (calls < 2) {
+                    problems.push(
+                        issue('no-retry', `${refused} was refused with RATE_LIMITED and never tried again.`, {
+                            detail: refused,
+                        })
+                    );
+                }
             }
             session.close();
             return problems;
@@ -610,16 +768,18 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
     const results: ScenarioResult[] = [];
     for (const name of Object.keys(SCENARIOS) as ScenarioName[]) {
         if (options.only && !options.only.includes(name)) continue;
-        let problems: string[] | null;
+        let problems: ScenarioIssue[] | null;
         try {
             problems = await scenarios[name]();
         } catch (error) {
-            problems = [`The scenario could not run: ${error instanceof Error ? error.message : String(error)}`];
+            const message = error instanceof Error ? error.message : String(error);
+            problems = [issue('could-not-run', `The scenario could not run: ${message}`, { detail: message })];
         } finally {
             [...opened].forEach(close => close());
             opened.clear();
         }
-        results.push({ name, ran: problems !== null, problems: problems ?? [] });
+        const issues = problems ?? [];
+        results.push({ name, ran: problems !== null, problems: issues.map(item => item.text), issues });
     }
     return results;
 };
