@@ -52,9 +52,10 @@ Chatic 앱 검사
   아직 빌드하지 않았으면 먼저 빌드하라고 알려 줍니다.
 - 고칠 것이 없으면 `0`, 있으면 `1`로 끝납니다.
 
-이 패키지는 아직 배포되지 않았습니다. 배포 매니페스트는 `package.publish.json`(`@lemoncloud/chatic-apps-devtools`,
-명령 `chatic-apps`)입니다. SDK의 배포 경로가 출처 증명이 붙는 CI 배포로 바뀐 뒤에 싣습니다. 작성자의 컴퓨터에서 도는
-명령은 라이브러리보다 공격자에게 더 값진 표적이기 때문입니다.
+이 패키지는 `@lemoncloud/chatic-apps-devtools`(명령 `chatic-apps`)로 배포되며, 배포 매니페스트는
+`package.publish.json`입니다. `@lemoncloud/chatic-apps-sdk` 0.3.0 이상이 함께 있어야 합니다. 첫 배포(0.1.0)는
+출처 증명이 붙는 CI 배포가 아니라 손으로 했습니다. 이 명령은 작성자의 컴퓨터에서 돌기 때문에 공격자에게 값진
+표적이라, 배포를 CI로 옮기는 일은 아직 남아 있습니다.
 
 ## `bundle`
 
