@@ -1,5 +1,21 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.10, @chatic/web@0.96.5, @chatic/landing@0.19.5, @chatic/desktop-web@0.60.6
+
+### Documentation
+
+- describe every host port's members and record ADR-0359
+
+### Refactor
+
+- (desktop-web) call the media, files, signIn and push members, not branch on kind
+- (web) call the media, files, signIn and push members, not branch on kind or os
+- (runtime-client,runtime-web,runtime) give media, files, signIn and push members
+
+### Other
+
+- build: (lint) report a kind or os read on every host port, not only three
+
 ## [2026-11-19] - root@0.168.9, @chatic/web@0.96.4
 
 ### Features
