@@ -81,10 +81,13 @@
 //         and reads the insets from `env(safe-area-inset-*)` or the `--chatic-safe-area-inset-*`
 //         properties the shell sets on its root element. A shell from before it shows any new name with
 //         its default: no bar on the phone, the bar on the desktop.
+// 2.30.0: a sub WebView page's context carries `display`, the display the shell shows it in, and
+//         `safeArea`, how far the system bars reach into it (0 on every edge unless `immersive`);
+//         OnSubWebViewContextChanged carries `safeArea` too, pushed once the insets settle.
 // 2.31.0: a sub WebView page's reads of the device cache are limited to 600 a minute per view, past
 //         which they answer RATE_LIMITED; while the app is in the background, each of its runtime streams
 //         keeps only its latest event, delivered on return; and a page whose process died closes the
-//         view as `system`. (2.30.0 is the context's `display` and `safeArea`.)
+//         view as `system`.
 export const BRIDGE_VERSION = '2.31.0' as const;
 
 export const BRIDGE_VERSION_INFO = {

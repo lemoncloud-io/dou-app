@@ -153,6 +153,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     onRequestClose={close}
                     onTitleChange={setPageTitle}
                     onTitleRequest={setRequestedTitle}
+                    display={manifest.display}
                     {...(immersive ? { insets } : {})}
                 />
             )}

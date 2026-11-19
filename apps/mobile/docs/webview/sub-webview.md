@@ -112,9 +112,13 @@ it:
 - **The bridge, one per page load** (`subWebViewRuntimeBridge.ts`): its own runtime bridge host over the
   app's engine, so the page's streams are apart from the main web's and end with the load. It checks,
   in order, that the cloud is still the one the view opened on, the whitelist, the user's consent
-  (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page and cloud in its own
-  MMKV file; with `chatSend` the alert's title and text say the page sends messages, the yes is kept
-  per place too, and an earlier yes without it does not count), for a message and for every read of a
+  (`subWebViewRuntimeConsent.ts`, asked with a system alert and kept per user, page, cloud and place in
+  its own MMKV file, every permission in one question; the text says what is read, that a place's
+  rooms, messages and members come from this place only and another place asks again, with `user` that members come with what their accounts carry, and with `cloud`
+  that an owned cloud comes with its owner, account, subscription and server; with `chatSend` the
+  alert's title and text say the page sends messages, and an earlier yes without it does not count; a yes is kept with the wording's revision, and one given before the
+  text said what members or an owned cloud carry is asked again if it covered `user` or `cloud`), for
+  a message and for every read of a
   room that the room is one the device holds in the view's cloud and the place the view opened on, with
   the session still there (read from the cache through the page load's host, a failed read answering
   its own error; for `chat.cacheRead`, the room of the message it answered), and the view's
@@ -490,6 +494,16 @@ main WebView is told its insets as custom properties. `SubWebView` pins `content
 to `never`, react-native-webview's default: an inset the scroll view applied itself would be one WebKit
 then stopped reporting to `env()`. The desktop has no system bars and shows `immersive` as
 `clean`.
+
+**The page is also told its display and the insets as values**, for a page that draws on a canvas
+and cannot read CSS: the screen hands `SubWebView` the display it shows, and the context carries it as
+`display` with the insets as `safeArea` — the very values the custom properties carry
+(`subWebViewSafeAreaOf`), 0 on every edge for a padded page. They come from the app's own safe-area
+measurement, which the screen has before the view mounts, so the global and the handshake carry them
+from the first load even where the custom properties trail the page on Android. A change is pushed as
+`OnSubWebViewContextChanged` only once the insets have stayed put for 200 ms
+(`SUB_WEBVIEW_SAFE_AREA_SETTLE_MS`): a rotation moves them several times on its way, and the custom
+properties follow every step while the push carries where they came to rest.
 
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
 goes through the close control or Android back, and the web always hears of it. If the screen leaves
