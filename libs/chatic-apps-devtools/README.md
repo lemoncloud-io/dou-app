@@ -142,7 +142,7 @@ layout, the safe area and real touch are not tried here. The runner never reache
 | `actions`         | An action throws or reports an error                                                                                                                  |
 | `device-refused`  | An action throws or reports an error with the camera and microphone blocked                                                                           |
 | `consent-refused` | The page throws, or asks again, when the user refuses the cloud's data                                                                                |
-| `cloud-change`    | A stream stays open, the page does not react, or it keeps sending data requests                                                                       |
+| `cloud-change`    | A stream stays open, a page that had one open does not react, or it keeps sending data requests                                                       |
 | `big-list`        | A screen draws more than 2,000 elements for lists of 5,000 rows                                                                                       |
 | `rate-limited`    | A read refused with `RATE_LIMITED` is never tried again                                                                                               |
 

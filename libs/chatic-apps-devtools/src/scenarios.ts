@@ -57,7 +57,7 @@ export const SCENARIOS: Readonly<Record<ScenarioName, string>> = {
     'consent-refused':
         "The user refuses the page their cloud's data: the page goes on without an error, and does not ask again.",
     'cloud-change':
-        'The cloud changes under the page: its streams end, the page changes or finishes, and it does not retry.',
+        'The cloud changes under the page: its streams end, a page that had one open changes or finishes, and it does not retry.',
     'big-list': 'Lists of thousands of rows: the page draws only part of them.',
     'rate-limited': 'A read refused with `RATE_LIMITED` is tried again later.',
 };
@@ -665,7 +665,9 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             const session = await start();
             const screen = config.screens?.[0];
             for (const selector of screen?.open ?? []) await session.click(selector);
-            const before = { mutations: session.mutations(), at: Date.now() };
+            // The page hears of the change through a stream the app ends, or the next read it makes: with no
+            // stream open, it cannot know yet, and only what it does next is checked.
+            const before = { mutations: session.mutations(), at: Date.now(), streams: session.openStreams() };
             session.app.changeCloud();
             await settle(300);
             const problems = errorsOf(session);
@@ -676,7 +678,7 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                     })
                 );
             }
-            if (session.mutations() === before.mutations && !session.app.closed) {
+            if (before.streams > 0 && session.mutations() === before.mutations && !session.app.closed) {
                 problems.push(
                     issue(
                         'cloud-ignored',
