@@ -1,5 +1,27 @@
 # Changelog
 
+## [2026-11-19] - root@0.168.4, @chatic/web@0.96.1, @chatic/desktop-web@0.60.4
+
+### Features
+
+- (runtime-client,runtime-web,config) declare host ports and the engine with the runtime
+
+### Documentation
+
+- (adr) every app starts from a declaration and its call part sees only the runtime (ADR-0346)
+- (runtime,config,eslint) point docs and lint at the declarations, not publishHostPorts
+
+### Refactor
+
+- (desktop-web) read the image address refresh's runtime from the facade
+- (host,runtime-web,runtime-mobile,eslint) delete @chatic/host and hold the parts by tags
+- (mobile) assemble the native runtime from a declaration, with the owner logged
+- (landing,admin) declare landing's runtime and import both apps' runtime from the facade
+- (desktop-web) start the runtime from a declaration and import it only from the facade
+- (web) start the runtime from a browser or hybrid declaration, not hand wiring
+- (web,desktop-web,admin,landing) import the runtime as @chatic/runtime, not app-runtime
+- (runtime,runtime-client,runtime-web,host) rename app-runtime to runtime, the facade
+
 ## [2026-11-18] - No version updates
 
 ### Features
