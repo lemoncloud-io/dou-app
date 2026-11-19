@@ -56,7 +56,7 @@ What the facade hands out, beside the groups that were always here:
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `runtime.settings`                                                                 | The config facade under its own method names — `get`, `snapshot`, `snapshotAll`, `overriddenSnapshots`, `set`, `clear`, `subscribe`, `isInitialized` — plus `useConfigValue`, `CONFIG_UNLOCK_KEY`, `encodeValue` and `storageKeyFor`. Each call goes to the process's one `config` when it is made, so a value written through `config` reads back here and a test that mocks `@chatic/config` still reaches these. `init` stays with the entry point. |
 | `runtime.checkout`, `media`, `files`, `links`, `appShell`, `signIn`, `diagnostics` | The host's ports as the entry point published them — the very objects `host.ports.<port>` holds. They are runtime-client's live bindings: a read sees the published port, and a read before the publish throws, naming the missed step. Read one where it is used, never at module scope, and only in an app that publishes them — `apps/admin` and `apps/landing` publish none, and nothing in this package reads them.                               |
-| `runtime.push.kind`                                                                | The push port's one field, beside the push hooks the group already held: `'shell'` or `'browser'`, and `undefined` until the publish.                                                                                                                                                                                                                                                                                                                  |
+| `runtime.push.kind`, `notifications`, `deviceToken`, `tokenRenewal`, `localBanner` | The push port's fields, one by one beside the push hooks the group already held: `kind` is `'shell'` or `'browser'` and `undefined` until the publish; each member is what the app does for push, `null` where it does none of it, and throws on use until the publish.                                                                                                                                                                                |
 | the domain's names                                                                 | The shapes `@chatic/data` returns and the pure helpers over them (`RELAY_CLOUD_ID`, `isInJoinWindow`, `isCloudDm`, …), plus the settings' types, flat beside `runtime`. [`src/domain.ts`](./src/domain.ts) names each one: a name added to `@chatic/data` reaches apps only when it is written there.                                                                                                                                                  |
 
 ### Testing against it
@@ -70,15 +70,16 @@ What the facade hands out, beside the groups that were always here:
   browser's while nothing is published.
 - `publishTestHostPorts(overrides)` publishes a browser's ports with the test's on top into the real
   holder, for a test that leaves the module real; `resetTestHostPorts()` forgets them.
-- `browserLinks()`, `browserAppShell()` and `browserDiagnostics()` are a browser tab's value of the
-  three ports that carry members — what the page does on its own, every app-only member `null` — for a
-  test that lays the members it watches on top of one.
+- `browserMedia()`, `browserFiles()`, `browserLinks()`, `browserAppShell()`, `browserSignIn()`,
+  `browserDiagnostics()` and `browserPush()` are a browser tab's value of each port that carries members
+  — what the page does on its own, every app-only member `null` — for a test that lays the members it
+  watches on top of one.
 
 ```ts
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
-        signIn: { kind: 'shell', os: null },
+        signIn: { providerSignIn: { providers: ['google'], credential: jest.fn() } },
     })
 );
 ```
@@ -318,7 +319,7 @@ export const App = () => (
 ```tsx
 const ChannelList = () => {
     const blur = runtime.settings.useConfigValue<boolean>('ui.blur');
-    const canSignInWithApple = runtime.signIn.kind === 'shell' && runtime.signIn.os === 'ios';
+    const canSignInWithApple = runtime.signIn.providerSignIn?.providers.includes('apple') ?? false;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { channel } = runtime.data.useRuntimeRepositories();
     const { isConnected, isVerified } = runtime.connection.useRuntimeSocketState();

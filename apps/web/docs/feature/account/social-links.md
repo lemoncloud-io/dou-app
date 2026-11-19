@@ -107,9 +107,9 @@ button.
 
 - **Phone** opens `PhoneVerifySheet` with `mode="link"`. Linked, it shows the masked tail the server
   returned (`phoneHint`) — the full number is never sent back.
-- **Google** is always offered. **Apple** appears only when the host's `signIn` port says the
-  app signs in on iOS (`os === 'ios'`). The provider list is decided in JSX, mirroring
-  `mypage/LoginPage.tsx`, rather than hard-coded inside the hook.
+- **Google** is always offered. **Apple** appears only when the app's own provider sign-in (the host's
+  `signIn` port, `providerSignIn.providers`) lists it, which it does on iOS. The provider list is
+  decided in JSX, mirroring `mypage/LoginPage.tsx`, rather than hard-coded inside the hook.
 - **A linked row has no control at all.** There is no unlink packet, so there is no unlink button —
   not a disabled one, and not one that answers with a "coming soon" toast. A disabled control on a
   phone has no hover to explain itself, so it read as broken rather than as planned. The button comes
@@ -130,15 +130,17 @@ wrong.
 ### Why the browser cannot link a social account
 
 Attaching a social credential needs the **provider's own raw token** — a Google `idToken`, an Apple
-`identityToken` — which only the native bridge (`appBridge.oauthLogin(provider)`) can produce.
+`identityToken` — which only the app's own provider sign-in can produce: the `signIn` port's
+`providerSignIn.credential(provider)`, over `appBridge.oauthLogin(provider)` in the phone app.
 
 The browser OAuth path is not a substitute. `createCredentialsByProvider` posts an authorization code
 to `POST /oauth/{provider}/token` and gets back **our** session token: it is a login, and it carries
 none of the provider material `confirmSocial` requires. Obtaining a raw provider token in a browser
 would mean a new browser-side OAuth integration.
 
-So a non-native visitor sees the card and gets `social.mobileOnly` on tap. **Phone linking works in
-the browser** — it is a socket call with no bridge in it.
+So a visitor whose host has no `providerSignIn` — a browser — sees the card and gets
+`social.mobileOnly` on tap. **Phone linking works in the browser** — it is a socket call with no bridge
+in it.
 
 The virtual mobile shell is native as far as this screen knows, and its relay sign-in answers
 `appBridge.oauthLogin` with a relay code (`{ provider, platform, code }`) rather than a provider
@@ -225,8 +227,8 @@ fall back on it: render nothing, skip the nudge, let the server decide.
   user repository to answer this question.
 - **Re-confirming a provider the user already has is not specified.** `verify` answers `type-linked`
   first, so the case does not reach a user — but do not build on an assumption about `confirm` there.
-- **Cancelling the native sheet is not an error.** `appBridge.oauthLogin` resolves with a `null`
-  result; the hook returns without a call and without a toast.
+- **Cancelling the native sheet is not an error.** `providerSignIn.credential` resolves with `null`;
+  the hook returns without a call and without a toast.
 
 ## How to verify
 

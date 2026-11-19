@@ -134,16 +134,12 @@ bump.
 ```tsx
 // apps/web/src/app/bridge/useDeviceTokenRegistration.ts — shell knowledge only
 const delegate = useMemo<DeviceTokenDelegate | null>(() => {
-    const platform = window.CHATIC_APP_PLATFORM;
-    if (!platform) return null; // plain browser → no-op
+    const deviceToken = runtime.push.deviceToken; // the host's push port; null in a browser
+    const platform = hostProfile().globals.CHATIC_APP_PLATFORM;
+    if (!deviceToken || !platform) return null; // browser → no-op
     return {
-        fetchDeviceToken: () =>
-            appBridge
-                .fetchFcmToken()
-                .then(r => r.data?.token ?? null)
-                .catch(() => null),
+        fetchDeviceToken: () => deviceToken.fetch().catch(() => null),
         platform,
-        installId: window.CHATIC_APP_INSTALLATION_ID,
         application: 'chatic',
         nativeRecordMirror,
     };

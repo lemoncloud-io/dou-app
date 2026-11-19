@@ -1,7 +1,7 @@
 # device-token — the shell adapter that hands a push token to the runtime
 
 A push can only reach this install once its device token is registered with the broker. The token
-itself is native property: only the shell can ask FCM or APNs for one. This document covers the two
+itself is native property: only the shell can ask FCM or APNs for one. This document covers the
 files in `apps/web` that bridge that gap, and nothing else — **the registration policy is not the
 app's**, it belongs to [`@chatic/runtime-core`](../../../../libs/runtime-core/docs/push/README.md)
 and is canonical there.
@@ -9,13 +9,15 @@ and is canonical there.
 ## Layout
 
 ```text
-apps/web/src/app/bridge/
-├── GlobalBridgeListener.tsx          mounts the hook app-wide, above the router
-├── useDeviceTokenRegistration.ts     the shell delegate — 2 pieces of shell knowledge, nothing else
-└── appBridge.ts                      `fetchFcmToken`, `fetchPreference`, `savePreferenceConfirmed`
+apps/web/src/
+├── app/bridge/
+│   ├── GlobalBridgeListener.tsx      mounts the hook app-wide, above the router
+│   ├── useDeviceTokenRegistration.ts the delegate — the push port's token, the platform, the mirror
+│   └── appBridge.ts                  `fetchPreference`, `savePreferenceConfirmed` (the mirror)
+└── config/adapters/push.ts           the `push` port: `deviceToken` asks the shell (`fetchFcmToken`)
 ```
 
-Two source files and one test (`useDeviceTokenRegistration.test.ts`). There is no
+The hook has one test (`useDeviceTokenRegistration.test.ts`). There is no
 `DebugPushPage.tsx` and no `/debug/push` route to open: verification lives in the debug overlay's
 Push screen — see [debug](../feature/debug/README.md).
 
@@ -27,22 +29,20 @@ Push screen — see [debug](../feature/debug/README.md).
 | `@chatic/runtime`     | Whether to register at all: auth gating, once-per-install dedup, the record's shape and storage, the retry floor, the call |
 
 The split is an inversion, the same one the socket auth delegate uses: the runtime never learns what
-a shell is, and the shell never learns the policy. Outside a native shell the delegate is `null` and
-the runtime hook is a no-op — a plain browser tab registers nothing.
+a shell is, and the shell never learns the policy. Where the `push` port has no `deviceToken` (a
+browser) or the shell injected no platform, the delegate is `null` and the runtime hook is a no-op —
+a plain browser tab registers nothing.
 
 ## What the app supplies
 
 ```ts
 // apps/web/src/app/bridge/useDeviceTokenRegistration.ts
-const platform = window.CHATIC_APP_PLATFORM;
-if (!platform) return null; // plain browser → the runtime hook is a no-op
+const deviceToken = runtime.push.deviceToken;
+const platform = hostProfile().globals.CHATIC_APP_PLATFORM;
+if (!deviceToken || !platform) return null; // browser → the runtime hook is a no-op
 
 return {
-    fetchDeviceToken: () =>
-        appBridge
-            .fetchFcmToken()
-            .then(r => r.data?.token ?? null)
-            .catch(() => null),
+    fetchDeviceToken: () => deviceToken.fetch().catch(() => null),
     platform,
     application: 'chatic',
     nativeRecordMirror,
@@ -51,11 +51,15 @@ return {
 
 Four fields, and each one is a decision:
 
-- **`fetchDeviceToken`** is the whole reason this adapter exists. A rejected fetch resolves to `null`
-  rather than throwing — a denied permission prompt is an ordinary outcome, and the runtime retries
-  on the next trigger.
-- **`platform`** comes from the injected `window.CHATIC_APP_PLATFORM`. Shell globals are written
-  before the web app boots, so the `useMemo` has no dependencies and resolves once.
+- **`fetchDeviceToken`** is the whole reason this adapter exists. It reads the `push` port's
+  `deviceToken` (the phone app's implementation asks the shell over `fetchFcmToken`), the same member
+  the debug overlay's Push screen reads, so the two cannot disagree about whether this device has a
+  token. A rejected fetch resolves to `null` rather than throwing — a denied permission prompt is an
+  ordinary outcome, and the runtime retries on the next trigger.
+- **`platform`** is the injected `CHATIC_APP_PLATFORM`, as the host profile kept it at boot
+  (`hostProfile().globals`). Shell globals are written before the web app boots, so the `useMemo` has
+  no dependencies and resolves once. The push-mute toggle (`useDevicePushMute`) is supported under the
+  same two conditions, since anywhere else the device was never registered and its write would fail.
 - **`nativeRecordMirror`** is a durable home for the runtime's record, reached through the
   `pushRegistration` preference. Both halves are best-effort by design, for the reason below.
 - **`stage` is deliberately absent.** A mobile build carries its stage in the flavour's

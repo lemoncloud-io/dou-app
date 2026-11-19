@@ -21,7 +21,8 @@ and the first request would otherwise fail. It returns `{ sendImages, retry, can
 
 ## Which PUT
 
-`bridge/shellUpload.ts` decides once per page, at the bridge seam:
+`bridge/shellUpload.ts` hands the send the PUT the host's `files` port carries (`runtime.files.put`),
+built in `config/adapters/files.ts`:
 
 | Shell   | PUT                                                                                                           |
 | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -39,8 +40,10 @@ The native path keeps moving bytes with the app in the background. It writes one
 time — each write holds a whole photo as base64 in page memory — while the transfers themselves
 overlap. The fallback does not keep going in the background: it only runs while the app is in front,
 and a PUT cut off by the background, or one stalled past its five-minute timeout, comes back as a
-network failure, which the sequence retries. `runtime/upload/` holds the native sender and the transfer catch-up, each taking
-the bridge it talks through, so neither reaches for `webClient` itself.
+network failure, which the sequence retries. `runtime/upload/` holds the native sender and the
+transfer catch-up, each taking the bridge it talks through, so neither reaches for `webClient` itself:
+the `files` port's shell implementation hands it to them, and makes the sender once per page, on the
+first upload.
 
 The native shell may also have finished transfers while the page was away. The binding catches up
 (`ListFileTransfers` → settle → `AckFileTransfers`) on attach and whenever the app comes back to the
@@ -68,9 +71,11 @@ Opening the panel requests the newest photos (`ListPhotos`); a failed request le
 this time and asks again on the next opening.
 
 The camera entry is a capturing file input in every shell. In a browser the tap opens it directly.
-Inside the app the page first asks for the camera permission (`RequestPermission` `CAMERA`,
+Inside the app the page first asks for the camera permission through the host's `media` port
+(`runtime.media.cameraPermission`, which the phone app answers with `RequestPermission` `CAMERA`;
 `bridge/cameraAccess.ts`): Android's WebView never asks for itself when that input is tapped. Without
-the permission it leaves the camera out and opens nothing, and the page hears nothing back. So:
+the permission it leaves the camera out and opens nothing, and the page hears nothing back. A host
+whose port has no `cameraPermission` opens the input straight away, as a browser does. So:
 
 - **Granted** (already, or at the OS prompt) opens the input when the answer comes back inside the tap
   window (`INPUT_CLICK_WINDOW_MS`), which a grant that was already there does in one bridge round

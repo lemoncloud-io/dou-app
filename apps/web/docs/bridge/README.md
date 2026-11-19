@@ -28,12 +28,13 @@ and the third is the host ports this app's declarations choose (`src/config/`):
 70 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). Code calls `appBridge.openURL(url)`, never `webClient.post({ type:
 'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. Where
-the work belongs to a host port (links, the app's frame, diagnostics), a feature calls the port
-(`runtime.links.openUrl(url)`) and the web's shell implementation of it, in `src/config/adapters/`,
-calls `appBridge` ([host ports](./host-ports.md)). The exceptions are the modules that own a whole
-exchange with its own fallbacks and timeouts — `attachmentPicker`, `audioRecorder` — which call
-`webClient` themselves. Share intake's request, with its long timeout, lives in the `links` port's
-shell implementation (`src/config/adapters/links.ts`); `shareIntake.ts` calls `runtime.links.shareIntake`.
+the work belongs to a host port (media, files, links, the app's frame, sign-in, diagnostics, push), a
+feature calls the port (`runtime.links.openUrl(url)`) and the web's shell implementation of it, in
+`src/config/adapters/`, calls `appBridge` ([host ports](./host-ports.md)). A request with a long
+timeout of its own — the picker's, the video conversion's, share intake's, a file open or save — is
+made there with `webClient`; `attachmentPicker.ts` and `shareIntake.ts` call the port's members. The
+exception is a module that owns a whole exchange with its own fallbacks and timeouts — `audioRecorder` —
+which calls `webClient` itself.
 
 | Pattern                  | Shape                       | When                                                                         |
 | ------------------------ | --------------------------- | ---------------------------------------------------------------------------- |
@@ -56,12 +57,15 @@ of routing through this component.
 
 ## File transfers: `shellUpload`
 
-`shellUpload.ts` picks the PUT an image message uses and owns the one per-page native transfer
-registry behind it: `getShellPut()` returns the native sender where the app moves files (the
-host's `files` port) and the page's own `xhrPut` otherwise, and `syncShellTransfers()` catches up with transfers the shell finished while
-the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
-through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
-from `@chatic/runtime-web`, and the native sender also uses it for a page video or document.
+`shellUpload.ts` hands an image message the PUTs the host's `files` port carries: `getShellPut()` is
+`runtime.files.put` — the app's transfer module where the app moves files, the page's own `xhrPut`
+otherwise — `getShellFilePut()` sends a file the app keeps, and `syncShellTransfers()` catches up with
+transfers the shell finished while the page was away; the last two exist only where the port has a
+transfer module (`transfers`). The one per-page native transfer registry behind them is made in
+`config/adapters/files.ts`, on the first upload. The native sender lives in `runtime/upload/` and
+takes the bridge it talks through as an argument, so that adapter is the only place that hands it
+`webClient`; `xhrPut` comes from `@chatic/runtime-web`, and the native sender also uses it for a page
+video or document.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
 ## Downloads and capabilities: `shellDownload`, `shellCapabilities`
@@ -119,7 +123,8 @@ The handshake is read through `shellCapabilities.supports('OpenSubWebView')`, so
 never asked something it would answer `NOT_FOUND`. A refusal from an app that does have it
 (`NOT_ALLOWED` for a URL off its allowlist, `ALREADY_OPEN`) rejects instead of falling back: it means
 this page asked for something the app will not show, and opening it in the OS browser would hide
-that. `useOnSubWebViewClosed` hears the view close, with its `viewId` and a `reason`: `user`, `host`
+that. `runtime.links.subWebView.onClosed` hears the view close (the mini-app launcher and the debug
+sub-view screen listen), with its `viewId` and a `reason`: `user`, `host`
 (this page called `appBridge.closeSubWebView(viewId)`), `system` (the shell closed it before a deep
 link or a tapped push sends this page an `OnNavigate`), or `page` (the page finished, and `result`
 carries what it handed back). Handle an unknown reason too: an app released later may add one.
@@ -161,12 +166,13 @@ handlers resolve or reject — turning an event pair back into the `Promise` the
 ## Device token registration
 
 Summarised here; the file-level detail is [device-token.md](./device-token.md). Registration policy (auth gating, once-per-install dedup, retry) lives in `@chatic/runtime-core`'s
-`PushRegistration`, which the app starts through `runtime.push`. `useDeviceTokenRegistration.ts` supplies only the three pieces only this shell can:
-the FCM token fetch (`appBridge.fetchFcmToken()`), the platform read off
-`window.CHATIC_APP_PLATFORM`, and a native-side mirror of the registration record
-(`appBridge.fetchPreference` / `savePreferenceConfirmed`) so a WebView storage clear cannot look like
-a fresh install. Outside the native shell `CHATIC_APP_PLATFORM` is unset, the delegate is `null`, and
-the runtime hook is a no-op.
+`PushRegistration`, which the app starts through `runtime.push`. `useDeviceTokenRegistration.ts`
+supplies only the three pieces only this shell can: the token, from the push port's `deviceToken`
+(`runtime.push.deviceToken`, which asks the shell); the platform the shell injected
+(`CHATIC_APP_PLATFORM`, read off `hostProfile().globals`); and a native-side mirror of the
+registration record (`appBridge.fetchPreference` / `savePreferenceConfirmed`) so a WebView storage
+clear cannot look like a fresh install. Where the port has no `deviceToken` (a browser) or no platform
+was injected, the delegate is `null` and the runtime hook is a no-op.
 
 ## Who holds the session: the hello at boot
 

@@ -9,6 +9,8 @@
 > [apps/desktop-web docs/host](../../apps/desktop-web/docs/host/README.md),
 > [libs/runtime-client](../../libs/runtime-client/README.md) and
 > [libs/runtime-web](../../libs/runtime-web/README.md)
+> · Extended by: [ADR-0359](./0359-every-host-port-carries-its-work.md), which moves the four ports this
+> record left carrying only their choice
 > · Builds on: [ADR-0346](./0346-every-app-starts-from-a-declaration-and-its-call-part-sees-only-the-runtime.md)
 > (every app declares its host ports, and its call part reaches them as `runtime.<port>`)
 
